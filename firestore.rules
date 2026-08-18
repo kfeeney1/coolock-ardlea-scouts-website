@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isActiveLeader() {
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
+        ).data.active == true;
+    }
+
+    function isAdmin() {
+      return isActiveLeader()
+        && get(
+          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
+        ).data.role == "admin";
+    }
+
+    match /adminUsers/{userId} {
+      allow read: if isActiveLeader();
+
+      allow update: if isActiveLeader()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "displayName",
+            "mobileNumber",
+            "section"
+          ]);
+
+      allow create: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /leaderRegistrationRequests/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.status == "pending"
+        && request.resource.data.privacyConfirmed == true;
+
+      allow read: if isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid == userId
+        );
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "status",
+            "reviewedAt",
+            "reviewedBy",
+            "reviewNote"
+          ]);
+
+      allow delete: if false;
+    }
+
+    match /joinApplications/{applicationId} {
+      allow create: if
+        request.resource.data.childFirstName is string
+        && request.resource.data.childLastName is string
+        && request.resource.data.parentName is string
+        && request.resource.data.emailAddress is string
+        && request.resource.data.mobileNumber is string
+        && request.resource.data.section is string
+        && request.resource.data.informationConfirmed == true
+        && request.resource.data.contactConsent == true
+        && request.resource.data.status == "new"
+        && request.resource.data.source == "website"
+        && request.resource.data.submittedAt == request.time;
+
+      allow read: if isActiveLeader();
+
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(["status"]);
+
+      allow delete: if false;
+    }
+
+    match /consentApplications/{consentId} {
+      allow create: if
+        request.resource.data.status == "active"
+        && request.resource.data.source == "website"
+        && request.resource.data.submittedAt == request.time;
+
+      allow read: if isActiveLeader();
+
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(["status"]);
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
