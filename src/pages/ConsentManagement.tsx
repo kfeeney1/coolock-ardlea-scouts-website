@@ -1,4 +1,6 @@
-﻿import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+
 import {
     Alert,
     Box,
@@ -10,7 +12,6 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
     FormControl,
     InputLabel,
     MenuItem,
@@ -31,19 +32,16 @@ import {
     useMemo,
     useState
 } from "react";
+
 import {
-    loadConsentAdminRecords,
     daysUntilExpiry,
-    isConsentExpired
+    isConsentExpired,
+    loadConsentAdminRecords
 } from "../services/consentAdmin";
 
 import type {
     ConsentAdminRecord
 } from "../services/consentAdmin";
-
-import {
-    brandColours
-} from "../theme/theme";
 
 type TypeFilter =
     | "all"
@@ -55,6 +53,14 @@ type AlertFilter =
     | "medical"
     | "medication"
     | "expiring"
+    | "expired";
+
+type SummaryFilter =
+    | "total"
+    | "youth"
+    | "scouter"
+    | "medication"
+    | "medical"
     | "expired";
 
 const sections = [
@@ -157,7 +163,10 @@ function displayValue(
     if (
         Array.isArray(value)
     ) {
-        return value.join(", ");
+        return value
+            .map(displayValue)
+            .filter(Boolean)
+            .join(", ");
     }
 
     if (
@@ -184,51 +193,20 @@ function escapeHtml(
     value: string
 ): string {
     return value
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function objectField(
     data: Record<string, unknown>,
     key: string
 ): string {
-    const value = data[key];
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-        return "";
-    }
-
-    if (
-        typeof value === "boolean"
-    ) {
-        return value
-            ? "Yes"
-            : "No";
-    }
-
-    return String(value);
+    return displayValue(
+        data[key]
+    );
 }
 
 function expiryLabel(
@@ -248,9 +226,7 @@ function expiryLabel(
     }
 
     if (days < 0) {
-        return `Expired ${Math.abs(
-            days
-        )} day(s) ago`;
+        return `Expired ${Math.abs(days)} day(s) ago`;
     }
 
     if (days === 0) {
@@ -260,125 +236,33 @@ function expiryLabel(
     return `Expires in ${days} day(s)`;
 }
 
-type InfoValueProps = {
-    value: string;
-};
-
-function InfoValue({
+function MedicationPanel({
     value
-}: InfoValueProps) {
-    if (!value) {
-        return (
-            <Typography
-                color="text.secondary"
-                sx={{
-                    fontStyle: "italic"
-                }}
-            >
-                Not provided
-            </Typography>
-        );
-    }
-
-    return (
-        <Typography
-            sx={{
-                fontWeight: 600,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word"
-            }}
-        >
-            {value}
-        </Typography>
-    );
-}
-
-type SectionHeadingProps = {
-    children: string;
-};
-
-function SectionHeading({
-    children
-}: SectionHeadingProps) {
-    return (
-        <Typography
-            variant="h6"
-            color="secondary"
-            sx={{
-                mb: 1.5,
-                fontWeight: 800
-            }}
-        >
-            {children}
-        </Typography>
-    );
-}
-
-type MedicationRowProps = {
-    label: string;
-    value: string;
-    highlight?: boolean;
-};
-
-function MedicationRow({
-    label,
-    value,
-    highlight = false
-}: MedicationRowProps) {
-    return (
-        <TableRow>
-            <TableCell
-                sx={{
-                    width: "38%",
-                    fontWeight: 700,
-                    color: "secondary.main",
-                    backgroundColor:
-                        highlight
-                            ? brandColours.navyLight
-                            : "background.default"
-                }}
-            >
-                {label}
-            </TableCell>
-
-            <TableCell
-                sx={{
-                    backgroundColor:
-                        highlight
-                            ? brandColours.navyLight
-                            : "background.paper"
-                }}
-            >
-                <InfoValue value={value} />
-            </TableCell>
-        </TableRow>
-    );
-}
-
-type MedicationManagementPanelProps = {
+}: {
     value: Record<string, unknown>;
-};
-
-function MedicationManagementPanel({
-    value
-}: MedicationManagementPanelProps) {
-    const selfAdmin =
-        objectField(
-            value,
-            "selfAdmin"
-        );
-
-    const authFrom =
-        objectField(
-            value,
-            "authFrom"
-        );
-
-    const authTo =
-        objectField(
-            value,
-            "authTo"
-        );
+}) {
+    const rows = [
+        ["Member", objectField(value, "memberName")],
+        ["Date of Birth", formatDateOnly(objectField(value, "dateOfBirth"))],
+        ["Address", objectField(value, "address")],
+        ["Medicine", objectField(value, "medicineName")],
+        ["Dosage", objectField(value, "dosage")],
+        ["Frequency", objectField(value, "frequency")],
+        ["Method", objectField(value, "method")],
+        ["Quantity Supplied", objectField(value, "quantitySupplied")],
+        ["Self Administration", objectField(value, "selfAdmin")],
+        ["Authorised From", formatDateOnly(objectField(value, "authFrom"))],
+        ["Authorised Until", formatDateOnly(objectField(value, "authTo"))],
+        ["Doctor", objectField(value, "doctorName")],
+        ["Doctor Telephone", objectField(value, "doctorTel")],
+        ["Pharmacy", objectField(value, "pharmacyName")],
+        ["Pharmacy Telephone", objectField(value, "pharmacyTel")],
+        ["Scouter 1", objectField(value, "scouter1")],
+        ["Scouter 2", objectField(value, "scouter2")],
+        ["Additional Information", objectField(value, "otherInfo")],
+        ["Signed By", objectField(value, "signature")],
+        ["Signature Date", formatDateOnly(objectField(value, "signatureDate"))]
+    ];
 
     return (
         <Paper
@@ -395,12 +279,9 @@ function MedicationManagementPanel({
         >
             <Box
                 sx={{
-                    px: {
-                        xs: 2.5,
-                        md: 3
-                    },
+                    px: 3,
                     py: 2,
-                    backgroundColor: "#FDECEC",
+                    backgroundColor: "error.50",
                     borderBottom: "1px solid",
                     borderColor: "error.light"
                 }}
@@ -410,8 +291,7 @@ function MedicationManagementPanel({
                     spacing={1}
                     sx={{
                         alignItems: "center",
-                        flexWrap: "wrap",
-                        rowGap: 1
+                        flexWrap: "wrap"
                     }}
                 >
                     <Typography
@@ -423,1531 +303,152 @@ function MedicationManagementPanel({
                     >
                         Medication Management
                     </Typography>
-
                     <Chip
                         label="SIF 20/10"
                         color="error"
                         size="small"
                     />
-
-                    <Chip
-                        label="Required"
-                        color="error"
-                        variant="outlined"
-                        size="small"
-                    />
                 </Stack>
             </Box>
 
-            <Box
-                sx={{
-                    p: {
-                        xs: 2.5,
-                        md: 3
-                    }
-                }}
-            >
-                <SectionHeading>
-                    Member
-                </SectionHeading>
-
-                <TableContainer
-                    component={Paper}
-                    variant="outlined"
-                >
-                    <Table size="small">
-                        <TableBody>
-                            <MedicationRow
-                                label="Name"
-                                value={objectField(
-                                    value,
-                                    "memberName"
-                                )}
-                            />
-
-                            <MedicationRow
-                                label="Date of Birth"
-                                value={formatDateOnly(
-                                    objectField(
-                                        value,
-                                        "dateOfBirth"
-                                    )
-                                )}
-                            />
-
-                            <MedicationRow
-                                label="Address"
-                                value={objectField(
-                                    value,
-                                    "address"
-                                )}
-                            />
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-
-                <Box sx={{ mt: 3.5 }}>
-                    <SectionHeading>
-                        Medication
-                    </SectionHeading>
-
-                    <TableContainer
-                        component={Paper}
-                        variant="outlined"
-                    >
-                        <Table size="small">
-                            <TableBody>
-                                <MedicationRow
-                                    label="Medicine"
-                                    value={objectField(
-                                        value,
-                                        "medicineName"
-                                    )}
-                                    highlight
-                                />
-
-                                <MedicationRow
-                                    label="Dosage"
-                                    value={objectField(
-                                        value,
-                                        "dosage"
-                                    )}
-                                    highlight
-                                />
-
-                                <MedicationRow
-                                    label="Frequency"
-                                    value={objectField(
-                                        value,
-                                        "frequency"
-                                    )}
-                                    highlight
-                                />
-
-                                <MedicationRow
-                                    label="Method"
-                                    value={objectField(
-                                        value,
-                                        "method"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Quantity Supplied"
-                                    value={objectField(
-                                        value,
-                                        "quantitySupplied"
-                                    )}
-                                />
-
-                                <TableRow>
+            <TableContainer>
+                <Table size="small">
+                    <TableBody>
+                        {rows.map(
+                            ([label, valueText]) => (
+                                <TableRow key={label}>
                                     <TableCell
                                         sx={{
                                             width: "38%",
                                             fontWeight: 700,
                                             color: "secondary.main",
-                                            backgroundColor:
-                                                "background.default"
+                                            verticalAlign: "top"
                                         }}
                                     >
-                                        Self Administration
+                                        {label}
                                     </TableCell>
-
                                     <TableCell>
-                                        {selfAdmin ? (
-                                            <Chip
-                                                label={
-                                                    selfAdmin.toUpperCase()
-                                                }
-                                                size="small"
-                                                color={
-                                                    selfAdmin === "Yes"
-                                                        ? "success"
-                                                        : "warning"
-                                                }
-                                            />
-                                        ) : (
-                                            <Typography
-                                                color="text.secondary"
-                                                sx={{
-                                                    fontStyle: "italic"
-                                                }}
-                                            >
-                                                Not provided
-                                            </Typography>
-                                        )}
+                                        {valueText || "Not provided"}
                                     </TableCell>
                                 </TableRow>
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
-
-                <Box
-                    sx={{
-                        mt: 3.5,
-                        p: {
-                            xs: 2,
-                            sm: 2.5
-                        },
-                        borderRadius: 3,
-                        backgroundColor:
-                            brandColours.navyLight,
-                        border: "1px solid",
-                        borderColor:
-                            "secondary.light"
-                    }}
-                >
-                    <Typography
-                        variant="h6"
-                        color="secondary"
-                        sx={{
-                            fontWeight: 800,
-                            mb: 1.5
-                        }}
-                    >
-                        Authorisation
-                    </Typography>
-
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: {
-                                xs: "1fr",
-                                sm: "1fr 1fr"
-                            },
-                            gap: 2
-                        }}
-                    >
-                        <Box>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{
-                                    fontWeight: 700
-                                }}
-                            >
-                                AUTHORISED FROM
-                            </Typography>
-
-                            <InfoValue
-                                value={
-                                    authFrom
-                                        ? formatDateOnly(
-                                              authFrom
-                                          )
-                                        : ""
-                                }
-                            />
-                        </Box>
-
-                        <Box>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{
-                                    fontWeight: 700
-                                }}
-                            >
-                                AUTHORISED UNTIL
-                            </Typography>
-
-                            <InfoValue
-                                value={
-                                    authTo
-                                        ? formatDateOnly(
-                                              authTo
-                                          )
-                                        : ""
-                                }
-                            />
-                        </Box>
-                    </Box>
-                </Box>
-
-                <Box sx={{ mt: 3.5 }}>
-                    <SectionHeading>
-                        Medical Contacts
-                    </SectionHeading>
-
-                    <TableContainer
-                        component={Paper}
-                        variant="outlined"
-                    >
-                        <Table size="small">
-                            <TableBody>
-                                <MedicationRow
-                                    label="Doctor"
-                                    value={objectField(
-                                        value,
-                                        "doctorName"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Doctor Telephone"
-                                    value={objectField(
-                                        value,
-                                        "doctorTel"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Pharmacy"
-                                    value={objectField(
-                                        value,
-                                        "pharmacyName"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Pharmacy Telephone"
-                                    value={objectField(
-                                        value,
-                                        "pharmacyTel"
-                                    )}
-                                />
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
-
-                <Box sx={{ mt: 3.5 }}>
-                    <SectionHeading>
-                        Authorised Scouters
-                    </SectionHeading>
-
-                    <TableContainer
-                        component={Paper}
-                        variant="outlined"
-                    >
-                        <Table size="small">
-                            <TableBody>
-                                <MedicationRow
-                                    label="Scouter 1"
-                                    value={objectField(
-                                        value,
-                                        "scouter1"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Scouter 2"
-                                    value={objectField(
-                                        value,
-                                        "scouter2"
-                                    )}
-                                />
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
-
-                <Box sx={{ mt: 3.5 }}>
-                    <SectionHeading>
-                        Additional Information
-                    </SectionHeading>
-
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            p: 2,
-                            minHeight: 72,
-                            backgroundColor:
-                                "background.default"
-                        }}
-                    >
-                        <InfoValue
-                            value={objectField(
-                                value,
-                                "otherInfo"
-                            )}
-                        />
-                    </Paper>
-                </Box>
-
-                <Box sx={{ mt: 3.5 }}>
-                    <SectionHeading>
-                        Signature
-                    </SectionHeading>
-
-                    <TableContainer
-                        component={Paper}
-                        variant="outlined"
-                    >
-                        <Table size="small">
-                            <TableBody>
-                                <MedicationRow
-                                    label="Signed By"
-                                    value={objectField(
-                                        value,
-                                        "signature"
-                                    )}
-                                />
-
-                                <MedicationRow
-                                    label="Date"
-                                    value={formatDateOnly(
-                                        objectField(
-                                            value,
-                                            "signatureDate"
-                                        )
-                                    )}
-                                />
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Box>
-            </Box>
+                            )
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </Paper>
     );
-}
-
-function buildMedicationPrintHtml(
-    value: Record<string, unknown>
-): string {
-    const row = (
-        label: string,
-        valueText: string
-    ) => `
-        <tr>
-            <th>${escapeHtml(label)}</th>
-            <td>${escapeHtml(
-                valueText ||
-                    "Not provided"
-            )}</td>
-        </tr>
-    `;
-
-    const selfAdmin =
-        objectField(
-            value,
-            "selfAdmin"
-        );
-
-    return `
-        <section class="medication-panel">
-
-            <div class="medication-header">
-                <strong>
-                    Medication Management
-                </strong>
-
-                <span class="badge">
-                    SIF 20/10
-                </span>
-
-                <span class="badge-outline">
-                    Required
-                </span>
-            </div>
-
-            <h3>Member</h3>
-
-            <table>
-                ${row(
-                    "Name",
-                    objectField(
-                        value,
-                        "memberName"
-                    )
-                )}
-
-                ${row(
-                    "Date of Birth",
-                    formatDateOnly(
-                        objectField(
-                            value,
-                            "dateOfBirth"
-                        )
-                    )
-                )}
-
-                ${row(
-                    "Address",
-                    objectField(
-                        value,
-                        "address"
-                    )
-                )}
-            </table>
-
-            <h3>Medication</h3>
-
-            <table>
-                ${row(
-                    "Medicine",
-                    objectField(
-                        value,
-                        "medicineName"
-                    )
-                )}
-
-                ${row(
-                    "Dosage",
-                    objectField(
-                        value,
-                        "dosage"
-                    )
-                )}
-
-                ${row(
-                    "Frequency",
-                    objectField(
-                        value,
-                        "frequency"
-                    )
-                )}
-
-                ${row(
-                    "Method",
-                    objectField(
-                        value,
-                        "method"
-                    )
-                )}
-
-                ${row(
-                    "Quantity Supplied",
-                    objectField(
-                        value,
-                        "quantitySupplied"
-                    )
-                )}
-
-                ${row(
-                    "Self Administration",
-                    selfAdmin
-                )}
-            </table>
-
-            <div class="authorisation-strip">
-
-                <div>
-                    <span>
-                        Authorised From
-                    </span>
-
-                    <strong>
-                        ${escapeHtml(
-                            formatDateOnly(
-                                objectField(
-                                    value,
-                                    "authFrom"
-                                )
-                            )
-                        )}
-                    </strong>
-                </div>
-
-                <div>
-                    <span>
-                        Authorised Until
-                    </span>
-
-                    <strong>
-                        ${escapeHtml(
-                            formatDateOnly(
-                                objectField(
-                                    value,
-                                    "authTo"
-                                )
-                            )
-                        )}
-                    </strong>
-                </div>
-
-            </div>
-
-            <h3>Medical Contacts</h3>
-
-            <table>
-                ${row(
-                    "Doctor",
-                    objectField(
-                        value,
-                        "doctorName"
-                    )
-                )}
-
-                ${row(
-                    "Doctor Telephone",
-                    objectField(
-                        value,
-                        "doctorTel"
-                    )
-                )}
-
-                ${row(
-                    "Pharmacy",
-                    objectField(
-                        value,
-                        "pharmacyName"
-                    )
-                )}
-
-                ${row(
-                    "Pharmacy Telephone",
-                    objectField(
-                        value,
-                        "pharmacyTel"
-                    )
-                )}
-            </table>
-
-            <h3>Authorised Scouters</h3>
-
-            <table>
-                ${row(
-                    "Scouter 1",
-                    objectField(
-                        value,
-                        "scouter1"
-                    )
-                )}
-
-                ${row(
-                    "Scouter 2",
-                    objectField(
-                        value,
-                        "scouter2"
-                    )
-                )}
-            </table>
-
-            <h3>Additional Information</h3>
-
-            <div class="additional-info">
-                ${escapeHtml(
-                    objectField(
-                        value,
-                        "otherInfo"
-                    ) ||
-                        "Not provided"
-                )}
-            </div>
-
-            <h3>Signature</h3>
-
-            <table>
-                ${row(
-                    "Signed By",
-                    objectField(
-                        value,
-                        "signature"
-                    )
-                )}
-
-                ${row(
-                    "Date",
-                    formatDateOnly(
-                        objectField(
-                            value,
-                            "signatureDate"
-                        )
-                    )
-                )}
-            </table>
-
-        </section>
-    `;
-}
-
-function buildPrintRows(
-    record: ConsentAdminRecord
-): string {
-    return Object.entries(
-        record.data
-    )
-        .filter(
-            ([key]) =>
-                key !== "submittedAt" &&
-                key !==
-                    "authorisedScouters" &&
-                key !==
-                    "medicationManagement"
-        )
-        .map(
-            ([key, value]) => {
-                const text =
-                    displayValue(
-                        value
-                    );
-
-                if (!text) {
-                    return "";
-                }
-
-                return `
-                    <tr>
-                        <th>
-                            ${escapeHtml(
-                                formatFieldName(
-                                    key
-                                )
-                            )}
-                        </th>
-
-                        <td>
-                            <div class="value">
-                                ${escapeHtml(
-                                    text
-                                )}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }
-        )
-        .join("");
 }
 
 function printRecord(
     record: ConsentAdminRecord
 ) {
-    const printWindow =
-        window.open(
-            "",
-            "_blank",
-            "width=1000,height=800"
-        );
+    const printWindow = window.open(
+        "",
+        "_blank",
+        "width=1000,height=800"
+    );
 
     if (!printWindow) {
         window.alert(
             "The print window was blocked by your browser. Please allow pop-ups for this site and try again."
         );
-
         return;
     }
 
-    const memberName =
-        escapeHtml(
-            record.memberName ||
-                "Consent Record"
-        );
-
-    const section =
-        escapeHtml(
-            record.section ||
-                "Unknown section"
-        );
-
-    const submitted =
-        escapeHtml(
-            formatDate(
-                record.submittedAt
-            )
-        );
-
-    const status =
-        escapeHtml(
-            record.status
-        );
-
-    const consentFrom =
-        escapeHtml(
-            record.consentFrom
-                ? formatDateOnly(
-                      record.consentFrom
-                  )
-                : "Not specified"
-        );
-
-    const consentTo =
-        escapeHtml(
-            record.consentTo
-                ? formatDateOnly(
-                      record.consentTo
-                  )
-                : "Not specified"
-        );
-
-    const expiry =
-        escapeHtml(
-            expiryLabel(
-                record
-            )
-        );
-
-    const rows =
-        buildPrintRows(
-            record
-        );
-
-    const medication =
+    const rows = Object.entries(
         record.data
-            .medicationManagement;
-
-    const medicationHtml =
-        medication &&
-        typeof medication ===
-            "object" &&
-        !Array.isArray(
-            medication
-        ) &&
-        record.hasMedicationManagement
-            ? buildMedicationPrintHtml(
-                  medication as Record<
-                      string,
-                      unknown
-                  >
-              )
-            : "";
-
-    const medicalWarning =
-        record.hasMedicalAlert
-            ? `
-                <div class="warning">
-                    <strong>
-                        Medical information recorded
-                    </strong>
-                    <br />
-                    Review the medical information in this
-                    consent record before relevant activities.
-                </div>
-            `
-            : "";
-
-    const medicationWarning =
-        record.hasMedicationManagement
-            ? `
-                <div class="danger">
-                    <strong>
-                        Medication Management Required
-                    </strong>
-                    <br />
-                    A Managing Medications SIF 20/10
-                    record is attached to this consent.
-                </div>
-            `
-            : "";
-
-    const html = `
-        <!doctype html>
-
-        <html lang="en">
-
-        <head>
-
-            <meta charset="utf-8" />
-
-            <title>
-                ${memberName} - Consent Record
-            </title>
-
-            <style>
-
-                * {
-                    box-sizing:
-                        border-box;
-                }
-
-                body {
-                    font-family:
-                        Arial,
-                        Helvetica,
-                        sans-serif;
-
-                    margin: 0;
-
-                    padding: 32px;
-
-                    color: #1f2937;
-
-                    background:
-                        white;
-                }
-
-                .header {
-                    border-bottom:
-                        5px solid #F52D45;
-
-                    padding-bottom:
-                        18px;
-
-                    margin-bottom:
-                        24px;
-                }
-
-                h1 {
-                    margin: 0;
-
-                    color: #081E67;
-
-                    font-size:
-                        30px;
-                }
-
-                h2 {
-                    margin:
-                        8px 0 0 0;
-
-                    font-size:
-                        20px;
-
-                    color:
-                        #081E67;
-                }
-
-                h3 {
-                    color:
-                        #081E67;
-
-                    margin:
-                        24px 0 8px;
-                }
-
-                .group-name {
-                    margin-top:
-                        6px;
-
-                    color:
-                        #555;
-                }
-
-                .summary {
-                    display:
-                        grid;
-
-                    grid-template-columns:
-                        1fr 1fr;
-
-                    gap: 10px;
-
-                    margin-bottom:
-                        24px;
-
-                    padding:
-                        16px;
-
-                    background:
-                        #F8F9FA;
-
-                    border:
-                        1px solid #ddd;
-
-                    border-radius:
-                        8px;
-                }
-
-                .summary-item {
-                    font-size:
-                        14px;
-                }
-
-                .summary-label {
-                    display:
-                        block;
-
-                    font-size:
-                        11px;
-
-                    font-weight:
-                        bold;
-
-                    text-transform:
-                        uppercase;
-
-                    color:
-                        #6b7280;
-
-                    margin-bottom:
-                        3px;
-                }
-
-                .warning {
-                    padding:
-                        14px;
-
-                    margin-bottom:
-                        16px;
-
-                    background:
-                        #fff8e1;
-
-                    border-left:
-                        5px solid #ed6c02;
-
-                    page-break-inside:
-                        avoid;
-                }
-
-                .danger {
-                    padding:
-                        14px;
-
-                    margin-bottom:
-                        16px;
-
-                    background:
-                        #fdecec;
-
-                    border-left:
-                        5px solid #d32f2f;
-
-                    page-break-inside:
-                        avoid;
-                }
-
-                table {
-                    width:
-                        100%;
-
-                    border-collapse:
-                        collapse;
-
-                    font-size:
-                        13px;
-                }
-
-                tr {
-                    page-break-inside:
-                        avoid;
-                }
-
-                th,
-                td {
-                    border:
-                        1px solid #d1d5db;
-
-                    padding:
-                        10px;
-
-                    text-align:
-                        left;
-
-                    vertical-align:
-                        top;
-                }
-
-                th {
-                    width:
-                        34%;
-
-                    background:
-                        #EEF1FA;
-
-                    color:
-                        #081E67;
-                }
-
-                td {
-                    background:
-                        white;
-                }
-
-                .value {
-                    white-space:
-                        pre-wrap;
-
-                    word-break:
-                        break-word;
-                }
-
-                .medication-panel {
-                    margin-top:
-                        28px;
-
-                    border:
-                        2px solid #d32f2f;
-
-                    border-radius:
-                        8px;
-
-                    overflow:
-                        hidden;
-
-                    padding-bottom:
-                        18px;
-
-                    page-break-inside:
-                        avoid;
-                }
-
-                .medication-header {
-                    padding:
-                        14px 16px;
-
-                    background:
-                        #fdecec;
-
-                    color:
-                        #b71c1c;
-
-                    font-size:
-                        20px;
-                }
-
-                .badge,
-                .badge-outline {
-                    display:
-                        inline-block;
-
-                    margin-left:
-                        8px;
-
-                    padding:
-                        3px 8px;
-
-                    border-radius:
-                        12px;
-
-                    font-size:
-                        11px;
-
-                    vertical-align:
-                        middle;
-                }
-
-                .badge {
-                    background:
-                        #d32f2f;
-
-                    color:
-                        white;
-                }
-
-                .badge-outline {
-                    border:
-                        1px solid #d32f2f;
-
-                    color:
-                        #d32f2f;
-
-                    background:
-                        white;
-                }
-
-                .medication-panel h3,
-                .medication-panel table,
-                .medication-panel .additional-info {
-                    margin-left:
-                        16px;
-
-                    margin-right:
-                        16px;
-                }
-
-                .authorisation-strip {
-                    display:
-                        grid;
-
-                    grid-template-columns:
-                        1fr 1fr;
-
-                    gap:
-                        18px;
-
-                    margin:
-                        24px 16px;
-
-                    padding:
-                        16px;
-
-                    background:
-                        #EEF1FA;
-
-                    border:
-                        1px solid #cfd8ea;
-
-                    border-radius:
-                        8px;
-                }
-
-                .authorisation-strip span {
-                    display:
-                        block;
-
-                    font-size:
-                        10px;
-
-                    font-weight:
-                        bold;
-
-                    color:
-                        #6b7280;
-
-                    text-transform:
-                        uppercase;
-
-                    margin-bottom:
-                        4px;
-                }
-
-                .additional-info {
-                    border:
-                        1px solid #d1d5db;
-
-                    padding:
-                        12px;
-
-                    white-space:
-                        pre-wrap;
-
-                    word-break:
-                        break-word;
-                }
-
-                .footer {
-                    margin-top:
-                        24px;
-
-                    padding-top:
-                        12px;
-
-                    border-top:
-                        1px solid #ddd;
-
-                    font-size:
-                        11px;
-
-                    color:
-                        #666;
-                }
-
-                .print-controls {
-                    margin-bottom:
-                        24px;
-                }
-
-                .print-button {
-                    border: 0;
-
-                    border-radius:
-                        20px;
-
-                    padding:
-                        10px 22px;
-
-                    background:
-                        #00B050;
-
-                    color:
-                        white;
-
-                    font-size:
-                        14px;
-
-                    font-weight:
-                        bold;
-
-                    cursor:
-                        pointer;
-                }
-
-                .close-button {
-                    border:
-                        1px solid #081E67;
-
-                    border-radius:
-                        20px;
-
-                    padding:
-                        9px 22px;
-
-                    margin-left:
-                        10px;
-
-                    background:
-                        white;
-
-                    color:
-                        #081E67;
-
-                    font-size:
-                        14px;
-
-                    font-weight:
-                        bold;
-
-                    cursor:
-                        pointer;
-                }
-
-                @media print {
-
-                    body {
-                        padding:
-                            0;
-                    }
-
-                    .print-controls {
-                        display:
-                            none;
-                    }
-
-                    .summary {
-                        background:
-                            white;
-                    }
-
-                    @page {
-                        margin:
-                            15mm;
-                    }
-
-                }
-
-            </style>
-
-        </head>
-
-        <body>
-
-            <div class="print-controls">
-
-                <button
-                    class="print-button"
-                    onclick="window.print()"
-                >
-                    Print / Save as PDF
-                </button>
-
-                <button
-                    class="close-button"
-                    onclick="window.close()"
-                >
-                    Close
-                </button>
-
-            </div>
-
-            <div class="header">
-
-                <h1>
-                    Consent Record
-                </h1>
-
-                <h2>
-                    ${memberName}
-                </h2>
-
-                <div class="group-name">
-                    80th 160th Coolock Ardlea Scout Group
-                </div>
-
-            </div>
-
-            <div class="summary">
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Member
-                    </span>
-
-                    ${memberName}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Section
-                    </span>
-
-                    ${section}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Status
-                    </span>
-
-                    ${status}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Submitted
-                    </span>
-
-                    ${submitted}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Consent From
-                    </span>
-
-                    ${consentFrom}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Consent To
-                    </span>
-
-                    ${consentTo}
-
-                </div>
-
-                <div class="summary-item">
-
-                    <span class="summary-label">
-                        Expiry
-                    </span>
-
-                    ${expiry}
-
-                </div>
-
-            </div>
-
-            ${medicalWarning}
-
-            ${medicationWarning}
-
-            <table>
-
-                <tbody>
-                    ${rows}
-                </tbody>
-
-            </table>
-
-            ${medicationHtml}
-
-            <div class="footer">
-
-                Generated from the
-                80th 160th Coolock Ardlea Scout Group
-                Leader Portal.
-
-                <br />
-
-                This document may contain confidential
-                personal and medical information.
-
-            </div>
-
-        </body>
-
-        </html>
-    `;
+    )
+        .filter(
+            ([key]) =>
+                key !== "submittedAt"
+        )
+        .map(
+            ([key, value]) => {
+                const text = displayValue(value);
+                if (!text) return "";
+                return `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>`;
+            }
+        )
+        .join("");
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(record.memberName || "Consent Record")} - Consent Record</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:32px;color:#1f2937;background:white}
+h1,h2{color:#081E67}h1{border-bottom:5px solid #F52D45;padding-bottom:14px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;background:#f8f9fa;border:1px solid #ddd;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #d1d5db;padding:10px;text-align:left;vertical-align:top}th{width:34%;background:#EEF1FA;color:#081E67}pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.controls{margin-bottom:20px}button{padding:10px 18px;margin-right:10px;cursor:pointer}@media print{.controls{display:none}body{padding:0}@page{margin:15mm}}
+</style>
+</head>
+<body>
+<div class="controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>
+<h1>Consent Record</h1>
+<h2>${escapeHtml(record.memberName || "Unknown member")}</h2>
+<div class="summary">
+<div><strong>Section:</strong> ${escapeHtml(record.section || "Not provided")}</div>
+<div><strong>Type:</strong> ${escapeHtml(record.type === "youth" ? "Youth" : "Scouter ES3")}</div>
+<div><strong>Submitted:</strong> ${escapeHtml(formatDate(record.submittedAt))}</div>
+<div><strong>Expiry:</strong> ${escapeHtml(expiryLabel(record))}</div>
+</div>
+<table><tbody>${rows}</tbody></table>
+</body>
+</html>`;
 
     printWindow.document.open();
-
-    printWindow.document.write(
-        html
-    );
-
+    printWindow.document.write(html);
     printWindow.document.close();
 
     window.setTimeout(
         () => {
-            try {
-                printWindow.focus();
-                printWindow.print();
-            } catch (
-                printError
-            ) {
-                console.error(
-                    "Unable to open print dialog:",
-                    printError
-                );
-            }
+            printWindow.focus();
+            printWindow.print();
         },
         500
     );
 }
 
 export default function ConsentManagement() {
-    const [
-        records,
-        setRecords
-    ] =
-        useState<ConsentAdminRecord[]>(
-            []
-        );
-
-    const [
-        loading,
-        setLoading
-    ] =
+    const [records, setRecords] =
+        useState<ConsentAdminRecord[]>([]);
+    const [loading, setLoading] =
         useState(true);
-
-    const [
-        error,
-        setError
-    ] =
+    const [error, setError] =
         useState("");
-
-    const [
-        search,
-        setSearch
-    ] =
+    const [search, setSearch] =
         useState("");
-
-    const [
-        typeFilter,
-        setTypeFilter
-    ] =
-        useState<TypeFilter>(
-            "all"
-        );
-
-    const [
-        sectionFilter,
-        setSectionFilter
-    ] =
+    const [typeFilter, setTypeFilter] =
+        useState<TypeFilter>("all");
+    const [sectionFilter, setSectionFilter] =
         useState("all");
+    const [alertFilter, setAlertFilter] =
+        useState<AlertFilter>("all");
+    const [selected, setSelected] =
+        useState<ConsentAdminRecord | null>(null);
 
-    const [
-        alertFilter,
-        setAlertFilter
-    ] =
-        useState<AlertFilter>(
-            "all"
-        );
+    const load = async () => {
+        setLoading(true);
+        setError("");
 
-    const [
-        selected,
-        setSelected
-    ] =
-        useState<
-            ConsentAdminRecord | null
-        >(
-            null
-        );
-
-    const load =
-        async () => {
-            setLoading(
-                true
+        try {
+            setRecords(
+                await loadConsentAdminRecords()
             );
-
-            setError("");
-
-            try {
-                setRecords(
-                    await loadConsentAdminRecords()
-                );
-            } catch (
+        } catch (loadError) {
+            console.error(
+                "Unable to load consent management records:",
                 loadError
-            ) {
-                console.error(
-                    "Unable to load consent management records:",
-                    loadError
-                );
-
-                setError(
-                    "Unable to load consent records."
-                );
-            } finally {
-                setLoading(
-                    false
-                );
-            }
-        };
+            );
+            setError(
+                "Unable to load consent records."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(
         () => {
@@ -1956,349 +457,318 @@ export default function ConsentManagement() {
         []
     );
 
-    const filteredRecords =
-        useMemo(
-            () =>
-                records.filter(
-                    (
-                        record
-                    ) => {
-                        if (
-                            typeFilter !==
-                                "all" &&
-                            record.type !==
-                                typeFilter
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            sectionFilter !==
-                                "all" &&
-                            record.section !==
-                                sectionFilter
-                        ) {
-                            return false;
-                        }
-
-                        const days =
-                            daysUntilExpiry(
-                                record.consentTo
-                            );
-
-                        if (
-                            alertFilter ===
-                                "medical" &&
-                            !record.hasMedicalAlert
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            alertFilter ===
-                                "medication" &&
-                            !record.hasMedicationManagement
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            alertFilter ===
-                                "expired" &&
-                            !isConsentExpired(
-                                record.consentTo
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        if (
-                            alertFilter ===
-                                "expiring" &&
-                            !(
-                                days !==
-                                    null &&
-                                days >=
-                                    0 &&
-                                days <=
-                                    30
-                            )
-                        ) {
-                            return false;
-                        }
-
-                        const queryText =
-                            search
-                                .trim()
-                                .toLowerCase();
-
-                        if (
-                            !queryText
-                        ) {
-                            return true;
-                        }
-
-                        return [
-                            record.memberName,
-                            record.section,
-                            record.status,
-                            JSON.stringify(
-                                record.data
-                            )
-                        ]
-                            .join(
-                                " "
-                            )
-                            .toLowerCase()
-                            .includes(
-                                queryText
-                            );
+    const filteredRecords = useMemo(
+        () =>
+            records.filter(
+                (record) => {
+                    if (
+                        typeFilter !== "all" &&
+                        record.type !== typeFilter
+                    ) {
+                        return false;
                     }
-                ),
-            [
-                records,
-                typeFilter,
-                sectionFilter,
-                alertFilter,
-                search
-            ]
-        );
 
-    const totals =
-        useMemo(
-            () => ({
-                total:
-                    records.length,
+                    if (
+                        sectionFilter !== "all" &&
+                        record.section !== sectionFilter
+                    ) {
+                        return false;
+                    }
 
-                youth:
-                    records.filter(
-                        (
-                            record
-                        ) =>
-                            record.type ===
-                            "youth"
-                    ).length,
+                    const days = daysUntilExpiry(
+                        record.consentTo
+                    );
 
-                scouter:
-                    records.filter(
-                        (
-                            record
-                        ) =>
-                            record.type ===
-                            "scouter"
-                    ).length,
+                    if (
+                        alertFilter === "medical" &&
+                        !record.hasMedicalAlert
+                    ) {
+                        return false;
+                    }
 
-                medication:
-                    records.filter(
-                        (
-                            record
-                        ) =>
-                            record.hasMedicationManagement
-                    ).length,
+                    if (
+                        alertFilter === "medication" &&
+                        !record.hasMedicationManagement
+                    ) {
+                        return false;
+                    }
 
-                medical:
-                    records.filter(
-                        (
-                            record
-                        ) =>
-                            record.hasMedicalAlert
-                    ).length,
+                    if (
+                        alertFilter === "expired" &&
+                        !isConsentExpired(record.consentTo)
+                    ) {
+                        return false;
+                    }
 
-                expired:
-                    records.filter(
-                        (
-                            record
-                        ) =>
-                            isConsentExpired(
-                                record.consentTo
-                            )
-                    ).length
-            }),
-            [
-                records
-            ]
-        );
+                    if (
+                        alertFilter === "expiring" &&
+                        !(
+                            days !== null &&
+                            days >= 0 &&
+                            days <= 30
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    const queryText =
+                        search
+                            .trim()
+                            .toLowerCase();
+
+                    if (!queryText) {
+                        return true;
+                    }
+
+                    return [
+                        record.memberName,
+                        record.section,
+                        record.status,
+                        JSON.stringify(record.data)
+                    ]
+                        .join(" ")
+                        .toLowerCase()
+                        .includes(queryText);
+                }
+            ),
+        [
+            records,
+            typeFilter,
+            sectionFilter,
+            alertFilter,
+            search
+        ]
+    );
+
+    const totals = useMemo(
+        () => ({
+            total: records.length,
+            youth:
+                records.filter(
+                    (record) =>
+                        record.type === "youth"
+                ).length,
+            scouter:
+                records.filter(
+                    (record) =>
+                        record.type === "scouter"
+                ).length,
+            medication:
+                records.filter(
+                    (record) =>
+                        record.hasMedicationManagement
+                ).length,
+            medical:
+                records.filter(
+                    (record) =>
+                        record.hasMedicalAlert
+                ).length,
+            expired:
+                records.filter(
+                    (record) =>
+                        isConsentExpired(
+                            record.consentTo
+                        )
+                ).length
+        }),
+        [records]
+    );
+
+    const activeSummaryFilter: SummaryFilter | "" = (() => {
+        if (
+            typeFilter === "youth" &&
+            alertFilter === "all"
+        ) {
+            return "youth";
+        }
+
+        if (
+            typeFilter === "scouter" &&
+            alertFilter === "all"
+        ) {
+            return "scouter";
+        }
+
+        if (
+            typeFilter === "all" &&
+            alertFilter === "medication"
+        ) {
+            return "medication";
+        }
+
+        if (
+            typeFilter === "all" &&
+            alertFilter === "medical"
+        ) {
+            return "medical";
+        }
+
+        if (
+            typeFilter === "all" &&
+            alertFilter === "expired"
+        ) {
+            return "expired";
+        }
+
+        if (
+            typeFilter === "all" &&
+            alertFilter === "all"
+        ) {
+            return "total";
+        }
+
+        return "";
+    })();
+
+    const applySummaryFilter = (
+        filter: SummaryFilter
+    ) => {
+        if (filter === "youth") {
+            setTypeFilter("youth");
+            setAlertFilter("all");
+            return;
+        }
+
+        if (filter === "scouter") {
+            setTypeFilter("scouter");
+            setAlertFilter("all");
+            return;
+        }
+
+        setTypeFilter("all");
+
+        if (filter === "medication") {
+            setAlertFilter("medication");
+        } else if (filter === "medical") {
+            setAlertFilter("medical");
+        } else if (filter === "expired") {
+            setAlertFilter("expired");
+        } else {
+            setAlertFilter("all");
+        }
+    };
+
+    const summaryCards: Array<[
+        string,
+        number,
+        SummaryFilter
+    ]> = [
+        ["Total", totals.total, "total"],
+        ["Youth", totals.youth, "youth"],
+        ["Scouters", totals.scouter, "scouter"],
+        ["Medication", totals.medication, "medication"],
+        ["Medical Alerts", totals.medical, "medical"],
+        ["Expired", totals.expired, "expired"]
+    ];
 
     return (
         <Box
             sx={{
-                minHeight:
-                    "100vh",
-
-                backgroundColor:
-                    "background.default",
-
+                minHeight: "100vh",
+                backgroundColor: "background.default",
                 py: {
                     xs: 4,
                     md: 6
                 }
             }}
         >
-            <Container
-                maxWidth="xl"
-            >
+            <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-<Paper
-                    elevation={2}
-                    sx={{
-                        p: {
-                            xs: 2.5,
-                            md: 3
-                        },
-                        mb: 3,
-                        borderRadius: 2,
-                        borderLeft: "5px solid",
-                        borderLeftColor: "secondary.main"
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display:
-                                "flex",
 
-                            flexDirection:
-                                {
-                                    xs: "column",
-                                    md: "row"
-                                },
-
-                            justifyContent:
-                                "space-between",
-
-                            alignItems:
-                                {
-                                    xs: "stretch",
-                                    md: "center"
-                                },
-
-                            gap: 2
-                        }}
-                    >
-                        <Box>
-                            <Typography
-                        variant="h4"
-                        color="secondary"
-                        sx={{
-                            fontWeight: 800
-                        }}
-                    >
-                        Consent Management
-                    </Typography>
-
-                            <Typography
-                                color="text.secondary"
-                                sx={{
-                                    mt: 0.5
-                                }}
-                            >
-                                Youth consent,
-                                Scouter ES3 and
-                                medication
-                                information.
-                            </Typography>
-                        </Box>
-
-                        <Stack
-                            direction={{
-                                xs: "column",
-                                sm: "row"
-                            }}
-                            spacing={
-                                1.5
+                <LeaderPageHeader
+                    title="Consent Management"
+                    description="Youth consent, Scouter ES3 and medication information."
+                    actions={
+                        <Button
+                            variant="contained"
+                            color="success"
+                            onClick={() =>
+                                void load()
                             }
                         >
-<Button
-                                variant="contained"
-                                color="success"
-                                onClick={() =>
-                                    void load()
-                                }
-                            >
-                                Refresh
-                            </Button>
-                        </Stack>
-                    </Box>
-                </Paper>
+                            Refresh
+                        </Button>
+                    }
+                />
 
                 <Box
                     sx={{
-                        display:
-                            "grid",
-
-                        gridTemplateColumns:
-                            {
-                                xs: "1fr 1fr",
-                                md: "repeat(6, 1fr)"
-                            },
-
+                        display: "grid",
+                        gridTemplateColumns: {
+                            xs: "1fr 1fr",
+                            md: "repeat(6, 1fr)"
+                        },
                         gap: 2,
-
                         mb: 3
                     }}
                 >
-                    {[
-                        [
-                            "Total",
-                            totals.total
-                        ],
-                        [
-                            "Youth",
-                            totals.youth
-                        ],
-                        [
-                            "Scouters",
-                            totals.scouter
-                        ],
-                        [
-                            "Medication",
-                            totals.medication
-                        ],
-                        [
-                            "Medical Alerts",
-                            totals.medical
-                        ],
-                        [
-                            "Expired",
-                            totals.expired
-                        ]
-                    ].map(
-                        ([
-                            label,
-                            value
-                        ]) => (
-                            <Paper
-                                key={
-                                    String(
-                                        label
-                                    )
-                                }
-                                variant="outlined"
-                                sx={{
-                                    p: 2.5,
+                    {summaryCards.map(
+                        ([label, value, filter]) => {
+                            const active =
+                                activeSummaryFilter === filter;
 
-                                    textAlign:
-                                        "center"
-                                }}
-                            >
-                                <Typography
-                                    variant="h4"
-                                    color="secondary"
-                                >
-                                    {
-                                        value
+                            return (
+                                <Paper
+                                    key={filter}
+                                    variant="outlined"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() =>
+                                        applySummaryFilter(filter)
                                     }
-                                </Typography>
-
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key === "Enter" ||
+                                            event.key === " "
+                                        ) {
+                                            event.preventDefault();
+                                            applySummaryFilter(filter);
+                                        }
+                                    }}
+                                    sx={{
+                                        p: 2.5,
+                                        textAlign: "center",
+                                        cursor: "pointer",
+                                        userSelect: "none",
+                                        borderWidth: active
+                                            ? 2
+                                            : 1,
+                                        borderColor: active
+                                            ? filter === "expired" ||
+                                              filter === "medication"
+                                                ? "error.main"
+                                                : filter === "medical"
+                                                  ? "warning.main"
+                                                  : "secondary.main"
+                                            : "divider",
+                                        transition:
+                                            "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                                        "&:hover": {
+                                            transform: "translateY(-2px)",
+                                            boxShadow: 3
+                                        },
+                                        "&:focus-visible": {
+                                            outline: "3px solid",
+                                            outlineColor: "primary.main",
+                                            outlineOffset: "2px"
+                                        }
+                                    }}
                                 >
-                                    {
-                                        label
-                                    }
-                                </Typography>
-                            </Paper>
-                        )
+                                    <Typography
+                                        variant="h4"
+                                        color="secondary"
+                                    >
+                                        {value}
+                                    </Typography>
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                    >
+                                        {label}
+                                    </Typography>
+                                </Paper>
+                            );
+                        }
                     )}
                 </Box>
 
@@ -2311,30 +781,20 @@ export default function ConsentManagement() {
                 >
                     <Box
                         sx={{
-                            display:
-                                "grid",
-
-                            gridTemplateColumns:
-                                {
-                                    xs: "1fr",
-                                    md: "2fr 1fr 1fr 1fr"
-                                },
-
+                            display: "grid",
+                            gridTemplateColumns: {
+                                xs: "1fr",
+                                md: "2fr 1fr 1fr 1fr"
+                            },
                             gap: 2
                         }}
                     >
                         <TextField
                             label="Search consent records"
-                            value={
-                                search
-                            }
-                            onChange={(
-                                event
-                            ) =>
+                            value={search}
+                            onChange={(event) =>
                                 setSearch(
-                                    event
-                                        .target
-                                        .value
+                                    event.target.value
                                 )
                             }
                             placeholder="Name, section, medical information..."
@@ -2344,37 +804,22 @@ export default function ConsentManagement() {
                             <InputLabel>
                                 Form type
                             </InputLabel>
-
                             <Select
                                 label="Form type"
-                                value={
-                                    typeFilter
-                                }
-                                onChange={(
-                                    event
-                                ) =>
+                                value={typeFilter}
+                                onChange={(event) =>
                                     setTypeFilter(
-                                        event
-                                            .target
-                                            .value as TypeFilter
+                                        event.target.value as TypeFilter
                                     )
                                 }
                             >
-                                <MenuItem
-                                    value="all"
-                                >
+                                <MenuItem value="all">
                                     All
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="youth"
-                                >
+                                <MenuItem value="youth">
                                     Youth
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="scouter"
-                                >
+                                <MenuItem value="scouter">
                                     Scouter ES3
                                 </MenuItem>
                             </Select>
@@ -2384,36 +829,22 @@ export default function ConsentManagement() {
                             <InputLabel>
                                 Section
                             </InputLabel>
-
                             <Select
                                 label="Section"
-                                value={
-                                    sectionFilter
-                                }
-                                onChange={(
-                                    event
-                                ) =>
+                                value={sectionFilter}
+                                onChange={(event) =>
                                     setSectionFilter(
-                                        event
-                                            .target
-                                            .value
+                                        event.target.value
                                     )
                                 }
                             >
                                 {sections.map(
-                                    (
-                                        section
-                                    ) => (
+                                    (section) => (
                                         <MenuItem
-                                            key={
-                                                section
-                                            }
-                                            value={
-                                                section
-                                            }
+                                            key={section}
+                                            value={section}
                                         >
-                                            {section ===
-                                            "all"
+                                            {section === "all"
                                                 ? "All sections"
                                                 : section}
                                         </MenuItem>
@@ -2426,51 +857,28 @@ export default function ConsentManagement() {
                             <InputLabel>
                                 Attention
                             </InputLabel>
-
                             <Select
                                 label="Attention"
-                                value={
-                                    alertFilter
-                                }
-                                onChange={(
-                                    event
-                                ) =>
+                                value={alertFilter}
+                                onChange={(event) =>
                                     setAlertFilter(
-                                        event
-                                            .target
-                                            .value as AlertFilter
+                                        event.target.value as AlertFilter
                                     )
                                 }
                             >
-                                <MenuItem
-                                    value="all"
-                                >
+                                <MenuItem value="all">
                                     All
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="medical"
-                                >
+                                <MenuItem value="medical">
                                     Medical alerts
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="medication"
-                                >
-                                    Medication
-                                    management
+                                <MenuItem value="medication">
+                                    Medication management
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="expiring"
-                                >
-                                    Expires in
-                                    30 days
+                                <MenuItem value="expiring">
+                                    Expires in 30 days
                                 </MenuItem>
-
-                                <MenuItem
-                                    value="expired"
-                                >
+                                <MenuItem value="expired">
                                     Expired
                                 </MenuItem>
                             </Select>
@@ -2481,9 +889,7 @@ export default function ConsentManagement() {
                 {error && (
                     <Alert
                         severity="error"
-                        sx={{
-                            mb: 3
-                        }}
+                        sx={{ mb: 3 }}
                     >
                         {error}
                     </Alert>
@@ -2492,150 +898,103 @@ export default function ConsentManagement() {
                 {loading ? (
                     <Box
                         sx={{
-                            minHeight:
-                                300,
-
-                            display:
-                                "flex",
-
-                            justifyContent:
-                                "center",
-
-                            alignItems:
-                                "center"
+                            minHeight: 300,
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center"
                         }}
                     >
-                        <CircularProgress
-                            color="success"
-                        />
+                        <CircularProgress color="success" />
                     </Box>
                 ) : (
                     <Box
                         sx={{
-                            display:
-                                "grid",
-
+                            display: "grid",
                             gap: 2
                         }}
                     >
-                        {filteredRecords.length ===
-                            0 && (
-                            <Alert
-                                severity="info"
-                            >
-                                No consent
-                                records match
-                                the current
-                                filters.
+                        {filteredRecords.length === 0 && (
+                            <Alert severity="info">
+                                No consent records match the current filters.
                             </Alert>
                         )}
 
                         {filteredRecords.map(
-                            (
-                                record
-                            ) => {
+                            (record) => {
                                 const expired =
                                     isConsentExpired(
-                                        record
-                                            .consentTo
+                                        record.consentTo
                                     );
-
                                 const days =
                                     daysUntilExpiry(
-                                        record
-                                            .consentTo
+                                        record.consentTo
                                     );
-
                                 const expiringSoon =
-                                    days !==
-                                        null &&
-                                    days >=
-                                        0 &&
-                                    days <=
-                                        30;
+                                    days !== null &&
+                                    days >= 0 &&
+                                    days <= 30;
 
                                 return (
                                     <Paper
-                                        key={
-                                            record.id
-                                        }
+                                        key={record.id}
                                         variant="outlined"
                                         sx={{
                                             p: 2.5,
-
-                                            borderLeft:
-                                                record.hasMedicationManagement
-                                                    ? `6px solid ${brandColours.coral}`
-                                                    : undefined
+                                            borderLeft: record.hasMedicationManagement
+                                                ? "6px solid"
+                                                : undefined,
+                                            borderLeftColor: record.hasMedicationManagement
+                                                ? "error.main"
+                                                : undefined
                                         }}
                                     >
                                         <Box
                                             sx={{
-                                                display:
-                                                    "flex",
-
-                                                flexDirection:
-                                                    {
-                                                        xs: "column",
-                                                        lg: "row"
-                                                    },
-
-                                                justifyContent:
-                                                    "space-between",
-
+                                                display: "flex",
+                                                flexDirection: {
+                                                    xs: "column",
+                                                    lg: "row"
+                                                },
+                                                justifyContent: "space-between",
                                                 gap: 2
                                             }}
                                         >
                                             <Box>
                                                 <Stack
                                                     direction="row"
-                                                    spacing={
-                                                        1
-                                                    }
+                                                    spacing={1}
                                                     sx={{
-                                                        flexWrap:
-                                                            "wrap",
-
-                                                        rowGap:
-                                                            1,
-
-                                                        alignItems:
-                                                            "center"
+                                                        flexWrap: "wrap",
+                                                        rowGap: 1,
+                                                        alignItems: "center"
                                                     }}
                                                 >
                                                     <Typography
                                                         variant="h5"
                                                         color="secondary"
                                                     >
-                                                        {
-                                                            record.memberName
-                                                        }
+                                                        {record.memberName}
                                                     </Typography>
-
                                                     <Chip
                                                         size="small"
                                                         label={
-                                                            record.type ===
-                                                            "youth"
+                                                            record.type === "youth"
                                                                 ? "Youth"
                                                                 : "Scouter ES3"
                                                         }
                                                         color={
-                                                            record.type ===
-                                                            "youth"
+                                                            record.type === "youth"
                                                                 ? "primary"
                                                                 : "secondary"
                                                         }
                                                     />
-
-                                                    <Chip
-                                                        size="small"
-                                                        variant="outlined"
-                                                        label={
-                                                            record.section
-                                                        }
-                                                    />
-
+                                                    {record.section && (
+                                                        <Chip
+                                                            size="small"
+                                                            variant="outlined"
+                                                            label={record.section}
+                                                        />
+                                                    )}
                                                     {record.hasMedicalAlert && (
                                                         <Chip
                                                             size="small"
@@ -2643,7 +1002,6 @@ export default function ConsentManagement() {
                                                             label="Medical"
                                                         />
                                                     )}
-
                                                     {record.hasMedicationManagement && (
                                                         <Chip
                                                             size="small"
@@ -2651,7 +1009,6 @@ export default function ConsentManagement() {
                                                             label="Medication"
                                                         />
                                                     )}
-
                                                     {expired && (
                                                         <Chip
                                                             size="small"
@@ -2659,7 +1016,6 @@ export default function ConsentManagement() {
                                                             label="Expired"
                                                         />
                                                     )}
-
                                                     {!expired &&
                                                         expiringSoon && (
                                                             <Chip
@@ -2672,15 +1028,9 @@ export default function ConsentManagement() {
 
                                                 <Typography
                                                     color="text.secondary"
-                                                    sx={{
-                                                        mt: 1
-                                                    }}
+                                                    sx={{ mt: 1 }}
                                                 >
-                                                    Submitted{" "}
-                                                    {formatDate(
-                                                        record
-                                                            .submittedAt
-                                                    )}
+                                                    Submitted {formatDate(record.submittedAt)}
                                                 </Typography>
 
                                                 {record.consentTo && (
@@ -2695,17 +1045,13 @@ export default function ConsentManagement() {
                                                         }
                                                         sx={{
                                                             mt: 0.5,
-
                                                             fontWeight:
-                                                                expired ||
-                                                                expiringSoon
+                                                                expired || expiringSoon
                                                                     ? 700
                                                                     : 400
                                                         }}
                                                     >
-                                                        {expiryLabel(
-                                                            record
-                                                        )}
+                                                        {expiryLabel(record)}
                                                     </Typography>
                                                 )}
                                             </Box>
@@ -2715,33 +1061,25 @@ export default function ConsentManagement() {
                                                     xs: "column",
                                                     sm: "row"
                                                 }}
-                                                spacing={
-                                                    1.5
-                                                }
+                                                spacing={1.5}
                                             >
                                                 <Button
                                                     variant="outlined"
                                                     color="secondary"
                                                     onClick={() =>
-                                                        printRecord(
-                                                            record
-                                                        )
+                                                        printRecord(record)
                                                     }
                                                 >
                                                     Print
                                                 </Button>
-
                                                 <Button
                                                     variant="contained"
                                                     color="success"
                                                     onClick={() =>
-                                                        setSelected(
-                                                            record
-                                                        )
+                                                        setSelected(record)
                                                     }
                                                 >
-                                                    View
-                                                    Details
+                                                    View Details
                                                 </Button>
                                             </Stack>
                                         </Box>
@@ -2753,15 +1091,9 @@ export default function ConsentManagement() {
                 )}
 
                 <Dialog
-                    open={
-                        Boolean(
-                            selected
-                        )
-                    }
+                    open={Boolean(selected)}
                     onClose={() =>
-                        setSelected(
-                            null
-                        )
+                        setSelected(null)
                     }
                     maxWidth="lg"
                     fullWidth
@@ -2769,55 +1101,39 @@ export default function ConsentManagement() {
                     {selected && (
                         <>
                             <DialogTitle>
-                                Consent
-                                Record â€”{" "}
-                                {
-                                    selected.memberName
-                                }
+                                Consent Record — {selected.memberName}
                             </DialogTitle>
 
-                            <DialogContent
-                                dividers
-                            >
+                            <DialogContent dividers>
                                 <Stack
                                     direction="row"
-                                    spacing={
-                                        1
-                                    }
+                                    spacing={1}
                                     sx={{
-                                        flexWrap:
-                                            "wrap",
-
-                                        rowGap:
-                                            1,
-
+                                        flexWrap: "wrap",
+                                        rowGap: 1,
                                         mb: 3
                                     }}
                                 >
                                     <Chip
                                         label={
-                                            selected.type ===
-                                            "youth"
+                                            selected.type === "youth"
                                                 ? "Youth Consent"
                                                 : "Scouter ES3"
                                         }
                                         color="secondary"
                                     />
-
-                                    <Chip
-                                        label={
-                                            selected.section
-                                        }
-                                        variant="outlined"
-                                    />
-
+                                    {selected.section && (
+                                        <Chip
+                                            label={selected.section}
+                                            variant="outlined"
+                                        />
+                                    )}
                                     {selected.hasMedicalAlert && (
                                         <Chip
                                             label="Medical information present"
                                             color="warning"
                                         />
                                     )}
-
                                     {selected.hasMedicationManagement && (
                                         <Chip
                                             label="Medication management required"
@@ -2826,53 +1142,13 @@ export default function ConsentManagement() {
                                     )}
                                 </Stack>
 
-                                {selected.hasMedicationManagement && (
-                                    <Alert
-                                        severity="error"
-                                        sx={{
-                                            mb: 3
-                                        }}
-                                    >
-                                        This member
-                                        has a Managing
-                                        Medications
-                                        SIF 20/10
-                                        record.
-                                    </Alert>
-                                )}
-
-                                {selected.hasMedicalAlert && (
-                                    <Alert
-                                        severity="warning"
-                                        sx={{
-                                            mb: 3
-                                        }}
-                                    >
-                                        Medical or
-                                        allergy
-                                        information
-                                        has been
-                                        recorded.
-                                    </Alert>
-                                )}
-
-                                <Divider
-                                    sx={{
-                                        mb: 3
-                                    }}
-                                />
-
                                 <Box
                                     sx={{
-                                        display:
-                                            "grid",
-
-                                        gridTemplateColumns:
-                                            {
-                                                xs: "1fr",
-                                                md: "1fr 1fr"
-                                            },
-
+                                        display: "grid",
+                                        gridTemplateColumns: {
+                                            xs: "1fr",
+                                            md: "1fr 1fr"
+                                        },
                                         gap: 2
                                     }}
                                 >
@@ -2880,85 +1156,45 @@ export default function ConsentManagement() {
                                         selected.data
                                     )
                                         .filter(
-                                            ([
-                                                key
-                                            ]) =>
-                                                key !==
-                                                    "submittedAt" &&
-                                                key !==
-                                                    "authorisedScouters"
+                                            ([key]) =>
+                                                key !== "submittedAt" &&
+                                                key !== "authorisedScouters"
                                         )
                                         .map(
-                                            ([
-                                                key,
-                                                value
-                                            ]) => {
+                                            ([key, value]) => {
                                                 if (
-                                                    key ===
-                                                        "medicationManagement" &&
+                                                    key === "medicationManagement" &&
                                                     value &&
-                                                    typeof value ===
-                                                        "object" &&
-                                                    !Array.isArray(
-                                                        value
-                                                    )
+                                                    typeof value === "object" &&
+                                                    !Array.isArray(value) &&
+                                                    (value as Record<string, unknown>).enabled === true
                                                 ) {
-                                                    if (
-                                                        (
-                                                            value as Record<
-                                                                string,
-                                                                unknown
-                                                            >
-                                                        )
-                                                            .enabled !==
-                                                        true
-                                                    ) {
-                                                        return null;
-                                                    }
-
                                                     return (
-                                                        <MedicationManagementPanel
-                                                            key={
-                                                                key
-                                                            }
+                                                        <MedicationPanel
+                                                            key={key}
                                                             value={
-                                                                value as Record<
-                                                                    string,
-                                                                    unknown
-                                                                >
+                                                                value as Record<string, unknown>
                                                             }
                                                         />
                                                     );
                                                 }
 
                                                 const text =
-                                                    displayValue(
-                                                        value
-                                                    );
+                                                    displayValue(value);
 
-                                                if (
-                                                    !text
-                                                ) {
+                                                if (!text) {
                                                     return null;
                                                 }
 
-                                                const wide =
-                                                    typeof value ===
-                                                        "object" &&
-                                                    value !==
-                                                        null;
-
                                                 return (
                                                     <Paper
-                                                        key={
-                                                            key
-                                                        }
+                                                        key={key}
                                                         variant="outlined"
                                                         sx={{
                                                             p: 2,
-
                                                             gridColumn:
-                                                                wide
+                                                                typeof value === "object" &&
+                                                                value !== null
                                                                     ? {
                                                                           md: "1 / -1"
                                                                       }
@@ -2969,29 +1205,19 @@ export default function ConsentManagement() {
                                                             variant="caption"
                                                             color="text.secondary"
                                                             sx={{
-                                                                fontWeight:
-                                                                    700
+                                                                fontWeight: 700
                                                             }}
                                                         >
-                                                            {formatFieldName(
-                                                                key
-                                                            )}
+                                                            {formatFieldName(key)}
                                                         </Typography>
-
                                                         <Typography
                                                             sx={{
                                                                 mt: 0.5,
-
-                                                                whiteSpace:
-                                                                    "pre-wrap",
-
-                                                                wordBreak:
-                                                                    "break-word"
+                                                                whiteSpace: "pre-wrap",
+                                                                wordBreak: "break-word"
                                                             }}
                                                         >
-                                                            {
-                                                                text
-                                                            }
+                                                            {text}
                                                         </Typography>
                                                     </Paper>
                                                 );
@@ -3003,20 +1229,14 @@ export default function ConsentManagement() {
                             <DialogActions>
                                 <Button
                                     onClick={() =>
-                                        printRecord(
-                                            selected
-                                        )
+                                        printRecord(selected)
                                     }
                                 >
-                                    Print /
-                                    Save PDF
+                                    Print / Save PDF
                                 </Button>
-
                                 <Button
                                     onClick={() =>
-                                        setSelected(
-                                            null
-                                        )
+                                        setSelected(null)
                                     }
                                 >
                                     Close
@@ -3029,7 +1249,3 @@ export default function ConsentManagement() {
         </Box>
     );
 }
-
-
-
-
