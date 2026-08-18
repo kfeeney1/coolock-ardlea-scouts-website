@@ -86,8 +86,28 @@ service cloud.firestore {
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data)
           .affectedKeys()
-          .hasOnly(["status"]);
+          .hasOnly([
+            "status",
+            "notes",
+            "contactHistory",
+            "updatedAt",
+            "memberId",
+            "convertedAt",
+            "convertedBy"
+          ]);
 
+      allow delete: if false;
+    }
+
+    match /members/{memberId} {
+      allow create: if isActiveLeader()
+        && request.resource.data.status == "active"
+        && request.resource.data.source == "join-application"
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow read: if isActiveLeader();
+
+      allow update: if isActiveLeader();
       allow delete: if false;
     }
 

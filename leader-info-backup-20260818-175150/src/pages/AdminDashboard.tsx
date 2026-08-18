@@ -390,29 +390,11 @@ export default function AdminDashboard() {
                         >
                             <Button
                                 component={Link}
-                                to="/leader/join"
-                                variant="contained"
-                                color="success"
-                            >
-                                Join Us Management
-                            </Button>
-
-                            <Button
-                                component={Link}
                                 to="/leader/consents"
                                 variant="contained"
                                 color="success"
                             >
                                 Consent Management
-                            </Button>
-
-                            <Button
-                                component={Link}
-                                to="/leader/info"
-                                variant="outlined"
-                                color="secondary"
-                            >
-                                Info & FAQ
                             </Button>
 
                             <Button
@@ -933,4 +915,3 @@ export default function AdminDashboard() {
         </Box>
     );
 }
-

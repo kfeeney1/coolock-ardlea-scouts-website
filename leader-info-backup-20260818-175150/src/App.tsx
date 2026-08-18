@@ -1,6 +1,4 @@
-﻿import JoinManagement from "./pages/JoinManagement";
-import LeaderInfo from "./pages/LeaderInfo";
-import ConsentManagement from "./pages/ConsentManagement";
+﻿import ConsentManagement from "./pages/ConsentManagement";
 import LeaderProfile from "./pages/LeaderProfile";
 import LeaderRequests from "./pages/LeaderRequests";
 import LeaderRegister from "./pages/LeaderRegister";
@@ -76,28 +74,10 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
-                    path="/leader/info"
-                    element={
-                        <ProtectedAdminRoute>
-                            <LeaderInfo />
-                        </ProtectedAdminRoute>
-                    }
-                />
-                            <Route
-                    path="/leader/join"
-                    element={
-                        <ProtectedAdminRoute>
-                            <JoinManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
             </Routes>
         </AdminAuthProvider>
     );
 }
-
-
 
 
 
