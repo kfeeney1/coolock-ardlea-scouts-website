@@ -86,9 +86,18 @@ service cloud.firestore {
 
     match /members/{memberId} {
       allow create: if isActiveLeader()
-        && request.resource.data.status == "active"
-        && request.resource.data.source == "join-application"
-        && request.resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == request.auth.uid
+        && (
+          (
+            request.resource.data.source == "join-application"
+            && request.resource.data.status == "active"
+          )
+          ||
+          (
+            request.resource.data.source == "manual"
+            && request.resource.data.status in ["active", "inactive", "left"]
+          )
+        );
 
       allow read: if isActiveLeader();
 

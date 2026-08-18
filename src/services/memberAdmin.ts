@@ -1,4 +1,5 @@
 import {
+  addDoc,
   collection,
   doc,
   getDocs,
@@ -36,6 +37,21 @@ export type MemberRecord = {
   createdAt: Date | null;
   updatedAt: Date | null;
 };
+
+export type CreateMemberInput = Pick<
+  MemberRecord,
+  | "firstName"
+  | "lastName"
+  | "displayName"
+  | "dateOfBirth"
+  | "section"
+  | "parentName"
+  | "emailAddress"
+  | "mobileNumber"
+  | "emergencyContactName"
+  | "emergencyContactPhone"
+  | "status"
+>;
 
 export type MemberConsentSummary = {
   consentId: string;
@@ -164,6 +180,10 @@ function hasMedicalAlert(data: DocumentData): boolean {
   ].some((key) => yes(data, key));
 }
 
+function clean(value: string, max: number): string {
+  return value.trim().slice(0, max);
+}
+
 export async function loadMembers(): Promise<MemberRecord[]> {
   const snapshot = await getDocs(
     query(
@@ -173,6 +193,44 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   );
 
   return snapshot.docs.map(mapMember);
+}
+
+export async function createMember(
+  input: CreateMemberInput
+): Promise<string> {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("No signed-in leader.");
+  }
+
+  const displayName = clean(input.displayName, 200);
+
+  if (!displayName) {
+    throw new Error("Member name is required.");
+  }
+
+  const memberRef = await addDoc(collection(db, "members"), {
+    firstName: clean(input.firstName, 100),
+    lastName: clean(input.lastName, 100),
+    displayName,
+    dateOfBirth: clean(input.dateOfBirth, 20),
+    section: clean(input.section, 40),
+    parentName: clean(input.parentName, 200),
+    emailAddress: clean(input.emailAddress, 254),
+    mobileNumber: clean(input.mobileNumber, 40),
+    emergencyContactName: clean(input.emergencyContactName, 200),
+    emergencyContactPhone: clean(input.emergencyContactPhone, 40),
+    status: input.status,
+    source: "manual",
+    sourceJoinApplicationId: "",
+    createdAt: serverTimestamp(),
+    createdBy: user.uid,
+    updatedAt: serverTimestamp(),
+    updatedBy: user.uid
+  });
+
+  return memberRef.id;
 }
 
 export async function updateMember(
@@ -198,9 +256,6 @@ export async function updateMember(
     throw new Error("No signed-in leader.");
   }
 
-  const clean = (value: string, max: number) =>
-    value.trim().slice(0, max);
-
   await updateDoc(doc(db, "members", memberId), {
     firstName: clean(updates.firstName, 100),
     lastName: clean(updates.lastName, 100),
@@ -210,14 +265,8 @@ export async function updateMember(
     parentName: clean(updates.parentName, 200),
     emailAddress: clean(updates.emailAddress, 254),
     mobileNumber: clean(updates.mobileNumber, 40),
-    emergencyContactName: clean(
-      updates.emergencyContactName,
-      200
-    ),
-    emergencyContactPhone: clean(
-      updates.emergencyContactPhone,
-      40
-    ),
+    emergencyContactName: clean(updates.emergencyContactName, 200),
+    emergencyContactPhone: clean(updates.emergencyContactPhone, 40),
     status: updates.status,
     updatedAt: serverTimestamp(),
     updatedBy: user.uid
