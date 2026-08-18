@@ -8,6 +8,7 @@ import {
     serverTimestamp,
     updateDoc
 } from "firebase/firestore";
+
 import type {
     DocumentData,
     QueryDocumentSnapshot,
@@ -83,17 +84,44 @@ function stringValue(
     data: DocumentData,
     key: string
 ): string {
-    const value = data[key];
+    const value =
+        data[key];
 
-    return typeof value === "string"
-        ? value
+    return typeof value ===
+        "string"
+        ? value.trim()
         : "";
+}
+
+function firstStringValue(
+    data: DocumentData,
+    keys: string[]
+): string {
+    for (
+        const key of keys
+    ) {
+        const value =
+            stringValue(
+                data,
+                key
+            );
+
+        if (value) {
+            return value;
+        }
+    }
+
+    return "";
 }
 
 function mapContactHistory(
     value: unknown
 ): ContactHistoryEntry[] {
-    if (!Array.isArray(value)) {
+    if (
+        !Array.isArray(
+            value
+        )
+    ) {
         return [];
     }
 
@@ -101,7 +129,8 @@ function mapContactHistory(
         .filter(
             (item) =>
                 item &&
-                typeof item === "object"
+                typeof item ===
+                    "object"
         )
         .map(
             (item) => {
@@ -117,11 +146,13 @@ function mapContactHistory(
                         "string"
                             ? record.id
                             : crypto.randomUUID(),
+
                     date:
                         typeof record.date ===
                         "string"
                             ? record.date
                             : "",
+
                     method:
                         (
                             [
@@ -136,11 +167,13 @@ function mapContactHistory(
                         )
                             ? (record.method as ContactMethod)
                             : "other",
+
                     note:
                         typeof record.note ===
                         "string"
-                            ? record.note
+                            ? record.note.trim()
                             : "",
+
                     leaderUid:
                         typeof record.leaderUid ===
                         "string"
@@ -151,63 +184,236 @@ function mapContactHistory(
         );
 }
 
+function looksLikePhoneNumber(
+    value: string
+): boolean {
+    if (!value) {
+        return false;
+    }
+
+    /*
+     * Allows normal Irish/international phone formatting:
+     * digits, spaces, +, -, brackets.
+     * Require at least 7 numeric digits.
+     */
+    const validCharacters =
+        /^[0-9+\-()\s]+$/;
+
+    const digitCount =
+        (
+            value.match(
+                /\d/g
+            ) ?? []
+        ).length;
+
+    return (
+        validCharacters.test(
+            value
+        ) &&
+        digitCount >= 7
+    );
+}
+
+function latestPhoneFromContactHistory(
+    history: ContactHistoryEntry[]
+): string {
+    /*
+     * A Stage 5 contact-history entry can be:
+     *
+     * Method: Phone
+     * Date: ...
+     * Note: 123456789
+     *
+     * Some existing records therefore contain the useful phone
+     * number in the contact-history note rather than the original
+     * mobileNumber field.
+     */
+    const phoneEntries =
+        history
+            .filter(
+                (entry) =>
+                    entry.method ===
+                        "phone" &&
+                    looksLikePhoneNumber(
+                        entry.note
+                    )
+            )
+            .sort(
+                (
+                    left,
+                    right
+                ) => {
+                    const leftTime =
+                        Date.parse(
+                            left.date
+                        );
+
+                    const rightTime =
+                        Date.parse(
+                            right.date
+                        );
+
+                    if (
+                        Number.isNaN(
+                            leftTime
+                        ) ||
+                        Number.isNaN(
+                            rightTime
+                        )
+                    ) {
+                        return 0;
+                    }
+
+                    return (
+                        rightTime -
+                        leftTime
+                    );
+                }
+            );
+
+    return (
+        phoneEntries[0]
+            ?.note ?? ""
+    );
+}
+
+function resolvePhoneNumber(
+    data: DocumentData,
+    history: ContactHistoryEntry[]
+): string {
+    /*
+     * Support both the current join form and older/alternate
+     * field names, then fall back to a phone-number contact
+     * history entry if necessary.
+     */
+    const directPhone =
+        firstStringValue(
+            data,
+            [
+                "mobileNumber",
+                "phone",
+                "phoneNumber",
+                "parentPhone",
+                "parentMobile",
+                "contactNumber",
+                "telephone",
+                "tel"
+            ]
+        );
+
+    if (directPhone) {
+        return directPhone;
+    }
+
+    return latestPhoneFromContactHistory(
+        history
+    );
+}
+
 function mapJoin(
     snapshot: QueryDocumentSnapshot<DocumentData>
 ): JoinApplicationRecord {
-    const data = snapshot.data();
+    const data =
+        snapshot.data();
 
     const firstName =
-        stringValue(
+        firstStringValue(
             data,
-            "childFirstName"
+            [
+                "childFirstName",
+                "firstName"
+            ]
         );
 
     const lastName =
-        stringValue(
+        firstStringValue(
             data,
-            "childLastName"
+            [
+                "childLastName",
+                "lastName"
+            ]
+        );
+
+    const contactHistory =
+        mapContactHistory(
+            data.contactHistory
         );
 
     return {
-        id: snapshot.id,
+        id:
+            snapshot.id,
+
         childFirstName:
             firstName,
+
         childLastName:
             lastName,
+
         childName:
-            [firstName, lastName]
-                .filter(Boolean)
-                .join(" ") ||
-            "Unnamed applicant",
-        childDob:
-            stringValue(
+            [
+                firstName,
+                lastName
+            ]
+                .filter(
+                    Boolean
+                )
+                .join(
+                    " "
+                ) ||
+            firstStringValue(
                 data,
-                "childDob"
+                [
+                    "childName",
+                    "name"
+                ]
             ) ||
-            stringValue(
+            "Unnamed applicant",
+
+        childDob:
+            firstStringValue(
                 data,
-                "dateOfBirth"
+                [
+                    "childDob",
+                    "dateOfBirth",
+                    "dob"
+                ]
             ),
+
         parentName:
-            stringValue(
+            firstStringValue(
                 data,
-                "parentName"
+                [
+                    "parentName",
+                    "parentGuardianName",
+                    "guardianName"
+                ]
             ),
+
         emailAddress:
-            stringValue(
+            firstStringValue(
                 data,
-                "emailAddress"
+                [
+                    "emailAddress",
+                    "email",
+                    "parentEmail"
+                ]
             ),
+
         mobileNumber:
-            stringValue(
+            resolvePhoneNumber(
                 data,
-                "mobileNumber"
+                contactHistory
             ),
+
         section:
-            stringValue(
+            firstStringValue(
                 data,
-                "section"
+                [
+                    "section",
+                    "scoutSection"
+                ]
             ),
+
         status:
             (
                 [
@@ -222,28 +428,31 @@ function mapJoin(
             )
                 ? (data.status as JoinStatus)
                 : "new",
+
         notes:
             stringValue(
                 data,
                 "notes"
             ),
-        contactHistory:
-            mapContactHistory(
-                data.contactHistory
-            ),
+
+        contactHistory,
+
         submittedAt:
             timestampToDate(
                 data.submittedAt
             ),
+
         updatedAt:
             timestampToDate(
                 data.updatedAt
             ),
+
         memberId:
             stringValue(
                 data,
                 "memberId"
             ),
+
         data
     };
 }
@@ -251,18 +460,19 @@ function mapJoin(
 export async function loadJoinApplications(): Promise<
     JoinApplicationRecord[]
 > {
-    const snapshot = await getDocs(
-        query(
-            collection(
-                db,
-                "joinApplications"
-            ),
-            orderBy(
-                "submittedAt",
-                "desc"
+    const snapshot =
+        await getDocs(
+            query(
+                collection(
+                    db,
+                    "joinApplications"
+                ),
+                orderBy(
+                    "submittedAt",
+                    "desc"
+                )
             )
-        )
-    );
+        );
 
     return snapshot.docs.map(
         mapJoin
@@ -305,6 +515,7 @@ export async function updateJoinNotes(
                         0,
                         5000
                     ),
+
             updatedAt:
                 serverTimestamp()
         }
@@ -328,10 +539,13 @@ export async function addContactHistoryEntry(
     const entry: ContactHistoryEntry = {
         id:
             crypto.randomUUID(),
+
         date:
             new Date()
                 .toISOString(),
+
         method,
+
         note:
             note
                 .trim()
@@ -339,6 +553,7 @@ export async function addContactHistoryEntry(
                     0,
                     1500
                 ),
+
         leaderUid:
             user.uid
     };
@@ -354,11 +569,13 @@ export async function addContactHistoryEntry(
                 ...application.contactHistory,
                 entry
             ],
+
             status:
                 application.status ===
                 "new"
                     ? "contacted"
                     : application.status,
+
             updatedAt:
                 serverTimestamp()
         }
@@ -394,13 +611,17 @@ export async function convertJoinApplicationToMember(
 
     await runTransaction(
         db,
-        async (transaction) => {
+        async (
+            transaction
+        ) => {
             const snapshot =
                 await transaction.get(
                     applicationRef
                 );
 
-            if (!snapshot.exists()) {
+            if (
+                !snapshot.exists()
+            ) {
                 throw new Error(
                     "The joining application no longer exists."
                 );
@@ -433,28 +654,40 @@ export async function convertJoinApplicationToMember(
                 {
                     firstName:
                         application.childFirstName,
+
                     lastName:
                         application.childLastName,
+
                     displayName:
                         application.childName,
+
                     dateOfBirth:
                         application.childDob,
+
                     section:
                         application.section,
+
                     parentName:
                         application.parentName,
+
                     emailAddress:
                         application.emailAddress,
+
                     mobileNumber:
                         application.mobileNumber,
+
                     status:
                         "active",
+
                     source:
                         "join-application",
+
                     sourceJoinApplicationId:
                         application.id,
+
                     createdAt:
                         serverTimestamp(),
+
                     createdBy:
                         user.uid
                 }
@@ -465,10 +698,13 @@ export async function convertJoinApplicationToMember(
                 {
                     memberId:
                         memberRef.id,
+
                     convertedAt:
                         serverTimestamp(),
+
                     convertedBy:
                         user.uid,
+
                     updatedAt:
                         serverTimestamp()
                 }

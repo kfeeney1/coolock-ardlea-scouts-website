@@ -17,6 +17,8 @@ import {
     Paper,
     Select,
     Stack,
+    Tab,
+    Tabs,
     TextField,
     Typography
 } from "@mui/material";
@@ -1086,7 +1088,39 @@ export default function JoinManagement() {
                         )
                     )}
                 </Box>
-{viewMode ===
+
+                <Paper
+                    elevation={2}
+                    sx={{
+                        mb: 3
+                    }}
+                >
+                    <Tabs
+                        value={viewMode}
+                        onChange={(
+                            _event,
+                            nextValue:
+                                ViewMode
+                        ) =>
+                            setViewMode(
+                                nextValue
+                            )
+                        }
+                        variant="fullWidth"
+                    >
+                        <Tab
+                            value="all"
+                            label="All Enquiries"
+                        />
+
+                        <Tab
+                            value="waiting-list"
+                            label={`Waiting List (${totals["waiting-list"] ?? 0})`}
+                        />
+                    </Tabs>
+                </Paper>
+
+                {viewMode ===
                 "waiting-list" ? (
                     <>
                         <Paper
@@ -2361,6 +2395,5 @@ export default function JoinManagement() {
         </Box>
     );
 }
-
 
 
