@@ -9,19 +9,13 @@ service cloud.firestore {
 
     function isActiveLeader() {
       return signedIn()
-        && exists(
-          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
-        )
-        && get(
-          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
-        ).data.active == true;
+        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active == true;
     }
 
     function isAdmin() {
       return isActiveLeader()
-        && get(
-          /databases/$(database)/documents/adminUsers/$(request.auth.uid)
-        ).data.role == "admin";
+        && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == "admin";
     }
 
     match /adminUsers/{userId} {
@@ -29,13 +23,11 @@ service cloud.firestore {
 
       allow update: if isActiveLeader()
         && request.auth.uid == userId
-        && request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly([
-            "displayName",
-            "mobileNumber",
-            "section"
-          ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "displayName",
+          "mobileNumber",
+          "section"
+        ]);
 
       allow create: if isAdmin();
       allow delete: if false;
@@ -49,20 +41,15 @@ service cloud.firestore {
         && request.resource.data.privacyConfirmed == true;
 
       allow read: if isAdmin()
-        || (
-          signedIn()
-          && request.auth.uid == userId
-        );
+        || (signedIn() && request.auth.uid == userId);
 
       allow update: if isAdmin()
-        && request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly([
-            "status",
-            "reviewedAt",
-            "reviewedBy",
-            "reviewNote"
-          ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "reviewedAt",
+          "reviewedBy",
+          "reviewNote"
+        ]);
 
       allow delete: if false;
     }
@@ -84,17 +71,15 @@ service cloud.firestore {
       allow read: if isActiveLeader();
 
       allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly([
-            "status",
-            "notes",
-            "contactHistory",
-            "updatedAt",
-            "memberId",
-            "convertedAt",
-            "convertedBy"
-          ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "notes",
+          "contactHistory",
+          "updatedAt",
+          "memberId",
+          "convertedAt",
+          "convertedBy"
+        ]);
 
       allow delete: if false;
     }
@@ -107,7 +92,23 @@ service cloud.firestore {
 
       allow read: if isActiveLeader();
 
-      allow update: if isActiveLeader();
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "firstName",
+          "lastName",
+          "displayName",
+          "dateOfBirth",
+          "section",
+          "parentName",
+          "emailAddress",
+          "mobileNumber",
+          "emergencyContactName",
+          "emergencyContactPhone",
+          "status",
+          "updatedAt",
+          "updatedBy"
+        ]);
+
       allow delete: if false;
     }
 
@@ -120,9 +121,9 @@ service cloud.firestore {
       allow read: if isActiveLeader();
 
       allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly(["status"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status"
+        ]);
 
       allow delete: if false;
     }

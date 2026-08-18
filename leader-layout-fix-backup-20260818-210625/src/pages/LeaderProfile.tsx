@@ -1,4 +1,4 @@
-import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+﻿import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import {
     Alert,
     Box,
@@ -28,6 +28,9 @@ import {
 import type {
     LeaderProfileData
 } from "../services/leaderProfile";
+import {
+    brandColours
+} from "../theme/theme";
 
 const sections = [
     "Beavers",
@@ -273,7 +276,7 @@ export default function LeaderProfile() {
                 }
             }}
         >
-            <Container maxWidth="xl">
+            <Container maxWidth="md">
                 <LeaderDashboardHeader />
 <Paper
                     elevation={2}
@@ -288,24 +291,47 @@ export default function LeaderProfile() {
                         borderLeftColor: "secondary.main"
                     }}
                 >
-                    <Box sx={{ mb: 3 }}>
+                    <Box
+                        sx={{
+                            background: `linear-gradient(
+                                135deg,
+                                ${brandColours.coral},
+                                ${brandColours.navy}
+                            )`,
+                            color: "white",
+                            p: {
+                                xs: 3,
+                                md: 5
+                            }
+                        }}
+                    >
                         <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ fontWeight: 800 }}
+                            variant="h3"
+                            component="h1"
                         >
-                            My Profile
+                            My Leader Profile
                         </Typography>
 
                         <Typography
-                            color="text.secondary"
-                            sx={{ mt: 0.75 }}
+                            sx={{
+                                mt: 1,
+                                opacity: 0.9
+                            }}
                         >
-                            Update your leader details and account settings.
+                            Manage your personal
+                            leader details and
+                            password.
                         </Typography>
                     </Box>
 
-                    <Box>
+                    <Box
+                        sx={{
+                            p: {
+                                xs: 3,
+                                md: 5
+                            }
+                        }}
+                    >
                         <Box
                             sx={{
                                 display: "flex",
@@ -629,7 +655,6 @@ export default function LeaderProfile() {
         </Box>
     );
 }
-
 
 
 

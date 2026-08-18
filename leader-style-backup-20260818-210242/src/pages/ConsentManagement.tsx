@@ -2139,16 +2139,17 @@ export default function ConsentManagement() {
             >
                 <LeaderDashboardHeader />
 <Paper
-                    elevation={2}
+                    elevation={3}
                     sx={{
                         p: {
-                            xs: 2.5,
-                            md: 3
+                            xs: 3,
+                            md: 4
                         },
+
                         mb: 3,
-                        borderRadius: 2,
-                        borderLeft: "5px solid",
-                        borderLeftColor: "secondary.main"
+
+                        borderTop:
+                            `6px solid ${brandColours.coral}`
                     }}
                 >
                     <Box
@@ -2176,14 +2177,11 @@ export default function ConsentManagement() {
                     >
                         <Box>
                             <Typography
-                        variant="h4"
-                        color="secondary"
-                        sx={{
-                            fontWeight: 800
-                        }}
-                    >
-                        Consent Management
-                    </Typography>
+                                variant="h3"
+                                color="secondary"
+                            >
+                                Consent Management
+                            </Typography>
 
                             <Typography
                                 color="text.secondary"
@@ -3029,7 +3027,6 @@ export default function ConsentManagement() {
         </Box>
     );
 }
-
 
 
 

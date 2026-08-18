@@ -999,9 +999,6 @@ export default function JoinManagement() {
                                         setViewMode(
                                             "waiting-list"
                                         );
-                                        setStatusFilter(
-                                            "waiting-list"
-                                        );
                                         setWaitingSectionFilter(
                                             "all"
                                         );
@@ -1088,6 +1085,31 @@ export default function JoinManagement() {
                                     "warning.main"
                             }}
                         >
+                            <Typography
+                                variant="h4"
+                                color="secondary"
+                                sx={{
+                                    fontWeight:
+                                        800
+                                }}
+                            >
+                                Waiting List
+                            </Typography>
+
+                            <Typography
+                                color="text.secondary"
+                                sx={{
+                                    mt: 0.5,
+                                    mb: 3
+                                }}
+                            >
+                                Filter the waiting
+                                list by section,
+                                search applicants and
+                                sort by oldest,
+                                newest or name.
+                            </Typography>
+
                             <Box
                                 sx={{
                                     display:
@@ -1510,35 +1532,14 @@ export default function JoinManagement() {
                                         }
                                         onChange={(
                                             event
-                                        ) => {
-                                            const nextStatus =
-                                                event.target.value as
-                                                    | JoinStatus
-                                                    | "all";
-
+                                        ) =>
                                             setStatusFilter(
-                                                nextStatus
-                                            );
-
-                                            if (
-                                                nextStatus ===
-                                                "waiting-list"
-                                            ) {
-                                                setViewMode(
-                                                    "waiting-list"
-                                                );
-                                                setWaitingSectionFilter(
-                                                    "all"
-                                                );
-                                                setWaitingSearch(
-                                                    ""
-                                                );
-                                            } else {
-                                                setViewMode(
-                                                    "all"
-                                                );
-                                            }
-                                        }}
+                                                event
+                                                    .target
+                                                    .value as JoinStatus |
+                                                "all"
+                                            )
+                                        }
                                     >
                                         <MenuItem
                                             value="all"
@@ -1789,7 +1790,7 @@ export default function JoinManagement() {
                     {selected && (
                         <>
                             <DialogTitle>
-                                Manage Enquiry —{" "}
+                                Manage Enquiry â€”{" "}
                                 {
                                     selected.childName
                                 }

@@ -1,4 +1,5 @@
-﻿// PHONE_DISPLAY_FIX_2026_08_18
+﻿import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+// PHONE_DISPLAY_FIX_2026_08_18
 import {
     Alert,
     Box,
@@ -17,8 +18,6 @@ import {
     Paper,
     Select,
     Stack,
-    Tab,
-    Tabs,
     TextField,
     Typography
 } from "@mui/material";
@@ -28,11 +27,6 @@ import {
     useMemo,
     useState
 } from "react";
-
-import {
-    Link
-} from "react-router-dom";
-
 import {
     addContactHistoryEntry,
     convertJoinApplicationToMember,
@@ -856,7 +850,8 @@ export default function JoinManagement() {
             }}
         >
             <Container maxWidth="xl">
-                <Paper
+                <LeaderDashboardHeader />
+<Paper
                     elevation={3}
                     sx={{
                         p: {
@@ -913,18 +908,7 @@ export default function JoinManagement() {
                             }}
                             spacing={1.5}
                         >
-                            <Button
-                                component={
-                                    Link
-                                }
-                                to="/leader"
-                                variant="outlined"
-                                color="secondary"
-                            >
-                                Dashboard
-                            </Button>
-
-                            <Button
+<Button
                                 variant="contained"
                                 color="success"
                                 onClick={() =>
@@ -958,15 +942,55 @@ export default function JoinManagement() {
                                     status
                                 }
                                 variant="outlined"
+                                role="button"
+                                tabIndex={0}
                                 sx={{
                                     p: 2.5,
                                     textAlign:
                                         "center",
-                                    cursor:
-                                        status ===
-                                        "waiting-list"
-                                            ? "pointer"
-                                            : "default"
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                    transition:
+                                        "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                                    borderWidth:
+                                        (
+                                            status === "waiting-list" &&
+                                            viewMode === "waiting-list"
+                                        ) ||
+                                        (
+                                            status !== "waiting-list" &&
+                                            viewMode === "all" &&
+                                            statusFilter === status
+                                        )
+                                            ? 2
+                                            : 1,
+                                    borderColor:
+                                        (
+                                            status === "waiting-list" &&
+                                            viewMode === "waiting-list"
+                                        ) ||
+                                        (
+                                            status !== "waiting-list" &&
+                                            viewMode === "all" &&
+                                            statusFilter === status
+                                        )
+                                            ? status === "waiting-list"
+                                                ? "warning.main"
+                                                : "secondary.main"
+                                            : "divider",
+                                    "&:hover": {
+                                        transform:
+                                            "translateY(-2px)",
+                                        boxShadow: 3
+                                    },
+                                    "&:focus-visible": {
+                                        outline:
+                                            "3px solid",
+                                        outlineColor:
+                                            "primary.main",
+                                        outlineOffset:
+                                            "2px"
+                                    }
                                 }}
                                 onClick={() => {
                                     if (
@@ -976,6 +1000,51 @@ export default function JoinManagement() {
                                         setViewMode(
                                             "waiting-list"
                                         );
+                                        setWaitingSectionFilter(
+                                            "all"
+                                        );
+                                        setWaitingSearch(
+                                            ""
+                                        );
+                                    } else {
+                                        setViewMode(
+                                            "all"
+                                        );
+                                        setStatusFilter(
+                                            status
+                                        );
+                                    }
+                                }}
+                                onKeyDown={(event) => {
+                                    if (
+                                        event.key ===
+                                            "Enter" ||
+                                        event.key ===
+                                            " "
+                                    ) {
+                                        event.preventDefault();
+
+                                        if (
+                                            status ===
+                                            "waiting-list"
+                                        ) {
+                                            setViewMode(
+                                                "waiting-list"
+                                            );
+                                            setWaitingSectionFilter(
+                                                "all"
+                                            );
+                                            setWaitingSearch(
+                                                ""
+                                            );
+                                        } else {
+                                            setViewMode(
+                                                "all"
+                                            );
+                                            setStatusFilter(
+                                                status
+                                            );
+                                        }
                                     }
                                 }}
                             >
@@ -1003,39 +1072,7 @@ export default function JoinManagement() {
                         )
                     )}
                 </Box>
-
-                <Paper
-                    elevation={2}
-                    sx={{
-                        mb: 3
-                    }}
-                >
-                    <Tabs
-                        value={viewMode}
-                        onChange={(
-                            _event,
-                            nextValue:
-                                ViewMode
-                        ) =>
-                            setViewMode(
-                                nextValue
-                            )
-                        }
-                        variant="fullWidth"
-                    >
-                        <Tab
-                            value="all"
-                            label="All Enquiries"
-                        />
-
-                        <Tab
-                            value="waiting-list"
-                            label={`Waiting List (${totals["waiting-list"] ?? 0})`}
-                        />
-                    </Tabs>
-                </Paper>
-
-                {viewMode ===
+{viewMode ===
                 "waiting-list" ? (
                     <>
                         <Paper
@@ -2310,4 +2347,9 @@ export default function JoinManagement() {
         </Box>
     );
 }
+
+
+
+
+
 

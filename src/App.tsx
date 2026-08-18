@@ -1,4 +1,5 @@
-﻿import JoinManagement from "./pages/JoinManagement";
+﻿import MemberManagement from "./pages/MemberManagement";
+import JoinManagement from "./pages/JoinManagement";
 import LeaderInfo from "./pages/LeaderInfo";
 import ConsentManagement from "./pages/ConsentManagement";
 import LeaderProfile from "./pages/LeaderProfile";
@@ -92,10 +93,19 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
+                            <Route
+                    path="/leader/members"
+                    element={
+                        <ProtectedAdminRoute>
+                            <MemberManagement />
+                        </ProtectedAdminRoute>
+                    }
+                />
             </Routes>
         </AdminAuthProvider>
     );
 }
+
 
 
 
