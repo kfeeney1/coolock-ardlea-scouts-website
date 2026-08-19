@@ -27,6 +27,11 @@ export type AttendanceStatus =
     | "attending"
     | "not-attending";
 
+export type EventConsentStatus =
+    | "not-required"
+    | "required"
+    | "received";
+
 export type EventRecord = {
     id: string;
     title: string;
@@ -34,11 +39,15 @@ export type EventRecord = {
     eventType: string;
     section: string;
     location: string;
+    meetingPoint: string;
+    returnDetails: string;
+    leaderNotes: string;
     startDate: string;
     endDate: string;
     status: EventStatus;
     consentRequired: boolean;
     attendance: Record<string, AttendanceStatus>;
+    consent: Record<string, EventConsentStatus>;
     createdAt: Date | null;
     updatedAt: Date | null;
 };
@@ -50,6 +59,9 @@ export type EventInput = Pick<
     | "eventType"
     | "section"
     | "location"
+    | "meetingPoint"
+    | "returnDetails"
+    | "leaderNotes"
     | "startDate"
     | "endDate"
     | "status"
@@ -96,6 +108,28 @@ function mapAttendance(value: unknown): Record<string, AttendanceStatus> {
     return result;
 }
 
+function mapConsent(value: unknown): Record<string, EventConsentStatus> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return {};
+    }
+
+    const result: Record<string, EventConsentStatus> = {};
+
+    Object.entries(value as Record<string, unknown>).forEach(
+        ([memberId, status]) => {
+            if (
+                status === "not-required" ||
+                status === "required" ||
+                status === "received"
+            ) {
+                result[memberId] = status;
+            }
+        }
+    );
+
+    return result;
+}
+
 function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord {
     const data = snapshot.data();
 
@@ -106,6 +140,9 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord {
         eventType: stringValue(data, "eventType") || "Activity",
         section: stringValue(data, "section") || "All Sections",
         location: stringValue(data, "location"),
+        meetingPoint: stringValue(data, "meetingPoint"),
+        returnDetails: stringValue(data, "returnDetails"),
+        leaderNotes: stringValue(data, "leaderNotes"),
         startDate: stringValue(data, "startDate"),
         endDate: stringValue(data, "endDate"),
         status:
@@ -116,6 +153,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord {
                 : "draft",
         consentRequired: data.consentRequired === true,
         attendance: mapAttendance(data.attendance),
+        consent: mapConsent(data.consent),
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt)
     };
@@ -155,11 +193,15 @@ export async function createEvent(input: EventInput): Promise<string> {
         eventType: clean(input.eventType, 80),
         section: clean(input.section, 80),
         location: clean(input.location, 300),
+        meetingPoint: clean(input.meetingPoint, 500),
+        returnDetails: clean(input.returnDetails, 500),
+        leaderNotes: clean(input.leaderNotes, 3000),
         startDate: clean(input.startDate, 30),
         endDate: clean(input.endDate, 30),
         status: input.status,
         consentRequired: input.consentRequired,
         attendance: {},
+        consent: {},
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         updatedAt: serverTimestamp(),
@@ -185,6 +227,9 @@ export async function updateEvent(
         eventType: clean(input.eventType, 80),
         section: clean(input.section, 80),
         location: clean(input.location, 300),
+        meetingPoint: clean(input.meetingPoint, 500),
+        returnDetails: clean(input.returnDetails, 500),
+        leaderNotes: clean(input.leaderNotes, 3000),
         startDate: clean(input.startDate, 30),
         endDate: clean(input.endDate, 30),
         status: input.status,
@@ -194,9 +239,10 @@ export async function updateEvent(
     });
 }
 
-export async function updateEventAttendance(
+export async function updateEventRoster(
     eventId: string,
-    attendance: Record<string, AttendanceStatus>
+    attendance: Record<string, AttendanceStatus>,
+    consent: Record<string, EventConsentStatus>
 ): Promise<void> {
     const user = auth.currentUser;
 
@@ -206,6 +252,7 @@ export async function updateEventAttendance(
 
     await updateDoc(doc(db, "events", eventId), {
         attendance,
+        consent,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     });
