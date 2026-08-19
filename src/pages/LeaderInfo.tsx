@@ -32,8 +32,8 @@ const stages: Stage[] = [
     { number: "4", title: "Consent Management", status: "Complete", summary: "Leader consent search, expiry, medical indicators and printing." },
     { number: "5", title: "Join Us Management", status: "Complete", summary: "Joining workflow, filterable waiting list, notes, contact history and member conversion." },
     { number: "6", title: "Member Management", status: "Complete", summary: "Member directory, manual member creation, member editing, section movement, contacts, status management and consent indicators." },
-    { number: "7", title: "Events & Activities", status: "Current", summary: "Camps, trips, attendance and activity consent tracking." },
-    { number: "8", title: "Production Hardening", status: "Planned", summary: "Security, audit, privacy, accessibility, monitoring and backup readiness." }
+    { number: "7", title: "Events & Activities", status: "Complete", summary: "Events, camps and trips, attendance rosters, parent event consent, response matching, reporting, exports and completed-event history." },
+    { number: "8", title: "Production Hardening", status: "Current", summary: "Security, audit, privacy, accessibility, monitoring and backup readiness." }
 ];
 
 const faqs = [
@@ -41,8 +41,11 @@ const faqs = [
     { q: "How are members created?", a: "Accepted Join Us enquiries can be converted into member records, and authorised leaders can also add existing members manually from Member Management." },
     { q: "Can leaders move members between sections?", a: "Yes. Member Management allows an authorised leader to change a member's section." },
     { q: "Can a member be marked inactive or left?", a: "Yes. Member status can be Active, Inactive or Left." },
-    { q: "How are consent records matched?", a: "The current member consent indicators match using the member name and date of birth. A later refinement can add an explicit memberId link to consent submissions." },
-    { q: "Where do medical details remain?", a: "Member Management shows medical, medication and expiry indicators. Full medical details remain in Consent Management." }
+    { q: "How are consent records matched?", a: "Member consent indicators use the member name and date of birth. Event consent responses can be matched automatically or manually by an authorised leader." },
+    { q: "Where do medical details remain?", a: "Member Management shows medical, medication and expiry indicators. Full medical details remain in Consent Management." },
+    { q: "How does event consent work?", a: "Leaders can create a parent-facing consent link for an open event that requires consent. Parent responses can update event attendance and consent after leader review and syncing." },
+    { q: "What happens if a parent response cannot be matched?", a: "The response remains visible as unmatched. A leader can manually match it to the correct member or mark a duplicate or test response as ignored." },
+    { q: "What happens when an event is completed?", a: "Completed events are retained as read-only history. Leaders can still view the roster, print the event report and export the roster as CSV." }
 ];
 
 function chipColor(status: StageStatus): "success" | "warning" | "secondary" {
@@ -69,7 +72,7 @@ export default function LeaderInfo() {
                 />
 
                 <Alert severity="info" sx={{ mb: 3 }}>
-                    Stages 1–6 are complete. Stage 7 — Events & Activities — is the current development stage.
+                    Stages 1–7 are complete. Stage 8 — Production Hardening — is the current development stage.
                 </Alert>
 
                 <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>
