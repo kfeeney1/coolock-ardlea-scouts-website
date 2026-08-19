@@ -25,6 +25,10 @@ const navItems: NavItem[] = [
         path: "/leader/events"
     },
     {
+        label: "Event Consent",
+        path: "/leader/event-consent"
+    },
+    {
         label: "Join Us Management",
         path: "/leader/join"
     },
@@ -76,7 +80,7 @@ export default function LeaderDashboardHeader() {
                     mb: 2.5
                 }}
             >
-                Manage members, events, joining enquiries, consent records and leader settings.
+                Manage members, events, parent event consent, joining enquiries, consent records and leader settings.
             </Typography>
 
             <Box
@@ -85,8 +89,7 @@ export default function LeaderDashboardHeader() {
                     gridTemplateColumns: {
                         xs: "1fr",
                         sm: "repeat(2, minmax(0, 1fr))",
-                        lg: "repeat(3, minmax(0, 1fr))",
-                        xl: "repeat(6, minmax(0, 1fr))"
+                        lg: "repeat(4, minmax(0, 1fr))"
                     },
                     gap: 1.25,
                     alignItems: "stretch"

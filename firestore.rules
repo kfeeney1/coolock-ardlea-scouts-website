@@ -153,6 +153,56 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /eventConsentLinks/{token} {
+      allow get: if isActiveLeader() || resource.data.active == true;
+      allow list: if isActiveLeader();
+
+      allow create: if isActiveLeader()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.eventId is string
+        && request.resource.data.title is string
+        && request.resource.data.active is bool;
+
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "eventId",
+          "title",
+          "description",
+          "eventType",
+          "section",
+          "location",
+          "meetingPoint",
+          "returnDetails",
+          "startDate",
+          "endDate",
+          "consentRequired",
+          "active",
+          "updatedAt"
+        ]);
+
+      allow delete: if false;
+    }
+
+    match /eventConsentResponses/{responseId} {
+      allow create: if
+        request.resource.data.token is string
+        && request.resource.data.eventId is string
+        && request.resource.data.childName is string
+        && request.resource.data.dateOfBirth is string
+        && request.resource.data.parentName is string
+        && request.resource.data.attendance in ["attending", "not-attending"]
+        && request.resource.data.consentGiven is bool
+        && request.resource.data.emergencyDetailsConfirmed is bool
+        && request.resource.data.medicalDetailsChanged is bool
+        && request.resource.data.submittedAt == request.time
+        && exists(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token))
+        && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.active == true
+        && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.eventId == request.resource.data.eventId;
+
+      allow read: if isActiveLeader();
+      allow update, delete: if false;
+    }
+
     match /consentApplications/{consentId} {
       allow create: if
         request.resource.data.status == "active"
