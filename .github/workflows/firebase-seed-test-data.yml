@@ -1,0 +1,42 @@
+name: Seed Firebase Test Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Choose whether to add or remove the test dataset"
+        required: true
+        type: choice
+        default: seed
+        options:
+          - seed
+          - cleanup
+      confirm:
+        description: "I understand this writes to the live Firebase project"
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  seed-test-data:
+    if: ${{ inputs.confirm == true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase Admin SDK for seeding
+        run: npm install --no-save --ignore-scripts firebase-admin
+
+      - name: Run test data action
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-test-data.mjs "${{ inputs.action }}"
