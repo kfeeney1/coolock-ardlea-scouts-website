@@ -8,7 +8,11 @@ import {
     CircularProgress,
     Container,
     Divider,
+    FormControl,
+    InputLabel,
+    MenuItem,
     Paper,
+    Select,
     Stack,
     Typography
 } from "@mui/material";
@@ -20,8 +24,10 @@ import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 import {
     ensurePublicEventLink,
+    ignoreEventConsentResponse,
     loadEventConsentLinks,
-    loadEventConsentResponses
+    loadEventConsentResponses,
+    markEventConsentResponseMatched
 } from "../services/eventConsent";
 import type {
     EventConsentResponse,
@@ -53,13 +59,32 @@ function findMatchingMember(
     );
 }
 
+function applyResponseToRoster(
+    response: EventConsentResponse,
+    memberId: string,
+    attendance: Record<string, AttendanceStatus>,
+    consent: Record<string, EventConsentStatus>
+) {
+    attendance[memberId] = response.attendance;
+
+    if (response.attendance === "not-attending") {
+        consent[memberId] = "not-required";
+    } else if (response.consentGiven) {
+        consent[memberId] = "received";
+    } else {
+        consent[memberId] = "required";
+    }
+}
+
 export default function EventConsentManagement() {
     const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [links, setLinks] = useState<PublicEventLink[]>([]);
     const [responses, setResponses] = useState<Record<string, EventConsentResponse[]>>({});
+    const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [workingEventId, setWorkingEventId] = useState("");
+    const [workingResponseId, setWorkingResponseId] = useState("");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
@@ -147,7 +172,9 @@ export default function EventConsentManagement() {
         setMessage("");
 
         try {
-            const eventResponses = responses[event.id] || [];
+            const eventResponses = (responses[event.id] || []).filter(
+                (response) => response.processingStatus === "new"
+            );
             const attendance: Record<string, AttendanceStatus> = {
                 ...event.attendance
             };
@@ -158,6 +185,7 @@ export default function EventConsentManagement() {
             let matched = 0;
             let unmatched = 0;
             const usedMembers = new Set<string>();
+            const matchedResponses: Array<{ responseId: string; memberId: string }> = [];
 
             for (const response of eventResponses) {
                 const member = findMatchingMember(response, members, usedMembers);
@@ -169,23 +197,24 @@ export default function EventConsentManagement() {
 
                 usedMembers.add(member.id);
                 matched += 1;
-                attendance[member.id] = response.attendance;
-
-                if (response.attendance === "not-attending") {
-                    consent[member.id] = "not-required";
-                } else if (response.consentGiven) {
-                    consent[member.id] = "received";
-                } else {
-                    consent[member.id] = "required";
-                }
+                applyResponseToRoster(response, member.id, attendance, consent);
+                matchedResponses.push({ responseId: response.id, memberId: member.id });
             }
 
-            await updateEventRoster(event.id, attendance, consent);
+            if (matchedResponses.length > 0) {
+                await updateEventRoster(event.id, attendance, consent);
+                await Promise.all(
+                    matchedResponses.map((item) =>
+                        markEventConsentResponseMatched(item.responseId, item.memberId)
+                    )
+                );
+            }
+
             await load();
             setMessage(
                 `Synced ${matched} parent response${matched === 1 ? "" : "s"}.` +
                 (unmatched > 0
-                    ? ` ${unmatched} response${unmatched === 1 ? "" : "s"} could not be matched automatically. See Unmatched Parent Responses below.`
+                    ? ` ${unmatched} response${unmatched === 1 ? "" : "s"} could not be matched automatically. Use Manual Match below.`
                     : "")
             );
         } catch (syncError) {
@@ -193,6 +222,59 @@ export default function EventConsentManagement() {
             setError("Unable to sync parent responses into the event roster.");
         } finally {
             setWorkingEventId("");
+        }
+    };
+
+    const manualMatch = async (
+        event: EventRecord,
+        response: EventConsentResponse
+    ) => {
+        const memberId = selectedMembers[response.id];
+
+        if (!memberId) {
+            setError("Select a member before matching the response.");
+            return;
+        }
+
+        setWorkingResponseId(response.id);
+        setError("");
+        setMessage("");
+
+        try {
+            const attendance = { ...event.attendance };
+            const consent = { ...event.consent };
+            applyResponseToRoster(response, memberId, attendance, consent);
+
+            await updateEventRoster(event.id, attendance, consent);
+            await markEventConsentResponseMatched(response.id, memberId);
+            await load();
+
+            const member = members.find((candidate) => candidate.id === memberId);
+            setMessage(
+                `Response for ${response.childName} matched to ${member?.displayName || "the selected member"}.`
+            );
+        } catch (matchError) {
+            console.error("Unable to manually match response:", matchError);
+            setError("Unable to match the parent response to the selected member.");
+        } finally {
+            setWorkingResponseId("");
+        }
+    };
+
+    const ignoreResponse = async (response: EventConsentResponse) => {
+        setWorkingResponseId(response.id);
+        setError("");
+        setMessage("");
+
+        try {
+            await ignoreEventConsentResponse(response.id);
+            await load();
+            setMessage(`Response for ${response.childName} marked as ignored.`);
+        } catch (ignoreError) {
+            console.error("Unable to ignore response:", ignoreError);
+            setError("Unable to mark the parent response as ignored.");
+        } finally {
+            setWorkingResponseId("");
         }
     };
 
@@ -232,19 +314,30 @@ export default function EventConsentManagement() {
                         {consentEvents.map((event) => {
                             const link = linkFor(event.id);
                             const eventResponses = responses[event.id] || [];
+                            const newResponses = eventResponses.filter(
+                                (response) => response.processingStatus === "new"
+                            );
+                            const matchedResponses = eventResponses.filter(
+                                (response) => response.processingStatus === "matched"
+                            );
+                            const ignoredResponses = eventResponses.filter(
+                                (response) => response.processingStatus === "ignored"
+                            );
+                            const unmatchedResponses = newResponses.filter(
+                                (response) => !findMatchingMember(response, members)
+                            );
                             const received = eventResponses.filter(
                                 (response) =>
                                     response.attendance === "attending" &&
                                     response.consentGiven
                             ).length;
-                            const notAttending = eventResponses.filter(
-                                (response) => response.attendance === "not-attending"
-                            ).length;
                             const changedDetails = eventResponses.filter(
                                 (response) => response.medicalDetailsChanged
                             ).length;
-                            const unmatchedResponses = eventResponses.filter(
-                                (response) => !findMatchingMember(response, members)
+                            const eligibleMembers = members.filter(
+                                (member) =>
+                                    member.status === "active" &&
+                                    (event.section === "All Sections" || member.section === event.section)
                             );
 
                             return (
@@ -264,15 +357,13 @@ export default function EventConsentManagement() {
                                                 </Typography>
                                                 <Chip label={event.status} size="small" variant="outlined" />
                                                 <Chip label={`${eventResponses.length} responses`} size="small" />
+                                                <Chip label={`${newResponses.length} new`} size="small" color={newResponses.length ? "warning" : "default"} />
+                                                <Chip label={`${matchedResponses.length} matched`} size="small" color="success" />
+                                                <Chip label={`${ignoredResponses.length} ignored`} size="small" variant="outlined" />
                                                 <Chip label={`${received} consent received`} size="small" color="success" />
-                                                {notAttending > 0 && <Chip label={`${notAttending} not attending`} size="small" />}
                                                 {changedDetails > 0 && <Chip label={`${changedDetails} details changed`} size="small" color="warning" />}
                                                 {unmatchedResponses.length > 0 && (
-                                                    <Chip
-                                                        label={`${unmatchedResponses.length} unmatched`}
-                                                        size="small"
-                                                        color="error"
-                                                    />
+                                                    <Chip label={`${unmatchedResponses.length} unmatched`} size="small" color="error" />
                                                 )}
                                             </Stack>
 
@@ -287,15 +378,6 @@ export default function EventConsentManagement() {
                                                 </Typography>
                                             )}
 
-                                            {eventResponses.slice(0, 5).map((response) => (
-                                                <Typography key={response.id} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                                    {response.childName} — {response.attendance === "attending" ? "Attending" : "Not attending"}
-                                                    {response.consentGiven ? " · Consent received" : ""}
-                                                    {response.medicalDetailsChanged ? " · Details changed" : ""}
-                                                    {` · ${formatDate(response.submittedAt)}`}
-                                                </Typography>
-                                            ))}
-
                                             {unmatchedResponses.length > 0 && (
                                                 <Box sx={{ mt: 2.5 }}>
                                                     <Divider sx={{ mb: 2 }} />
@@ -303,7 +385,7 @@ export default function EventConsentManagement() {
                                                         Unmatched Parent Responses
                                                     </Typography>
                                                     <Typography color="text.secondary" sx={{ mb: 1.5 }}>
-                                                        These responses could not be matched to a member by child name and date of birth and need manual review.
+                                                        Select the correct member and manually match the response, or ignore duplicate/test submissions.
                                                     </Typography>
 
                                                     <Box sx={{ display: "grid", gap: 1.5 }}>
@@ -311,46 +393,98 @@ export default function EventConsentManagement() {
                                                             <Paper
                                                                 key={response.id}
                                                                 variant="outlined"
-                                                                sx={{
-                                                                    p: 2,
-                                                                    borderLeft: "5px solid",
-                                                                    borderLeftColor: "error.main"
-                                                                }}
+                                                                sx={{ p: 2, borderLeft: "5px solid", borderLeftColor: "error.main" }}
                                                             >
                                                                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
                                                                     <Chip label="Needs manual matching" color="error" size="small" />
-                                                                    <Chip
-                                                                        label={response.attendance === "attending" ? "Attending" : "Not attending"}
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                    />
-                                                                    <Chip
-                                                                        label={response.consentGiven ? "Consent given" : "Consent not given"}
-                                                                        size="small"
-                                                                        color={response.consentGiven ? "success" : "warning"}
-                                                                    />
+                                                                    <Chip label={response.attendance === "attending" ? "Attending" : "Not attending"} size="small" variant="outlined" />
+                                                                    <Chip label={response.consentGiven ? "Consent given" : "Consent not given"} size="small" color={response.consentGiven ? "success" : "warning"} />
                                                                 </Stack>
 
                                                                 <Typography sx={{ fontWeight: 700 }}>
                                                                     Child: {response.childName || "Not supplied"}
                                                                 </Typography>
-                                                                <Typography variant="body2">
-                                                                    Date of birth: {response.dateOfBirth || "Not supplied"}
-                                                                </Typography>
-                                                                <Typography variant="body2">
-                                                                    Parent / Guardian: {response.parentName || "Not supplied"}
-                                                                </Typography>
-                                                                <Typography variant="body2">
-                                                                    Emergency details confirmed: {response.emergencyDetailsConfirmed ? "Yes" : "No"}
-                                                                </Typography>
-                                                                <Typography variant="body2">
-                                                                    Medical / emergency information changed: {response.medicalDetailsChanged ? "Yes" : "No"}
-                                                                </Typography>
+                                                                <Typography variant="body2">Date of birth: {response.dateOfBirth || "Not supplied"}</Typography>
+                                                                <Typography variant="body2">Parent / Guardian: {response.parentName || "Not supplied"}</Typography>
+                                                                <Typography variant="body2">Emergency details confirmed: {response.emergencyDetailsConfirmed ? "Yes" : "No"}</Typography>
+                                                                <Typography variant="body2">Medical / emergency information changed: {response.medicalDetailsChanged ? "Yes" : "No"}</Typography>
                                                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                                                     Submitted: {formatDate(response.submittedAt)}
                                                                 </Typography>
+
+                                                                <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} sx={{ mt: 2, alignItems: { md: "center" } }}>
+                                                                    <FormControl size="small" sx={{ minWidth: 280, flex: 1 }}>
+                                                                        <InputLabel>Match to member</InputLabel>
+                                                                        <Select
+                                                                            label="Match to member"
+                                                                            value={selectedMembers[response.id] || ""}
+                                                                            onChange={(eventChange) =>
+                                                                                setSelectedMembers((current) => ({
+                                                                                    ...current,
+                                                                                    [response.id]: eventChange.target.value
+                                                                                }))
+                                                                            }
+                                                                        >
+                                                                            {eligibleMembers.map((member) => (
+                                                                                <MenuItem key={member.id} value={member.id}>
+                                                                                    {member.displayName} · {member.section} · {member.dateOfBirth || "DOB not recorded"}
+                                                                                </MenuItem>
+                                                                            ))}
+                                                                        </Select>
+                                                                    </FormControl>
+                                                                    <Button
+                                                                        variant="contained"
+                                                                        color="success"
+                                                                        disabled={workingResponseId === response.id || !selectedMembers[response.id]}
+                                                                        onClick={() => void manualMatch(event, response)}
+                                                                    >
+                                                                        Match to Member
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outlined"
+                                                                        color="error"
+                                                                        disabled={workingResponseId === response.id}
+                                                                        onClick={() => void ignoreResponse(response)}
+                                                                    >
+                                                                        Ignore Response
+                                                                    </Button>
+                                                                </Stack>
                                                             </Paper>
                                                         ))}
+                                                    </Box>
+                                                </Box>
+                                            )}
+
+                                            {(matchedResponses.length > 0 || ignoredResponses.length > 0) && (
+                                                <Box sx={{ mt: 2.5 }}>
+                                                    <Divider sx={{ mb: 2 }} />
+                                                    <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>
+                                                        Processed Responses
+                                                    </Typography>
+                                                    <Box sx={{ display: "grid", gap: 1 }}>
+                                                        {[...matchedResponses, ...ignoredResponses].map((response) => {
+                                                            const matchedMember = members.find((member) => member.id === response.matchedMemberId);
+                                                            return (
+                                                                <Paper key={response.id} variant="outlined" sx={{ p: 1.5 }}>
+                                                                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
+                                                                        <Chip
+                                                                            label={response.processingStatus === "matched" ? "Matched" : "Ignored"}
+                                                                            color={response.processingStatus === "matched" ? "success" : "default"}
+                                                                            size="small"
+                                                                        />
+                                                                        <Typography sx={{ fontWeight: 700 }}>{response.childName}</Typography>
+                                                                        {matchedMember && (
+                                                                            <Typography variant="body2" color="text.secondary">
+                                                                                → {matchedMember.displayName}
+                                                                            </Typography>
+                                                                        )}
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            {formatDate(response.processedAt)}
+                                                                        </Typography>
+                                                                    </Stack>
+                                                                </Paper>
+                                                            );
+                                                        })}
                                                     </Box>
                                                 </Box>
                                             )}
@@ -375,10 +509,10 @@ export default function EventConsentManagement() {
                                             <Button
                                                 variant="contained"
                                                 color="success"
-                                                disabled={workingEventId === event.id || eventResponses.length === 0}
+                                                disabled={workingEventId === event.id || newResponses.length === 0}
                                                 onClick={() => void syncResponses(event)}
                                             >
-                                                Sync Responses
+                                                Sync New Responses
                                             </Button>
                                         </Stack>
                                     </Box>
