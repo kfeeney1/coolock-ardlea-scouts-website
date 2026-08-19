@@ -154,7 +154,8 @@ service cloud.firestore {
     }
 
     match /eventConsentLinks/{token} {
-      allow read: if isActiveLeader() || resource.data.active == true;
+      allow get: if isActiveLeader() || resource.data.active == true;
+      allow list: if isActiveLeader();
 
       allow create: if isActiveLeader()
         && request.resource.data.createdBy == request.auth.uid
