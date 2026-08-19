@@ -137,11 +137,15 @@ service cloud.firestore {
           "eventType",
           "section",
           "location",
+          "meetingPoint",
+          "returnDetails",
+          "leaderNotes",
           "startDate",
           "endDate",
           "status",
           "consentRequired",
           "attendance",
+          "consent",
           "updatedAt",
           "updatedBy"
         ]);
