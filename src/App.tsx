@@ -1,4 +1,5 @@
-﻿import MemberManagement from "./pages/MemberManagement";
+import EventsManagement from "./pages/EventsManagement";
+import MemberManagement from "./pages/MemberManagement";
 import JoinManagement from "./pages/JoinManagement";
 import LeaderInfo from "./pages/LeaderInfo";
 import ConsentManagement from "./pages/ConsentManagement";
@@ -23,23 +24,17 @@ export default function App() {
     return (
         <AdminAuthProvider>
             <Routes>
-            <Route element={<Layout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/activities" element={<Activities />} />
+                <Route element={<Layout />}>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/activities" element={<Activities />} />
+                    <Route path="/activities/consent" element={<ConsentForm />} />
+                    <Route path="/join" element={<Join />} />
+                    <Route path="/contact" element={<Contact />} />
+                </Route>
 
-                <Route
-                    path="/activities/consent"
-                    element={<ConsentForm />}
-                />
-
-                <Route path="/join" element={<Join />} />
-                <Route path="/contact" element={<Contact />} />
-            </Route>
-                        <Route
-                    path="/leader/login"
-                    element={<AdminLogin />}
-                />
+                <Route path="/leader/login" element={<AdminLogin />} />
+                <Route path="/leader/register" element={<LeaderRegister />} />
 
                 <Route
                     path="/leader"
@@ -49,11 +44,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
-                    path="/leader/register"
-                    element={<LeaderRegister />}
-                />
-                            <Route
+
+                <Route
                     path="/leader/requests"
                     element={
                         <ProtectedAdminRoute>
@@ -61,7 +53,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
+
+                <Route
                     path="/leader/profile"
                     element={
                         <ProtectedAdminRoute>
@@ -69,7 +62,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
+
+                <Route
                     path="/leader/consents"
                     element={
                         <ProtectedAdminRoute>
@@ -77,7 +71,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
+
+                <Route
                     path="/leader/info"
                     element={
                         <ProtectedAdminRoute>
@@ -85,7 +80,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
+
+                <Route
                     path="/leader/join"
                     element={
                         <ProtectedAdminRoute>
@@ -93,7 +89,8 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
-                            <Route
+
+                <Route
                     path="/leader/members"
                     element={
                         <ProtectedAdminRoute>
@@ -101,13 +98,16 @@ export default function App() {
                         </ProtectedAdminRoute>
                     }
                 />
+
+                <Route
+                    path="/leader/events"
+                    element={
+                        <ProtectedAdminRoute>
+                            <EventsManagement />
+                        </ProtectedAdminRoute>
+                    }
+                />
             </Routes>
         </AdminAuthProvider>
     );
 }
-
-
-
-
-
-
