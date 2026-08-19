@@ -7,12 +7,15 @@ import {
     query,
     serverTimestamp,
     setDoc,
+    updateDoc,
     where
 } from "firebase/firestore";
 import type { DocumentData, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
+
+export type ResponseProcessingStatus = "new" | "matched" | "ignored";
 
 export type PublicEventLink = {
     token: string;
@@ -43,12 +46,21 @@ export type EventConsentResponse = {
     consentGiven: boolean;
     emergencyDetailsConfirmed: boolean;
     medicalDetailsChanged: boolean;
+    processingStatus: ResponseProcessingStatus;
+    matchedMemberId: string;
+    processedBy: string;
+    processedAt: Date | null;
     submittedAt: Date | null;
 };
 
 export type SubmitEventConsentInput = Omit<
     EventConsentResponse,
-    "id" | "submittedAt"
+    | "id"
+    | "processingStatus"
+    | "matchedMemberId"
+    | "processedBy"
+    | "processedAt"
+    | "submittedAt"
 >;
 
 function timestampToDate(value: unknown): Date | null {
@@ -90,6 +102,11 @@ function mapLink(token: string, data: DocumentData): PublicEventLink {
 }
 
 function mapResponse(id: string, data: DocumentData): EventConsentResponse {
+    const processingStatus: ResponseProcessingStatus =
+        data.processingStatus === "matched" || data.processingStatus === "ignored"
+            ? data.processingStatus
+            : "new";
+
     return {
         id,
         token: stringValue(data, "token"),
@@ -104,6 +121,10 @@ function mapResponse(id: string, data: DocumentData): EventConsentResponse {
         consentGiven: data.consentGiven === true,
         emergencyDetailsConfirmed: data.emergencyDetailsConfirmed === true,
         medicalDetailsChanged: data.medicalDetailsChanged === true,
+        processingStatus,
+        matchedMemberId: stringValue(data, "matchedMemberId"),
+        processedBy: stringValue(data, "processedBy"),
+        processedAt: timestampToDate(data.processedAt),
         submittedAt: timestampToDate(data.submittedAt)
     };
 }
@@ -148,11 +169,7 @@ export async function ensurePublicEventLink(
 
     if (!existing.empty) {
         const snapshot = existing.docs[0];
-        await setDoc(
-            snapshot.ref,
-            publicEventPayload(event),
-            { merge: true }
-        );
+        await setDoc(snapshot.ref, publicEventPayload(event), { merge: true });
 
         const refreshed = await getDoc(snapshot.ref);
         return mapLink(refreshed.id, refreshed.data() || {});
@@ -201,6 +218,7 @@ export async function submitEventConsentResponse(
         consentGiven: input.consentGiven,
         emergencyDetailsConfirmed: input.emergencyDetailsConfirmed,
         medicalDetailsChanged: input.medicalDetailsChanged,
+        processingStatus: "new",
         submittedAt: serverTimestamp()
     });
 
@@ -219,8 +237,44 @@ export async function loadEventConsentResponses(
 
     return snapshot.docs
         .map((item) => mapResponse(item.id, item.data()))
-        .sort((a, b) =>
-            (b.submittedAt?.getTime() || 0) -
-            (a.submittedAt?.getTime() || 0)
+        .sort(
+            (a, b) =>
+                (b.submittedAt?.getTime() || 0) -
+                (a.submittedAt?.getTime() || 0)
         );
+}
+
+export async function markEventConsentResponseMatched(
+    responseId: string,
+    memberId: string
+): Promise<void> {
+    const user = auth.currentUser;
+
+    if (!user) {
+        throw new Error("No signed-in leader.");
+    }
+
+    await updateDoc(doc(db, "eventConsentResponses", responseId), {
+        processingStatus: "matched",
+        matchedMemberId: clean(memberId, 100),
+        processedBy: user.uid,
+        processedAt: serverTimestamp()
+    });
+}
+
+export async function ignoreEventConsentResponse(
+    responseId: string
+): Promise<void> {
+    const user = auth.currentUser;
+
+    if (!user) {
+        throw new Error("No signed-in leader.");
+    }
+
+    await updateDoc(doc(db, "eventConsentResponses", responseId), {
+        processingStatus: "ignored",
+        matchedMemberId: "",
+        processedBy: user.uid,
+        processedAt: serverTimestamp()
+    });
 }
