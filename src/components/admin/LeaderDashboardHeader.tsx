@@ -1,4 +1,4 @@
-﻿import {
+import {
     Box,
     Button,
     Paper,
@@ -19,6 +19,10 @@ const navItems: NavItem[] = [
     {
         label: "Member Management",
         path: "/leader/members"
+    },
+    {
+        label: "Events & Activities",
+        path: "/leader/events"
     },
     {
         label: "Join Us Management",
@@ -72,7 +76,7 @@ export default function LeaderDashboardHeader() {
                     mb: 2.5
                 }}
             >
-                Manage members, joining enquiries, consent records and leader settings.
+                Manage members, events, joining enquiries, consent records and leader settings.
             </Typography>
 
             <Box
@@ -81,26 +85,22 @@ export default function LeaderDashboardHeader() {
                     gridTemplateColumns: {
                         xs: "1fr",
                         sm: "repeat(2, minmax(0, 1fr))",
-                        lg: "repeat(5, minmax(0, 1fr))"
+                        lg: "repeat(3, minmax(0, 1fr))",
+                        xl: "repeat(6, minmax(0, 1fr))"
                     },
                     gap: 1.25,
                     alignItems: "stretch"
                 }}
             >
                 {navItems.map((item) => {
-                    const active =
-                        location.pathname === item.path;
+                    const active = location.pathname === item.path;
 
                     return (
                         <Button
                             key={item.path}
                             component={Link}
                             to={item.path}
-                            variant={
-                                active
-                                    ? "contained"
-                                    : "outlined"
-                            }
+                            variant={active ? "contained" : "outlined"}
                             color="secondary"
                             sx={{
                                 width: "100%",
