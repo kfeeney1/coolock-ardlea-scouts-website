@@ -1,3 +1,5 @@
+import EventConsent from "./pages/EventConsent";
+import EventConsentManagement from "./pages/EventConsentManagement";
 import EventsManagement from "./pages/EventsManagement";
 import MemberManagement from "./pages/MemberManagement";
 import JoinManagement from "./pages/JoinManagement";
@@ -29,6 +31,7 @@ export default function App() {
                     <Route path="/about" element={<About />} />
                     <Route path="/activities" element={<Activities />} />
                     <Route path="/activities/consent" element={<ConsentForm />} />
+                    <Route path="/event-consent/:token" element={<EventConsent />} />
                     <Route path="/join" element={<Join />} />
                     <Route path="/contact" element={<Contact />} />
                 </Route>
@@ -104,6 +107,15 @@ export default function App() {
                     element={
                         <ProtectedAdminRoute>
                             <EventsManagement />
+                        </ProtectedAdminRoute>
+                    }
+                />
+
+                <Route
+                    path="/leader/event-consent"
+                    element={
+                        <ProtectedAdminRoute>
+                            <EventConsentManagement />
                         </ProtectedAdminRoute>
                     }
                 />
