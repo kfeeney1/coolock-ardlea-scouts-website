@@ -7,6 +7,7 @@ import {
     Chip,
     CircularProgress,
     Container,
+    Divider,
     Paper,
     Stack,
     Typography
@@ -37,6 +38,19 @@ function formatDate(value: Date | null): string {
         dateStyle: "medium",
         timeStyle: "short"
     }).format(value);
+}
+
+function findMatchingMember(
+    response: EventConsentResponse,
+    members: MemberRecord[],
+    usedMembers?: Set<string>
+): MemberRecord | undefined {
+    return members.find(
+        (candidate) =>
+            !usedMembers?.has(candidate.id) &&
+            normalise(candidate.displayName) === normalise(response.childName) &&
+            (!candidate.dateOfBirth || candidate.dateOfBirth === response.dateOfBirth)
+    );
 }
 
 export default function EventConsentManagement() {
@@ -146,12 +160,7 @@ export default function EventConsentManagement() {
             const usedMembers = new Set<string>();
 
             for (const response of eventResponses) {
-                const member = members.find(
-                    (candidate) =>
-                        !usedMembers.has(candidate.id) &&
-                        normalise(candidate.displayName) === normalise(response.childName) &&
-                        (!candidate.dateOfBirth || candidate.dateOfBirth === response.dateOfBirth)
-                );
+                const member = findMatchingMember(response, members, usedMembers);
 
                 if (!member) {
                     unmatched += 1;
@@ -176,7 +185,7 @@ export default function EventConsentManagement() {
             setMessage(
                 `Synced ${matched} parent response${matched === 1 ? "" : "s"}.` +
                 (unmatched > 0
-                    ? ` ${unmatched} response${unmatched === 1 ? "" : "s"} could not be matched automatically.`
+                    ? ` ${unmatched} response${unmatched === 1 ? "" : "s"} could not be matched automatically. See Unmatched Parent Responses below.`
                     : "")
             );
         } catch (syncError) {
@@ -234,6 +243,9 @@ export default function EventConsentManagement() {
                             const changedDetails = eventResponses.filter(
                                 (response) => response.medicalDetailsChanged
                             ).length;
+                            const unmatchedResponses = eventResponses.filter(
+                                (response) => !findMatchingMember(response, members)
+                            );
 
                             return (
                                 <Paper key={event.id} variant="outlined" sx={{ p: 2.5 }}>
@@ -245,7 +257,7 @@ export default function EventConsentManagement() {
                                             gap: 2
                                         }}
                                     >
-                                        <Box>
+                                        <Box sx={{ flex: 1 }}>
                                             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                                                 <Typography variant="h5" color="secondary">
                                                     {event.title}
@@ -255,6 +267,13 @@ export default function EventConsentManagement() {
                                                 <Chip label={`${received} consent received`} size="small" color="success" />
                                                 {notAttending > 0 && <Chip label={`${notAttending} not attending`} size="small" />}
                                                 {changedDetails > 0 && <Chip label={`${changedDetails} details changed`} size="small" color="warning" />}
+                                                {unmatchedResponses.length > 0 && (
+                                                    <Chip
+                                                        label={`${unmatchedResponses.length} unmatched`}
+                                                        size="small"
+                                                        color="error"
+                                                    />
+                                                )}
                                             </Stack>
 
                                             <Typography sx={{ mt: 1 }}>
@@ -276,6 +295,65 @@ export default function EventConsentManagement() {
                                                     {` · ${formatDate(response.submittedAt)}`}
                                                 </Typography>
                                             ))}
+
+                                            {unmatchedResponses.length > 0 && (
+                                                <Box sx={{ mt: 2.5 }}>
+                                                    <Divider sx={{ mb: 2 }} />
+                                                    <Typography variant="h6" color="error" sx={{ fontWeight: 800, mb: 0.5 }}>
+                                                        Unmatched Parent Responses
+                                                    </Typography>
+                                                    <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+                                                        These responses could not be matched to a member by child name and date of birth and need manual review.
+                                                    </Typography>
+
+                                                    <Box sx={{ display: "grid", gap: 1.5 }}>
+                                                        {unmatchedResponses.map((response) => (
+                                                            <Paper
+                                                                key={response.id}
+                                                                variant="outlined"
+                                                                sx={{
+                                                                    p: 2,
+                                                                    borderLeft: "5px solid",
+                                                                    borderLeftColor: "error.main"
+                                                                }}
+                                                            >
+                                                                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
+                                                                    <Chip label="Needs manual matching" color="error" size="small" />
+                                                                    <Chip
+                                                                        label={response.attendance === "attending" ? "Attending" : "Not attending"}
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                    />
+                                                                    <Chip
+                                                                        label={response.consentGiven ? "Consent given" : "Consent not given"}
+                                                                        size="small"
+                                                                        color={response.consentGiven ? "success" : "warning"}
+                                                                    />
+                                                                </Stack>
+
+                                                                <Typography sx={{ fontWeight: 700 }}>
+                                                                    Child: {response.childName || "Not supplied"}
+                                                                </Typography>
+                                                                <Typography variant="body2">
+                                                                    Date of birth: {response.dateOfBirth || "Not supplied"}
+                                                                </Typography>
+                                                                <Typography variant="body2">
+                                                                    Parent / Guardian: {response.parentName || "Not supplied"}
+                                                                </Typography>
+                                                                <Typography variant="body2">
+                                                                    Emergency details confirmed: {response.emergencyDetailsConfirmed ? "Yes" : "No"}
+                                                                </Typography>
+                                                                <Typography variant="body2">
+                                                                    Medical / emergency information changed: {response.medicalDetailsChanged ? "Yes" : "No"}
+                                                                </Typography>
+                                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                                    Submitted: {formatDate(response.submittedAt)}
+                                                                </Typography>
+                                                            </Paper>
+                                                        ))}
+                                                    </Box>
+                                                </Box>
+                                            )}
                                         </Box>
 
                                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 210 } }}>
