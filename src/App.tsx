@@ -37,21 +37,21 @@ export default function App() {
                     <Route path="/parent" element={<ParentPortal />} />
                     <Route path="/join" element={<Join />} />
                     <Route path="/contact" element={<Contact />} />
+
+                    <Route path="/leader/login" element={<AdminLogin />} />
+                    <Route path="/leader/register" element={<LeaderRegister />} />
+
+                    <Route path="/leader" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                    <Route path="/leader/requests" element={<ProtectedAdminRoute><LeaderRequests /></ProtectedAdminRoute>} />
+                    <Route path="/leader/profile" element={<ProtectedAdminRoute><LeaderProfile /></ProtectedAdminRoute>} />
+                    <Route path="/leader/consents" element={<ProtectedAdminRoute><ConsentManagement /></ProtectedAdminRoute>} />
+                    <Route path="/leader/info" element={<ProtectedAdminRoute><LeaderInfo /></ProtectedAdminRoute>} />
+                    <Route path="/leader/join" element={<ProtectedAdminRoute><JoinManagement /></ProtectedAdminRoute>} />
+                    <Route path="/leader/members" element={<ProtectedAdminRoute><MemberManagement /></ProtectedAdminRoute>} />
+                    <Route path="/leader/events" element={<ProtectedAdminRoute><EventsManagement /></ProtectedAdminRoute>} />
+                    <Route path="/leader/event-consent" element={<ProtectedAdminRoute><EventConsentManagement /></ProtectedAdminRoute>} />
+                    <Route path="/leader/parent-access" element={<ProtectedAdminRoute><ParentAccessManagement /></ProtectedAdminRoute>} />
                 </Route>
-
-                <Route path="/leader/login" element={<AdminLogin />} />
-                <Route path="/leader/register" element={<LeaderRegister />} />
-
-                <Route path="/leader" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-                <Route path="/leader/requests" element={<ProtectedAdminRoute><LeaderRequests /></ProtectedAdminRoute>} />
-                <Route path="/leader/profile" element={<ProtectedAdminRoute><LeaderProfile /></ProtectedAdminRoute>} />
-                <Route path="/leader/consents" element={<ProtectedAdminRoute><ConsentManagement /></ProtectedAdminRoute>} />
-                <Route path="/leader/info" element={<ProtectedAdminRoute><LeaderInfo /></ProtectedAdminRoute>} />
-                <Route path="/leader/join" element={<ProtectedAdminRoute><JoinManagement /></ProtectedAdminRoute>} />
-                <Route path="/leader/members" element={<ProtectedAdminRoute><MemberManagement /></ProtectedAdminRoute>} />
-                <Route path="/leader/events" element={<ProtectedAdminRoute><EventsManagement /></ProtectedAdminRoute>} />
-                <Route path="/leader/event-consent" element={<ProtectedAdminRoute><EventConsentManagement /></ProtectedAdminRoute>} />
-                <Route path="/leader/parent-access" element={<ProtectedAdminRoute><ParentAccessManagement /></ProtectedAdminRoute>} />
             </Routes>
         </AdminAuthProvider>
     );
