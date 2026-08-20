@@ -1,11 +1,13 @@
 import {
     addDoc,
     collection,
+    deleteDoc,
     doc,
     getDocs,
     orderBy,
     query,
     serverTimestamp,
+    setDoc,
     updateDoc
 } from "firebase/firestore";
 import type {
@@ -163,6 +165,44 @@ function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
 }
 
+async function syncPublicEvent(eventId: string, input: EventInput): Promise<void> {
+    const publicRef = doc(db, "publicEvents", eventId);
+
+    if (input.status !== "open") {
+        await deleteDoc(publicRef);
+        return;
+    }
+
+    await setDoc(publicRef, {
+        eventId,
+        title: clean(input.title, 200),
+        description: clean(input.description, 3000),
+        eventType: clean(input.eventType, 80),
+        section: clean(input.section, 80),
+        location: clean(input.location, 300),
+        startDate: clean(input.startDate, 30),
+        endDate: clean(input.endDate, 30),
+        updatedAt: serverTimestamp()
+    });
+}
+
+function eventToInput(event: EventRecord): EventInput {
+    return {
+        title: event.title,
+        description: event.description,
+        eventType: event.eventType,
+        section: event.section,
+        location: event.location,
+        meetingPoint: event.meetingPoint,
+        returnDetails: event.returnDetails,
+        leaderNotes: event.leaderNotes,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        status: event.status,
+        consentRequired: event.consentRequired
+    };
+}
+
 export async function loadEvents(): Promise<EventRecord[]> {
     const snapshot = await getDocs(
         query(
@@ -171,7 +211,13 @@ export async function loadEvents(): Promise<EventRecord[]> {
         )
     );
 
-    return snapshot.docs.map(mapEvent);
+    const events = snapshot.docs.map(mapEvent);
+
+    // Backfill/synchronise the safe public projection whenever an authorised
+    // leader loads Event Management. This keeps existing events in sync too.
+    await Promise.all(events.map((event) => syncPublicEvent(event.id, eventToInput(event))));
+
+    return events;
 }
 
 export async function createEvent(input: EventInput): Promise<string> {
@@ -208,6 +254,8 @@ export async function createEvent(input: EventInput): Promise<string> {
         updatedBy: user.uid
     });
 
+    await syncPublicEvent(eventRef.id, { ...input, title });
+
     return eventRef.id;
 }
 
@@ -237,6 +285,8 @@ export async function updateEvent(
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     });
+
+    await syncPublicEvent(eventId, input);
 }
 
 export async function updateEventRoster(
