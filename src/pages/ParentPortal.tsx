@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import {
     createParentAccessForCurrentUser,
-    isCurrentUserLeader,
+    isCurrentUserActiveLeader,
     loadParentAccount,
     loginParent,
     logoutParent,
@@ -53,7 +53,7 @@ export default function ParentPortal() {
                 try {
                     const [parentAccount, leader] = await Promise.all([
                         loadParentAccount(user.uid),
-                        isCurrentUserLeader()
+                        isCurrentUserActiveLeader()
                     ]);
                     setAccount(parentAccount);
                     setLeaderAccount(leader);
@@ -163,13 +163,20 @@ export default function ParentPortal() {
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
                 <Container maxWidth="md">
                     <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
-                        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: { xs: "column", sm: "row" },
+                                justifyContent: "space-between",
+                                gap: 2
+                            }}
+                        >
                             <Box><Typography variant="h3" color="secondary">Parent Consent Portal</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography></Box>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                                 {leaderAccount && <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>}
                                 <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                             </Stack>
-                        </Stack>
+                        </Box>
                         {leaderAccessDenied && !leaderAccount && (
                             <Alert severity="warning" sx={{ mt: 3 }}>
                                 Parent access does not include Leader Dashboard access. Only accounts with an active leader record can open leader pages.
