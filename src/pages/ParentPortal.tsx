@@ -22,6 +22,19 @@ import {
 } from "../services/parentPortal";
 import type { ParentAccount } from "../services/parentPortal";
 
+function firebaseErrorCode(error: unknown): string {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+    ) {
+        return (error as { code: string }).code;
+    }
+
+    return "";
+}
+
 export default function ParentPortal() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [authReady, setAuthReady] = useState(false);
@@ -84,11 +97,28 @@ export default function ParentPortal() {
             }
         } catch (submitError) {
             console.error("Parent portal sign-in error:", submitError);
-            setError(
-                mode === "register"
-                    ? "Unable to create the parent account. Check the email/password and try again."
-                    : "Unable to sign in. Check the email and password and try again."
-            );
+            const code = firebaseErrorCode(submitError);
+
+            if (code === "auth/email-already-in-use") {
+                setMode("login");
+                setError(
+                    "An account already exists for this email. If you are already a leader, use the same email and password you use for Leader Login."
+                );
+            } else if (code === "auth/invalid-credential") {
+                setError(
+                    "The email or password was not recognised. If you are already a leader, use exactly the same email and password as Leader Login."
+                );
+            } else if (code === "auth/weak-password") {
+                setError("Please choose a password with at least 6 characters.");
+            } else if (code === "auth/invalid-email") {
+                setError("Please enter a valid email address.");
+            } else {
+                setError(
+                    mode === "register"
+                        ? "Unable to create the parent account. Check the details and try again."
+                        : "Unable to sign in. Check the email and password and try again."
+                );
+            }
         } finally {
             setWorking(false);
         }
@@ -196,7 +226,12 @@ export default function ParentPortal() {
             <Container maxWidth="sm">
                 <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                     <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>Sign in to manage consent and medical information for children linked to your parent account.</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>
+                        Sign in to manage consent and medical information for children linked to your parent account.
+                    </Typography>
+                    <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
+                        Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.
+                    </Alert>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <Stack spacing={2}>
                         {mode === "register" && <><TextField label="Parent / Guardian name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} /></>}
