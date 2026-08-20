@@ -8,6 +8,7 @@ import {
     updateDoc,
     where
 } from "firebase/firestore";
+import type { Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 
@@ -44,10 +45,33 @@ export type ParentConsentRecord = {
     altContactPhone: string;
     additionalInfo: string;
     medicationManagement: Record<string, unknown>;
+    updatedByParent: boolean;
+    parentUpdatedAt: Date | null;
+    updatedAt: Date | null;
+};
+
+export type ParentLinkedMember = {
+    id: string;
+    displayName: string;
+    section: string;
+    dateOfBirth: string;
 };
 
 const stringValue = (data: Record<string, unknown>, key: string) =>
     typeof data[key] === "string" ? (data[key] as string) : "";
+
+function timestampToDate(value: unknown): Date | null {
+    if (
+        value &&
+        typeof value === "object" &&
+        "toDate" in value &&
+        typeof (value as Timestamp).toDate === "function"
+    ) {
+        return (value as Timestamp).toDate();
+    }
+
+    return null;
+}
 
 function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRecord {
     return {
@@ -85,8 +109,33 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
         medicationManagement:
             data.medicationManagement && typeof data.medicationManagement === "object"
                 ? (data.medicationManagement as Record<string, unknown>)
-                : {}
+                : {},
+        updatedByParent: data.updatedByParent === true,
+        parentUpdatedAt: timestampToDate(data.parentUpdatedAt),
+        updatedAt: timestampToDate(data.updatedAt)
     };
+}
+
+export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLinkedMember[]> {
+    const results: ParentLinkedMember[] = [];
+
+    for (const memberId of memberIds) {
+        const snapshot = await getDoc(doc(db, "members", memberId));
+        if (!snapshot.exists()) continue;
+
+        const data = snapshot.data();
+        results.push({
+            id: snapshot.id,
+            displayName:
+                typeof data.displayName === "string" && data.displayName.trim()
+                    ? data.displayName.trim()
+                    : "Linked member",
+            section: typeof data.section === "string" ? data.section : "",
+            dateOfBirth: typeof data.dateOfBirth === "string" ? data.dateOfBirth : ""
+        });
+    }
+
+    return results;
 }
 
 export async function loadParentConsents(memberIds: string[]): Promise<ParentConsentRecord[]> {

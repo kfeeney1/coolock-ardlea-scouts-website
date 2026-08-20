@@ -27,8 +27,12 @@ export type ConsentAdminRecord = {
     type: ConsentType;
     section: string;
     memberName: string;
+    memberId: string;
     status: string;
     submittedAt: Date | null;
+    updatedAt: Date | null;
+    parentUpdatedAt: Date | null;
+    updatedByParent: boolean;
     consentFrom: string;
     consentTo: string;
     hasMedicationManagement: boolean;
@@ -143,12 +147,20 @@ function mapConsent(
                       data,
                       "childName"
                   ),
+        memberId: stringValue(data, "memberId"),
         status:
             stringValue(data, "status") ||
             "active",
         submittedAt: timestampToDate(
             data.submittedAt
         ),
+        updatedAt: timestampToDate(
+            data.updatedAt
+        ),
+        parentUpdatedAt: timestampToDate(
+            data.parentUpdatedAt
+        ),
+        updatedByParent: data.updatedByParent === true,
         consentFrom:
             stringValue(
                 data,
