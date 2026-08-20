@@ -6,10 +6,13 @@ import {
 } from "firebase/auth";
 import type { User } from "firebase/auth";
 import {
+    collection,
     doc,
     getDoc,
+    getDocs,
     serverTimestamp,
-    setDoc
+    setDoc,
+    updateDoc
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -27,6 +30,22 @@ export type ParentAccount = {
 
 function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
+}
+
+function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAccount {
+    return {
+        uid,
+        email: typeof data.email === "string" ? data.email : "",
+        displayName: typeof data.displayName === "string" ? data.displayName : "",
+        mobileNumber: typeof data.mobileNumber === "string" ? data.mobileNumber : "",
+        status:
+            data.status === "approved" || data.status === "rejected"
+                ? data.status
+                : "pending",
+        memberIds: Array.isArray(data.memberIds)
+            ? data.memberIds.filter((value): value is string => typeof value === "string")
+            : []
+    };
 }
 
 export function observeParentAuth(callback: (user: User | null) => void) {
@@ -69,20 +88,29 @@ export async function loadParentAccount(uid: string): Promise<ParentAccount | nu
     const snapshot = await getDoc(doc(db, "parentAccounts", uid));
 
     if (!snapshot.exists()) return null;
+    return mapParentAccount(uid, snapshot.data());
+}
 
-    const data = snapshot.data();
+export async function loadParentAccounts(): Promise<ParentAccount[]> {
+    const snapshot = await getDocs(collection(db, "parentAccounts"));
+    return snapshot.docs
+        .map((item) => mapParentAccount(item.id, item.data()))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
 
-    return {
-        uid,
-        email: typeof data.email === "string" ? data.email : "",
-        displayName: typeof data.displayName === "string" ? data.displayName : "",
-        mobileNumber: typeof data.mobileNumber === "string" ? data.mobileNumber : "",
-        status:
-            data.status === "approved" || data.status === "rejected"
-                ? data.status
-                : "pending",
-        memberIds: Array.isArray(data.memberIds)
-            ? data.memberIds.filter((value): value is string => typeof value === "string")
-            : []
-    };
+export async function updateParentAccess(
+    uid: string,
+    status: ParentAccessStatus,
+    memberIds: string[]
+): Promise<void> {
+    const leader = auth.currentUser;
+    if (!leader) throw new Error("No signed-in leader.");
+
+    await updateDoc(doc(db, "parentAccounts", uid), {
+        status,
+        memberIds: [...new Set(memberIds)],
+        reviewedBy: leader.uid,
+        reviewedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
 }
