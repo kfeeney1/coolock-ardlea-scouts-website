@@ -9,8 +9,11 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import {
+    createParentAccessForCurrentUser,
+    isCurrentUserActiveLeader,
     loadParentAccount,
     loginParent,
     logoutParent,
@@ -22,6 +25,8 @@ import type { ParentAccount } from "../services/parentPortal";
 export default function ParentPortal() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [authReady, setAuthReady] = useState(false);
+    const [signedInWithoutParentAccess, setSignedInWithoutParentAccess] = useState(false);
+    const [leaderAccount, setLeaderAccount] = useState(false);
     const [account, setAccount] = useState<ParentAccount | null>(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -33,14 +38,27 @@ export default function ParentPortal() {
     useEffect(() => {
         return observeParentAuth((user) => {
             void (async () => {
+                setAuthReady(false);
+                setError("");
+
                 if (!user) {
                     setAccount(null);
+                    setSignedInWithoutParentAccess(false);
+                    setLeaderAccount(false);
                     setAuthReady(true);
                     return;
                 }
 
                 try {
-                    setAccount(await loadParentAccount(user.uid));
+                    const [parentAccount, isLeader] = await Promise.all([
+                        loadParentAccount(user.uid),
+                        isCurrentUserActiveLeader()
+                    ]);
+
+                    setAccount(parentAccount);
+                    setLeaderAccount(isLeader);
+                    setSignedInWithoutParentAccess(!parentAccount);
+                    setEmail(user.email || "");
                 } catch (loadError) {
                     console.error("Unable to load parent account:", loadError);
                     setError("Unable to load your parent access record.");
@@ -78,10 +96,68 @@ export default function ParentPortal() {
         }
     };
 
+    const setupExistingLogin = async () => {
+        if (!displayName.trim()) {
+            setError("Your name is required.");
+            return;
+        }
+
+        setWorking(true);
+        setError("");
+
+        try {
+            await createParentAccessForCurrentUser(displayName, mobileNumber);
+            window.location.reload();
+        } catch (setupError) {
+            console.error("Unable to enable parent access:", setupError);
+            setError("Unable to enable Parent Access for this login.");
+        } finally {
+            setWorking(false);
+        }
+    };
+
     if (!authReady) {
         return (
             <Box sx={{ minHeight: "70vh", display: "grid", placeItems: "center" }}>
                 <Typography>Loading parent portal…</Typography>
+            </Box>
+        );
+    }
+
+    if (signedInWithoutParentAccess) {
+        return (
+            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
+                <Container maxWidth="sm">
+                    <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
+                        <Typography variant="h3" color="secondary">
+                            Set up Parent Access
+                        </Typography>
+
+                        <Alert severity={leaderAccount ? "info" : "warning"} sx={{ mt: 2, mb: 3 }}>
+                            {leaderAccount
+                                ? "You are already signed in as a leader. Parent Access will use this same login and Firebase account. You do not need a second password."
+                                : "You are signed in, but this account does not yet have Parent Access."}
+                        </Alert>
+
+                        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+                        <Stack spacing={2}>
+                            <TextField label="Parent / Guardian name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                            <TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} />
+                            <Button variant="contained" color="success" disabled={working} onClick={() => void setupExistingLogin()}>
+                                {working ? "Please wait…" : "Enable Parent Access"}
+                            </Button>
+                            {leaderAccount && (
+                                <Button component={Link} to="/leader" variant="outlined" color="secondary">
+                                    Back to Leader Dashboard
+                                </Button>
+                            )}
+                            <Button variant="text" color="secondary" onClick={() => void logoutParent()}>
+                                Sign Out
+                            </Button>
+                        </Stack>
+                    </Paper>
+                </Container>
             </Box>
         );
     }
@@ -100,10 +176,23 @@ export default function ParentPortal() {
                                     Signed in as {account.displayName || account.email}
                                 </Typography>
                             </Box>
-                            <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>
-                                Sign Out
-                            </Button>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                {leaderAccount && (
+                                    <Button component={Link} to="/leader" variant="outlined" color="secondary">
+                                        Leader Dashboard
+                                    </Button>
+                                )}
+                                <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>
+                                    Sign Out
+                                </Button>
+                            </Stack>
                         </Stack>
+
+                        {leaderAccount && (
+                            <Alert severity="info" sx={{ mt: 3 }}>
+                                This login has both Leader and Parent access. You can move between the Leader Dashboard and Parent Portal without signing in again.
+                            </Alert>
+                        )}
 
                         {account.status === "pending" && (
                             <Alert severity="info" sx={{ mt: 3 }}>
@@ -146,7 +235,7 @@ export default function ParentPortal() {
                         Parent Consent Portal
                     </Typography>
                     <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
-                        Sign in to manage consent and medical information for children linked to your parent account.
+                        Sign in to manage consent and medical information for children linked to your account. Leaders who are also parents should sign in with their existing leader email and password.
                     </Typography>
 
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
