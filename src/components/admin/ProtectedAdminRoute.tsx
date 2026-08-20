@@ -22,6 +22,7 @@ export default function ProtectedAdminRoute({
     children
 }: Props) {
     const {
+        user,
         loading,
         authorised
     } = useAdminAuth();
@@ -40,6 +41,23 @@ export default function ProtectedAdminRoute({
             >
                 <CircularProgress color="success" />
             </Box>
+        );
+    }
+
+    // A Firebase login by itself never grants leader access.
+    // Parent-only users remain authenticated for /parent, but are explicitly
+    // redirected away from every protected /leader route unless the same UID
+    // also has an active adminUsers record.
+    if (user && !authorised) {
+        return (
+            <Navigate
+                to="/parent"
+                replace
+                state={{
+                    leaderAccessDenied: true,
+                    from: location.pathname
+                }}
+            />
         );
     }
 
