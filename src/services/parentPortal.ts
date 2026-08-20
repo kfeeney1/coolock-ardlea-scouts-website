@@ -52,6 +52,10 @@ export function observeParentAuth(callback: (user: User | null) => void) {
     return onAuthStateChanged(auth, callback);
 }
 
+export function currentUser(): User | null {
+    return auth.currentUser;
+}
+
 export async function registerParent(
     email: string,
     password: string,
@@ -64,9 +68,22 @@ export async function registerParent(
         password
     );
 
-    await setDoc(doc(db, "parentAccounts", credential.user.uid), {
-        uid: credential.user.uid,
-        email: email.trim().toLowerCase(),
+    await createParentAccessForCurrentUser(displayName, mobileNumber);
+}
+
+export async function createParentAccessForCurrentUser(
+    displayName: string,
+    mobileNumber: string
+): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in user.");
+
+    const existing = await getDoc(doc(db, "parentAccounts", user.uid));
+    if (existing.exists()) return;
+
+    await setDoc(doc(db, "parentAccounts", user.uid), {
+        uid: user.uid,
+        email: (user.email || "").trim().toLowerCase(),
         displayName: clean(displayName, 150),
         mobileNumber: clean(mobileNumber, 40),
         status: "pending",
@@ -96,6 +113,18 @@ export async function loadParentAccounts(): Promise<ParentAccount[]> {
     return snapshot.docs
         .map((item) => mapParentAccount(item.id, item.data()))
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export async function isCurrentUserActiveLeader(): Promise<boolean> {
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    try {
+        const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+        return snapshot.exists() && snapshot.data().active === true;
+    } catch {
+        return false;
+    }
 }
 
 export async function updateParentAccess(
