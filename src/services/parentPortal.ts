@@ -62,7 +62,7 @@ export async function registerParent(
     displayName: string,
     mobileNumber: string
 ): Promise<void> {
-    const credential = await createUserWithEmailAndPassword(
+    await createUserWithEmailAndPassword(
         auth,
         email.trim().toLowerCase(),
         password
