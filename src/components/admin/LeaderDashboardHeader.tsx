@@ -16,34 +16,15 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-    {
-        label: "Member Management",
-        path: "/leader/members"
-    },
-    {
-        label: "Events & Activities",
-        path: "/leader/events"
-    },
-    {
-        label: "Event Consent",
-        path: "/leader/event-consent"
-    },
-    {
-        label: "Join Us Management",
-        path: "/leader/join"
-    },
-    {
-        label: "Consent Management",
-        path: "/leader/consents"
-    },
-    {
-        label: "Info & FAQ",
-        path: "/leader/info"
-    },
-    {
-        label: "My Profile",
-        path: "/leader/profile"
-    }
+    { label: "Member Management", path: "/leader/members" },
+    { label: "Events & Activities", path: "/leader/events" },
+    { label: "Event Consent", path: "/leader/event-consent" },
+    { label: "Parent Access", path: "/leader/parent-access" },
+    { label: "Parent Portal", path: "/parent" },
+    { label: "Join Us Management", path: "/leader/join" },
+    { label: "Consent Management", path: "/leader/consents" },
+    { label: "Info & FAQ", path: "/leader/info" },
+    { label: "My Profile", path: "/leader/profile" }
 ];
 
 export default function LeaderDashboardHeader() {
@@ -53,34 +34,19 @@ export default function LeaderDashboardHeader() {
         <Paper
             elevation={3}
             sx={{
-                p: {
-                    xs: 2.5,
-                    md: 3
-                },
+                p: { xs: 2.5, md: 3 },
                 mb: 3,
                 borderRadius: 2,
                 borderTop: "6px solid",
                 borderTopColor: "secondary.main"
             }}
         >
-            <Typography
-                variant="h3"
-                color="secondary"
-                sx={{
-                    fontWeight: 800,
-                    mb: 0.75
-                }}
-            >
+            <Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 0.75 }}>
                 Leader Dashboard
             </Typography>
 
-            <Typography
-                color="text.secondary"
-                sx={{
-                    mb: 2.5
-                }}
-            >
-                Manage members, events, parent event consent, joining enquiries, consent records and leader settings.
+            <Typography color="text.secondary" sx={{ mb: 2.5 }}>
+                Manage members, events, parent access, joining enquiries, consent records and leader settings.
             </Typography>
 
             <Box

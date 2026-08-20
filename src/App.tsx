@@ -5,6 +5,8 @@ import MemberManagement from "./pages/MemberManagement";
 import JoinManagement from "./pages/JoinManagement";
 import LeaderInfo from "./pages/LeaderInfo";
 import ConsentManagement from "./pages/ConsentManagement";
+import ParentAccessManagement from "./pages/ParentAccessManagement";
+import ParentPortal from "./pages/ParentPortal";
 import LeaderProfile from "./pages/LeaderProfile";
 import LeaderRequests from "./pages/LeaderRequests";
 import LeaderRegister from "./pages/LeaderRegister";
@@ -32,6 +34,7 @@ export default function App() {
                     <Route path="/activities" element={<Activities />} />
                     <Route path="/activities/consent" element={<ConsentForm />} />
                     <Route path="/event-consent/:token" element={<EventConsent />} />
+                    <Route path="/parent" element={<ParentPortal />} />
                     <Route path="/join" element={<Join />} />
                     <Route path="/contact" element={<Contact />} />
                 </Route>
@@ -39,86 +42,16 @@ export default function App() {
                 <Route path="/leader/login" element={<AdminLogin />} />
                 <Route path="/leader/register" element={<LeaderRegister />} />
 
-                <Route
-                    path="/leader"
-                    element={
-                        <ProtectedAdminRoute>
-                            <AdminDashboard />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/requests"
-                    element={
-                        <ProtectedAdminRoute>
-                            <LeaderRequests />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/profile"
-                    element={
-                        <ProtectedAdminRoute>
-                            <LeaderProfile />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/consents"
-                    element={
-                        <ProtectedAdminRoute>
-                            <ConsentManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/info"
-                    element={
-                        <ProtectedAdminRoute>
-                            <LeaderInfo />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/join"
-                    element={
-                        <ProtectedAdminRoute>
-                            <JoinManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/members"
-                    element={
-                        <ProtectedAdminRoute>
-                            <MemberManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/events"
-                    element={
-                        <ProtectedAdminRoute>
-                            <EventsManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
-
-                <Route
-                    path="/leader/event-consent"
-                    element={
-                        <ProtectedAdminRoute>
-                            <EventConsentManagement />
-                        </ProtectedAdminRoute>
-                    }
-                />
+                <Route path="/leader" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                <Route path="/leader/requests" element={<ProtectedAdminRoute><LeaderRequests /></ProtectedAdminRoute>} />
+                <Route path="/leader/profile" element={<ProtectedAdminRoute><LeaderProfile /></ProtectedAdminRoute>} />
+                <Route path="/leader/consents" element={<ProtectedAdminRoute><ConsentManagement /></ProtectedAdminRoute>} />
+                <Route path="/leader/info" element={<ProtectedAdminRoute><LeaderInfo /></ProtectedAdminRoute>} />
+                <Route path="/leader/join" element={<ProtectedAdminRoute><JoinManagement /></ProtectedAdminRoute>} />
+                <Route path="/leader/members" element={<ProtectedAdminRoute><MemberManagement /></ProtectedAdminRoute>} />
+                <Route path="/leader/events" element={<ProtectedAdminRoute><EventsManagement /></ProtectedAdminRoute>} />
+                <Route path="/leader/event-consent" element={<ProtectedAdminRoute><EventConsentManagement /></ProtectedAdminRoute>} />
+                <Route path="/leader/parent-access" element={<ProtectedAdminRoute><ParentAccessManagement /></ProtectedAdminRoute>} />
             </Routes>
         </AdminAuthProvider>
     );

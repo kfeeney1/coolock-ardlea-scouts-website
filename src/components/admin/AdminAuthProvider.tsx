@@ -35,10 +35,13 @@ type AdminAuthContextValue = {
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
+    // Firebase authentication is identity only. Leader authorisation requires
+    // a separate, active adminUsers record for this exact UID.
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!snapshot.exists()) return null;
     const data = snapshot.data();
     if (data.active !== true) return null;
+
     return {
         uid: user.uid,
         email: user.email ?? "",
@@ -90,7 +93,7 @@ export function AdminAuthProvider({ children }: Props) {
         const profile = await loadAdminProfile(credential.user);
         if (!profile) {
             await signOut(auth);
-            throw new Error("This account is not yet approved for leader access.");
+            throw new Error("This account is not approved for leader access.");
         }
         setUser(credential.user);
         setAdminProfile(profile);

@@ -18,7 +18,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == "admin";
     }
 
+    function isApprovedParentForMember(memberId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+        && get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.status == "approved"
+        && memberId in get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.memberIds;
+    }
+
     match /adminUsers/{userId} {
+      // Parent authentication alone never grants leader access. Every leader
+      // operation still requires an active adminUsers record for the same UID.
       allow read: if isActiveLeader();
 
       allow update: if isActiveLeader()
@@ -30,6 +39,29 @@ service cloud.firestore {
         ]);
 
       allow create: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /parentAccounts/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.status == "pending"
+        && request.resource.data.memberIds.size() == 0;
+
+      allow get: if isActiveLeader()
+        || (signedIn() && request.auth.uid == userId);
+      allow list: if isActiveLeader();
+
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "memberIds",
+          "reviewedBy",
+          "reviewedAt",
+          "updatedAt"
+        ]);
+
       allow delete: if false;
     }
 
@@ -99,7 +131,7 @@ service cloud.firestore {
           )
         );
 
-      allow read: if isActiveLeader();
+      allow read: if isActiveLeader() || isApprovedParentForMember(memberId);
 
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
