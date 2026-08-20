@@ -16,11 +16,14 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
 
-type AdminProfile = {
+export type SystemRole = "super-admin" | "admin" | "leader";
+
+export type AdminProfile = {
     uid: string;
     email: string;
     displayName: string;
-    role: string;
+    role: SystemRole;
+    sections: string[];
 };
 
 type AdminAuthContextValue = {
@@ -34,22 +37,28 @@ type AdminAuthContextValue = {
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
+function normaliseRole(value: unknown): SystemRole {
+    if (value === "super-admin" || value === "admin") return value;
+    return "leader";
+}
+
 async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
-    // Firebase authentication is identity only. Leader authorisation requires
-    // a separate, active adminUsers record for this exact UID.
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!snapshot.exists()) return null;
     const data = snapshot.data();
     if (data.active !== true) return null;
 
+    const legacySection = typeof data.section === "string" && data.section ? [data.section] : [];
+    const sections = Array.isArray(data.sections)
+        ? data.sections.filter((section): section is string => typeof section === "string")
+        : legacySection;
+
     return {
         uid: user.uid,
         email: user.email ?? "",
-        displayName:
-            typeof data.displayName === "string"
-                ? data.displayName
-                : user.email ?? "Leader",
-        role: typeof data.role === "string" ? data.role : "leader"
+        displayName: typeof data.displayName === "string" ? data.displayName : user.email ?? "Leader",
+        role: normaliseRole(data.role),
+        sections
     };
 }
 
@@ -64,13 +73,11 @@ export function AdminAuthProvider({ children }: Props) {
         const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
             setLoading(true);
             setUser(nextUser);
-
             if (!nextUser) {
                 setAdminProfile(null);
                 setLoading(false);
                 return;
             }
-
             try {
                 setAdminProfile(await loadAdminProfile(nextUser));
             } catch (error) {
@@ -80,16 +87,11 @@ export function AdminAuthProvider({ children }: Props) {
                 setLoading(false);
             }
         });
-
         return unsubscribe;
     }, []);
 
     const login = async (email: string, password: string) => {
-        const credential = await signInWithEmailAndPassword(
-            auth,
-            email,
-            password
-        );
+        const credential = await signInWithEmailAndPassword(auth, email, password);
         const profile = await loadAdminProfile(credential.user);
         if (!profile) {
             await signOut(auth);
@@ -105,29 +107,20 @@ export function AdminAuthProvider({ children }: Props) {
         setAdminProfile(null);
     };
 
-    const value = useMemo<AdminAuthContextValue>(
-        () => ({
-            user,
-            adminProfile,
-            loading,
-            authorised: Boolean(user) && Boolean(adminProfile),
-            login,
-            logout
-        }),
-        [user, adminProfile, loading]
-    );
+    const value = useMemo<AdminAuthContextValue>(() => ({
+        user,
+        adminProfile,
+        loading,
+        authorised: Boolean(user) && Boolean(adminProfile),
+        login,
+        logout
+    }), [user, adminProfile, loading]);
 
-    return (
-        <AdminAuthContext.Provider value={value}>
-            {children}
-        </AdminAuthContext.Provider>
-    );
+    return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }
 
 export function useAdminAuth() {
     const context = useContext(AdminAuthContext);
-    if (!context) {
-        throw new Error("useAdminAuth must be used inside AdminAuthProvider.");
-    }
+    if (!context) throw new Error("useAdminAuth must be used inside AdminAuthProvider.");
     return context;
 }
