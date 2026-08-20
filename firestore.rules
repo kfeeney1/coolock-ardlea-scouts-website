@@ -2,197 +2,116 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
     function isActiveLeader() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
-        && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active == true;
+      return signedIn() && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)) && profile().active == true;
     }
-
-    function isAdmin() {
-      return isActiveLeader()
-        && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == "admin";
+    function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
+    function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
+    function hasSection(section) {
+      return isAdmin() || (isActiveLeader() && ((profile().sections is list && section in profile().sections) || profile().section == section));
     }
-
     function isApprovedParentForMember(memberId) {
-      return signedIn()
-        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+      return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
         && get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.status == "approved"
         && memberId in get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.memberIds;
     }
 
     match /adminUsers/{userId} {
-      allow read: if isActiveLeader();
-      allow update: if isActiveLeader()
-        && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "displayName", "mobileNumber", "section"
-        ]);
-      allow create: if isAdmin();
+      allow get: if isActiveLeader();
+      allow list: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.role == "leader";
+      allow update: if (request.auth.uid == userId && isActiveLeader()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
+        || (isAdmin() && resource.data.role == "leader"
+          && request.resource.data.role == "leader"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["active", "sections", "section", "displayName", "mobileNumber", "updatedAt", "updatedBy"]))
+        || (isSuperAdmin() && resource.data.role != "super-admin"
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["active", "role", "sections", "section", "displayName", "mobileNumber", "updatedAt", "updatedBy"]));
       allow delete: if false;
     }
 
     match /parentAccounts/{userId} {
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.uid == userId
-        && request.resource.data.status == "pending"
-        && request.resource.data.memberIds.size() == 0;
-      allow get: if isActiveLeader() || (signedIn() && request.auth.uid == userId);
-      allow list: if isActiveLeader();
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status", "memberIds", "reviewedBy", "reviewedAt", "updatedAt"
-        ]);
+      allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId
+        && request.resource.data.status == "pending" && request.resource.data.memberIds.size() == 0;
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberIds", "reviewedBy", "reviewedAt", "updatedAt"]);
       allow delete: if false;
     }
 
     match /leaderRegistrationRequests/{userId} {
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.uid == userId
-        && request.resource.data.status == "pending"
-        && request.resource.data.privacyConfirmed == true;
+      allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId && request.resource.data.status == "pending" && request.resource.data.privacyConfirmed == true;
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status", "reviewedAt", "reviewedBy", "reviewNote"
-        ]);
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedAt", "reviewedBy", "reviewNote"]);
       allow delete: if false;
     }
 
     match /joinApplications/{applicationId} {
-      allow create: if
-        request.resource.data.childFirstName is string
-        && request.resource.data.childLastName is string
-        && request.resource.data.parentName is string
-        && request.resource.data.emailAddress is string
-        && request.resource.data.mobileNumber is string
-        && request.resource.data.section is string
-        && request.resource.data.informationConfirmed == true
-        && request.resource.data.contactConsent == true
-        && request.resource.data.status == "new"
-        && request.resource.data.source == "website"
-        && request.resource.data.submittedAt == request.time;
-      allow read: if isActiveLeader();
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy"
-        ]);
+      allow create: if request.resource.data.childFirstName is string && request.resource.data.childLastName is string
+        && request.resource.data.parentName is string && request.resource.data.emailAddress is string
+        && request.resource.data.mobileNumber is string && request.resource.data.section is string
+        && request.resource.data.informationConfirmed == true && request.resource.data.contactConsent == true
+        && request.resource.data.status == "new" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time;
+      allow read: if isActiveLeader() && hasSection(resource.data.section);
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy"]);
       allow delete: if false;
     }
 
     match /members/{memberId} {
-      allow create: if isActiveLeader()
-        && request.resource.data.createdBy == request.auth.uid
-        && ((request.resource.data.source == "join-application" && request.resource.data.status == "active")
-          || (request.resource.data.source == "manual" && request.resource.data.status in ["active", "inactive", "left"]));
-      allow read: if isActiveLeader() || isApprovedParentForMember(memberId);
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName",
-          "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone",
-          "status", "updatedAt", "updatedBy"
-        ]);
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
+        && ((request.resource.data.source == "join-application" && request.resource.data.status == "active") || (request.resource.data.source == "manual" && request.resource.data.status in ["active", "inactive", "left"]));
+      allow read: if (isActiveLeader() && hasSection(resource.data.section)) || isApprovedParentForMember(memberId);
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]);
       allow delete: if false;
     }
 
     match /events/{eventId} {
-      allow read: if isActiveLeader();
-      allow create: if isActiveLeader()
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.title is string
-        && request.resource.data.startDate is string
-        && request.resource.data.status in ["draft", "open", "closed", "completed"];
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "title", "description", "eventType", "section", "location", "meetingPoint",
-          "returnDetails", "leaderNotes", "startDate", "endDate", "status",
-          "consentRequired", "attendance", "consent", "updatedAt", "updatedBy"
-        ]);
+      allow read: if isActiveLeader() && hasSection(resource.data.section);
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid && request.resource.data.title is string && request.resource.data.startDate is string && request.resource.data.status in ["draft", "open", "closed", "completed"];
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "attendance", "consent", "updatedAt", "updatedBy"]);
       allow delete: if false;
     }
 
     match /eventConsentLinks/{token} {
-      allow get: if isActiveLeader() || resource.data.active == true;
-      allow list: if isActiveLeader();
-      allow create: if isActiveLeader()
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.eventId is string
-        && request.resource.data.title is string
-        && request.resource.data.active is bool;
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "eventId", "title", "description", "eventType", "section", "location",
-          "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired",
-          "active", "updatedAt"
-        ]);
+      allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
+      allow list: if isActiveLeader() && hasSection(resource.data.section);
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid && request.resource.data.eventId is string && request.resource.data.title is string && request.resource.data.active is bool;
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "updatedAt"]);
       allow delete: if false;
     }
 
     match /eventConsentResponses/{responseId} {
-      allow create: if
-        request.resource.data.token is string
-        && request.resource.data.eventId is string
-        && request.resource.data.childName is string
-        && request.resource.data.dateOfBirth is string
-        && request.resource.data.parentName is string
-        && request.resource.data.attendance in ["attending", "not-attending"]
-        && request.resource.data.consentGiven is bool
-        && request.resource.data.emergencyDetailsConfirmed is bool
-        && request.resource.data.medicalDetailsChanged is bool
-        && request.resource.data.processingStatus == "new"
-        && request.resource.data.submittedAt == request.time
+      allow create: if request.resource.data.token is string && request.resource.data.eventId is string && request.resource.data.childName is string
+        && request.resource.data.dateOfBirth is string && request.resource.data.parentName is string && request.resource.data.attendance in ["attending", "not-attending"]
+        && request.resource.data.consentGiven is bool && request.resource.data.emergencyDetailsConfirmed is bool && request.resource.data.medicalDetailsChanged is bool
+        && request.resource.data.processingStatus == "new" && request.resource.data.submittedAt == request.time
         && exists(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.active == true
         && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.eventId == request.resource.data.eventId;
-      allow read: if isActiveLeader();
-      allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "processingStatus", "matchedMemberId", "processedBy", "processedAt"
-        ])
-        && request.resource.data.processingStatus in ["matched", "ignored"]
-        && request.resource.data.processedBy == request.auth.uid;
+      allow read: if isAdmin();
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
+        && request.resource.data.processingStatus in ["matched", "ignored"] && request.resource.data.processedBy == request.auth.uid;
       allow delete: if false;
     }
 
     match /consentApplications/{consentId} {
-      allow create: if
-        request.resource.data.status == "active"
-        && request.resource.data.source == "website"
-        && request.resource.data.submittedAt == request.time;
-
-      allow read: if isActiveLeader()
+      allow create: if request.resource.data.status == "active" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time;
+      allow read: if (isActiveLeader() && (isAdmin() || (resource.data.section is string && hasSection(resource.data.section))))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
-
-      allow update: if
-        (isActiveLeader()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "status", "memberId", "linkedBy", "linkedAt", "updatedAt"
-          ]))
-        ||
-        (resource.data.memberId is string
-          && isApprovedParentForMember(resource.data.memberId)
-          && request.resource.data.memberId == resource.data.memberId
+      allow update: if (isActiveLeader() && (isAdmin() || (resource.data.section is string && hasSection(resource.data.section)))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
+        || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
           && request.resource.data.parentUpdatedBy == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim",
-            "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs",
-            "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup",
-            "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email",
-            "homeAddress", "altContactName", "altContactPhone", "additionalInfo",
-            "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"
-          ]));
-
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
       allow delete: if false;
     }
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
