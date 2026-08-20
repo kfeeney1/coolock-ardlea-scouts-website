@@ -22,6 +22,7 @@ import {
     updateParentAccess
 } from "../services/parentPortal";
 import type { ParentAccount, ParentAccessStatus } from "../services/parentPortal";
+import { linkConsentRecordsToMembers } from "../services/parentConsent";
 
 export default function ParentAccessManagement() {
     const [parents, setParents] = useState<ParentAccount[]>([]);
@@ -78,12 +79,22 @@ export default function ParentAccessManagement() {
         setError("");
         setMessage("");
         try {
+            let linked = 0;
+            if (status === "approved") {
+                linked = await linkConsentRecordsToMembers(memberIds);
+            }
             await updateParentAccess(parent.uid, status, status === "approved" ? memberIds : []);
-            setMessage(`${parent.displayName || parent.email} access updated.`);
+            setMessage(
+                `${parent.displayName || parent.email} access updated.${
+                    status === "approved"
+                        ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked to the selected member${memberIds.length === 1 ? "" : "s"}.`
+                        : ""
+                }`
+            );
             await load();
         } catch (saveError) {
             console.error("Unable to update parent access:", saveError);
-            setError("Unable to update parent access.");
+            setError("Unable to update parent access or link the consent records.");
         } finally {
             setWorkingUid("");
         }
@@ -103,7 +114,7 @@ export default function ParentAccessManagement() {
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
                 <Alert severity="warning" sx={{ mb: 3 }}>
-                    Only approve a parent or guardian after verifying their identity. Linking a member will eventually allow that parent to view and update that member's consent and medical information.
+                    Only approve a parent or guardian after verifying their identity. Approval also links any existing youth consent form that exactly matches the selected member's name and date of birth.
                 </Alert>
 
                 {loading ? (
