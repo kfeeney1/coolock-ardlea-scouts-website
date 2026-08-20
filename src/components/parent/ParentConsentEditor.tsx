@@ -76,8 +76,8 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
 
             <Typography variant="h6" sx={{ mt: 3, mb: 1.5 }}>Consent period</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-                <TextField label="Consent from" type="date" InputLabelProps={{ shrink: true }} value={form.consentFrom} onChange={(e) => set("consentFrom", e.target.value)} />
-                <TextField label="Consent to" type="date" InputLabelProps={{ shrink: true }} value={form.consentTo} onChange={(e) => set("consentTo", e.target.value)} />
+                <TextField label="Consent from" type="date" slotProps={{ inputLabel: { shrink: true } }} value={form.consentFrom} onChange={(e) => set("consentFrom", e.target.value)} />
+                <TextField label="Consent to" type="date" slotProps={{ inputLabel: { shrink: true } }} value={form.consentTo} onChange={(e) => set("consentTo", e.target.value)} />
                 {yesNoField("Photo consent", "photoConsent")}
                 {yesNoField("Water activities", "waterActivities")}
                 {yesNoField("Can swim", "canSwim")}
@@ -109,7 +109,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
                 <TextField label="GP name" value={form.gpName} onChange={(e) => set("gpName", e.target.value)} />
                 <TextField label="GP telephone" value={form.gpTel} onChange={(e) => set("gpTel", e.target.value)} />
                 <TextField label="GP address" value={form.gpAddress} onChange={(e) => set("gpAddress", e.target.value)} />
-                <TextField label="Last check-up" type="date" InputLabelProps={{ shrink: true }} value={form.lastCheckup} onChange={(e) => set("lastCheckup", e.target.value)} />
+                <TextField label="Last check-up" type="date" slotProps={{ inputLabel: { shrink: true } }} value={form.lastCheckup} onChange={(e) => set("lastCheckup", e.target.value)} />
             </Stack>
 
             <Divider sx={{ my: 3 }} />
