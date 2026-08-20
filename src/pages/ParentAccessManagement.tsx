@@ -113,7 +113,14 @@ export default function ParentAccessManagement() {
                         {parents.length === 0 && <Alert severity="info">No parent accounts have registered yet.</Alert>}
                         {parents.map((parent) => (
                             <Paper key={parent.uid} variant="outlined" sx={{ p: 2.5 }}>
-                                <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: { xs: "column", md: "row" },
+                                        justifyContent: "space-between",
+                                        gap: 2
+                                    }}
+                                >
                                     <Box sx={{ flex: 1 }}>
                                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                                             <Typography variant="h5" color="secondary">{parent.displayName || "Unnamed parent"}</Typography>
@@ -161,7 +168,7 @@ export default function ParentAccessManagement() {
                                             Reject Access
                                         </Button>
                                     </Stack>
-                                </Stack>
+                                </Box>
                             </Paper>
                         ))}
                     </Box>
