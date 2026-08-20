@@ -995,6 +995,20 @@ export default function ConsentManagement() {
                                                             label={record.section}
                                                         />
                                                     )}
+                                                    {record.type === "youth" && !record.memberId && (
+                                                        <Chip
+                                                            size="small"
+                                                            color="warning"
+                                                            label="Not linked to member"
+                                                        />
+                                                    )}
+                                                    {record.updatedByParent && (
+                                                        <Chip
+                                                            size="small"
+                                                            color="success"
+                                                            label="Updated by parent"
+                                                        />
+                                                    )}
                                                     {record.hasMedicalAlert && (
                                                         <Chip
                                                             size="small"
@@ -1032,6 +1046,26 @@ export default function ConsentManagement() {
                                                 >
                                                     Submitted {formatDate(record.submittedAt)}
                                                 </Typography>
+
+                                                {record.updatedByParent && (
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="success.main"
+                                                        sx={{ mt: 0.5, fontWeight: 700 }}
+                                                    >
+                                                        Parent update {formatDate(record.parentUpdatedAt || record.updatedAt)}
+                                                    </Typography>
+                                                )}
+
+                                                {record.type === "youth" && !record.memberId && (
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="warning.main"
+                                                        sx={{ mt: 0.5, fontWeight: 700 }}
+                                                    >
+                                                        Parent Portal editing is unavailable until this consent is linked to a member record.
+                                                    </Typography>
+                                                )}
 
                                                 {record.consentTo && (
                                                     <Typography
@@ -1128,6 +1162,18 @@ export default function ConsentManagement() {
                                             variant="outlined"
                                         />
                                     )}
+                                    {selected.type === "youth" && !selected.memberId && (
+                                        <Chip
+                                            label="Not linked to member"
+                                            color="warning"
+                                        />
+                                    )}
+                                    {selected.updatedByParent && (
+                                        <Chip
+                                            label="Updated by parent"
+                                            color="success"
+                                        />
+                                    )}
                                     {selected.hasMedicalAlert && (
                                         <Chip
                                             label="Medical information present"
@@ -1141,6 +1187,18 @@ export default function ConsentManagement() {
                                         />
                                     )}
                                 </Stack>
+
+                                {selected.updatedByParent && (
+                                    <Alert severity="success" sx={{ mb: 2 }}>
+                                        This record was updated through the Parent Portal on {formatDate(selected.parentUpdatedAt || selected.updatedAt)}.
+                                    </Alert>
+                                )}
+
+                                {selected.type === "youth" && !selected.memberId && (
+                                    <Alert severity="warning" sx={{ mb: 2 }}>
+                                        This youth consent record is not linked to a member ID. Re-save the parent’s approved Parent Access links to match it before Parent Portal editing can be used.
+                                    </Alert>
+                                )}
 
                                 <Box
                                     sx={{
