@@ -6,6 +6,7 @@ import {
     orderBy,
     query,
     serverTimestamp,
+    setDoc,
     updateDoc
 } from "firebase/firestore";
 import type {
@@ -16,21 +17,9 @@ import type {
 
 import { auth, db } from "../firebase";
 
-export type EventStatus =
-    | "draft"
-    | "open"
-    | "closed"
-    | "completed";
-
-export type AttendanceStatus =
-    | "invited"
-    | "attending"
-    | "not-attending";
-
-export type EventConsentStatus =
-    | "not-required"
-    | "required"
-    | "received";
+export type EventStatus = "draft" | "open" | "closed" | "completed";
+export type AttendanceStatus = "invited" | "attending" | "not-attending";
+export type EventConsentStatus = "not-required" | "required" | "received";
 
 export type EventRecord = {
     id: string;
@@ -52,32 +41,15 @@ export type EventRecord = {
     updatedAt: Date | null;
 };
 
-export type EventInput = Pick<
-    EventRecord,
-    | "title"
-    | "description"
-    | "eventType"
-    | "section"
-    | "location"
-    | "meetingPoint"
-    | "returnDetails"
-    | "leaderNotes"
-    | "startDate"
-    | "endDate"
-    | "status"
-    | "consentRequired"
->;
+export type EventInput = Pick<EventRecord,
+    "title" | "description" | "eventType" | "section" | "location" |
+    "meetingPoint" | "returnDetails" | "leaderNotes" | "startDate" |
+    "endDate" | "status" | "consentRequired">;
 
 function timestampToDate(value: unknown): Date | null {
-    if (
-        value &&
-        typeof value === "object" &&
-        "toDate" in value &&
-        typeof (value as Timestamp).toDate === "function"
-    ) {
+    if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
         return (value as Timestamp).toDate();
     }
-
     return null;
 }
 
@@ -87,52 +59,25 @@ function stringValue(data: DocumentData, key: string): string {
 }
 
 function mapAttendance(value: unknown): Record<string, AttendanceStatus> {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return {};
-    }
-
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const result: Record<string, AttendanceStatus> = {};
-
-    Object.entries(value as Record<string, unknown>).forEach(
-        ([memberId, status]) => {
-            if (
-                status === "invited" ||
-                status === "attending" ||
-                status === "not-attending"
-            ) {
-                result[memberId] = status;
-            }
-        }
-    );
-
+    Object.entries(value as Record<string, unknown>).forEach(([memberId, status]) => {
+        if (status === "invited" || status === "attending" || status === "not-attending") result[memberId] = status;
+    });
     return result;
 }
 
 function mapConsent(value: unknown): Record<string, EventConsentStatus> {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return {};
-    }
-
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const result: Record<string, EventConsentStatus> = {};
-
-    Object.entries(value as Record<string, unknown>).forEach(
-        ([memberId, status]) => {
-            if (
-                status === "not-required" ||
-                status === "required" ||
-                status === "received"
-            ) {
-                result[memberId] = status;
-            }
-        }
-    );
-
+    Object.entries(value as Record<string, unknown>).forEach(([memberId, status]) => {
+        if (status === "not-required" || status === "required" || status === "received") result[memberId] = status;
+    });
     return result;
 }
 
 function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord {
     const data = snapshot.data();
-
     return {
         id: snapshot.id,
         title: stringValue(data, "title") || "Untitled event",
@@ -145,12 +90,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord {
         leaderNotes: stringValue(data, "leaderNotes"),
         startDate: stringValue(data, "startDate"),
         endDate: stringValue(data, "endDate"),
-        status:
-            data.status === "open" ||
-            data.status === "closed" ||
-            data.status === "completed"
-                ? data.status
-                : "draft",
+        status: data.status === "open" || data.status === "closed" || data.status === "completed" ? data.status : "draft",
         consentRequired: data.consentRequired === true,
         attendance: mapAttendance(data.attendance),
         consent: mapConsent(data.consent),
@@ -163,29 +103,41 @@ function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
 }
 
-export async function loadEvents(): Promise<EventRecord[]> {
-    const snapshot = await getDocs(
-        query(
-            collection(db, "events"),
-            orderBy("startDate", "desc")
-        )
-    );
+function publicEventFields(event: EventRecord) {
+    return {
+        eventId: event.id,
+        title: event.title,
+        description: event.description,
+        eventType: event.eventType,
+        section: event.section,
+        location: event.location,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        status: event.status,
+        updatedAt: serverTimestamp(),
+        updatedBy: auth.currentUser?.uid ?? ""
+    };
+}
 
-    return snapshot.docs.map(mapEvent);
+async function syncPublicEvents(events: EventRecord[]): Promise<void> {
+    if (!auth.currentUser) return;
+    await Promise.all(events.map((event) =>
+        setDoc(doc(db, "publicActivities", event.id), publicEventFields(event), { merge: true })
+    ));
+}
+
+export async function loadEvents(): Promise<EventRecord[]> {
+    const snapshot = await getDocs(query(collection(db, "events"), orderBy("startDate", "desc")));
+    const events = snapshot.docs.map(mapEvent);
+    await syncPublicEvents(events);
+    return events;
 }
 
 export async function createEvent(input: EventInput): Promise<string> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
-
+    if (!user) throw new Error("No signed-in leader.");
     const title = clean(input.title, 200);
-
-    if (!title) {
-        throw new Error("Event title is required.");
-    }
+    if (!title) throw new Error("Event title is required.");
 
     const eventRef = await addDoc(collection(db, "events"), {
         title,
@@ -207,20 +159,12 @@ export async function createEvent(input: EventInput): Promise<string> {
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     });
-
     return eventRef.id;
 }
 
-export async function updateEvent(
-    eventId: string,
-    input: EventInput
-): Promise<void> {
+export async function updateEvent(eventId: string, input: EventInput): Promise<void> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
-
+    if (!user) throw new Error("No signed-in leader.");
     await updateDoc(doc(db, "events", eventId), {
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
@@ -239,17 +183,9 @@ export async function updateEvent(
     });
 }
 
-export async function updateEventRoster(
-    eventId: string,
-    attendance: Record<string, AttendanceStatus>,
-    consent: Record<string, EventConsentStatus>
-): Promise<void> {
+export async function updateEventRoster(eventId: string, attendance: Record<string, AttendanceStatus>, consent: Record<string, EventConsentStatus>): Promise<void> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
-
+    if (!user) throw new Error("No signed-in leader.");
     await updateDoc(doc(db, "events", eventId), {
         attendance,
         consent,
