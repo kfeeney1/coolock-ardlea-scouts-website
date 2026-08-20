@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
     { label: "Events & Activities", path: "/leader/events" },
     { label: "Event Consent", path: "/leader/event-consent" },
     { label: "Parent Access", path: "/leader/parent-access" },
+    { label: "Parent Portal", path: "/parent" },
     { label: "Join Us Management", path: "/leader/join" },
     { label: "Consent Management", path: "/leader/consents" },
     { label: "Info & FAQ", path: "/leader/info" },
