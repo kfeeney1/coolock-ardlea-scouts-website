@@ -11,6 +11,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+import ParentConsentSection from "../components/parent/ParentConsentSection";
 import {
     createParentAccessForCurrentUser,
     isCurrentUserActiveLeader,
@@ -31,7 +32,6 @@ function firebaseErrorCode(error: unknown): string {
     ) {
         return (error as { code: string }).code;
     }
-
     return "";
 }
 
@@ -62,7 +62,6 @@ export default function ParentPortal() {
                     setAuthReady(true);
                     return;
                 }
-
                 try {
                     const [parentAccount, leader] = await Promise.all([
                         loadParentAccount(user.uid),
@@ -84,7 +83,6 @@ export default function ParentPortal() {
     const submit = async () => {
         setWorking(true);
         setError("");
-
         try {
             if (mode === "register") {
                 if (!displayName.trim()) {
@@ -98,26 +96,17 @@ export default function ParentPortal() {
         } catch (submitError) {
             console.error("Parent portal sign-in error:", submitError);
             const code = firebaseErrorCode(submitError);
-
             if (code === "auth/email-already-in-use") {
                 setMode("login");
-                setError(
-                    "An account already exists for this email. If you are already a leader, use the same email and password you use for Leader Login."
-                );
+                setError("An account already exists for this email. If you are already a leader, use the same email and password you use for Leader Login.");
             } else if (code === "auth/invalid-credential") {
-                setError(
-                    "The email or password was not recognised. If you are already a leader, use exactly the same email and password as Leader Login."
-                );
+                setError("The email or password was not recognised. If you are already a leader, use exactly the same email and password as Leader Login.");
             } else if (code === "auth/weak-password") {
                 setError("Please choose a password with at least 6 characters.");
             } else if (code === "auth/invalid-email") {
                 setError("Please enter a valid email address.");
             } else {
-                setError(
-                    mode === "register"
-                        ? "Unable to create the parent account. Check the details and try again."
-                        : "Unable to sign in. Check the email and password and try again."
-                );
+                setError(mode === "register" ? "Unable to create the parent account. Check the details and try again." : "Unable to sign in. Check the email and password and try again.");
             }
         } finally {
             setWorking(false);
@@ -158,27 +147,15 @@ export default function ParentPortal() {
                 <Container maxWidth="sm">
                     <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                         <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
-                        {leaderAccessDenied && (
-                            <Alert severity="warning" sx={{ mt: 2 }}>
-                                This account does not have leader access. Parent accounts cannot open Leader Dashboard pages.
-                            </Alert>
-                        )}
-                        {leaderAccount ? (
-                            <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
-                                You are already signed in as a leader. Use the same account for parent access — no second login or password is required.
-                            </Alert>
-                        ) : (
-                            <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
-                                You are already signed in. Set up parent access for this existing account.
-                            </Alert>
-                        )}
+                        {leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access. Parent accounts cannot open Leader Dashboard pages.</Alert>}
+                        <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
+                            {leaderAccount ? "You are already signed in as a leader. Use the same account for parent access — no second login or password is required." : "You are already signed in. Set up parent access for this existing account."}
+                        </Alert>
                         <Stack spacing={2}>
                             <TextField label="Parent / Guardian name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
                             <TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} />
                             {error && <Alert severity="error">{error}</Alert>}
-                            <Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>
-                                {working ? "Please wait…" : "Enable Parent Access"}
-                            </Button>
+                            <Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Enable Parent Access"}</Button>
                             {leaderAccount && <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>}
                             <Button variant="text" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                         </Stack>
@@ -191,30 +168,31 @@ export default function ParentPortal() {
     if (account) {
         return (
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
-                <Container maxWidth="md">
+                <Container maxWidth="lg">
                     <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: { xs: "column", sm: "row" },
-                                justifyContent: "space-between",
-                                gap: 2
-                            }}
-                        >
-                            <Box><Typography variant="h3" color="secondary">Parent Consent Portal</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography></Box>
+                        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}>
+                            <Box>
+                                <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
+                                <Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography>
+                            </Box>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                                 {leaderAccount && <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>}
                                 <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                             </Stack>
                         </Box>
-                        {leaderAccessDenied && !leaderAccount && (
-                            <Alert severity="warning" sx={{ mt: 3 }}>
-                                Parent access does not include Leader Dashboard access. Only accounts with an active leader record can open leader pages.
-                            </Alert>
-                        )}
-                        {account.status === "pending" && <Alert severity="info" sx={{ mt: 3 }}>Your parent account is waiting for a leader to verify and link it to your child or children. Medical and consent information will remain hidden until that approval is complete.</Alert>}
+
+                        {leaderAccessDenied && !leaderAccount && <Alert severity="warning" sx={{ mt: 3 }}>Parent access does not include Leader Dashboard access. Only accounts with an active leader record can open leader pages.</Alert>}
+                        {account.status === "pending" && <Alert severity="info" sx={{ mt: 3 }}>Your parent account is waiting for a leader to verify and link it to your child or children. Medical and consent information remains hidden until approval is complete.</Alert>}
                         {account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}
-                        {account.status === "approved" && <><Alert severity="success" sx={{ mt: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert><Paper variant="outlined" sx={{ mt: 3, p: 3 }}><Typography variant="h5" color="secondary">Consent & Medical Forms</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Secure member-to-consent linking is the next Stage 8.1 increment. Until that link is in place, existing medical records are intentionally not exposed here.</Typography></Paper></>}
+                        {account.status === "approved" && (
+                            <>
+                                <Alert severity="success" sx={{ mt: 3, mb: 3 }}>
+                                    Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.
+                                </Alert>
+                                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
+                                <ParentConsentSection memberIds={account.memberIds} />
+                            </>
+                        )}
                     </Paper>
                 </Container>
             </Box>
@@ -226,12 +204,8 @@ export default function ParentPortal() {
             <Container maxWidth="sm">
                 <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                     <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 1 }}>
-                        Sign in to manage consent and medical information for children linked to your parent account.
-                    </Typography>
-                    <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
-                        Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.
-                    </Alert>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to manage consent and medical information for children linked to your parent account.</Typography>
+                    <Alert severity="info" sx={{ mt: 2, mb: 3 }}>Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.</Alert>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <Stack spacing={2}>
                         {mode === "register" && <><TextField label="Parent / Guardian name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} /></>}
