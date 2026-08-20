@@ -18,17 +18,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == "admin";
     }
 
+    function isApprovedParentFor(memberId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+        && get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.status == "approved"
+        && memberId in get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.memberIds;
+    }
+
     match /adminUsers/{userId} {
       allow read: if isActiveLeader();
-
       allow update: if isActiveLeader()
         && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "displayName",
-          "mobileNumber",
-          "section"
+          "displayName", "mobileNumber", "section"
         ]);
-
       allow create: if isAdmin();
       allow delete: if false;
     }
@@ -39,17 +42,31 @@ service cloud.firestore {
         && request.resource.data.uid == userId
         && request.resource.data.status == "pending"
         && request.resource.data.privacyConfirmed == true;
-
-      allow read: if isAdmin()
-        || (signedIn() && request.auth.uid == userId);
-
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status",
-          "reviewedAt",
-          "reviewedBy",
-          "reviewNote"
+          "status", "reviewedAt", "reviewedBy", "reviewNote"
         ]);
+      allow delete: if false;
+    }
+
+    match /parentAccounts/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.status == "pending"
+        && request.resource.data.memberIds.size() == 0;
+
+      allow get: if isActiveLeader() || (signedIn() && request.auth.uid == userId);
+      allow list: if isActiveLeader();
+
+      allow update: if isActiveLeader()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status", "memberIds", "reviewedBy", "reviewedAt", "updatedAt"
+        ])
+        && request.resource.data.status in ["pending", "approved", "rejected"];
 
       allow delete: if false;
     }
@@ -67,119 +84,56 @@ service cloud.firestore {
         && request.resource.data.status == "new"
         && request.resource.data.source == "website"
         && request.resource.data.submittedAt == request.time;
-
       allow read: if isActiveLeader();
-
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status",
-          "notes",
-          "contactHistory",
-          "updatedAt",
-          "memberId",
-          "convertedAt",
-          "convertedBy"
+          "status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy"
         ]);
-
       allow delete: if false;
     }
 
     match /members/{memberId} {
       allow create: if isActiveLeader()
         && request.resource.data.createdBy == request.auth.uid
-        && (
-          (
-            request.resource.data.source == "join-application"
-            && request.resource.data.status == "active"
-          )
-          ||
-          (
-            request.resource.data.source == "manual"
-            && request.resource.data.status in ["active", "inactive", "left"]
-          )
-        );
-
-      allow read: if isActiveLeader();
-
+        && ((request.resource.data.source == "join-application" && request.resource.data.status == "active")
+          || (request.resource.data.source == "manual" && request.resource.data.status in ["active", "inactive", "left"]));
+      allow read: if isActiveLeader() || isApprovedParentFor(memberId);
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "firstName",
-          "lastName",
-          "displayName",
-          "dateOfBirth",
-          "section",
-          "parentName",
-          "emailAddress",
-          "mobileNumber",
-          "emergencyContactName",
-          "emergencyContactPhone",
-          "status",
-          "updatedAt",
-          "updatedBy"
+          "firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress",
+          "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"
         ]);
-
       allow delete: if false;
     }
 
     match /events/{eventId} {
       allow read: if isActiveLeader();
-
       allow create: if isActiveLeader()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.title is string
         && request.resource.data.startDate is string
         && request.resource.data.status in ["draft", "open", "closed", "completed"];
-
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "title",
-          "description",
-          "eventType",
-          "section",
-          "location",
-          "meetingPoint",
-          "returnDetails",
-          "leaderNotes",
-          "startDate",
-          "endDate",
-          "status",
-          "consentRequired",
-          "attendance",
-          "consent",
-          "updatedAt",
-          "updatedBy"
+          "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails",
+          "leaderNotes", "startDate", "endDate", "status", "consentRequired", "attendance", "consent", "updatedAt", "updatedBy"
         ]);
-
       allow delete: if false;
     }
 
     match /eventConsentLinks/{token} {
       allow get: if isActiveLeader() || resource.data.active == true;
       allow list: if isActiveLeader();
-
       allow create: if isActiveLeader()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string
         && request.resource.data.title is string
         && request.resource.data.active is bool;
-
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "eventId",
-          "title",
-          "description",
-          "eventType",
-          "section",
-          "location",
-          "meetingPoint",
-          "returnDetails",
-          "startDate",
-          "endDate",
-          "consentRequired",
-          "active",
-          "updatedAt"
+          "eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails",
+          "startDate", "endDate", "consentRequired", "active", "updatedAt"
         ]);
-
       allow delete: if false;
     }
 
@@ -199,35 +153,23 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token))
         && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.active == true
         && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.eventId == request.resource.data.eventId;
-
       allow read: if isActiveLeader();
-
       allow update: if isActiveLeader()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "processingStatus",
-          "matchedMemberId",
-          "processedBy",
-          "processedAt"
+          "processingStatus", "matchedMemberId", "processedBy", "processedAt"
         ])
         && request.resource.data.processingStatus in ["matched", "ignored"]
         && request.resource.data.processedBy == request.auth.uid;
-
       allow delete: if false;
     }
 
     match /consentApplications/{consentId} {
-      allow create: if
-        request.resource.data.status == "active"
+      allow create: if request.resource.data.status == "active"
         && request.resource.data.source == "website"
         && request.resource.data.submittedAt == request.time;
-
       allow read: if isActiveLeader();
-
       allow update: if isActiveLeader()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "status"
-        ]);
-
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
       allow delete: if false;
     }
 
