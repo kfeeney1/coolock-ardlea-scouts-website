@@ -1,0 +1,88 @@
+import {
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut
+} from "firebase/auth";
+import type { User } from "firebase/auth";
+import {
+    doc,
+    getDoc,
+    serverTimestamp,
+    setDoc
+} from "firebase/firestore";
+
+import { auth, db } from "../firebase";
+
+export type ParentAccessStatus = "pending" | "approved" | "rejected";
+
+export type ParentAccount = {
+    uid: string;
+    email: string;
+    displayName: string;
+    mobileNumber: string;
+    status: ParentAccessStatus;
+    memberIds: string[];
+};
+
+function clean(value: string, max: number): string {
+    return value.trim().slice(0, max);
+}
+
+export function observeParentAuth(callback: (user: User | null) => void) {
+    return onAuthStateChanged(auth, callback);
+}
+
+export async function registerParent(
+    email: string,
+    password: string,
+    displayName: string,
+    mobileNumber: string
+): Promise<void> {
+    const credential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+    );
+
+    await setDoc(doc(db, "parentAccounts", credential.user.uid), {
+        uid: credential.user.uid,
+        email: email.trim().toLowerCase(),
+        displayName: clean(displayName, 150),
+        mobileNumber: clean(mobileNumber, 40),
+        status: "pending",
+        memberIds: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+}
+
+export async function loginParent(email: string, password: string): Promise<void> {
+    await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+}
+
+export async function logoutParent(): Promise<void> {
+    await signOut(auth);
+}
+
+export async function loadParentAccount(uid: string): Promise<ParentAccount | null> {
+    const snapshot = await getDoc(doc(db, "parentAccounts", uid));
+
+    if (!snapshot.exists()) return null;
+
+    const data = snapshot.data();
+
+    return {
+        uid,
+        email: typeof data.email === "string" ? data.email : "",
+        displayName: typeof data.displayName === "string" ? data.displayName : "",
+        mobileNumber: typeof data.mobileNumber === "string" ? data.mobileNumber : "",
+        status:
+            data.status === "approved" || data.status === "rejected"
+                ? data.status
+                : "pending",
+        memberIds: Array.isArray(data.memberIds)
+            ? data.memberIds.filter((value): value is string => typeof value === "string")
+            : []
+    };
+}
