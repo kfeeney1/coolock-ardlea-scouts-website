@@ -77,6 +77,25 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /publicActivities/{eventId} {
+      allow read: if true;
+      allow create: if isActiveLeader()
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.title is string
+        && request.resource.data.startDate is string
+        && request.resource.data.status in ["draft", "open", "closed", "completed"];
+      allow update: if isActiveLeader()
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "eventId", "title", "description", "eventType", "section", "location",
+          "startDate", "endDate", "status", "updatedAt", "updatedBy"
+        ]);
+      allow delete: if false;
+    }
+
     match /eventConsentLinks/{token} {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if isActiveLeader() && hasSection(resource.data.section);
