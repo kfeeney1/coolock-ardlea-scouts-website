@@ -53,6 +53,10 @@ export default function Header() {
                         Join Us
                     </Button>
 
+                    <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 700 }}>
+                        Parent Login
+                    </Button>
+
                     <Button component={Link} to="/leader/login" variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>
                         Leader Login
                     </Button>
@@ -67,6 +71,7 @@ export default function Header() {
                             <MenuItem key={item.name} component={Link} to={item.path} onClick={() => setAnchorEl(null)}>{item.name}</MenuItem>
                         ))}
                         <MenuItem component={Link} to="/join" onClick={() => setAnchorEl(null)} sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem>
+                        <MenuItem component={Link} to="/parent" onClick={() => setAnchorEl(null)} sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Login</MenuItem>
                         <MenuItem component={Link} to="/leader/login" onClick={() => setAnchorEl(null)} sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem>
                     </Menu>
                 </Box>
