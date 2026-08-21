@@ -23,12 +23,18 @@ function decodeFirebaseUid(token) { try { const payload = token.split(".")[1]; i
 function bearer(request) { const auth = request.headers.get("Authorization") || ""; return auth.startsWith("Bearer ") ? auth.slice(7).trim() : ""; }
 async function getDocument(env, token, collection, uid) { const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/${collection}/${encodeURIComponent(uid)}`; const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); return response.ok ? response.json() : null; }
 function fieldString(document, key) { return document?.fields?.[key]?.stringValue || ""; }
+function fieldBoolean(document, key) { return document?.fields?.[key]?.booleanValue === true; }
+function mapString(document, key, childKey) { return document?.fields?.[key]?.mapValue?.fields?.[childKey]?.stringValue || ""; }
+
+async function requireActiveLeader(request, env) {
+  const token = bearer(request); const uid = decodeFirebaseUid(token); if (!token || !uid) return null;
+  const document = await getDocument(env, token, "adminUsers", uid); if (!document || !fieldBoolean(document, "active")) return null;
+  return { token, uid, role: fieldString(document, "role") || "leader" };
+}
 
 async function requireAdministrator(request, env) {
-  const token = bearer(request); const uid = decodeFirebaseUid(token); if (!token || !uid) return null;
-  const document = await getDocument(env, token, "adminUsers", uid); if (!document) return null;
-  const active = document.fields?.active?.booleanValue === true; const role = fieldString(document, "role") || "leader";
-  return active && (role === "admin" || role === "super-admin") ? { token, uid } : null;
+  const leader = await requireActiveLeader(request, env);
+  return leader && (leader.role === "admin" || leader.role === "super-admin") ? leader : null;
 }
 
 async function sendEmail(env, to, subject, html) {
@@ -83,6 +89,88 @@ async function handleLeaderStatus(request, env, body) {
   return json(request, env, 200, { ok: true });
 }
 
+function eventDetailsHtml(event) {
+  const title = fieldString(event, "title") || "Scout event";
+  const date = fieldString(event, "startDate") || "Date to be confirmed";
+  const location = fieldString(event, "location");
+  const meetingPoint = fieldString(event, "meetingPoint");
+  const returnDetails = fieldString(event, "returnDetails");
+  return `<table role="presentation" style="font-size:15px;line-height:1.6;border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0;font-weight:700">Event</td><td>${escapeHtml(title)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Date</td><td>${escapeHtml(date)}</td></tr>${location ? `<tr><td style="padding:4px 12px 4px 0;font-weight:700">Location</td><td>${escapeHtml(location)}</td></tr>` : ""}${meetingPoint ? `<tr><td style="padding:4px 12px 4px 0;font-weight:700">Meeting point</td><td>${escapeHtml(meetingPoint)}</td></tr>` : ""}${returnDetails ? `<tr><td style="padding:4px 12px 4px 0;font-weight:700">Return</td><td>${escapeHtml(returnDetails)}</td></tr>` : ""}</table>`;
+}
+
+async function handleEventNotification(request, env, body) {
+  const leader = await requireActiveLeader(request, env);
+  if (!leader) return json(request, env, 403, { ok: false, error: "Active leader access required." });
+
+  const eventId = clean(body.eventId, 100);
+  const consentToken = clean(body.consentToken, 100);
+  const kind = body.kind === "update" || body.kind === "reminder" ? body.kind : "notice";
+  const memberIds = Array.isArray(body.memberIds) ? [...new Set(body.memberIds.filter(v => typeof v === "string").map(v => clean(v, 100)).filter(Boolean))].slice(0, 200) : [];
+  if (!eventId || !consentToken || !memberIds.length) return json(request, env, 400, { ok: false, error: "Event, consent link and members are required." });
+
+  const event = await getDocument(env, leader.token, "events", eventId);
+  if (!event) return json(request, env, 403, { ok: false, error: "Event unavailable for this leader." });
+  if (fieldString(event, "status") !== "open") return json(request, env, 409, { ok: false, error: "Only open events can send parent notifications." });
+
+  const link = await getDocument(env, leader.token, "eventConsentLinks", consentToken);
+  if (!link || fieldString(link, "eventId") !== eventId || !fieldBoolean(link, "active")) return json(request, env, 409, { ok: false, error: "An active consent link for this event is required." });
+
+  const title = fieldString(event, "title") || "Scout event";
+  const actionUrl = `${env.SITE_URL}/event-consent/${encodeURIComponent(consentToken)}`;
+  let sent = 0;
+  let skipped = 0;
+
+  for (const memberId of memberIds) {
+    const member = await getDocument(env, leader.token, "members", memberId);
+    if (!member || fieldString(member, "status") !== "active") { skipped += 1; continue; }
+    if (kind === "reminder") {
+      const consentStatus = mapString(event, "consent", memberId);
+      const attendanceStatus = mapString(event, "attendance", memberId);
+      if (consentStatus === "received" || attendanceStatus === "not-attending") { skipped += 1; continue; }
+    }
+
+    const email = fieldString(member, "emailAddress").toLowerCase();
+    if (!email.includes("@")) { skipped += 1; continue; }
+    const childName = fieldString(member, "displayName") || "your child";
+    const parentName = fieldString(member, "parentName") || "Parent / Guardian";
+    const heading = kind === "reminder" ? "Consent reminder" : kind === "update" ? "Event update" : "New event notice";
+    const intro = kind === "reminder"
+      ? `Hello ${parentName}, we are still waiting for a response for ${childName}.`
+      : kind === "update"
+        ? `Hello ${parentName}, there is an update for ${childName}'s upcoming event.`
+        : `Hello ${parentName}, ${childName} has an upcoming Scout event.`;
+    const subject = kind === "reminder" ? `Consent reminder – ${title}` : kind === "update" ? `Event update – ${title}` : `New event – ${title}`;
+    const bodyHtml = `${eventDetailsHtml(event)}<p style="font-size:16px;line-height:1.6;margin-top:18px">Please use the button below to confirm attendance${fieldBoolean(event, "consentRequired") ? " and provide event consent" : ""}.</p>`;
+    await sendEmail(env, email, subject, brandedEmail({ heading, intro, bodyHtml, actionLabel: "Respond to event", actionUrl }));
+    sent += 1;
+  }
+
+  return json(request, env, 200, { ok: true, sent, skipped });
+}
+
+async function handleEventConsentProcessed(request, env, body) {
+  const leader = await requireActiveLeader(request, env);
+  if (!leader) return json(request, env, 403, { ok: false, error: "Active leader access required." });
+  const eventId = clean(body.eventId, 100); const memberId = clean(body.memberId, 100);
+  if (!eventId || !memberId) return json(request, env, 400, { ok: false, error: "Event and member are required." });
+
+  const event = await getDocument(env, leader.token, "events", eventId);
+  const member = await getDocument(env, leader.token, "members", memberId);
+  if (!event || !member) return json(request, env, 403, { ok: false, error: "Event or member unavailable for this leader." });
+  const email = fieldString(member, "emailAddress").toLowerCase();
+  if (!email.includes("@")) return json(request, env, 200, { ok: true, skipped: true });
+
+  const childName = fieldString(member, "displayName") || "your child";
+  const parentName = fieldString(member, "parentName") || "Parent / Guardian";
+  const attendance = mapString(event, "attendance", memberId) || "invited";
+  const consent = mapString(event, "consent", memberId) || (fieldBoolean(event, "consentRequired") ? "required" : "not-required");
+  const attendanceText = attendance === "not-attending" ? "Not attending" : attendance === "attending" ? "Attending" : "Invited";
+  const consentText = consent === "received" ? "Received" : consent === "not-required" ? "Not required" : "Outstanding";
+  const bodyHtml = `${eventDetailsHtml(event)}<p style="font-size:16px;line-height:1.6;margin-top:18px"><strong>${escapeHtml(childName)}</strong><br/>Attendance: ${escapeHtml(attendanceText)}<br/>Consent: ${escapeHtml(consentText)}</p>`;
+  await sendEmail(env, email, `Event response confirmed – ${fieldString(event, "title") || "Scout event"}`, brandedEmail({ heading: "Event response confirmed", intro: `Hello ${parentName}, your response for ${childName} has been recorded.`, bodyHtml, actionLabel: "Open Parent Portal", actionUrl: `${env.SITE_URL}/parent` }));
+  return json(request, env, 200, { ok: true });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
@@ -98,6 +186,8 @@ export default {
       if (path === "/parent-access-approved") return await handleParentStatus(request, env, body, "approved");
       if (path === "/parent-access-rejected") return await handleParentStatus(request, env, body, "rejected");
       if (path === "/leader-access-status") return await handleLeaderStatus(request, env, body);
+      if (path === "/event-notification") return await handleEventNotification(request, env, body);
+      if (path === "/event-consent-processed") return await handleEventConsentProcessed(request, env, body);
       return json(request, env, 404, { ok: false, error: "Not found." });
     } catch (error) {
       console.error("Email worker error", error);
