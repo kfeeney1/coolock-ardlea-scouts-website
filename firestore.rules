@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
+    function parentProfile() { return get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data; }
     function isActiveLeader() {
       return signedIn() && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)) && profile().active == true;
     }
@@ -14,8 +15,14 @@ service cloud.firestore {
     }
     function isApprovedParentForMember(memberId) {
       return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.status == "approved"
-        && memberId in get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data.memberIds;
+        && parentProfile().status == "approved"
+        && memberId in parentProfile().memberIds;
+    }
+    function isApprovedParentForSection(section) {
+      return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+        && parentProfile().status == "approved"
+        && parentProfile().linkedSections is list
+        && section in parentProfile().linkedSections;
     }
 
     match /adminUsers/{userId} {
@@ -34,10 +41,11 @@ service cloud.firestore {
 
     match /parentAccounts/{userId} {
       allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId
-        && request.resource.data.status == "pending" && request.resource.data.memberIds.size() == 0;
+        && request.resource.data.status == "pending" && request.resource.data.memberIds.size() == 0
+        && request.resource.data.linkedSections.size() == 0;
       allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow list: if isAdmin();
-      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberIds", "reviewedBy", "reviewedAt", "updatedAt"]);
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberIds", "linkedSections", "reviewedBy", "reviewedAt", "updatedAt"]);
       allow delete: if false;
     }
 
@@ -102,7 +110,8 @@ service cloud.firestore {
 
     match /eventConsentLinks/{token} {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
-      allow list: if isActiveLeader() && hasSection(resource.data.section);
+      allow list: if (isActiveLeader() && hasSection(resource.data.section))
+        || (resource.data.active == true && isApprovedParentForSection(resource.data.section));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid && request.resource.data.eventId is string && request.resource.data.title is string && request.resource.data.active is bool;
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "updatedAt"]);
