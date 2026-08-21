@@ -209,7 +209,11 @@ export default function ParentPortal() {
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography>
                             </Box>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                                {leaderAccount && <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>}
+                                {leaderAccount ? (
+                                    <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>
+                                ) : (
+                                    <Button component={Link} to="/leader/register" variant="outlined" color="secondary">Request Leader Access</Button>
+                                )}
                                 <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                             </Stack>
                         </Box>
