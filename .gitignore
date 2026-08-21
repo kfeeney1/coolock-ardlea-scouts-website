@@ -42,6 +42,13 @@ firebase-export-*/
 
 
 # ==============================
+# Cloudflare Worker local state
+# ==============================
+
+.wrangler/
+
+
+# ==============================
 # Credentials / private keys
 # ==============================
 
