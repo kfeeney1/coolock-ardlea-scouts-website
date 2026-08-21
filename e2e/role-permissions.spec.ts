@@ -18,7 +18,7 @@ const protectedLeaderRoutes = [
 
 function credentials(prefix: string): Credentials | null {
   const email = process.env[`${prefix}_EMAIL`]?.trim();
-  const password = process.env[`${prefix}_PASSWORD`];
+  const password = process.env[`${prefix}_PASSWORD`] || process.env.E2E_TEST_USER_PASSWORD;
   return email && password ? { email, password } : null;
 }
 
@@ -57,7 +57,7 @@ test.describe("parent-only permissions", () => {
 
   test("parent can use Parent Portal but is redirected away from Leader Dashboard", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account, "Configure E2E_PARENT_EMAIL and E2E_PARENT_PASSWORD to run this check.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
 
     await expect(page.getByRole("link", { name: "Request Leader Access" })).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("dual-role parent and leader permissions", () => {
 
   test("same login exposes Parent Portal and Leader Dashboard", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account, "Configure E2E_PARENT_LEADER_EMAIL and E2E_PARENT_LEADER_PASSWORD to run this check.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
     await expect(page.getByRole("link", { name: "Leader Dashboard" })).toBeVisible();
 
@@ -89,7 +89,7 @@ test.describe("leader permissions", () => {
 
   test("ordinary leader sees operational areas but not admin-only navigation", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account, "Configure E2E_LEADER_EMAIL and E2E_LEADER_PASSWORD to run this check.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
@@ -112,7 +112,7 @@ test.describe("multi-section leader permissions", () => {
 
   test("multi-section leader profile advertises all assigned sections", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account || expectedSections.length < 2, "Configure the multi-section leader credentials and E2E_MULTI_SECTION_LEADER_SECTIONS.");
+    test.skip(!account || expectedSections.length < 2, "Configure the seeded E2E test password and expected sections.");
     await loginLeader(page, account!);
 
     for (const section of expectedSections) {
@@ -127,7 +127,7 @@ test.describe("admin permissions", () => {
 
   test("admin sees parent and leader access management", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account, "Configure E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to run this check.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
     await expect(page.getByText(/· admin/i).first()).toBeVisible();
@@ -144,7 +144,7 @@ test.describe("super-admin permissions", () => {
 
   test("super admin can open the full access-management area", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!account, "Configure E2E_SUPER_ADMIN_EMAIL and E2E_SUPER_ADMIN_PASSWORD to run this check.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
     await expect(page.getByText(/· super-admin/i).first()).toBeVisible();

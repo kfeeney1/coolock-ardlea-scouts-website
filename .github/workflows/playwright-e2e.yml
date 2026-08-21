@@ -25,19 +25,14 @@ jobs:
       VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
       VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
       E2E_BASE_URL: http://127.0.0.1:4173
-      E2E_PARENT_EMAIL: ${{ secrets.E2E_PARENT_EMAIL }}
-      E2E_PARENT_PASSWORD: ${{ secrets.E2E_PARENT_PASSWORD }}
-      E2E_PARENT_LEADER_EMAIL: ${{ secrets.E2E_PARENT_LEADER_EMAIL }}
-      E2E_PARENT_LEADER_PASSWORD: ${{ secrets.E2E_PARENT_LEADER_PASSWORD }}
-      E2E_LEADER_EMAIL: ${{ secrets.E2E_LEADER_EMAIL }}
-      E2E_LEADER_PASSWORD: ${{ secrets.E2E_LEADER_PASSWORD }}
-      E2E_MULTI_SECTION_LEADER_EMAIL: ${{ secrets.E2E_MULTI_SECTION_LEADER_EMAIL }}
-      E2E_MULTI_SECTION_LEADER_PASSWORD: ${{ secrets.E2E_MULTI_SECTION_LEADER_PASSWORD }}
-      E2E_MULTI_SECTION_LEADER_SECTIONS: ${{ vars.E2E_MULTI_SECTION_LEADER_SECTIONS }}
-      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-      E2E_SUPER_ADMIN_EMAIL: ${{ secrets.E2E_SUPER_ADMIN_EMAIL }}
-      E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+      E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
+      E2E_PARENT_EMAIL: test.parent.only@example.com
+      E2E_PARENT_LEADER_EMAIL: test.leader.parent@example.com
+      E2E_LEADER_EMAIL: test.leader.only@example.com
+      E2E_MULTI_SECTION_LEADER_EMAIL: test.leader.multisection@example.com
+      E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
+      E2E_ADMIN_EMAIL: test.admin@example.com
+      E2E_SUPER_ADMIN_EMAIL: test.superadmin@example.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
