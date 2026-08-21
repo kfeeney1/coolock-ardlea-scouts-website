@@ -67,10 +67,9 @@ export async function notifyLeaderAccessStatus(
     status: "approved" | "rejected",
     section: string
 ): Promise<void> {
-    await post("/leader-access-status", {
-        email,
-        displayName,
-        status,
-        section
-    }, true);
+    await post("/leader-access-status", { email, displayName, status, section }, true);
+}
+
+export async function notifyEventPublished(eventId: string, memberIds: string[]): Promise<void> {
+    await post("/event-published", { eventId, memberIds }, true);
 }
