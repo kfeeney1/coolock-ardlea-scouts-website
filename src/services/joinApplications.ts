@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../firebase";
+import { notifyJoinApplication } from "./emailNotifications";
 
 export type JoinApplication = {
     childFirstName: string;
@@ -80,6 +81,14 @@ export async function submitJoinApplication(
             submittedAt: serverTimestamp()
         }
     );
+
+    try {
+        await notifyJoinApplication(documentReference.id, application);
+    } catch (emailError) {
+        // The application is already safely stored in Firestore. Email failure must
+        // not make the parent think their application was lost or resubmit it.
+        console.error("Unable to send Join Us admin email notification:", emailError);
+    }
 
     return documentReference.id;
 }
