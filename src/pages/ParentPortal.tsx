@@ -2,6 +2,7 @@ import {
     Alert,
     Box,
     Button,
+    CircularProgress,
     Container,
     Paper,
     Stack,
@@ -13,16 +14,15 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import { auth } from "../firebase";
 import {
     createParentAccessForCurrentUser,
-    isCurrentUserActiveLeader,
     loadParentAccount,
     loginParent,
     logoutParent,
-    observeParentAuth,
     registerParent
 } from "../services/parentPortal";
 import type { ParentAccount } from "../services/parentPortal";
@@ -40,11 +40,11 @@ function firebaseErrorCode(error: unknown): string {
 }
 
 export default function ParentPortal() {
+    const { user, adminProfile, loading: adminAuthLoading } = useAdminAuth();
+    const leaderAccount = Boolean(adminProfile);
     const [mode, setMode] = useState<"login" | "register">("login");
-    const [authReady, setAuthReady] = useState(false);
+    const [accountReady, setAccountReady] = useState(false);
     const [account, setAccount] = useState<ParentAccount | null>(null);
-    const [signedInUser, setSignedInUser] = useState(false);
-    const [leaderAccount, setLeaderAccount] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
@@ -59,32 +59,36 @@ export default function ParentPortal() {
     );
 
     useEffect(() => {
-        return observeParentAuth((user) => {
-            void (async () => {
-                setSignedInUser(Boolean(user));
-                if (!user) {
+        if (adminAuthLoading) return;
+
+        let cancelled = false;
+        const load = async () => {
+            if (!user) {
+                if (!cancelled) {
                     setAccount(null);
-                    setLeaderAccount(false);
-                    setAuthReady(true);
-                    return;
+                    setAccountReady(true);
                 }
-                try {
-                    const [parentAccount, leader] = await Promise.all([
-                        loadParentAccount(user.uid),
-                        isCurrentUserActiveLeader()
-                    ]);
-                    setAccount(parentAccount);
-                    setLeaderAccount(leader);
-                    setEmail(user.email || "");
-                } catch (loadError) {
-                    console.error("Unable to load parent account:", loadError);
-                    setError("Unable to load your parent access record.");
-                } finally {
-                    setAuthReady(true);
-                }
-            })();
-        });
-    }, []);
+                return;
+            }
+
+            setAccountReady(false);
+            setEmail(user.email || "");
+            try {
+                const parentAccount = await loadParentAccount(user.uid);
+                if (!cancelled) setAccount(parentAccount);
+            } catch (loadError) {
+                console.error("Unable to load parent account:", loadError);
+                if (!cancelled) setError("Unable to load your parent access record.");
+            } finally {
+                if (!cancelled) setAccountReady(true);
+            }
+        };
+
+        void load();
+        return () => {
+            cancelled = true;
+        };
+    }, [adminAuthLoading, user]);
 
     const submit = async () => {
         setWorking(true);
@@ -99,9 +103,8 @@ export default function ParentPortal() {
                 await registerParent(email, password, displayName, mobileNumber);
                 const newUser = auth.currentUser;
                 if (newUser) {
-                    const newAccount = await loadParentAccount(newUser.uid);
-                    setAccount(newAccount);
-                    setSignedInUser(true);
+                    setAccount(await loadParentAccount(newUser.uid));
+                    setAccountReady(true);
                 }
             } else {
                 await loginParent(email, password);
@@ -157,13 +160,8 @@ export default function ParentPortal() {
         setError("");
         try {
             await createParentAccessForCurrentUser(displayName, mobileNumber);
-            const user = await new Promise<import("firebase/auth").User | null>((resolve) => {
-                const unsubscribe = observeParentAuth((current) => {
-                    unsubscribe();
-                    resolve(current);
-                });
-            });
-            if (user) setAccount(await loadParentAccount(user.uid));
+            const current = auth.currentUser;
+            if (current) setAccount(await loadParentAccount(current.uid));
         } catch (setupError) {
             console.error("Unable to enable parent access:", setupError);
             setError("Unable to enable parent access for this account.");
@@ -172,11 +170,25 @@ export default function ParentPortal() {
         }
     };
 
-    if (!authReady) {
-        return <Box sx={{ minHeight: "70vh", display: "grid", placeItems: "center" }}><Typography>Loading parent portal…</Typography></Box>;
+    const shellWidth = leaderAccount ? "xl" : account ? "lg" : "sm";
+
+    if (adminAuthLoading || (user && !accountReady)) {
+        return (
+            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
+                <Container maxWidth={shellWidth}>
+                    {leaderAccount && <LeaderDashboardHeader />}
+                    <Paper elevation={3} sx={{ p: { xs: 3, md: 4 }, minHeight: 240 }}>
+                        <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
+                        <Box sx={{ minHeight: 140, display: "grid", placeItems: "center" }}>
+                            <CircularProgress color="success" size={32} />
+                        </Box>
+                    </Paper>
+                </Container>
+            </Box>
+        );
     }
 
-    if (signedInUser && !account) {
+    if (user && !account) {
         return (
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
                 <Container maxWidth={leaderAccount ? "xl" : "sm"}>
