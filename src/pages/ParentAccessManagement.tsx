@@ -75,6 +75,13 @@ export default function ParentAccessManagement() {
             return;
         }
 
+        const linkedSections = [...new Set(
+            members
+                .filter((member) => memberIds.includes(member.id))
+                .map((member) => member.section)
+                .filter(Boolean)
+        )];
+
         setWorkingUid(parent.uid);
         setError("");
         setMessage("");
@@ -83,7 +90,12 @@ export default function ParentAccessManagement() {
             if (status === "approved") {
                 linked = await linkConsentRecordsToMembers(memberIds);
             }
-            await updateParentAccess(parent.uid, status, status === "approved" ? memberIds : []);
+            await updateParentAccess(
+                parent.uid,
+                status,
+                status === "approved" ? memberIds : [],
+                status === "approved" ? linkedSections : []
+            );
             setMessage(
                 `${parent.displayName || parent.email} access updated.${
                     status === "approved"
@@ -124,22 +136,11 @@ export default function ParentAccessManagement() {
                         {parents.length === 0 && <Alert severity="info">No parent accounts have registered yet.</Alert>}
                         {parents.map((parent) => (
                             <Paper key={parent.uid} variant="outlined" sx={{ p: 2.5 }}>
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: { xs: "column", md: "row" },
-                                        justifyContent: "space-between",
-                                        gap: 2
-                                    }}
-                                >
+                                <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
                                     <Box sx={{ flex: 1 }}>
                                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                                             <Typography variant="h5" color="secondary">{parent.displayName || "Unnamed parent"}</Typography>
-                                            <Chip
-                                                label={parent.status}
-                                                size="small"
-                                                color={parent.status === "approved" ? "success" : parent.status === "rejected" ? "error" : "warning"}
-                                            />
+                                            <Chip label={parent.status} size="small" color={parent.status === "approved" ? "success" : parent.status === "rejected" ? "error" : "warning"} />
                                         </Stack>
                                         <Typography sx={{ mt: 0.75 }}>{parent.email}</Typography>
                                         {parent.mobileNumber && <Typography color="text.secondary">{parent.mobileNumber}</Typography>}
@@ -149,12 +150,7 @@ export default function ParentAccessManagement() {
                                             {members.map((member) => (
                                                 <FormControlLabel
                                                     key={member.id}
-                                                    control={
-                                                        <Checkbox
-                                                            checked={(selected[parent.uid] || []).includes(member.id)}
-                                                            onChange={() => toggleMember(parent.uid, member.id)}
-                                                        />
-                                                    }
+                                                    control={<Checkbox checked={(selected[parent.uid] || []).includes(member.id)} onChange={() => toggleMember(parent.uid, member.id)} />}
                                                     label={`${member.displayName} (${member.section})`}
                                                 />
                                             ))}
@@ -162,22 +158,8 @@ export default function ParentAccessManagement() {
                                     </Box>
 
                                     <Stack spacing={1} sx={{ minWidth: 180 }}>
-                                        <Button
-                                            variant="contained"
-                                            color="success"
-                                            disabled={workingUid === parent.uid}
-                                            onClick={() => void save(parent, "approved")}
-                                        >
-                                            Approve Access
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            color="error"
-                                            disabled={workingUid === parent.uid}
-                                            onClick={() => void save(parent, "rejected")}
-                                        >
-                                            Reject Access
-                                        </Button>
+                                        <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>
+                                        <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>
                                     </Stack>
                                 </Box>
                             </Paper>

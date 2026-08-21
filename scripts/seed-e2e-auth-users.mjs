@@ -21,13 +21,15 @@ const users = [
     uid: "TEST_uid_parent_only_01",
     email: "test.parent.only@example.com",
     displayName: "Mark Byrne",
-    kind: "parent-only"
+    kind: "parent-only",
+    parent: { linkedSections: ["Cubs"] }
   },
   {
     uid: "TEST_uid_leader_parent_01",
     email: "test.leader.parent@example.com",
     displayName: "Niamh Murphy",
     kind: "parent-leader",
+    parent: { linkedSections: ["Beavers"] },
     admin: { role: "leader", sections: ["Beavers"] }
   },
   {
@@ -59,6 +61,22 @@ const users = [
     admin: { role: "super-admin", sections: ["Group"] }
   }
 ];
+
+const cubConsentLink = {
+  token: "TESTTOKENCUBCAMP2026",
+  eventId: "TEST_event_cub_camp",
+  title: "TEST Cub Weekend Camp",
+  description: "Demo overnight camp with mixed consent states.",
+  eventType: "Camp",
+  section: "Cubs",
+  location: "Larch Hill",
+  meetingPoint: "Scout Den Friday 18:00",
+  returnDetails: "Scout Den Sunday 14:00",
+  startDate: "2026-10-02",
+  endDate: "2026-10-04",
+  consentRequired: true,
+  active: true
+};
 
 async function upsertAuthUser(user) {
   try {
@@ -110,15 +128,45 @@ async function seedAdminProfile(user) {
   console.log(`  ensured adminUsers/${user.uid} (${user.admin.role})`);
 }
 
+async function seedParentProfile(user) {
+  if (!user.parent) return;
+  await db.collection("parentAccounts").doc(user.uid).set(
+    {
+      linkedSections: user.parent.linkedSections,
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  console.log(`  ensured parentAccounts/${user.uid} linked sections: ${user.parent.linkedSections.join(",")}`);
+}
+
+async function seedCubConsentLink() {
+  await db.collection("eventConsentLinks").doc(cubConsentLink.token).set(
+    {
+      ...cubConsentLink,
+      testData: true,
+      testSeed: "stage8-role-demo",
+      createdBySeed: "TEST_SEED",
+      createdBy: "TEST_SEED",
+      updatedAt: FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+  console.log(`  ensured eventConsentLinks/${cubConsentLink.token}`);
+}
+
 async function seed() {
   console.log("Creating/updating login-capable E2E Firebase Auth users...");
   for (const user of users) {
     await upsertAuthUser(user);
     await seedAdminProfile(user);
+    await seedParentProfile(user);
   }
+  await seedCubConsentLink();
   console.log("\nE2E Auth seed complete.");
   console.log("All six accounts use the password stored in E2E_TEST_USER_PASSWORD.");
   console.log("Multi-section leader sections: Beavers,Cubs");
+  console.log("Parent journey event: TEST Cub Weekend Camp");
 }
 
 async function cleanup() {
@@ -143,6 +191,17 @@ async function cleanup() {
       }
     }
   }
+
+  const consentRef = db.collection("eventConsentLinks").doc(cubConsentLink.token);
+  const consentSnapshot = await consentRef.get();
+  if (consentSnapshot.exists) {
+    if (consentSnapshot.data()?.testData !== true) {
+      throw new Error(`Refusing to delete eventConsentLinks/${cubConsentLink.token}: testData marker is missing.`);
+    }
+    await consentRef.delete();
+    console.log(`  deleted eventConsentLinks/${cubConsentLink.token}`);
+  }
+
   console.log("\nE2E Auth cleanup complete.");
 }
 

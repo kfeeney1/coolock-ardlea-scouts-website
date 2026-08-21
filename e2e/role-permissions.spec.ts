@@ -61,7 +61,7 @@ test.describe("parent-only permissions", () => {
     await loginParent(page, account!);
 
     await expect(page.getByRole("link", { name: "Request Leader Access" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Leader Dashboard" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toHaveCount(0);
 
     await page.goto("/leader");
     await expect(page).toHaveURL(/\/parent$/);
@@ -72,15 +72,22 @@ test.describe("parent-only permissions", () => {
 test.describe("dual-role parent and leader permissions", () => {
   const account = credentials("E2E_PARENT_LEADER");
 
-  test("same login exposes Parent Portal and Leader Dashboard", async ({ page }, testInfo) => {
+  test("same login exposes Parent Portal with full Leader Dashboard navigation", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
-    await expect(page.getByRole("link", { name: "Leader Dashboard" })).toBeVisible();
 
-    await page.getByRole("link", { name: "Leader Dashboard" }).click();
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Event Consent" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Portal" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Parent Access" })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Member Management" }).click();
+    await expect(page).toHaveURL(/\/leader\/members$/);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   });
 });
 

@@ -12,7 +12,9 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import ParentConsentSection from "../components/parent/ParentConsentSection";
+import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import { auth } from "../firebase";
 import {
     createParentAccessForCurrentUser,
@@ -177,7 +179,8 @@ export default function ParentPortal() {
     if (signedInUser && !account) {
         return (
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
-                <Container maxWidth="sm">
+                <Container maxWidth={leaderAccount ? "xl" : "sm"}>
+                    {leaderAccount && <LeaderDashboardHeader />}
                     <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                         <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
                         {leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access. Parent accounts cannot open Leader Dashboard pages.</Alert>}
@@ -189,7 +192,6 @@ export default function ParentPortal() {
                             <TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} />
                             {error && <Alert severity="error">{error}</Alert>}
                             <Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Enable Parent Access"}</Button>
-                            {leaderAccount && <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>}
                             <Button variant="text" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                         </Stack>
                     </Paper>
@@ -201,7 +203,8 @@ export default function ParentPortal() {
     if (account) {
         return (
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
-                <Container maxWidth="lg">
+                <Container maxWidth={leaderAccount ? "xl" : "lg"}>
+                    {leaderAccount && <LeaderDashboardHeader />}
                     <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                         <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}>
                             <Box>
@@ -209,11 +212,7 @@ export default function ParentPortal() {
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography>
                             </Box>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                                {leaderAccount ? (
-                                    <Button component={Link} to="/leader" variant="outlined" color="secondary">Leader Dashboard</Button>
-                                ) : (
-                                    <Button component={Link} to="/leader/register" variant="outlined" color="secondary">Request Leader Access</Button>
-                                )}
+                                {!leaderAccount && <Button component={Link} to="/leader/register" variant="outlined" color="secondary">Request Leader Access</Button>}
                                 <Button variant="outlined" color="secondary" onClick={() => void logoutParent()}>Sign Out</Button>
                             </Stack>
                         </Box>
@@ -226,7 +225,11 @@ export default function ParentPortal() {
                                 <Alert severity="success" sx={{ mt: 3, mb: 3 }}>
                                     Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.
                                 </Alert>
-                                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
+
+                                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography>
+                                <ParentEventConsentSection sections={account.linkedSections} />
+
+                                <Typography variant="h4" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
                                 <ParentConsentSection memberIds={account.memberIds} />
                             </>
                         )}
