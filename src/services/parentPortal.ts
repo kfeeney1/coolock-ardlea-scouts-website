@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { notifyParentAccessApproved } from "./emailNotifications";
 
 export type ParentAccessStatus = "pending" | "approved" | "rejected";
 
@@ -135,11 +136,31 @@ export async function updateParentAccess(
     const leader = auth.currentUser;
     if (!leader) throw new Error("No signed-in leader.");
 
-    await updateDoc(doc(db, "parentAccounts", uid), {
+    const accountRef = doc(db, "parentAccounts", uid);
+    const beforeSnapshot = await getDoc(accountRef);
+    const beforeAccount = beforeSnapshot.exists()
+        ? mapParentAccount(uid, beforeSnapshot.data())
+        : null;
+    const uniqueMemberIds = [...new Set(memberIds)];
+
+    await updateDoc(accountRef, {
         status,
-        memberIds: [...new Set(memberIds)],
+        memberIds: uniqueMemberIds,
         reviewedBy: leader.uid,
         reviewedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     });
+
+    if (beforeAccount && beforeAccount.status !== "approved" && status === "approved") {
+        try {
+            await notifyParentAccessApproved(
+                { ...beforeAccount, status: "approved", memberIds: uniqueMemberIds },
+                uniqueMemberIds.length
+            );
+        } catch (emailError) {
+            // Access has already been approved in Firestore. A mail-provider issue
+            // must not roll back or misreport that security-sensitive change.
+            console.error("Unable to send parent access approval email:", emailError);
+        }
+    }
 }

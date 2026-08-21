@@ -1,0 +1,10 @@
+name = "coolock-ardlea-scouts-email"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
+SITE_URL = "https://coolock-ardlea-scouts.web.app"
+EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <onboarding@resend.dev>"
+ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
+ADMIN_EMAILS = ""
