@@ -3,6 +3,8 @@ name: Playwright E2E
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +12,7 @@ permissions:
 
 jobs:
   e2e:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -36,7 +38,7 @@ jobs:
       - name: Install app dependencies
         run: npm ci
 
-      - name: Build PR version
+      - name: Build tested version
         run: npm run build
 
       - name: Install Playwright test runner
@@ -45,7 +47,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Start PR build
+      - name: Start tested build
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
           for i in {1..30}; do
