@@ -8,10 +8,12 @@ import {
     TextField,
     Typography
 } from "@mui/material";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import ParentConsentSection from "../components/parent/ParentConsentSection";
+import { auth } from "../firebase";
 import {
     createParentAccessForCurrentUser,
     isCurrentUserActiveLeader,
@@ -46,7 +48,9 @@ export default function ParentPortal() {
     const [displayName, setDisplayName] = useState("");
     const [mobileNumber, setMobileNumber] = useState("");
     const [working, setWorking] = useState(false);
+    const [resettingPassword, setResettingPassword] = useState(false);
     const [error, setError] = useState("");
+    const [message, setMessage] = useState("");
     const location = useLocation();
     const leaderAccessDenied = Boolean(
         (location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied
@@ -83,6 +87,7 @@ export default function ParentPortal() {
     const submit = async () => {
         setWorking(true);
         setError("");
+        setMessage("");
         try {
             if (mode === "register") {
                 if (!displayName.trim()) {
@@ -110,6 +115,28 @@ export default function ParentPortal() {
             }
         } finally {
             setWorking(false);
+        }
+    };
+
+    const resetPassword = async () => {
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail) {
+            setError("Enter your email address first, then select Forgot Password.");
+            setMessage("");
+            return;
+        }
+
+        setResettingPassword(true);
+        setError("");
+        setMessage("");
+        try {
+            await sendPasswordResetEmail(auth, trimmedEmail);
+            setMessage("If an account exists for that email address, a password-reset email has been sent. Check your inbox and spam folder.");
+        } catch (resetError) {
+            console.error("Unable to send parent password reset email:", resetError);
+            setMessage("If an account exists for that email address, a password-reset email will be sent. Check your inbox and spam folder.");
+        } finally {
+            setResettingPassword(false);
         }
     };
 
@@ -207,12 +234,18 @@ export default function ParentPortal() {
                     <Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to manage consent and medical information for children linked to your parent account.</Typography>
                     <Alert severity="info" sx={{ mt: 2, mb: 3 }}>Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.</Alert>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                    {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                     <Stack spacing={2}>
                         {mode === "register" && <><TextField label="Parent / Guardian name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(event) => setMobileNumber(event.target.value)} /></>}
                         <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
                         <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} helperText={mode === "register" ? "Use at least 6 characters." : undefined} />
-                        <Button variant="contained" color="success" disabled={working || !email || !password} onClick={() => void submit()}>{working ? "Please wait…" : mode === "register" ? "Create Parent Account" : "Sign In"}</Button>
-                        <Button variant="text" color="secondary" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>{mode === "login" ? "Need an account? Register" : "Already registered? Sign in"}</Button>
+                        <Button variant="contained" color="success" disabled={working || resettingPassword || !email || !password} onClick={() => void submit()}>{working ? "Please wait…" : mode === "register" ? "Create Parent Account" : "Sign In"}</Button>
+                        {mode === "login" && (
+                            <Button variant="text" color="secondary" disabled={working || resettingPassword} onClick={() => void resetPassword()}>
+                                {resettingPassword ? "Sending reset email…" : "Forgot Password?"}
+                            </Button>
+                        )}
+                        <Button variant="text" color="secondary" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setMessage(""); }}>{mode === "login" ? "Need an account? Register" : "Already registered? Sign in"}</Button>
                     </Stack>
                 </Paper>
             </Container>
