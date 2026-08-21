@@ -21,6 +21,7 @@ const users = [
   { uid: "TEST_uid_multi_section_leader_01", email: "test.leader.multisection@example.com", displayName: "Conor Walsh", kind: "multi-section-leader", admin: { role: "leader", sections: ["Beavers", "Cubs"] } },
   { uid: "TEST_uid_admin_01", email: "test.admin@example.com", displayName: "Orla Kelly", kind: "admin", admin: { role: "admin", sections: ["Group"] } },
   { uid: "TEST_uid_super_admin_01", email: "test.superadmin@example.com", displayName: "Test Super Admin", kind: "super-admin", admin: { role: "super-admin", sections: ["Group"] } },
+  { uid: "TEST_uid_shared_super_admin_01", email: "superadmin@example.com", displayName: "Shared Tester Super Admin", kind: "shared-super-admin", password: "password1", admin: { role: "super-admin", sections: ["Group"] } },
   { uid: "TEST_uid_pending_leader_01", email: "test.leader.pending@example.com", displayName: "Patrick Doyle", kind: "pending-leader" }
 ];
 
@@ -28,13 +29,14 @@ const cubConsentLink = { token: "TESTTOKENCUBCAMP2026", eventId: "TEST_event_cub
 const pendingLeader = users.find((user) => user.kind === "pending-leader");
 
 async function upsertAuthUser(user) {
+  const userPassword = user.password || password;
   try {
     const existing = await auth.getUser(user.uid);
     if (existing.email !== user.email) throw new Error(`UID ${user.uid} already exists with unexpected email ${existing.email}.`);
-    await auth.updateUser(user.uid, { email: user.email, password, displayName: user.displayName, disabled: false, emailVerified: true });
+    await auth.updateUser(user.uid, { email: user.email, password: userPassword, displayName: user.displayName, disabled: false, emailVerified: true });
   } catch (error) {
     if (error?.code !== "auth/user-not-found") throw error;
-    await auth.createUser({ uid: user.uid, email: user.email, password, displayName: user.displayName, disabled: false, emailVerified: true });
+    await auth.createUser({ uid: user.uid, email: user.email, password: userPassword, displayName: user.displayName, disabled: false, emailVerified: true });
   }
 }
 
@@ -61,7 +63,7 @@ async function seed() {
   for (const user of users) { await upsertAuthUser(user); await seedAdminProfile(user); await seedParentProfile(user); }
   await seedPendingLeaderRequest();
   await seedCubConsentLink();
-  console.log("E2E seed complete: parent, leader, admin, super-admin and pending-leader journey accounts are ready.");
+  console.log("E2E seed complete: parent, leader, admin, super-admin, shared tester super-admin and pending-leader journey accounts are ready.");
 }
 
 async function deleteTestDoc(collectionName, id) {
@@ -75,7 +77,7 @@ async function deleteTestDoc(collectionName, id) {
 async function cleanup() {
   for (const user of users) {
     try { await auth.deleteUser(user.uid); } catch (error) { if (error?.code !== "auth/user-not-found") throw error; }
-    if (user.admin && ["multi-section-leader", "admin", "super-admin"].includes(user.kind)) await deleteTestDoc("adminUsers", user.uid);
+    if (user.admin && ["multi-section-leader", "admin", "super-admin", "shared-super-admin"].includes(user.kind)) await deleteTestDoc("adminUsers", user.uid);
   }
   if (pendingLeader) await deleteTestDoc("leaderRegistrationRequests", pendingLeader.uid);
   await deleteTestDoc("eventConsentLinks", cubConsentLink.token);
