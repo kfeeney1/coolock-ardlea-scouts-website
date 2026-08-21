@@ -31,10 +31,17 @@ export type ParentAccount = {
     mobileNumber: string;
     status: ParentAccessStatus;
     memberIds: string[];
+    linkedSections: string[];
 };
 
 function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
+}
+
+function mapStringArray(value: unknown): string[] {
+    return Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
 }
 
 function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAccount {
@@ -47,9 +54,8 @@ function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAcc
             data.status === "approved" || data.status === "rejected"
                 ? data.status
                 : "pending",
-        memberIds: Array.isArray(data.memberIds)
-            ? data.memberIds.filter((value): value is string => typeof value === "string")
-            : []
+        memberIds: mapStringArray(data.memberIds),
+        linkedSections: mapStringArray(data.linkedSections)
     };
 }
 
@@ -93,6 +99,7 @@ export async function createParentAccessForCurrentUser(
         mobileNumber: clean(mobileNumber, 40),
         status: "pending",
         memberIds: [],
+        linkedSections: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     });
@@ -141,7 +148,8 @@ export async function isCurrentUserActiveLeader(): Promise<boolean> {
 export async function updateParentAccess(
     uid: string,
     status: ParentAccessStatus,
-    memberIds: string[]
+    memberIds: string[],
+    linkedSections: string[] = []
 ): Promise<void> {
     const leader = auth.currentUser;
     if (!leader) throw new Error("No signed-in leader.");
@@ -152,10 +160,12 @@ export async function updateParentAccess(
         ? mapParentAccount(uid, beforeSnapshot.data())
         : null;
     const uniqueMemberIds = [...new Set(memberIds)];
+    const uniqueSections = [...new Set(linkedSections.filter(Boolean))];
 
     await updateDoc(accountRef, {
         status,
-        memberIds: uniqueMemberIds,
+        memberIds: status === "approved" ? uniqueMemberIds : [],
+        linkedSections: status === "approved" ? uniqueSections : [],
         reviewedBy: leader.uid,
         reviewedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -166,7 +176,12 @@ export async function updateParentAccess(
     try {
         if (status === "approved") {
             await notifyParentAccessApproved(
-                { ...beforeAccount, status: "approved", memberIds: uniqueMemberIds },
+                {
+                    ...beforeAccount,
+                    status: "approved",
+                    memberIds: uniqueMemberIds,
+                    linkedSections: uniqueSections
+                },
                 uniqueMemberIds.length
             );
         } else if (status === "rejected") {
