@@ -1,53 +1,57 @@
 # Branded email setup
 
-All email sent by the system should use the 80th 160th Coolock Ardlea Scout Group identity and wording.
+All system email should use the 80th 160th Coolock Ardlea Scout Group identity and wording.
 
-The project deliberately uses two email paths:
+The project uses two email paths:
 
 1. **Firebase Authentication** for secure password-reset emails.
-2. **Cloudflare Worker + Resend** for application emails such as Parent Access approval and Join Us notifications.
+2. **Cloudflare Worker + Resend** for application emails.
 
-This design keeps the Firebase project on the Spark/free plan. It does not require Firebase Functions, Secret Manager or Blaze billing.
+This keeps Firebase on the Spark/free plan and does not require Firebase Functions or Blaze billing.
 
-## Application emails
+## Implemented application email flows
 
-The first automated flows are:
+- New Join Us application → configured admin recipients.
+- Parent Access registration received → parent plus configured admin recipients.
+- Parent Access approved → parent.
+- Parent Access rejected → parent.
+- Leader Access registration received → leader applicant plus configured admin recipients.
+- Leader Access approved → leader.
+- Leader Access rejected → leader.
 
-- Parent Portal access approved
-- New Join Us application notification to configured administrators
+Email delivery failure never rolls back the corresponding Firestore application, registration, approval or rejection.
 
-The Worker code is in `email-worker/`. The Resend API key is stored as a Cloudflare Worker secret and is never included in the Vite/browser bundle.
+## Test mode while no sending domain is owned
 
-### Security model
-
-- The public Join Us endpoint can only send to the fixed `ADMIN_EMAILS` configured on the Worker. A website visitor cannot choose the recipient.
-- Parent Access approval mail requires a Firebase ID token. The Worker uses that token against the existing Firestore `adminUsers` rules and only permits active `admin` or `super-admin` accounts.
-- Application records are saved to Firestore before email is attempted. A temporary email-provider problem therefore does not lose or duplicate a parent application or access decision.
-- `RESEND_API_KEY` must never be stored in GitHub Vite secrets, `.env` files used by the frontend, or frontend source code.
-
-## One-time Cloudflare Worker setup
-
-### 1. Create the accounts
-
-Create a free Cloudflare account and a Resend account if you do not already have them.
-
-For initial testing, Resend's `onboarding@resend.dev` sender can be used subject to Resend's testing restrictions. For production, verify a domain in Resend and replace `EMAIL_FROM` in `email-worker/wrangler.toml` with a verified sender such as:
-
-```text
-80th 160th Coolock Ardlea Scout Group <website@your-domain.ie>
-```
-
-### 2. Configure recipients
-
-Edit `email-worker/wrangler.toml` and set `ADMIN_EMAILS` to the email address or comma-separated addresses that should receive new Join Us notifications, for example:
+Resend's `onboarding@resend.dev` sender can only send to the Resend account owner's email address. To make every flow testable now, `email-worker/wrangler.toml` contains:
 
 ```toml
-ADMIN_EMAILS = "group.admin@example.ie,group.leader@example.ie"
+TEST_EMAIL_REDIRECT = "kfeeney1@hotmail.com"
 ```
 
-`ALLOWED_ORIGINS` should contain the production website origin. Add `http://localhost:5173` temporarily if local email testing is required.
+While this value is set, every intended recipient is redirected to that mailbox and the original intended recipient is included in the subject, for example:
 
-### 3. Install and log in to Wrangler
+```text
+[TEST for parent@example.com] Parent access approved – Coolock Ardlea Scouts
+```
+
+When a sending domain is eventually verified in Resend:
+
+1. Change `EMAIL_FROM` to an address on the verified domain.
+2. Set `TEST_EMAIL_REDIRECT = ""`.
+3. Redeploy the Worker with `npm run deploy`.
+
+No frontend changes are required at that point.
+
+## Worker security
+
+- `RESEND_API_KEY` is stored only as a Cloudflare Worker secret.
+- Join Us notifications can only go to the fixed `ADMIN_EMAILS` configured in Wrangler.
+- Parent/leader self-registration endpoints require the signed-in Firebase user and read that user's registration document through Firestore before sending.
+- Parent and leader approval/rejection emails require an active `admin` or `super-admin` Firebase account.
+- Provider keys must never be placed in Vite environment variables or frontend source code.
+
+## Worker deployment
 
 From the repository root:
 
@@ -55,64 +59,25 @@ From the repository root:
 cd email-worker
 npm install
 npx wrangler login
-```
-
-### 4. Store the Resend API key securely
-
-Still inside `email-worker` run:
-
-```bash
 npx wrangler secret put RESEND_API_KEY
-```
-
-Paste the Resend API key only when Wrangler prompts for it. Do not commit the key.
-
-### 5. Deploy the Worker
-
-```bash
 npm run deploy
 ```
 
-Wrangler will display a URL similar to:
+The deployed Worker URL is configured in the GitHub Actions secret:
 
 ```text
-https://coolock-ardlea-scouts-email.<your-subdomain>.workers.dev
+VITE_EMAIL_API_URL
 ```
-
-Keep this URL; it is the public API address, not a secret.
-
-### 6. Connect Firebase Hosting builds to the Worker
-
-In GitHub open:
-
-**Repository → Settings → Secrets and variables → Actions → New repository secret**
-
-Create:
-
-```text
-Name: VITE_EMAIL_API_URL
-Value: https://coolock-ardlea-scouts-email.<your-subdomain>.workers.dev
-```
-
-Both Firebase Hosting workflows already pass this value into the Vite build.
-
-For local development, add the same value to your local `.env.local` if needed:
-
-```text
-VITE_EMAIL_API_URL=https://coolock-ardlea-scouts-email.<your-subdomain>.workers.dev
-```
-
-Do not add the Resend API key to `.env.local`.
 
 ## Firebase Authentication emails
 
-Password-reset email is intentionally sent by Firebase Authentication. This preserves Firebase's secure reset tokens, expiry, abuse protections and password-change handling. Both **Leader Login** and **Parent Login** expose Forgot Password using this same Firebase mechanism.
+Forgot Password is sent by Firebase Authentication so Firebase retains secure one-time reset tokens, expiry and abuse protection. Both Leader Login and Parent Login use this mechanism.
 
-Firebase Auth templates are configured in the Firebase Console rather than this repository. To keep Forgot Password branded, open:
+Configure the template in:
 
 **Firebase Console → Authentication → Templates → Password reset**
 
-Use the following branding.
+Use:
 
 **Sender name**
 
@@ -138,20 +103,20 @@ If you did not request a password reset, you can ignore this email.
 80th 160th Coolock Ardlea Scout Group
 ```
 
-Do not remove `%LINK%`; Firebase replaces it with the secure one-time password reset link.
-
-Apply the same group name, sender identity and wording style to any other Firebase Authentication templates enabled later, including email verification or email-address changes.
+Do not remove `%LINK%`.
 
 ## Testing checklist
 
-After deploying the Worker and adding `VITE_EMAIL_API_URL`:
+After deploying the current Worker:
 
-1. Submit a test Join Us application and confirm the configured admin mailbox receives the branded notification.
-2. Create a pending Parent Access record, sign in as an Admin/Super Admin and approve it. Confirm the parent receives the branded approval email.
-3. On Leader Login, enter an existing account email and use Forgot Password. Confirm the Firebase Auth email uses the branded template.
-4. On Parent Login, repeat the Forgot Password test.
-5. Confirm application submissions and approvals still succeed if the email Worker is temporarily unavailable.
+1. Register a new parent. Two test emails should arrive at `kfeeney1@hotmail.com`: the parent acknowledgement and the admin notification.
+2. Approve that parent. A test approval email should arrive showing the parent's intended address in the subject.
+3. Reject another pending parent and confirm the rejection/update email.
+4. Register a new leader and confirm both applicant and admin test messages.
+5. Approve or reject that leader and confirm the access-status message.
+6. Submit a Join Us application and confirm the admin notification.
+7. Test Forgot Password separately from Leader Login and Parent Login.
 
-## Future mail
+## Next application mail
 
-Event notices, consent reminders and other application emails should be added as narrow Worker endpoints using the same branded HTML template and the same principle: the browser must never receive the Resend API key, and sensitive operations must validate the signed-in Firebase role before sending.
+Event notices and consent reminders should use the same Worker and branded template. They need recipient selection tied to event rosters/member access, so they should be implemented as authenticated event-specific endpoints rather than a generic arbitrary-recipient mail API.
