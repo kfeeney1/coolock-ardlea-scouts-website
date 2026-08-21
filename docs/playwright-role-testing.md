@@ -2,45 +2,45 @@
 
 The Playwright suite always runs public-page, Parent Portal UI and unauthenticated route-protection checks.
 
-Authenticated permission tests are enabled by dedicated Firebase test accounts configured as GitHub Actions secrets. These accounts should contain only test data and should not be used by real leaders or parents.
+Authenticated permission tests use six Firebase Authentication users created by the normal **Seed Firebase Test Data** workflow. Their email addresses are fixed test values and are not secrets. All six accounts share one password stored securely in GitHub Actions.
 
-## Recommended test accounts
+## Seeded E2E accounts
 
-Create or retain one stable account for each role below:
-
-| Test account | Required state |
-| --- | --- |
-| Parent only | Approved `parentAccounts/{uid}` record and no active `adminUsers/{uid}` record |
-| Parent + Leader | Approved parent record and active leader record under the same Firebase UID |
-| Leader | Active `adminUsers/{uid}` record with role `leader` and one assigned section |
-| Multi-section Leader | Active leader with at least two assigned sections |
-| Admin | Active `adminUsers/{uid}` record with role `admin` |
-| Super Admin | Active `adminUsers/{uid}` record with role `super-admin` |
+| Test account | Email | Required state |
+| --- | --- | --- |
+| Parent only | `test.parent.only@example.com` | Approved `parentAccounts/{uid}` record and no active `adminUsers/{uid}` record |
+| Parent + Leader | `test.leader.parent@example.com` | Approved parent record and active Beaver leader record under the same Firebase UID |
+| Leader | `test.leader.only@example.com` | Active Scout leader |
+| Multi-section Leader | `test.leader.multisection@example.com` | Active leader assigned to Beavers and Cubs |
+| Admin | `test.admin@example.com` | Active `admin` |
+| Super Admin | `test.superadmin@example.com` | Active `super-admin` |
 
 The tests are read-only: they sign in, navigate and inspect access controls. They do not approve requests, edit members, change events or send notifications.
 
-## GitHub Actions secrets
+## One GitHub Actions secret
 
-Add these under **Repository Settings → Secrets and variables → Actions → Secrets**:
+Under **Repository Settings → Secrets and variables → Actions → Secrets**, add just one secret:
 
-- `E2E_PARENT_EMAIL`
-- `E2E_PARENT_PASSWORD`
-- `E2E_PARENT_LEADER_EMAIL`
-- `E2E_PARENT_LEADER_PASSWORD`
-- `E2E_LEADER_EMAIL`
-- `E2E_LEADER_PASSWORD`
-- `E2E_MULTI_SECTION_LEADER_EMAIL`
-- `E2E_MULTI_SECTION_LEADER_PASSWORD`
-- `E2E_ADMIN_EMAIL`
-- `E2E_ADMIN_PASSWORD`
-- `E2E_SUPER_ADMIN_EMAIL`
-- `E2E_SUPER_ADMIN_PASSWORD`
+- **Name:** `E2E_TEST_USER_PASSWORD`
+- **Secret:** choose a test-only password of at least 8 characters.
 
-Add this under **Actions → Variables** (it is not sensitive):
+Do not use a password that you use anywhere else. The value is supplied both to the Firebase test-data seeder and to Playwright, but is never committed to the repository.
 
-- `E2E_MULTI_SECTION_LEADER_SECTIONS` — comma-separated expected sections, for example `Beavers,Cubs`.
+The emails and expected multi-section assignment (`Beavers,Cubs`) are configured directly in the workflow because they are non-sensitive synthetic test data.
 
-If credentials for a role are not configured, only that role-specific test is skipped; the rest of the suite still runs.
+## Creating/updating the users
+
+After `E2E_TEST_USER_PASSWORD` exists:
+
+1. Open **Actions → Seed Firebase Test Data**.
+2. Select **Run workflow**.
+3. Choose `seed`.
+4. Tick the confirmation box.
+5. Run the workflow.
+
+The workflow seeds the existing Firestore test records and then creates or updates all six Firebase Authentication users. Re-running `seed` is safe: it refreshes the same test UIDs and resets them to the configured shared test password.
+
+Running the same workflow with `cleanup` removes the known test documents and all six test Authentication users. The companion E2E seeder refuses to delete its extra role records unless they still carry the `testData=true` marker.
 
 ## Coverage
 
@@ -50,7 +50,7 @@ The role matrix checks:
 - a parent-only account can use Parent Portal but is redirected away from Leader Dashboard;
 - a dual-role parent/leader sees both Parent Portal and Leader Dashboard with one login;
 - an ordinary leader sees operational leader pages but not Parent Access or Leader Access administration;
-- a multi-section leader displays all configured section assignments;
+- a multi-section leader displays both Beavers and Cubs assignments;
 - an Admin can open Parent Access and Leader Access management;
 - a Super Admin can open the full Leader Access management area.
 
