@@ -117,7 +117,7 @@ export default function AdminOverviewPanel() {
               {overview.membersBySection.length === 0 ? (
                 <Typography color="text.secondary">No active members found.</Typography>
               ) : (
-                <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
+                <Stack direction="row" useFlexGap gap={1} sx={{ flexWrap: "wrap" }}>
                   {overview.membersBySection.map((item) => (
                     <Chip key={item.section} label={`${item.section}: ${item.count}`} variant="outlined" />
                   ))}
