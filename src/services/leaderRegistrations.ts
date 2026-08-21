@@ -13,11 +13,55 @@ function toDate(value: unknown): Date | null { if (value && typeof value === "ob
 function mapRequest(id: string, data: Record<string, unknown>): LeaderRegistrationRequest { return { uid: typeof data.uid === "string" ? data.uid : id, fullName: typeof data.fullName === "string" ? data.fullName : "", email: typeof data.email === "string" ? data.email : "", mobileNumber: typeof data.mobileNumber === "string" ? data.mobileNumber : "", requestedRole: typeof data.requestedRole === "string" ? data.requestedRole : "", requestedSection: typeof data.requestedSection === "string" ? data.requestedSection : "", reason: typeof data.reason === "string" ? data.reason : "", status: data.status === "approved" || data.status === "rejected" ? data.status : "pending", submittedAt: toDate(data.submittedAt), reviewedAt: toDate(data.reviewedAt), reviewedBy: typeof data.reviewedBy === "string" ? data.reviewedBy : "", reviewNote: typeof data.reviewNote === "string" ? data.reviewNote : "" }; }
 
 export async function registerLeader(input: LeaderRegistrationInput): Promise<void> {
-    const credential = await createUserWithEmailAndPassword(auth, input.email.trim().toLowerCase(), input.password);
+    const existingUser = auth.currentUser;
+    const requestedEmail = input.email.trim().toLowerCase();
+    let user = existingUser;
+    let createdNewAccount = false;
+
+    if (existingUser) {
+        const existingEmail = (existingUser.email || "").trim().toLowerCase();
+        if (!existingEmail || existingEmail !== requestedEmail) {
+            throw new Error("Leader request email must match the signed-in account.");
+        }
+    } else {
+        const credential = await createUserWithEmailAndPassword(auth, requestedEmail, input.password);
+        user = credential.user;
+        createdNewAccount = true;
+    }
+
+    if (!user) throw new Error("Unable to determine the Firebase user for this request.");
+
     try {
-        await setDoc(doc(db, "leaderRegistrationRequests", credential.user.uid), { uid: credential.user.uid, fullName: clean(input.fullName, 150), email: clean(input.email, 254).toLowerCase(), mobileNumber: clean(input.mobileNumber, 40), requestedRole: input.requestedRole, requestedSection: input.requestedSection, reason: clean(input.reason, 1500), privacyConfirmed: input.privacyConfirmed, status: "pending", submittedAt: serverTimestamp(), reviewedAt: null, reviewedBy: "", reviewNote: "" });
+        const requestRef = doc(db, "leaderRegistrationRequests", user.uid);
+        const existingRequest = await getDoc(requestRef);
+        if (existingRequest.exists()) {
+            const status = existingRequest.data().status;
+            if (status === "pending") throw new Error("A leader access request is already pending for this account.");
+            if (status === "approved") throw new Error("This account already has an approved leader request.");
+            throw new Error("A previous leader access request exists for this account. Contact an administrator to review it.");
+        }
+
+        await setDoc(requestRef, {
+            uid: user.uid,
+            fullName: clean(input.fullName, 150),
+            email: requestedEmail,
+            mobileNumber: clean(input.mobileNumber, 40),
+            requestedRole: input.requestedRole,
+            requestedSection: input.requestedSection,
+            reason: clean(input.reason, 1500),
+            privacyConfirmed: input.privacyConfirmed,
+            status: "pending",
+            submittedAt: serverTimestamp(),
+            reviewedAt: null,
+            reviewedBy: "",
+            reviewNote: ""
+        });
         try { await notifyLeaderRegistration(); } catch (emailError) { console.error("Unable to send leader registration emails:", emailError); }
-    } finally { await signOut(auth); }
+    } finally {
+        // New leader-only registrations return to the login screen. Existing parent
+        // accounts stay signed in so one Firebase account can hold both roles.
+        if (createdNewAccount) await signOut(auth);
+    }
 }
 
 export async function loadLeaderRegistrationRequests(): Promise<LeaderRegistrationRequest[]> {

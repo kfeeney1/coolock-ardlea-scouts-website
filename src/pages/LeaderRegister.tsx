@@ -14,10 +14,12 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 
+import { auth } from "../firebase";
 import { brandColours } from "../theme/theme";
 import { registerLeader } from "../services/leaderRegistrations";
 import type {
@@ -45,13 +47,28 @@ const initialForm: LeaderRegistrationInput = {
 };
 
 export default function LeaderRegister() {
-    const [formData, setFormData] =
-        useState<LeaderRegistrationInput>(initialForm);
+    const [formData, setFormData] = useState<LeaderRegistrationInput>(initialForm);
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [usingExistingAccount, setUsingExistingAccount] = useState(false);
     const [errors, setErrors] = useState<Errors>({});
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [submitted, setSubmitted] = useState(false);
+
+    useEffect(() => {
+        return onAuthStateChanged(auth, (user) => {
+            const existing = Boolean(user);
+            setUsingExistingAccount(existing);
+            if (user?.email) {
+                setFormData((current) => ({
+                    ...current,
+                    email: user.email || current.email,
+                    password: ""
+                }));
+                setConfirmPassword("");
+            }
+        });
+    }, []);
 
     const clear = (field: keyof Errors) =>
         setErrors((current) => ({ ...current, [field]: undefined }));
@@ -62,8 +79,10 @@ export default function LeaderRegister() {
         if (!formData.email.trim()) nextErrors.email = "Email address is required.";
         else if (!EMAIL_RE.test(formData.email.trim())) nextErrors.email = "Enter a valid email address.";
         if (!PHONE_RE.test(formData.mobileNumber.trim())) nextErrors.mobileNumber = "Enter a valid mobile number.";
-        if (formData.password.length < 8) nextErrors.password = "Use at least 8 characters.";
-        if (confirmPassword !== formData.password) nextErrors.confirmPassword = "Passwords do not match.";
+        if (!usingExistingAccount) {
+            if (formData.password.length < 8) nextErrors.password = "Use at least 8 characters.";
+            if (confirmPassword !== formData.password) nextErrors.confirmPassword = "Passwords do not match.";
+        }
         if (!formData.requestedRole) nextErrors.requestedRole = "Select the role you are requesting.";
         if (!formData.requestedSection) nextErrors.requestedSection = "Select the section.";
         if (!formData.privacyConfirmed) nextErrors.privacyConfirmed = "You must confirm this before registering.";
@@ -83,7 +102,9 @@ export default function LeaderRegister() {
         } catch (error) {
             console.error("Unable to register leader:", error);
             setSubmitError(
-                "Unable to create the registration request. The email address may already have an account, or Firebase rejected the request."
+                usingExistingAccount
+                    ? "Unable to create the leader access request for this account. A request may already exist; contact an administrator if needed."
+                    : "Unable to create the registration request. The email address may already have an account, or Firebase rejected the request."
             );
         } finally {
             setSubmitting(false);
@@ -102,8 +123,8 @@ export default function LeaderRegister() {
                         <Typography sx={{ mt: 3 }}>
                             You will not be able to access the Leader Dashboard until an administrator approves your account.
                         </Typography>
-                        <Button component={Link} to="/leader/login" variant="contained" color="secondary" sx={{ mt: 4 }}>
-                            Return to Leader Login
+                        <Button component={Link} to={usingExistingAccount ? "/parent" : "/leader/login"} variant="contained" color="secondary" sx={{ mt: 4 }}>
+                            {usingExistingAccount ? "Return to Parent Portal" : "Return to Leader Login"}
                         </Button>
                     </Paper>
                 </Container>
@@ -122,7 +143,9 @@ export default function LeaderRegister() {
 
                     <Box component="form" onSubmit={submit} noValidate sx={{ p: { xs: 3, md: 5 } }}>
                         <Alert severity="info" sx={{ mb: 4 }}>
-                            Registration creates a pending account request. An existing administrator must approve it before Leader Dashboard access is granted.
+                            {usingExistingAccount
+                                ? "You are already signed in. This request will add Leader Access to the same account after administrator approval — no second login or password is needed."
+                                : "Registration creates a pending account request. An existing administrator must approve it before Leader Dashboard access is granted."}
                         </Alert>
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
@@ -131,8 +154,9 @@ export default function LeaderRegister() {
                                 error={Boolean(errors.fullName)} helperText={errors.fullName} />
 
                             <TextField required type="email" label="Email address" value={formData.email}
+                                disabled={usingExistingAccount}
                                 onChange={(e) => { setFormData(c => ({ ...c, email: e.target.value })); clear("email"); }}
-                                error={Boolean(errors.email)} helperText={errors.email} />
+                                error={Boolean(errors.email)} helperText={usingExistingAccount ? "Uses your current signed-in account." : errors.email} />
 
                             <TextField required label="Mobile number" value={formData.mobileNumber}
                                 onChange={(e) => { setFormData(c => ({ ...c, mobileNumber: e.target.value })); clear("mobileNumber"); }}
@@ -161,15 +185,19 @@ export default function LeaderRegister() {
                                 {errors.requestedSection && <FormHelperText>{errors.requestedSection}</FormHelperText>}
                             </FormControl>
 
-                            <Box />
+                            {!usingExistingAccount && <Box />}
 
-                            <TextField required type="password" label="Password" value={formData.password}
-                                onChange={(e) => { setFormData(c => ({ ...c, password: e.target.value })); clear("password"); }}
-                                error={Boolean(errors.password)} helperText={errors.password ?? "At least 8 characters."} autoComplete="new-password" />
+                            {!usingExistingAccount && (
+                                <TextField required type="password" label="Password" value={formData.password}
+                                    onChange={(e) => { setFormData(c => ({ ...c, password: e.target.value })); clear("password"); }}
+                                    error={Boolean(errors.password)} helperText={errors.password ?? "At least 8 characters."} autoComplete="new-password" />
+                            )}
 
-                            <TextField required type="password" label="Confirm password" value={confirmPassword}
-                                onChange={(e) => { setConfirmPassword(e.target.value); clear("confirmPassword"); }}
-                                error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword} autoComplete="new-password" />
+                            {!usingExistingAccount && (
+                                <TextField required type="password" label="Confirm password" value={confirmPassword}
+                                    onChange={(e) => { setConfirmPassword(e.target.value); clear("confirmPassword"); }}
+                                    error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword} autoComplete="new-password" />
+                            )}
                         </Box>
 
                         <TextField fullWidth multiline minRows={4} label="Reason / additional information" value={formData.reason}
@@ -186,7 +214,9 @@ export default function LeaderRegister() {
                         {submitError && <Alert severity="error" sx={{ mt: 3 }}>{submitError}</Alert>}
 
                         <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, justifyContent: "space-between", mt: 4 }}>
-                            <Button component={Link} to="/leader/login" color="secondary">Back to Login</Button>
+                            <Button component={Link} to={usingExistingAccount ? "/parent" : "/leader/login"} color="secondary">
+                                {usingExistingAccount ? "Back to Parent Portal" : "Back to Login"}
+                            </Button>
                             <Button type="submit" variant="contained" color="success" disabled={submitting}>
                                 {submitting ? "Registering..." : "Request Leader Access"}
                             </Button>

@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Chip, Container, MenuItem, Paper, Select, Stack, Switch, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import type { SystemRole } from "../components/admin/AdminAuthProvider";
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
@@ -16,6 +17,7 @@ export default function LeaderAccessManagement() {
   const refresh = async () => {
     try {
       setRecords(await loadLeaderAccessRecords());
+      setError("");
     } catch (e) {
       console.error(e);
       setError("Unable to load leader access records.");
@@ -28,7 +30,7 @@ export default function LeaderAccessManagement() {
 
   if (!adminProfile || !["admin", "super-admin"].includes(adminProfile.role)) {
     return (
-      <Container sx={{ py: 6 }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
         <Alert severity="error">Administrator access is required.</Alert>
       </Container>
     );
@@ -61,23 +63,42 @@ export default function LeaderAccessManagement() {
 
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-      <Container maxWidth="lg">
+      <Container maxWidth="xl">
         <LeaderDashboardHeader />
-        <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>
-          Leader Access
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Admins manage leader section assignments. Only a Super Admin can grant or remove Admin access.
-        </Typography>
+        <LeaderPageHeader
+          title="Leader Access"
+          description="Admins manage leader section assignments. Only a Super Admin can grant or remove Admin access."
+          actions={
+            <Button variant="outlined" color="secondary" onClick={() => void refresh()}>
+              Refresh
+            </Button>
+          }
+        />
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         <Stack spacing={2}>
           {records.map((record) => (
-            <Paper key={record.uid} variant="outlined" sx={{ p: 2.5 }}>
-              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "space-between" }}>
-                <Box>
+            <Paper
+              key={record.uid}
+              variant="outlined"
+              sx={{
+                p: { xs: 2, sm: 2.5, md: 3 },
+                borderRadius: 2
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  justifyContent: "space-between"
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography>
-                  <Typography color="text.secondary">{record.email}</Typography>
+                  <Typography color="text.secondary" sx={{ overflowWrap: "anywhere" }}>{record.email}</Typography>
                 </Box>
                 <Chip
                   label={record.role}
@@ -85,12 +106,22 @@ export default function LeaderAccessManagement() {
                 />
               </Box>
 
-              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center", mt: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  flexDirection: { xs: "column", sm: "row" },
+                  flexWrap: "wrap",
+                  alignItems: { xs: "stretch", sm: "center" },
+                  mt: 2
+                }}
+              >
                 <Select
                   size="small"
                   value={record.role}
                   disabled={adminProfile.role !== "super-admin" || record.role === "super-admin"}
                   onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })}
+                  sx={{ minWidth: { xs: "100%", sm: 180 } }}
                 >
                   <MenuItem value="leader">Leader</MenuItem>
                   <MenuItem value="admin">Admin</MenuItem>
@@ -111,7 +142,17 @@ export default function LeaderAccessManagement() {
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
                     Sections
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "repeat(2, minmax(0, 1fr))",
+                        sm: "repeat(3, minmax(0, 1fr))",
+                        md: "repeat(6, minmax(0, 1fr))"
+                      },
+                      gap: 1
+                    }}
+                  >
                     {sections.map((section) => {
                       const selected = record.sections.includes(section);
                       return (
@@ -120,6 +161,7 @@ export default function LeaderAccessManagement() {
                           variant={selected ? "contained" : "outlined"}
                           color="secondary"
                           size="small"
+                          fullWidth
                           onClick={() => toggleSection(record, section)}
                           aria-pressed={selected}
                         >
@@ -139,7 +181,7 @@ export default function LeaderAccessManagement() {
               <Button
                 variant="contained"
                 color="secondary"
-                sx={{ mt: 2 }}
+                sx={{ mt: 2, width: { xs: "100%", sm: "auto" } }}
                 disabled={record.role === "super-admin"}
                 onClick={() => void save(record)}
               >
