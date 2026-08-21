@@ -95,6 +95,12 @@ export default function ParentPortal() {
                     return;
                 }
                 await registerParent(email, password, displayName, mobileNumber);
+                const newUser = auth.currentUser;
+                if (newUser) {
+                    const newAccount = await loadParentAccount(newUser.uid);
+                    setAccount(newAccount);
+                    setSignedInUser(true);
+                }
             } else {
                 await loginParent(email, password);
             }
@@ -209,7 +215,7 @@ export default function ParentPortal() {
                         </Box>
 
                         {leaderAccessDenied && !leaderAccount && <Alert severity="warning" sx={{ mt: 3 }}>Parent access does not include Leader Dashboard access. Only accounts with an active leader record can open leader pages.</Alert>}
-                        {account.status === "pending" && <Alert severity="info" sx={{ mt: 3 }}>Your parent account is waiting for a leader to verify and link it to your child or children. Medical and consent information remains hidden until approval is complete.</Alert>}
+                        {account.status === "pending" && <Alert severity="info" sx={{ mt: 3 }}>Your parent account has been registered and is waiting for an administrator to verify and link it to your child or children. You do not need to enable anything yourself. Medical and consent information remains hidden until approval is complete.</Alert>}
                         {account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}
                         {account.status === "approved" && (
                             <>
