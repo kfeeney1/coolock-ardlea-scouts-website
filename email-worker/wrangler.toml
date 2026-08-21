@@ -8,3 +8,7 @@ SITE_URL = "https://coolock-ardlea-scouts.web.app"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <onboarding@resend.dev>"
 ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
 ADMIN_EMAILS = "kfeeney1@hotmail.com"
+# While Resend is using onboarding@resend.dev, redirect all intended recipients
+# to the Resend account owner so every flow can be tested. Clear this after
+# verifying a sending domain and changing EMAIL_FROM to that domain.
+TEST_EMAIL_REDIRECT = "kfeeney1@hotmail.com"
