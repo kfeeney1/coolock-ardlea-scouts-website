@@ -38,10 +38,38 @@ export async function notifyJoinApplication(applicationId: string, application: 
     }, false);
 }
 
+export async function notifyParentRegistration(): Promise<void> {
+    await post("/parent-registration", {}, true);
+}
+
 export async function notifyParentAccessApproved(account: ParentAccount, childCount: number): Promise<void> {
     await post("/parent-access-approved", {
         email: account.email,
         displayName: account.displayName,
         childCount
     }, true);
+}
+
+export async function notifyParentAccessRejected(account: ParentAccount): Promise<void> {
+    await post("/parent-access-rejected", {
+        email: account.email,
+        displayName: account.displayName
+    }, true);
+}
+
+export async function notifyLeaderRegistration(): Promise<void> {
+    await post("/leader-registration", {}, true);
+}
+
+export async function notifyLeaderAccessStatus(
+    email: string,
+    displayName: string,
+    status: "approved" | "rejected",
+    section: string
+): Promise<void> {
+    await post("/leader-access-status", { email, displayName, status, section }, true);
+}
+
+export async function notifyEventPublished(eventId: string, memberIds: string[]): Promise<void> {
+    await post("/event-published", { eventId, memberIds }, true);
 }

@@ -16,7 +16,11 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { notifyParentAccessApproved } from "./emailNotifications";
+import {
+    notifyParentAccessApproved,
+    notifyParentAccessRejected,
+    notifyParentRegistration
+} from "./emailNotifications";
 
 export type ParentAccessStatus = "pending" | "approved" | "rejected";
 
@@ -92,6 +96,12 @@ export async function createParentAccessForCurrentUser(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     });
+
+    try {
+        await notifyParentRegistration();
+    } catch (emailError) {
+        console.error("Unable to send parent registration emails:", emailError);
+    }
 }
 
 export async function loginParent(email: string, password: string): Promise<void> {
@@ -151,16 +161,18 @@ export async function updateParentAccess(
         updatedAt: serverTimestamp()
     });
 
-    if (beforeAccount && beforeAccount.status !== "approved" && status === "approved") {
-        try {
+    if (!beforeAccount || beforeAccount.status === status) return;
+
+    try {
+        if (status === "approved") {
             await notifyParentAccessApproved(
                 { ...beforeAccount, status: "approved", memberIds: uniqueMemberIds },
                 uniqueMemberIds.length
             );
-        } catch (emailError) {
-            // Access has already been approved in Firestore. A mail-provider issue
-            // must not roll back or misreport that security-sensitive change.
-            console.error("Unable to send parent access approval email:", emailError);
+        } else if (status === "rejected") {
+            await notifyParentAccessRejected({ ...beforeAccount, status: "rejected" });
         }
+    } catch (emailError) {
+        console.error("Unable to send parent access status email:", emailError);
     }
 }
