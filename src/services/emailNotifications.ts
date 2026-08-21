@@ -70,6 +70,17 @@ export async function notifyLeaderAccessStatus(
     await post("/leader-access-status", { email, displayName, status, section }, true);
 }
 
-export async function notifyEventPublished(eventId: string, memberIds: string[]): Promise<void> {
-    await post("/event-published", { eventId, memberIds }, true);
+export type EventNotificationKind = "notice" | "update" | "reminder";
+
+export async function notifyEventParents(
+    eventId: string,
+    memberIds: string[],
+    consentToken: string,
+    kind: EventNotificationKind
+): Promise<void> {
+    await post("/event-notification", { eventId, memberIds, consentToken, kind }, true);
+}
+
+export async function notifyEventConsentProcessed(eventId: string, memberId: string): Promise<void> {
+    await post("/event-consent-processed", { eventId, memberId }, true);
 }
