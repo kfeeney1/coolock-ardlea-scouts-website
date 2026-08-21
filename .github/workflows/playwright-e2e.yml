@@ -27,6 +27,7 @@ jobs:
       E2E_BASE_URL: http://127.0.0.1:4173
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
       E2E_PARENT_EVENT_CONSENT_ENABLED: ${{ vars.E2E_PARENT_EVENT_CONSENT_ENABLED }}
+      E2E_LEADER_JOURNEY_SEEDED: ${{ vars.E2E_LEADER_JOURNEY_SEEDED }}
       E2E_PARENT_EMAIL: test.parent.only@example.com
       E2E_PARENT_LEADER_EMAIL: test.leader.parent@example.com
       E2E_LEADER_EMAIL: test.leader.only@example.com
