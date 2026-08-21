@@ -4,7 +4,17 @@ import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = { label: string; path: string; adminOnly?: boolean; };
 const navItems: NavItem[] = [
- { label: "Member Management", path: "/leader/members" }, { label: "Events & Activities", path: "/leader/events" }, { label: "Event Consent", path: "/leader/event-consent" }, { label: "Parent Access", path: "/leader/parent-access", adminOnly: true }, { label: "Leader Access", path: "/leader/access", adminOnly: true }, { label: "Parent Portal", path: "/parent" }, { label: "Join Us Management", path: "/leader/join" }, { label: "Consent Management", path: "/leader/consents" }, { label: "Info & FAQ", path: "/leader/info" }, { label: "My Profile", path: "/leader/profile" }
+ { label: "Member Management", path: "/leader/members" },
+ { label: "Events & Activities", path: "/leader/events" },
+ { label: "Event Consent", path: "/leader/event-consent" },
+ { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
+ { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
+ { label: "Leader Access", path: "/leader/access", adminOnly: true },
+ { label: "Parent Portal", path: "/parent" },
+ { label: "Join Us Management", path: "/leader/join" },
+ { label: "Consent Management", path: "/leader/consents" },
+ { label: "Info & FAQ", path: "/leader/info" },
+ { label: "My Profile", path: "/leader/profile" }
 ];
 export default function LeaderDashboardHeader() {
  const location = useLocation(); const { adminProfile } = useAdminAuth(); const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
