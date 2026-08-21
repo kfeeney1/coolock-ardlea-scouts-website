@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import ParentConsentSection from "../components/parent/ParentConsentSection";
+import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import { auth } from "../firebase";
 import {
     createParentAccessForCurrentUser,
@@ -226,7 +227,11 @@ export default function ParentPortal() {
                                 <Alert severity="success" sx={{ mt: 3, mb: 3 }}>
                                     Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.
                                 </Alert>
-                                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
+
+                                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography>
+                                <ParentEventConsentSection sections={account.linkedSections} />
+
+                                <Typography variant="h4" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
                                 <ParentConsentSection memberIds={account.memberIds} />
                             </>
                         )}
