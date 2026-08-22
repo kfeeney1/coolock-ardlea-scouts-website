@@ -4,13 +4,24 @@ This checklist captures the minimum launch checks for the Coolock Ardlea Scouts 
 
 ## Automated gates
 
-The Quality workflow must pass before merge. It now verifies:
+The Quality workflow must pass before merge. It verifies:
 
 - production npm dependencies have no known high/critical vulnerabilities reported by `npm audit`
 - required Firebase and email-service environment variables are present
 - `VITE_EMAIL_API_URL` is a valid HTTPS URL
-- lint, unit tests and the production build pass
+- lint, unit tests, smoke-checker syntax and the production build pass
 - Firebase Hosting configuration retains baseline browser security headers and safe cache behaviour
+
+After a successful live Firebase Hosting deployment, the **Post-deploy smoke** workflow automatically verifies the deployed system rather than only the build artifact. It can also be run manually from GitHub Actions.
+
+The live smoke check verifies:
+
+- `/`, `/about`, `/join`, `/leader/login` and `/parent` return the SPA shell successfully
+- the production response includes the expected CSP, clickjacking and MIME-sniffing protections
+- `/index.html` remains non-cacheable
+- a deployed Vite asset is reachable and has one-year immutable caching
+- the production email Worker answers CORS preflight successfully
+- the email Worker explicitly allows the live Firebase Hosting origin
 
 ## Hosting hardening
 
@@ -37,7 +48,11 @@ Before treating a release as production-ready:
 5. Verify event consent links, parent communications and email delivery use the intended production email Worker.
 6. Confirm the email Worker has the current `RESEND_API_KEY`, `EMAIL_FROM`, `SITE_URL`, `FIREBASE_PROJECT_ID` and `ALLOWED_ORIGINS` configuration.
 7. Confirm Firestore backups are running and a recent backup exists before launch.
-8. After production deploy, inspect response headers and perform one smoke test for public pages, leader login, parent login and email delivery.
+8. After production deploy, require the Post-deploy smoke workflow to pass, then perform one authenticated leader/parent and real email-delivery smoke test before a major launch.
+
+## Running the live smoke check manually
+
+Set `SITE_URL` and `EMAIL_API_URL`, then run `npm run smoke:live`. Both values must be HTTPS URLs. The GitHub workflow uses `https://coolock-ardlea-scouts.web.app` for the production site and the existing `VITE_EMAIL_API_URL` repository secret for the Worker.
 
 ## Sensitive-data boundary
 
