@@ -165,7 +165,7 @@ export default function WeeklySectionTracker() {
         </Box>
 
         <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
-          <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mb: 2, justifyContent: "space-between" }}>
             <Box>
               <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{section || "Section"} · {displayDate(meetingDate)}</Typography>
               <Typography color="text.secondary">{recordId ? "Editing an existing weekly record." : "New weekly record."}</Typography>
@@ -182,7 +182,7 @@ export default function WeeklySectionTracker() {
                   <MenuItem value="present">Present</MenuItem>
                   <MenuItem value="absent">Absent</MenuItem>
                 </TextField>
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                   <FormControlLabel control={<Checkbox checked={entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsPaid: event.target.checked })} />} label="Subs paid" />
                   <TextField size="small" label="€" type="number" value={entry.subsAmount} disabled={!entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsAmount: Number(event.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, step: "0.50" } }} sx={{ width: 100 }} />
                 </Stack>
