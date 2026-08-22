@@ -48,4 +48,30 @@ await db.collection("weeklyMeetings").doc("TEST_e2e_weekly_scout").set({
   ...marker
 });
 
+await db.collection("events").doc("TEST_e2e_scout_consent").set({
+  title: "TEST Scout Consent Night",
+  description: "Deterministic Scouts consent fixture for Playwright.",
+  eventType: "Weekly Meeting",
+  section: "Scouts",
+  location: "Scout Den",
+  meetingPoint: "Scout Den",
+  returnDetails: "Scout Den",
+  leaderNotes: "TEST DATA ONLY.",
+  startDate: "2099-01-22",
+  endDate: "2099-01-22",
+  status: "open",
+  consentRequired: true,
+  attendance: {
+    TEST_member_scout_01: "invited"
+  },
+  consent: {
+    TEST_member_scout_01: "required"
+  },
+  createdBy: "TEST_SEED",
+  createdAt: FieldValue.serverTimestamp(),
+  updatedBy: "TEST_SEED",
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+});
+
 console.log("Playwright persistence fixtures seeded.");
