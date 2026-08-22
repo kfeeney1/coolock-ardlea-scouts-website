@@ -20,7 +20,6 @@ type MenuItemDefinition = { name: string; path: string; };
 const menuItems: MenuItemDefinition[] = [
     { name: "Home", path: "/" },
     { name: "About", path: "/about" },
-    { name: "Who’s Who", path: "/whos-who" },
     { name: "Activities", path: "/activities" },
     { name: "Consent Form", path: "/activities/consent" },
     { name: "Contact", path: "/contact" }
