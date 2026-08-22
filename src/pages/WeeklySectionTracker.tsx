@@ -61,17 +61,26 @@ export default function WeeklySectionTracker() {
   const refresh = async () => {
     setLoading(true);
     setError("");
+    const scope = { isAdmin: Boolean(isAdmin), sections: adminProfile?.sections ?? [] };
+
     try {
-      const scope = { isAdmin: Boolean(isAdmin), sections: adminProfile?.sections ?? [] };
-      const [loadedMembers, loadedRecords] = await Promise.all([
-        loadAttendanceInsightMembers(scope),
-        loadWeeklyMeetings(adminProfile?.sections ?? [], Boolean(isAdmin))
-      ]);
+      const loadedMembers = await loadAttendanceInsightMembers(scope);
       setMembers(loadedMembers.filter((member) => member.status === "active"));
-      setRecords(loadedRecords);
     } catch (loadError) {
-      console.error("Unable to load weekly tracker:", loadError);
-      setError("Unable to load weekly records for your permitted sections.");
+      console.error("Unable to load weekly tracker members:", loadError);
+      setMembers([]);
+      setRecords([]);
+      setError("Unable to load active members for your permitted sections.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setRecords(await loadWeeklyMeetings(adminProfile?.sections ?? [], Boolean(isAdmin)));
+    } catch (loadError) {
+      console.error("Unable to load weekly meeting history:", loadError);
+      setRecords([]);
+      setError("Active members are available, but weekly history cannot be loaded right now.");
     } finally {
       setLoading(false);
     }
