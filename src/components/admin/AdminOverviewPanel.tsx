@@ -8,7 +8,7 @@ import {
   Stack,
   Typography
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadAdminOverview, type AdminOverview } from "../../services/adminOverview";
 import { useAdminAuth } from "./AdminAuthProvider";
@@ -16,6 +16,7 @@ import { useAdminAuth } from "./AdminAuthProvider";
 const emptyOverview: AdminOverview = {
   pendingParents: 0,
   pendingLeaders: 0,
+  newJoinApplications: 0,
   activeMembers: 0,
   outstandingConsent: 0,
   membersBySection: [],
@@ -30,25 +31,45 @@ export default function AdminOverviewPanel() {
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
-  const refresh = async () => {
-    if (!isAdmin) return;
+  const refresh = useCallback(async () => {
+    if (!adminProfile) return;
     setLoading(true);
     setError("");
     try {
-      setOverview(await loadAdminOverview());
+      setOverview(await loadAdminOverview(adminProfile));
     } catch (overviewError) {
-      console.error("Unable to load admin overview:", overviewError);
-      setError("Unable to load the administration overview right now.");
+      console.error("Unable to load operations overview:", overviewError);
+      setError("Unable to load the operations overview right now.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminProfile]);
 
   useEffect(() => {
     void refresh();
-  }, [isAdmin]);
+  }, [refresh]);
 
-  if (!isAdmin) return null;
+  const scopeLabel = useMemo(() => {
+    if (isAdmin) return "All sections";
+    if (!adminProfile?.sections.length) return "No sections assigned";
+    return adminProfile.sections.join(", ");
+  }, [adminProfile, isAdmin]);
+
+  if (!adminProfile) return null;
+
+  const cards = [
+    ["New Join Applications", overview.newJoinApplications, "/leader/join"],
+    ["Active Members", overview.activeMembers, "/leader/members"],
+    ["Outstanding Event Consent", overview.outstandingConsent, "/leader/event-consent"],
+    ["Upcoming Events", overview.upcomingEvents.length, "/leader/events"]
+  ];
+
+  if (isAdmin) {
+    cards.unshift(
+      ["Pending Parent Requests", overview.pendingParents, "/leader/parent-access"],
+      ["Pending Leader Requests", overview.pendingLeaders, "/leader/requests"]
+    );
+  }
 
   return (
     <Box sx={{ mb: 3 }} data-testid="admin-overview">
@@ -64,11 +85,12 @@ export default function AdminOverviewPanel() {
       >
         <Box>
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>
-            Administration Overview
+            Operations Overview
           </Typography>
           <Typography color="text.secondary">
-            What needs attention across parents, leaders, members, events and consent.
+            What needs attention across joins, members, events and consent.
           </Typography>
+          <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} sx={{ mt: 1 }} />
         </Box>
         <Button variant="outlined" color="secondary" onClick={() => void refresh()}>
           Refresh Overview
@@ -83,20 +105,21 @@ export default function AdminOverviewPanel() {
         </Paper>
       ) : (
         <>
+          {!isAdmin && adminProfile.sections.length === 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              No sections are assigned to this leader account. Ask an administrator to update Leader Access before using section data.
+            </Alert>
+          )}
+
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" },
+              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, minmax(0, 1fr))" },
               gap: 2,
               mb: 2
             }}
           >
-            {[
-              ["Pending Parent Requests", overview.pendingParents, "/leader/parent-access"],
-              ["Pending Leader Requests", overview.pendingLeaders, "/leader/requests"],
-              ["Active Members", overview.activeMembers, "/leader/members"],
-              ["Outstanding Event Consent", overview.outstandingConsent, "/leader/event-consent"]
-            ].map(([label, value, path]) => (
+            {cards.map(([label, value, path]) => (
               <Paper key={String(label)} variant="outlined" sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1 }}>
                 <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
                   {value}
@@ -115,7 +138,7 @@ export default function AdminOverviewPanel() {
                 Members by Section
               </Typography>
               {overview.membersBySection.length === 0 ? (
-                <Typography color="text.secondary">No active members found.</Typography>
+                <Typography color="text.secondary">No active members found in your current scope.</Typography>
               ) : (
                 <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
                   {overview.membersBySection.map((item) => (
@@ -136,7 +159,7 @@ export default function AdminOverviewPanel() {
                 <Button component={Link} to="/leader/events" size="small">View All</Button>
               </Box>
               {overview.upcomingEvents.length === 0 ? (
-                <Typography color="text.secondary">No upcoming open or draft events.</Typography>
+                <Typography color="text.secondary">No upcoming open or draft events in your current scope.</Typography>
               ) : (
                 <Stack spacing={1.25}>
                   {overview.upcomingEvents.slice(0, 5).map((event) => (
