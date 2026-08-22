@@ -40,3 +40,25 @@ test("ordinary leader can open section-scoped parent communications", async ({ p
     await expect(page.getByLabel("Message")).toBeVisible();
     await expect(page.getByRole("button", { name: /Send to 0 recipients/ })).toBeDisabled();
 });
+
+test("leader dashboard navigation collapses into an expandable mobile menu", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    const account = credentials();
+    test.skip(!account, "Configure the seeded E2E leader account to run this check.");
+    await page.setViewportSize({ width: 375, height: 812 });
+    await loginLeader(page, account!);
+
+    const menuButton = page.getByRole("button", { name: /Leader Menu/ });
+    await expect(menuButton).toBeVisible();
+    await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
+
+    await menuButton.click();
+    const communicationsLink = page.getByRole("link", { name: "Parent Communications" });
+    await expect(communicationsLink).toBeVisible();
+    await communicationsLink.click();
+
+    await expect(page).toHaveURL(/\/leader\/communications$/);
+    await expect(page.getByRole("heading", { name: "Parent Communications" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Menu · Parent Communications/ })).toBeVisible();
+});
