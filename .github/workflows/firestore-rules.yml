@@ -10,11 +10,6 @@ on:
       - ".github/workflows/firestore-rules.yml"
   push:
     branches: [main]
-    paths:
-      - "firestore.rules"
-      - "firebase.json"
-      - "tests/firestore/**"
-      - ".github/workflows/firestore-rules.yml"
   workflow_dispatch:
 
 permissions:
