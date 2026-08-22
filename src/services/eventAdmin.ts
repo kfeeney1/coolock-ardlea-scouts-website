@@ -17,6 +17,7 @@ import type {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { recordAuditEvent } from "./auditLog";
 
 export type EventStatus =
     | "draft"
@@ -213,8 +214,6 @@ export async function loadEvents(): Promise<EventRecord[]> {
 
     const events = snapshot.docs.map(mapEvent);
 
-    // Backfill/synchronise the safe public projection whenever an authorised
-    // leader loads Event Management. This keeps existing events in sync too.
     await Promise.all(events.map((event) => syncPublicEvent(event.id, eventToInput(event))));
 
     return events;
@@ -255,6 +254,14 @@ export async function createEvent(input: EventInput): Promise<string> {
     });
 
     await syncPublicEvent(eventRef.id, { ...input, title });
+    await recordAuditEvent({
+        category: "event",
+        action: "Event created",
+        targetId: eventRef.id,
+        targetLabel: title,
+        section: clean(input.section, 80),
+        description: `Created event with status ${input.status}${input.consentRequired ? "; consent required" : ""}.`
+    });
 
     return eventRef.id;
 }
@@ -287,6 +294,14 @@ export async function updateEvent(
     });
 
     await syncPublicEvent(eventId, input);
+    await recordAuditEvent({
+        category: "event",
+        action: "Event updated",
+        targetId: eventId,
+        targetLabel: clean(input.title, 200),
+        section: clean(input.section, 80),
+        description: `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}.`
+    });
 }
 
 export async function updateEventRoster(
@@ -305,5 +320,14 @@ export async function updateEventRoster(
         consent,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
+    });
+
+    await recordAuditEvent({
+        category: "event",
+        action: "Event roster updated",
+        targetId: eventId,
+        targetLabel: eventId,
+        section: "",
+        description: `Updated attendance/consent status for ${Object.keys(attendance).length} roster member${Object.keys(attendance).length === 1 ? "" : "s"}.`
     });
 }
