@@ -46,13 +46,15 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 }
 
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string): Promise<void> {
-    await updateDoc(doc(db, "adminUsers", record.uid), {
-        role: record.role,
-        sections: record.sections,
-        active: record.active,
-        updatedAt: serverTimestamp(),
-        updatedBy: actorUid
-    });
+    if (record.role !== "super-admin") {
+        await updateDoc(doc(db, "adminUsers", record.uid), {
+            role: record.role,
+            sections: record.sections,
+            active: record.active,
+            updatedAt: serverTimestamp(),
+            updatedBy: actorUid
+        });
+    }
     await syncOrganisationLeader({
         uid: record.uid,
         displayName: record.displayName,
