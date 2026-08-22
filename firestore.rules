@@ -201,6 +201,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /organisationLeadership/{leaderId} {
+      allow read: if isActiveLeader();
+      allow create, update: if isAdmin()
+        && request.resource.data.displayName is string
+        && request.resource.data.scoutingRole is string
+        && request.resource.data.organisationSection is string
+        && request.resource.data.organisationOrder is number
+        && request.resource.data.reportsToUid is string
+        && request.resource.data.showPublicly is bool
+        && request.resource.data.active == true
+        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "showPublicly", "active", "updatedAt"]);
+      allow delete: if isAdmin();
+    }
+
+    match /publicLeadership/{leaderId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.displayName is string
+        && request.resource.data.scoutingRole is string
+        && request.resource.data.organisationSection is string
+        && request.resource.data.organisationOrder is number
+        && request.resource.data.reportsToUid is string
+        && request.resource.data.active == true
+        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "active", "updatedAt"]);
+      allow delete: if isAdmin();
+    }
+
     match /auditLog/{entryId} {
       allow get, list: if isAdmin();
       allow create: if isActiveLeader()
