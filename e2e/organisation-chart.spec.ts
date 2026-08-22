@@ -14,11 +14,10 @@ async function login(page: Page, email: string) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("public Who's Who is available without signing in", async ({ page }) => {
+test("legacy Who's Who URL redirects to About", async ({ page }) => {
   await page.goto("/whos-who");
-  await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
-  await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 });
 
 test("public Who's Who is included on the About page", async ({ page }) => {
@@ -26,6 +25,7 @@ test("public Who's Who is included on the About page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
+  await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
 });
 
@@ -40,6 +40,7 @@ test("section leader can open the internal organisation chart with leader data",
   await login(page, "test.leader.only@example.com");
   await page.goto("/leader/organisation");
   await expect(page.getByRole("heading", { name: "Organisational Chart" })).toBeVisible();
+  await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
   await expect(page.getByText("Group Leader", { exact: true })).toBeVisible();
 });
