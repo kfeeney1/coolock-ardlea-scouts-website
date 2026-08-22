@@ -1,4 +1,6 @@
-import { Box, Button, Paper, Typography } from "@mui/material";
+import { Box, Button, Collapse, Paper, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAdminAuth } from "./AdminAuthProvider";
 
@@ -22,13 +24,46 @@ const navItems: NavItem[] = [
  { label: "My Profile", path: "/leader/profile" }
 ];
 export default function LeaderDashboardHeader() {
- const location = useLocation(); const { adminProfile } = useAdminAuth(); const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+ const location = useLocation();
+ const { adminProfile } = useAdminAuth();
+ const [mobileOpen, setMobileOpen] = useState(false);
+ const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+ const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+ const currentItem = visibleItems.find((item) => item.path === location.pathname);
+
+ const navigation = (
+  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25, alignItems: "stretch" }}>
+   {visibleItems.map((item) => { const active = location.pathname === item.path; return <Button key={item.path} component={Link} to={item.path} onClick={() => setMobileOpen(false)} variant={active ? "contained" : "outlined"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 2, whiteSpace: "nowrap", fontWeight: 700 }}>{item.label}</Button>; })}
+  </Box>
+ );
+
  return <Paper elevation={3} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
   <Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 0.75 }}>Leader Dashboard</Typography>
   <Typography color="text.secondary" sx={{ mb: 1 }}>{adminProfile?.displayName} · {adminProfile?.role}{adminProfile?.role === "leader" && adminProfile.sections.length ? ` · ${adminProfile.sections.join(", ")}` : ""}</Typography>
   <Typography color="text.secondary" sx={{ mb: 2.5 }}>Manage the records permitted by your assigned role and sections.</Typography>
-  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25, alignItems: "stretch" }}>
-   {navItems.filter((item) => !item.adminOnly || isAdmin).map((item) => { const active = location.pathname === item.path; return <Button key={item.path} component={Link} to={item.path} variant={active ? "contained" : "outlined"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 2, whiteSpace: "nowrap", fontWeight: 700 }}>{item.label}</Button>; })}
+
+  <Box sx={{ display: { xs: "block", sm: "none" } }}>
+   <Button
+    fullWidth
+    variant="outlined"
+    color="secondary"
+    aria-expanded={mobileOpen}
+    aria-controls="leader-mobile-navigation"
+    onClick={() => setMobileOpen((open) => !open)}
+    endIcon={<ExpandMoreIcon sx={{ transform: mobileOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />}
+    sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}
+   >
+    {mobileOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label}` : "Open Leader Menu"}
+   </Button>
+   <Collapse in={mobileOpen} timeout="auto" unmountOnExit>
+    <Box id="leader-mobile-navigation" sx={{ mt: 1.5 }}>
+     {navigation}
+    </Box>
+   </Collapse>
+  </Box>
+
+  <Box sx={{ display: { xs: "none", sm: "block" } }}>
+   {navigation}
   </Box>
  </Paper>;
 }
