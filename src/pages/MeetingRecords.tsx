@@ -128,7 +128,7 @@ export default function MeetingRecords() {
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-          <TextField label="Meeting date and time" type="datetime-local" InputLabelProps={{ shrink: true }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
+          <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
           <FormControl>
             <InputLabel>Meeting type</InputLabel>
             <Select label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "group" ? "" : form.section })}>
