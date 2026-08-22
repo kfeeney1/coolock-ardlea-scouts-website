@@ -72,6 +72,21 @@ if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
 if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
 else pass("SPA shell uses no-store caching");
 
+let hostedSnapshotCount = 0;
+const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json`, { cache: "no-store" });
+if (hostedSnapshotResponse.ok) {
+  try {
+    const payload = await hostedSnapshotResponse.json();
+    hostedSnapshotCount = Array.isArray(payload) ? payload.length : 0;
+    if (hostedSnapshotCount > 0) pass(`Hosted public organisation snapshot contains ${hostedSnapshotCount} leader(s)`);
+    else warn("Hosted public organisation snapshot is empty; browser fallback still depends on Firestore/local cache.");
+  } catch {
+    fail("Hosted public organisation snapshot is not valid JSON.");
+  }
+} else {
+  warn(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}; browser fallback still depends on Firestore/local cache.`);
+}
+
 console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
 const publicLeadershipUrl = new URL(
   `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`
@@ -87,13 +102,16 @@ if (!publicLeadershipResponse.ok) {
     // Keep the status-only diagnostic if Firebase does not return JSON.
   }
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
-  if (publicLeadershipResponse.status === 429 && allowQuotaWarning) warn(`${message}. Live Firebase quota is exhausted; PR code validation continues.`);
-  else fail(message);
+  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotCount > 0)) {
+    warn(`${message}. Hosted/public cache fallback remains available.`);
+  } else {
+    fail(message);
+  }
 } else {
   const payload = await publicLeadershipResponse.json();
   const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
-  if (documentCount === 0) {
-    fail("Anonymous publicLeadership Firestore read returned 200 but the collection is empty. Public leaders have not been published.");
+  if (documentCount === 0 && hostedSnapshotCount === 0) {
+    fail("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. Public leaders have not been published.");
   } else {
     pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
   }
