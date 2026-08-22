@@ -28,6 +28,9 @@ jobs:
     env:
       PROJECT_ID: coolock-ardlea-scouts
       BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+      TRIGGER_NAME: ${{ github.event_name }}
+      CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+      MANUAL_NOTE: ${{ inputs.note }}
 
     steps:
       - name: Checkout repository
@@ -48,7 +51,7 @@ jobs:
             exit 1
           fi
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.confirm_project }}" != "${PROJECT_ID}" ]]; then
+          if [[ "${TRIGGER_NAME}" == "workflow_dispatch" && "${CONFIRM_PROJECT}" != "${PROJECT_ID}" ]]; then
             echo "Project confirmation did not match ${PROJECT_ID}." >&2
             exit 1
           fi
@@ -111,11 +114,11 @@ jobs:
           {
             echo "## Firestore backup"
             echo
-            echo "- Project: \`${PROJECT_ID}\`"
+            printf '%s\n' "- Project: \`${PROJECT_ID}\`"
             echo "- Database: \`(default)\`"
-            echo "- Destination: \`${DESTINATION:-not-created}\`"
-            echo "- Trigger: \`${{ github.event_name }}\`"
-            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-              echo "- Note: ${{ inputs.note }}"
+            printf '%s\n' "- Destination: \`${DESTINATION:-not-created}\`"
+            printf '%s\n' "- Trigger: \`${TRIGGER_NAME}\`"
+            if [[ "${TRIGGER_NAME}" == "workflow_dispatch" && -n "${MANUAL_NOTE}" ]]; then
+              printf '%s\n' "- Note: ${MANUAL_NOTE}"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
