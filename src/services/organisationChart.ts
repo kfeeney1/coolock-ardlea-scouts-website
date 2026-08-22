@@ -20,25 +20,7 @@ function order(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 999;
 }
 
-export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
-  const snapshot = await getDocs(collection(db, "adminUsers"));
-  return snapshot.docs.map((item) => {
-    const data = item.data();
-    return {
-      uid: item.id,
-      displayName: text(data.displayName) || "Leader",
-      scoutingRole: text(data.scoutingRole) || "Leader",
-      organisationSection: text(data.organisationSection) || (Array.isArray(data.sections) && typeof data.sections[0] === "string" ? data.sections[0] : "Group"),
-      organisationOrder: order(data.organisationOrder),
-      reportsToUid: text(data.reportsToUid),
-      showPublicly: data.showPublicly === true,
-      active: data.active === true
-    };
-  }).filter((leader) => leader.active).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
-}
-
-export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  const snapshot = await getDocs(collection(db, "publicLeadership"));
+function mapOrganisation(snapshot: Awaited<ReturnType<typeof getDocs>>): OrganisationLeader[] {
   return snapshot.docs.map((item) => {
     const data = item.data();
     return {
@@ -48,24 +30,52 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
       organisationSection: text(data.organisationSection) || "Group",
       organisationOrder: order(data.organisationOrder),
       reportsToUid: text(data.reportsToUid),
-      showPublicly: true,
-      active: true
+      showPublicly: data.showPublicly === true,
+      active: data.active !== false
     };
-  }).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
+  }).filter((leader) => leader.active).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 }
 
-export async function syncPublicLeader(leader: OrganisationLeader): Promise<void> {
-  const ref = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || !leader.active) {
-    await deleteDoc(ref);
+export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
+  return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
+}
+
+export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
+  return mapOrganisation(await getDocs(collection(db, "publicLeadership")));
+}
+
+export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {
+  const privateRef = doc(db, "organisationLeadership", leader.uid);
+  if (!leader.active) {
+    await deleteDoc(privateRef);
+    await deleteDoc(doc(db, "publicLeadership", leader.uid));
     return;
   }
-  await setDoc(ref, {
+
+  const safe = {
     displayName: leader.displayName.trim().slice(0, 120),
     scoutingRole: leader.scoutingRole.trim().slice(0, 120),
     organisationSection: leader.organisationSection.trim().slice(0, 80),
     organisationOrder: Math.max(0, Math.min(999, Math.round(leader.organisationOrder))),
     reportsToUid: leader.reportsToUid.trim().slice(0, 128),
+    showPublicly: leader.showPublicly,
+    active: true,
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(privateRef, safe);
+  const publicRef = doc(db, "publicLeadership", leader.uid);
+  if (!leader.showPublicly) {
+    await deleteDoc(publicRef);
+    return;
+  }
+  await setDoc(publicRef, {
+    displayName: safe.displayName,
+    scoutingRole: safe.scoutingRole,
+    organisationSection: safe.organisationSection,
+    organisationOrder: safe.organisationOrder,
+    reportsToUid: safe.reportsToUid,
+    active: true,
     updatedAt: serverTimestamp()
   });
 }
