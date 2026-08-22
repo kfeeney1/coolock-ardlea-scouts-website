@@ -155,6 +155,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /meetingRecords/{meetingId} {
+      allow read: if isActiveLeader()
+        && ((resource.data.meetingType == "group" && isAdmin())
+          || (resource.data.meetingType == "leader" && resource.data.section is string && hasSection(resource.data.section)));
+      allow create: if isActiveLeader()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.meetingDate is string
+        && request.resource.data.attendees is list
+        && request.resource.data.meetingType in ["group", "leader"]
+        && ((request.resource.data.meetingType == "group" && isAdmin() && request.resource.data.section == "Group")
+          || (request.resource.data.meetingType == "leader" && request.resource.data.section is string && hasSection(request.resource.data.section)))
+        && request.resource.data.keys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && ((resource.data.meetingType == "group" && isAdmin())
+          || (resource.data.meetingType == "leader" && resource.data.section is string && hasSection(resource.data.section)))
+        && ((request.resource.data.meetingType == "group" && isAdmin() && request.resource.data.section == "Group")
+          || (request.resource.data.meetingType == "leader" && request.resource.data.section is string && hasSection(request.resource.data.section)))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "updatedBy", "updatedAt"])
+        && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
     match /auditLog/{entryId} {
       allow get, list: if isAdmin();
       allow create: if isActiveLeader()

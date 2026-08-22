@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
  { label: "Attendance Insights", path: "/leader/attendance" },
  { label: "Parent Communications", path: "/leader/communications" },
  { label: "Events & Activities", path: "/leader/events" },
+ { label: "Meeting Records", path: "/leader/meetings" },
  { label: "Reports & Exports", path: "/leader/reports" },
  { label: "Event Consent", path: "/leader/event-consent" },
  { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
