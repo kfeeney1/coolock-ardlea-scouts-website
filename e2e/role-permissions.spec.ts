@@ -44,6 +44,12 @@ async function loginParent(page: Page, account: Credentials) {
   await expect(page.getByText("Parent Consent Portal").first()).toBeVisible();
 }
 
+async function openLeaderMenu(page: Page) {
+  const button = page.getByRole("button", { name: /Leader Menu/ });
+  await expect(button).toBeVisible();
+  await button.click();
+}
+
 test.describe("route protection", () => {
   for (const route of protectedLeaderRoutes) {
     test(`${route} rejects unauthenticated users`, async ({ page }) => {
@@ -80,6 +86,7 @@ test.describe("dual-role parent and leader permissions", () => {
     await loginParent(page, account!);
 
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
@@ -103,6 +110,7 @@ test.describe("leader permissions", () => {
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
@@ -115,6 +123,7 @@ test.describe("leader permissions", () => {
     await expect(page).toHaveURL(/\/leader\/member-history$/);
     await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
 
+    await openLeaderMenu(page);
     await page.getByRole("link", { name: "Reports & Exports" }).click();
     await expect(page).toHaveURL(/\/leader\/reports$/);
     await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
@@ -141,6 +150,7 @@ test.describe("multi-section leader permissions", () => {
     for (const section of expectedSections) {
       await expect(page.getByText(section, { exact: false }).first()).toBeVisible();
     }
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
@@ -156,6 +166,7 @@ test.describe("admin permissions", () => {
     await loginLeader(page, account!);
 
     await expect(page.getByText(/· admin/i).first()).toBeVisible();
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Access" })).toBeVisible();
@@ -175,6 +186,7 @@ test.describe("super-admin permissions", () => {
     await loginLeader(page, account!);
 
     await expect(page.getByText(/· super-admin/i).first()).toBeVisible();
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Access" })).toBeVisible();
