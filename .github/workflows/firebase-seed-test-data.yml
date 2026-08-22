@@ -41,6 +41,11 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/seed-test-data.mjs "${{ inputs.action }}"
 
+      - name: Run expanded population action
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-population-data.mjs "${{ inputs.action }}"
+
       - name: Run E2E Auth test-user action
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
