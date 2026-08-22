@@ -45,7 +45,7 @@ async function loginParent(page: Page, account: Credentials) {
 }
 
 async function openLeaderMenu(page: Page) {
-  const button = page.getByRole("button", { name: /Leader Menu/ });
+  const button = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
   await expect(button).toBeVisible();
   await button.click();
 }
