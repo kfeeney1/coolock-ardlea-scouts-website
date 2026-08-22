@@ -2,6 +2,7 @@ const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
 const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
 const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
+const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
 
 if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
@@ -23,6 +24,7 @@ if (!firebaseProjectId) {
 const failures = [];
 function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
 function pass(message) { console.log(`PASS: ${message}`); }
+function warn(message) { console.warn(`WARN: ${message}`); }
 
 async function get(path) {
   const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
@@ -83,7 +85,9 @@ if (!publicLeadershipResponse.ok) {
   } catch {
     // Keep the status-only diagnostic if Firebase does not return JSON.
   }
-  fail(`Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`);
+  const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
+  if (publicLeadershipResponse.status === 429 && allowQuotaWarning) warn(`${message}. Live Firebase quota is exhausted; PR code validation continues.`);
+  else fail(message);
 } else {
   const payload = await publicLeadershipResponse.json();
   const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
