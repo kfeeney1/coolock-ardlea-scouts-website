@@ -72,6 +72,7 @@ if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
 if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
 else pass("SPA shell uses no-store caching");
 
+console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
 const publicLeadershipUrl = new URL(
   `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`
 );
@@ -91,7 +92,11 @@ if (!publicLeadershipResponse.ok) {
 } else {
   const payload = await publicLeadershipResponse.json();
   const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
-  pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
+  if (documentCount === 0) {
+    fail("Anonymous publicLeadership Firestore read returned 200 but the collection is empty. Public leaders have not been published.");
+  } else {
+    pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
+  }
 }
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
