@@ -1,4 +1,12 @@
-import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  serverTimestamp,
+  setDoc
+} from "firebase/firestore";
+import type { DocumentData, QuerySnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 
 export type OrganisationLeader = {
@@ -20,20 +28,27 @@ function order(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 999;
 }
 
-function mapOrganisation(snapshot: Awaited<ReturnType<typeof getDocs>>): OrganisationLeader[] {
-  return snapshot.docs.map((item) => {
-    const data = item.data();
-    return {
-      uid: item.id,
-      displayName: text(data.displayName) || "Leader",
-      scoutingRole: text(data.scoutingRole) || "Leader",
-      organisationSection: text(data.organisationSection) || "Group",
-      organisationOrder: order(data.organisationOrder),
-      reportsToUid: text(data.reportsToUid),
-      showPublicly: data.showPublicly === true,
-      active: data.active !== false
-    };
-  }).filter((leader) => leader.active).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
+function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLeader[] {
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data();
+      return {
+        uid: item.id,
+        displayName: text(data.displayName) || "Leader",
+        scoutingRole: text(data.scoutingRole) || "Leader",
+        organisationSection: text(data.organisationSection) || "Group",
+        organisationOrder: order(data.organisationOrder),
+        reportsToUid: text(data.reportsToUid),
+        showPublicly: data.showPublicly === true,
+        active: data.active !== false
+      };
+    })
+    .filter((leader) => leader.active)
+    .sort(
+      (a, b) =>
+        a.organisationOrder - b.organisationOrder ||
+        a.displayName.localeCompare(b.displayName)
+    );
 }
 
 export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
@@ -69,6 +84,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     await deleteDoc(publicRef);
     return;
   }
+
   await setDoc(publicRef, {
     displayName: safe.displayName,
     scoutingRole: safe.scoutingRole,
