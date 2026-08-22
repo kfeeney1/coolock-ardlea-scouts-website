@@ -16,6 +16,7 @@ import type {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { recordAuditEvent } from "./auditLog";
 
 export type MemberStatus = "active" | "inactive" | "left";
 
@@ -230,6 +231,15 @@ export async function createMember(
     updatedBy: user.uid
   });
 
+  await recordAuditEvent({
+    category: "member",
+    action: "Member created",
+    targetId: memberRef.id,
+    targetLabel: displayName,
+    section: clean(input.section, 40),
+    description: `Created member record with status ${input.status}.`
+  });
+
   return memberRef.id;
 }
 
@@ -270,6 +280,15 @@ export async function updateMember(
     status: updates.status,
     updatedAt: serverTimestamp(),
     updatedBy: user.uid
+  });
+
+  await recordAuditEvent({
+    category: "member",
+    action: "Member updated",
+    targetId: memberId,
+    targetLabel: clean(updates.displayName, 200),
+    section: clean(updates.section, 40),
+    description: `Updated member record; status is ${updates.status}.`
   });
 }
 
