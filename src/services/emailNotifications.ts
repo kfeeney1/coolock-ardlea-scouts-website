@@ -99,6 +99,9 @@ export async function sendLeaderCommunication(
     subject: string,
     message: string
 ): Promise<LeaderCommunicationResult> {
+    if (!emailApiUrl) {
+        throw new Error("VITE_EMAIL_API_URL is not configured.");
+    }
     return await post<LeaderCommunicationResult>(
         "/leader-communication",
         { memberIds, subject, message },
