@@ -178,6 +178,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /weeklyMeetings/{weeklyMeetingId} {
+      allow read: if isActiveLeader() && resource.data.section is string && hasSection(resource.data.section);
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && hasSection(request.resource.data.section)
+        && request.resource.data.meetingDate is string
+        && request.resource.data.entries is list
+        && request.resource.data.notes is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "notes", "entries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section is string
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.entries is list
+        && request.resource.data.notes is string
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "notes", "entries", "updatedBy", "updatedAt"]);
+      allow delete: if false;
+    }
+
     match /auditLog/{entryId} {
       allow get, list: if isAdmin();
       allow create: if isActiveLeader()
