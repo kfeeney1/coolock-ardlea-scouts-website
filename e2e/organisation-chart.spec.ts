@@ -20,6 +20,13 @@ test("public Who's Who is available without signing in", async ({ page }) => {
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
 });
 
+test("public Who's Who is included on the About page", async ({ page }) => {
+  await page.goto("/about");
+  await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
+  await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
+});
+
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {
   await page.goto("/leader/organisation");
   await expect(page).toHaveURL(/\/leader\/login$/);
