@@ -12,6 +12,10 @@ function desktopOnly(testInfo: TestInfo) {
     test.skip(testInfo.project.name !== "chromium", "Authenticated communication checks run once on desktop Chromium.");
 }
 
+function mobileOnly(testInfo: TestInfo) {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile navigation check runs on the Pixel 7 project.");
+}
+
 async function loginLeader(page: import("@playwright/test").Page, account: Credentials) {
     await page.goto("/leader/login");
     await page.getByLabel("Email address").fill(account.email);
@@ -55,7 +59,6 @@ test("leader dashboard navigation uses an expandable desktop menu", async ({ pag
     desktopOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
-    await page.setViewportSize({ width: 1440, height: 900 });
     await loginLeader(page, account!);
 
     await openLeaderMenu(page);
@@ -63,11 +66,10 @@ test("leader dashboard navigation uses an expandable desktop menu", async ({ pag
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
 });
 
-test("leader dashboard navigation uses the same expandable menu on mobile", async ({ page }, testInfo) => {
-    desktopOnly(testInfo);
+test("leader dashboard navigation uses the same expandable menu on Pixel 7", async ({ page }, testInfo) => {
+    mobileOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
-    await page.setViewportSize({ width: 375, height: 812 });
     await loginLeader(page, account!);
 
     await openLeaderMenu(page);
