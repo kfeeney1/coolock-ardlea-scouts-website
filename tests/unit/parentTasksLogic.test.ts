@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { ParentConsentRecord, ParentLinkedMember } from "../../src/services/parentConsent.ts";
+import type { ParentEventConsentLink } from "../../src/services/parentEvents.ts";
 import { summariseParentTasks } from "../../src/services/parentTasksLogic.ts";
 
-const event = (overrides: Partial<any> = {}) => ({
+const event = (overrides: Partial<ParentEventConsentLink> = {}): ParentEventConsentLink => ({
     token: "token-1",
     eventId: "event-1",
     title: "Camp",
@@ -19,9 +21,14 @@ const event = (overrides: Partial<any> = {}) => ({
     ...overrides
 });
 
-const member = (id: string) => ({ id, displayName: id, section: "Cubs", dateOfBirth: "2015-01-01" });
+const member = (id: string): ParentLinkedMember => ({
+    id,
+    displayName: id,
+    section: "Cubs",
+    dateOfBirth: "2015-01-01"
+});
 
-const consent = (memberId: string, updatedByParent: boolean) => ({
+const consent = (memberId: string, updatedByParent: boolean): ParentConsentRecord => ({
     id: `consent-${memberId}`,
     memberId,
     childName: memberId,
