@@ -1,0 +1,36 @@
+name: Refresh Router Lockfile
+
+on:
+  push:
+    branches: [chore/production-readiness]
+    paths:
+      - .github/workflows/refresh-router-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/production-readiness
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Upgrade patched router release
+        run: npm install react-router-dom@^7.18.2 --save
+      - name: Commit lockfile update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No lockfile changes required."
+            exit 0
+          fi
+          git commit -m "Upgrade React Router to patched release"
+          git push origin HEAD:chore/production-readiness
