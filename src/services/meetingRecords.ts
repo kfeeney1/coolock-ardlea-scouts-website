@@ -71,6 +71,7 @@ export async function loadMeetingRecords(sections: string[], isAdmin: boolean): 
   if (uniqueSections.length === 0) return [];
   const snapshots = await Promise.all(uniqueSections.map((section) => getDocs(query(
     collection(db, "meetingRecords"),
+    where("meetingType", "==", "leader"),
     where("section", "==", section)
   ))));
 
