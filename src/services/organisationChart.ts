@@ -21,6 +21,7 @@ export type OrganisationLeader = {
 };
 
 const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v1";
+const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -40,22 +41,42 @@ function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
     );
 }
 
+function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
+  return {
+    uid,
+    displayName: text(data.displayName) || "Leader",
+    scoutingRole: text(data.scoutingRole) || "Leader",
+    organisationSection: text(data.organisationSection) || "Group",
+    organisationOrder: order(data.organisationOrder),
+    reportsToUid: text(data.reportsToUid),
+    showPublicly: data.showPublicly === true,
+    active: data.active !== false
+  };
+}
+
 function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLeader[] {
+  return sortOrganisation(snapshot.docs.map((item) => mapLeader(item.id, item.data())));
+}
+
+function mapSnapshotPayload(value: unknown): OrganisationLeader[] {
+  if (!Array.isArray(value)) return [];
   return sortOrganisation(
-    snapshot.docs.map((item) => {
-      const data = item.data();
-      return {
-        uid: item.id,
-        displayName: text(data.displayName) || "Leader",
-        scoutingRole: text(data.scoutingRole) || "Leader",
-        organisationSection: text(data.organisationSection) || "Group",
-        organisationOrder: order(data.organisationOrder),
-        reportsToUid: text(data.reportsToUid),
-        showPublicly: data.showPublicly === true,
-        active: data.active !== false
-      };
-    })
+    value
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+      .map((item) => mapLeader(text(item.uid), item))
+      .filter((leader) => leader.uid)
   );
+}
+
+async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[]> {
+  if (typeof fetch !== "function") return [];
+  try {
+    const response = await fetch(PUBLIC_SNAPSHOT_URL, { cache: "no-store" });
+    if (!response.ok) return [];
+    return mapSnapshotPayload(await response.json());
+  } catch {
+    return [];
+  }
 }
 
 function readPublicCache(): OrganisationLeader[] {
@@ -63,18 +84,7 @@ function readPublicCache(): OrganisationLeader[] {
   try {
     const raw = window.localStorage.getItem(PUBLIC_CACHE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return sortOrganisation(
-      parsed.filter((item): item is OrganisationLeader =>
-        Boolean(item) &&
-        typeof item === "object" &&
-        typeof item.uid === "string" &&
-        typeof item.displayName === "string" &&
-        typeof item.scoutingRole === "string" &&
-        typeof item.organisationSection === "string"
-      )
-    );
+    return mapSnapshotPayload(JSON.parse(raw));
   } catch {
     return [];
   }
@@ -85,7 +95,7 @@ function writePublicCache(leaders: OrganisationLeader[]): void {
   try {
     window.localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify(leaders));
   } catch {
-    // Storage can be unavailable in privacy modes; Firestore remains the source of truth.
+    // Storage can be unavailable in privacy modes.
   }
 }
 
@@ -99,6 +109,12 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
+  const hosted = await loadHostedPublicSnapshot();
+  if (hosted.length > 0) {
+    writePublicCache(hosted);
+    return hosted;
+  }
+
   try {
     const leaders = mapOrganisation(await getDocs(collection(db, "publicLeadership")));
     writePublicCache(leaders);

@@ -21,45 +21,57 @@ function defaultSection(data) {
   return typeof data.section === "string" && data.section ? data.section : "Group";
 }
 
+function publicPayload(record) {
+  return {
+    displayName: record.displayName,
+    scoutingRole: record.scoutingRole,
+    organisationSection: record.organisationSection,
+    organisationOrder: record.organisationOrder,
+    reportsToUid: record.reportsToUid,
+    active: true,
+    updatedAt: FieldValue.serverTimestamp()
+  };
+}
+
 const adminSnapshot = await db.collection("adminUsers").get();
 const activeAdminDocs = adminSnapshot.docs.filter((adminDoc) => adminDoc.data().active === true);
 let created = 0;
 let preserved = 0;
+let published = 0;
+let unpublished = 0;
 
 for (const adminDoc of activeAdminDocs) {
   const data = adminDoc.data();
   const orgRef = db.collection("organisationLeadership").doc(adminDoc.id);
   const existing = await orgRef.get();
+  let record;
+
   if (existing.exists) {
     preserved += 1;
-    continue;
-  }
-
-  const override = TEST_ROLE_OVERRIDES[adminDoc.id];
-  const record = {
-    displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName.trim() : "Leader",
-    scoutingRole: override?.scoutingRole || "Leader",
-    organisationSection: override?.organisationSection || defaultSection(data),
-    organisationOrder: override?.organisationOrder ?? 999,
-    reportsToUid: override?.reportsToUid || "",
-    showPublicly: override?.showPublicly === true,
-    active: true,
-    updatedAt: FieldValue.serverTimestamp()
-  };
-
-  await orgRef.set(record);
-  created += 1;
-
-  if (record.showPublicly) {
-    await db.collection("publicLeadership").doc(adminDoc.id).set({
-      displayName: record.displayName,
-      scoutingRole: record.scoutingRole,
-      organisationSection: record.organisationSection,
-      organisationOrder: record.organisationOrder,
-      reportsToUid: record.reportsToUid,
+    record = existing.data();
+  } else {
+    const override = TEST_ROLE_OVERRIDES[adminDoc.id];
+    record = {
+      displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName.trim() : "Leader",
+      scoutingRole: override?.scoutingRole || "Leader",
+      organisationSection: override?.organisationSection || defaultSection(data),
+      organisationOrder: override?.organisationOrder ?? 999,
+      reportsToUid: override?.reportsToUid || "",
+      showPublicly: override?.showPublicly === true,
       active: true,
       updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    };
+    await orgRef.set(record);
+    created += 1;
+  }
+
+  const publicRef = db.collection("publicLeadership").doc(adminDoc.id);
+  if (record.active !== false && record.showPublicly === true) {
+    await publicRef.set(publicPayload(record), { merge: true });
+    published += 1;
+  } else {
+    await publicRef.delete().catch(() => undefined);
+    unpublished += 1;
   }
 }
 
@@ -71,4 +83,4 @@ if (missing.length > 0) {
   throw new Error(`Organisation backfill verification failed. Missing active leaders: ${missing.join(", ")}`);
 }
 
-console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${activeAdminDocs.length} active leaders verified.`);
+console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${published} public records reconciled, ${unpublished} private-only records reconciled, ${activeAdminDocs.length} active leaders verified.`);
