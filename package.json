@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "node --experimental-strip-types --test tests/unit/*.test.ts",
     "test:e2e": "npx playwright test",
+    "check:production-env": "node scripts/check-production-env.mjs",
     "quality": "npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
