@@ -31,12 +31,12 @@ export default function AdminOverviewPanel() {
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (!adminProfile) return;
     setLoading(true);
     setError("");
     try {
-      setOverview(await loadAdminOverview(adminProfile));
+      setOverview(await loadAdminOverview(adminProfile, force));
     } catch (overviewError) {
       console.error("Unable to load operations overview:", overviewError);
       setError("Unable to load the operations overview right now.");
@@ -92,7 +92,7 @@ export default function AdminOverviewPanel() {
           </Typography>
           <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} sx={{ mt: 1 }} />
         </Box>
-        <Button variant="outlined" color="secondary" onClick={() => void refresh()}>
+        <Button variant="outlined" color="secondary" onClick={() => void refresh(true)}>
           Refresh Overview
         </Button>
       </Box>

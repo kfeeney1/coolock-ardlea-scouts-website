@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 
@@ -23,8 +23,11 @@ export type AdminOverview = {
 };
 
 type RawMember = { id: string; section: string; active: boolean };
-
 type FirestoreSnapshot = QueryDocumentSnapshot;
+type CacheEntry = { expiresAt: number; value: AdminOverview };
+
+const OVERVIEW_CACHE_MS = 90_000;
+const overviewCache = new Map<string, CacheEntry>();
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -48,6 +51,37 @@ function isAdmin(profile: AdminProfile): boolean {
   return profile.role === "admin" || profile.role === "super-admin";
 }
 
+function cacheKey(profile: AdminProfile): string {
+  return `${profile.role}:${[...new Set(profile.sections)].sort().join("|")}`;
+}
+
+async function countDocuments(target: Query): Promise<number> {
+  const snapshot = await getCountFromServer(target);
+  return snapshot.data().count;
+}
+
+async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
+  if (isAdmin(profile)) {
+    return countDocuments(query(collection(db, "joinApplications"), where("status", "==", "new")));
+  }
+
+  const sections = [...new Set(profile.sections.map((section) => section.trim()).filter(Boolean))];
+  if (sections.length === 0) return 0;
+
+  const counts = await Promise.all(
+    sections.map((section) =>
+      countDocuments(
+        query(
+          collection(db, "joinApplications"),
+          where("section", "==", section),
+          where("status", "==", "new")
+        )
+      )
+    )
+  );
+  return counts.reduce((total, count) => total + count, 0);
+}
+
 async function loadScopedCollection(collectionName: string, profile: AdminProfile): Promise<FirestoreSnapshot[]> {
   if (isAdmin(profile)) {
     return (await getDocs(collection(db, collectionName))).docs;
@@ -65,27 +99,23 @@ async function loadScopedCollection(collectionName: string, profile: AdminProfil
   return [...byId.values()];
 }
 
-export async function loadAdminOverview(profile: AdminProfile): Promise<AdminOverview> {
+export async function loadAdminOverview(profile: AdminProfile, force = false): Promise<AdminOverview> {
+  const key = cacheKey(profile);
+  const cached = overviewCache.get(key);
+  if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
+
   const admin = isAdmin(profile);
-  const [parentSnapshot, leaderSnapshot, joinDocuments, memberDocuments, eventDocuments] = await Promise.all([
-    admin ? getDocs(collection(db, "parentAccounts")) : Promise.resolve(null),
-    admin ? getDocs(collection(db, "leaderRegistrationRequests")) : Promise.resolve(null),
-    loadScopedCollection("joinApplications", profile),
+  const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments] = await Promise.all([
+    admin
+      ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending")))
+      : Promise.resolve(0),
+    admin
+      ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending")))
+      : Promise.resolve(0),
+    countScopedNewJoins(profile),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile)
   ]);
-
-  const pendingParents = parentSnapshot?.docs.filter(
-    (snapshot) => snapshot.data().status === "pending"
-  ).length ?? 0;
-
-  const pendingLeaders = leaderSnapshot?.docs.filter(
-    (snapshot) => snapshot.data().status === "pending"
-  ).length ?? 0;
-
-  const newJoinApplications = joinDocuments.filter(
-    (snapshot) => snapshot.data().status === "new"
-  ).length;
 
   const members: RawMember[] = memberDocuments.map((snapshot) => {
     const data = snapshot.data();
@@ -141,7 +171,7 @@ export async function loadAdminOverview(profile: AdminProfile): Promise<AdminOve
     )
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-  return {
+  const overview: AdminOverview = {
     pendingParents,
     pendingLeaders,
     newJoinApplications,
@@ -153,4 +183,7 @@ export async function loadAdminOverview(profile: AdminProfile): Promise<AdminOve
     membersBySection,
     upcomingEvents
   };
+
+  overviewCache.set(key, { value: overview, expiresAt: Date.now() + OVERVIEW_CACHE_MS });
+  return overview;
 }
