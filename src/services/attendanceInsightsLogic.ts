@@ -35,7 +35,7 @@ export function buildMemberAttendanceInsights(
 
     return members
         .filter((member) => member.status === "active")
-        .map((member) => {
+        .map<MemberAttendanceInsight>((member) => {
             const relevant = completedEvents
                 .filter((event) => event.section === "All Sections" || event.section === member.section)
                 .sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -57,6 +57,10 @@ export function buildMemberAttendanceInsights(
                 return value === "attending" || value === "not-attending";
             });
             const recentValue = mostRecent?.attendance[member.id];
+            const lastAttendanceStatus: MemberAttendanceInsight["lastAttendanceStatus"] =
+                recentValue === "attending" || recentValue === "not-attending"
+                    ? recentValue
+                    : "unrecorded";
 
             return {
                 memberId: member.id,
@@ -68,10 +72,7 @@ export function buildMemberAttendanceInsights(
                 unrecorded,
                 attendanceRate: recorded > 0 ? Math.round((attended / recorded) * 100) : null,
                 lastRecordedDate: mostRecent?.startDate || "",
-                lastAttendanceStatus:
-                    recentValue === "attending" || recentValue === "not-attending"
-                        ? recentValue
-                        : "unrecorded"
+                lastAttendanceStatus
             };
         })
         .sort((a, b) => {
