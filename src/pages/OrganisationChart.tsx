@@ -20,6 +20,16 @@ function depthFor(leader: OrganisationLeader, byId: Map<string, OrganisationLead
   return depth;
 }
 
+function organisationLoadMessage(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code?: unknown }).code || "").toLowerCase();
+    if (code.includes("resource-exhausted")) {
+      return "The organisation chart is temporarily unavailable because the site's database read allowance has been reached. Please try again later.";
+    }
+  }
+  return "Unable to load the organisation chart.";
+}
+
 export default function OrganisationChart({ publicView = false, embedded = false }: { publicView?: boolean; embedded?: boolean }) {
   const [leaders, setLeaders] = useState<OrganisationLeader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +46,7 @@ export default function OrganisationChart({ publicView = false, embedded = false
         }
       } catch (e) {
         console.error("Unable to load organisation chart:", e);
-        if (!cancelled) setError("Unable to load the organisation chart.");
+        if (!cancelled) setError(organisationLoadMessage(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
