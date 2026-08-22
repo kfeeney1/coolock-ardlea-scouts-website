@@ -1,6 +1,7 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
+import type { AttendanceInsightMember } from "./attendanceInsightsLogic";
 import type { EventReportMember, EventReportRecord, MemberReportRow } from "./reportingLogic";
 
 type Scope = {
@@ -54,6 +55,19 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
             };
         })
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export async function loadAttendanceInsightMembers(scope: Scope): Promise<AttendanceInsightMember[]> {
+    const docs = await scopedDocs("members", scope);
+    return docs.map((item) => {
+        const data = item.data() as Record<string, unknown>;
+        return {
+            id: item.id,
+            displayName: stringValue(data, "displayName") || "Unnamed member",
+            section: stringValue(data, "section"),
+            status: stringValue(data, "status") || "active"
+        };
+    });
 }
 
 export async function loadEventReportRecords(scope: Scope): Promise<EventReportRecord[]> {
