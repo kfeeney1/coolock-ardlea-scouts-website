@@ -75,13 +75,18 @@ else pass("SPA shell uses no-store caching");
 let hostedSnapshotCount = 0;
 const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json`, { cache: "no-store" });
 if (hostedSnapshotResponse.ok) {
+  const hostedText = await hostedSnapshotResponse.text();
   try {
-    const payload = await hostedSnapshotResponse.json();
+    const payload = JSON.parse(hostedText);
     hostedSnapshotCount = Array.isArray(payload) ? payload.length : 0;
     if (hostedSnapshotCount > 0) pass(`Hosted public organisation snapshot contains ${hostedSnapshotCount} leader(s)`);
     else warn("Hosted public organisation snapshot is empty; browser fallback still depends on Firestore/local cache.");
   } catch {
-    fail("Hosted public organisation snapshot is not valid JSON.");
+    if (hostedText.includes('id="root"')) {
+      warn("Hosted public organisation snapshot is not deployed yet; Firebase Hosting returned the SPA shell fallback.");
+    } else {
+      fail("Hosted public organisation snapshot is not valid JSON.");
+    }
   }
 } else {
   warn(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}; browser fallback still depends on Firestore/local cache.`);
