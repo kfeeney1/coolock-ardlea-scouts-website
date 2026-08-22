@@ -16,12 +16,6 @@ const TEST_ROLE_OVERRIDES = {
   TEST_uid_shared_super_admin_01: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 30, reportsToUid: "TEST_uid_admin_01", showPublicly: false }
 };
 
-function defaultRole(data) {
-  if (data.role === "admin" || data.role === "super-admin") return "Group Leader";
-  const section = Array.isArray(data.sections) && data.sections.length ? data.sections[0] : data.section;
-  return section && section !== "Group" ? `${section.replace(/s$/, "")} Section Leader` : "Leader";
-}
-
 function defaultSection(data) {
   if (Array.isArray(data.sections) && data.sections.length) return data.sections[0];
   return typeof data.section === "string" && data.section ? data.section : "Group";
@@ -45,7 +39,7 @@ for (const adminDoc of adminSnapshot.docs) {
   const override = TEST_ROLE_OVERRIDES[adminDoc.id];
   const record = {
     displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName.trim() : "Leader",
-    scoutingRole: override?.scoutingRole || defaultRole(data),
+    scoutingRole: override?.scoutingRole || "Leader",
     organisationSection: override?.organisationSection || defaultSection(data),
     organisationOrder: override?.organisationOrder ?? 999,
     reportsToUid: override?.reportsToUid || "",
