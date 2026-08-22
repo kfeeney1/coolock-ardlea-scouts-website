@@ -34,10 +34,10 @@ test("section leader loads active members and persists weekly attendance subs an
   await expect(page.getByLabel("Section")).toHaveText(/Scouts/);
   await page.getByLabel("Meeting date").fill(fixtureDate);
 
-  await expect(page.getByText("Sophie Ryan", { exact: true })).toBeVisible();
-  await expect(page.getByText("Test Inactive", { exact: true })).toHaveCount(0);
-
   let sophie = memberRow(page, "Sophie Ryan");
+  await expect(sophie).toBeVisible();
+  await expect(page.getByLabel("Attendance · Test Inactive")).toHaveCount(0);
+
   await sophie.getByLabel("Attendance · Sophie Ryan").click();
   await page.getByRole("option", { name: "Present", exact: true }).click();
   await sophie.getByRole("checkbox", { name: "Subs paid" }).check();
@@ -50,8 +50,8 @@ test("section leader loads active members and persists weekly attendance subs an
 
   await page.reload();
   await page.getByLabel("Meeting date").fill(fixtureDate);
-  await expect(page.getByText("Sophie Ryan", { exact: true })).toBeVisible();
   sophie = memberRow(page, "Sophie Ryan");
+  await expect(sophie).toBeVisible();
   await expect(sophie.getByLabel("Attendance · Sophie Ryan")).toHaveText(/Present/);
   await expect(sophie.getByRole("checkbox", { name: "Subs paid" })).toBeChecked();
   await expect(sophie.getByLabel("€")).toHaveValue("4");
