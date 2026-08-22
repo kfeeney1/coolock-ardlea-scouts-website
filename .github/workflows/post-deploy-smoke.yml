@@ -27,8 +27,10 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify live site and email Worker
+      - name: Verify live site, public organisation data and email Worker
         run: npm run smoke:live
         env:
           SITE_URL: https://coolock-ardlea-scouts.web.app
           EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
+          FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: coolock-ardlea-scouts
