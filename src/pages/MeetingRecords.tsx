@@ -42,7 +42,7 @@ export default function MeetingRecords() {
     setLoading(true);
     setError("");
     try {
-      setRecords(await loadMeetingRecords());
+      setRecords(await loadMeetingRecords(adminProfile?.sections ?? [], Boolean(isAdmin)));
     } catch (loadError) {
       console.error("Unable to load meeting records:", loadError);
       setError("Unable to load meeting records for your permitted scope.");
