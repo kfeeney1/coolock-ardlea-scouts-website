@@ -14,6 +14,12 @@ async function login(page: Page, email: string) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function openLeaderMenu(page: Page) {
+  const button = page.getByRole("button", { name: /Leader Menu/ });
+  await expect(button).toBeVisible();
+  await button.click();
+}
+
 for (const [role, email] of [
   ["Admin", "test.admin@example.com"],
   ["Super Admin", "test.superadmin@example.com"]
@@ -23,6 +29,7 @@ for (const [role, email] of [
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
     await login(page, email);
+    await openLeaderMenu(page);
     const link = page.getByRole("link", { name: "Activity Log" });
     await expect(link).toBeVisible();
     await link.click();
@@ -37,5 +44,6 @@ test("section Leader cannot see Activity Log navigation", async ({ page }, testI
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
   await login(page, "test.leader.only@example.com");
+  await openLeaderMenu(page);
   await expect(page.getByRole("link", { name: "Activity Log" })).toHaveCount(0);
 });

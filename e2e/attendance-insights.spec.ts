@@ -22,6 +22,7 @@ test("ordinary leader can open section-scoped attendance insights", async ({ pag
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
+  await page.getByRole("button", { name: /Leader Menu/ }).click();
   await page.getByRole("link", { name: "Attendance Insights" }).click();
   await expect(page).toHaveURL(/\/leader\/attendance$/);
   await expect(page.getByRole("heading", { name: "Attendance History & Insights" })).toBeVisible();

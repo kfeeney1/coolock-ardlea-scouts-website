@@ -17,6 +17,12 @@ async function login(page: Page, email: string) {
   await page.getByRole("button", { name: "Sign In" }).click();
 }
 
+async function openLeaderMenu(page: Page) {
+  const button = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
+  await expect(button).toBeVisible();
+  await button.click();
+}
+
 test.describe("leader journey", () => {
   test("pending leader remains blocked until administrator approval", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
@@ -33,6 +39,7 @@ test.describe("leader journey", () => {
 
     await login(page, adminEmail);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Leader Requests" })).toBeVisible();
 
     await page.getByRole("link", { name: "Leader Requests" }).click();
@@ -54,6 +61,8 @@ test.describe("leader journey", () => {
     await login(page, leaderEmail);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByText(/Aisling Ryan · leader · Scouts/i)).toBeVisible();
+
+    await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Leader Requests" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
 
@@ -66,6 +75,7 @@ test.describe("leader journey", () => {
       await expect(page.getByText("Aoife Murphy")).toHaveCount(0);
     }
 
+    await openLeaderMenu(page);
     await page.getByRole("link", { name: "Events & Activities" }).click();
     await expect(page).toHaveURL(/\/leader\/events$/);
     await expect(page.getByRole("heading", { name: "Events & Activities" })).toBeVisible();
@@ -75,6 +85,7 @@ test.describe("leader journey", () => {
       await expect(page.getByText("TEST Beaver Zoo Trip")).toHaveCount(0);
     }
 
+    await openLeaderMenu(page);
     await page.getByRole("link", { name: "Event Consent" }).click();
     await expect(page).toHaveURL(/\/leader\/event-consent$/);
     await expect(page.getByRole("heading", { name: "Parent Event Consent" })).toBeVisible();
