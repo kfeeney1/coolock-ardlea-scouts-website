@@ -42,7 +42,7 @@ export default function LeaderAccessManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="xl">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title="Leader Access & Organisation" description="Manage account access and each leader's place in the scouting hierarchy. Public Who's Who publication is opt-in." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
+    <LeaderPageHeader title="Leader Access & Organisation" description="Manage account access and each leader's place in the scouting hierarchy. Only a Super Admin can grant or remove Admin access. Public Who's Who publication is opt-in." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
     <Stack spacing={2}>
