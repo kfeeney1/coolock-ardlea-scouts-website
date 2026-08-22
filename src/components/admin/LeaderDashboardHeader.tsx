@@ -6,6 +6,7 @@ type NavItem = { label: string; path: string; adminOnly?: boolean; };
 const navItems: NavItem[] = [
  { label: "Member Management", path: "/leader/members" },
  { label: "Events & Activities", path: "/leader/events" },
+ { label: "Reports & Exports", path: "/leader/reports" },
  { label: "Event Consent", path: "/leader/event-consent" },
  { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
  { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
