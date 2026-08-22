@@ -63,10 +63,14 @@ export default function OrganisationChart({ publicView = false, embedded = false
     });
   }, [leaders]);
 
+  const emptyMessage = publicView
+    ? "No leaders are currently listed in the public Who’s Who."
+    : "No leaders have been added to the organisational chart yet.";
+
   const content = <>
     {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
       : error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
-        : leaders.length === 0 ? <Alert severity="info">No leaders have been added to the organisational chart yet.</Alert>
+        : leaders.length === 0 ? <Alert severity="info">{emptyMessage}</Alert>
           : <Stack spacing={3}>
       {sections.map((section) => {
         const sectionLeaders = leaders.filter((leader) => leader.organisationSection === section).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
