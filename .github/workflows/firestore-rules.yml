@@ -1,0 +1,50 @@
+name: Firestore Rules
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firebase.json"
+      - "tests/firestore/**"
+      - ".github/workflows/firestore-rules.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firebase.json"
+      - "tests/firestore/**"
+      - ".github/workflows/firestore-rules.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install pinned Firebase test tooling
+        run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
+
+      - name: Run Firestore rules tests
+        run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test tests/firestore/*.test.mjs"
