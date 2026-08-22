@@ -4,10 +4,10 @@ import type { ParentAccount } from "./parentPortal";
 
 const emailApiUrl = (import.meta.env.VITE_EMAIL_API_URL || "").replace(/\/$/, "");
 
-async function post(path: string, body: Record<string, unknown>, authenticated: boolean): Promise<void> {
+async function post<T = void>(path: string, body: Record<string, unknown>, authenticated: boolean): Promise<T> {
     if (!emailApiUrl) {
         console.warn("VITE_EMAIL_API_URL is not configured; email notification skipped.");
-        return;
+        return undefined as T;
     }
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -27,6 +27,9 @@ async function post(path: string, body: Record<string, unknown>, authenticated: 
         const detail = await response.text();
         throw new Error(`Email service returned ${response.status}: ${detail}`);
     }
+
+    if (response.status === 204) return undefined as T;
+    return await response.json() as T;
 }
 
 export async function notifyJoinApplication(applicationId: string, application: JoinApplication): Promise<void> {
@@ -83,4 +86,25 @@ export async function notifyEventParents(
 
 export async function notifyEventConsentProcessed(eventId: string, memberId: string): Promise<void> {
     await post("/event-consent-processed", { eventId, memberId }, true);
+}
+
+export type LeaderCommunicationResult = {
+    ok: true;
+    sent: number;
+    skipped: number;
+};
+
+export async function sendLeaderCommunication(
+    memberIds: string[],
+    subject: string,
+    message: string
+): Promise<LeaderCommunicationResult> {
+    if (!emailApiUrl) {
+        throw new Error("VITE_EMAIL_API_URL is not configured.");
+    }
+    return await post<LeaderCommunicationResult>(
+        "/leader-communication",
+        { memberIds, subject, message },
+        true
+    );
 }

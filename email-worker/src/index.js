@@ -148,6 +148,41 @@ async function handleEventNotification(request, env, body) {
   return json(request, env, 200, { ok: true, sent, skipped });
 }
 
+async function handleLeaderCommunication(request, env, body) {
+  const leader = await requireActiveLeader(request, env);
+  if (!leader) return json(request, env, 403, { ok: false, error: "Active leader access required." });
+
+  const subject = clean(body.subject, 120);
+  const message = clean(body.message, 2500);
+  const memberIds = Array.isArray(body.memberIds) ? [...new Set(body.memberIds.filter(v => typeof v === "string").map(v => clean(v, 100)).filter(Boolean))].slice(0, 100) : [];
+  if (!subject || !message || !memberIds.length) return json(request, env, 400, { ok: false, error: "Recipients, subject and message are required." });
+
+  let sent = 0;
+  let skipped = 0;
+  const messageHtml = escapeHtml(message).replaceAll("\n", "<br/>");
+
+  for (const memberId of memberIds) {
+    const member = await getDocument(env, leader.token, "members", memberId);
+    if (!member || fieldString(member, "status") !== "active") { skipped += 1; continue; }
+
+    const email = fieldString(member, "emailAddress").toLowerCase();
+    if (!email.includes("@")) { skipped += 1; continue; }
+    const childName = fieldString(member, "displayName") || "your child";
+    const parentName = fieldString(member, "parentName") || "Parent / Guardian";
+    const bodyHtml = `<p style="font-size:16px;line-height:1.7">${messageHtml}</p><p style="font-size:14px;line-height:1.6;color:${BRAND.muted};margin-top:22px">This message relates to <strong>${escapeHtml(childName)}</strong>.</p>`;
+    await sendEmail(env, email, subject, brandedEmail({
+      heading: subject,
+      intro: `Hello ${parentName},`,
+      bodyHtml,
+      actionLabel: "Open Parent Portal",
+      actionUrl: `${env.SITE_URL}/parent`
+    }));
+    sent += 1;
+  }
+
+  return json(request, env, 200, { ok: true, sent, skipped });
+}
+
 async function handleEventConsentProcessed(request, env, body) {
   const leader = await requireActiveLeader(request, env);
   if (!leader) return json(request, env, 403, { ok: false, error: "Active leader access required." });
@@ -187,6 +222,7 @@ export default {
       if (path === "/parent-access-rejected") return await handleParentStatus(request, env, body, "rejected");
       if (path === "/leader-access-status") return await handleLeaderStatus(request, env, body);
       if (path === "/event-notification") return await handleEventNotification(request, env, body);
+      if (path === "/leader-communication") return await handleLeaderCommunication(request, env, body);
       if (path === "/event-consent-processed") return await handleEventConsentProcessed(request, env, body);
       return json(request, env, 404, { ok: false, error: "Not found." });
     } catch (error) {
