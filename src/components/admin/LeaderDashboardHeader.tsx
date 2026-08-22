@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
  { label: "Member History", path: "/leader/member-history" },
  { label: "Weekly Tracker", path: "/leader/weekly" },
  { label: "Attendance Insights", path: "/leader/attendance" },
+ { label: "Organisational Chart", path: "/leader/organisation" },
  { label: "Parent Communications", path: "/leader/communications" },
  { label: "Events & Activities", path: "/leader/events" },
  { label: "Meeting Records", path: "/leader/meetings" },
@@ -32,34 +33,13 @@ export default function LeaderDashboardHeader() {
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
  const currentItem = visibleItems.find((item) => item.path === location.pathname);
-
  return <Paper elevation={3} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
   <Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 0.75 }}>Leader Dashboard</Typography>
   <Typography color="text.secondary" sx={{ mb: 1 }}>{adminProfile?.displayName} · {adminProfile?.role}{adminProfile?.role === "leader" && adminProfile.sections.length ? ` · ${adminProfile.sections.join(", ")}` : ""}</Typography>
   <Typography color="text.secondary" sx={{ mb: 2.5 }}>Manage the records permitted by your assigned role and sections.</Typography>
-
-  <Button
-   fullWidth
-   variant="outlined"
-   color="secondary"
-   aria-expanded={menuOpen}
-   aria-controls="leader-navigation"
-   onClick={() => setMenuOpen((open) => !open)}
-   endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />}
-   sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}
-  >
-   {menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label}` : "Open Leader Menu"}
-  </Button>
-  <Collapse in={menuOpen} timeout="auto" unmountOnExit>
-   <Box
-    id="leader-navigation"
-    sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25, alignItems: "stretch", mt: 1.5 }}
-   >
-    {visibleItems.map((item) => {
-     const active = location.pathname === item.path;
-     return <Button key={item.path} component={Link} to={item.path} onClick={() => setMenuOpen(false)} variant={active ? "contained" : "outlined"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 2, whiteSpace: "nowrap", fontWeight: 700 }}>{item.label}</Button>;
-    })}
-   </Box>
-  </Collapse>
+  <Button fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={() => setMenuOpen((open) => !open)} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label}` : "Open Leader Menu"}</Button>
+  <Collapse in={menuOpen} timeout="auto" unmountOnExit><Box id="leader-navigation" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 1.25, alignItems: "stretch", mt: 1.5 }}>
+   {visibleItems.map((item) => { const active = location.pathname === item.path; return <Button key={item.path} component={Link} to={item.path} onClick={() => setMenuOpen(false)} variant={active ? "contained" : "outlined"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 2, whiteSpace: "nowrap", fontWeight: 700 }}>{item.label}</Button>; })}
+  </Box></Collapse>
  </Paper>;
 }
