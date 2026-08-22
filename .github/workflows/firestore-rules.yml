@@ -48,3 +48,13 @@ jobs:
 
       - name: Run Firestore rules tests
         run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test tests/firestore/*.test.mjs"
+
+      - name: Authenticate to Firebase
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+
+      - name: Deploy Firestore rules
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npx firebase deploy --only firestore:rules --project coolock-ardlea-scouts --non-interactive
