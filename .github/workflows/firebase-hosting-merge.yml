@@ -6,12 +6,29 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    - cron: "15 9 * * *"
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      - name: Install app dependencies
+        run: npm ci
+      - name: Install Firebase Admin for public snapshot export
+        run: npm install --no-save --package-lock=false firebase-admin@14.3.0
+      - name: Export public organisation snapshot
+        id: organisation_snapshot
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/export-public-leadership.mjs
+      - name: Report organisation snapshot fallback
+        if: ${{ steps.organisation_snapshot.outcome == 'failure' }}
+        run: echo '::warning::Could not refresh public organisation snapshot. The checked-in fallback will be deployed and the browser can still try Firestore/local cache.'
+      - name: Build site
+        run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
