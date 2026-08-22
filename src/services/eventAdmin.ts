@@ -3,12 +3,14 @@ import {
     collection,
     deleteDoc,
     doc,
+    getDoc,
     getDocs,
     orderBy,
     query,
     serverTimestamp,
     setDoc,
-    updateDoc
+    updateDoc,
+    where
 } from "firebase/firestore";
 import type {
     DocumentData,
@@ -87,6 +89,17 @@ function timestampToDate(value: unknown): Date | null {
 function stringValue(data: DocumentData, key: string): string {
     const value = data[key];
     return typeof value === "string" ? value.trim() : "";
+}
+
+function profileSections(data: DocumentData): string[] {
+    const sections = Array.isArray(data.sections)
+        ? data.sections
+              .filter((section): section is string => typeof section === "string")
+              .map((section) => section.trim())
+              .filter(Boolean)
+        : [];
+    const legacySection = stringValue(data, "section");
+    return [...new Set([...sections, legacySection].filter(Boolean))];
 }
 
 function mapAttendance(value: unknown): Record<string, AttendanceStatus> {
@@ -205,14 +218,42 @@ function eventToInput(event: EventRecord): EventInput {
 }
 
 export async function loadEvents(): Promise<EventRecord[]> {
-    const snapshot = await getDocs(
-        query(
-            collection(db, "events"),
-            orderBy("startDate", "desc")
-        )
-    );
+    const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in leader.");
 
-    const events = snapshot.docs.map(mapEvent);
+    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!profileSnapshot.exists()) throw new Error("Leader profile not found.");
+
+    const profile = profileSnapshot.data();
+    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+    let events: EventRecord[];
+
+    if (isAdmin) {
+        const snapshot = await getDocs(
+            query(
+                collection(db, "events"),
+                orderBy("startDate", "desc")
+            )
+        );
+        events = snapshot.docs.map(mapEvent);
+    } else {
+        const sections = profileSections(profile);
+        if (sections.length === 0) return [];
+
+        const snapshots = await Promise.all(
+            sections.map((section) =>
+                getDocs(
+                    query(
+                        collection(db, "events"),
+                        where("section", "==", section)
+                    )
+                )
+            )
+        );
+        events = snapshots
+            .flatMap((snapshot) => snapshot.docs.map(mapEvent))
+            .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    }
 
     await Promise.all(events.map((event) => syncPublicEvent(event.id, eventToInput(event))));
 

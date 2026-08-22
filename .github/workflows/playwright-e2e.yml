@@ -14,7 +14,7 @@ jobs:
   e2e:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -24,10 +24,12 @@ jobs:
       VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
       VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
       VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
+      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       E2E_BASE_URL: http://127.0.0.1:4173
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
       E2E_PARENT_EVENT_CONSENT_ENABLED: ${{ vars.E2E_PARENT_EVENT_CONSENT_ENABLED }}
-      E2E_LEADER_JOURNEY_SEEDED: ${{ vars.E2E_LEADER_JOURNEY_SEEDED }}
+      E2E_LEADER_JOURNEY_SEEDED: "true"
       E2E_PARENT_EMAIL: test.parent.only@example.com
       E2E_PARENT_LEADER_EMAIL: test.leader.parent@example.com
       E2E_LEADER_EMAIL: test.leader.only@example.com
@@ -45,22 +47,43 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup Java for Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Install app dependencies
         run: npm ci
+
+      - name: Install E2E Firebase tooling
+        run: npm install --no-save --package-lock=false firebase-admin firebase-tools@15.28.1
+
+      - name: Start Firestore emulator with branch rules
+        run: |
+          npx firebase emulators:start --only firestore --project coolock-ardlea-scouts > /tmp/firestore-emulator.log 2>&1 &
+          for i in {1..45}; do
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/firestore-emulator.log
+          exit 1
 
       - name: Run quality gate
         run: npm run quality
 
-      - name: Install Firebase Admin SDK for E2E seeding
-        run: npm install --no-save --ignore-scripts firebase-admin
-
-      - name: Seed deterministic E2E auth and organisation data
+      - name: Seed deterministic E2E datasets
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-e2e-auth-users.mjs seed
+        run: |
+          node scripts/seed-test-data.mjs seed
+          node scripts/seed-e2e-auth-users.mjs seed
+          node scripts/seed-playwright-records.mjs
 
       - name: Install Playwright test runner
-        run: npm install --no-save @playwright/test
+        run: npm install --no-save --package-lock=false @playwright/test
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

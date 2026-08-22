@@ -81,6 +81,26 @@ function stringValue(data: DocumentData, key: string): string {
     return typeof value === "string" ? value.trim() : "";
 }
 
+function profileSections(data: DocumentData): string[] {
+    const sections = Array.isArray(data.sections)
+        ? data.sections
+              .filter((section): section is string => typeof section === "string")
+              .map((section) => section.trim())
+              .filter(Boolean)
+        : [];
+    const legacySection = stringValue(data, "section");
+    return [...new Set([...sections, legacySection].filter(Boolean))];
+}
+
+async function currentLeaderProfile(): Promise<DocumentData> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in leader.");
+
+    const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!snapshot.exists()) throw new Error("Leader profile not found.");
+    return snapshot.data();
+}
+
 function mapLink(token: string, data: DocumentData): PublicEventLink {
     return {
         token,
@@ -189,8 +209,31 @@ export async function ensurePublicEventLink(
 }
 
 export async function loadEventConsentLinks(): Promise<PublicEventLink[]> {
-    const snapshot = await getDocs(collection(db, "eventConsentLinks"));
-    return snapshot.docs.map((item) => mapLink(item.id, item.data()));
+    const profile = await currentLeaderProfile();
+    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+
+    if (isAdmin) {
+        const snapshot = await getDocs(collection(db, "eventConsentLinks"));
+        return snapshot.docs.map((item) => mapLink(item.id, item.data()));
+    }
+
+    const sections = profileSections(profile);
+    if (sections.length === 0) return [];
+
+    const snapshots = await Promise.all(
+        sections.map((section) =>
+            getDocs(
+                query(
+                    collection(db, "eventConsentLinks"),
+                    where("section", "==", section)
+                )
+            )
+        )
+    );
+
+    return snapshots.flatMap((snapshot) =>
+        snapshot.docs.map((item) => mapLink(item.id, item.data()))
+    );
 }
 
 export async function loadPublicEventLink(
@@ -228,6 +271,10 @@ export async function submitEventConsentResponse(
 export async function loadEventConsentResponses(
     eventId: string
 ): Promise<EventConsentResponse[]> {
+    const profile = await currentLeaderProfile();
+    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+    if (!isAdmin) return [];
+
     const snapshot = await getDocs(
         query(
             collection(db, "eventConsentResponses"),

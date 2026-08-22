@@ -154,9 +154,40 @@ function hasMedicalAlert(data: DocumentData): boolean {
 
 function clean(value: string, max: number): string { return value.trim().slice(0, max); }
 
+function profileSections(data: DocumentData): string[] {
+  const sections = Array.isArray(data.sections)
+    ? data.sections.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())
+    : [];
+  const legacySection = stringValue(data, "section");
+  return [...new Set([...sections, legacySection].filter(Boolean))];
+}
+
 export async function loadMembers(): Promise<MemberRecord[]> {
-  const snapshot = await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")));
-  return snapshot.docs.map(mapMember);
+  const user = auth.currentUser;
+  if (!user) throw new Error("No signed-in leader.");
+
+  const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+  if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
+    throw new Error("Active leader profile is required.");
+  }
+
+  const profile = profileSnapshot.data();
+  const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+  if (isAdmin) {
+    const snapshot = await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")));
+    return snapshot.docs.map(mapMember);
+  }
+
+  const sections = profileSections(profile);
+  if (sections.length === 0) return [];
+  const snapshots = await Promise.all(sections.map((section) => getDocs(query(
+    collection(db, "members"),
+    where("section", "==", section)
+  ))));
+
+  return snapshots
+    .flatMap((snapshot) => snapshot.docs.map(mapMember))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 export async function createMember(input: CreateMemberInput): Promise<string> {

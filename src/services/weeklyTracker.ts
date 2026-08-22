@@ -77,6 +77,10 @@ function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeeting
   };
 }
 
+function sortByMeetingDate(records: WeeklyMeetingRecord[]): WeeklyMeetingRecord[] {
+  return records.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+}
+
 export async function loadWeeklyMeetings(sections: string[], isAdmin: boolean): Promise<WeeklyMeetingRecord[]> {
   if (isAdmin) {
     const snapshot = await getDocs(query(collection(db, "weeklyMeetings"), orderBy("meetingDate", "desc")));
@@ -86,10 +90,9 @@ export async function loadWeeklyMeetings(sections: string[], isAdmin: boolean): 
   if (uniqueSections.length === 0) return [];
   const snapshots = await Promise.all(uniqueSections.map((section) => getDocs(query(
     collection(db, "weeklyMeetings"),
-    where("section", "==", section),
-    orderBy("meetingDate", "desc")
+    where("section", "==", section)
   ))));
-  return snapshots.flatMap((snapshot) => snapshot.docs.map(mapRecord)).sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+  return sortByMeetingDate(snapshots.flatMap((snapshot) => snapshot.docs.map(mapRecord)));
 }
 
 export async function createWeeklyMeeting(input: WeeklyMeetingInput): Promise<string> {
