@@ -10,7 +10,7 @@ React + TypeScript web application for Coolock Ardlea Scouts, including the publ
 - Playwright for end-to-end testing
 - Node test runner for lightweight unit tests
 - Firebase Emulator Suite for Firestore security-rule tests
-- GitHub Actions for quality checks, previews, E2E tests, Firestore rule tests and production hosting deploys
+- GitHub Actions for quality checks, previews, E2E tests, Firestore rule tests, scheduled Firestore backups and production hosting deploys
 
 ## Project structure
 
@@ -21,8 +21,8 @@ React + TypeScript web application for Coolock Ardlea Scouts, including the publ
 - `tests/unit` — fast unit tests
 - `tests/firestore` — emulator-backed Firestore rules tests
 - `scripts` — test-data and operational scripts
-- `docs` — focused testing/email documentation and the operations runbook
-- `.github/workflows` — CI, preview, deploy, seed and security-rule workflows
+- `docs` — testing, email and operations documentation
+- `.github/workflows` — CI, preview, deploy, seed, backup and security-rule workflows
 
 ## Local development
 
@@ -104,6 +104,12 @@ The repository includes deterministic Firebase seed/cleanup scripts and a manual
 
 Use seed/cleanup actions only against the intended Firebase project and review the workflow inputs before running them. See `docs/operations-runbook.md` for the procedure.
 
+## Backup and recovery
+
+The **Firestore Backup** workflow performs a managed export of the production `(default)` Firestore database every Sunday and can also be run manually with an explicit production-project confirmation. It requires the `FIRESTORE_BACKUP_BUCKET` repository variable to be configured before it can succeed.
+
+Production restore remains a deliberate manual operation because imports can overwrite current documents. Setup, first-run verification, retention guidance and the recovery procedure are documented in `docs/firestore-backup-recovery.md`.
+
 ## Email
 
 Email-related implementation/testing notes are kept in:
@@ -127,8 +133,9 @@ Before a production-affecting change:
 - use the Firebase preview for UI changes;
 - verify Firestore rules tests for authorization changes;
 - understand whether the change requires seed data, indexes or rules deployment;
+- run and verify a fresh backup before significant/destructive production data changes;
 - follow the rollback/recovery checklist in `docs/operations-runbook.md`.
 
 ## Documentation
 
-Start with `docs/operations-runbook.md` for administration and recovery. More focused documentation lives under `docs/` and should be updated alongside the feature or workflow it describes.
+Start with `docs/operations-runbook.md` for administration and recovery. Use `docs/firestore-backup-recovery.md` for Firestore backup setup and restore guidance. More focused documentation lives under `docs/` and should be updated alongside the feature or workflow it describes.

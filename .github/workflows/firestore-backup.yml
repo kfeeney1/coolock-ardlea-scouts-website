@@ -1,0 +1,124 @@
+name: Firestore Backup
+
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      confirm_project:
+        description: "Type the production Firebase project ID exactly"
+        required: true
+        type: string
+      note:
+        description: "Optional reason for this manual backup"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-production-backup
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PROJECT_ID: coolock-ardlea-scouts
+      BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+      TRIGGER_NAME: ${{ github.event_name }}
+      CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+      MANUAL_NOTE: ${{ inputs.note }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate backup configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${BACKUP_BUCKET}" ]]; then
+            echo "FIRESTORE_BACKUP_BUCKET repository variable is not configured." >&2
+            exit 1
+          fi
+
+          if [[ "${BACKUP_BUCKET}" != gs://* ]]; then
+            echo "FIRESTORE_BACKUP_BUCKET must be a gs:// Cloud Storage URI." >&2
+            exit 1
+          fi
+
+          if [[ "${TRIGGER_NAME}" == "workflow_dispatch" && "${CONFIRM_PROJECT}" != "${PROJECT_ID}" ]]; then
+            echo "Project confirmation did not match ${PROJECT_ID}." >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Verify active project and bucket access
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACTIVE_PROJECT="$(gcloud config get-value project 2>/dev/null)"
+          if [[ "${ACTIVE_PROJECT}" != "${PROJECT_ID}" ]]; then
+            echo "Active gcloud project ${ACTIVE_PROJECT} does not match ${PROJECT_ID}." >&2
+            exit 1
+          fi
+
+          gcloud storage ls "${BACKUP_BUCKET%/}/" >/dev/null
+
+      - name: Export Firestore database
+        id: backup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TIMESTAMP="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          DESTINATION="${BACKUP_BUCKET%/}/firestore-backups/${TIMESTAMP}"
+
+          echo "Exporting project ${PROJECT_ID} database (default) to ${DESTINATION}"
+          gcloud firestore export "${DESTINATION}" \
+            --project="${PROJECT_ID}" \
+            --database="(default)" \
+            --quiet
+
+          echo "destination=${DESTINATION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify export files exist
+        shell: bash
+        env:
+          DESTINATION: ${{ steps.backup.outputs.destination }}
+        run: |
+          set -euo pipefail
+          gcloud storage ls "${DESTINATION}/" >/dev/null
+          echo "Verified Firestore export at ${DESTINATION}"
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        env:
+          DESTINATION: ${{ steps.backup.outputs.destination }}
+        run: |
+          {
+            echo "## Firestore backup"
+            echo
+            printf '%s\n' "- Project: \`${PROJECT_ID}\`"
+            echo "- Database: \`(default)\`"
+            printf '%s\n' "- Destination: \`${DESTINATION:-not-created}\`"
+            printf '%s\n' "- Trigger: \`${TRIGGER_NAME}\`"
+            if [[ "${TRIGGER_NAME}" == "workflow_dispatch" && -n "${MANUAL_NOTE}" ]]; then
+              printf '%s\n' "- Note: ${MANUAL_NOTE}"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

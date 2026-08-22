@@ -117,25 +117,36 @@ For bad data writes, reverting frontend code does **not** undo Firestore mutatio
 
 ## 8. Backup and data recovery
 
-The repository does not currently define an automated Firestore backup/export workflow. Do not assume Git, Firebase Hosting history or seed scripts are a backup of live Firestore data.
+The repository includes a **Firestore Backup** GitHub Actions workflow that performs a managed export of the production `(default)` Firestore database to Cloud Storage.
 
-Before introducing bulk edits, destructive migrations or cleanup tools for real data, establish a Firebase/Google Cloud export or backup procedure appropriate to the project and test restoration from it.
+The workflow:
 
-Until that exists:
+- runs automatically every Sunday at 03:17 UTC;
+- can be run manually after typing the production project ID exactly;
+- refuses to run if `FIRESTORE_BACKUP_BUCKET` is missing or is not a `gs://` URI;
+- verifies the active Google Cloud project before exporting;
+- verifies bucket access before the export;
+- waits for the export to complete and checks that output files exist;
+- records the resulting export path in the GitHub Actions job summary.
 
-- avoid bulk destructive operations on production data;
-- make scripts default to safe/non-destructive behaviour;
-- require explicit project and action selection;
-- use marker/ownership checks before deletion;
-- record the scope of any manual repair.
+The backup workflow reuses the existing `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS` secret. The service account that starts the export must have permission to run Firestore import/export operations, and the Firestore service agent must be able to access the backup bucket.
 
-Adding automated backup/export plus a tested restore procedure should remain an operations backlog item.
+Production restore is intentionally **not** automated as a one-click workflow. Firestore imports can overwrite existing documents, so an incident must be scoped and reviewed before an import is started.
+
+Before significant bulk edits, destructive migrations, cleanup tools or manual production repair:
+
+1. run a fresh manual **Firestore Backup**;
+2. confirm the run completed successfully;
+3. record the exact export URI;
+4. do not proceed if the backup cannot be verified.
+
+See `docs/firestore-backup-recovery.md` for one-time bucket/IAM setup, first-run verification, retention guidance, the manual import procedure and restore-testing guidance.
 
 ## 9. Secrets and configuration
 
 Frontend Firebase configuration is supplied through `VITE_FIREBASE_*` environment values. `VITE_EMAIL_API_URL` configures the email endpoint.
 
-GitHub Actions additionally uses secrets for Firebase deployment/service-account access and E2E credentials.
+GitHub Actions additionally uses secrets for Firebase deployment/service-account access and E2E credentials. Firestore backup configuration uses the `FIRESTORE_BACKUP_BUCKET` repository variable plus the existing Firebase service-account secret.
 
 Rules:
 
@@ -152,10 +163,12 @@ For a production incident:
 2. Stop further risky operations (for example seed/cleanup or admin bulk edits).
 3. Capture the affected route/action, approximate time and relevant commit/PR.
 4. For privacy/authorization issues, prioritize access restriction over feature availability.
-5. Revert or patch through a reviewed PR whenever possible.
-6. Verify the fix in production.
-7. Add an automated regression test if the incident could have been detected by CI.
-8. Document any manual data repair performed.
+5. For bad data writes, identify the last verified Firestore backup before the incident.
+6. Revert or patch application code through a reviewed PR whenever possible.
+7. If data repair/import is required, follow `docs/firestore-backup-recovery.md` rather than treating a code revert as data recovery.
+8. Verify the fix in production.
+9. Add an automated regression test if the incident could have been detected by CI.
+10. Document any manual data repair performed.
 
 ## 11. Routine maintenance
 
@@ -168,11 +181,14 @@ Periodically review:
 - test seed data and cleanup safeguards;
 - Firebase indexes and rules deployed versus repository state;
 - email endpoint configuration and test documentation;
-- whether a real Firestore backup/restore process has been established.
+- scheduled Firestore backup success;
+- backup bucket IAM/lifecycle rules;
+- whether restore has been tested recently in a suitable non-production environment.
 
 ## 12. Related documentation
 
 - `README.md` — project entry point and local setup
+- `docs/firestore-backup-recovery.md` — Firestore backup setup and recovery procedure
 - `docs/playwright-testing.md` — Playwright setup
 - `docs/playwright-role-testing.md` — role/permission E2E testing
 - `docs/email-branding.md` — email presentation details
