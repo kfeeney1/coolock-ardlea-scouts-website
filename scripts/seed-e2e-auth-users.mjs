@@ -16,12 +16,12 @@ const db = getFirestore();
 
 const users = [
   { uid: "TEST_uid_parent_only_01", email: "test.parent.only@example.com", displayName: "Mark Byrne", kind: "parent-only", parent: { linkedSections: ["Cubs"] } },
-  { uid: "TEST_uid_leader_parent_01", email: "test.leader.parent@example.com", displayName: "Niamh Murphy", kind: "parent-leader", parent: { linkedSections: ["Beavers"] }, admin: { role: "leader", sections: ["Beavers"] } },
-  { uid: "TEST_uid_leader_only_01", email: "test.leader.only@example.com", displayName: "Aisling Ryan", kind: "leader", admin: { role: "leader", sections: ["Scouts"] } },
-  { uid: "TEST_uid_multi_section_leader_01", email: "test.leader.multisection@example.com", displayName: "Conor Walsh", kind: "multi-section-leader", admin: { role: "leader", sections: ["Beavers", "Cubs"] } },
-  { uid: "TEST_uid_admin_01", email: "test.admin@example.com", displayName: "Orla Kelly", kind: "admin", admin: { role: "admin", sections: ["Group"] } },
-  { uid: "TEST_uid_super_admin_01", email: "test.superadmin@example.com", displayName: "Test Super Admin", kind: "super-admin", admin: { role: "super-admin", sections: ["Group"] } },
-  { uid: "TEST_uid_shared_super_admin_01", email: "superadmin@example.com", displayName: "Shared Tester Super Admin", kind: "shared-super-admin", password: "password1", admin: { role: "super-admin", sections: ["Group"] } },
+  { uid: "TEST_uid_leader_parent_01", email: "test.leader.parent@example.com", displayName: "Niamh Murphy", kind: "parent-leader", parent: { linkedSections: ["Beavers"] }, admin: { role: "leader", sections: ["Beavers"], scoutingRole: "Beaver Section Leader", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true } },
+  { uid: "TEST_uid_leader_only_01", email: "test.leader.only@example.com", displayName: "Aisling Ryan", kind: "leader", admin: { role: "leader", sections: ["Scouts"], scoutingRole: "Scout Section Leader", organisationSection: "Scouts", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true } },
+  { uid: "TEST_uid_multi_section_leader_01", email: "test.leader.multisection@example.com", displayName: "Conor Walsh", kind: "multi-section-leader", admin: { role: "leader", sections: ["Beavers", "Cubs"], scoutingRole: "Assistant Section Leader", organisationSection: "Cubs", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
+  { uid: "TEST_uid_admin_01", email: "test.admin@example.com", displayName: "Orla Kelly", kind: "admin", admin: { role: "admin", sections: ["Group"], scoutingRole: "Group Leader", organisationSection: "Group", organisationOrder: 1, reportsToUid: "", showPublicly: true } },
+  { uid: "TEST_uid_super_admin_01", email: "test.superadmin@example.com", displayName: "Test Super Admin", kind: "super-admin", admin: { role: "super-admin", sections: ["Group"], scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
+  { uid: "TEST_uid_shared_super_admin_01", email: "superadmin@example.com", displayName: "Shared Tester Super Admin", kind: "shared-super-admin", password: "password1", admin: { role: "super-admin", sections: ["Group"], scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 30, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
   { uid: "TEST_uid_pending_leader_01", email: "test.leader.pending@example.com", displayName: "Patrick Doyle", kind: "pending-leader" }
 ];
 
@@ -43,6 +43,26 @@ async function upsertAuthUser(user) {
 async function seedAdminProfile(user) {
   if (!user.admin) return;
   await db.collection("adminUsers").doc(user.uid).set({ uid: user.uid, email: user.email, displayName: user.displayName, role: user.admin.role, sections: user.admin.sections, section: user.admin.sections[0] || "", active: true, testData: true, testSeed: "stage8-role-demo", createdBySeed: "TEST_SEED", testRoleType: user.kind, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const organisationRecord = {
+    displayName: user.displayName,
+    scoutingRole: user.admin.scoutingRole,
+    organisationSection: user.admin.organisationSection,
+    organisationOrder: user.admin.organisationOrder,
+    reportsToUid: user.admin.reportsToUid,
+    showPublicly: user.admin.showPublicly,
+    active: true,
+    testData: true,
+    testSeed: "stage8-role-demo",
+    createdBySeed: "TEST_SEED",
+    updatedAt: FieldValue.serverTimestamp()
+  };
+  await db.collection("organisationLeadership").doc(user.uid).set(organisationRecord, { merge: true });
+  if (user.admin.showPublicly) {
+    const { showPublicly, active, ...publicRecord } = organisationRecord;
+    await db.collection("publicLeadership").doc(user.uid).set(publicRecord, { merge: true });
+  } else {
+    await db.collection("publicLeadership").doc(user.uid).delete().catch(() => {});
+  }
 }
 
 async function seedParentProfile(user) {
@@ -64,6 +84,7 @@ async function seed() {
   await seedPendingLeaderRequest();
   await seedCubConsentLink();
   console.log("E2E seed complete: parent, leader, admin, super-admin, shared tester super-admin and pending-leader journey accounts are ready.");
+  console.log("Seeded leader accounts also include realistic scouting hierarchy roles and organisation-chart projections.");
 }
 
 async function deleteTestDoc(collectionName, id) {
@@ -77,7 +98,11 @@ async function deleteTestDoc(collectionName, id) {
 async function cleanup() {
   for (const user of users) {
     try { await auth.deleteUser(user.uid); } catch (error) { if (error?.code !== "auth/user-not-found") throw error; }
-    if (user.admin && ["multi-section-leader", "admin", "super-admin", "shared-super-admin"].includes(user.kind)) await deleteTestDoc("adminUsers", user.uid);
+    if (user.admin) {
+      if (["multi-section-leader", "admin", "super-admin", "shared-super-admin"].includes(user.kind)) await deleteTestDoc("adminUsers", user.uid);
+      await deleteTestDoc("organisationLeadership", user.uid);
+      await deleteTestDoc("publicLeadership", user.uid);
+    }
   }
   if (pendingLeader) await deleteTestDoc("leaderRegistrationRequests", pendingLeader.uid);
   await deleteTestDoc("eventConsentLinks", cubConsentLink.token);
