@@ -18,6 +18,7 @@ export type EventReportRecord = {
     title: string;
     startDate: string;
     section: string;
+    status: string;
     attendance: Record<string, string>;
     consent: Record<string, string>;
     consentRequired: boolean;
