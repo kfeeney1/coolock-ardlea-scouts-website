@@ -2,19 +2,67 @@ import { collection, doc, getDocs, serverTimestamp, updateDoc } from "firebase/f
 import { db } from "../firebase";
 import type { SystemRole } from "../components/admin/AdminAuthProvider";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
+import { loadInternalOrganisation, syncOrganisationLeader } from "./organisationChart";
 
-export type LeaderAccessRecord = { uid: string; displayName: string; email: string; role: SystemRole; active: boolean; sections: string[]; };
+export type LeaderAccessRecord = {
+    uid: string;
+    displayName: string;
+    email: string;
+    role: SystemRole;
+    active: boolean;
+    sections: string[];
+    scoutingRole: string;
+    organisationSection: string;
+    organisationOrder: number;
+    reportsToUid: string;
+    showPublicly: boolean;
+};
 
 export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
-    const snapshot = await getDocs(collection(db, "adminUsers"));
+    const [snapshot, organisation] = await Promise.all([
+        getDocs(collection(db, "adminUsers")),
+        loadInternalOrganisation().catch(() => [])
+    ]);
+    const byUid = new Map(organisation.map((item) => [item.uid, item]));
     return snapshot.docs.map((item) => {
         const data = item.data();
         const role: SystemRole = normalizeLeaderRole(data.role);
         const sections = normalizeLeaderSections(data);
-        return { uid: item.id, displayName: typeof data.displayName === "string" ? data.displayName : "Leader", email: typeof data.email === "string" ? data.email : "", role, active: data.active === true, sections };
+        const org = byUid.get(item.id);
+        return {
+            uid: item.id,
+            displayName: typeof data.displayName === "string" ? data.displayName : "Leader",
+            email: typeof data.email === "string" ? data.email : "",
+            role,
+            active: data.active === true,
+            sections,
+            scoutingRole: org?.scoutingRole || "Leader",
+            organisationSection: org?.organisationSection || sections[0] || "Group",
+            organisationOrder: org?.organisationOrder ?? 999,
+            reportsToUid: org?.reportsToUid || "",
+            showPublicly: org?.showPublicly === true
+        };
     });
 }
 
-export async function updateLeaderAccess(uid: string, role: SystemRole, sections: string[], active: boolean, actorUid: string): Promise<void> {
-    await updateDoc(doc(db, "adminUsers", uid), { role, sections, active, updatedAt: serverTimestamp(), updatedBy: actorUid });
+export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string): Promise<void> {
+    if (record.role !== "super-admin") {
+        await updateDoc(doc(db, "adminUsers", record.uid), {
+            role: record.role,
+            sections: record.sections,
+            active: record.active,
+            updatedAt: serverTimestamp(),
+            updatedBy: actorUid
+        });
+    }
+    await syncOrganisationLeader({
+        uid: record.uid,
+        displayName: record.displayName,
+        scoutingRole: record.scoutingRole,
+        organisationSection: record.organisationSection,
+        organisationOrder: record.organisationOrder,
+        reportsToUid: record.reportsToUid,
+        showPublicly: record.showPublicly,
+        active: record.active
+    });
 }
