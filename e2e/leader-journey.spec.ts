@@ -81,6 +81,7 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("heading", { name: "Events & Activities" })).toBeVisible();
     if (seededJourneyData) {
       await expect(page.getByText("TEST Scout Hike")).toBeVisible();
+      await expect(page.getByText("TEST Scout Consent Night")).toBeVisible();
       await expect(page.getByText("TEST Cub Weekend Camp")).toHaveCount(0);
       await expect(page.getByText("TEST Beaver Zoo Trip")).toHaveCount(0);
     }
@@ -90,7 +91,7 @@ test.describe("leader journey", () => {
     await expect(page).toHaveURL(/\/leader\/event-consent$/);
     await expect(page.getByRole("heading", { name: "Parent Event Consent" })).toBeVisible();
     if (seededJourneyData) {
-      await expect(page.getByText("TEST Completed Summer Activity")).toBeVisible();
+      await expect(page.getByText("TEST Scout Consent Night")).toBeVisible();
       await expect(page.getByText("TEST Cub Weekend Camp")).toHaveCount(0);
       await expect(page.getByText("TEST Beaver Zoo Trip")).toHaveCount(0);
     }
