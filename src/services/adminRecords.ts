@@ -29,6 +29,9 @@ export type AdminRecord = {
     data: Record<string, unknown>;
 };
 
+const RECORD_CACHE_MS = 90_000;
+let recordCache: { expiresAt: number; value: AdminRecord[] } | null = null;
+
 function timestampToDate(
     value: unknown
 ): Date | null {
@@ -136,9 +139,11 @@ function mapConsent(
     };
 }
 
-export async function loadAdminRecords(): Promise<
-    AdminRecord[]
-> {
+export async function loadAdminRecords(force = false): Promise<AdminRecord[]> {
+    if (!force && recordCache && recordCache.expiresAt > Date.now()) {
+        return recordCache.value;
+    }
+
     const joinQuery = query(
         collection(
             db,
@@ -165,7 +170,7 @@ export async function loadAdminRecords(): Promise<
         getDocs(consentQuery)
     ]);
 
-    return [
+    const records = [
         ...joinSnapshot.docs.map(mapJoin),
         ...consentSnapshot.docs.map(
             mapConsent
@@ -178,6 +183,9 @@ export async function loadAdminRecords(): Promise<
 
         return rightTime - leftTime;
     });
+
+    recordCache = { value: records, expiresAt: Date.now() + RECORD_CACHE_MS };
+    return records;
 }
 
 export async function updateRecordStatus(
@@ -199,4 +207,5 @@ export async function updateRecordStatus(
             status
         }
     );
+    recordCache = null;
 }
