@@ -17,8 +17,14 @@ test.describe("approved parent journey", () => {
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD to run the approved parent journey.");
   });
 
-  test("parent sees linked children and editable consent information", async ({ page }) => {
+  test("parent sees a things-to-do summary and linked consent information", async ({ page }) => {
     await loginParent(page);
+
+    const summary = page.getByTestId("parent-things-to-do");
+    await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
+    await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
     await expect(page.getByText("Emma Byrne", { exact: true }).first()).toBeVisible();
