@@ -144,10 +144,17 @@ service cloud.firestore {
     }
 
     match /consentApplications/{consentId} {
-      allow create: if request.resource.data.status == "active" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time;
-      allow read: if (isActiveLeader() && (isAdmin() || (resource.data.section is string && hasSection(resource.data.section))))
+      allow create: if request.resource.data.status == "active"
+        && request.resource.data.source == "website"
+        && request.resource.data.submittedAt == request.time
+        && ((request.resource.data.section is string) || (request.resource.data.scoutSection is string));
+      allow read: if (isActiveLeader() && (isAdmin()
+          || (resource.data.section is string && hasSection(resource.data.section))
+          || (resource.data.scoutSection is string && hasSection(resource.data.scoutSection))))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
-      allow update: if (isActiveLeader() && (isAdmin() || (resource.data.section is string && hasSection(resource.data.section)))
+      allow update: if (isActiveLeader() && (isAdmin()
+          || (resource.data.section is string && hasSection(resource.data.section))
+          || (resource.data.scoutSection is string && hasSection(resource.data.scoutSection)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
           && request.resource.data.parentUpdatedBy == request.auth.uid
