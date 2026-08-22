@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDocs, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -38,4 +38,9 @@ after(async () => {
 test("anonymous visitors can list public leadership for About", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(getDocs(collection(db, "publicLeadership")));
+});
+
+test("anonymous visitors can read an individual public leader", async () => {
+  const db = testEnv.unauthenticatedContext().firestore();
+  await assertSucceeds(getDoc(doc(db, "publicLeadership/test-public-leader")));
 });
