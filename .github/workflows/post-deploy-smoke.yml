@@ -1,6 +1,13 @@
 name: Post-deploy smoke
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/check-live-deployment.mjs"
+      - ".github/workflows/post-deploy-smoke.yml"
+      - "src/services/organisationChart.ts"
   workflow_run:
     workflows:
       - Deploy to Firebase Hosting on merge
@@ -14,6 +21,7 @@ permissions:
 jobs:
   smoke:
     if: >-
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -21,14 +29,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Verify live site and email Worker
+      - name: Verify live site, public organisation data and email Worker
         run: npm run smoke:live
         env:
           SITE_URL: https://coolock-ardlea-scouts.web.app
           EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
+          FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+          ALLOW_FIRESTORE_QUOTA_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}

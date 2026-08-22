@@ -20,6 +20,8 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v1";
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -28,9 +30,19 @@ function order(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 999;
 }
 
+function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
+  return leaders
+    .filter((leader) => leader.active)
+    .sort(
+      (a, b) =>
+        a.organisationOrder - b.organisationOrder ||
+        a.displayName.localeCompare(b.displayName)
+    );
+}
+
 function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLeader[] {
-  return snapshot.docs
-    .map((item) => {
+  return sortOrganisation(
+    snapshot.docs.map((item) => {
       const data = item.data();
       return {
         uid: item.id,
@@ -43,12 +55,38 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
         active: data.active !== false
       };
     })
-    .filter((leader) => leader.active)
-    .sort(
-      (a, b) =>
-        a.organisationOrder - b.organisationOrder ||
-        a.displayName.localeCompare(b.displayName)
+  );
+}
+
+function readPublicCache(): OrganisationLeader[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PUBLIC_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return sortOrganisation(
+      parsed.filter((item): item is OrganisationLeader =>
+        Boolean(item) &&
+        typeof item === "object" &&
+        typeof item.uid === "string" &&
+        typeof item.displayName === "string" &&
+        typeof item.scoutingRole === "string" &&
+        typeof item.organisationSection === "string"
+      )
     );
+  } catch {
+    return [];
+  }
+}
+
+function writePublicCache(leaders: OrganisationLeader[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify(leaders));
+  } catch {
+    // Storage can be unavailable in privacy modes; Firestore remains the source of truth.
+  }
 }
 
 export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
@@ -61,7 +99,18 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  return mapOrganisation(await getDocs(collection(db, "publicLeadership")));
+  try {
+    const leaders = mapOrganisation(await getDocs(collection(db, "publicLeadership")));
+    writePublicCache(leaders);
+    return leaders;
+  } catch (error) {
+    const cached = readPublicCache();
+    if (cached.length > 0) {
+      console.warn("Public organisation read failed; using cached public hierarchy.", error);
+      return cached;
+    }
+    throw error;
+  }
 }
 
 export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {

@@ -1,5 +1,8 @@
 const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
 const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
+const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
+const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
+const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
 
 if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
@@ -9,10 +12,19 @@ if (!emailApiUrl.startsWith("https://")) {
   console.error("EMAIL_API_URL must be a valid HTTPS URL.");
   process.exit(1);
 }
+if (!firebaseApiKey) {
+  console.error("FIREBASE_API_KEY is required for the live Firestore probe.");
+  process.exit(1);
+}
+if (!firebaseProjectId) {
+  console.error("FIREBASE_PROJECT_ID is required for the live Firestore probe.");
+  process.exit(1);
+}
 
 const failures = [];
 function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
 function pass(message) { console.log(`PASS: ${message}`); }
+function warn(message) { console.warn(`WARN: ${message}`); }
 
 async function get(path) {
   const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
@@ -59,6 +71,28 @@ const indexCache = indexResponse.headers.get("cache-control") || "";
 if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
 if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
 else pass("SPA shell uses no-store caching");
+
+const publicLeadershipUrl = new URL(
+  `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`
+);
+publicLeadershipUrl.searchParams.set("key", firebaseApiKey);
+const publicLeadershipResponse = await fetch(publicLeadershipUrl);
+if (!publicLeadershipResponse.ok) {
+  let detail = "";
+  try {
+    const body = await publicLeadershipResponse.json();
+    detail = body?.error?.message ? `: ${body.error.message}` : "";
+  } catch {
+    // Keep the status-only diagnostic if Firebase does not return JSON.
+  }
+  const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
+  if (publicLeadershipResponse.status === 429 && allowQuotaWarning) warn(`${message}. Live Firebase quota is exhausted; PR code validation continues.`);
+  else fail(message);
+} else {
+  const payload = await publicLeadershipResponse.json();
+  const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
+  pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
+}
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
   method: "OPTIONS",
