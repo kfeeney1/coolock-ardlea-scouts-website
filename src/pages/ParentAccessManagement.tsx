@@ -23,6 +23,7 @@ import {
 } from "../services/parentPortal";
 import type { ParentAccount, ParentAccessStatus } from "../services/parentPortal";
 import { linkConsentRecordsToMembers } from "../services/parentConsent";
+import { recordAuditEvent } from "../services/auditLog";
 
 export default function ParentAccessManagement() {
     const [parents, setParents] = useState<ParentAccount[]>([]);
@@ -96,6 +97,16 @@ export default function ParentAccessManagement() {
                 status === "approved" ? memberIds : [],
                 status === "approved" ? linkedSections : []
             );
+            await recordAuditEvent({
+                category: "parent-access",
+                action: status === "approved" ? "Parent access approved" : "Parent access rejected",
+                targetId: parent.uid,
+                targetLabel: parent.displayName || parent.email,
+                section: status === "approved" ? linkedSections.join(", ") : "",
+                description: status === "approved"
+                    ? `Approved parent access and linked ${memberIds.length} member record${memberIds.length === 1 ? "" : "s"}.`
+                    : "Rejected parent access."
+            });
             setMessage(
                 `${parent.displayName || parent.email} access updated.${
                     status === "approved"
