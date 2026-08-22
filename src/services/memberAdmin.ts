@@ -2,11 +2,14 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  where,
+  writeBatch
 } from "firebase/firestore";
 
 import type {
@@ -17,6 +20,11 @@ import type {
 
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import {
+  detectMemberLifecycleChange,
+  lifecycleChangeLabel,
+  type MemberLifecycleChangeType
+} from "./memberLifecycleLogic";
 
 export type MemberStatus = "active" | "inactive" | "left";
 
@@ -65,6 +73,19 @@ export type MemberConsentSummary = {
   hasMedicationManagement: boolean;
 };
 
+export type MemberLifecycleHistoryRecord = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  changeType: MemberLifecycleChangeType;
+  fromSection: string;
+  toSection: string;
+  fromStatus: MemberStatus;
+  toStatus: MemberStatus;
+  changedBy: string;
+  changedAt: Date | null;
+};
+
 function timestampToDate(value: unknown): Date | null {
   if (
     value &&
@@ -74,39 +95,29 @@ function timestampToDate(value: unknown): Date | null {
   ) {
     return (value as Timestamp).toDate();
   }
-
   return null;
 }
 
 function stringValue(data: DocumentData, key: string): string {
   const value = data[key];
-
-  if (typeof value === "string") {
-    return value.trim();
-  }
-
-  if (typeof value === "number") {
-    return String(value);
-  }
-
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
   return "";
 }
 
-function mapMember(
-  snapshot: QueryDocumentSnapshot<DocumentData>
-): MemberRecord {
+function statusValue(value: unknown): MemberStatus {
+  return value === "inactive" || value === "left" ? value : "active";
+}
+
+function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord {
   const data = snapshot.data();
   const firstName = stringValue(data, "firstName");
   const lastName = stringValue(data, "lastName");
-
   return {
     id: snapshot.id,
     firstName,
     lastName,
-    displayName:
-      stringValue(data, "displayName") ||
-      [firstName, lastName].filter(Boolean).join(" ") ||
-      "Unnamed member",
+    displayName: stringValue(data, "displayName") || [firstName, lastName].filter(Boolean).join(" ") || "Unnamed member",
     dateOfBirth: stringValue(data, "dateOfBirth"),
     section: stringValue(data, "section"),
     parentName: stringValue(data, "parentName"),
@@ -114,102 +125,45 @@ function mapMember(
     mobileNumber: stringValue(data, "mobileNumber"),
     emergencyContactName: stringValue(data, "emergencyContactName"),
     emergencyContactPhone: stringValue(data, "emergencyContactPhone"),
-    status:
-      data.status === "inactive" || data.status === "left"
-        ? data.status
-        : "active",
+    status: statusValue(data.status),
     source: stringValue(data, "source"),
-    sourceJoinApplicationId: stringValue(
-      data,
-      "sourceJoinApplicationId"
-    ),
+    sourceJoinApplicationId: stringValue(data, "sourceJoinApplicationId"),
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt)
   };
 }
 
-function yes(data: DocumentData, key: string): boolean {
-  return data[key] === "Yes";
-}
+function yes(data: DocumentData, key: string): boolean { return data[key] === "Yes"; }
 
 function medicationEnabled(data: DocumentData): boolean {
   const medication = data.medicationManagement;
-
-  return Boolean(
-    medication &&
-      typeof medication === "object" &&
-      "enabled" in medication &&
-      medication.enabled === true
-  );
+  return Boolean(medication && typeof medication === "object" && "enabled" in medication && medication.enabled === true);
 }
 
 function consentMemberName(data: DocumentData): string {
-  return (
-    stringValue(data, "childName") ||
-    stringValue(data, "name") ||
-    [
-      stringValue(data, "childFirstName"),
-      stringValue(data, "childLastName")
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
+  return stringValue(data, "childName") || stringValue(data, "name") || [stringValue(data, "childFirstName"), stringValue(data, "childLastName")].filter(Boolean).join(" ");
 }
 
 function consentDob(data: DocumentData): string {
-  return (
-    stringValue(data, "dateOfBirth") ||
-    stringValue(data, "childDob")
-  );
+  return stringValue(data, "dateOfBirth") || stringValue(data, "childDob");
 }
 
 function hasMedicalAlert(data: DocumentData): boolean {
-  return [
-    "seriousIllness",
-    "regularMeds",
-    "medAllergies",
-    "allergies",
-    "dietaryReqs",
-    "epilepsy",
-    "diabetes",
-    "asthma",
-    "heartDisease",
-    "highBloodPressure",
-    "skinAllergies",
-    "hearingDifficulties",
-    "onMedication"
-  ].some((key) => yes(data, key));
+  return ["seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "epilepsy", "diabetes", "asthma", "heartDisease", "highBloodPressure", "skinAllergies", "hearingDifficulties", "onMedication"].some((key) => yes(data, key));
 }
 
-function clean(value: string, max: number): string {
-  return value.trim().slice(0, max);
-}
+function clean(value: string, max: number): string { return value.trim().slice(0, max); }
 
 export async function loadMembers(): Promise<MemberRecord[]> {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "members"),
-      orderBy("displayName", "asc")
-    )
-  );
-
+  const snapshot = await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")));
   return snapshot.docs.map(mapMember);
 }
 
-export async function createMember(
-  input: CreateMemberInput
-): Promise<string> {
+export async function createMember(input: CreateMemberInput): Promise<string> {
   const user = auth.currentUser;
-
-  if (!user) {
-    throw new Error("No signed-in leader.");
-  }
-
+  if (!user) throw new Error("No signed-in leader.");
   const displayName = clean(input.displayName, 200);
-
-  if (!displayName) {
-    throw new Error("Member name is required.");
-  }
+  if (!displayName) throw new Error("Member name is required.");
 
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
@@ -239,39 +193,35 @@ export async function createMember(
     section: clean(input.section, 40),
     description: `Created member record with status ${input.status}.`
   });
-
   return memberRef.id;
 }
 
 export async function updateMember(
   memberId: string,
-  updates: Pick<
-    MemberRecord,
-    | "firstName"
-    | "lastName"
-    | "displayName"
-    | "dateOfBirth"
-    | "section"
-    | "parentName"
-    | "emailAddress"
-    | "mobileNumber"
-    | "emergencyContactName"
-    | "emergencyContactPhone"
-    | "status"
-  >
+  updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status">
 ): Promise<void> {
   const user = auth.currentUser;
+  if (!user) throw new Error("No signed-in leader.");
 
-  if (!user) {
-    throw new Error("No signed-in leader.");
-  }
+  const memberRef = doc(db, "members", memberId);
+  const currentSnapshot = await getDoc(memberRef);
+  if (!currentSnapshot.exists()) throw new Error("Member record no longer exists.");
 
-  await updateDoc(doc(db, "members", memberId), {
+  const current = currentSnapshot.data();
+  const previousSection = stringValue(current, "section");
+  const previousStatus = statusValue(current.status);
+  const nextSection = clean(updates.section, 40);
+  const changeType = detectMemberLifecycleChange(
+    { section: previousSection, status: previousStatus },
+    { section: nextSection, status: updates.status }
+  );
+
+  const memberUpdate = {
     firstName: clean(updates.firstName, 100),
     lastName: clean(updates.lastName, 100),
     displayName: clean(updates.displayName, 200),
     dateOfBirth: clean(updates.dateOfBirth, 20),
-    section: clean(updates.section, 40),
+    section: nextSection,
     parentName: clean(updates.parentName, 200),
     emailAddress: clean(updates.emailAddress, 254),
     mobileNumber: clean(updates.mobileNumber, 40),
@@ -280,42 +230,81 @@ export async function updateMember(
     status: updates.status,
     updatedAt: serverTimestamp(),
     updatedBy: user.uid
-  });
+  };
 
+  if (changeType) {
+    const batch = writeBatch(db);
+    const historyRef = doc(collection(db, "memberHistory"));
+    batch.update(memberRef, memberUpdate);
+    batch.set(historyRef, {
+      memberId,
+      memberName: clean(updates.displayName, 200),
+      changeType,
+      fromSection: previousSection,
+      toSection: nextSection,
+      fromStatus: previousStatus,
+      toStatus: updates.status,
+      changedBy: user.uid,
+      changedAt: serverTimestamp()
+    });
+    await batch.commit();
+
+    await recordAuditEvent({
+      category: "member",
+      action: lifecycleChangeLabel(changeType),
+      targetId: memberId,
+      targetLabel: clean(updates.displayName, 200),
+      section: nextSection,
+      description: `${previousSection || "No section"} / ${previousStatus} → ${nextSection || "No section"} / ${updates.status}.`
+    });
+    return;
+  }
+
+  await updateDoc(memberRef, memberUpdate);
   await recordAuditEvent({
     category: "member",
     action: "Member updated",
     targetId: memberId,
     targetLabel: clean(updates.displayName, 200),
-    section: clean(updates.section, 40),
+    section: nextSection,
     description: `Updated member record; status is ${updates.status}.`
   });
 }
 
-export async function loadMemberConsentSummaries(
-  member: MemberRecord
-): Promise<MemberConsentSummary[]> {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "consentApplications"),
-      orderBy("submittedAt", "desc")
-    )
-  );
+export async function loadMemberLifecycleHistory(memberId: string): Promise<MemberLifecycleHistoryRecord[]> {
+  const snapshot = await getDocs(query(collection(db, "memberHistory"), where("memberId", "==", memberId)));
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data();
+      return {
+        id: item.id,
+        memberId: stringValue(data, "memberId"),
+        memberName: stringValue(data, "memberName"),
+        changeType: data.changeType as MemberLifecycleChangeType,
+        fromSection: stringValue(data, "fromSection"),
+        toSection: stringValue(data, "toSection"),
+        fromStatus: statusValue(data.fromStatus),
+        toStatus: statusValue(data.toStatus),
+        changedBy: stringValue(data, "changedBy"),
+        changedAt: timestampToDate(data.changedAt)
+      };
+    })
+    .sort((a, b) => (b.changedAt?.getTime() || 0) - (a.changedAt?.getTime() || 0));
+}
 
+export async function loadMemberConsentSummaries(member: MemberRecord): Promise<MemberConsentSummary[]> {
+  const snapshot = await getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc")));
   const memberName = member.displayName.trim().toLowerCase();
   const memberDob = member.dateOfBirth.trim();
 
   return snapshot.docs
     .map((consentSnapshot) => {
       const data = consentSnapshot.data();
-
       return {
         consentId: consentSnapshot.id,
         memberName: consentMemberName(data),
         dateOfBirth: consentDob(data),
-        section:
-          stringValue(data, "scoutSection") ||
-          stringValue(data, "section"),
+        section: stringValue(data, "scoutSection") || stringValue(data, "section"),
         consentTo: stringValue(data, "consentTo"),
         submittedAt: timestampToDate(data.submittedAt),
         hasMedicalAlert: hasMedicalAlert(data),
@@ -323,14 +312,8 @@ export async function loadMemberConsentSummaries(
       };
     })
     .filter((consent) => {
-      const sameName =
-        consent.memberName.trim().toLowerCase() === memberName;
-
-      const sameDob =
-        !memberDob ||
-        !consent.dateOfBirth ||
-        consent.dateOfBirth === memberDob;
-
+      const sameName = consent.memberName.trim().toLowerCase() === memberName;
+      const sameDob = !memberDob || !consent.dateOfBirth || consent.dateOfBirth === memberDob;
       return sameName && sameDob;
     });
 }
