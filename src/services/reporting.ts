@@ -66,6 +66,7 @@ export async function loadEventReportRecords(scope: Scope): Promise<EventReportR
                 title: stringValue(data, "title") || "Untitled event",
                 startDate: stringValue(data, "startDate"),
                 section: stringValue(data, "section"),
+                status: stringValue(data, "status") || "draft",
                 attendance: stringMap(data.attendance),
                 consent: stringMap(data.consent),
                 consentRequired: data.consentRequired === true
