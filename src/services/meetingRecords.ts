@@ -57,17 +57,8 @@ function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
 }
 
-function cleanInput(input: MeetingInput): MeetingInput {
-  return {
-    title: clean(input.title, 200),
-    meetingType: input.meetingType,
-    section: input.meetingType === "group" ? "Group" : clean(input.section, 80),
-    meetingDate: clean(input.meetingDate, 30),
-    attendees: input.attendees.map((name) => clean(name, 120)).filter(Boolean).slice(0, 60),
-    notes: clean(input.notes, 12000),
-    decisions: clean(input.decisions, 8000),
-    actions: clean(input.actions, 8000)
-  };
+function sortByMeetingDate(records: MeetingRecord[]): MeetingRecord[] {
+  return records.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 }
 
 export async function loadMeetingRecords(sections: string[], isAdmin: boolean): Promise<MeetingRecord[]> {
@@ -76,15 +67,14 @@ export async function loadMeetingRecords(sections: string[], isAdmin: boolean): 
     return snapshot.docs.map(mapMeeting);
   }
 
-  if (sections.length === 0) return [];
-  const snapshots = await Promise.all(sections.map((section) => getDocs(query(
+  const uniqueSections = [...new Set(sections.filter(Boolean))];
+  if (uniqueSections.length === 0) return [];
+  const snapshots = await Promise.all(uniqueSections.map((section) => getDocs(query(
     collection(db, "meetingRecords"),
-    where("section", "==", section),
-    orderBy("meetingDate", "desc")
+    where("section", "==", section)
   ))));
 
-  return snapshots.flatMap((snapshot) => snapshot.docs.map(mapMeeting))
-    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+  return sortByMeetingDate(snapshots.flatMap((snapshot) => snapshot.docs.map(mapMeeting)));
 }
 
 export async function createMeetingRecord(input: MeetingInput): Promise<string> {
@@ -99,6 +89,19 @@ export async function createMeetingRecord(input: MeetingInput): Promise<string> 
     updatedBy: user.uid
   });
   return result.id;
+}
+
+function cleanInput(input: MeetingInput): MeetingInput {
+  return {
+    title: clean(input.title, 200),
+    meetingType: input.meetingType,
+    section: input.meetingType === "group" ? "Group" : clean(input.section, 80),
+    meetingDate: clean(input.meetingDate, 30),
+    attendees: input.attendees.map((name) => clean(name, 120)).filter(Boolean).slice(0, 60),
+    notes: clean(input.notes, 12000),
+    decisions: clean(input.decisions, 8000),
+    actions: clean(input.actions, 8000)
+  };
 }
 
 export async function updateMeetingRecord(id: string, input: MeetingInput): Promise<void> {
