@@ -27,7 +27,7 @@ jobs:
       E2E_BASE_URL: http://127.0.0.1:4173
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
       E2E_PARENT_EVENT_CONSENT_ENABLED: ${{ vars.E2E_PARENT_EVENT_CONSENT_ENABLED }}
-      E2E_LEADER_JOURNEY_SEEDED: ${{ vars.E2E_LEADER_JOURNEY_SEEDED }}
+      E2E_LEADER_JOURNEY_SEEDED: "true"
       E2E_PARENT_EMAIL: test.parent.only@example.com
       E2E_PARENT_LEADER_EMAIL: test.leader.parent@example.com
       E2E_LEADER_EMAIL: test.leader.only@example.com
@@ -54,10 +54,13 @@ jobs:
       - name: Install Firebase Admin SDK for E2E seeding
         run: npm install --no-save --ignore-scripts firebase-admin
 
-      - name: Seed deterministic E2E auth and organisation data
+      - name: Seed deterministic E2E datasets
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-e2e-auth-users.mjs seed
+        run: |
+          node scripts/seed-test-data.mjs seed
+          node scripts/seed-e2e-auth-users.mjs seed
+          node scripts/seed-playwright-records.mjs
 
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test
