@@ -51,6 +51,14 @@ jobs:
       - name: Run quality gate
         run: npm run quality
 
+      - name: Install Firebase Admin SDK for E2E seeding
+        run: npm install --no-save --ignore-scripts firebase-admin
+
+      - name: Seed deterministic E2E auth and organisation data
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-e2e-auth-users.mjs seed
+
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test
 

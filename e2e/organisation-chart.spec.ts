@@ -18,6 +18,7 @@ test("public Who's Who is available without signing in", async ({ page }) => {
   await page.goto("/whos-who");
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
+  await expect(page.getByText("Orla Kelly")).toBeVisible();
 });
 
 test("public Who's Who is included on the About page", async ({ page }) => {
@@ -25,6 +26,7 @@ test("public Who's Who is included on the About page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
+  await expect(page.getByText("Orla Kelly")).toBeVisible();
 });
 
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {
@@ -32,12 +34,14 @@ test("organisation chart rejects unauthenticated leader access", async ({ page }
   await expect(page).toHaveURL(/\/leader\/login$/);
 });
 
-test("section leader can open the internal organisation chart", async ({ page }, testInfo) => {
+test("section leader can open the internal organisation chart with leader data", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page, "test.leader.only@example.com");
   await page.goto("/leader/organisation");
   await expect(page.getByRole("heading", { name: "Organisational Chart" })).toBeVisible();
+  await expect(page.getByText("Orla Kelly")).toBeVisible();
+  await expect(page.getByText("Group Leader")).toBeVisible();
 });
 
 test("administrator sees organisation controls in Leader Access", async ({ page }, testInfo) => {
