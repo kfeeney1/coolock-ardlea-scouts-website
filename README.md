@@ -1,32 +1,134 @@
-# React + TypeScript + Vite
+# Coolock Ardlea Scouts Website
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript web application for Coolock Ardlea Scouts, including the public website, joining flow, parent portal, leader/admin tools, events, consent, member management, role-based access and audit logging.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 + TypeScript + Vite
+- Material UI
+- Firebase Authentication, Firestore and Hosting
+- Playwright for end-to-end testing
+- Node test runner for lightweight unit tests
+- Firebase Emulator Suite for Firestore security-rule tests
+- GitHub Actions for quality checks, previews, E2E tests, Firestore rule tests and production hosting deploys
 
-## React Compiler
+## Project structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `src/pages` — routed public, parent and leader/admin pages
+- `src/components` — shared UI and authentication/route protection
+- `src/services` — Firestore/domain access helpers
+- `e2e` — Playwright journeys and role/permission coverage
+- `tests/unit` — fast unit tests
+- `tests/firestore` — emulator-backed Firestore rules tests
+- `scripts` — test-data and operational scripts
+- `docs` — focused testing/email documentation and the operations runbook
+- `.github/workflows` — CI, preview, deploy, seed and security-rule workflows
 
-## Expanding the Oxlint configuration
+## Local development
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Requirements:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+- Node.js 22
+- npm
+- Firebase project configuration values
+
+Install dependencies:
+
+```bash
+npm ci
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Create a local `.env` file containing the Firebase web configuration used by `src/firebase.ts`:
+
+```text
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_FIREBASE_MEASUREMENT_ID=...
+VITE_EMAIL_API_URL=...
+```
+
+Do not commit real credentials or service-account JSON.
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+## Quality and tests
+
+Run the standard local quality gate:
+
+```bash
+npm run quality
+```
+
+This runs repository-wide linting, unit tests and the production build.
+
+Individual commands:
+
+```bash
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+```
+
+Playwright requires the test identities/data described in:
+
+- `docs/playwright-testing.md`
+- `docs/playwright-role-testing.md`
+
+Firestore security-rule tests run against the Firebase emulator and the production `firestore.rules` file. CI runs them through `.github/workflows/firestore-rules.yml`.
+
+## CI and deployment
+
+Pull requests normally run:
+
+1. **Quality** — lint, unit tests and production build.
+2. **Playwright E2E** — authenticated/public browser journeys.
+3. **Firebase Hosting preview** — preview deployment after the quality gate.
+4. **Firestore Rules** — when rules, emulator config or rules tests change.
+
+Merges to `main` are deployed by the Firebase Hosting merge workflow.
+
+Operational procedures, test-data seeding, recovery checks and deployment guidance are documented in `docs/operations-runbook.md`.
+
+## Test data
+
+The repository includes deterministic Firebase seed/cleanup scripts and a manual GitHub Actions workflow named **Seed Firebase Test Data**. Test data is marked so cleanup routines can avoid deleting ordinary records.
+
+Use seed/cleanup actions only against the intended Firebase project and review the workflow inputs before running them. See `docs/operations-runbook.md` for the procedure.
+
+## Email
+
+Email-related implementation/testing notes are kept in:
+
+- `docs/email-branding.md`
+- `docs/event-consent-email-testing.md`
+
+The frontend email endpoint is configured through `VITE_EMAIL_API_URL`.
+
+## Security
+
+Authorization is enforced both in the UI and in `firestore.rules`. The emulator test suite verifies key boundaries including anonymous access denial, section-scoped leader access, parent/child linking, privilege escalation protection, append-only audit records and default-deny behaviour.
+
+Changes to authentication, Firestore rules, public write flows or sensitive member/parent data should include corresponding automated coverage.
+
+## Operations
+
+Before a production-affecting change:
+
+- confirm CI is green;
+- use the Firebase preview for UI changes;
+- verify Firestore rules tests for authorization changes;
+- understand whether the change requires seed data, indexes or rules deployment;
+- follow the rollback/recovery checklist in `docs/operations-runbook.md`.
+
+## Documentation
+
+Start with `docs/operations-runbook.md` for administration and recovery. More focused documentation lives under `docs/` and should be updated alongside the feature or workflow it describes.
