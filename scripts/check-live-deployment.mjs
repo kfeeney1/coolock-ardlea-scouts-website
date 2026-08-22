@@ -1,0 +1,81 @@
+const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
+const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
+
+if (!siteUrl.startsWith("https://")) {
+  console.error("SITE_URL must be a valid HTTPS URL.");
+  process.exit(1);
+}
+if (!emailApiUrl.startsWith("https://")) {
+  console.error("EMAIL_API_URL must be a valid HTTPS URL.");
+  process.exit(1);
+}
+
+const failures = [];
+function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
+function pass(message) { console.log(`PASS: ${message}`); }
+
+async function get(path) {
+  const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
+  const text = await response.text();
+  if (!response.ok) fail(`${path} returned ${response.status}`);
+  else pass(`${path} returned ${response.status}`);
+  return { response, text };
+}
+
+const routes = ["/", "/about", "/join", "/leader/login", "/parent"];
+let root;
+for (const path of routes) {
+  const result = await get(path);
+  if (!result.text.includes('id="root"')) fail(`${path} did not return the SPA shell`);
+  if (path === "/") root = result;
+}
+
+if (root) {
+  const headers = root.response.headers;
+  const csp = headers.get("content-security-policy") || "";
+  for (const directive of ["base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
+    if (!csp.includes(directive)) fail(`CSP is missing ${directive}`);
+    else pass(`CSP contains ${directive}`);
+  }
+  if (headers.get("x-content-type-options") !== "nosniff") fail("X-Content-Type-Options is not nosniff");
+  else pass("X-Content-Type-Options is nosniff");
+  if (headers.get("x-frame-options") !== "DENY") fail("X-Frame-Options is not DENY");
+  else pass("X-Frame-Options is DENY");
+
+  const assetMatch = root.text.match(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/);
+  if (!assetMatch) {
+    fail("No hashed Vite asset was found in the live SPA shell");
+  } else {
+    const asset = await fetch(`${siteUrl}${assetMatch[1]}`);
+    if (!asset.ok) fail(`Hashed asset returned ${asset.status}`);
+    const cache = asset.headers.get("cache-control") || "";
+    if (!cache.includes("immutable") || !cache.includes("max-age=31536000")) fail("Hashed asset does not have immutable one-year caching");
+    else pass("Hashed asset has immutable one-year caching");
+  }
+}
+
+const indexResponse = await fetch(`${siteUrl}/index.html`);
+const indexCache = indexResponse.headers.get("cache-control") || "";
+if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
+if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
+else pass("SPA shell uses no-store caching");
+
+const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
+  method: "OPTIONS",
+  headers: {
+    Origin: siteUrl,
+    "Access-Control-Request-Method": "POST",
+    "Access-Control-Request-Headers": "authorization,content-type"
+  }
+});
+if (corsResponse.status !== 204) fail(`Email Worker preflight returned ${corsResponse.status}`);
+else pass("Email Worker preflight returned 204");
+const allowedOrigin = corsResponse.headers.get("access-control-allow-origin") || "";
+if (allowedOrigin !== siteUrl) fail(`Email Worker allows origin '${allowedOrigin}' instead of '${siteUrl}'`);
+else pass("Email Worker allows the production site origin");
+
+if (failures.length) {
+  console.error(`\nLive deployment smoke check failed with ${failures.length} issue(s).`);
+  process.exit(1);
+}
+console.log("\nLive deployment smoke check passed.");
