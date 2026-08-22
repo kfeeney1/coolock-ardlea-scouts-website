@@ -1,4 +1,5 @@
 ﻿import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import AdminOverviewPanel from "../components/admin/AdminOverviewPanel";
 import {
     Alert,
     Box,
@@ -121,6 +122,7 @@ export default function AdminDashboard() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
+            <AdminOverviewPanel />
             <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
                 <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, gap: 2 }}>
                     <Typography color="text.secondary" sx={{ mt: 0.5 }}>Signed in as {adminProfile?.displayName}</Typography>
