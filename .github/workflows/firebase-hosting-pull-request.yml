@@ -28,3 +28,5 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           projectId: coolock-ardlea-scouts
+          channelId: pull-request-preview
+          expires: 1d
