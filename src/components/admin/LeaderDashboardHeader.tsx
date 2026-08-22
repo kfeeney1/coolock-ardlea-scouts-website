@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
  { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
  { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
  { label: "Leader Access", path: "/leader/access", adminOnly: true },
+ { label: "Activity Log", path: "/leader/activity", adminOnly: true },
  { label: "Parent Portal", path: "/parent" },
  { label: "Join Us Management", path: "/leader/join" },
  { label: "Consent Management", path: "/leader/consents" },
