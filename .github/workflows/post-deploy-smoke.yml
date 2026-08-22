@@ -1,0 +1,34 @@
+name: Post-deploy smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy to Firebase Hosting on merge
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify live site and email Worker
+        run: npm run smoke:live
+        env:
+          SITE_URL: https://coolock-ardlea-scouts.web.app
+          EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}

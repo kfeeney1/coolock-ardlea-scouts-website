@@ -10,7 +10,9 @@
     "test": "node --experimental-strip-types --test tests/unit/*.test.ts",
     "test:e2e": "npx playwright test",
     "check:production-env": "node scripts/check-production-env.mjs",
-    "quality": "npm run lint && npm test && npm run build",
+    "check:smoke-script": "node --check scripts/check-live-deployment.mjs",
+    "smoke:live": "node scripts/check-live-deployment.mjs",
+    "quality": "npm run lint && npm test && npm run check:smoke-script && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
