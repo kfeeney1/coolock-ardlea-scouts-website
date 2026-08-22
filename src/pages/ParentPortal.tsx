@@ -18,6 +18,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
+import ParentThingsToDo from "../components/parent/ParentThingsToDo";
 import { auth } from "../firebase";
 import {
     createParentAccessForCurrentUser,
@@ -260,11 +261,17 @@ export default function ParentPortal() {
                                     Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.
                                 </Alert>
 
-                                <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography>
-                                <ParentEventConsentSection sections={account.linkedSections} />
+                                <ParentThingsToDo memberIds={account.memberIds} sections={account.linkedSections} />
 
-                                <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
-                                <ParentConsentSection memberIds={account.memberIds} />
+                                <Box id="parent-event-consent" sx={{ scrollMarginTop: 24 }}>
+                                    <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography>
+                                    <ParentEventConsentSection sections={account.linkedSections} />
+                                </Box>
+
+                                <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}>
+                                    <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
+                                    <ParentConsentSection memberIds={account.memberIds} />
+                                </Box>
                             </>
                         )}
                     </Paper>
