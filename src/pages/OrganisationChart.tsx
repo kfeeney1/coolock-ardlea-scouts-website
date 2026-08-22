@@ -20,7 +20,7 @@ function depthFor(leader: OrganisationLeader, byId: Map<string, OrganisationLead
   return depth;
 }
 
-export default function OrganisationChart({ publicView = false }: { publicView?: boolean }) {
+export default function OrganisationChart({ publicView = false, embedded = false }: { publicView?: boolean; embedded?: boolean }) {
   const [leaders, setLeaders] = useState<OrganisationLeader[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,6 +72,8 @@ export default function OrganisationChart({ publicView = false }: { publicView?:
       })}
     </Stack>}
   </>;
+
+  if (publicView && embedded) return content;
 
   if (publicView) {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="lg">
