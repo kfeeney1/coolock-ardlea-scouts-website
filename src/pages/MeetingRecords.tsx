@@ -130,15 +130,15 @@ export default function MeetingRecords() {
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
           <FormControl>
-            <InputLabel>Meeting type</InputLabel>
-            <Select label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "group" ? "" : form.section })}>
+            <InputLabel id="meeting-type-label">Meeting type</InputLabel>
+            <Select id="meeting-type" labelId="meeting-type-label" label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "group" ? "" : form.section })}>
               <MenuItem value="leader">Leader / Section Meeting</MenuItem>
               {isAdmin && <MenuItem value="group">Group Council Meeting</MenuItem>}
             </Select>
           </FormControl>
           {form.meetingType === "leader" && <FormControl>
-            <InputLabel>Section</InputLabel>
-            <Select label="Section" value={form.section} onChange={(event) => setForm({ ...form, section: event.target.value })}>
+            <InputLabel id="meeting-section-label">Section</InputLabel>
+            <Select id="meeting-section" labelId="meeting-section-label" label="Section" value={form.section} onChange={(event) => setForm({ ...form, section: event.target.value })}>
               {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
             </Select>
           </FormControl>}
