@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/check-live-deployment.mjs"
       - ".github/workflows/post-deploy-smoke.yml"
+      - "src/services/organisationChart.ts"
   workflow_run:
     workflows:
       - Deploy to Firebase Hosting on merge
@@ -41,3 +42,4 @@ jobs:
           EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+          ALLOW_FIRESTORE_QUOTA_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
