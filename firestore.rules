@@ -144,6 +144,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /auditLog/{entryId} {
+      allow get, list: if isAdmin();
+      allow create: if isActiveLeader()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail is string
+        && request.resource.data.category is string
+        && request.resource.data.action is string
+        && request.resource.data.targetId is string
+        && request.resource.data.targetLabel is string
+        && request.resource.data.description is string
+        && request.resource.data.section is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["category", "action", "actorUid", "actorEmail", "targetId", "targetLabel", "description", "section", "createdAt"]);
+      allow update, delete: if false;
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
