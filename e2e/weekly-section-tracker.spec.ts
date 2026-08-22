@@ -15,6 +15,10 @@ async function login(page: Page, email: string) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+function memberRow(page: Page, memberName: string) {
+  return page.getByLabel(`Attendance · ${memberName}`).locator("xpath=ancestor::*[contains(@class, 'MuiPaper-root')][1]");
+}
+
 test("weekly tracker rejects unauthenticated users", async ({ page }) => {
   await page.goto("/leader/weekly");
   await expect(page).toHaveURL(/\/leader\/login$/);
@@ -33,11 +37,12 @@ test("section leader loads active members and persists weekly attendance subs an
   await expect(page.getByText("Sophie Ryan", { exact: true })).toBeVisible();
   await expect(page.getByText("Test Inactive", { exact: true })).toHaveCount(0);
 
-  await page.getByLabel("Attendance · Sophie Ryan").click();
+  let sophie = memberRow(page, "Sophie Ryan");
+  await sophie.getByLabel("Attendance · Sophie Ryan").click();
   await page.getByRole("option", { name: "Present", exact: true }).click();
-  await page.getByRole("checkbox", { name: "Subs paid" }).check();
-  await page.getByLabel("€").fill("4");
-  await page.getByLabel("Badges achieved").fill("Navigator, Adventure Skills");
+  await sophie.getByRole("checkbox", { name: "Subs paid" }).check();
+  await sophie.getByLabel("€").fill("4");
+  await sophie.getByLabel("Badges achieved").fill("Navigator, Adventure Skills");
   await page.getByLabel("Weekly notes").fill("TEST Playwright weekly persistence check.");
 
   await page.getByRole("button", { name: "Update Weekly Record" }).click();
@@ -46,10 +51,11 @@ test("section leader loads active members and persists weekly attendance subs an
   await page.reload();
   await page.getByLabel("Meeting date").fill(fixtureDate);
   await expect(page.getByText("Sophie Ryan", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Attendance · Sophie Ryan")).toHaveText(/Present/);
-  await expect(page.getByRole("checkbox", { name: "Subs paid" })).toBeChecked();
-  await expect(page.getByLabel("€")).toHaveValue("4");
-  await expect(page.getByLabel("Badges achieved")).toHaveValue("Navigator, Adventure Skills");
+  sophie = memberRow(page, "Sophie Ryan");
+  await expect(sophie.getByLabel("Attendance · Sophie Ryan")).toHaveText(/Present/);
+  await expect(sophie.getByRole("checkbox", { name: "Subs paid" })).toBeChecked();
+  await expect(sophie.getByLabel("€")).toHaveValue("4");
+  await expect(sophie.getByLabel("Badges achieved")).toHaveValue("Navigator, Adventure Skills");
   await expect(page.getByLabel("Weekly notes")).toHaveValue("TEST Playwright weekly persistence check.");
 });
 
