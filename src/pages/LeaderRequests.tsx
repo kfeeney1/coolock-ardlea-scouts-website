@@ -25,6 +25,7 @@ import {
     rejectLeaderRegistration
 } from "../services/leaderRegistrations";
 import type { LeaderRegistrationRequest } from "../services/leaderRegistrations";
+import { recordAuditEvent } from "../services/auditLog";
 
 function formatDate(value: Date | null) {
     if (!value) return "Unknown date";
@@ -96,6 +97,16 @@ export default function LeaderRequests() {
                 await rejectLeaderRegistration(selected.uid, user.uid, reviewNote);
                 setMessage(`${selected.fullName}'s leader access request has been rejected.`);
             }
+            await recordAuditEvent({
+                category: "leader-request",
+                action: approved ? "Leader request approved" : "Leader request rejected",
+                targetId: selected.uid,
+                targetLabel: selected.fullName,
+                section: selected.requestedSection || "",
+                description: approved
+                    ? `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"}.`
+                    : "Rejected leader access request."
+            });
             setSelected(null);
             setReviewNote("");
             await refresh();
