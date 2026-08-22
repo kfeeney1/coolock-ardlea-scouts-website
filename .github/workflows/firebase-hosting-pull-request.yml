@@ -23,10 +23,16 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy Firebase preview
+        id: preview
+        continue-on-error: true
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           projectId: coolock-ardlea-scouts
           channelId: pull-request-preview
           expires: 1d
+      - name: Report preview availability
+        if: ${{ steps.preview.outcome == 'failure' }}
+        run: echo '::warning::Firebase PR preview could not be created. The quality gate has passed; production deployment remains strict. Check Firebase Hosting preview-channel quota if a preview is required.'
