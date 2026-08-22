@@ -1,6 +1,12 @@
 name: Post-deploy smoke
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/check-live-deployment.mjs"
+      - ".github/workflows/post-deploy-smoke.yml"
   workflow_run:
     workflows:
       - Deploy to Firebase Hosting on merge
@@ -14,6 +20,7 @@ permissions:
 jobs:
   smoke:
     if: >-
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -21,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
 
       - uses: actions/setup-node@v4
         with:
