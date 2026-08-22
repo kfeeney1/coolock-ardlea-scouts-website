@@ -89,6 +89,11 @@ export default function LeaderCommunications() {
         setBody(communicationTemplates[value].message);
     };
 
+    const changeSection = (value: string) => {
+        setSectionFilter(value);
+        setSelectedIds([]);
+    };
+
     const toggleRecipient = (id: string) => {
         setSelectedIds((current) => current.includes(id)
             ? current.filter((item) => item !== id)
@@ -167,7 +172,7 @@ export default function LeaderCommunications() {
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
                                 <FormControl sx={{ minWidth: 240 }}>
                                     <InputLabel>Section</InputLabel>
-                                    <Select label="Section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)}>
+                                    <Select label="Section" value={sectionFilter} onChange={(event) => changeSection(event.target.value)}>
                                         <MenuItem value="all">All permitted sections</MenuItem>
                                         {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
                                     </Select>
