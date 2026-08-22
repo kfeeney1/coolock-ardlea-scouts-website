@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, updateDoc, doc } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -70,9 +70,21 @@ function cleanInput(input: MeetingInput): MeetingInput {
   };
 }
 
-export async function loadMeetingRecords(): Promise<MeetingRecord[]> {
-  const snapshot = await getDocs(query(collection(db, "meetingRecords"), orderBy("meetingDate", "desc")));
-  return snapshot.docs.map(mapMeeting);
+export async function loadMeetingRecords(sections: string[], isAdmin: boolean): Promise<MeetingRecord[]> {
+  if (isAdmin) {
+    const snapshot = await getDocs(query(collection(db, "meetingRecords"), orderBy("meetingDate", "desc")));
+    return snapshot.docs.map(mapMeeting);
+  }
+
+  if (sections.length === 0) return [];
+  const snapshots = await Promise.all(sections.map((section) => getDocs(query(
+    collection(db, "meetingRecords"),
+    where("section", "==", section),
+    orderBy("meetingDate", "desc")
+  ))));
+
+  return snapshots.flatMap((snapshot) => snapshot.docs.map(mapMeeting))
+    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 }
 
 export async function createMeetingRecord(input: MeetingInput): Promise<string> {
