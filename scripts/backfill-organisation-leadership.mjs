@@ -22,13 +22,12 @@ function defaultSection(data) {
 }
 
 const adminSnapshot = await db.collection("adminUsers").get();
+const activeAdminDocs = adminSnapshot.docs.filter((adminDoc) => adminDoc.data().active === true);
 let created = 0;
 let preserved = 0;
 
-for (const adminDoc of adminSnapshot.docs) {
+for (const adminDoc of activeAdminDocs) {
   const data = adminDoc.data();
-  if (data.active !== true) continue;
-
   const orgRef = db.collection("organisationLeadership").doc(adminDoc.id);
   const existing = await orgRef.get();
   if (existing.exists) {
@@ -64,4 +63,12 @@ for (const adminDoc of adminSnapshot.docs) {
   }
 }
 
-console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved.`);
+const organisationSnapshot = await db.collection("organisationLeadership").get();
+const organisationIds = new Set(organisationSnapshot.docs.map((item) => item.id));
+const missing = activeAdminDocs.filter((item) => !organisationIds.has(item.id)).map((item) => item.id);
+
+if (missing.length > 0) {
+  throw new Error(`Organisation backfill verification failed. Missing active leaders: ${missing.join(", ")}`);
+}
+
+console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${activeAdminDocs.length} active leaders verified.`);

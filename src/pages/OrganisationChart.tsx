@@ -30,7 +30,10 @@ export default function OrganisationChart({ publicView = false, embedded = false
     void (async () => {
       try {
         const result = publicView ? await loadPublicOrganisation() : await loadInternalOrganisation();
-        if (!cancelled) setLeaders(result);
+        if (!cancelled) {
+          setLeaders(result);
+          setError("");
+        }
       } catch (e) {
         console.error("Unable to load organisation chart:", e);
         if (!cancelled) setError("Unable to load the organisation chart.");
@@ -51,8 +54,10 @@ export default function OrganisationChart({ publicView = false, embedded = false
   }, [leaders]);
 
   const content = <>
-    {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-    {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box> : leaders.length === 0 ? <Alert severity="info">No leaders have been added to the organisational chart yet.</Alert> : <Stack spacing={3}>
+    {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
+      : error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+        : leaders.length === 0 ? <Alert severity="info">No leaders have been added to the organisational chart yet.</Alert>
+          : <Stack spacing={3}>
       {sections.map((section) => {
         const sectionLeaders = leaders.filter((leader) => leader.organisationSection === section).sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
         return <Paper key={section} variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderTop: "5px solid", borderTopColor: section === "Group" ? "secondary.main" : "success.main" }}>
