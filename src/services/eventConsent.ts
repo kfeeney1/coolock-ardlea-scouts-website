@@ -72,7 +72,6 @@ function timestampToDate(value: unknown): Date | null {
     ) {
         return (value as Timestamp).toDate();
     }
-
     return null;
 }
 
@@ -134,10 +133,7 @@ function mapResponse(id: string, data: DocumentData): EventConsentResponse {
         childName: stringValue(data, "childName"),
         dateOfBirth: stringValue(data, "dateOfBirth"),
         parentName: stringValue(data, "parentName"),
-        attendance:
-            data.attendance === "not-attending"
-                ? "not-attending"
-                : "attending",
+        attendance: data.attendance === "not-attending" ? "not-attending" : "attending",
         consentGiven: data.consentGiven === true,
         emergencyDetailsConfirmed: data.emergencyDetailsConfirmed === true,
         medicalDetailsChanged: data.medicalDetailsChanged === true,
@@ -171,39 +167,32 @@ function publicEventPayload(event: EventRecord) {
     };
 }
 
-export async function ensurePublicEventLink(
-    event: EventRecord
-): Promise<PublicEventLink> {
+export async function ensurePublicEventLink(event: EventRecord): Promise<PublicEventLink> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
+    if (!user) throw new Error("No signed-in leader.");
 
     const existing = await getDocs(
         query(
             collection(db, "eventConsentLinks"),
-            where("eventId", "==", event.id)
+            where("eventId", "==", event.id),
+            where("section", "==", event.section)
         )
     );
 
     if (!existing.empty) {
         const snapshot = existing.docs[0];
         await setDoc(snapshot.ref, publicEventPayload(event), { merge: true });
-
         const refreshed = await getDoc(snapshot.ref);
         return mapLink(refreshed.id, refreshed.data() || {});
     }
 
     const token = crypto.randomUUID().replaceAll("-", "");
     const linkRef = doc(db, "eventConsentLinks", token);
-
     await setDoc(linkRef, {
         ...publicEventPayload(event),
         createdAt: serverTimestamp(),
         createdBy: user.uid
     });
-
     const created = await getDoc(linkRef);
     return mapLink(created.id, created.data() || {});
 }
@@ -222,12 +211,7 @@ export async function loadEventConsentLinks(): Promise<PublicEventLink[]> {
 
     const snapshots = await Promise.all(
         sections.map((section) =>
-            getDocs(
-                query(
-                    collection(db, "eventConsentLinks"),
-                    where("section", "==", section)
-                )
-            )
+            getDocs(query(collection(db, "eventConsentLinks"), where("section", "==", section)))
         )
     );
 
@@ -236,21 +220,13 @@ export async function loadEventConsentLinks(): Promise<PublicEventLink[]> {
     );
 }
 
-export async function loadPublicEventLink(
-    token: string
-): Promise<PublicEventLink | null> {
+export async function loadPublicEventLink(token: string): Promise<PublicEventLink | null> {
     const snapshot = await getDoc(doc(db, "eventConsentLinks", token));
-
-    if (!snapshot.exists()) {
-        return null;
-    }
-
+    if (!snapshot.exists()) return null;
     return mapLink(snapshot.id, snapshot.data());
 }
 
-export async function submitEventConsentResponse(
-    input: SubmitEventConsentInput
-): Promise<string> {
+export async function submitEventConsentResponse(input: SubmitEventConsentInput): Promise<string> {
     const responseRef = await addDoc(collection(db, "eventConsentResponses"), {
         token: clean(input.token, 100),
         eventId: clean(input.eventId, 100),
@@ -264,31 +240,21 @@ export async function submitEventConsentResponse(
         processingStatus: "new",
         submittedAt: serverTimestamp()
     });
-
     return responseRef.id;
 }
 
-export async function loadEventConsentResponses(
-    eventId: string
-): Promise<EventConsentResponse[]> {
+export async function loadEventConsentResponses(eventId: string): Promise<EventConsentResponse[]> {
     const profile = await currentLeaderProfile();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
     if (!isAdmin) return [];
 
     const snapshot = await getDocs(
-        query(
-            collection(db, "eventConsentResponses"),
-            where("eventId", "==", eventId)
-        )
+        query(collection(db, "eventConsentResponses"), where("eventId", "==", eventId))
     );
 
     return snapshot.docs
         .map((item) => mapResponse(item.id, item.data()))
-        .sort(
-            (a, b) =>
-                (b.submittedAt?.getTime() || 0) -
-                (a.submittedAt?.getTime() || 0)
-        );
+        .sort((a, b) => (b.submittedAt?.getTime() || 0) - (a.submittedAt?.getTime() || 0));
 }
 
 export async function markEventConsentResponseMatched(
@@ -296,10 +262,7 @@ export async function markEventConsentResponseMatched(
     memberId: string
 ): Promise<void> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
+    if (!user) throw new Error("No signed-in leader.");
 
     await updateDoc(doc(db, "eventConsentResponses", responseId), {
         processingStatus: "matched",
@@ -309,14 +272,9 @@ export async function markEventConsentResponseMatched(
     });
 }
 
-export async function ignoreEventConsentResponse(
-    responseId: string
-): Promise<void> {
+export async function ignoreEventConsentResponse(responseId: string): Promise<void> {
     const user = auth.currentUser;
-
-    if (!user) {
-        throw new Error("No signed-in leader.");
-    }
+    if (!user) throw new Error("No signed-in leader.");
 
     await updateDoc(doc(db, "eventConsentResponses", responseId), {
         processingStatus: "ignored",

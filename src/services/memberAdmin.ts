@@ -11,12 +11,7 @@ import {
   where,
   writeBatch
 } from "firebase/firestore";
-
-import type {
-  DocumentData,
-  QueryDocumentSnapshot,
-  Timestamp
-} from "firebase/firestore";
+import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -133,30 +128,58 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
   };
 }
 
-function yes(data: DocumentData, key: string): boolean { return data[key] === "Yes"; }
+function yes(data: DocumentData, key: string): boolean {
+  return data[key] === "Yes";
+}
 
 function medicationEnabled(data: DocumentData): boolean {
   const medication = data.medicationManagement;
-  return Boolean(medication && typeof medication === "object" && "enabled" in medication && medication.enabled === true);
+  return Boolean(
+    medication &&
+    typeof medication === "object" &&
+    "enabled" in medication &&
+    medication.enabled === true
+  );
 }
 
 function consentMemberName(data: DocumentData): string {
-  return stringValue(data, "childName") || stringValue(data, "name") || [stringValue(data, "childFirstName"), stringValue(data, "childLastName")].filter(Boolean).join(" ");
+  return stringValue(data, "childName") || stringValue(data, "name") || [
+    stringValue(data, "childFirstName"),
+    stringValue(data, "childLastName")
+  ].filter(Boolean).join(" ");
 }
 
 function consentDob(data: DocumentData): string {
-  return stringValue(data, "dateOfBirth") || stringValue(data, "childDob");
+  return stringValue(data, "dateOfBirth") || stringValue(data, "childDOB") || stringValue(data, "childDob");
 }
 
 function hasMedicalAlert(data: DocumentData): boolean {
-  return ["seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "epilepsy", "diabetes", "asthma", "heartDisease", "highBloodPressure", "skinAllergies", "hearingDifficulties", "onMedication"].some((key) => yes(data, key));
+  return [
+    "seriousIllness",
+    "regularMeds",
+    "medAllergies",
+    "allergies",
+    "dietaryReqs",
+    "epilepsy",
+    "diabetes",
+    "asthma",
+    "heartDisease",
+    "highBloodPressure",
+    "skinAllergies",
+    "hearingDifficulties",
+    "onMedication"
+  ].some((key) => yes(data, key));
 }
 
-function clean(value: string, max: number): string { return value.trim().slice(0, max); }
+function clean(value: string, max: number): string {
+  return value.trim().slice(0, max);
+}
 
 function profileSections(data: DocumentData): string[] {
   const sections = Array.isArray(data.sections)
-    ? data.sections.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())
+    ? data.sections
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .map((value) => value.trim())
     : [];
   const legacySection = stringValue(data, "section");
   return [...new Set([...sections, legacySection].filter(Boolean))];
@@ -180,10 +203,9 @@ export async function loadMembers(): Promise<MemberRecord[]> {
 
   const sections = profileSections(profile);
   if (sections.length === 0) return [];
-  const snapshots = await Promise.all(sections.map((section) => getDocs(query(
-    collection(db, "members"),
-    where("section", "==", section)
-  ))));
+  const snapshots = await Promise.all(
+    sections.map((section) => getDocs(query(collection(db, "members"), where("section", "==", section))))
+  );
 
   return snapshots
     .flatMap((snapshot) => snapshot.docs.map(mapMember))
@@ -229,7 +251,20 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 
 export async function updateMember(
   memberId: string,
-  updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status">
+  updates: Pick<
+    MemberRecord,
+    | "firstName"
+    | "lastName"
+    | "displayName"
+    | "dateOfBirth"
+    | "section"
+    | "parentName"
+    | "emailAddress"
+    | "mobileNumber"
+    | "emergencyContactName"
+    | "emergencyContactPhone"
+    | "status"
+  >
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -324,18 +359,27 @@ export async function loadMemberLifecycleHistory(memberId: string): Promise<Memb
 }
 
 export async function loadMemberConsentSummaries(member: MemberRecord): Promise<MemberConsentSummary[]> {
-  const snapshot = await getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc")));
+  if (!member.section) return [];
+
+  const snapshots = await Promise.all([
+    getDocs(query(collection(db, "consentApplications"), where("section", "==", member.section))),
+    getDocs(query(collection(db, "consentApplications"), where("scoutSection", "==", member.section)))
+  ]);
+
+  const byId = new Map<string, QueryDocumentSnapshot<DocumentData>>();
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => byId.set(item.id, item)));
+
   const memberName = member.displayName.trim().toLowerCase();
   const memberDob = member.dateOfBirth.trim();
 
-  return snapshot.docs
+  return [...byId.values()]
     .map((consentSnapshot) => {
       const data = consentSnapshot.data();
       return {
         consentId: consentSnapshot.id,
         memberName: consentMemberName(data),
         dateOfBirth: consentDob(data),
-        section: stringValue(data, "scoutSection") || stringValue(data, "section"),
+        section: stringValue(data, "section") || stringValue(data, "scoutSection"),
         consentTo: stringValue(data, "consentTo"),
         submittedAt: timestampToDate(data.submittedAt),
         hasMedicalAlert: hasMedicalAlert(data),
@@ -346,5 +390,6 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
       const sameName = consent.memberName.trim().toLowerCase() === memberName;
       const sameDob = !memberDob || !consent.dateOfBirth || consent.dateOfBirth === memberDob;
       return sameName && sameDob;
-    });
+    })
+    .sort((a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0));
 }

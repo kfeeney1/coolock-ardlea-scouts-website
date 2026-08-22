@@ -193,6 +193,7 @@ export async function submitYouthConsent(
         collection(db, "consentApplications"),
         {
             ...data,
+            section: data.scoutSection,
             childName: clean(data.childName, 150),
             medicalFurtherInfo: clean(
                 data.medicalFurtherInfo,
@@ -244,6 +245,7 @@ export async function submitScouterConsent(
         collection(db, "consentApplications"),
         {
             ...data,
+            section: data.scoutSection,
             name: clean(data.name, 150),
             address: clean(data.address, 400),
             mobile: clean(data.mobile, 40),

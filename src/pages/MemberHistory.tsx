@@ -6,6 +6,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { db } from "../firebase";
+import { firestoreFailureMessage } from "../services/firestoreErrors";
 import { loadMemberLifecycleHistory, type MemberLifecycleHistoryRecord } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 
@@ -59,7 +60,9 @@ export default function MemberHistory() {
         }
       } catch (loadError) {
         console.error("Unable to load members for lifecycle history:", loadError);
-        if (!cancelled) setError("Unable to load member lifecycle history.");
+        if (!cancelled) {
+          setError(firestoreFailureMessage(loadError, "Unable to load member lifecycle history."));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -81,7 +84,9 @@ export default function MemberHistory() {
         if (!cancelled) setHistory(loaded);
       } catch (loadError) {
         console.error("Unable to load lifecycle entries:", loadError);
-        if (!cancelled) setError("Unable to load lifecycle entries for this member.");
+        if (!cancelled) {
+          setError(firestoreFailureMessage(loadError, "Unable to load lifecycle entries for this member."));
+        }
       } finally {
         if (!cancelled) setHistoryLoading(false);
       }
