@@ -52,7 +52,12 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
 }
 
 export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
-  return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
+  try {
+    return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
+  } catch (error) {
+    console.warn("Internal organisation chart read failed; falling back to public-safe hierarchy.", error);
+    return loadPublicOrganisation();
+  }
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
