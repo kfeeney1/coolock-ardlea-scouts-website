@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isAllowedPublicAppointment } from "../../src/services/publicWhosWhoLogic.ts";
+import { isAllowedPublicAppointment, isCurrentPublicProjection, PUBLIC_PROJECTION_VERSION } from "../../src/services/publicWhosWhoLogic.ts";
 
 describe("public Who's Who role policy", () => {
   it("allows the agreed Group executive roles", () => {
@@ -28,5 +28,13 @@ describe("public Who's Who role policy", () => {
         assert.equal(isAllowedPublicAppointment(role, section), true);
       }
     }
+  });
+
+  it("accepts only current leader-sourced public projections", () => {
+    assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION, sourceAccessRole: "leader" }), true);
+    assert.equal(isCurrentPublicProjection({ sourceAccessRole: "leader" }), false);
+    assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION - 1, sourceAccessRole: "leader" }), false);
+    assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION, sourceAccessRole: "admin" }), false);
+    assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION, sourceAccessRole: "super-admin" }), false);
   });
 });
