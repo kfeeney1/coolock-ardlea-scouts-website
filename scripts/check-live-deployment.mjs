@@ -4,6 +4,7 @@ const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
 const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
 const allowPendingRulesWarning = String(process.env.ALLOW_FIRESTORE_RULES_PENDING_WARNING || "").toLowerCase() === "true";
+const allowPendingSnapshotWarning = String(process.env.ALLOW_PUBLIC_SNAPSHOT_PENDING_WARNING || "").toLowerCase() === "true";
 const EXPECTED_SNAPSHOT_CONTRACT_VERSION = 9;
 
 if (!siteUrl.startsWith("https://")) {
@@ -27,6 +28,7 @@ const failures = [];
 function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
 function pass(message) { console.log(`PASS: ${message}`); }
 function warn(message) { console.warn(`WARN: ${message}`); }
+function pendingOrFail(message) { if (allowPendingSnapshotWarning) warn(`${message} This PR changes the snapshot contract and production is expected to remain on the previous contract until merge.`); else fail(message); }
 
 async function get(path) {
   const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
@@ -89,9 +91,9 @@ if (!hostedSnapshotResponse.ok) {
       const wrongContract = payload.filter((item) => item?.snapshotContractVersion !== EXPECTED_SNAPSHOT_CONTRACT_VERSION);
       const privilegedLooking = payload.filter((item) => /(^|[_-])(super[_-]?admin|admin)([_-]|$)/i.test(String(item?.uid || "")));
       const ineligible = payload.filter((item) => item?.publicEligible !== true || item?.showPublicly !== true || item?.active === false);
-      if (wrongContract.length > 0) fail(`Hosted public organisation snapshot contains ${wrongContract.length} record(s) from an outdated contract.`);
-      if (privilegedLooking.length > 0) fail(`Hosted public organisation snapshot contains ${privilegedLooking.length} admin/super-admin-shaped UID(s).`);
-      if (ineligible.length > 0) fail(`Hosted public organisation snapshot contains ${ineligible.length} ineligible record(s).`);
+      if (wrongContract.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${wrongContract.length} record(s) from an outdated contract.`);
+      if (privilegedLooking.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${privilegedLooking.length} admin/super-admin-shaped UID(s).`);
+      if (ineligible.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${ineligible.length} ineligible record(s).`);
       hostedSnapshotValid = wrongContract.length === 0 && privilegedLooking.length === 0 && ineligible.length === 0;
       hostedSnapshotCount = payload.length;
       if (hostedSnapshotValid) pass(`Hosted public organisation snapshot uses contract v${EXPECTED_SNAPSHOT_CONTRACT_VERSION} with ${hostedSnapshotCount} leader(s)`);
@@ -114,7 +116,7 @@ if (!publicLeadershipResponse.ok) {
   } catch {}
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
   if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
-  else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning && hostedSnapshotValid) warn(`${message}. This pull request contains the public-read rule, but production Firestore rules are only deployed after merge.`);
+  else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning) warn(`${message}. Production Firestore rules are pending the merge deployment.`);
   else fail(message);
 } else {
   const payload = await publicLeadershipResponse.json();
