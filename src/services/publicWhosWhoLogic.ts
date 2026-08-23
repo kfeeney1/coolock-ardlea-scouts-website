@@ -11,6 +11,13 @@ const GROUP_ROLES = new Set([
   "group youth champion"
 ]);
 
+const SECTION_ROLES = new Set([
+  "section leader",
+  "assistant section leader",
+  "programme scouter",
+  "scouter"
+]);
+
 const YOUTH_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function roleKey(value: string): string {
@@ -24,12 +31,11 @@ function roleKey(value: string): string {
 
 export function isAllowedPublicAppointment(role: string, section: string): boolean {
   const sectionKey = section.toLowerCase().trim();
-  if (YOUTH_SECTIONS.has(sectionKey)) return role.trim().length > 0;
+  if (YOUTH_SECTIONS.has(sectionKey)) return SECTION_ROLES.has(roleKey(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
 
 export function isCurrentPublicProjection(data: Record<string, unknown>): boolean {
   return data.publicProjectionVersion === PUBLIC_PROJECTION_VERSION
-    && typeof data.sourceAccessRole === "string"
-    && data.sourceAccessRole.trim().toLowerCase() === "leader";
+    && data.sourceAccessRole === "leader";
 }
