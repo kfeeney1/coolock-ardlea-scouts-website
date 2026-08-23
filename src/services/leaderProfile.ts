@@ -53,6 +53,11 @@ export async function loadLeaderProfile(): Promise<
     }
 
     const data = snapshot.data();
+    const primarySection = Array.isArray(data.sections)
+        ? data.sections.find((value): value is string => typeof value === "string" && value.trim().length > 0) ?? ""
+        : typeof data.section === "string"
+            ? data.section
+            : "";
 
     return {
         displayName:
@@ -64,10 +69,7 @@ export async function loadLeaderProfile(): Promise<
             typeof data.mobileNumber === "string"
                 ? data.mobileNumber
                 : "",
-        section:
-            typeof data.section === "string"
-                ? data.section
-                : "",
+        section: primarySection,
         role:
             typeof data.role === "string"
                 ? data.role
@@ -91,6 +93,11 @@ export async function updateLeaderProfile(
         );
     }
 
+    const section = clean(
+        profile.section,
+        40
+    );
+
     await updateDoc(
         doc(
             db,
@@ -106,10 +113,8 @@ export async function updateLeaderProfile(
                 profile.mobileNumber,
                 40
             ),
-            section: clean(
-                profile.section,
-                40
-            )
+            section,
+            sections: section ? [section] : []
         }
     );
 }
@@ -137,7 +142,7 @@ export async function changeLeaderPassword(
 
     await reauthenticateWithCredential(
         user,
-        credential
+        currentPassword
     );
 
     await updatePassword(
