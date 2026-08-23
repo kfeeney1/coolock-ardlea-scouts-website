@@ -36,6 +36,16 @@ jobs:
           ref: main
       - name: Install app dependencies
         run: npm ci
+      - name: Install Firebase Admin SDK for deployment data checks
+        run: npm install --no-save --ignore-scripts firebase-admin
+      - name: Rebuild curated public Who's Who
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/rebuild-public-leadership.mjs
+      - name: Verify Firestore data after Who's Who rebuild
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/audit-firestore-compatibility.mjs
       - name: Build site
         run: npm run build
         env:
