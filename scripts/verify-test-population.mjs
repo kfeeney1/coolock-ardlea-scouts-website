@@ -9,7 +9,14 @@ initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const auth = getAuth();
 const TEST_SEED = "comprehensive-population-v2";
-const SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+const SECTIONS = [
+  { section: "Beavers", key: "beaver" },
+  { section: "Cubs", key: "cub" },
+  { section: "Scouts", key: "scout" },
+  { section: "Ventures", key: "venture" },
+  { section: "Rovers", key: "rover" }
+];
+const GROUP_ROLE_KEYS = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
 const GROUP_ROLES = new Set([
   "Group Leader",
   "Group Chairperson",
@@ -18,6 +25,7 @@ const GROUP_ROLES = new Set([
   "Group Quartermaster / Bo'sun",
   "Group Youth Champion"
 ]);
+const SECTION_ROLE_KEYS = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const SECTION_ROLES = new Set(["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]);
 
 function fail(message) { throw new Error(`Test population verification failed: ${message}`); }
@@ -28,9 +36,9 @@ async function seededDocs(name) {
 
 const members = await seededDocs("members");
 if (members.length !== 150) fail(`expected 150 members, found ${members.length}`);
-for (const section of SECTIONS) {
-  const count = members.filter((doc) => doc.data().section === section).length;
-  if (count !== 30) fail(`expected 30 ${section} members, found ${count}`);
+for (const { section } of SECTIONS) {
+  const sectionDocs = members.filter((doc) => doc.data().section === section);
+  if (sectionDocs.length !== 30) fail(`expected 30 ${section} members, found ${sectionDocs.length}`);
 }
 if (new Set(members.map((doc) => doc.data().displayName)).size !== 150) fail("member display names are not unique");
 
@@ -45,7 +53,7 @@ const publicGroup = publicLeadership.filter((doc) => doc.data().organisationSect
 if (publicGroup.length !== 6) fail(`expected 6 public Group executive records, found ${publicGroup.length}`);
 for (const doc of publicGroup) if (!GROUP_ROLES.has(doc.data().scoutingRole)) fail(`unexpected public Group role ${doc.data().scoutingRole}`);
 
-for (const section of SECTIONS) {
+for (const { section } of SECTIONS) {
   const sectionDocs = publicLeadership.filter((doc) => doc.data().organisationSection === section);
   if (sectionDocs.length !== 4) fail(`expected 4 public ${section} leadership records, found ${sectionDocs.length}`);
   const roles = new Set(sectionDocs.map((doc) => doc.data().scoutingRole));
@@ -64,18 +72,29 @@ if (parents.length !== 15) fail(`expected 15 parent accounts, found ${parents.le
 if (parents.filter((doc) => doc.data().testRoleType === "parent-leader").length !== 5) fail("expected one parent+leader account per section");
 if (parents.filter((doc) => doc.data().testRoleType === "parent-only").length !== 10) fail("expected two parent-only accounts per section");
 
-let nextPageToken;
-const testAuthUids = [];
-do {
-  const page = await auth.listUsers(1000, nextPageToken);
-  testAuthUids.push(...page.users.filter((user) => user.uid.startsWith("TEST_")).map((user) => user.uid));
-  nextPageToken = page.pageToken;
-} while (nextPageToken);
-if (testAuthUids.length !== 38) fail(`expected 38 TEST_ Auth users, found ${testAuthUids.length}`);
+const expectedAuthUids = new Set([
+  ...GROUP_ROLE_KEYS.map((key) => `TEST_uid_${key}`),
+  ...SECTIONS.flatMap(({ key }) => SECTION_ROLE_KEYS.map((roleKey) => `TEST_uid_${key}_${roleKey}`)),
+  ...SECTIONS.flatMap(({ key }) => [1, 2].map((number) => `TEST_uid_${key}_parent_${number}`)),
+  "TEST_uid_admin_01",
+  "TEST_uid_super_admin_01"
+]);
+if (expectedAuthUids.size !== 38) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 38`);
+
+const missingAuthUids = [];
+for (const uid of expectedAuthUids) {
+  try {
+    await auth.getUser(uid);
+  } catch (error) {
+    if (error?.code === "auth/user-not-found") missingAuthUids.push(uid);
+    else throw error;
+  }
+}
+if (missingAuthUids.length) fail(`missing comprehensive Auth users: ${missingAuthUids.join(", ")}`);
 
 console.log("Comprehensive TEST population verified successfully.");
 console.log("- Members: 150 total, 30 in each youth section");
 console.log("- Public leadership: 6 Group executives + 20 section leaders/scouters");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
 console.log("- Leader/admin profiles: 26 leaders + 2 private website admins");
-console.log("- Firebase Auth: 38 TEST_ users");
+console.log("- Firebase Auth: all 38 comprehensive identities present (unrelated E2E identities ignored)");
