@@ -28,15 +28,14 @@ type CacheEntry = { expiresAt: number; value: AdminOverview };
 
 const OVERVIEW_CACHE_MS = 90_000;
 const overviewCache = new Map<string, CacheEntry>();
+const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
 function recordValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function todayIso(): string {
@@ -69,23 +68,13 @@ async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
   if (sections.length === 0) return 0;
 
   const counts = await Promise.all(
-    sections.map((section) =>
-      countDocuments(
-        query(
-          collection(db, "joinApplications"),
-          where("section", "==", section),
-          where("status", "==", "new")
-        )
-      )
-    )
+    sections.map((section) => countDocuments(query(collection(db, "joinApplications"), where("section", "==", section), where("status", "==", "new"))))
   );
   return counts.reduce((total, count) => total + count, 0);
 }
 
 async function loadScopedCollection(collectionName: string, profile: AdminProfile): Promise<FirestoreSnapshot[]> {
-  if (isAdmin(profile)) {
-    return (await getDocs(collection(db, collectionName))).docs;
-  }
+  if (isAdmin(profile)) return (await getDocs(collection(db, collectionName))).docs;
 
   const sections = [...new Set(profile.sections.map((section) => section.trim()).filter(Boolean))];
   if (sections.length === 0) return [];
@@ -106,41 +95,37 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
 
   const admin = isAdmin(profile);
   const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments] = await Promise.all([
-    admin
-      ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending")))
-      : Promise.resolve(0),
-    admin
-      ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending")))
-      : Promise.resolve(0),
+    admin ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending"))) : Promise.resolve(0),
+    admin ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending"))) : Promise.resolve(0),
     countScopedNewJoins(profile),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile)
   ]);
 
-  const members: RawMember[] = memberDocuments.map((snapshot) => {
+  const members: RawMember[] = memberDocuments.flatMap((snapshot) => {
     const data = snapshot.data();
-    return {
-      id: snapshot.id,
-      section: stringValue(data.section) || "Other",
-      active: data.status !== "inactive" && data.status !== "left"
-    };
+    const section = stringValue(data.section);
+    if (!section || !["active", "inactive", "left"].includes(stringValue(data.status))) return [];
+    return [{ id: snapshot.id, section, active: data.status === "active" }];
   });
 
   const activeMembers = members.filter((member) => member.active);
   const sectionCounts = new Map<string, number>();
-  activeMembers.forEach((member) => {
-    sectionCounts.set(member.section, (sectionCounts.get(member.section) || 0) + 1);
-  });
+  activeMembers.forEach((member) => sectionCounts.set(member.section, (sectionCounts.get(member.section) || 0) + 1));
 
   const membersBySection = [...sectionCounts.entries()]
     .map(([section, count]) => ({ section, count }))
     .sort((a, b) => a.section.localeCompare(b.section));
 
   const today = todayIso();
-  const upcomingEvents = eventDocuments
-    .map((snapshot) => {
+  const upcomingEvents = eventDocuments.flatMap((snapshot) => {
       const data = snapshot.data();
-      const section = stringValue(data.section) || "All Sections";
+      const title = stringValue(data.title);
+      const section = stringValue(data.section);
+      const startDate = stringValue(data.startDate);
+      const status = stringValue(data.status);
+      if (!title || !section || !startDate || !EVENT_STATUSES.has(status)) return [];
+
       const consent = recordValue(data.consent);
       const attendance = recordValue(data.attendance);
       const consentRequired = data.consentRequired === true;
@@ -148,27 +133,12 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
         (member) => section === "All Sections" || section === "Group" || member.section === section
       );
       const outstandingConsent = consentRequired
-        ? eligibleMembers.filter(
-            (member) => consent[member.id] !== "received" && attendance[member.id] !== "not-attending"
-          ).length
+        ? eligibleMembers.filter((member) => consent[member.id] !== "received" && attendance[member.id] !== "not-attending").length
         : 0;
 
-      return {
-        id: snapshot.id,
-        title: stringValue(data.title) || "Untitled event",
-        section,
-        startDate: stringValue(data.startDate),
-        status: stringValue(data.status) || "draft",
-        consentRequired,
-        outstandingConsent
-      };
+      return [{ id: snapshot.id, title, section, startDate, status, consentRequired, outstandingConsent }];
     })
-    .filter(
-      (event) =>
-        event.startDate >= today &&
-        event.status !== "completed" &&
-        event.status !== "closed"
-    )
+    .filter((event) => event.startDate >= today && event.status !== "completed" && event.status !== "closed")
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   const overview: AdminOverview = {
@@ -176,10 +146,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     pendingLeaders,
     newJoinApplications,
     activeMembers: activeMembers.length,
-    outstandingConsent: upcomingEvents.reduce(
-      (total, event) => total + event.outstandingConsent,
-      0
-    ),
+    outstandingConsent: upcomingEvents.reduce((total, event) => total + event.outstandingConsent, 0),
     membersBySection,
     upcomingEvents
   };
