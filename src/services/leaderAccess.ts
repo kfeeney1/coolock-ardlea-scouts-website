@@ -50,6 +50,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         await updateDoc(doc(db, "adminUsers", record.uid), {
             role: record.role,
             sections: record.sections,
+            section: record.sections[0] || "",
             active: record.active,
             updatedAt: serverTimestamp(),
             updatedBy: actorUid
