@@ -21,7 +21,7 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v4";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v5";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
@@ -33,12 +33,7 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion",
-  "deputy group leader",
-  "programme scouter",
-  "elected member",
-  "group elected member",
-  "group council elected member"
+  "group youth champion"
 ]);
 
 function text(value: unknown): string {
@@ -59,9 +54,7 @@ function roleKey(role: string): string {
 }
 
 export function isPublicGroupRole(role: string): boolean {
-  const value = roleKey(role);
-  if (PUBLIC_GROUP_ROLES.has(value)) return true;
-  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
+  return PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
 
 function isKnownPrivilegedPublicUid(uid: string): boolean {
@@ -120,7 +113,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=6`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=7`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
