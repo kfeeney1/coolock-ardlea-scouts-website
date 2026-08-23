@@ -59,6 +59,7 @@ function sectionKey(section: string): string {
   return section.trim().toLowerCase();
 }
 
+// Group visibility is restricted to the agreed executive roles; opted-in section leaders/scouters are public regardless of their section-specific title.
 export function isPublicOrganisationRole(role: string, section: string): boolean {
   if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
   return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
