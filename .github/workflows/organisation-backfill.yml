@@ -31,7 +31,8 @@ jobs:
       - name: Install Firebase Admin
         run: npm install --no-save --package-lock=false firebase-admin@14.3.0
 
-      - name: Backfill organisation leadership
+      - name: Backfill organisation leadership and opt in all active test leaders
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          OPT_IN_ALL_ACTIVE_LEADERS: "true"
         run: node scripts/backfill-organisation-leadership.mjs
