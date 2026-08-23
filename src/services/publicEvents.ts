@@ -18,29 +18,34 @@ function stringValue(data: DocumentData, key: string): string {
     return typeof value === "string" ? value.trim() : "";
 }
 
-function mapPublicEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PublicEvent {
+function mapPublicEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PublicEvent | null {
     const data = snapshot.data();
+    const title = stringValue(data, "title");
+    const eventType = stringValue(data, "eventType");
+    const section = stringValue(data, "section");
+    const startDate = stringValue(data, "startDate");
+    const endDate = stringValue(data, "endDate");
+    if (!title || !eventType || !section || !startDate || !endDate) return null;
+
     return {
         id: snapshot.id,
-        title: stringValue(data, "title") || "Upcoming activity",
+        title,
         description: stringValue(data, "description"),
-        eventType: stringValue(data, "eventType") || "Activity",
-        section: stringValue(data, "section") || "All Sections",
+        eventType,
+        section,
         location: stringValue(data, "location"),
-        startDate: stringValue(data, "startDate"),
-        endDate: stringValue(data, "endDate")
+        startDate,
+        endDate
     };
 }
 
 export async function loadUpcomingPublicEvents(): Promise<PublicEvent[]> {
     const today = new Date().toISOString().slice(0, 10);
     const snapshot = await getDocs(
-        query(
-            collection(db, "publicEvents"),
-            where("startDate", ">=", today),
-            orderBy("startDate", "asc")
-        )
+        query(collection(db, "publicEvents"), where("startDate", ">=", today), orderBy("startDate", "asc"))
     );
 
-    return snapshot.docs.map(mapPublicEvent);
+    return snapshot.docs
+        .map(mapPublicEvent)
+        .filter((event): event is PublicEvent => event !== null);
 }
