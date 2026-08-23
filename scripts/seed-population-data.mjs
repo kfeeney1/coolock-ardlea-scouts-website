@@ -44,15 +44,15 @@ const firstNames = ["Alex", "Jamie", "Sam", "Charlie", "Taylor", "Jordan", "Case
 const lastNames = ["Kelly", "Murphy", "Byrne", "Ryan", "Walsh", "Doyle", "OBrien", "Nolan", "Flynn", "Reilly", "Kavanagh", "Murray", "Fitzgerald", "Dunne", "Brennan", "McCarthy", "Carroll", "Kennedy", "Lynch", "Quinn", "Moran", "Burke", "Casey", "Foley", "Hughes", "Power", "Daly", "Cullen", "Sweeney", "Keane"];
 
 function pad(value) { return String(value).padStart(2, "0"); }
+function memberId(plan, number) { return `TEST_member_${plan.key}_${pad(number)}`; }
 
 function membersForSection(plan) {
   return Array.from({ length: 30 }, (_, index) => {
     const number = index + 1;
     const firstName = firstNames[(index + plan.section.length) % firstNames.length];
     const lastName = lastNames[(index * 3 + plan.section.length) % lastNames.length];
-    const suffix = `${plan.key}${pad(number)}`;
     return {
-      id: `TEST_member_${suffix}`,
+      id: memberId(plan, number),
       firstName,
       lastName,
       displayName: `${firstName} ${lastName} ${plan.section} ${pad(number)}`,
@@ -103,7 +103,7 @@ function sectionLeaders() {
     reportsToUid: "TEST_uid_group_leader",
     showPublicly: true,
     kind: template.parentLeader ? "parent-leader" : "leader-only",
-    memberIds: template.parentLeader ? [`TEST_member_${plan.key}05`, `TEST_member_${plan.key}06`] : []
+    memberIds: template.parentLeader ? [memberId(plan, 5), memberId(plan, 6)] : []
   })));
 }
 
@@ -115,8 +115,8 @@ function parentOnlyUsers() {
     kind: "parent-only",
     section: plan.section,
     memberIds: number === 1
-      ? [`TEST_member_${plan.key}01`, `TEST_member_${plan.key}02`]
-      : [`TEST_member_${plan.key}03`, `TEST_member_${plan.key}04`]
+      ? [memberId(plan, 1), memberId(plan, 2)]
+      : [memberId(plan, 3), memberId(plan, 4)]
   })));
 }
 
