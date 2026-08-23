@@ -17,14 +17,7 @@ const SECTIONS = [
   { section: "Rovers", key: "rover" }
 ];
 const GROUP_ROLE_KEYS = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
-const GROUP_ROLES = new Set([
-  "Group Leader",
-  "Group Chairperson",
-  "Group Secretary",
-  "Group Treasurer",
-  "Group Quartermaster / Bo'sun",
-  "Group Youth Champion"
-]);
+const GROUP_ROLES = new Set(["Group Leader", "Group Chairperson", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Youth Champion"]);
 const SECTION_ROLE_KEYS = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const SECTION_ROLES = new Set(["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]);
 
@@ -51,6 +44,7 @@ if (publicLeadership.length !== 26) fail(`expected 26 public leadership records,
 
 const publicGroup = publicLeadership.filter((doc) => doc.data().organisationSection === "Group");
 if (publicGroup.length !== 6) fail(`expected 6 public Group executive records, found ${publicGroup.length}`);
+for (const role of GROUP_ROLES) if (!publicGroup.some((doc) => doc.data().scoutingRole === role)) fail(`Group Who's Who is missing ${role}`);
 for (const doc of publicGroup) if (!GROUP_ROLES.has(doc.data().scoutingRole)) fail(`unexpected public Group role ${doc.data().scoutingRole}`);
 
 for (const { section } of SECTIONS) {
@@ -83,18 +77,14 @@ if (expectedAuthUids.size !== 38) fail(`internal verifier expected UID set is ${
 
 const missingAuthUids = [];
 for (const uid of expectedAuthUids) {
-  try {
-    await auth.getUser(uid);
-  } catch (error) {
-    if (error?.code === "auth/user-not-found") missingAuthUids.push(uid);
-    else throw error;
-  }
+  try { await auth.getUser(uid); }
+  catch (error) { if (error?.code === "auth/user-not-found") missingAuthUids.push(uid); else throw error; }
 }
 if (missingAuthUids.length) fail(`missing comprehensive Auth users: ${missingAuthUids.join(", ")}`);
 
 console.log("Comprehensive TEST population verified successfully.");
-console.log("- Members: 150 total, 30 in each youth section");
-console.log("- Public leadership: 6 Group executives + 20 section leaders/scouters");
+console.log("- Members: 150 total, exactly 30 in each youth section");
+console.log("- Who's Who: every Group executive option + Section Leader / Assistant Section Leader / Programme Scouter / Scouter in every youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
 console.log("- Leader/admin profiles: 26 leaders + 2 private website admins");
-console.log("- Firebase Auth: all 38 comprehensive identities present (unrelated E2E identities ignored)");
+console.log("- Firebase Auth: all 38 comprehensive identities present");
