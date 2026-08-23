@@ -290,6 +290,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /publicSiteContent/{contentId} {
+      allow get: if contentId == "TEST_site"
+        && resource.data.contentVersion == 1
+        && resource.data.testData == true
+        && resource.data.testSeed == "public-site-content-v1"
+        && resource.data.createdBySeed == "TEST_SEED";
+      allow list, create, update, delete: if false;
+    }
+
     match /auditLog/{entryId} {
       allow get, list: if isAdmin();
       allow create: if isActiveLeader()
