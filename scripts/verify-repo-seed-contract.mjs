@@ -5,8 +5,6 @@ const ROOT = process.cwd();
 const APPROVED_SEEDS = [
   "scripts/seed-population-data.mjs",
   "scripts/seed-flow-data.mjs",
-  "scripts/seed-test-data.mjs",
-  "scripts/seed-e2e-auth-users.mjs",
   "scripts/seed-playwright-records.mjs"
 ];
 const EXCLUDED_DIRS = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".firebase"]);
@@ -14,6 +12,7 @@ const MIGRATION_ONLY_FILES = new Set([
   "scripts/backfill-organisation-leadership.mjs",
   "scripts/inspect-legacy-test-references.mjs",
   "scripts/repair-firestore-compatibility.mjs",
+  "scripts/repair-parent-account-linked-sections.mjs",
   "scripts/reconcile-seeded-accounts.mjs",
   "scripts/purge-test-data.mjs",
   "tests/unit/noLegacyAdminFixture.test.ts"
@@ -28,10 +27,13 @@ const EXCLUDED_FILES = new Set([
   "scripts/audit-firestore-compatibility.mjs"
 ]);
 const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_ROLE_OVERRIDES"]);
-const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules"]);
+const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules", ".ps1"]);
 
 for (const seed of APPROVED_SEEDS) {
   if (!existsSync(join(ROOT, seed))) throw new Error(`Approved seed source is missing: ${seed}`);
+}
+for (const retired of ["scripts/seed-test-data.mjs", "scripts/seed-e2e-auth-users.mjs"]) {
+  if (existsSync(join(ROOT, retired))) throw new Error(`Retired overlapping seed must be removed: ${retired}`);
 }
 
 const seedCorpus = APPROVED_SEEDS.map((file) => readFileSync(join(ROOT, file), "utf8")).join("\n");
@@ -42,7 +44,6 @@ const allowedEmails = new Set(seedCorpus.match(/[A-Za-z0-9._%+-]+@example\.com/g
 const sectionKeys = ["beaver", "cub", "scout", "venture", "rover"];
 const sectionRoleKeys = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const groupRoleKeys = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
-
 for (const section of sectionKeys) {
   for (let i = 1; i <= 30; i += 1) {
     const n = String(i).padStart(2, "0");
@@ -63,7 +64,23 @@ for (const role of groupRoleKeys) {
   allowedEmails.add(`test.${role.replaceAll("_", ".")}@example.com`);
 }
 
-const legacyForbidden = ["TEST_uid_admin_01", "test.admin@example.com", "Orla Kelly"];
+const legacyForbidden = [
+  "TEST_uid_admin_01",
+  "test.admin@example.com",
+  "Orla Kelly",
+  "test.leader.parent@example.com",
+  "test.leader.only@example.com",
+  "test.leader.multisection@example.com"
+];
+const forbiddenRuntimePatterns = [
+  { pattern: /data\.section\s*\|\|/g, label: "legacy leader section fallback" },
+  { pattern: /data\.scoutSection/g, label: "legacy scoutSection read" },
+  { pattern: /formType\s*===?\s*["']youth["']/g, label: "legacy youth formType" },
+  { pattern: /formType\s*===?\s*["']scouter["']/g, label: "legacy scouter formType" },
+  { pattern: /status[^\n]*\|\|\s*["']active["']/g, label: "fail-open active status default" },
+  { pattern: /status[^\n]*\|\|\s*["']draft["']/g, label: "fail-open draft status default" },
+  { pattern: /role[^\n]*\|\|\s*["']leader["']/g, label: "fail-open leader role default" }
+];
 
 function walk(dir) {
   const files = [];
@@ -102,13 +119,20 @@ for (const fullPath of walk(ROOT)) {
   for (const email of new Set(content.match(/[A-Za-z0-9._%+-]+@example\.com/g) || [])) {
     if (email.startsWith("test.") && !allowedEmails.has(email)) violations.push(`${path}: unseeded test email ${email}`);
   }
+
+  if ((path.startsWith("src/") || path === "firestore.rules" || path.startsWith("email-worker/src/")) && !MIGRATION_ONLY_FILES.has(path)) {
+    for (const { pattern, label } of forbiddenRuntimePatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(content)) violations.push(`${path}: ${label}`);
+    }
+  }
 }
 
 if (violations.length) {
-  console.error("Repository seed-contract violations found:");
+  console.error("Repository canonical data-contract violations found:");
   for (const violation of [...new Set(violations)].sort()) console.error(`- ${violation}`);
   process.exit(1);
 }
 
-console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} active seed sources.`);
-console.log("Migration/repair files are isolated from the consumer contract and may reference legacy IDs solely to remove or repair them.");
+console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} canonical seed sources.`);
+console.log("Runtime code is forbidden from silently accepting legacy field/status/role aliases; migration-only scripts are isolated for explicit repair/removal.");
