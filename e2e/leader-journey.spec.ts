@@ -49,7 +49,7 @@ test.describe("leader journey", () => {
     if (seededJourneyData) {
       await expect(page.getByText("Patrick Doyle")).toBeVisible();
       await expect(page.getByText("test.leader.pending@example.com")).toBeVisible();
-      await expect(page.getByText(/Section Leader · Cubs/)).toBeVisible();
+      await expect(page.getByText(/Programme Scouter · Cubs/)).toBeVisible();
       await expect(page.getByRole("button", { name: "Review Request" })).toBeVisible();
     }
   });
