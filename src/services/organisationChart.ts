@@ -22,6 +22,7 @@ export type OrganisationLeader = {
 
 const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v1";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
+const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -109,10 +110,14 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  const hosted = await loadHostedPublicSnapshot();
-  if (hosted !== null) {
-    writePublicCache(hosted);
-    return hosted;
+  // Emulator builds must exercise the seeded Firestore data and security rules directly.
+  // Production prefers the hosted public-safe snapshot so anonymous page views do not spend Firestore quota.
+  if (!USE_FIRESTORE_EMULATOR) {
+    const hosted = await loadHostedPublicSnapshot();
+    if (hosted !== null) {
+      writePublicCache(hosted);
+      return hosted;
+    }
   }
 
   try {
