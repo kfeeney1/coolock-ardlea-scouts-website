@@ -42,7 +42,8 @@ jobs:
         run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
 
       - name: Run Firestore rules tests
-        run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test tests/firestore/*.test.mjs"
+        # Each file clears the same emulator project in beforeEach, so file-level parallelism causes cross-test data races.
+        run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
 
       - name: Authenticate to Firebase
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
