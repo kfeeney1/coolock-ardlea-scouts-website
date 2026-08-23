@@ -15,10 +15,30 @@ function isPublicScoutingPosition(role) {
   return !/\b(admin|administrator|super\s*admin)\b/.test(value);
 }
 
-const snapshot = await db.collection("organisationLeadership").get();
-const leaders = snapshot.docs
+function isPrivilegedAccessRole(role) {
+  const value = typeof role === "string" ? role.trim().toLowerCase() : "";
+  return value === "admin" || value === "super-admin";
+}
+
+const [organisationSnapshot, adminSnapshot] = await Promise.all([
+  db.collection("organisationLeadership").get(),
+  db.collection("adminUsers").get()
+]);
+
+const privilegedUids = new Set(
+  adminSnapshot.docs
+    .filter((item) => isPrivilegedAccessRole(item.data()?.role))
+    .map((item) => item.id)
+);
+
+const leaders = organisationSnapshot.docs
   .map((item) => ({ uid: item.id, ...item.data() }))
-  .filter((leader) => leader.active !== false && leader.showPublicly === true && isPublicScoutingPosition(leader.scoutingRole))
+  .filter((leader) =>
+    leader.active !== false &&
+    leader.showPublicly === true &&
+    !privilegedUids.has(leader.uid) &&
+    isPublicScoutingPosition(leader.scoutingRole)
+  )
   .map((leader) => ({
     uid: leader.uid,
     displayName: typeof leader.displayName === "string" ? leader.displayName.trim() : "Leader",
