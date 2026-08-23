@@ -9,6 +9,7 @@ initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const auth = getAuth();
 const TEST_SEED = "comprehensive-population-v2";
+const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 const SECTIONS = [
   { section: "Beavers", key: "beaver" },
   { section: "Cubs", key: "cub" },
@@ -54,7 +55,7 @@ for (const { section } of SECTIONS) {
   for (const role of SECTION_ROLES) if (!roles.has(role)) fail(`${section} is missing public role ${role}`);
 }
 
-for (const uid of ["TEST_uid_admin_01", "TEST_uid_super_admin_01"]) {
+for (const uid of [WEB_ADMIN_UID, "TEST_uid_super_admin_01"]) {
   if (publicLeadership.some((doc) => doc.id === uid)) fail(`${uid} is present in publicLeadership`);
   const profile = adminUsers.find((doc) => doc.id === uid);
   if (!profile) fail(`${uid} admin profile is missing`);
@@ -70,7 +71,7 @@ const expectedAuthUids = new Set([
   ...GROUP_ROLE_KEYS.map((key) => `TEST_uid_${key}`),
   ...SECTIONS.flatMap(({ key }) => SECTION_ROLE_KEYS.map((roleKey) => `TEST_uid_${key}_${roleKey}`)),
   ...SECTIONS.flatMap(({ key }) => [1, 2].map((number) => `TEST_uid_${key}_parent_${number}`)),
-  "TEST_uid_admin_01",
+  WEB_ADMIN_UID,
   "TEST_uid_super_admin_01"
 ]);
 if (expectedAuthUids.size !== 38) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 38`);
