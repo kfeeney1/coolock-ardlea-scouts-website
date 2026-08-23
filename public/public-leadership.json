@@ -1,5 +1,4 @@
 [
-  {"uid":"TEST_uid_admin_01","displayName":"Orla Kelly","scoutingRole":"Group Leader","organisationSection":"Group","organisationOrder":1,"reportsToUid":"","showPublicly":true,"active":true},
   {"uid":"TEST_uid_leader_parent_01","displayName":"Niamh Murphy","scoutingRole":"Beaver Section Leader","organisationSection":"Beavers","organisationOrder":10,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
   {"uid":"TEST_uid_leader_only_01","displayName":"Aisling Ryan","scoutingRole":"Scout Section Leader","organisationSection":"Scouts","organisationOrder":10,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
   {"uid":"TEST_uid_multi_section_leader_01","displayName":"Conor Walsh","scoutingRole":"Assistant Section Leader","organisationSection":"Cubs","organisationOrder":20,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
