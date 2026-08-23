@@ -17,12 +17,7 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion",
-  "deputy group leader",
-  "programme scouter",
-  "elected member",
-  "group elected member",
-  "group council elected member"
+  "group youth champion"
 ]);
 
 function roleKey(role) {
@@ -32,9 +27,7 @@ function roleKey(role) {
 }
 
 function isPublicGroupRole(role) {
-  const value = roleKey(role);
-  if (PUBLIC_GROUP_ROLES.has(value)) return true;
-  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
+  return PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
 
 function isPrivilegedAccessRole(role) {
