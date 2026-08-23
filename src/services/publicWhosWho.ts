@@ -2,6 +2,8 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { isAllowedPublicAppointment } from "./publicWhosWhoLogic";
 
+const PUBLIC_PROJECTION_VERSION = 2;
+
 export type PublicWhosWhoLeader = {
   uid: string;
   displayName: string;
@@ -25,7 +27,9 @@ export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
       const organisationSection = text(data.organisationSection);
       const active = data.active === true;
       const showPublicly = data.showPublicly === true;
-      if (!active || !showPublicly || !displayName || !isAllowedPublicAppointment(scoutingRole, organisationSection)) return null;
+      const currentProjection = data.publicProjectionVersion === PUBLIC_PROJECTION_VERSION;
+      const sourcedFromLeader = text(data.sourceAccessRole).toLowerCase() === "leader";
+      if (!active || !showPublicly || !currentProjection || !sourcedFromLeader || !displayName || !isAllowedPublicAppointment(scoutingRole, organisationSection)) return null;
       return {
         uid: item.id,
         displayName,
