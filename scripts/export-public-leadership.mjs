@@ -3,6 +3,7 @@ import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+const requirePublicLeaders = String(process.env.REQUIRE_PUBLIC_LEADERS || "").toLowerCase() === "true";
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
@@ -23,6 +24,10 @@ const leaders = snapshot.docs
     active: true
   }))
   .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
+
+if (requirePublicLeaders && leaders.length === 0) {
+  throw new Error("Public organisation export returned zero leaders; preserving the checked-in test snapshot instead.");
+}
 
 await mkdir("public", { recursive: true });
 await writeFile("public/public-leadership.json", `${JSON.stringify(leaders, null, 2)}\n`, "utf8");
