@@ -4,7 +4,7 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 const seededJourneyData = process.env.E2E_LEADER_JOURNEY_SEEDED === "true";
 const pendingLeaderEmail = "test.leader.pending@example.com";
 const leaderEmail = "test.leader.only@example.com";
-const adminEmail = "test.admin@example.com";
+const adminEmail = "test.webadmin@example.com";
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Leader journey checks run once on desktop Chromium.");
