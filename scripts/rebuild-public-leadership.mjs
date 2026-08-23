@@ -44,6 +44,10 @@ for (const doc of organisationSnapshot.docs) {
   if (access.active === false || source.active === false || source.showPublicly !== true) continue;
   if (!isPublicRole(source.scoutingRole, source.organisationSection)) continue;
 
+  const testMarker = source.testData === true
+    ? { testData: true, testSeed: source.testSeed || "public-projection-test", createdBySeed: source.createdBySeed || "TEST_SEED" }
+    : {};
+
   desired.set(doc.id, {
     displayName: text(source.displayName),
     scoutingRole: text(source.scoutingRole),
@@ -52,6 +56,7 @@ for (const doc of organisationSnapshot.docs) {
     reportsToUid: text(source.reportsToUid),
     showPublicly: true,
     active: true,
+    ...testMarker,
     updatedAt: FieldValue.serverTimestamp()
   });
 }
