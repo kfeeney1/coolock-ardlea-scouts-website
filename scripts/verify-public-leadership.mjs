@@ -6,6 +6,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
+const PUBLIC_PROJECTION_VERSION = 2;
 
 const GROUP_ROLES = new Set([
   "group leader",
@@ -26,7 +27,6 @@ function eligibleRole(role, section) {
   if (YOUTH_SECTIONS.has(sectionKey)) return Boolean(text(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
-function privileged(role) { return ["admin", "super-admin"].includes(text(role).toLowerCase()); }
 function fail(message) { throw new Error(`Public Who's Who verification failed: ${message}`); }
 
 const [adminSnapshot, organisationSnapshot, publicSnapshot] = await Promise.all([
@@ -44,9 +44,11 @@ for (const [uid, data] of publicByUid) {
   const source = organisationByUid.get(uid);
   if (!access) fail(`${uid} has no matching adminUsers access profile`);
   if (!source) fail(`${uid} has no matching organisationLeadership record`);
-  if (privileged(access.role)) fail(`${uid} has privileged access role ${JSON.stringify(access.role)}`);
+  if (text(access.role).toLowerCase() !== "leader") fail(`${uid} has non-leader access role ${JSON.stringify(access.role)}`);
   if (access.active === false) fail(`${uid} access profile is inactive`);
   if (source.active === false || source.showPublicly !== true) fail(`${uid} source organisation record is not active/public`);
+  if (data.sourceAccessRole !== "leader") fail(`${uid} is missing sourceAccessRole=leader`);
+  if (data.publicProjectionVersion !== PUBLIC_PROJECTION_VERSION) fail(`${uid} has stale projection version ${JSON.stringify(data.publicProjectionVersion)}`);
   if (!eligibleRole(data.scoutingRole, data.organisationSection)) fail(`${uid} has ineligible public appointment ${JSON.stringify(data.organisationSection)} / ${JSON.stringify(data.scoutingRole)}`);
   if (text(data.displayName) !== text(source.displayName)) fail(`${uid} displayName does not match authoritative organisation record`);
   if (text(data.scoutingRole) !== text(source.scoutingRole)) fail(`${uid} scoutingRole does not match authoritative organisation record`);
@@ -56,7 +58,7 @@ for (const [uid, data] of publicByUid) {
 const expected = [];
 for (const [uid, source] of organisationByUid) {
   const access = adminByUid.get(uid);
-  if (!access || privileged(access.role)) continue;
+  if (!access || text(access.role).toLowerCase() !== "leader") continue;
   if (access.active === false || source.active === false || source.showPublicly !== true) continue;
   if (!eligibleRole(source.scoutingRole, source.organisationSection)) continue;
   expected.push(uid);
@@ -65,4 +67,4 @@ for (const [uid, source] of organisationByUid) {
 
 if (publicByUid.size !== expected.length) fail(`expected ${expected.length} public records, found ${publicByUid.size}`);
 
-console.log(`Public Who's Who verified: ${publicByUid.size} eligible leader record(s), zero admin/super-admin identities.`);
+console.log(`Public Who's Who verified: ${publicByUid.size} current v${PUBLIC_PROJECTION_VERSION} leader record(s), zero non-leader identities.`);
