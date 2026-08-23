@@ -44,7 +44,6 @@ const firstNames = ["Alex", "Jamie", "Sam", "Charlie", "Taylor", "Jordan", "Case
 const lastNames = ["Kelly", "Murphy", "Byrne", "Ryan", "Walsh", "Doyle", "OBrien", "Nolan", "Flynn", "Reilly", "Kavanagh", "Murray", "Fitzgerald", "Dunne", "Brennan", "McCarthy", "Carroll", "Kennedy", "Lynch", "Quinn", "Moran", "Burke", "Casey", "Foley", "Hughes", "Power", "Daly", "Cullen", "Sweeney", "Keane"];
 
 function pad(value) { return String(value).padStart(2, "0"); }
-function slug(value) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
 
 function membersForSection(plan) {
   return Array.from({ length: 30 }, (_, index) => {
@@ -155,13 +154,13 @@ const parents = parentOnlyUsers();
 const authUsers = [...leaders, ...parents];
 
 async function upsertAuthUser(user) {
-  const authRecord = { uid: user.uid, email: user.email, password, displayName: user.displayName, disabled: false, emailVerified: true };
+  const properties = { email: user.email, password, displayName: user.displayName, disabled: false, emailVerified: true };
   try {
     await auth.getUser(user.uid);
-    await auth.updateUser(user.uid, authRecord);
+    await auth.updateUser(user.uid, properties);
   } catch (error) {
     if (error?.code !== "auth/user-not-found") throw error;
-    await auth.createUser(authRecord);
+    await auth.createUser({ uid: user.uid, ...properties });
   }
 }
 
@@ -176,6 +175,22 @@ async function upsert(collectionName, id, data) {
 async function seedMember(member) {
   const { id, ...data } = member;
   await upsert("members", id, data);
+}
+
+async function seedParentAccount(user) {
+  await upsert("parentAccounts", user.uid, {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    mobileNumber: "0878000000",
+    status: "approved",
+    memberIds: user.memberIds,
+    linkedSections: [user.section],
+    reviewedBy,
+    reviewedAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    testRoleType: user.kind || "parent-only"
+  });
 }
 
 async function seedLeader(user) {
@@ -214,25 +229,10 @@ async function seedLeader(user) {
       email: user.email,
       displayName: user.displayName,
       section: user.organisationSection,
-      memberIds: user.memberIds
+      memberIds: user.memberIds,
+      kind: user.kind
     });
   }
-}
-
-async function seedParentAccount(user) {
-  await upsert("parentAccounts", user.uid, {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    mobileNumber: "0878000000",
-    status: "approved",
-    memberIds: user.memberIds,
-    linkedSections: [user.section],
-    reviewedBy,
-    reviewedAt: FieldValue.serverTimestamp(),
-    createdAt: FieldValue.serverTimestamp(),
-    testRoleType: user.kind || "parent-only"
-  });
 }
 
 async function seed() {
