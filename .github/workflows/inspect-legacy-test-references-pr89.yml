@@ -1,0 +1,26 @@
+name: PR 89 Inspect Legacy Test References
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/inspect-legacy-test-references.mjs"
+      - ".github/workflows/inspect-legacy-test-references-pr89.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: ${{ github.head_ref == 'fix/whos-who-core-roles-only' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --ignore-scripts firebase-admin
+      - name: Inspect only non-sensitive compatibility metadata
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/inspect-legacy-test-references.mjs
