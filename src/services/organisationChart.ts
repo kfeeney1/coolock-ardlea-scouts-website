@@ -20,11 +20,6 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v9";
-const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
-const PUBLIC_SNAPSHOT_CONTRACT_VERSION = 9;
-const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
-
 const PUBLIC_GROUP_ROLES = new Set([
   "group leader",
   "group chairperson",
@@ -105,51 +100,6 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
   return sortOrganisation(snapshot.docs.map((item) => mapLeader(item.id, item.data())));
 }
 
-function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
-  if (!Array.isArray(value)) return null;
-  if (value.some((item) => !item || typeof item !== "object" || Array.isArray(item) || (item as Record<string, unknown>).snapshotContractVersion !== PUBLIC_SNAPSHOT_CONTRACT_VERSION)) {
-    return null;
-  }
-  return filterPublicOrganisation(sortOrganisation(
-    value
-      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item) && item.publicEligible === true)
-      .map((item) => mapLeader(text(item.uid), item))
-      .filter((leader) => leader.uid)
-  ));
-}
-
-async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
-  if (typeof fetch !== "function") return null;
-  try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?contract=${PUBLIC_SNAPSHOT_CONTRACT_VERSION}`, { cache: "no-store" });
-    if (!response.ok) return null;
-    return mapSnapshotPayload(await response.json());
-  } catch {
-    return null;
-  }
-}
-
-function readPublicCache(): OrganisationLeader[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(PUBLIC_CACHE_KEY);
-    if (!raw) return [];
-    return mapSnapshotPayload(JSON.parse(raw)) ?? [];
-  } catch {
-    return [];
-  }
-}
-
-function writePublicCache(leaders: OrganisationLeader[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    const payload = leaders.map((leader) => ({ ...leader, publicEligible: true, snapshotContractVersion: PUBLIC_SNAPSHOT_CONTRACT_VERSION }));
-    window.localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify(payload));
-  } catch {
-    // Storage can be unavailable in privacy modes.
-  }
-}
-
 export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
   try {
     return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
@@ -160,24 +110,8 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  if (USE_FIRESTORE_EMULATOR) {
-    return filterPublicOrganisation(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
-  }
-
-  const hosted = await loadHostedPublicSnapshot();
-  if (hosted && hosted.length > 0) {
-    writePublicCache(hosted);
-    return hosted;
-  }
-
-  const cached = readPublicCache();
-  if (cached.length > 0) {
-    console.warn("Hosted public organisation snapshot unavailable or stale; using last verified current-contract snapshot.");
-    return cached;
-  }
-
-  console.warn("Hosted public organisation snapshot unavailable, empty, or stale; refusing to render unverified fallback leadership data.");
-  return [];
+  const snapshot = await getDocs(collection(db, "publicLeadership"));
+  return filterPublicOrganisation(mapOrganisation(snapshot));
 }
 
 export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {
