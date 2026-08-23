@@ -27,10 +27,12 @@ const SECTION_ROLE_KEYS = [
 ];
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 const SUPER_ADMIN_UID = "TEST_uid_super_admin_01";
+const MULTI_SECTION_LEADER_UID = "TEST_uid_multi_section_leader";
 
 const leaderUids = new Set([
   ...GROUP_ROLE_KEYS.map((key) => `TEST_uid_${key}`),
   ...SECTION_KEYS.flatMap((section) => SECTION_ROLE_KEYS.map((role) => `TEST_uid_${section}_${role}`)),
+  MULTI_SECTION_LEADER_UID,
   WEB_ADMIN_UID,
   SUPER_ADMIN_UID
 ]);
