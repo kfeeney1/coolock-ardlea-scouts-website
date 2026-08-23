@@ -2,7 +2,7 @@
 
 The Playwright suite always runs public-page, Parent Portal UI and unauthenticated route-protection checks.
 
-Authenticated permission tests use six Firebase Authentication users created by the normal **Seed Firebase Test Data** workflow. Their email addresses are fixed test values and are not secrets. All six accounts share one password stored securely in GitHub Actions.
+Authenticated permission tests use Firebase Authentication users created by the active E2E seed scripts. Their email addresses are fixed synthetic test values and are not secrets. All accounts share one password stored securely in GitHub Actions.
 
 ## Seeded E2E accounts
 
@@ -15,7 +15,7 @@ Authenticated permission tests use six Firebase Authentication users created by 
 | Admin | `test.webadmin@example.com` | Active `admin` |
 | Super Admin | `test.superadmin@example.com` | Active `super-admin` |
 
-The tests are read-only: they sign in, navigate and inspect access controls. They do not approve requests, edit members, change events or send notifications.
+Every hard-coded test identity or `TEST_*` record consumed by application tests, E2E specs, workflows, or utility code is checked by the repository seed-contract quality gate. A consumer may only reference data defined by an active seed source. Migration and repair scripts are the only exception; they may name retired IDs solely so those records can be detected or removed.
 
 ## One GitHub Actions secret
 
@@ -38,9 +38,7 @@ After `E2E_TEST_USER_PASSWORD` exists:
 4. Tick the confirmation box.
 5. Run the workflow.
 
-The workflow seeds the existing Firestore test records and then creates or updates all six Firebase Authentication users. Re-running `seed` is safe: it refreshes the same test UIDs and resets them to the configured shared test password.
-
-Running the same workflow with `cleanup` removes the known test documents and all six test Authentication users. The companion E2E seeder refuses to delete its extra role records unless they still carry the `testData=true` marker.
+The workflow creates or updates the deterministic test records and Authentication users. Re-running `seed` refreshes the same test UIDs and resets them to the configured shared test password.
 
 ## Coverage
 
