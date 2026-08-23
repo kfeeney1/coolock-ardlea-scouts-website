@@ -5,13 +5,12 @@ const ROOT = process.cwd();
 const APPROVED_SEEDS = [
   "scripts/seed-population-data.mjs",
   "scripts/seed-flow-data.mjs",
+  "scripts/seed-public-site-content.mjs",
   "scripts/seed-playwright-records.mjs"
 ];
 const EXCLUDED_DIRS = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".firebase"]);
 const MIGRATION_ONLY_FILES = new Set([
-  "scripts/backfill-organisation-leadership.mjs",
   "scripts/inspect-legacy-test-references.mjs",
-  "scripts/repair-firestore-compatibility.mjs",
   "scripts/repair-parent-account-linked-sections.mjs",
   "scripts/reconcile-seeded-accounts.mjs",
   "scripts/purge-test-data.mjs",
@@ -24,16 +23,22 @@ const EXCLUDED_FILES = new Set([
   "scripts/verify-playwright-seed-contract.mjs",
   "scripts/verify-test-population.mjs",
   "scripts/verify-flow-data.mjs",
-  "scripts/audit-firestore-compatibility.mjs"
+  "scripts/audit-firestore-compatibility.mjs",
+  "scripts/audit-live-data-provenance.mjs"
 ]);
-const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_ROLE_OVERRIDES"]);
+const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT"]);
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules", ".ps1"]);
 
 for (const seed of APPROVED_SEEDS) {
   if (!existsSync(join(ROOT, seed))) throw new Error(`Approved seed source is missing: ${seed}`);
 }
-for (const retired of ["scripts/seed-test-data.mjs", "scripts/seed-e2e-auth-users.mjs"]) {
-  if (existsSync(join(ROOT, retired))) throw new Error(`Retired overlapping seed must be removed: ${retired}`);
+for (const retired of [
+  "scripts/seed-test-data.mjs",
+  "scripts/seed-e2e-auth-users.mjs",
+  "scripts/backfill-organisation-leadership.mjs",
+  "scripts/repair-firestore-compatibility.mjs"
+]) {
+  if (existsSync(join(ROOT, retired))) throw new Error(`Retired data source must be removed: ${retired}`);
 }
 
 const seedCorpus = APPROVED_SEEDS.map((file) => readFileSync(join(ROOT, file), "utf8")).join("\n");
@@ -81,6 +86,18 @@ const forbiddenRuntimePatterns = [
   { pattern: /status[^\n]*\|\|\s*["']draft["']/g, label: "fail-open draft status default" },
   { pattern: /role[^\n]*\|\|\s*["']leader["']/g, label: "fail-open leader role default" }
 ];
+const PUBLIC_PRESENTATION_ROOTS = ["src/pages/", "src/components/"];
+const publicDataLiterals = [
+  "80th 160th Coolock Ardlea Scout Group",
+  "Ages 6–9",
+  "Ages 9–12",
+  "Ages 12–15",
+  "Ages 15–18",
+  "Ages 18–26"
+];
+const publicLiteralAllowedFiles = new Set([
+  "src/services/publicSiteContent.ts"
+]);
 
 function walk(dir) {
   const files = [];
@@ -126,6 +143,24 @@ for (const fullPath of walk(ROOT)) {
       if (pattern.test(content)) violations.push(`${path}: ${label}`);
     }
   }
+
+  if (PUBLIC_PRESENTATION_ROOTS.some((root) => path.startsWith(root)) && !publicLiteralAllowedFiles.has(path)) {
+    for (const literal of publicDataLiterals) {
+      if (content.includes(literal)) violations.push(`${path}: mutable public/domain data literal must come from Firestore: ${literal}`);
+    }
+    if (/const\s+(?:sectionOptions|featureCards|menuItems)\s*=/.test(content)) {
+      violations.push(`${path}: mutable public option/content collection is hard-coded in presentation code`);
+    }
+  }
+}
+
+const obsoletePathPatterns = [
+  /^leader-.*-backup-/,
+  /(?:^|\/)JoinManagement\.tsx\.(?:filter|waiting-filter)-backup-/
+];
+for (const fullPath of walk(ROOT)) {
+  const path = relative(ROOT, fullPath).replaceAll("\\", "/");
+  if (obsoletePathPatterns.some((pattern) => pattern.test(path))) violations.push(`${path}: obsolete source backup must not remain in the supported repository`);
 }
 
 if (violations.length) {
@@ -135,4 +170,4 @@ if (violations.length) {
 }
 
 console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} canonical seed sources.`);
-console.log("Runtime code is forbidden from silently accepting legacy field/status/role aliases; migration-only scripts are isolated for explicit repair/removal.");
+console.log("Runtime code may not silently accept legacy aliases, presentation code may not own mutable organisation/domain content, and obsolete source backups are forbidden.");
