@@ -85,6 +85,7 @@ jobs:
         run: |
           node scripts/seed-population-data.mjs seed
           node scripts/seed-flow-data.mjs
+          node scripts/seed-public-site-content.mjs seed
           node scripts/seed-playwright-records.mjs
           node scripts/rebuild-public-leadership.mjs
           node scripts/verify-test-population.mjs
