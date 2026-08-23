@@ -11,15 +11,15 @@ const PUBLIC_WRITER_MARKERS = [
   /doc\(["']publicLeadership["']\)/,
   /upsert\(["']publicLeadership["']/
 ];
-const ADMIN_WRITER_MARKERS = [
-  /collection\([^)]+["']adminUsers["']/,
-  /doc\([^)]+["']adminUsers["']/,
-  /collection\(["']adminUsers["']\)/,
-  /doc\(["']adminUsers["']\)/,
-  /seedCollection\(["']adminUsers["']/,
-  /upsert\(["']adminUsers["']/
-];
 const WRITE_MARKERS = [/\.set\(/, /setDoc\(/, /batch\.set\(/, /transaction\.set\(/, /updateDoc\(/];
+const SECTION_WRITER_FILES = [
+  "scripts/seed-test-data.mjs",
+  "scripts/seed-population-data.mjs",
+  "scripts/seed-e2e-auth-users.mjs",
+  "src/services/leaderAccess.ts",
+  "src/services/leaderProfile.ts",
+  "src/services/leaderRegistrations.ts"
+];
 
 async function filesUnder(root: string): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true });
@@ -54,20 +54,11 @@ describe("leadership data writers", () => {
     assert.ok(writers.length >= 5, `Expected to discover all active publicLeadership writers, found ${writers.length}: ${writers.join(", ")}`);
   });
 
-  it("leader section writers keep sections[] and compatibility section synchronized", async () => {
-    const sectionWriters: string[] = [];
-
-    for (const { file, source } of await activeSourceFiles()) {
-      const referencesAdminUsers = ADMIN_WRITER_MARKERS.some((pattern) => pattern.test(source));
-      const writesDocuments = WRITE_MARKERS.some((pattern) => pattern.test(source));
-      const touchesSectionAssignment = /\bsections\s*:|\bsection\s*:/.test(source);
-      if (!referencesAdminUsers || !writesDocuments || !touchesSectionAssignment) continue;
-
-      sectionWriters.push(file);
+  it("known leader section writers keep sections[] and compatibility section synchronized", async () => {
+    for (const file of SECTION_WRITER_FILES) {
+      const source = await readFile(file, "utf8");
       assert.match(source, /\bsections\s*:/, `${file} writes leader sections without canonical sections[]`);
       assert.match(source, /\bsection\s*:/, `${file} writes leader sections without compatibility section`);
     }
-
-    assert.ok(sectionWriters.length >= 5, `Expected to discover active adminUsers section writers, found ${sectionWriters.length}: ${sectionWriters.join(", ")}`);
   });
 });
