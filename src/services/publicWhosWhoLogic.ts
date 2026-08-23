@@ -1,3 +1,5 @@
+export const PUBLIC_PROJECTION_VERSION = 2;
+
 const GROUP_ROLES = new Set([
   "group leader",
   "group chairperson",
@@ -24,4 +26,10 @@ export function isAllowedPublicAppointment(role: string, section: string): boole
   const sectionKey = section.toLowerCase().trim();
   if (YOUTH_SECTIONS.has(sectionKey)) return role.trim().length > 0;
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
+}
+
+export function isCurrentPublicProjection(data: Record<string, unknown>): boolean {
+  return data.publicProjectionVersion === PUBLIC_PROJECTION_VERSION
+    && typeof data.sourceAccessRole === "string"
+    && data.sourceAccessRole.trim().toLowerCase() === "leader";
 }
