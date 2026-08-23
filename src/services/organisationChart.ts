@@ -21,7 +21,7 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v2";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v3";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
@@ -74,7 +74,7 @@ function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   if (!Array.isArray(value)) return null;
   return filterPublicScoutingPositions(sortOrganisation(
     value
-      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item) && item.publicEligible === true)
       .map((item) => mapLeader(text(item.uid), item))
       .filter((leader) => leader.uid)
   ));
@@ -85,7 +85,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=4`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=5`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -129,7 +129,8 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
   }
 
   // Production public pages must never depend on Firestore availability or quota.
-  // Public Who's Who is additionally restricted to genuine scouting positions, never website/admin roles.
+  // Hosted/bundled snapshots must also carry an explicit eligibility marker proving
+  // they were produced after privileged website accounts were excluded.
   const hosted = await loadHostedPublicSnapshot();
   if (hosted && hosted.length > 0) {
     writePublicCache(hosted);
@@ -137,7 +138,7 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
   }
 
   if (bundledPublicLeaders.length > 0) {
-    if (hosted !== null) console.warn("Hosted public organisation snapshot is empty; using bundled public hierarchy.");
+    if (hosted !== null) console.warn("Hosted public organisation snapshot is empty or unverified; using bundled public hierarchy.");
     else console.warn("Hosted public organisation snapshot unavailable; using bundled public hierarchy.");
     writePublicCache(bundledPublicLeaders);
     return bundledPublicLeaders;

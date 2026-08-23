@@ -47,7 +47,8 @@ const leaders = organisationSnapshot.docs
     organisationOrder: typeof leader.organisationOrder === "number" ? leader.organisationOrder : 999,
     reportsToUid: typeof leader.reportsToUid === "string" ? leader.reportsToUid.trim() : "",
     showPublicly: true,
-    active: true
+    active: true,
+    publicEligible: true
   }))
   .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 
