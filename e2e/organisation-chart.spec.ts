@@ -20,15 +20,23 @@ test("legacy Who's Who URL redirects to About", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 });
 
-test("public Who's Who is included on the About page", async ({ page }) => {
+test("public Who's Who only shows approved Scout Group roles", async ({ page }) => {
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
   await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
+
   await expect(page.getByRole("heading", { name: "Niamh Murphy", exact: true })).toBeVisible();
-  await expect(page.getByText("Beaver Section Leader", { exact: true })).toBeVisible();
+  await expect(page.getByText("Beaver Programme Scouter", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Aisling Ryan", exact: true })).toBeVisible();
+  await expect(page.getByText("Scout Programme Scouter", { exact: true })).toBeVisible();
+
+  // A website admin remains private even when its scouting appointment is otherwise allowed.
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toHaveCount(0);
+  // Legacy/non-approved titles are rejected even when showPublicly is true in Firestore.
+  await expect(page.getByRole("heading", { name: "Conor Walsh", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Assistant Section Leader", { exact: true })).toHaveCount(0);
 });
 
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {
@@ -36,7 +44,7 @@ test("organisation chart rejects unauthenticated leader access", async ({ page }
   await expect(page).toHaveURL(/\/leader\/login$/);
 });
 
-test("section leader can open the internal organisation chart with leader data", async ({ page }, testInfo) => {
+test("programme scouter can open the internal organisation chart with leader data", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page, "test.leader.only@example.com");
