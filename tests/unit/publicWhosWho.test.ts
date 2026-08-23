@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { isAllowedPublicAppointment } from "../../src/services/publicWhosWho";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { isAllowedPublicAppointment } from "../../src/services/publicWhosWhoLogic.ts";
 
 describe("public Who's Who role policy", () => {
   it("allows the agreed Group executive roles", () => {
@@ -11,20 +12,20 @@ describe("public Who's Who role policy", () => {
       "Group Quartermaster / Bo'sun",
       "Group Youth Champion"
     ]) {
-      expect(isAllowedPublicAppointment(role, "Group")).toBe(true);
+      assert.equal(isAllowedPublicAppointment(role, "Group"), true);
     }
   });
 
   it("rejects internal Group administration titles", () => {
     for (const role of ["Group Council Administrator", "Elected Member", "Deputy Group Leader", "Admin", "Super Admin"]) {
-      expect(isAllowedPublicAppointment(role, "Group")).toBe(false);
+      assert.equal(isAllowedPublicAppointment(role, "Group"), false);
     }
   });
 
   it("allows legitimate section leadership titles", () => {
     for (const section of ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) {
       for (const role of ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]) {
-        expect(isAllowedPublicAppointment(role, section)).toBe(true);
+        assert.equal(isAllowedPublicAppointment(role, section), true);
       }
     }
   });
