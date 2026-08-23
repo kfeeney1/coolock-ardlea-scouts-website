@@ -15,6 +15,7 @@ import type { User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
+import { normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
 
 export type SystemRole = "super-admin" | "admin" | "leader";
 
@@ -37,27 +38,27 @@ type AdminAuthContextValue = {
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
-function normaliseRole(value: unknown): SystemRole {
-    if (value === "super-admin" || value === "admin") return value;
-    return "leader";
-}
-
 async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!snapshot.exists()) return null;
     const data = snapshot.data();
     if (data.active !== true) return null;
 
-    const legacySection = typeof data.section === "string" && data.section ? [data.section] : [];
-    const sections = Array.isArray(data.sections)
-        ? data.sections.filter((section): section is string => typeof section === "string")
-        : legacySection;
+    const sections = normalizeLeaderSections(data);
+    let role: SystemRole;
+    try {
+        role = normalizeLeaderRole(data.role);
+    } catch {
+        return null;
+    }
+
+    if (sections.length === 0) return null;
 
     return {
         uid: user.uid,
         email: user.email ?? "",
         displayName: typeof data.displayName === "string" ? data.displayName : user.email ?? "Leader",
-        role: normaliseRole(data.role),
+        role,
         sections
     };
 }
