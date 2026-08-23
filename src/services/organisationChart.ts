@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc
@@ -20,6 +21,7 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
+const PUBLIC_PROJECTION_VERSION = 2;
 const PUBLIC_GROUP_ROLES = new Set([
   "group leader",
   "group chairperson",
@@ -79,9 +81,10 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 
 export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {
   const privateRef = doc(db, "organisationLeadership", leader.uid);
+  const publicRef = doc(db, "publicLeadership", leader.uid);
   if (!leader.active) {
     await deleteDoc(privateRef);
-    await deleteDoc(doc(db, "publicLeadership", leader.uid));
+    await deleteDoc(publicRef);
     return;
   }
 
@@ -97,8 +100,11 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
   };
 
   await setDoc(privateRef, safe);
-  const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
+
+  const accessSnapshot = await getDoc(doc(db, "adminUsers", leader.uid));
+  const access = accessSnapshot.exists() ? accessSnapshot.data() : null;
+  const leaderAccess = text(access?.role).toLowerCase() === "leader" && access?.active !== false;
+  if (!leaderAccess || !leader.showPublicly || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
     await deleteDoc(publicRef);
     return;
   }
@@ -111,6 +117,8 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     reportsToUid: safe.reportsToUid,
     showPublicly: true,
     active: true,
+    publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
+    sourceAccessRole: "leader",
     updatedAt: serverTimestamp()
   });
 }
