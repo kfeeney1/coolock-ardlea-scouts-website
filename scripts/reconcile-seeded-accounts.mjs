@@ -8,6 +8,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const auth = getAuth();
+const checkOnly = process.argv.includes("--check");
 
 const SECTION_KEYS = ["beaver", "cub", "scout", "venture", "rover"];
 const GROUP_ROLE_KEYS = [
@@ -33,7 +34,6 @@ const leaderUids = new Set([
   WEB_ADMIN_UID,
   SUPER_ADMIN_UID
 ]);
-
 const parentOnlyUids = SECTION_KEYS.flatMap((section) => [1, 2].map((number) => `TEST_uid_${section}_parent_${number}`));
 const parentLeaderUids = SECTION_KEYS.map((section) => `TEST_uid_${section}_section_leader`);
 const flowParentUids = ["TEST_flow_parent_pending", "TEST_flow_parent_rejected"];
@@ -51,28 +51,28 @@ function isTestId(id) {
 
 async function reconcileCollection(collectionName, canonicalIds) {
   const snapshot = await db.collection(collectionName).get();
-  const removed = [];
+  const drift = [];
   for (const doc of snapshot.docs) {
     if (!isTestId(doc.id) || canonicalIds.has(doc.id)) continue;
-    await doc.ref.delete();
-    removed.push(doc.id);
+    drift.push(doc.id);
+    if (!checkOnly) await doc.ref.delete();
   }
-  return removed;
+  return drift;
 }
 
 async function reconcileAuth() {
-  const removed = [];
+  const drift = [];
   let nextPageToken;
   do {
     const page = await auth.listUsers(1000, nextPageToken);
     for (const user of page.users) {
       if (!isTestId(user.uid) || canonicalAuthUids.has(user.uid)) continue;
-      await auth.deleteUser(user.uid);
-      removed.push(user.uid);
+      drift.push(user.uid);
+      if (!checkOnly) await auth.deleteUser(user.uid);
     }
     nextPageToken = page.pageToken;
   } while (nextPageToken);
-  return removed;
+  return drift;
 }
 
 const results = {
@@ -80,25 +80,28 @@ const results = {
   adminUsers: await reconcileCollection("adminUsers", leaderUids),
   organisationLeadership: await reconcileCollection("organisationLeadership", leaderUids),
   parentAccounts: await reconcileCollection("parentAccounts", canonicalParentUids),
-  leaderRegistrationRequests: await reconcileCollection("leaderRegistrationRequests", canonicalLeaderRequestUids)
+  leaderRegistrationRequests: await reconcileCollection("leaderRegistrationRequests", canonicalLeaderRequestUids),
+  publicLeadership: await reconcileCollection("publicLeadership", leaderUids)
 };
 
-// publicLeadership is rebuilt from authoritative organisation/access records immediately
-// after this reconciliation, but remove stale TEST_ projections now as a fail-safe.
-results.publicLeadership = await reconcileCollection("publicLeadership", leaderUids);
-
-let removedTotal = 0;
+let driftTotal = 0;
 for (const [area, ids] of Object.entries(results)) {
-  removedTotal += ids.length;
-  console.log(`${area}: removed ${ids.length} legacy test record(s)${ids.length ? ` -> ${ids.join(", ")}` : ""}`);
+  driftTotal += ids.length;
+  console.log(`${area}: ${ids.length} ${checkOnly ? "legacy test record(s) found" : "legacy test record(s) removed"}${ids.length ? ` -> ${ids.join(", ")}` : ""}`);
 }
 
-// Re-read account-like collections and fail if any unexpected TEST_ identities remain.
+if (checkOnly) {
+  console.log(`Seed account drift inspection complete. ${driftTotal} non-canonical TEST_ account/reference record(s) currently exist.`);
+  console.log(`Canonical live test identities: ${canonicalAuthUids.size} Auth users, ${leaderUids.size} leader/admin records, ${canonicalParentUids.size} parent-account records.`);
+  process.exit(0);
+}
+
 const verificationTargets = [
   ["adminUsers", leaderUids],
   ["organisationLeadership", leaderUids],
   ["parentAccounts", canonicalParentUids],
-  ["leaderRegistrationRequests", canonicalLeaderRequestUids]
+  ["leaderRegistrationRequests", canonicalLeaderRequestUids],
+  ["publicLeadership", leaderUids]
 ];
 for (const [collectionName, canonicalIds] of verificationTargets) {
   const snapshot = await db.collection(collectionName).get();
@@ -115,5 +118,5 @@ do {
 } while (verifyPageToken);
 if (unexpectedAuth.length) throw new Error(`Firebase Auth still contains legacy TEST_ users: ${unexpectedAuth.join(", ")}`);
 
-console.log(`Seed account reconciliation complete. Removed ${removedTotal} legacy test account/reference record(s).`);
+console.log(`Seed account reconciliation complete. Removed ${driftTotal} legacy test account/reference record(s).`);
 console.log(`Canonical live test identities: ${canonicalAuthUids.size} Auth users, ${leaderUids.size} leader/admin records, ${canonicalParentUids.size} parent-account records.`);
