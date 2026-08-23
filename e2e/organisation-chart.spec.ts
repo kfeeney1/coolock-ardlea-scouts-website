@@ -20,25 +20,35 @@ test("legacy Who's Who URL redirects to About", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 });
 
-test("public Who's Who only shows approved Scout Group roles", async ({ page }) => {
+test("public Who's Who excludes every non-core role", async ({ page }) => {
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
-  await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
   await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
 
-  await expect(page.getByRole("heading", { name: "Niamh Murphy", exact: true })).toBeVisible();
-  await expect(page.getByText("Beaver Programme Scouter", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Aisling Ryan", exact: true })).toBeVisible();
-  await expect(page.getByText("Scout Programme Scouter", { exact: true })).toBeVisible();
+  const disallowedRoles = [
+    "Beaver Programme Scouter",
+    "Cub Programme Scouter",
+    "Scout Programme Scouter",
+    "Venture Programme Scouter",
+    "Programme Scouter",
+    "Deputy Group Leader",
+    "Elected Member",
+    "Group Elected Member",
+    "Group Council Elected Member",
+    "Assistant Section Leader",
+    "Group Council Administrator"
+  ];
+  for (const role of disallowedRoles) {
+    await expect(page.getByText(role, { exact: true })).toHaveCount(0);
+  }
 
-  // Website admin and super-admin accounts must never be present in the public leadership dataset or UI.
+  await expect(page.getByRole("heading", { name: "Niamh Murphy", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Aisling Ryan", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Test Super Admin", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Shared Tester Super Admin", exact: true })).toHaveCount(0);
-  // Legacy/non-approved titles are rejected even when showPublicly is true in Firestore.
   await expect(page.getByRole("heading", { name: "Conor Walsh", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Assistant Section Leader", { exact: true })).toHaveCount(0);
 });
 
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {
