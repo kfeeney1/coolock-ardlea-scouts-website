@@ -21,7 +21,7 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v1";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v2";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
@@ -85,7 +85,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=3`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=4`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
