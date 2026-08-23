@@ -6,6 +6,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
+const optInAllActiveLeaders = String(process.env.OPT_IN_ALL_ACTIVE_LEADERS || "").toLowerCase() === "true";
 
 const TEST_ROLE_OVERRIDES = {
   TEST_uid_leader_parent_01: { scoutingRole: "Beaver Section Leader", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true },
@@ -37,6 +38,7 @@ const adminSnapshot = await db.collection("adminUsers").get();
 const activeAdminDocs = adminSnapshot.docs.filter((adminDoc) => adminDoc.data().active === true);
 let created = 0;
 let preserved = 0;
+let optedIn = 0;
 let published = 0;
 let unpublished = 0;
 
@@ -49,6 +51,11 @@ for (const adminDoc of activeAdminDocs) {
   if (existing.exists) {
     preserved += 1;
     record = existing.data();
+    if (optInAllActiveLeaders && record.showPublicly !== true) {
+      record = { ...record, showPublicly: true, active: true, updatedAt: FieldValue.serverTimestamp() };
+      await orgRef.set({ showPublicly: true, active: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      optedIn += 1;
+    }
   } else {
     const override = TEST_ROLE_OVERRIDES[adminDoc.id];
     record = {
@@ -57,12 +64,13 @@ for (const adminDoc of activeAdminDocs) {
       organisationSection: override?.organisationSection || defaultSection(data),
       organisationOrder: override?.organisationOrder ?? 999,
       reportsToUid: override?.reportsToUid || "",
-      showPublicly: override?.showPublicly === true,
+      showPublicly: optInAllActiveLeaders || override?.showPublicly === true,
       active: true,
       updatedAt: FieldValue.serverTimestamp()
     };
     await orgRef.set(record);
     created += 1;
+    if (record.showPublicly) optedIn += 1;
   }
 
   const publicRef = db.collection("publicLeadership").doc(adminDoc.id);
@@ -83,4 +91,8 @@ if (missing.length > 0) {
   throw new Error(`Organisation backfill verification failed. Missing active leaders: ${missing.join(", ")}`);
 }
 
-console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${published} public records reconciled, ${unpublished} private-only records reconciled, ${activeAdminDocs.length} active leaders verified.`);
+if (optInAllActiveLeaders && published !== activeAdminDocs.length) {
+  throw new Error(`Organisation opt-in migration failed. Expected ${activeAdminDocs.length} public leaders but reconciled ${published}.`);
+}
+
+console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${optedIn} leader(s) opted in, ${published} public records reconciled, ${unpublished} private-only records reconciled, ${activeAdminDocs.length} active leaders verified.`);
