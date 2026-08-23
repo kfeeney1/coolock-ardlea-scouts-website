@@ -132,10 +132,24 @@ function cleanMedication(medication: MedicationManagementData) {
     };
 }
 
+let authorisedScouterPromise: Promise<string[]> | null = null;
+export const AUTHORISED_SCOUTERS: string[] = [];
+
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
-    const leaders = await getPublicWhosWho();
-    return [...new Set(leaders.map((leader) => leader.displayName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    if (!authorisedScouterPromise) {
+        authorisedScouterPromise = getPublicWhosWho()
+            .then((leaders) => [...new Set(leaders.map((leader) => leader.displayName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
+            .catch((error) => {
+                authorisedScouterPromise = null;
+                throw error;
+            });
+    }
+    return authorisedScouterPromise;
 }
+
+void loadAuthorisedScouterNames()
+    .then((names) => AUTHORISED_SCOUTERS.splice(0, AUTHORISED_SCOUTERS.length, ...names))
+    .catch((error) => console.error("Unable to load authorised Scouters from Firestore:", error));
 
 export async function submitYouthConsent(data: YouthConsentData): Promise<string> {
     const { scoutSection, ...canonicalData } = data;
