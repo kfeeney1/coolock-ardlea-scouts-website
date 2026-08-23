@@ -32,10 +32,10 @@ jobs:
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
       E2E_PARENT_EVENT_CONSENT_ENABLED: ${{ vars.E2E_PARENT_EVENT_CONSENT_ENABLED }}
       E2E_LEADER_JOURNEY_SEEDED: "true"
-      E2E_PARENT_EMAIL: test.parent.only@example.com
-      E2E_PARENT_LEADER_EMAIL: test.leader.parent@example.com
-      E2E_LEADER_EMAIL: test.leader.only@example.com
-      E2E_MULTI_SECTION_LEADER_EMAIL: test.leader.multisection@example.com
+      E2E_PARENT_EMAIL: test.cub.parent1@example.com
+      E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
+      E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
+      E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
       E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
       E2E_ADMIN_EMAIL: test.webadmin@example.com
       E2E_SUPER_ADMIN_EMAIL: test.superadmin@example.com
@@ -79,13 +79,16 @@ jobs:
       - name: Verify Playwright seed contract
         run: node scripts/verify-playwright-seed-contract.mjs
 
-      - name: Seed deterministic E2E datasets
+      - name: Seed canonical deterministic E2E dataset
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
-          node scripts/seed-test-data.mjs seed
-          node scripts/seed-e2e-auth-users.mjs seed
+          node scripts/seed-population-data.mjs seed
+          node scripts/seed-flow-data.mjs
           node scripts/seed-playwright-records.mjs
+          node scripts/rebuild-public-leadership.mjs
+          node scripts/verify-test-population.mjs
+          node scripts/verify-flow-data.mjs
 
       - name: Install Playwright test runner
         run: npm install --no-save --package-lock=false @playwright/test
