@@ -9,13 +9,12 @@ const PUBLIC_WRITER_MARKERS = [
   /doc\([^)]+["']publicLeadership["']/,
   /collection\(["']publicLeadership["']\)/,
   /doc\(["']publicLeadership["']\)/,
+  /replace\(["']publicLeadership["']/,
   /upsert\(["']publicLeadership["']/
 ];
 const WRITE_MARKERS = [/\.set\(/, /setDoc\(/, /batch\.set\(/, /transaction\.set\(/, /updateDoc\(/];
-const SECTION_WRITER_FILES = [
-  "scripts/seed-test-data.mjs",
+const CANONICAL_SECTION_WRITER_FILES = [
   "scripts/seed-population-data.mjs",
-  "scripts/seed-e2e-auth-users.mjs",
   "src/services/leaderAccess.ts",
   "src/services/leaderProfile.ts",
   "src/services/leaderRegistrations.ts"
@@ -51,14 +50,14 @@ describe("leadership data writers", () => {
       assert.match(source, /sourceAccessRole\s*:\s*["']leader["']/, `${file} writes publicLeadership without sourceAccessRole: leader`);
     }
 
-    assert.ok(writers.length >= 5, `Expected to discover all active publicLeadership writers, found ${writers.length}: ${writers.join(", ")}`);
+    assert.ok(writers.length >= 4, `Expected to discover all active publicLeadership writers, found ${writers.length}: ${writers.join(", ")}`);
   });
 
-  it("known leader section writers keep sections[] and compatibility section synchronized", async () => {
-    for (const file of SECTION_WRITER_FILES) {
+  it("canonical leader section writers use sections[] and never persist legacy section", async () => {
+    for (const file of CANONICAL_SECTION_WRITER_FILES) {
       const source = await readFile(file, "utf8");
-      assert.match(source, /\bsections\s*:/, `${file} writes leader sections without canonical sections[]`);
-      assert.match(source, /\bsection\s*:/, `${file} writes leader sections without compatibility section`);
+      assert.match(source, /\bsections\s*:/, `${file} does not write canonical sections[]`);
+      assert.doesNotMatch(source, /\bsection\s*:/, `${file} still writes legacy singular section`);
     }
   });
 });
