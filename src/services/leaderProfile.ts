@@ -27,6 +27,16 @@ const clean = (
     maxLength: number
 ): string => value.trim().slice(0, maxLength);
 
+function profileSections(data: Record<string, unknown>): string[] {
+    if (!Array.isArray(data.sections)) return [];
+    return [...new Set(
+        data.sections
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => clean(value, 40))
+            .filter(Boolean)
+    )];
+}
+
 export async function loadLeaderProfile(): Promise<
     LeaderProfileData
 > {
@@ -53,11 +63,12 @@ export async function loadLeaderProfile(): Promise<
     }
 
     const data = snapshot.data();
-    const primarySection = Array.isArray(data.sections)
-        ? data.sections.find((value): value is string => typeof value === "string" && value.trim().length > 0) ?? ""
-        : typeof data.section === "string"
+    const sections = profileSections(data);
+    const primarySection = sections[0] || (
+        typeof data.section === "string"
             ? data.section
-            : "";
+            : ""
+    );
 
     return {
         displayName:
@@ -93,17 +104,29 @@ export async function updateLeaderProfile(
         );
     }
 
-    const section = clean(
-        profile.section,
-        40
+    const profileRef = doc(
+        db,
+        "adminUsers",
+        user.uid
     );
+    const snapshot = await getDoc(profileRef);
+    if (!snapshot.exists()) {
+        throw new Error(
+            "Leader profile was not found."
+        );
+    }
+
+    const existingSections = profileSections(snapshot.data());
+    const requestedSection = clean(profile.section, 40);
+    const sections = existingSections.length > 0
+        ? existingSections
+        : requestedSection
+            ? [requestedSection]
+            : [];
+    const section = sections[0] || "";
 
     await updateDoc(
-        doc(
-            db,
-            "adminUsers",
-            user.uid
-        ),
+        profileRef,
         {
             displayName: clean(
                 profile.displayName,
@@ -114,7 +137,7 @@ export async function updateLeaderProfile(
                 40
             ),
             section,
-            sections: section ? [section] : []
+            sections
         }
     );
 }
@@ -142,7 +165,7 @@ export async function changeLeaderPassword(
 
     await reauthenticateWithCredential(
         user,
-        currentPassword
+        credential
     );
 
     await updatePassword(
