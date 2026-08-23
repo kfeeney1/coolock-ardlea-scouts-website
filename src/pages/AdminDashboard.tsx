@@ -73,7 +73,7 @@ function displayValue(value: unknown): string {
 }
 
 export default function AdminDashboard() {
-    const { adminProfile, logout } = useAdminAuth();
+    const { adminProfile } = useAdminAuth();
     const [records, setRecords] = useState<AdminRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -128,7 +128,6 @@ export default function AdminDashboard() {
                     <Typography color="text.secondary" sx={{ mt: 0.5 }}>Signed in as {adminProfile?.displayName}</Typography>
                     <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", justifyContent: { xs: "stretch", md: "flex-end" }, width: { xs: "100%", md: "auto" }, "& > .MuiButton-root": { minHeight: 42, flex: { xs: "1 1 100%", sm: "1 1 180px", lg: "0 1 auto" }, whiteSpace: "nowrap" } }}>
                         <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>
-                        <Button variant="contained" color="secondary" onClick={() => void logout()}>Sign Out</Button>
                     </Stack>
                 </Box>
             </Paper>
