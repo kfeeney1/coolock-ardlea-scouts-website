@@ -15,6 +15,7 @@ const auth = getAuth();
 const db = getFirestore();
 
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
+const PUBLIC_PROJECTION_VERSION = 2;
 const users = [
   { uid: "TEST_uid_parent_only_01", email: "test.parent.only@example.com", displayName: "Mark Byrne", kind: "parent-only", parent: { linkedSections: ["Cubs"] } },
   { uid: "TEST_uid_leader_parent_01", email: "test.leader.parent@example.com", displayName: "Niamh Murphy", kind: "parent-leader", parent: { linkedSections: ["Beavers"] }, admin: { role: "leader", sections: ["Beavers"], scoutingRole: "Beaver Programme Scouter", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: WEB_ADMIN_UID, showPublicly: true } },
@@ -59,7 +60,11 @@ async function seedAdminProfile(user) {
   };
   await db.collection("organisationLeadership").doc(user.uid).set(organisationRecord, { merge: true });
   if (user.admin.role === "leader" && user.admin.showPublicly) {
-    await db.collection("publicLeadership").doc(user.uid).set(organisationRecord, { merge: true });
+    await db.collection("publicLeadership").doc(user.uid).set({
+      ...organisationRecord,
+      publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
+      sourceAccessRole: "leader"
+    }, { merge: true });
   } else {
     await db.collection("publicLeadership").doc(user.uid).delete().catch(() => {});
   }
@@ -84,7 +89,7 @@ async function seed() {
   await seedPendingLeaderRequest();
   await seedCubConsentLink();
   console.log("E2E seed complete: parent, leader, admin, super-admin, shared tester super-admin and pending-leader journey accounts are ready.");
-  console.log("Public E2E leadership contains only leader-role accounts that explicitly opt in; admin and super-admin accounts are never seeded publicly.");
+  console.log("Public E2E leadership contains only current-version leader projections; admin and super-admin accounts are never seeded publicly.");
 }
 
 async function deleteTestDoc(collectionName, id) {
