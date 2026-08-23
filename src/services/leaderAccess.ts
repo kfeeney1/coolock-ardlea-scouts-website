@@ -46,11 +46,13 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 }
 
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string): Promise<void> {
+    const sections = [...new Set(record.sections.map((section) => section.trim()).filter(Boolean))];
+    if (sections.length === 0) throw new Error("Leader access requires at least one canonical section.");
+
     if (record.role !== "super-admin") {
         await updateDoc(doc(db, "adminUsers", record.uid), {
             role: record.role,
-            sections: record.sections,
-            section: record.sections[0] || "",
+            sections,
             active: record.active,
             updatedAt: serverTimestamp(),
             updatedBy: actorUid
