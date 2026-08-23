@@ -10,7 +10,8 @@ const db = getFirestore();
 const CANONICAL_TEST_SEEDS = new Set([
   "comprehensive-population-v3",
   "full-system-flows-v2",
-  "playwright-persistence-v1"
+  "playwright-persistence-v1",
+  "public-site-content-v1"
 ]);
 
 const EXPECTED_COLLECTIONS = new Set([
@@ -29,6 +30,7 @@ const EXPECTED_COLLECTIONS = new Set([
   "weeklyMeetings",
   "organisationLeadership",
   "publicLeadership",
+  "publicSiteContent",
   "auditLog"
 ]);
 
@@ -85,6 +87,16 @@ for (const collectionName of EXPECTED_COLLECTIONS) {
 }
 
 const get = (collection, id) => docsByCollection.get(collection)?.get(id);
+
+const siteDocs = docsByCollection.get("publicSiteContent");
+if (siteDocs.size !== 1 || !siteDocs.has("TEST_site")) {
+  errors.push("publicSiteContent must contain exactly the canonical TEST_site document");
+} else {
+  const site = siteDocs.get("TEST_site");
+  if (site.contentVersion !== 1 || site.testSeed !== "public-site-content-v1") {
+    fail("publicSiteContent", "TEST_site", "contentVersion/testSeed does not match canonical public content contract");
+  }
+}
 
 for (const [id, data] of docsByCollection.get("members")) {
   if (!new Set(["manual", "join-application"]).has(data.source)) {
