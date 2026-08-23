@@ -15,6 +15,7 @@ const db = getFirestore();
 const auth = getAuth();
 const marker = { testData: true, testSeed: "comprehensive-population-v2", createdBySeed: "TEST_SEED" };
 const reviewedBy = "TEST_SEED";
+const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 
 const sections = [
   { section: "Beavers", key: "beaver", birthYear: 2019 },
@@ -122,9 +123,9 @@ function parentOnlyUsers() {
 
 const privateAdminUsers = [
   {
-    uid: "TEST_uid_admin_01",
-    email: "test.admin@example.com",
-    displayName: "Test Website Admin",
+    uid: WEB_ADMIN_UID,
+    email: "test.webadmin@example.com",
+    displayName: "Test Website Administrator",
     accessRole: "admin",
     sections: ["Group"],
     scoutingRole: "Group Council Administrator",
