@@ -11,7 +11,13 @@ service cloud.firestore {
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
     function hasSection(section) {
-      return isAdmin() || (isActiveLeader() && ((profile().sections is list && section in profile().sections) || profile().section == section));
+      return isAdmin() || (isActiveLeader()
+        && ((profile().keys().hasAny(["sections"]) && profile().sections is list && section in profile().sections)
+          || (profile().keys().hasAny(["section"]) && profile().section == section)));
+    }
+    function hasResourceSection(data) {
+      return (data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section))
+        || (data.keys().hasAny(["scoutSection"]) && data.scoutSection is string && hasSection(data.scoutSection));
     }
     function isApprovedParentForMember(memberId) {
       return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
@@ -147,16 +153,13 @@ service cloud.firestore {
       allow create: if request.resource.data.status == "active"
         && request.resource.data.source == "website"
         && request.resource.data.submittedAt == request.time
-        && ((request.resource.data.section is string) || (request.resource.data.scoutSection is string));
-      allow read: if (isActiveLeader() && (isAdmin()
-          || (resource.data.section is string && hasSection(resource.data.section))
-          || (resource.data.scoutSection is string && hasSection(resource.data.scoutSection))))
-        || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
-      allow update: if (isActiveLeader() && (isAdmin()
-          || (resource.data.section is string && hasSection(resource.data.section))
-          || (resource.data.scoutSection is string && hasSection(resource.data.scoutSection)))
+        && ((request.resource.data.keys().hasAny(["section"]) && request.resource.data.section is string)
+          || (request.resource.data.keys().hasAny(["scoutSection"]) && request.resource.data.scoutSection is string));
+      allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)))
+        || (resource.data.keys().hasAny(["memberId"]) && resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
+      allow update: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
-        || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
+        || (resource.data.keys().hasAny(["memberId"]) && resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
           && request.resource.data.parentUpdatedBy == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
       allow delete: if false;

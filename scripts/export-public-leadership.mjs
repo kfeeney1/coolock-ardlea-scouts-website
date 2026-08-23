@@ -17,13 +17,9 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion",
-  "deputy group leader",
-  "programme scouter",
-  "elected member",
-  "group elected member",
-  "group council elected member"
+  "group youth champion"
 ]);
+const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function roleKey(role) {
   return typeof role === "string"
@@ -31,10 +27,14 @@ function roleKey(role) {
     : "";
 }
 
-function isPublicGroupRole(role) {
-  const value = roleKey(role);
-  if (PUBLIC_GROUP_ROLES.has(value)) return true;
-  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
+function sectionKey(section) {
+  return typeof section === "string" ? section.trim().toLowerCase() : "";
+}
+
+// Group visibility is restricted to the agreed executive roles; opted-in section leaders/scouters are public regardless of their section-specific title.
+function isPublicOrganisationRole(role, section) {
+  if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
+  return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
 
 function isPrivilegedAccessRole(role) {
@@ -59,7 +59,7 @@ const leaders = organisationSnapshot.docs
     leader.active !== false &&
     leader.showPublicly === true &&
     !privilegedUids.has(leader.uid) &&
-    isPublicGroupRole(leader.scoutingRole)
+    isPublicOrganisationRole(leader.scoutingRole, leader.organisationSection)
   )
   .map((leader) => ({
     uid: leader.uid,

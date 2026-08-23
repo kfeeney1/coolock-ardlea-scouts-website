@@ -1,0 +1,58 @@
+name: PR 89 Test Data Reset
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/purge-test-data.mjs"
+      - "scripts/seed-population-data.mjs"
+      - "scripts/verify-test-population.mjs"
+      - "src/firebase.ts"
+      - "firebase.json"
+      - ".github/workflows/playwright-e2e.yml"
+      - ".github/workflows/test-data-reset-pr89.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr89-live-test-data-reset
+  cancel-in-progress: false
+
+jobs:
+  reset-test-data:
+    if: ${{ github.head_ref == 'fix/whos-who-core-roles-only' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase Admin SDK
+        run: npm install --no-save --ignore-scripts firebase-admin
+
+      - name: Purge all marked test data
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/purge-test-data.mjs
+
+      - name: Seed comprehensive test population
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
+        run: node scripts/seed-population-data.mjs seed
+
+      - name: Verify exact test population
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/verify-test-population.mjs
+
+      - name: Verify full Firestore compatibility
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/audit-firestore-compatibility.mjs

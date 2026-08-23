@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Choose whether to add or remove the test dataset"
+        description: "Choose how to manage the live test dataset"
         required: true
         type: choice
-        default: seed
+        default: reset
         options:
+          - reset
           - seed
           - cleanup
       confirm:
@@ -33,21 +34,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Firebase Admin SDK for seeding
+      - name: Install Firebase Admin SDK for test-data management
         run: npm install --no-save --ignore-scripts firebase-admin
 
-      - name: Run Firestore test data action
+      - name: Purge all marked test data
+        if: ${{ inputs.action == 'reset' || inputs.action == 'cleanup' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-test-data.mjs "${{ inputs.action }}"
+        run: node scripts/purge-test-data.mjs
 
-      - name: Run expanded population action
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-population-data.mjs "${{ inputs.action }}"
-
-      - name: Run E2E Auth test-user action
+      - name: Seed comprehensive population
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-        run: node scripts/seed-e2e-auth-users.mjs "${{ inputs.action }}"
+        run: node scripts/seed-population-data.mjs seed
+
+      - name: Verify live Firestore compatibility
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/audit-firestore-compatibility.mjs

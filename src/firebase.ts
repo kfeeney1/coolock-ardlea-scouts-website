@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
@@ -34,6 +34,15 @@ if (firestoreEmulator) {
     const port = Number(rawPort);
     if (host && Number.isInteger(port) && port > 0) {
         connectFirestoreEmulator(db, host, port);
+    }
+}
+
+const authEmulator = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST?.trim();
+if (authEmulator) {
+    const [host, rawPort] = authEmulator.split(":");
+    const port = Number(rawPort);
+    if (host && Number.isInteger(port) && port > 0) {
+        connectAuthEmulator(auth, `http://${host}:${port}`, { disableWarnings: true });
     }
 }
 

@@ -21,7 +21,7 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v4";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v6";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
@@ -33,13 +33,10 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion",
-  "deputy group leader",
-  "programme scouter",
-  "elected member",
-  "group elected member",
-  "group council elected member"
+  "group youth champion"
 ]);
+
+const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -58,10 +55,14 @@ function roleKey(role: string): string {
     .replace(/\s+/g, " ");
 }
 
-export function isPublicGroupRole(role: string): boolean {
-  const value = roleKey(role);
-  if (PUBLIC_GROUP_ROLES.has(value)) return true;
-  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
+function sectionKey(section: string): string {
+  return section.trim().toLowerCase();
+}
+
+// Group visibility is restricted to the agreed executive roles; opted-in section leaders/scouters are public regardless of their section-specific title.
+export function isPublicOrganisationRole(role: string, section: string): boolean {
+  if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
+  return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
 
 function isKnownPrivilegedPublicUid(uid: string): boolean {
@@ -79,12 +80,12 @@ function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
     );
 }
 
-function filterPublicGroupRoles(leaders: OrganisationLeader[]): OrganisationLeader[] {
+function filterPublicOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
   return leaders.filter(
     (leader) =>
       leader.showPublicly &&
       !isKnownPrivilegedPublicUid(leader.uid) &&
-      isPublicGroupRole(leader.scoutingRole)
+      isPublicOrganisationRole(leader.scoutingRole, leader.organisationSection)
   );
 }
 
@@ -107,7 +108,7 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
 
 function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   if (!Array.isArray(value)) return null;
-  return filterPublicGroupRoles(sortOrganisation(
+  return filterPublicOrganisation(sortOrganisation(
     value
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item) && item.publicEligible === true)
       .map((item) => mapLeader(text(item.uid), item))
@@ -120,7 +121,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=6`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=8`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -159,7 +160,7 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
   if (USE_FIRESTORE_EMULATOR) {
-    return filterPublicGroupRoles(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
+    return filterPublicOrganisation(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
   }
 
   const hosted = await loadHostedPublicSnapshot();
@@ -205,7 +206,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   await setDoc(privateRef, safe);
   const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || isKnownPrivilegedPublicUid(leader.uid) || !isPublicGroupRole(safe.scoutingRole)) {
+  if (!leader.showPublicly || isKnownPrivilegedPublicUid(leader.uid) || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
     await deleteDoc(publicRef);
     return;
   }
