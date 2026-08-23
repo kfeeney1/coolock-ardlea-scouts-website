@@ -110,28 +110,28 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  // Emulator builds must exercise the seeded Firestore data and security rules directly.
-  // Production prefers the hosted public-safe snapshot so anonymous page views do not spend Firestore quota.
-  if (!USE_FIRESTORE_EMULATOR) {
-    const hosted = await loadHostedPublicSnapshot();
-    if (hosted !== null) {
-      writePublicCache(hosted);
-      return hosted;
-    }
+  // Emulator builds must exercise seeded Firestore data and security rules directly.
+  if (USE_FIRESTORE_EMULATOR) {
+    return mapOrganisation(await getDocs(collection(db, "publicLeadership")));
   }
 
-  try {
-    const leaders = mapOrganisation(await getDocs(collection(db, "publicLeadership")));
-    writePublicCache(leaders);
-    return leaders;
-  } catch (error) {
-    const cached = readPublicCache();
-    if (cached.length > 0) {
-      console.warn("Public organisation read failed; using cached public hierarchy.", error);
-      return cached;
-    }
-    throw error;
+  // Production public pages must never depend on Firestore availability or quota.
+  // Prefer the hosted snapshot; if Hosting fails to serve it, use the last browser cache.
+  // With neither available, return an empty public list rather than retrying Firestore.
+  const hosted = await loadHostedPublicSnapshot();
+  if (hosted !== null) {
+    writePublicCache(hosted);
+    return hosted;
   }
+
+  const cached = readPublicCache();
+  if (cached.length > 0) {
+    console.warn("Hosted public organisation snapshot unavailable; using cached public hierarchy.");
+    return cached;
+  }
+
+  console.warn("Hosted public organisation snapshot unavailable; showing an empty public hierarchy.");
+  return [];
 }
 
 export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {
