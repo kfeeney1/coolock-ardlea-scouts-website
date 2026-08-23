@@ -1,4 +1,4 @@
-name: PR 89 Test Data Reset
+name: Full Test Data Reset
 
 on:
   pull_request:
@@ -6,26 +6,27 @@ on:
     paths:
       - "scripts/purge-test-data.mjs"
       - "scripts/seed-population-data.mjs"
+      - "scripts/seed-flow-data.mjs"
       - "scripts/verify-test-population.mjs"
-      - "src/firebase.ts"
-      - "firebase.json"
-      - ".github/workflows/playwright-e2e.yml"
+      - "scripts/verify-flow-data.mjs"
+      - "scripts/rebuild-public-leadership.mjs"
       - ".github/workflows/test-data-reset-pr89.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr89-live-test-data-reset
+  group: live-test-data-reset
   cancel-in-progress: false
 
 jobs:
   reset-test-data:
-    if: ${{ github.head_ref == 'fix/whos-who-core-roles-only' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'rebuild/about-whos-who' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout PR branch
+      - name: Checkout branch
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -36,21 +37,36 @@ jobs:
       - name: Install Firebase Admin SDK
         run: npm install --no-save --ignore-scripts firebase-admin
 
-      - name: Purge all marked test data
+      - name: Purge all marked and legacy test data
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/purge-test-data.mjs
 
-      - name: Seed comprehensive test population
+      - name: Seed complete people and role population
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
         run: node scripts/seed-population-data.mjs seed
 
-      - name: Verify exact test population
+      - name: Seed full-system flow examples
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-flow-data.mjs
+
+      - name: Rebuild curated public Who's Who
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/rebuild-public-leadership.mjs
+
+      - name: Verify exact people and role population
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/verify-test-population.mjs
+
+      - name: Verify full-system flow coverage
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/verify-flow-data.mjs
 
       - name: Verify full Firestore compatibility
         env:

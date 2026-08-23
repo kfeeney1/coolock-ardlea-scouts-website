@@ -12,6 +12,9 @@ const auth = getAuth();
 function text(value) {
   return typeof value === "string" ? value.trim() : "";
 }
+function hasTestReference(value) {
+  return Array.isArray(value) && value.some((item) => text(item).startsWith("TEST_"));
+}
 
 function isMarkedTestDocument(doc) {
   const data = doc.data();
@@ -24,17 +27,20 @@ function isLegacyTestReference(doc) {
   const id = doc.id;
   const eventId = text(data?.eventId);
   const memberId = text(data?.memberId);
+  const matchedMemberId = text(data?.matchedMemberId);
   const uid = text(data?.uid);
 
-  // Older seed versions did not consistently add testData/testSeed markers to
-  // projection/link records. Only treat a document as legacy test data when a
-  // stable test identifier is present in the document id or an explicit
-  // reference field; this deliberately avoids broad name/title matching.
+  // Older seed versions did not consistently add testData/testSeed markers.
+  // Delete only when a stable TEST_ identifier is present in the document id,
+  // a direct reference field, or a memberIds array. This catches old parent
+  // fixtures without broad name/email matching that could touch real data.
   return (
     id.startsWith("TEST_") ||
     eventId.startsWith("TEST_") ||
     memberId.startsWith("TEST_") ||
-    uid.startsWith("TEST_")
+    matchedMemberId.startsWith("TEST_") ||
+    uid.startsWith("TEST_") ||
+    hasTestReference(data?.memberIds)
   );
 }
 

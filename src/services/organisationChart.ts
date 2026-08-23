@@ -30,7 +30,6 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group bo'sun",
   "group youth champion"
 ]);
-
 const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function text(value: unknown): string {
@@ -42,45 +41,16 @@ function order(value: unknown): number {
 }
 
 function roleKey(role: string): string {
-  return role
-    .trim()
-    .toLowerCase()
-    .replace(/[’‘]/g, "'")
-    .replace(/\s*\/\s*/g, "/")
-    .replace(/\s+/g, " ");
+  return role.trim().toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ");
 }
 
 function sectionKey(section: string): string {
   return section.trim().toLowerCase();
 }
 
-export function isPublicOrganisationRole(role: string, section: string): boolean {
+function isPublicOrganisationRole(role: string, section: string): boolean {
   if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
   return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
-}
-
-function isKnownPrivilegedPublicUid(uid: string): boolean {
-  const value = uid.trim().toLowerCase();
-  return /(^|[_-])(super[_-]?admin|admin)([_-]|$)/.test(value);
-}
-
-function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
-  return leaders
-    .filter((leader) => leader.active)
-    .sort(
-      (a, b) =>
-        a.organisationOrder - b.organisationOrder ||
-        a.displayName.localeCompare(b.displayName)
-    );
-}
-
-function filterPublicOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
-  return leaders.filter(
-    (leader) =>
-      leader.showPublicly &&
-      !isKnownPrivilegedPublicUid(leader.uid) &&
-      isPublicOrganisationRole(leader.scoutingRole, leader.organisationSection)
-  );
 }
 
 function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
@@ -97,21 +67,14 @@ function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLead
 }
 
 function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLeader[] {
-  return sortOrganisation(snapshot.docs.map((item) => mapLeader(item.id, item.data())));
+  return snapshot.docs
+    .map((item) => mapLeader(item.id, item.data()))
+    .filter((leader) => leader.active)
+    .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 }
 
 export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> {
-  try {
-    return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
-  } catch (error) {
-    console.warn("Internal organisation chart read failed; falling back to public-safe hierarchy.", error);
-    return loadPublicOrganisation();
-  }
-}
-
-export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  const snapshot = await getDocs(collection(db, "publicLeadership"));
-  return filterPublicOrganisation(mapOrganisation(snapshot));
+  return mapOrganisation(await getDocs(collection(db, "organisationLeadership")));
 }
 
 export async function syncOrganisationLeader(leader: OrganisationLeader): Promise<void> {
@@ -135,7 +98,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   await setDoc(privateRef, safe);
   const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || isKnownPrivilegedPublicUid(leader.uid) || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
+  if (!leader.showPublicly || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
     await deleteDoc(publicRef);
     return;
   }

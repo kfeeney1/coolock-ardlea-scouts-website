@@ -1,0 +1,37 @@
+name: Rebuild Public Who's Who
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/components/PublicWhosWho.tsx"
+      - "src/services/publicWhosWho.ts"
+      - "scripts/rebuild-public-leadership.mjs"
+      - ".github/workflows/rebuild-public-leadership.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: live-public-leadership-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase Admin SDK
+        run: npm install --no-save --ignore-scripts firebase-admin
+      - name: Rebuild curated public leadership collection
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/rebuild-public-leadership.mjs
+      - name: Verify live Firestore compatibility
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/audit-firestore-compatibility.mjs
