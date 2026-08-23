@@ -21,7 +21,7 @@ async function openLeaderMenu(page: Page) {
 }
 
 for (const [role, email] of [
-  ["Admin", "test.admin@example.com"],
+  ["Admin", "test.webadmin@example.com"],
   ["Super Admin", "test.superadmin@example.com"]
 ] as const) {
   test(`${role} can open the read-only Activity Log`, async ({ page }, testInfo) => {
