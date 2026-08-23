@@ -9,10 +9,33 @@ initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const auth = getAuth();
 
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function isMarkedTestDocument(doc) {
   const data = doc.data();
   if (data?.testData !== true) return false;
   return doc.id.startsWith("TEST") || data.createdBySeed === "TEST_SEED" || typeof data.testSeed === "string";
+}
+
+function isLegacyTestReference(doc) {
+  const data = doc.data();
+  const id = doc.id;
+  const eventId = text(data?.eventId);
+  const memberId = text(data?.memberId);
+  const uid = text(data?.uid);
+
+  // Older seed versions did not consistently add testData/testSeed markers to
+  // projection/link records. Only treat a document as legacy test data when a
+  // stable test identifier is present in the document id or an explicit
+  // reference field; this deliberately avoids broad name/title matching.
+  return (
+    id.startsWith("TEST_") ||
+    eventId.startsWith("TEST_") ||
+    memberId.startsWith("TEST_") ||
+    uid.startsWith("TEST_")
+  );
 }
 
 async function purgeFirestore() {
@@ -21,17 +44,17 @@ async function purgeFirestore() {
 
   for (const collection of collections) {
     const snapshot = await collection.get();
-    const targets = snapshot.docs.filter(isMarkedTestDocument);
+    const targets = snapshot.docs.filter((doc) => isMarkedTestDocument(doc) || isLegacyTestReference(doc));
     for (let offset = 0; offset < targets.length; offset += 400) {
       const batch = db.batch();
       for (const doc of targets.slice(offset, offset + 400)) batch.delete(doc.ref);
       await batch.commit();
     }
-    if (targets.length) console.log(`Deleted ${targets.length} marked test document(s) from ${collection.id}.`);
+    if (targets.length) console.log(`Deleted ${targets.length} marked/legacy test document(s) from ${collection.id}.`);
     deleted += targets.length;
   }
 
-  console.log(`Deleted ${deleted} marked Firestore test document(s) in total.`);
+  console.log(`Deleted ${deleted} marked/legacy Firestore test document(s) in total.`);
 }
 
 async function purgeAuth() {
@@ -47,7 +70,7 @@ async function purgeAuth() {
   console.log(`Deleted ${deleted} TEST_ Firebase Auth user(s).`);
 }
 
-console.log("Purging marked TEST data only. Unmarked records are never targeted.");
+console.log("Purging marked and legacy TEST data only. Unrelated unmarked records are never targeted.");
 await purgeFirestore();
 await purgeAuth();
-console.log("Marked TEST data purge complete.");
+console.log("TEST data purge complete.");
