@@ -6,6 +6,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
+const PUBLIC_PROJECTION_VERSION = 2;
 
 const GROUP_ROLES = new Set([
   "group leader",
@@ -41,6 +42,7 @@ for (const doc of organisationSnapshot.docs) {
   const source = doc.data();
   const access = adminByUid.get(doc.id);
   if (!access || isPrivileged(access.role)) continue;
+  if (text(access.role).toLowerCase() !== "leader") continue;
   if (access.active === false || source.active === false || source.showPublicly !== true) continue;
   if (!isPublicRole(source.scoutingRole, source.organisationSection)) continue;
 
@@ -56,6 +58,8 @@ for (const doc of organisationSnapshot.docs) {
     reportsToUid: text(source.reportsToUid),
     showPublicly: true,
     active: true,
+    sourceAccessRole: "leader",
+    publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
     ...testMarker,
     updatedAt: FieldValue.serverTimestamp()
   });
@@ -68,5 +72,5 @@ await batch.commit();
 
 console.log(`Rebuilt publicLeadership from authoritative organisation/admin data.`);
 console.log(`Removed ${existingPublicSnapshot.size} existing public record(s).`);
-console.log(`Published ${desired.size} eligible leader record(s).`);
-console.log(`Excluded all admin/super-admin access-role identities before publication.`);
+console.log(`Published ${desired.size} eligible leader record(s) with projection v${PUBLIC_PROJECTION_VERSION}.`);
+console.log(`Excluded all non-leader, admin and super-admin access identities before publication.`);
