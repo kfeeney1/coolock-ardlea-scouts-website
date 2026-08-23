@@ -30,7 +30,7 @@ function roleKey(value: string): string {
   return value.toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim();
 }
 
-function isAllowedPublicAppointment(role: string, section: string): boolean {
+export function isAllowedPublicAppointment(role: string, section: string): boolean {
   const sectionKey = section.toLowerCase().trim();
   if (YOUTH_SECTIONS.has(sectionKey)) return role.trim().length > 0;
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
@@ -41,23 +41,21 @@ export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
   return snapshot.docs
     .map((item) => {
       const data = item.data();
+      const displayName = text(data.displayName);
+      const scoutingRole = text(data.scoutingRole);
+      const organisationSection = text(data.organisationSection);
+      const active = data.active === true;
+      const showPublicly = data.showPublicly === true;
+      if (!active || !showPublicly || !displayName || !isAllowedPublicAppointment(scoutingRole, organisationSection)) return null;
       return {
         uid: item.id,
-        displayName: text(data.displayName),
-        scoutingRole: text(data.scoutingRole),
-        organisationSection: text(data.organisationSection),
+        displayName,
+        scoutingRole,
+        organisationSection,
         organisationOrder: typeof data.organisationOrder === "number" ? data.organisationOrder : 999,
-        reportsToUid: text(data.reportsToUid),
-        active: data.active === true,
-        showPublicly: data.showPublicly === true
-      };
+        reportsToUid: text(data.reportsToUid)
+      } satisfies PublicWhosWhoLeader;
     })
-    .filter((leader) =>
-      leader.active &&
-      leader.showPublicly &&
-      leader.displayName.length > 0 &&
-      isAllowedPublicAppointment(leader.scoutingRole, leader.organisationSection)
-    )
-    .map(({ active: _active, showPublicly: _showPublicly, ...leader }) => leader)
+    .filter((leader): leader is PublicWhosWhoLeader => leader !== null)
     .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 }
