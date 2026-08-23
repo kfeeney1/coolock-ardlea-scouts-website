@@ -6,11 +6,17 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows:
+      - Organisation Chart Backfill
+    types:
+      - completed
   workflow_dispatch:
   schedule:
     - cron: "15 9 * * *"
 jobs:
   build_and_deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
