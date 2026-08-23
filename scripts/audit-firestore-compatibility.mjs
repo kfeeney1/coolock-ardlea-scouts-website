@@ -28,6 +28,7 @@ const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rover
 function text(value) { return typeof value === "string" ? value.trim() : ""; }
 function roleKey(value) { return text(value).toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " "); }
 function sectionKey(value) { return text(value).toLowerCase(); }
+// Group visibility is role-restricted; section visibility is title-agnostic so all opted-in section leaders/scouters are covered.
 function isPublicOrganisationRole(role, section) {
   if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
   return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
