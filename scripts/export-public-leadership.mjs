@@ -19,6 +19,7 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group bo'sun",
   "group youth champion"
 ]);
+const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function roleKey(role) {
   return typeof role === "string"
@@ -26,8 +27,13 @@ function roleKey(role) {
     : "";
 }
 
-function isPublicGroupRole(role) {
-  return PUBLIC_GROUP_ROLES.has(roleKey(role));
+function sectionKey(section) {
+  return typeof section === "string" ? section.trim().toLowerCase() : "";
+}
+
+function isPublicOrganisationRole(role, section) {
+  if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
+  return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
 
 function isPrivilegedAccessRole(role) {
@@ -52,7 +58,7 @@ const leaders = organisationSnapshot.docs
     leader.active !== false &&
     leader.showPublicly === true &&
     !privilegedUids.has(leader.uid) &&
-    isPublicGroupRole(leader.scoutingRole)
+    isPublicOrganisationRole(leader.scoutingRole, leader.organisationSection)
   )
   .map((leader) => ({
     uid: leader.uid,
