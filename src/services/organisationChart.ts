@@ -64,6 +64,11 @@ export function isPublicGroupRole(role: string): boolean {
   return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
 }
 
+function isKnownPrivilegedPublicUid(uid: string): boolean {
+  const value = uid.trim().toLowerCase();
+  return /(^|[_-])(super[_-]?admin|admin)([_-]|$)/.test(value);
+}
+
 function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
   return leaders
     .filter((leader) => leader.active)
@@ -75,7 +80,12 @@ function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
 }
 
 function filterPublicGroupRoles(leaders: OrganisationLeader[]): OrganisationLeader[] {
-  return leaders.filter((leader) => leader.showPublicly && isPublicGroupRole(leader.scoutingRole));
+  return leaders.filter(
+    (leader) =>
+      leader.showPublicly &&
+      !isKnownPrivilegedPublicUid(leader.uid) &&
+      isPublicGroupRole(leader.scoutingRole)
+  );
 }
 
 function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
@@ -195,7 +205,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   await setDoc(privateRef, safe);
   const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || !isPublicGroupRole(safe.scoutingRole)) {
+  if (!leader.showPublicly || isKnownPrivilegedPublicUid(leader.uid) || !isPublicGroupRole(safe.scoutingRole)) {
     await deleteDoc(publicRef);
     return;
   }
