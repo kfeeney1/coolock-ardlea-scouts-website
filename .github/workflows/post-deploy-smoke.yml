@@ -43,3 +43,4 @@ jobs:
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
           ALLOW_FIRESTORE_QUOTA_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          ALLOW_FIRESTORE_RULES_PENDING_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}

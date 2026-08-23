@@ -33,6 +33,12 @@ function order(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 999;
 }
 
+function isPublicScoutingPosition(role: string): boolean {
+  const value = role.trim().toLowerCase();
+  if (!value || value === "leader") return false;
+  return !/\b(admin|administrator|super\s*admin)\b/.test(value);
+}
+
 function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
   return leaders
     .filter((leader) => leader.active)
@@ -41,6 +47,10 @@ function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
         a.organisationOrder - b.organisationOrder ||
         a.displayName.localeCompare(b.displayName)
     );
+}
+
+function filterPublicScoutingPositions(leaders: OrganisationLeader[]): OrganisationLeader[] {
+  return leaders.filter((leader) => leader.showPublicly && isPublicScoutingPosition(leader.scoutingRole));
 }
 
 function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
@@ -62,12 +72,12 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
 
 function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   if (!Array.isArray(value)) return null;
-  return sortOrganisation(
+  return filterPublicScoutingPositions(sortOrganisation(
     value
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
       .map((item) => mapLeader(text(item.uid), item))
       .filter((leader) => leader.uid)
-  );
+  ));
 }
 
 const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
@@ -75,7 +85,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=2`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=3`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -115,12 +125,11 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
   // Emulator builds must exercise seeded Firestore data and security rules directly.
   if (USE_FIRESTORE_EMULATOR) {
-    return mapOrganisation(await getDocs(collection(db, "publicLeadership")));
+    return filterPublicScoutingPositions(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
   }
 
   // Production public pages must never depend on Firestore availability or quota.
-  // Prefer a non-empty hosted snapshot. If Hosting/CDN still serves an old empty snapshot,
-  // use the bundled deterministic test snapshot so the Who's Who remains populated.
+  // Public Who's Who is additionally restricted to genuine scouting positions, never website/admin roles.
   const hosted = await loadHostedPublicSnapshot();
   if (hosted && hosted.length > 0) {
     writePublicCache(hosted);
@@ -164,7 +173,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   await setDoc(privateRef, safe);
   const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly) {
+  if (!leader.showPublicly || !isPublicScoutingPosition(safe.scoutingRole)) {
     await deleteDoc(publicRef);
     return;
   }
@@ -175,6 +184,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     organisationSection: safe.organisationSection,
     organisationOrder: safe.organisationOrder,
     reportsToUid: safe.reportsToUid,
+    showPublicly: true,
     active: true,
     updatedAt: serverTimestamp()
   });

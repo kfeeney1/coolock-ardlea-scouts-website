@@ -61,6 +61,13 @@ jobs:
         run: |
           test -f dist/public-leadership.json
           node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('dist/public-leadership.json','utf8')); if(!Array.isArray(p) || p.length===0) process.exit(1); console.log('Deploying public organisation snapshot with', p.length, 'leader(s)');"
+      - name: Deploy Firestore rules
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules --project coolock-ardlea-scouts
+          rm -f /tmp/firebase-service-account.json
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

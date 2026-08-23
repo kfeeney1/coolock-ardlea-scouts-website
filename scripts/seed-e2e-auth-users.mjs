@@ -19,7 +19,7 @@ const users = [
   { uid: "TEST_uid_leader_parent_01", email: "test.leader.parent@example.com", displayName: "Niamh Murphy", kind: "parent-leader", parent: { linkedSections: ["Beavers"] }, admin: { role: "leader", sections: ["Beavers"], scoutingRole: "Beaver Section Leader", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true } },
   { uid: "TEST_uid_leader_only_01", email: "test.leader.only@example.com", displayName: "Aisling Ryan", kind: "leader", admin: { role: "leader", sections: ["Scouts"], scoutingRole: "Scout Section Leader", organisationSection: "Scouts", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true } },
   { uid: "TEST_uid_multi_section_leader_01", email: "test.leader.multisection@example.com", displayName: "Conor Walsh", kind: "multi-section-leader", admin: { role: "leader", sections: ["Beavers", "Cubs"], scoutingRole: "Assistant Section Leader", organisationSection: "Cubs", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
-  { uid: "TEST_uid_admin_01", email: "test.admin@example.com", displayName: "Orla Kelly", kind: "admin", admin: { role: "admin", sections: ["Group"], scoutingRole: "Group Leader", organisationSection: "Group", organisationOrder: 1, reportsToUid: "", showPublicly: true } },
+  { uid: "TEST_uid_admin_01", email: "test.admin@example.com", displayName: "Orla Kelly", kind: "admin", admin: { role: "admin", sections: ["Group"], scoutingRole: "Group Leader", organisationSection: "Group", organisationOrder: 1, reportsToUid: "", showPublicly: false } },
   { uid: "TEST_uid_super_admin_01", email: "test.superadmin@example.com", displayName: "Test Super Admin", kind: "super-admin", admin: { role: "super-admin", sections: ["Group"], scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
   { uid: "TEST_uid_shared_super_admin_01", email: "superadmin@example.com", displayName: "Shared Tester Super Admin", kind: "shared-super-admin", password: "password1", admin: { role: "super-admin", sections: ["Group"], scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 30, reportsToUid: "TEST_uid_admin_01", showPublicly: false } },
   { uid: "TEST_uid_pending_leader_01", email: "test.leader.pending@example.com", displayName: "Patrick Doyle", kind: "pending-leader" }
@@ -58,8 +58,7 @@ async function seedAdminProfile(user) {
   };
   await db.collection("organisationLeadership").doc(user.uid).set(organisationRecord, { merge: true });
   if (user.admin.showPublicly) {
-    const { showPublicly, active, ...publicRecord } = organisationRecord;
-    await db.collection("publicLeadership").doc(user.uid).set(publicRecord, { merge: true });
+    await db.collection("publicLeadership").doc(user.uid).set(organisationRecord, { merge: true });
   } else {
     await db.collection("publicLeadership").doc(user.uid).delete().catch(() => {});
   }

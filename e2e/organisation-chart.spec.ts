@@ -26,7 +26,9 @@ test("public Who's Who is included on the About page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
   await expect(page.getByText(/Meet the leaders who have chosen to be listed publicly/)).toBeVisible();
   await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Niamh Murphy", exact: true })).toBeVisible();
+  await expect(page.getByText("Beaver Section Leader", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toHaveCount(0);
 });
 
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {

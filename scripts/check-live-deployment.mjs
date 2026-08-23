@@ -3,6 +3,7 @@ const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
 const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
 const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
+const allowPendingRulesWarning = String(process.env.ALLOW_FIRESTORE_RULES_PENDING_WARNING || "").toLowerCase() === "true";
 
 if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
@@ -115,6 +116,8 @@ if (!publicLeadershipResponse.ok) {
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
   if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) {
     warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
+  } else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning && hostedSnapshotValid) {
+    warn(`${message}. This pull request contains the public-read rule, but production Firestore rules are only deployed after merge.`);
   } else {
     fail(message);
   }
