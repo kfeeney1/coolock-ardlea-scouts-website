@@ -8,29 +8,16 @@ import {
 import { Link } from "react-router-dom";
 
 import { brandColours } from "../theme/theme";
-
-const featureCards = [
-    {
-        title: "Adventure",
-        description:
-            "Take part in camps, hikes, outdoor challenges and unforgettable experiences.",
-        accent: brandColours.coralLight
-    },
-    {
-        title: "Learn Skills",
-        description:
-            "Build confidence, teamwork, leadership and practical life skills through Scouting.",
-        accent: brandColours.navyLight
-    },
-    {
-        title: "Community",
-        description:
-            "Make friends, help others and become part of a welcoming local Scout community.",
-        accent: "#EAF8EF"
-    }
-];
+import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 
 export default function Home() {
+    const content = usePublicSiteContent();
+    const accent = {
+        coralLight: brandColours.coralLight,
+        navyLight: brandColours.navyLight,
+        communityLight: "#EAF8EF"
+    } as const;
+
     return (
         <Box>
             <Box
@@ -55,15 +42,8 @@ export default function Home() {
                             textAlign: "center"
                         }}
                     >
-                        <Typography
-                            variant="h5"
-                            component="p"
-                            sx={{
-                                mb: 2,
-                                fontWeight: 600
-                            }}
-                        >
-                            Welcome to
+                        <Typography variant="h5" component="p" sx={{ mb: 2, fontWeight: 600 }}>
+                            {content.home.eyebrow}
                         </Typography>
 
                         <Typography
@@ -78,46 +58,25 @@ export default function Home() {
                                 }
                             }}
                         >
-                            80th 160th Coolock Ardlea Scout Group
+                            {content.group.name}
                         </Typography>
 
-                        <Typography
-                            variant="h5"
-                            component="p"
-                            sx={{
-                                mt: 3,
-                                fontWeight: 500
-                            }}
-                        >
-                            Adventure • Skills • Community
+                        <Typography variant="h5" component="p" sx={{ mt: 3, fontWeight: 500 }}>
+                            {content.home.tagline}
                         </Typography>
 
                         <Box
                             sx={{
                                 display: "flex",
-                                flexDirection: {
-                                    xs: "column",
-                                    sm: "row"
-                                },
+                                flexDirection: { xs: "column", sm: "row" },
                                 justifyContent: "center",
                                 gap: 2,
                                 mt: 5
                             }}
                         >
-                            <Button
-                                component={Link}
-                                to="/join"
-                                variant="contained"
-                                color="success"
-                                size="large"
-                                sx={{
-                                    py: 1.5,
-                                    minWidth: 180
-                                }}
-                            >
+                            <Button component={Link} to="/join" variant="contained" color="success" size="large" sx={{ py: 1.5, minWidth: 180 }}>
                                 Join Us
                             </Button>
-
                             <Button
                                 component={Link}
                                 to="/activities/consent"
@@ -128,11 +87,7 @@ export default function Home() {
                                     minWidth: 220,
                                     color: "white",
                                     borderColor: "white",
-                                    "&:hover": {
-                                        borderColor: "white",
-                                        backgroundColor:
-                                            "rgba(255,255,255,0.12)"
-                                    }
+                                    "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.12)" }
                                 }}
                             >
                                 Activity Consent
@@ -142,53 +97,17 @@ export default function Home() {
                 </Container>
             </Box>
 
-            <Box
-                sx={{
-                    backgroundColor: "background.default",
-                    py: {
-                        xs: 6,
-                        md: 9
-                    }
-                }}
-            >
+            <Box sx={{ backgroundColor: "background.default", py: { xs: 6, md: 9 } }}>
                 <Container maxWidth="lg">
-                    <Typography
-                        variant="h3"
-                        component="h2"
-                        color="secondary"
-                        sx={{
-                            textAlign: "center",
-                            mb: 2
-                        }}
-                    >
-                        Discover Scouting
+                    <Typography variant="h3" component="h2" color="secondary" sx={{ textAlign: "center", mb: 2 }}>
+                        {content.home.discoverTitle}
+                    </Typography>
+                    <Typography sx={{ textAlign: "center", maxWidth: 720, mx: "auto", mb: 5, color: "text.secondary" }}>
+                        {content.home.discoverIntro}
                     </Typography>
 
-                    <Typography
-                        sx={{
-                            textAlign: "center",
-                            maxWidth: 720,
-                            mx: "auto",
-                            mb: 5,
-                            color: "text.secondary"
-                        }}
-                    >
-                        Scouting gives young people the chance to
-                        explore, learn, make friends and play an
-                        active part in their community.
-                    </Typography>
-
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: {
-                                xs: "1fr",
-                                md: "repeat(3, 1fr)"
-                            },
-                            gap: 3
-                        }}
-                    >
-                        {featureCards.map((feature) => (
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
+                        {content.home.featureCards.map((feature) => (
                             <Paper
                                 key={feature.title}
                                 elevation={2}
@@ -196,25 +115,13 @@ export default function Home() {
                                     p: 4,
                                     height: "100%",
                                     borderTop: `6px solid ${brandColours.coral}`,
-                                    backgroundColor: feature.accent
+                                    backgroundColor: accent[feature.accent]
                                 }}
                             >
-                                <Typography
-                                    variant="h5"
-                                    component="h3"
-                                    color="secondary"
-                                    sx={{ mb: 2 }}
-                                >
+                                <Typography variant="h5" component="h3" color="secondary" sx={{ mb: 2 }}>
                                     {feature.title}
                                 </Typography>
-
-                                <Typography
-                                    sx={{
-                                        lineHeight: 1.8
-                                    }}
-                                >
-                                    {feature.description}
-                                </Typography>
+                                <Typography sx={{ lineHeight: 1.8 }}>{feature.description}</Typography>
                             </Paper>
                         ))}
                     </Box>
