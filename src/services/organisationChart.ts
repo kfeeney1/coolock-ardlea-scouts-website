@@ -7,7 +7,6 @@ import {
   setDoc
 } from "firebase/firestore";
 import type { DocumentData, QuerySnapshot } from "firebase/firestore";
-import { SEEDED_PUBLIC_LEADERS } from "../data/seededPublicLeadership";
 import { db } from "../firebase";
 
 export type OrganisationLeader = {
@@ -21,8 +20,9 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v6";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v9";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
+const PUBLIC_SNAPSHOT_CONTRACT_VERSION = 9;
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
 const PUBLIC_GROUP_ROLES = new Set([
@@ -59,7 +59,6 @@ function sectionKey(section: string): string {
   return section.trim().toLowerCase();
 }
 
-// Group visibility is restricted to the agreed executive roles; opted-in section leaders/scouters are public regardless of their section-specific title.
 export function isPublicOrganisationRole(role: string, section: string): boolean {
   if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
   return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
@@ -108,6 +107,9 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
 
 function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   if (!Array.isArray(value)) return null;
+  if (value.some((item) => !item || typeof item !== "object" || Array.isArray(item) || (item as Record<string, unknown>).snapshotContractVersion !== PUBLIC_SNAPSHOT_CONTRACT_VERSION)) {
+    return null;
+  }
   return filterPublicOrganisation(sortOrganisation(
     value
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item) && item.publicEligible === true)
@@ -116,12 +118,10 @@ function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   ));
 }
 
-const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
-
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=8`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?contract=${PUBLIC_SNAPSHOT_CONTRACT_VERSION}`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -143,7 +143,8 @@ function readPublicCache(): OrganisationLeader[] {
 function writePublicCache(leaders: OrganisationLeader[]): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify(leaders));
+    const payload = leaders.map((leader) => ({ ...leader, publicEligible: true, snapshotContractVersion: PUBLIC_SNAPSHOT_CONTRACT_VERSION }));
+    window.localStorage.setItem(PUBLIC_CACHE_KEY, JSON.stringify(payload));
   } catch {
     // Storage can be unavailable in privacy modes.
   }
@@ -169,19 +170,13 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
     return hosted;
   }
 
-  if (bundledPublicLeaders.length > 0) {
-    if (hosted !== null) console.warn("Hosted public organisation snapshot is empty or unverified; using bundled public hierarchy.");
-    else console.warn("Hosted public organisation snapshot unavailable; using bundled public hierarchy.");
-    writePublicCache(bundledPublicLeaders);
-    return bundledPublicLeaders;
-  }
-
   const cached = readPublicCache();
   if (cached.length > 0) {
-    console.warn("Hosted public organisation snapshot unavailable; using cached public hierarchy.");
+    console.warn("Hosted public organisation snapshot unavailable or stale; using last verified current-contract snapshot.");
     return cached;
   }
 
+  console.warn("Hosted public organisation snapshot unavailable, empty, or stale; refusing to render unverified fallback leadership data.");
   return [];
 }
 

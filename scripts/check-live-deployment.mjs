@@ -4,6 +4,8 @@ const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
 const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
 const allowPendingRulesWarning = String(process.env.ALLOW_FIRESTORE_RULES_PENDING_WARNING || "").toLowerCase() === "true";
+const allowPendingSnapshotWarning = String(process.env.ALLOW_PUBLIC_SNAPSHOT_PENDING_WARNING || "").toLowerCase() === "true";
+const EXPECTED_SNAPSHOT_CONTRACT_VERSION = 9;
 
 if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
@@ -26,6 +28,7 @@ const failures = [];
 function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
 function pass(message) { console.log(`PASS: ${message}`); }
 function warn(message) { console.warn(`WARN: ${message}`); }
+function pendingOrFail(message) { if (allowPendingSnapshotWarning) warn(`${message} This PR changes the snapshot contract and production is expected to remain on the previous contract until merge.`); else fail(message); }
 
 async function get(path) {
   const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
@@ -75,7 +78,7 @@ else pass("SPA shell uses no-store caching");
 
 let hostedSnapshotCount = 0;
 let hostedSnapshotValid = false;
-const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json`, { cache: "no-store" });
+const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json?contract=${EXPECTED_SNAPSHOT_CONTRACT_VERSION}&t=${Date.now()}`, { cache: "no-store" });
 if (!hostedSnapshotResponse.ok) {
   fail(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}`);
 } else {
@@ -85,24 +88,24 @@ if (!hostedSnapshotResponse.ok) {
     if (!Array.isArray(payload)) {
       fail("Hosted public organisation snapshot is valid JSON but is not an array.");
     } else {
-      hostedSnapshotValid = true;
+      const wrongContract = payload.filter((item) => item?.snapshotContractVersion !== EXPECTED_SNAPSHOT_CONTRACT_VERSION);
+      const privilegedLooking = payload.filter((item) => /(^|[_-])(super[_-]?admin|admin)([_-]|$)/i.test(String(item?.uid || "")));
+      const ineligible = payload.filter((item) => item?.publicEligible !== true || item?.showPublicly !== true || item?.active === false);
+      if (wrongContract.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${wrongContract.length} record(s) from an outdated contract.`);
+      if (privilegedLooking.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${privilegedLooking.length} admin/super-admin-shaped UID(s).`);
+      if (ineligible.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${ineligible.length} ineligible record(s).`);
+      hostedSnapshotValid = wrongContract.length === 0 && privilegedLooking.length === 0 && ineligible.length === 0;
       hostedSnapshotCount = payload.length;
-      if (hostedSnapshotCount > 0) pass(`Hosted public organisation snapshot contains ${hostedSnapshotCount} leader(s)`);
-      else pass("Hosted public organisation snapshot is a valid empty array; public page can render without Firestore.");
+      if (hostedSnapshotValid) pass(`Hosted public organisation snapshot uses contract v${EXPECTED_SNAPSHOT_CONTRACT_VERSION} with ${hostedSnapshotCount} leader(s)`);
     }
   } catch {
-    if (hostedText.includes('id="root"')) {
-      fail("Hosted public organisation snapshot is missing; Firebase Hosting returned the SPA shell fallback.");
-    } else {
-      fail("Hosted public organisation snapshot is not valid JSON.");
-    }
+    if (hostedText.includes('id="root"')) fail("Hosted public organisation snapshot is missing; Firebase Hosting returned the SPA shell fallback.");
+    else fail("Hosted public organisation snapshot is not valid JSON.");
   }
 }
 
 console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
-const publicLeadershipUrl = new URL(
-  `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`
-);
+const publicLeadershipUrl = new URL(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`);
 publicLeadershipUrl.searchParams.set("key", firebaseApiKey);
 const publicLeadershipResponse = await fetch(publicLeadershipUrl);
 if (!publicLeadershipResponse.ok) {
@@ -110,34 +113,21 @@ if (!publicLeadershipResponse.ok) {
   try {
     const body = await publicLeadershipResponse.json();
     detail = body?.error?.message ? `: ${body.error.message}` : "";
-  } catch {
-    // Keep the status-only diagnostic if Firebase does not return JSON.
-  }
+  } catch {}
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
-  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) {
-    warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
-  } else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning && hostedSnapshotValid) {
-    warn(`${message}. This pull request contains the public-read rule, but production Firestore rules are only deployed after merge.`);
-  } else {
-    fail(message);
-  }
+  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
+  else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning) warn(`${message}. Production Firestore rules are pending the merge deployment.`);
+  else fail(message);
 } else {
   const payload = await publicLeadershipResponse.json();
   const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
-  if (documentCount === 0 && hostedSnapshotCount === 0) {
-    warn("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. No leaders are currently published.");
-  } else {
-    pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
-  }
+  if (documentCount === 0 && hostedSnapshotCount === 0) warn("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. No leaders are currently published.");
+  else pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
 }
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
   method: "OPTIONS",
-  headers: {
-    Origin: siteUrl,
-    "Access-Control-Request-Method": "POST",
-    "Access-Control-Request-Headers": "authorization,content-type"
-  }
+  headers: { Origin: siteUrl, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization,content-type" }
 });
 if (corsResponse.status !== 204) fail(`Email Worker preflight returned ${corsResponse.status}`);
 else pass("Email Worker preflight returned 204");
