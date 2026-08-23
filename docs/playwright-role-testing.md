@@ -12,7 +12,7 @@ Authenticated permission tests use six Firebase Authentication users created by 
 | Parent + Leader | `test.leader.parent@example.com` | Approved parent record and active Beaver leader record under the same Firebase UID |
 | Leader | `test.leader.only@example.com` | Active Scout leader |
 | Multi-section Leader | `test.leader.multisection@example.com` | Active leader assigned to Beavers and Cubs |
-| Admin | `test.admin@example.com` | Active `admin` |
+| Admin | `test.webadmin@example.com` | Active `admin` |
 | Super Admin | `test.superadmin@example.com` | Active `super-admin` |
 
 The tests are read-only: they sign in, navigate and inspect access controls. They do not approve requests, edit members, change events or send notifications.
