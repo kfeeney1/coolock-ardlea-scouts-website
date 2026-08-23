@@ -14,7 +14,6 @@ const PUBLIC_WRITER_MARKERS = [
 ];
 const WRITE_MARKERS = [/\.set\(/, /setDoc\(/, /batch\.set\(/, /transaction\.set\(/, /updateDoc\(/];
 const CANONICAL_SECTION_WRITER_FILES = [
-  "scripts/seed-population-data.mjs",
   "src/services/leaderAccess.ts",
   "src/services/leaderProfile.ts",
   "src/services/leaderRegistrations.ts"
@@ -59,5 +58,18 @@ describe("leadership data writers", () => {
       assert.match(source, /\bsections\s*:/, `${file} does not write canonical sections[]`);
       assert.doesNotMatch(source, /\bsection\s*:/, `${file} still writes legacy singular section`);
     }
+
+    const seedFile = "scripts/seed-population-data.mjs";
+    const seedSource = await readFile(seedFile, "utf8");
+    assert.match(
+      seedSource,
+      /replace\(["']adminUsers["'][\s\S]*?sections\s*:\s*user\.sections/,
+      `${seedFile} does not write canonical sections[] to adminUsers`
+    );
+    assert.doesNotMatch(
+      seedSource,
+      /replace\(["']adminUsers["'][\s\S]*?\bsection\s*:\s*user\.(?:section|organisationSection)/,
+      `${seedFile} writes legacy singular section to adminUsers`
+    );
   });
 });
