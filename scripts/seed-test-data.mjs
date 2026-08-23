@@ -57,6 +57,7 @@ const adminUsers = [
     displayName: roleProfiles.leaderParent.displayName,
     mobileNumber: roleProfiles.leaderParent.mobileNumber,
     section: roleProfiles.leaderParent.section,
+    sections: [roleProfiles.leaderParent.section],
     role: "leader",
     active: true,
     testRoleType: "leader-parent"
@@ -68,6 +69,7 @@ const adminUsers = [
     displayName: roleProfiles.leaderOnly.displayName,
     mobileNumber: roleProfiles.leaderOnly.mobileNumber,
     section: roleProfiles.leaderOnly.section,
+    sections: [roleProfiles.leaderOnly.section],
     role: "leader",
     active: true,
     testRoleType: "leader-only"
