@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pr89-live-test-data-reset
+  cancel-in-progress: false
+
 jobs:
   reset-test-data:
     if: ${{ github.head_ref == 'fix/whos-who-core-roles-only' }}
