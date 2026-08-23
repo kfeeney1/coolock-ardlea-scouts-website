@@ -4,6 +4,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const requirePublicLeaders = String(process.env.REQUIRE_PUBLIC_LEADERS || "").toLowerCase() === "true";
+const SNAPSHOT_CONTRACT_VERSION = 9;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
@@ -31,7 +32,6 @@ function sectionKey(section) {
   return typeof section === "string" ? section.trim().toLowerCase() : "";
 }
 
-// Group visibility is restricted to the agreed executive roles; opted-in section leaders/scouters are public regardless of their section-specific title.
 function isPublicOrganisationRole(role, section) {
   if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
   return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
@@ -70,7 +70,8 @@ const leaders = organisationSnapshot.docs
     reportsToUid: typeof leader.reportsToUid === "string" ? leader.reportsToUid.trim() : "",
     showPublicly: true,
     active: true,
-    publicEligible: true
+    publicEligible: true,
+    snapshotContractVersion: SNAPSHOT_CONTRACT_VERSION
   }))
   .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 
@@ -80,4 +81,4 @@ if (requirePublicLeaders && leaders.length === 0) {
 
 await mkdir("public", { recursive: true });
 await writeFile("public/public-leadership.json", `${JSON.stringify(leaders, null, 2)}\n`, "utf8");
-console.log(`Exported ${leaders.length} approved public Scout Group role(s) to public/public-leadership.json.`);
+console.log(`Exported ${leaders.length} approved public Scout Group role(s) using snapshot contract v${SNAPSHOT_CONTRACT_VERSION}.`);
