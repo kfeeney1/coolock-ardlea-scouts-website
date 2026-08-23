@@ -1,1 +1,20 @@
-[]
+[
+  {"uid":"TEST_uid_admin_01","displayName":"Orla Kelly","scoutingRole":"Group Leader","organisationSection":"Group","organisationOrder":1,"reportsToUid":"","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_leader_parent_01","displayName":"Niamh Murphy","scoutingRole":"Beaver Section Leader","organisationSection":"Beavers","organisationOrder":10,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_leader_only_01","displayName":"Aisling Ryan","scoutingRole":"Scout Section Leader","organisationSection":"Scouts","organisationOrder":10,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_multi_section_leader_01","displayName":"Conor Walsh","scoutingRole":"Assistant Section Leader","organisationSection":"Cubs","organisationOrder":20,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_super_admin_01","displayName":"Test Super Admin","scoutingRole":"Group Council Administrator","organisationSection":"Group","organisationOrder":20,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_shared_super_admin_01","displayName":"Shared Tester Super Admin","scoutingRole":"Group Council Administrator","organisationSection":"Group","organisationOrder":30,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_04","displayName":"Test Leader 04","scoutingRole":"Section Leader","organisationSection":"Beavers","organisationOrder":40,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_05","displayName":"Test Leader 05","scoutingRole":"Section Leader","organisationSection":"Cubs","organisationOrder":41,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_06","displayName":"Test Leader 06","scoutingRole":"Section Leader","organisationSection":"Scouts","organisationOrder":42,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_07","displayName":"Test Leader 07","scoutingRole":"Section Leader","organisationSection":"Ventures","organisationOrder":43,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_08","displayName":"Test Leader 08","scoutingRole":"Section Leader","organisationSection":"Rovers","organisationOrder":44,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_09","displayName":"Test Leader 09","scoutingRole":"Section Leader","organisationSection":"Beavers","organisationOrder":45,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_10","displayName":"Test Leader 10","scoutingRole":"Section Leader","organisationSection":"Cubs","organisationOrder":46,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_11","displayName":"Test Leader 11","scoutingRole":"Section Leader","organisationSection":"Scouts","organisationOrder":47,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_12","displayName":"Test Leader 12","scoutingRole":"Section Leader","organisationSection":"Ventures","organisationOrder":48,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_13","displayName":"Test Leader 13","scoutingRole":"Section Leader","organisationSection":"Rovers","organisationOrder":49,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_14","displayName":"Test Leader 14","scoutingRole":"Section Leader","organisationSection":"Beavers","organisationOrder":50,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true},
+  {"uid":"TEST_uid_population_leader_15","displayName":"Test Leader 15","scoutingRole":"Section Leader","organisationSection":"Cubs","organisationOrder":51,"reportsToUid":"TEST_uid_admin_01","showPublicly":true,"active":true}
+]
