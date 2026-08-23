@@ -35,6 +35,7 @@ jobs:
         continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          REQUIRE_PUBLIC_LEADERS: "true"
         run: node scripts/export-public-leadership.mjs
       - name: Restore last good organisation snapshot
         if: ${{ steps.organisation_snapshot.outcome == 'failure' }}
@@ -43,7 +44,7 @@ jobs:
             cp /tmp/public-org/public-leadership.json public/public-leadership.json
             echo '::warning::Could not refresh public organisation snapshot; preserving the last known good hosted snapshot.'
           else
-            echo '::warning::Could not refresh public organisation snapshot and no previous non-empty snapshot is available. The valid empty snapshot will be deployed without falling back to Firestore.'
+            echo '::warning::Could not refresh public organisation snapshot; deploying the checked-in seeded test snapshot.'
           fi
       - name: Build site
         run: npm run build
@@ -59,7 +60,7 @@ jobs:
       - name: Verify public organisation snapshot is deployable
         run: |
           test -f dist/public-leadership.json
-          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('dist/public-leadership.json','utf8')); if(!Array.isArray(p)) process.exit(1); console.log('Deploying public organisation snapshot with', p.length, 'leader(s)');"
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('dist/public-leadership.json','utf8')); if(!Array.isArray(p) || p.length===0) process.exit(1); console.log('Deploying public organisation snapshot with', p.length, 'leader(s)');"
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
