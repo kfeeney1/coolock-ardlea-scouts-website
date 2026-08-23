@@ -42,10 +42,10 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/rebuild-public-leadership.mjs
-      - name: Verify Firestore data after Who's Who rebuild
+      - name: Verify public Who's Who projection
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-firestore-compatibility.mjs
+        run: node scripts/verify-public-leadership.mjs
       - name: Build site
         run: npm run build
         env:
