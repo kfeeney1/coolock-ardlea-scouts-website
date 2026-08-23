@@ -2,10 +2,7 @@ const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
 const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
 const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
-const allowQuotaWarning = String(process.env.ALLOW_FIRESTORE_QUOTA_WARNING || "").toLowerCase() === "true";
-const allowPendingRulesWarning = String(process.env.ALLOW_FIRESTORE_RULES_PENDING_WARNING || "").toLowerCase() === "true";
-const allowPendingSnapshotWarning = String(process.env.ALLOW_PUBLIC_SNAPSHOT_PENDING_WARNING || "").toLowerCase() === "true";
-const EXPECTED_SNAPSHOT_CONTRACT_VERSION = 9;
+const allowPendingDeployWarning = String(process.env.ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING || "").toLowerCase() === "true";
 
 if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
@@ -28,10 +25,13 @@ const failures = [];
 function fail(message) { failures.push(message); console.error(`FAIL: ${message}`); }
 function pass(message) { console.log(`PASS: ${message}`); }
 function warn(message) { console.warn(`WARN: ${message}`); }
-function pendingOrFail(message) { if (allowPendingSnapshotWarning) warn(`${message} This PR changes the snapshot contract and production is expected to remain on the previous contract until merge.`); else fail(message); }
+function pendingOrFail(message) {
+  if (allowPendingDeployWarning) warn(`${message} Production is expected to remain on the previous build until this PR merges.`);
+  else fail(message);
+}
 
 async function get(path) {
-  const response = await fetch(`${siteUrl}${path}`, { redirect: "follow" });
+  const response = await fetch(`${siteUrl}${path}`, { redirect: "follow", cache: "no-store" });
   const text = await response.text();
   if (!response.ok) fail(`${path} returned ${response.status}`);
   else pass(`${path} returned ${response.status}`);
@@ -58,56 +58,60 @@ if (root) {
   if (headers.get("x-frame-options") !== "DENY") fail("X-Frame-Options is not DENY");
   else pass("X-Frame-Options is DENY");
 
-  const assetMatch = root.text.match(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/);
-  if (!assetMatch) {
-    fail("No hashed Vite asset was found in the live SPA shell");
+  const jsMatch = root.text.match(/src="(\/assets\/[^"]+\.js)"/);
+  if (!jsMatch) {
+    fail("No hashed Vite JavaScript asset was found in the live SPA shell");
   } else {
-    const asset = await fetch(`${siteUrl}${assetMatch[1]}`);
-    if (!asset.ok) fail(`Hashed asset returned ${asset.status}`);
-    const cache = asset.headers.get("cache-control") || "";
-    if (!cache.includes("immutable") || !cache.includes("max-age=31536000")) fail("Hashed asset does not have immutable one-year caching");
-    else pass("Hashed asset has immutable one-year caching");
+    const asset = await fetch(`${siteUrl}${jsMatch[1]}`, { cache: "no-store" });
+    if (!asset.ok) {
+      fail(`Hashed JavaScript asset returned ${asset.status}`);
+    } else {
+      const cache = asset.headers.get("cache-control") || "";
+      if (!cache.includes("immutable") || !cache.includes("max-age=31536000")) fail("Hashed JavaScript asset does not have immutable one-year caching");
+      else pass("Hashed JavaScript asset has immutable one-year caching");
+
+      const javascript = await asset.text();
+      if (javascript.includes("public-leadership.json")) {
+        pendingOrFail("Live JavaScript still references the obsolete public-leadership.json snapshot.");
+      } else {
+        pass("Live JavaScript does not reference the obsolete public-leadership.json snapshot");
+      }
+      if (!javascript.includes("publicLeadership")) {
+        pendingOrFail("Live JavaScript does not contain the publicLeadership Firestore collection reference.");
+      } else {
+        pass("Live JavaScript contains the publicLeadership Firestore collection reference");
+      }
+    }
   }
 }
 
-const indexResponse = await fetch(`${siteUrl}/index.html`);
+const indexResponse = await fetch(`${siteUrl}/index.html`, { cache: "no-store" });
 const indexCache = indexResponse.headers.get("cache-control") || "";
 if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
 if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
 else pass("SPA shell uses no-store caching");
 
-let hostedSnapshotCount = 0;
-let hostedSnapshotValid = false;
-const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json?contract=${EXPECTED_SNAPSHOT_CONTRACT_VERSION}&t=${Date.now()}`, { cache: "no-store" });
-if (!hostedSnapshotResponse.ok) {
-  fail(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}`);
+// The old snapshot must no longer exist as deployable data. Firebase Hosting rewrites a missing path to index.html.
+const obsoleteSnapshot = await fetch(`${siteUrl}/public-leadership.json?t=${Date.now()}`, { cache: "no-store" });
+const obsoleteSnapshotText = await obsoleteSnapshot.text();
+let obsoleteSnapshotIsJsonArray = false;
+try {
+  obsoleteSnapshotIsJsonArray = Array.isArray(JSON.parse(obsoleteSnapshotText));
+} catch {
+  obsoleteSnapshotIsJsonArray = false;
+}
+if (obsoleteSnapshotIsJsonArray) {
+  pendingOrFail("Live Hosting still serves public-leadership.json as a data source.");
+} else if (obsoleteSnapshotText.includes('id="root"')) {
+  pass("Obsolete public-leadership.json is no longer deployed; Hosting returns the SPA fallback");
 } else {
-  const hostedText = await hostedSnapshotResponse.text();
-  try {
-    const payload = JSON.parse(hostedText);
-    if (!Array.isArray(payload)) {
-      fail("Hosted public organisation snapshot is valid JSON but is not an array.");
-    } else {
-      const wrongContract = payload.filter((item) => item?.snapshotContractVersion !== EXPECTED_SNAPSHOT_CONTRACT_VERSION);
-      const privilegedLooking = payload.filter((item) => /(^|[_-])(super[_-]?admin|admin)([_-]|$)/i.test(String(item?.uid || "")));
-      const ineligible = payload.filter((item) => item?.publicEligible !== true || item?.showPublicly !== true || item?.active === false);
-      if (wrongContract.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${wrongContract.length} record(s) from an outdated contract.`);
-      if (privilegedLooking.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${privilegedLooking.length} admin/super-admin-shaped UID(s).`);
-      if (ineligible.length > 0) pendingOrFail(`Hosted public organisation snapshot contains ${ineligible.length} ineligible record(s).`);
-      hostedSnapshotValid = wrongContract.length === 0 && privilegedLooking.length === 0 && ineligible.length === 0;
-      hostedSnapshotCount = payload.length;
-      if (hostedSnapshotValid) pass(`Hosted public organisation snapshot uses contract v${EXPECTED_SNAPSHOT_CONTRACT_VERSION} with ${hostedSnapshotCount} leader(s)`);
-    }
-  } catch {
-    if (hostedText.includes('id="root"')) fail("Hosted public organisation snapshot is missing; Firebase Hosting returned the SPA shell fallback.");
-    else fail("Hosted public organisation snapshot is not valid JSON.");
-  }
+  pass("Obsolete public-leadership.json is no longer available as JSON data");
 }
 
 console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
 const publicLeadershipUrl = new URL(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`);
 publicLeadershipUrl.searchParams.set("key", firebaseApiKey);
-const publicLeadershipResponse = await fetch(publicLeadershipUrl);
+const publicLeadershipResponse = await fetch(publicLeadershipUrl, { cache: "no-store" });
 if (!publicLeadershipResponse.ok) {
   let detail = "";
   try {
@@ -115,14 +119,17 @@ if (!publicLeadershipResponse.ok) {
     detail = body?.error?.message ? `: ${body.error.message}` : "";
   } catch {}
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
-  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
-  else if (publicLeadershipResponse.status === 403 && allowPendingRulesWarning) warn(`${message}. Production Firestore rules are pending the merge deployment.`);
+  if (allowPendingDeployWarning) warn(`${message}. Production rules may still be pending this PR's merge deployment.`);
   else fail(message);
 } else {
   const payload = await publicLeadershipResponse.json();
-  const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
-  if (documentCount === 0 && hostedSnapshotCount === 0) warn("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. No leaders are currently published.");
-  else pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
+  const documents = Array.isArray(payload.documents) ? payload.documents : [];
+  const privilegedLooking = documents.filter((document) => {
+    const uid = String(document?.name || "").split("/").pop() || "";
+    return /(^|[_-])(super[_-]?admin|admin)([_-]|$)/i.test(uid);
+  });
+  if (privilegedLooking.length > 0) fail(`publicLeadership contains ${privilegedLooking.length} admin/super-admin-shaped document ID(s).`);
+  else pass(`Anonymous publicLeadership Firestore read returned 200 with ${documents.length} document(s) and no admin-shaped IDs`);
 }
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
