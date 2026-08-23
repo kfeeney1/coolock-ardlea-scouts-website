@@ -34,7 +34,7 @@ test("rebuilt public Who's Who includes section leaders and excludes website adm
   await expect(page.getByRole("heading", { name: "Conor Walsh", exact: true })).toBeVisible();
   await expect(page.getByText("Assistant Section Leader", { exact: true })).toBeVisible();
 
-  for (const forbiddenName of ["Orla Kelly", "Test Super Admin", "Shared Tester Super Admin"]) {
+  for (const forbiddenName of ["Test Website Administrator", "Test Super Admin", "Shared Tester Super Admin"]) {
     await expect(page.getByRole("heading", { name: forbiddenName, exact: true })).toHaveCount(0);
   }
   for (const forbiddenRole of ["Deputy Group Leader", "Elected Member", "Group Elected Member", "Group Council Elected Member", "Group Council Administrator"]) {
@@ -54,14 +54,14 @@ test("programme scouter can open the internal organisation chart with leader dat
   await page.goto("/leader/organisation");
   await expect(page.getByRole("heading", { name: "Organisational Chart" })).toBeVisible();
   await expect(page.getByText("Unable to load the internal organisation chart.")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Test Website Administrator", exact: true })).toBeVisible();
   await expect(page.getByText("Group Leader", { exact: true })).toBeVisible();
 });
 
 test("administrator sees organisation controls in Leader Access", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.admin@example.com");
+  await login(page, "test.webadmin@example.com");
   await page.goto("/leader/access");
   await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
   await expect(page.getByText("Organisational chart").first()).toBeVisible();
