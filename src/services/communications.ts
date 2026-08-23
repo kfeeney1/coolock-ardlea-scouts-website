@@ -27,12 +27,11 @@ export async function loadCommunicationRecipients(scope: Scope): Promise<Communi
     const byId = new Map<string, CommunicationRecipient>();
     for (const item of docs) {
         const data = item.data() as Record<string, unknown>;
-        byId.set(item.id, {
-            id: item.id,
-            displayName: stringValue(data, "displayName") || "Unnamed member",
-            section: stringValue(data, "section"),
-            status: stringValue(data, "status") || "active"
-        });
+        const displayName = stringValue(data, "displayName");
+        const section = stringValue(data, "section");
+        const status = stringValue(data, "status");
+        if (!displayName || !section || !["active", "inactive", "left"].includes(status)) continue;
+        byId.set(item.id, { id: item.id, displayName, section, status });
     }
 
     return [...byId.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
