@@ -7,6 +7,9 @@ on:
       - "scripts/purge-test-data.mjs"
       - "scripts/seed-population-data.mjs"
       - "scripts/verify-test-population.mjs"
+      - "src/firebase.ts"
+      - "firebase.json"
+      - ".github/workflows/playwright-e2e.yml"
       - ".github/workflows/test-data-reset-pr89.yml"
 
 permissions:
