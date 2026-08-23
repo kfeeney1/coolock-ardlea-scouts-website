@@ -191,36 +191,70 @@ service cloud.firestore {
     match /weeklyMeetings/{weeklyMeetingId} {
       allow read: if isActiveLeader() && resource.data.section is string && hasSection(resource.data.section);
       allow create: if isActiveLeader()
-        && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.section is string
         && hasSection(request.resource.data.section)
-        && request.resource.data.title is string
-        && request.resource.data.meetingDate is string;
+        && request.resource.data.meetingDate is string
+        && request.resource.data.entries is list
+        && request.resource.data.notes is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "notes", "entries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       allow update: if isActiveLeader()
-        && resource.data.section is string && hasSection(resource.data.section)
-        && request.resource.data.section is string && hasSection(request.resource.data.section);
+        && resource.data.section is string
+        && request.resource.data.section is string
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.entries is list
+        && request.resource.data.notes is string
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "notes", "entries", "updatedBy", "updatedAt"]);
       allow delete: if false;
     }
 
-    match /organisationLeadership/{userId} {
+    match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
-      allow create, update: if isAdmin();
-      allow delete: if false;
+      allow create, update: if isAdmin()
+        && request.resource.data.displayName is string
+        && request.resource.data.scoutingRole is string
+        && request.resource.data.organisationSection is string
+        && request.resource.data.organisationOrder is number
+        && request.resource.data.reportsToUid is string
+        && request.resource.data.showPublicly is bool
+        && request.resource.data.active == true
+        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "showPublicly", "active", "updatedAt"]);
+      allow delete: if isAdmin();
     }
 
-    match /publicLeadership/{userId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
+    match /publicLeadership/{leaderId} {
+      // Public website content must be readable without authentication.
+      allow get, list: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.displayName is string
+        && request.resource.data.scoutingRole is string
+        && request.resource.data.organisationSection is string
+        && request.resource.data.organisationOrder is number
+        && request.resource.data.reportsToUid is string
+        && request.resource.data.active == true
+        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "active", "updatedAt"]);
+      allow delete: if isAdmin();
     }
 
-    match /auditLogs/{logId} {
-      allow create: if isActiveLeader() && request.resource.data.actorUid == request.auth.uid;
-      allow read: if isAdmin();
+    match /auditLog/{entryId} {
+      allow get, list: if isAdmin();
+      allow create: if isActiveLeader()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail is string
+        && request.resource.data.category is string
+        && request.resource.data.action is string
+        && request.resource.data.targetId is string
+        && request.resource.data.targetLabel is string
+        && request.resource.data.description is string
+        && request.resource.data.section is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["category", "action", "actorUid", "actorEmail", "targetId", "targetLabel", "description", "section", "createdAt"]);
       allow update, delete: if false;
     }
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
