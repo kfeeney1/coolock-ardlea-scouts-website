@@ -14,6 +14,7 @@ import type {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type ConsentType = "youth" | "scouter";
 export type ConsentStatus = "active" | "reviewed" | "expired" | "archived";
@@ -37,12 +38,7 @@ export type ConsentAdminRecord = {
 };
 
 function timestampToDate(value: unknown): Date | null {
-    if (
-        value &&
-        typeof value === "object" &&
-        "toDate" in value &&
-        typeof (value as Timestamp).toDate === "function"
-    ) {
+    if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
         return (value as Timestamp).toDate();
     }
     return null;
@@ -50,7 +46,7 @@ function timestampToDate(value: unknown): Date | null {
 
 function stringValue(data: DocumentData, key: string): string {
     const value = data[key];
-    return typeof value === "string" ? value : "";
+    return typeof value === "string" ? value.trim() : "";
 }
 
 function yes(data: DocumentData, key: string): boolean {
@@ -59,48 +55,35 @@ function yes(data: DocumentData, key: string): boolean {
 
 function medicationEnabled(data: DocumentData): boolean {
     const medication = data.medicationManagement;
-    return Boolean(
-        medication &&
-        typeof medication === "object" &&
-        "enabled" in medication &&
-        medication.enabled === true
-    );
+    return Boolean(medication && typeof medication === "object" && "enabled" in medication && medication.enabled === true);
 }
 
 function hasYouthMedicalAlert(data: DocumentData): boolean {
-    return [
-        "seriousIllness",
-        "regularMeds",
-        "medAllergies",
-        "allergies",
-        "dietaryReqs"
-    ].some((key) => yes(data, key));
+    return ["seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"].some((key) => yes(data, key));
 }
 
 function hasScouterMedicalAlert(data: DocumentData): boolean {
-    return [
-        "epilepsy",
-        "diabetes",
-        "asthma",
-        "heartDisease",
-        "highBloodPressure",
-        "skinAllergies",
-        "hearingDifficulties",
-        "onMedication"
-    ].some((key) => yes(data, key));
+    return ["epilepsy", "diabetes", "asthma", "heartDisease", "highBloodPressure", "skinAllergies", "hearingDifficulties", "onMedication"].some((key) => yes(data, key));
 }
 
-function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): ConsentAdminRecord {
+function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): ConsentAdminRecord | null {
     const data = snapshot.data();
-    const isScouter = stringValue(data, "formType") === "scouter-es3-medical-advice";
+    const formType = stringValue(data, "formType");
+    if (formType !== "youth-activity-consent" && formType !== "scouter-es3-medical-advice") return null;
+
+    const section = stringValue(data, "section");
+    const isScouter = formType === "scouter-es3-medical-advice";
+    const memberName = isScouter ? stringValue(data, "name") : stringValue(data, "childName");
+    const status = stringValue(data, "status");
+    if (!section || !memberName || !["active", "reviewed", "expired", "archived"].includes(status)) return null;
 
     return {
         id: snapshot.id,
         type: isScouter ? "scouter" : "youth",
-        section: stringValue(data, "section") || stringValue(data, "scoutSection") || (isScouter ? "Scouter" : ""),
-        memberName: isScouter ? stringValue(data, "name") : stringValue(data, "childName"),
+        section,
+        memberName,
         memberId: stringValue(data, "memberId"),
-        status: stringValue(data, "status") || "active",
+        status,
         submittedAt: timestampToDate(data.submittedAt),
         updatedAt: timestampToDate(data.updatedAt),
         parentUpdatedAt: timestampToDate(data.parentUpdatedAt),
@@ -111,14 +94,6 @@ function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): ConsentAdmin
         hasMedicalAlert: isScouter ? hasScouterMedicalAlert(data) : hasYouthMedicalAlert(data),
         data
     };
-}
-
-function profileSections(data: DocumentData): string[] {
-    const sections = Array.isArray(data.sections)
-        ? data.sections.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-        : [];
-    const legacy = stringValue(data, "section").trim();
-    return [...new Set([...sections.map((section) => section.trim()), legacy].filter(Boolean))];
 }
 
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
@@ -137,16 +112,11 @@ export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
     if (isAdmin) {
         documents = (await getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc")))).docs;
     } else {
-        const sections = profileSections(profile);
+        const sections = normalizeLeaderSections(profile);
         if (sections.length === 0) return [];
-
         const snapshots = await Promise.all(
-            sections.flatMap((section) => [
-                getDocs(query(collection(db, "consentApplications"), where("section", "==", section))),
-                getDocs(query(collection(db, "consentApplications"), where("scoutSection", "==", section)))
-            ])
+            sections.map((section) => getDocs(query(collection(db, "consentApplications"), where("section", "==", section))))
         );
-
         const byId = new Map<string, QueryDocumentSnapshot<DocumentData>>();
         snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => byId.set(item.id, item)));
         documents = [...byId.values()];
@@ -154,6 +124,7 @@ export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
 
     return documents
         .map(mapConsent)
+        .filter((record): record is ConsentAdminRecord => record !== null)
         .sort((left, right) => (right.submittedAt?.getTime() ?? 0) - (left.submittedAt?.getTime() ?? 0));
 }
 
