@@ -40,7 +40,7 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
             organisationSection: org?.organisationSection || sections[0] || "Group",
             organisationOrder: org?.organisationOrder ?? 999,
             reportsToUid: org?.reportsToUid || "",
-            showPublicly: org?.showPublicly === true
+            showPublicly: role === "leader" && org?.showPublicly === true
         };
     });
 }
@@ -62,7 +62,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         organisationSection: record.organisationSection,
         organisationOrder: record.organisationOrder,
         reportsToUid: record.reportsToUid,
-        showPublicly: record.showPublicly,
+        showPublicly: record.role === "leader" && record.showPublicly,
         active: record.active
     });
 }
