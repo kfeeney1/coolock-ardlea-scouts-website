@@ -73,23 +73,29 @@ if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-
 else pass("SPA shell uses no-store caching");
 
 let hostedSnapshotCount = 0;
+let hostedSnapshotValid = false;
 const hostedSnapshotResponse = await fetch(`${siteUrl}/public-leadership.json`, { cache: "no-store" });
-if (hostedSnapshotResponse.ok) {
+if (!hostedSnapshotResponse.ok) {
+  fail(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}`);
+} else {
   const hostedText = await hostedSnapshotResponse.text();
   try {
     const payload = JSON.parse(hostedText);
-    hostedSnapshotCount = Array.isArray(payload) ? payload.length : 0;
-    if (hostedSnapshotCount > 0) pass(`Hosted public organisation snapshot contains ${hostedSnapshotCount} leader(s)`);
-    else warn("Hosted public organisation snapshot is empty; browser fallback still depends on Firestore/local cache.");
+    if (!Array.isArray(payload)) {
+      fail("Hosted public organisation snapshot is valid JSON but is not an array.");
+    } else {
+      hostedSnapshotValid = true;
+      hostedSnapshotCount = payload.length;
+      if (hostedSnapshotCount > 0) pass(`Hosted public organisation snapshot contains ${hostedSnapshotCount} leader(s)`);
+      else pass("Hosted public organisation snapshot is a valid empty array; public page can render without Firestore.");
+    }
   } catch {
     if (hostedText.includes('id="root"')) {
-      warn("Hosted public organisation snapshot is not deployed yet; Firebase Hosting returned the SPA shell fallback.");
+      fail("Hosted public organisation snapshot is missing; Firebase Hosting returned the SPA shell fallback.");
     } else {
       fail("Hosted public organisation snapshot is not valid JSON.");
     }
   }
-} else {
-  warn(`Hosted public organisation snapshot returned ${hostedSnapshotResponse.status}; browser fallback still depends on Firestore/local cache.`);
 }
 
 console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
@@ -107,8 +113,8 @@ if (!publicLeadershipResponse.ok) {
     // Keep the status-only diagnostic if Firebase does not return JSON.
   }
   const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
-  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotCount > 0)) {
-    warn(`${message}. Hosted/public cache fallback remains available.`);
+  if (publicLeadershipResponse.status === 429 && (allowQuotaWarning || hostedSnapshotValid)) {
+    warn(`${message}. Public page remains independent because the hosted snapshot is valid.`);
   } else {
     fail(message);
   }
@@ -116,7 +122,7 @@ if (!publicLeadershipResponse.ok) {
   const payload = await publicLeadershipResponse.json();
   const documentCount = Array.isArray(payload.documents) ? payload.documents.length : 0;
   if (documentCount === 0 && hostedSnapshotCount === 0) {
-    fail("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. Public leaders have not been published.");
+    warn("Anonymous publicLeadership Firestore read returned 200 but both Firestore and the hosted snapshot are empty. No leaders are currently published.");
   } else {
     pass(`Anonymous publicLeadership Firestore read returned 200 with ${documentCount} document(s)`);
   }
