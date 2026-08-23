@@ -6,6 +6,11 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   workflow_run:
     workflows:
       - Organisation Chart Backfill
@@ -14,12 +19,21 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "15 9 * * *"
+
+concurrency:
+  group: firebase-live-deploy
+  cancel-in-progress: false
+
 jobs:
   build_and_deploy:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Install app dependencies
         run: npm ci
       - name: Build site
