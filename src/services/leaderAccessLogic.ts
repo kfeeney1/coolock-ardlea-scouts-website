@@ -3,17 +3,20 @@ export type NormalizedLeaderRole = "leader" | "admin" | "super-admin";
 export type LeaderAccessSource = {
     role?: unknown;
     sections?: unknown;
-    section?: unknown;
 };
 
 export function normalizeLeaderRole(value: unknown): NormalizedLeaderRole {
-    return value === "super-admin" || value === "admin" ? value : "leader";
+    if (value === "leader" || value === "admin" || value === "super-admin") return value;
+    throw new Error("Leader profile contains an unsupported role.");
 }
 
 export function normalizeLeaderSections(data: LeaderAccessSource): string[] {
-    if (Array.isArray(data.sections)) {
-        return data.sections.filter((value): value is string => typeof value === "string" && value.length > 0);
-    }
+    if (!Array.isArray(data.sections)) return [];
 
-    return typeof data.section === "string" && data.section.length > 0 ? [data.section] : [];
+    return [...new Set(
+        data.sections
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.trim())
+            .filter(Boolean)
+    )];
 }
