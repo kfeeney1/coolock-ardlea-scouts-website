@@ -32,8 +32,10 @@ test("public Who's Who only shows approved Scout Group roles", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Aisling Ryan", exact: true })).toBeVisible();
   await expect(page.getByText("Scout Programme Scouter", { exact: true })).toBeVisible();
 
-  // A website admin remains private even when its scouting appointment is otherwise allowed.
+  // Website admin and super-admin accounts must never be present in the public leadership dataset or UI.
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Test Super Admin", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Shared Tester Super Admin", exact: true })).toHaveCount(0);
   // Legacy/non-approved titles are rejected even when showPublicly is true in Firestore.
   await expect(page.getByRole("heading", { name: "Conor Walsh", exact: true })).toHaveCount(0);
   await expect(page.getByText("Assistant Section Leader", { exact: true })).toHaveCount(0);
