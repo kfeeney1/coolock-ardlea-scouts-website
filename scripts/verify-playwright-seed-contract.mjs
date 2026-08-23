@@ -32,6 +32,7 @@ for (const key of envAccountKeys) {
 const requiredSeedCommands = [
   "node scripts/seed-population-data.mjs seed",
   "node scripts/seed-flow-data.mjs",
+  "node scripts/seed-public-site-content.mjs seed",
   "node scripts/seed-playwright-records.mjs",
   "node scripts/rebuild-public-leadership.mjs",
   "node scripts/verify-test-population.mjs",
@@ -75,4 +76,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`Playwright seed contract verified against comprehensive population: ${seededEmails.size} explicit seeded account email(s), ${e2eFiles.length} spec file(s) checked.`);
+console.log(`Playwright seed contract verified against comprehensive population and canonical public content: ${seededEmails.size} explicit seeded account email(s), ${e2eFiles.length} spec file(s) checked.`);
