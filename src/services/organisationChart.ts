@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import type { DocumentData, QuerySnapshot } from "firebase/firestore";
 import { db } from "../firebase";
+import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
 
 export type OrganisationLeader = {
   uid: string;
@@ -21,57 +22,38 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_PROJECTION_VERSION = 2;
-const PUBLIC_GROUP_ROLES = new Set([
-  "group leader",
-  "group chairperson",
-  "group secretary",
-  "group treasurer",
-  "group quartermaster",
-  "group quartermaster/bo'sun",
-  "group bo'sun",
-  "group youth champion"
-]);
-const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
-
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function order(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 999;
-}
+function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader | null {
+  const displayName = text(data.displayName);
+  const scoutingRole = text(data.scoutingRole);
+  const organisationSection = text(data.organisationSection);
+  const reportsToUid = text(data.reportsToUid);
+  const organisationOrder = data.organisationOrder;
+  if (
+    !displayName || !scoutingRole || !organisationSection ||
+    typeof organisationOrder !== "number" || !Number.isFinite(organisationOrder) ||
+    typeof data.showPublicly !== "boolean" || data.active !== true
+  ) return null;
 
-function roleKey(role: string): string {
-  return role.trim().toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ");
-}
-
-function sectionKey(section: string): string {
-  return section.trim().toLowerCase();
-}
-
-function isPublicOrganisationRole(role: string, section: string): boolean {
-  if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
-  return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
-}
-
-function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
   return {
     uid,
-    displayName: text(data.displayName) || "Leader",
-    scoutingRole: text(data.scoutingRole) || "Leader",
-    organisationSection: text(data.organisationSection) || "Group",
-    organisationOrder: order(data.organisationOrder),
-    reportsToUid: text(data.reportsToUid),
-    showPublicly: data.showPublicly === true,
-    active: data.active !== false
+    displayName,
+    scoutingRole,
+    organisationSection,
+    organisationOrder,
+    reportsToUid,
+    showPublicly: data.showPublicly,
+    active: true
   };
 }
 
 function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLeader[] {
   return snapshot.docs
     .map((item) => mapLeader(item.id, item.data()))
-    .filter((leader) => leader.active)
+    .filter((leader): leader is OrganisationLeader => leader !== null)
     .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 }
 
@@ -98,13 +80,16 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     active: true,
     updatedAt: serverTimestamp()
   };
+  if (!safe.displayName || !safe.scoutingRole || !safe.organisationSection) {
+    throw new Error("Organisation leader does not match the canonical data contract.");
+  }
 
   await setDoc(privateRef, safe);
 
   const accessSnapshot = await getDoc(doc(db, "adminUsers", leader.uid));
   const access = accessSnapshot.exists() ? accessSnapshot.data() : null;
-  const leaderAccess = text(access?.role).toLowerCase() === "leader" && access?.active !== false;
-  if (!leaderAccess || !leader.showPublicly || !isPublicOrganisationRole(safe.scoutingRole, safe.organisationSection)) {
+  const leaderAccess = access?.role === "leader" && access?.active === true && Array.isArray(access?.sections) && access.sections.length > 0;
+  if (!leaderAccess || !leader.showPublicly || !isAllowedPublicAppointment(safe.scoutingRole, safe.organisationSection)) {
     await deleteDoc(publicRef);
     return;
   }
