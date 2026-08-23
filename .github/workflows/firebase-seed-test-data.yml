@@ -50,8 +50,38 @@ jobs:
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
         run: node scripts/seed-population-data.mjs seed
 
-      - name: Verify live Firestore compatibility
+      - name: Seed canonical system-flow fixtures
         if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-firestore-compatibility.mjs
+        run: node scripts/seed-flow-data.mjs
+
+      - name: Seed canonical public website content
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-public-site-content.mjs seed
+
+      - name: Rebuild public leadership projection from seeded database records
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/rebuild-public-leadership.mjs
+
+      - name: Verify comprehensive population
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/verify-test-population.mjs
+
+      - name: Verify flow fixtures
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/verify-flow-data.mjs
+
+      - name: Audit live Firestore provenance
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/audit-live-data-provenance.mjs
