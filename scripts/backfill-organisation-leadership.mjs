@@ -7,6 +7,8 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const optInAllActiveLeaders = String(process.env.OPT_IN_ALL_ACTIVE_LEADERS || "").toLowerCase() === "true";
+const PUBLIC_PROJECTION_VERSION = 2;
+const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 
 const PUBLIC_GROUP_ROLES = new Set([
   "group leader",
@@ -16,38 +18,29 @@ const PUBLIC_GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion",
-  "deputy group leader",
-  "programme scouter",
-  "elected member",
-  "group elected member",
-  "group council elected member"
+  "group youth champion"
 ]);
+const YOUTH_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 const TEST_ROLE_OVERRIDES = {
-  TEST_uid_leader_parent_01: { scoutingRole: "Beaver Programme Scouter", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true },
-  TEST_uid_leader_only_01: { scoutingRole: "Scout Programme Scouter", organisationSection: "Scouts", organisationOrder: 10, reportsToUid: "TEST_uid_admin_01", showPublicly: true },
-  TEST_uid_multi_section_leader_01: { scoutingRole: "Assistant Section Leader", organisationSection: "Cubs", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false },
-  TEST_uid_admin_01: { scoutingRole: "Group Leader", organisationSection: "Group", organisationOrder: 1, reportsToUid: "", showPublicly: false },
-  TEST_uid_super_admin_01: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 20, reportsToUid: "TEST_uid_admin_01", showPublicly: false },
-  TEST_uid_shared_super_admin_01: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 30, reportsToUid: "TEST_uid_admin_01", showPublicly: false }
+  TEST_uid_leader_parent_01: { scoutingRole: "Beaver Programme Scouter", organisationSection: "Beavers", organisationOrder: 10, reportsToUid: WEB_ADMIN_UID, showPublicly: true },
+  TEST_uid_leader_only_01: { scoutingRole: "Scout Programme Scouter", organisationSection: "Scouts", organisationOrder: 10, reportsToUid: WEB_ADMIN_UID, showPublicly: true },
+  TEST_uid_multi_section_leader_01: { scoutingRole: "Assistant Section Leader", organisationSection: "Cubs", organisationOrder: 20, reportsToUid: WEB_ADMIN_UID, showPublicly: false },
+  [WEB_ADMIN_UID]: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 90, reportsToUid: "TEST_uid_group_leader", showPublicly: false },
+  TEST_uid_super_admin_01: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 91, reportsToUid: "TEST_uid_group_leader", showPublicly: false },
+  TEST_uid_shared_super_admin_01: { scoutingRole: "Group Council Administrator", organisationSection: "Group", organisationOrder: 92, reportsToUid: "TEST_uid_group_leader", showPublicly: false }
 };
 
+function text(value) { return typeof value === "string" ? value.trim() : ""; }
 function roleKey(role) {
-  return typeof role === "string"
-    ? role.trim().toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ")
-    : "";
+  return text(role).toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ");
 }
-
-function isPublicGroupRole(role) {
-  const value = roleKey(role);
-  if (PUBLIC_GROUP_ROLES.has(value)) return true;
-  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
+function isPublicRole(role, section) {
+  const sectionKey = text(section).toLowerCase();
+  if (YOUTH_SECTIONS.has(sectionKey)) return Boolean(text(role));
+  return sectionKey === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
 }
-
-function isPrivilegedAccessRole(role) {
-  return ["admin", "super-admin"].includes(roleKey(role));
-}
+function isLeaderAccessRole(role) { return roleKey(role) === "leader"; }
 
 function defaultSection(data) {
   if (Array.isArray(data.sections) && data.sections.length) return data.sections[0];
@@ -63,6 +56,8 @@ function publicPayload(record) {
     reportsToUid: record.reportsToUid,
     showPublicly: true,
     active: true,
+    publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
+    sourceAccessRole: "leader",
     updatedAt: FieldValue.serverTimestamp()
   };
 }
@@ -79,7 +74,7 @@ let eligibleForOptIn = 0;
 
 for (const adminDoc of activeAdminDocs) {
   const data = adminDoc.data();
-  const privileged = isPrivilegedAccessRole(data.role);
+  const leaderAccess = isLeaderAccessRole(data.role);
   const orgRef = db.collection("organisationLeadership").doc(adminDoc.id);
   const existing = await orgRef.get();
   let record;
@@ -103,10 +98,10 @@ for (const adminDoc of activeAdminDocs) {
     created += 1;
   }
 
-  const eligible = !privileged && isPublicGroupRole(record.scoutingRole);
+  const eligible = leaderAccess && isPublicRole(record.scoutingRole, record.organisationSection);
   if (eligible) eligibleForOptIn += 1;
 
-  if (privileged && record.showPublicly === true) {
+  if (!leaderAccess && record.showPublicly === true) {
     record = { ...record, showPublicly: false, active: true, updatedAt: FieldValue.serverTimestamp() };
     await orgRef.set({ showPublicly: false, active: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   } else if (optInAllActiveLeaders && eligible && record.showPublicly !== true) {
@@ -117,12 +112,12 @@ for (const adminDoc of activeAdminDocs) {
 
   const publicRef = db.collection("publicLeadership").doc(adminDoc.id);
   if (record.active !== false && record.showPublicly === true && eligible) {
-    await publicRef.set(publicPayload(record), { merge: true });
+    await publicRef.set(publicPayload(record));
     published += 1;
   } else {
     await publicRef.delete().catch(() => undefined);
     unpublished += 1;
-    if (privileged) privilegedExcluded += 1;
+    if (!leaderAccess) privilegedExcluded += 1;
   }
 }
 
@@ -138,4 +133,4 @@ if (optInAllActiveLeaders && published !== eligibleForOptIn) {
   throw new Error(`Organisation opt-in migration failed. Expected ${eligibleForOptIn} eligible public leaders but reconciled ${published}.`);
 }
 
-console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${optedIn} eligible leader(s) opted in, ${published} public records reconciled, ${unpublished} private-only records reconciled, ${privilegedExcluded} privileged account(s) excluded, ${activeAdminDocs.length} active leaders verified.`);
+console.log(`Organisation backfill complete: ${created} created, ${preserved} existing records preserved, ${optedIn} eligible leader(s) opted in, ${published} public records reconciled, ${unpublished} private-only records reconciled, ${privilegedExcluded} non-leader access account(s) excluded, ${activeAdminDocs.length} active access profiles verified.`);
