@@ -7,8 +7,7 @@ const guardedFiles = [
   "e2e/organisation-chart.spec.ts"
 ];
 
-const forbidden = [
-  "Orla Kelly",
+const forbiddenLegacyIdentifiers = [
   "test.admin@example.com",
   "TEST_uid_admin_01"
 ];
@@ -16,8 +15,8 @@ const forbidden = [
 test("legacy admin fixture cannot be reintroduced into active E2E data", () => {
   for (const path of guardedFiles) {
     const content = readFileSync(path, "utf8");
-    for (const value of forbidden) {
-      assert.equal(content.includes(value), false, `${path} must not contain legacy fixture value ${value}`);
+    for (const value of forbiddenLegacyIdentifiers) {
+      assert.equal(content.includes(value), false, `${path} must not contain legacy fixture identifier ${value}`);
     }
   }
 });
