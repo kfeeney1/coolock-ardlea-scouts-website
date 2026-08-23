@@ -62,7 +62,7 @@ test("section leader loads active members and persists weekly attendance subs an
 test("administrator can choose from all standard sections", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.admin@example.com");
+  await login(page, "test.webadmin@example.com");
   await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Weekly Section Tracker" })).toBeVisible();
   await page.getByLabel("Section").click();

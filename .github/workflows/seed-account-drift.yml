@@ -1,0 +1,29 @@
+name: Seed Account Drift Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/seed-population-data.mjs"
+      - "scripts/seed-flow-data.mjs"
+      - "scripts/reconcile-seeded-accounts.mjs"
+      - ".github/workflows/seed-account-drift.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firebase Admin SDK
+        run: npm install --no-save --ignore-scripts firebase-admin
+      - name: Compare live TEST accounts with canonical seed
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/reconcile-seeded-accounts.mjs --check

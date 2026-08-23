@@ -38,6 +38,10 @@ jobs:
         run: npm ci
       - name: Install Firebase Admin SDK for deployment data checks
         run: npm install --no-save --ignore-scripts firebase-admin
+      - name: Reconcile live test accounts to canonical seed data
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/reconcile-seeded-accounts.mjs
       - name: Rebuild curated public Who's Who
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}

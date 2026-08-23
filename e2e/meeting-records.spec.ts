@@ -57,7 +57,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
 test("administrator can select Group Council meeting", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.admin@example.com");
+  await login(page, "test.webadmin@example.com");
   await page.goto("/leader/meetings");
   await expect(page.getByRole("heading", { name: "Meeting Records" })).toBeVisible();
   await openMeetingType(page);
