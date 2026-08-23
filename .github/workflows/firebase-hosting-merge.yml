@@ -24,28 +24,11 @@ jobs:
         run: npm ci
       - name: Install Firebase Admin for public snapshot export
         run: npm install --no-save --package-lock=false firebase-admin@14.3.0
-      - name: Preserve last good public organisation snapshot
-        run: |
-          mkdir -p /tmp/public-org
-          if curl -fsSL https://coolock-ardlea-scouts.web.app/public-leadership.json -o /tmp/public-org/public-leadership.json; then
-            node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('/tmp/public-org/public-leadership.json','utf8')); if(!Array.isArray(p) || p.length===0) process.exit(1);" || rm -f /tmp/public-org/public-leadership.json
-          fi
       - name: Export public organisation snapshot
-        id: organisation_snapshot
-        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           REQUIRE_PUBLIC_LEADERS: "true"
         run: node scripts/export-public-leadership.mjs
-      - name: Restore last good organisation snapshot
-        if: ${{ steps.organisation_snapshot.outcome == 'failure' }}
-        run: |
-          if [ -f /tmp/public-org/public-leadership.json ]; then
-            cp /tmp/public-org/public-leadership.json public/public-leadership.json
-            echo '::warning::Could not refresh public organisation snapshot; preserving the last known good hosted snapshot.'
-          else
-            echo '::warning::Could not refresh public organisation snapshot; deploying the checked-in seeded test snapshot.'
-          fi
       - name: Build site
         run: npm run build
         env:
