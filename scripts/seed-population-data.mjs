@@ -219,7 +219,11 @@ async function seedLeader(user) {
   await upsert("organisationLeadership", user.uid, organisationRecord);
 
   if (user.accessRole === "leader" && user.showPublicly) {
-    await upsert("publicLeadership", user.uid, organisationRecord);
+    await upsert("publicLeadership", user.uid, {
+      ...organisationRecord,
+      publicProjectionVersion: 2,
+      sourceAccessRole: "leader"
+    });
   } else {
     await db.collection("publicLeadership").doc(user.uid).delete().catch(() => {});
   }
