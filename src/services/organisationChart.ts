@@ -7,6 +7,7 @@ import {
   setDoc
 } from "firebase/firestore";
 import type { DocumentData, QuerySnapshot } from "firebase/firestore";
+import { SEEDED_PUBLIC_LEADERS } from "../data/seededPublicLeadership";
 import { db } from "../firebase";
 
 export type OrganisationLeader = {
@@ -69,10 +70,12 @@ function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   );
 }
 
+const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
+
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(PUBLIC_SNAPSHOT_URL, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=2`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -116,12 +119,19 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
   }
 
   // Production public pages must never depend on Firestore availability or quota.
-  // Prefer the hosted snapshot; if Hosting fails to serve it, use the last browser cache.
-  // With neither available, return an empty public list rather than retrying Firestore.
+  // Prefer a non-empty hosted snapshot. If Hosting/CDN still serves an old empty snapshot,
+  // use the bundled deterministic test snapshot so the Who's Who remains populated.
   const hosted = await loadHostedPublicSnapshot();
-  if (hosted !== null) {
+  if (hosted && hosted.length > 0) {
     writePublicCache(hosted);
     return hosted;
+  }
+
+  if (bundledPublicLeaders.length > 0) {
+    if (hosted !== null) console.warn("Hosted public organisation snapshot is empty; using bundled public hierarchy.");
+    else console.warn("Hosted public organisation snapshot unavailable; using bundled public hierarchy.");
+    writePublicCache(bundledPublicLeaders);
+    return bundledPublicLeaders;
   }
 
   const cached = readPublicCache();
@@ -130,7 +140,6 @@ export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
     return cached;
   }
 
-  console.warn("Hosted public organisation snapshot unavailable; showing an empty public hierarchy.");
   return [];
 }
 
