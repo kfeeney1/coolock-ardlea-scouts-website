@@ -20,13 +20,13 @@ test("legacy Who's Who URL redirects to About", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 });
 
-test("public Who's Who includes section leaders but excludes admin identities", async ({ page }) => {
+test("rebuilt public Who's Who includes section leaders and excludes website admins", async ({ page }) => {
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
-  await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
+  await expect(page.getByTestId("public-whos-who")).toBeVisible();
+  await expect(page.getByText("Unable to load Who’s Who right now.")).toHaveCount(0);
 
-  // Section leaders/scouters remain public when opted in.
   await expect(page.getByRole("heading", { name: "Niamh Murphy", exact: true })).toBeVisible();
   await expect(page.getByText("Beaver Programme Scouter", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aisling Ryan", exact: true })).toBeVisible();
@@ -34,14 +34,11 @@ test("public Who's Who includes section leaders but excludes admin identities", 
   await expect(page.getByRole("heading", { name: "Conor Walsh", exact: true })).toBeVisible();
   await expect(page.getByText("Assistant Section Leader", { exact: true })).toBeVisible();
 
-  // Website admin and super-admin identities never appear publicly, even if they have a scouting title.
-  await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Test Super Admin", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Shared Tester Super Admin", exact: true })).toHaveCount(0);
-
-  // Group-only roles outside the approved executive set remain private.
-  for (const role of ["Deputy Group Leader", "Elected Member", "Group Elected Member", "Group Council Elected Member", "Group Council Administrator"]) {
-    await expect(page.getByText(role, { exact: true })).toHaveCount(0);
+  for (const forbiddenName of ["Orla Kelly", "Test Super Admin", "Shared Tester Super Admin"]) {
+    await expect(page.getByRole("heading", { name: forbiddenName, exact: true })).toHaveCount(0);
+  }
+  for (const forbiddenRole of ["Deputy Group Leader", "Elected Member", "Group Elected Member", "Group Council Elected Member", "Group Council Administrator"]) {
+    await expect(page.getByText(forbiddenRole, { exact: true })).toHaveCount(0);
   }
 });
 
@@ -56,7 +53,7 @@ test("programme scouter can open the internal organisation chart with leader dat
   await login(page, "test.leader.only@example.com");
   await page.goto("/leader/organisation");
   await expect(page.getByRole("heading", { name: "Organisational Chart" })).toBeVisible();
-  await expect(page.getByText("Unable to load the organisation chart.")).toHaveCount(0);
+  await expect(page.getByText("Unable to load the internal organisation chart.")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Orla Kelly", exact: true })).toBeVisible();
   await expect(page.getByText("Group Leader", { exact: true })).toBeVisible();
 });
