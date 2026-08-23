@@ -21,9 +21,25 @@ export type OrganisationLeader = {
   active: boolean;
 };
 
-const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v3";
+const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v4";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
 const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
+
+const PUBLIC_GROUP_ROLES = new Set([
+  "group leader",
+  "group chairperson",
+  "group secretary",
+  "group treasurer",
+  "group quartermaster",
+  "group quartermaster/bo'sun",
+  "group bo'sun",
+  "group youth champion",
+  "deputy group leader",
+  "programme scouter",
+  "elected member",
+  "group elected member",
+  "group council elected member"
+]);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -33,10 +49,19 @@ function order(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 999;
 }
 
-function isPublicScoutingPosition(role: string): boolean {
-  const value = role.trim().toLowerCase();
-  if (!value || value === "leader") return false;
-  return !/\b(admin|administrator|super\s*admin)\b/.test(value);
+function roleKey(role: string): string {
+  return role
+    .trim()
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\s+/g, " ");
+}
+
+export function isPublicGroupRole(role: string): boolean {
+  const value = roleKey(role);
+  if (PUBLIC_GROUP_ROLES.has(value)) return true;
+  return /^(beaver|cub|scout|venture)s? programme scouter$/.test(value);
 }
 
 function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
@@ -49,8 +74,8 @@ function sortOrganisation(leaders: OrganisationLeader[]): OrganisationLeader[] {
     );
 }
 
-function filterPublicScoutingPositions(leaders: OrganisationLeader[]): OrganisationLeader[] {
-  return leaders.filter((leader) => leader.showPublicly && isPublicScoutingPosition(leader.scoutingRole));
+function filterPublicGroupRoles(leaders: OrganisationLeader[]): OrganisationLeader[] {
+  return leaders.filter((leader) => leader.showPublicly && isPublicGroupRole(leader.scoutingRole));
 }
 
 function mapLeader(uid: string, data: Record<string, unknown>): OrganisationLeader {
@@ -72,7 +97,7 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
 
 function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
   if (!Array.isArray(value)) return null;
-  return filterPublicScoutingPositions(sortOrganisation(
+  return filterPublicGroupRoles(sortOrganisation(
     value
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item) && item.publicEligible === true)
       .map((item) => mapLeader(text(item.uid), item))
@@ -85,7 +110,7 @@ const bundledPublicLeaders = mapSnapshotPayload(SEEDED_PUBLIC_LEADERS) ?? [];
 async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
   if (typeof fetch !== "function") return null;
   try {
-    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=5`, { cache: "no-store" });
+    const response = await fetch(`${PUBLIC_SNAPSHOT_URL}?v=6`, { cache: "no-store" });
     if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
@@ -123,14 +148,10 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  // Emulator builds must exercise seeded Firestore data and security rules directly.
   if (USE_FIRESTORE_EMULATOR) {
-    return filterPublicScoutingPositions(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
+    return filterPublicGroupRoles(mapOrganisation(await getDocs(collection(db, "publicLeadership"))));
   }
 
-  // Production public pages must never depend on Firestore availability or quota.
-  // Hosted/bundled snapshots must also carry an explicit eligibility marker proving
-  // they were produced after privileged website accounts were excluded.
   const hosted = await loadHostedPublicSnapshot();
   if (hosted && hosted.length > 0) {
     writePublicCache(hosted);
@@ -174,7 +195,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   await setDoc(privateRef, safe);
   const publicRef = doc(db, "publicLeadership", leader.uid);
-  if (!leader.showPublicly || !isPublicScoutingPosition(safe.scoutingRole)) {
+  if (!leader.showPublicly || !isPublicGroupRole(safe.scoutingRole)) {
     await deleteDoc(publicRef);
     return;
   }
