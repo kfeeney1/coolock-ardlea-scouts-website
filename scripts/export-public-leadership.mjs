@@ -9,14 +9,20 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 
+function isPublicScoutingPosition(role) {
+  const value = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (!value || value === "leader") return false;
+  return !/\b(admin|administrator|super\s*admin)\b/.test(value);
+}
+
 const snapshot = await db.collection("organisationLeadership").get();
 const leaders = snapshot.docs
   .map((item) => ({ uid: item.id, ...item.data() }))
-  .filter((leader) => leader.active !== false && leader.showPublicly === true)
+  .filter((leader) => leader.active !== false && leader.showPublicly === true && isPublicScoutingPosition(leader.scoutingRole))
   .map((leader) => ({
     uid: leader.uid,
     displayName: typeof leader.displayName === "string" ? leader.displayName.trim() : "Leader",
-    scoutingRole: typeof leader.scoutingRole === "string" ? leader.scoutingRole.trim() : "Leader",
+    scoutingRole: leader.scoutingRole.trim(),
     organisationSection: typeof leader.organisationSection === "string" ? leader.organisationSection.trim() : "Group",
     organisationOrder: typeof leader.organisationOrder === "number" ? leader.organisationOrder : 999,
     reportsToUid: typeof leader.reportsToUid === "string" ? leader.reportsToUid.trim() : "",
@@ -26,9 +32,9 @@ const leaders = snapshot.docs
   .sort((a, b) => a.organisationOrder - b.organisationOrder || a.displayName.localeCompare(b.displayName));
 
 if (requirePublicLeaders && leaders.length === 0) {
-  throw new Error("Public organisation export returned zero leaders; preserving the checked-in test snapshot instead.");
+  throw new Error("Public organisation export returned zero scouting positions; preserving the checked-in test snapshot instead.");
 }
 
 await mkdir("public", { recursive: true });
 await writeFile("public/public-leadership.json", `${JSON.stringify(leaders, null, 2)}\n`, "utf8");
-console.log(`Exported ${leaders.length} public organisation leader(s) to public/public-leadership.json.`);
+console.log(`Exported ${leaders.length} public scouting position(s) to public/public-leadership.json.`);
