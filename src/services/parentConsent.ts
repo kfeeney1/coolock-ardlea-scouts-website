@@ -58,28 +58,29 @@ export type ParentLinkedMember = {
 };
 
 const stringValue = (data: Record<string, unknown>, key: string) =>
-    typeof data[key] === "string" ? (data[key] as string) : "";
+    typeof data[key] === "string" ? (data[key] as string).trim() : "";
 
 function timestampToDate(value: unknown): Date | null {
-    if (
-        value &&
-        typeof value === "object" &&
-        "toDate" in value &&
-        typeof (value as Timestamp).toDate === "function"
-    ) {
+    if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
         return (value as Timestamp).toDate();
     }
-
     return null;
 }
 
-function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRecord {
+function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRecord | null {
+    if (data.formType !== "youth-activity-consent") return null;
+    const memberId = stringValue(data, "memberId");
+    const childName = stringValue(data, "childName");
+    const childDOB = stringValue(data, "childDOB");
+    const section = stringValue(data, "section");
+    if (!memberId || !childName || !childDOB || !section) return null;
+
     return {
         id,
-        memberId: stringValue(data, "memberId"),
-        childName: stringValue(data, "childName"),
-        childDOB: stringValue(data, "childDOB"),
-        scoutSection: stringValue(data, "scoutSection"),
+        memberId,
+        childName,
+        childDOB,
+        scoutSection: section,
         consentFrom: stringValue(data, "consentFrom"),
         consentTo: stringValue(data, "consentTo"),
         photoConsent: stringValue(data, "photoConsent"),
@@ -118,50 +119,36 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
 
 export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLinkedMember[]> {
     const results: ParentLinkedMember[] = [];
-
     for (const memberId of memberIds) {
         const snapshot = await getDoc(doc(db, "members", memberId));
         if (!snapshot.exists()) continue;
-
         const data = snapshot.data();
-        results.push({
-            id: snapshot.id,
-            displayName:
-                typeof data.displayName === "string" && data.displayName.trim()
-                    ? data.displayName.trim()
-                    : "Linked member",
-            section: typeof data.section === "string" ? data.section : "",
-            dateOfBirth: typeof data.dateOfBirth === "string" ? data.dateOfBirth : ""
-        });
+        const displayName = stringValue(data, "displayName");
+        const section = stringValue(data, "section");
+        const dateOfBirth = stringValue(data, "dateOfBirth");
+        if (!displayName || !section || !dateOfBirth) continue;
+        results.push({ id: snapshot.id, displayName, section, dateOfBirth });
     }
-
     return results;
 }
 
 export async function loadParentConsents(memberIds: string[]): Promise<ParentConsentRecord[]> {
     const results: ParentConsentRecord[] = [];
     for (const memberId of memberIds) {
-        const snapshot = await getDocs(
-            query(collection(db, "consentApplications"), where("memberId", "==", memberId))
-        );
+        const snapshot = await getDocs(query(collection(db, "consentApplications"), where("memberId", "==", memberId)));
         for (const item of snapshot.docs) {
-            const data = item.data();
-            if (data.formType === "youth-activity-consent" || !data.formType || data.formType === "youth") {
-                results.push(mapConsent(item.id, data));
-            }
+            const mapped = mapConsent(item.id, item.data());
+            if (mapped) results.push(mapped);
         }
     }
     return results;
 }
 
-export async function updateParentConsent(
-    consentId: string,
-    values: Partial<ParentConsentRecord>
-): Promise<void> {
+export async function updateParentConsent(consentId: string, values: Partial<ParentConsentRecord>): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in parent.");
 
-    const allowed = {
+    await updateDoc(doc(db, "consentApplications", consentId), {
         consentFrom: values.consentFrom ?? "",
         consentTo: values.consentTo ?? "",
         photoConsent: values.photoConsent ?? "",
@@ -193,9 +180,7 @@ export async function updateParentConsent(
         parentUpdatedBy: user.uid,
         parentUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-    };
-
-    await updateDoc(doc(db, "consentApplications", consentId), allowed);
+    });
 }
 
 export async function linkConsentRecordsToMembers(memberIds: string[]): Promise<number> {
@@ -209,15 +194,16 @@ export async function linkConsentRecordsToMembers(memberIds: string[]): Promise<
         const memberSnapshot = await getDoc(doc(db, "members", memberId));
         if (!memberSnapshot.exists()) continue;
         const member = memberSnapshot.data();
-        const memberName = typeof member.displayName === "string" ? member.displayName.trim().toLowerCase() : "";
-        const memberDob = typeof member.dateOfBirth === "string" ? member.dateOfBirth : "";
+        const memberName = stringValue(member, "displayName").toLowerCase();
+        const memberDob = stringValue(member, "dateOfBirth");
+        if (!memberName || !memberDob) continue;
 
         for (const consent of consentSnapshot.docs) {
             const data = consent.data();
+            if (data.formType !== "youth-activity-consent") continue;
             if (typeof data.memberId === "string" && data.memberId) continue;
-            const childName = typeof data.childName === "string" ? data.childName.trim().toLowerCase() : "";
-            const childDob = typeof data.childDOB === "string" ? data.childDOB :
-                typeof data.dateOfBirth === "string" ? data.dateOfBirth : "";
+            const childName = stringValue(data, "childName").toLowerCase();
+            const childDob = stringValue(data, "childDOB");
             if (childName === memberName && childDob === memberDob) {
                 await updateDoc(consent.ref, {
                     memberId,
