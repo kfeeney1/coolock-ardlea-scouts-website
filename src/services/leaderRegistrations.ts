@@ -58,8 +58,6 @@ export async function registerLeader(input: LeaderRegistrationInput): Promise<vo
         });
         try { await notifyLeaderRegistration(); } catch (emailError) { console.error("Unable to send leader registration emails:", emailError); }
     } finally {
-        // New leader-only registrations return to the login screen. Existing parent
-        // accounts stay signed in so one Firebase account can hold both roles.
         if (createdNewAccount) await signOut(auth);
     }
 }
@@ -70,14 +68,16 @@ export async function loadLeaderRegistrationRequests(): Promise<LeaderRegistrati
 }
 
 export async function approveLeaderRegistration(request: LeaderRegistrationRequest, reviewerUid: string, reviewNote: string): Promise<void> {
+    const section = request.requestedSection.trim();
+    if (!section) throw new Error("A canonical section is required before approving leader access.");
+
     await runTransaction(db, async (transaction) => {
         const requestRef = doc(db, "leaderRegistrationRequests", request.uid);
         const adminRef = doc(db, "adminUsers", request.uid);
         const snapshot = await transaction.get(requestRef);
         if (!snapshot.exists()) throw new Error("Registration request no longer exists.");
         if (snapshot.data().status !== "pending") throw new Error("Only pending requests can be approved.");
-        const sections = request.requestedSection ? [request.requestedSection] : [];
-        transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections, section: request.requestedSection, approvedAt: serverTimestamp(), approvedBy: reviewerUid });
+        transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
         transaction.update(requestRef, { status: "approved", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     });
     try { await notifyLeaderAccessStatus(request.email, request.fullName, "approved", request.requestedSection); } catch (emailError) { console.error("Unable to send leader approval email:", emailError); }
