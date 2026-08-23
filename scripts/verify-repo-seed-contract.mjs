@@ -5,19 +5,29 @@ const ROOT = process.cwd();
 const APPROVED_SEEDS = [
   "scripts/seed-population-data.mjs",
   "scripts/seed-flow-data.mjs",
+  "scripts/seed-test-data.mjs",
+  "scripts/seed-e2e-auth-users.mjs",
   "scripts/seed-playwright-records.mjs"
 ];
 const EXCLUDED_DIRS = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".firebase"]);
+const MIGRATION_ONLY_FILES = new Set([
+  "scripts/backfill-organisation-leadership.mjs",
+  "scripts/inspect-legacy-test-references.mjs",
+  "scripts/repair-firestore-compatibility.mjs",
+  "scripts/reconcile-seeded-accounts.mjs",
+  "scripts/purge-test-data.mjs",
+  "tests/unit/noLegacyAdminFixture.test.ts"
+]);
 const EXCLUDED_FILES = new Set([
   ...APPROVED_SEEDS,
+  ...MIGRATION_ONLY_FILES,
   "scripts/verify-repo-seed-contract.mjs",
-  "scripts/reconcile-seeded-accounts.mjs",
   "scripts/verify-playwright-seed-contract.mjs",
   "scripts/verify-test-population.mjs",
   "scripts/verify-flow-data.mjs",
-  "scripts/audit-firestore-compatibility.mjs",
-  "scripts/purge-test-data.mjs"
+  "scripts/audit-firestore-compatibility.mjs"
 ]);
+const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_ROLE_OVERRIDES"]);
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules"]);
 
 for (const seed of APPROVED_SEEDS) {
@@ -52,16 +62,8 @@ for (const role of groupRoleKeys) {
   allowedTokens.add(`TEST_uid_${role}`);
   allowedEmails.add(`test.${role.replaceAll("_", ".")}@example.com`);
 }
-allowedTokens.add("TEST_uid_web_admin_01");
-allowedTokens.add("TEST_uid_super_admin_01");
-allowedEmails.add("test.webadmin@example.com");
-allowedEmails.add("test.superadmin@example.com");
 
-const legacyForbidden = [
-  "TEST_uid_admin_01",
-  "test.admin@example.com",
-  "Orla Kelly"
-];
+const legacyForbidden = ["TEST_uid_admin_01", "test.admin@example.com", "Orla Kelly"];
 
 function walk(dir) {
   const files = [];
@@ -92,10 +94,10 @@ for (const fullPath of walk(ROOT)) {
   }
 
   for (const token of new Set(content.match(/TEST_[A-Za-z0-9_-]+/g) || [])) {
-    if (!allowedTokens.has(token)) violations.push(`${path}: unseeded identifier ${token}`);
+    if (!allowedTokens.has(token) && !NON_DATA_TOKENS.has(token)) violations.push(`${path}: unseeded identifier ${token}`);
   }
   for (const token of new Set(content.match(/TEST[A-Z0-9]{6,}/g) || [])) {
-    if (!allowedCompactTokens.has(token)) violations.push(`${path}: unseeded token ${token}`);
+    if (!allowedCompactTokens.has(token) && !NON_DATA_TOKENS.has(token)) violations.push(`${path}: unseeded token ${token}`);
   }
   for (const email of new Set(content.match(/[A-Za-z0-9._%+-]+@example\.com/g) || [])) {
     if (email.startsWith("test.") && !allowedEmails.has(email)) violations.push(`${path}: unseeded test email ${email}`);
@@ -108,5 +110,5 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log(`Repository seed contract verified against: ${APPROVED_SEEDS.join(", ")}`);
-console.log(`Allowed generated population: ${sectionKeys.length * 30} members, ${groupRoleKeys.length + sectionKeys.length * sectionRoleKeys.length + 2} leader/admin identities, ${sectionKeys.length * 2} parent-only identities.`);
+console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} active seed sources.`);
+console.log("Migration/repair files are isolated from the consumer contract and may reference legacy IDs solely to remove or repair them.");
