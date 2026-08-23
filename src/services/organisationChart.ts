@@ -22,6 +22,7 @@ export type OrganisationLeader = {
 
 const PUBLIC_CACHE_KEY = "coolock-ardlea-public-leadership-v1";
 const PUBLIC_SNAPSHOT_URL = "/public-leadership.json";
+const USE_FIRESTORE_EMULATOR = Boolean(import.meta.env.VITE_FIRESTORE_EMULATOR_HOST);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -58,8 +59,8 @@ function mapOrganisation(snapshot: QuerySnapshot<DocumentData>): OrganisationLea
   return sortOrganisation(snapshot.docs.map((item) => mapLeader(item.id, item.data())));
 }
 
-function mapSnapshotPayload(value: unknown): OrganisationLeader[] {
-  if (!Array.isArray(value)) return [];
+function mapSnapshotPayload(value: unknown): OrganisationLeader[] | null {
+  if (!Array.isArray(value)) return null;
   return sortOrganisation(
     value
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
@@ -68,14 +69,14 @@ function mapSnapshotPayload(value: unknown): OrganisationLeader[] {
   );
 }
 
-async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[]> {
-  if (typeof fetch !== "function") return [];
+async function loadHostedPublicSnapshot(): Promise<OrganisationLeader[] | null> {
+  if (typeof fetch !== "function") return null;
   try {
     const response = await fetch(PUBLIC_SNAPSHOT_URL, { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     return mapSnapshotPayload(await response.json());
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -84,7 +85,7 @@ function readPublicCache(): OrganisationLeader[] {
   try {
     const raw = window.localStorage.getItem(PUBLIC_CACHE_KEY);
     if (!raw) return [];
-    return mapSnapshotPayload(JSON.parse(raw));
+    return mapSnapshotPayload(JSON.parse(raw)) ?? [];
   } catch {
     return [];
   }
@@ -109,10 +110,14 @@ export async function loadInternalOrganisation(): Promise<OrganisationLeader[]> 
 }
 
 export async function loadPublicOrganisation(): Promise<OrganisationLeader[]> {
-  const hosted = await loadHostedPublicSnapshot();
-  if (hosted.length > 0) {
-    writePublicCache(hosted);
-    return hosted;
+  // Emulator builds must exercise the seeded Firestore data and security rules directly.
+  // Production prefers the hosted public-safe snapshot so anonymous page views do not spend Firestore quota.
+  if (!USE_FIRESTORE_EMULATOR) {
+    const hosted = await loadHostedPublicSnapshot();
+    if (hosted !== null) {
+      writePublicCache(hosted);
+      return hosted;
+    }
   }
 
   try {
