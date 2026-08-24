@@ -5,7 +5,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, doc, getDocs, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -30,6 +30,16 @@ before(async () => {
 
 beforeEach(async () => testEnv.clearFirestore());
 after(async () => testEnv.cleanup());
+
+function publicLeadershipQuery(db) {
+  return query(
+    collection(db, "publicLeadership"),
+    where("publicProjectionVersion", "==", 2),
+    where("sourceAccessRole", "==", "leader"),
+    where("active", "==", true),
+    where("showPublicly", "==", true)
+  );
+}
 
 test("active leaders can list the internal organisational chart", async () => {
   await seed([
@@ -62,6 +72,7 @@ test("public visitors can list only the current public leadership projection", a
     ["organisationLeadership/leader-1", { displayName: "Internal Leader", scoutingRole: "Group Leader", organisationSection: "Group", organisationOrder: 1, reportsToUid: "", showPublicly: true, active: true }],
   ]);
   const db = testEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDocs(collection(db, "publicLeadership")));
+  await assertSucceeds(getDocs(publicLeadershipQuery(db)));
+  await assertFails(getDocs(collection(db, "publicLeadership")));
   await assertFails(getDocs(collection(db, "organisationLeadership")));
 });
