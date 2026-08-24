@@ -42,7 +42,21 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-        run: node scripts/seed-population-data.mjs seed
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            echo "Canonical seed attempt ${attempt}/3"
+            if node scripts/seed-population-data.mjs seed; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              delay=$((attempt * 15))
+              echo "Canonical seed attempt ${attempt} failed; retrying in ${delay}s..."
+              sleep "$delay"
+            fi
+          done
+          echo "Canonical seed failed after 3 attempts."
+          exit 1
       - name: Reconcile live test accounts to canonical seed data
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
