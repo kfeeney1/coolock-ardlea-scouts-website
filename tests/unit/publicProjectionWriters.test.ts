@@ -78,15 +78,9 @@ describe("leadership data writers", () => {
 
     const seedFile = "scripts/seed-population-data.mjs";
     const seedSource = await readFile(seedFile, "utf8");
-    assert.match(
-      seedSource,
-      /replace\(["']adminUsers["'][\s\S]*?sections\s*:\s*user\.sections/,
-      `${seedFile} does not write canonical sections[] to adminUsers`
-    );
-    assert.doesNotMatch(
-      seedSource,
-      /replace\(["']adminUsers["'][\s\S]*?\bsection\s*:\s*user\.(?:section|organisationSection)/,
-      `${seedFile} writes legacy singular section to adminUsers`
-    );
+    const adminPayload = seedSource.match(/replace\(["']adminUsers["'],\s*user\.uid,\s*\{([\s\S]*?)\}\s*\);/);
+    assert.ok(adminPayload, `${seedFile} must contain an explicit adminUsers seed payload`);
+    assert.match(adminPayload[1], /\bsections\s*:\s*user\.sections/, `${seedFile} does not write canonical sections[] to adminUsers`);
+    assert.doesNotMatch(adminPayload[1], /\bsection\s*:/, `${seedFile} writes legacy singular section to adminUsers`);
   });
 });
