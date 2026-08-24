@@ -61,6 +61,10 @@ jobs:
           done
           echo "Canonical seed failed after 3 attempts."
           exit 1
+      - name: Restore canonical public website content
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-public-site-content.mjs seed
       - name: Reconcile live test accounts to canonical seed data
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
@@ -90,27 +94,17 @@ jobs:
           VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
       - name: Stamp build with deployed commit SHA
         run: sed -i "s#</head>#<meta name=\"app-build-sha\" content=\"${GITHUB_SHA}\"></head>#" dist/index.html
-      - name: Deploy Firestore rules when IAM permits
+      - name: Show Firebase deploy service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node -e 'const c=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); console.log(`Firebase deploy service account: ${c.client_email}`)'
+      - name: Deploy Firestore rules
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
-          set +e
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
-          RULES_OUTPUT=$(GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules --project coolock-ardlea-scouts 2>&1)
-          RULES_STATUS=$?
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules --project coolock-ardlea-scouts
           rm -f /tmp/firebase-service-account.json
-          printf '%s\n' "$RULES_OUTPUT"
-
-          if [ "$RULES_STATUS" -eq 0 ]; then
-            exit 0
-          fi
-
-          if printf '%s' "$RULES_OUTPUT" | grep -q "The caller does not have permission"; then
-            echo "::warning::Firestore rules deployment skipped because this service account lacks Firebase Rules deployment permission. Hosting deployment will continue; rule tests and post-deploy smoke remain blocking checks."
-            exit 0
-          fi
-
-          exit "$RULES_STATUS"
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
