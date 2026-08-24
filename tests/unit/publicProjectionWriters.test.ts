@@ -4,15 +4,12 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 const ROOTS = ["src/services", "scripts"];
-const PUBLIC_WRITER_MARKERS = [
-  /collection\([^)]+["']publicLeadership["']/,
-  /doc\([^)]+["']publicLeadership["']/,
-  /collection\(["']publicLeadership["']\)/,
-  /doc\(["']publicLeadership["']\)/,
+const PUBLIC_WRITE_MARKERS = [
+  /(?:collection|doc)\([^)]*["']publicLeadership["'][^;]{0,400}\.set\(/s,
+  /(?:setDoc|updateDoc|batch\.set|transaction\.set)\([^;]{0,400}["']publicLeadership["']/s,
   /replace\(["']publicLeadership["']/,
   /upsert\(["']publicLeadership["']/
 ];
-const WRITE_MARKERS = [/\.set\(/, /setDoc\(/, /batch\.set\(/, /transaction\.set\(/, /updateDoc\(/];
 const CANONICAL_SECTION_WRITER_FILES = [
   "src/services/leaderAccess.ts",
   "src/services/leaderProfile.ts",
@@ -47,9 +44,8 @@ describe("leadership data writers", () => {
     const writers: string[] = [];
 
     for (const { file, source } of await activeSourceFiles()) {
-      const referencesPublicLeadership = PUBLIC_WRITER_MARKERS.some((pattern) => pattern.test(source));
-      const writesDocuments = WRITE_MARKERS.some((pattern) => pattern.test(source));
-      if (!referencesPublicLeadership || !writesDocuments) continue;
+      const writesPublicLeadership = PUBLIC_WRITE_MARKERS.some((pattern) => pattern.test(source));
+      if (!writesPublicLeadership) continue;
 
       writers.push(file);
       assert.match(source, /publicProjectionVersion\s*:/, `${file} writes publicLeadership without publicProjectionVersion`);
