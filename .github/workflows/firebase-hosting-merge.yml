@@ -20,6 +20,10 @@ on:
   schedule:
     - cron: "15 9 * * *"
 
+permissions:
+  contents: read
+  checks: write
+
 concurrency:
   group: firebase-live-deploy
   cancel-in-progress: false
