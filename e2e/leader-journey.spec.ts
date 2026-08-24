@@ -40,9 +40,10 @@ test.describe("leader journey", () => {
     await login(page, adminEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await openLeaderMenu(page);
-    await expect(page.getByRole("link", { name: "Leader Requests" })).toBeVisible();
+    const leaderRequestsMenuLink = page.getByRole("link", { name: "Leader Requests", exact: true });
+    await expect(leaderRequestsMenuLink).toBeVisible();
 
-    await page.getByRole("link", { name: "Leader Requests" }).click();
+    await leaderRequestsMenuLink.click();
     await expect(page).toHaveURL(/\/leader\/requests$/);
     await expect(page.getByRole("heading", { name: "Leader Requests" })).toBeVisible();
 
@@ -63,10 +64,10 @@ test.describe("leader journey", () => {
     await expect(page.getByText(/Scouts Programme Scouter · leader · Scouts/i)).toBeVisible();
 
     await openLeaderMenu(page);
-    await expect(page.getByRole("link", { name: "Leader Requests" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Leader Requests", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Leader Access", exact: true })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Member Management" }).click();
+    await page.getByRole("link", { name: "Member Management", exact: true }).click();
     await expect(page).toHaveURL(/\/leader\/members$/);
     await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
     if (seededJourneyData) {
@@ -76,7 +77,7 @@ test.describe("leader journey", () => {
     }
 
     await openLeaderMenu(page);
-    await page.getByRole("link", { name: "Events & Activities" }).click();
+    await page.getByRole("link", { name: "Events & Activities", exact: true }).click();
     await expect(page).toHaveURL(/\/leader\/events$/);
     await expect(page.getByRole("heading", { name: "Events & Activities" })).toBeVisible();
     if (seededJourneyData) {
