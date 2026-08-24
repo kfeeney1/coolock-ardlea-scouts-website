@@ -104,7 +104,6 @@ export default function WeeklySectionTracker() {
     setEntries([...roster, ...historicalOnly].sort((a, b) => a.memberName.localeCompare(b.memberName)));
     setNotes(existing?.notes ?? "");
     setRecordId(existing?.id ?? null);
-    setSuccess("");
   }, [meetingDate, members, records, section]);
 
   const updateEntry = (memberId: string, patch: Partial<WeeklyMemberEntry>) => {
