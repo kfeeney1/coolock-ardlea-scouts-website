@@ -55,12 +55,29 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByText("TEST Playwright meeting persistence check.", { exact: true })).toBeVisible();
 });
 
-test("administrator can select Group Council meeting", async ({ page }, testInfo) => {
+test("administrator can save and retrieve a Group Council meeting", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/meetings");
   await expect(page.getByRole("heading", { name: "Meeting Records" })).toBeVisible();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
+
   await openMeetingType(page);
-  await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toBeVisible();
+  await page.getByRole("option", { name: "Group Council Meeting", exact: true }).click();
+
+  const title = `TEST E2E Group Council ${Date.now()}`;
+  await page.getByLabel("Meeting title").fill(title);
+  await page.getByLabel("Meeting date and time").fill("2026-08-24T19:30");
+  await page.getByLabel("Attendees").fill("Test Web Admin\nTest Group Leader");
+  await page.getByLabel("Notes / Minutes").fill("TEST admin meeting persistence check.");
+  await page.getByRole("button", { name: "Save Meeting" }).click();
+
+  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByText("TEST admin meeting persistence check.", { exact: true })).toBeVisible();
 });
