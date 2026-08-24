@@ -2,9 +2,9 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const seededJourneyData = process.env.E2E_LEADER_JOURNEY_SEEDED === "true";
-const pendingLeaderEmail = "test.leader.pending@example.com";
-const leaderEmail = "test.leader.only@example.com";
-const adminEmail = "test.webadmin@example.com";
+const unapprovedIdentityEmail = process.env.E2E_PARENT_EMAIL;
+const leaderEmail = process.env.E2E_LEADER_EMAIL;
+const adminEmail = process.env.E2E_ADMIN_EMAIL;
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Leader journey checks run once on desktop Chromium.");
@@ -24,20 +24,20 @@ async function openLeaderMenu(page: Page) {
 }
 
 test.describe("leader journey", () => {
-  test("pending leader remains blocked until administrator approval", async ({ page }, testInfo) => {
+  test("seeded identity without leader approval remains blocked from leader access", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    test.skip(!password || !unapprovedIdentityEmail, "Configure canonical E2E credentials.");
 
-    await login(page, pendingLeaderEmail);
+    await login(page, unapprovedIdentityEmail!);
     await expect(page.getByRole("heading", { name: "Leader Login" })).toBeVisible();
     await expect(page.getByText(/make sure an administrator has approved your leader account/i)).toBeVisible();
   });
 
-  test("administrator can discover Leader Requests and seeded pending assignment", async ({ page }, testInfo) => {
+  test("administrator can discover Leader Requests and canonical pending assignment", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
 
-    await login(page, adminEmail);
+    await login(page, adminEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Leader Requests" })).toBeVisible();
@@ -47,20 +47,20 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("heading", { name: "Leader Requests" })).toBeVisible();
 
     if (seededJourneyData) {
-      await expect(page.getByText("Patrick Doyle")).toBeVisible();
-      await expect(page.getByText("test.leader.pending@example.com")).toBeVisible();
-      await expect(page.getByText(/Programme Scouter · Cubs/)).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review Request" })).toBeVisible();
+      await expect(page.getByText("Pending Scouter")).toBeVisible();
+      await expect(page.getByText("test_flow_leader_request_pending@example.com")).toBeVisible();
+      await expect(page.getByText(/Scouter · Beavers/)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Review Request" }).first()).toBeVisible();
     }
   });
 
-  test("approved section leader can move through members events and consent", async ({ page }, testInfo) => {
+  test("approved programme scouter can move through members events and consent", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
-    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-    await login(page, leaderEmail);
+    await login(page, leaderEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-    await expect(page.getByText(/Aisling Ryan · leader · Scouts/i)).toBeVisible();
+    await expect(page.getByText(/Scouts Programme Scouter · leader · Scouts/i)).toBeVisible();
 
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Leader Requests" })).toHaveCount(0);
@@ -70,9 +70,9 @@ test.describe("leader journey", () => {
     await expect(page).toHaveURL(/\/leader\/members$/);
     await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
     if (seededJourneyData) {
-      await expect(page.getByText("Sophie Ryan")).toBeVisible();
-      await expect(page.getByText("Emma Byrne")).toHaveCount(0);
-      await expect(page.getByText("Aoife Murphy")).toHaveCount(0);
+      await expect(page.getByText("Casey OBrien Scouts 01")).toBeVisible();
+      await expect(page.getByText("Taylor Walsh Cubs 01")).toHaveCount(0);
+      await expect(page.getByText("Riley Nolan Beavers 01")).toHaveCount(0);
     }
 
     await openLeaderMenu(page);
@@ -80,10 +80,10 @@ test.describe("leader journey", () => {
     await expect(page).toHaveURL(/\/leader\/events$/);
     await expect(page.getByRole("heading", { name: "Events & Activities" })).toBeVisible();
     if (seededJourneyData) {
-      await expect(page.getByText("TEST Scout Hike")).toBeVisible();
+      await expect(page.getByText("TEST Scouts Closed Hike")).toBeVisible();
       await expect(page.getByText("TEST Scout Consent Night")).toBeVisible();
-      await expect(page.getByText("TEST Cub Weekend Camp")).toHaveCount(0);
-      await expect(page.getByText("TEST Beaver Zoo Trip")).toHaveCount(0);
+      await expect(page.getByText("TEST Cubs Draft Camp")).toHaveCount(0);
+      await expect(page.getByText("TEST Beavers Open Day Trip")).toHaveCount(0);
     }
 
     await openLeaderMenu(page);
@@ -92,8 +92,7 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("heading", { name: "Parent Event Consent" })).toBeVisible();
     if (seededJourneyData) {
       await expect(page.getByText("TEST Scout Consent Night")).toBeVisible();
-      await expect(page.getByText("TEST Cub Weekend Camp")).toHaveCount(0);
-      await expect(page.getByText("TEST Beaver Zoo Trip")).toHaveCount(0);
+      await expect(page.getByText("TEST Beavers Open Day Trip")).toHaveCount(0);
     }
   });
 });
