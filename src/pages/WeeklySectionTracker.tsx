@@ -177,7 +177,7 @@ export default function WeeklySectionTracker() {
                 <Paper key={entry.memberId} variant="outlined" sx={{ px: 1.25, py: 0.5 }}>
                   <FormControlLabel
                     sx={{ m: 0, width: "100%", minHeight: 54, "& .MuiFormControlLabel-label": { fontSize: { xs: "1.05rem", sm: "1rem" }, fontWeight: 700 } }}
-                    control={<Checkbox size="medium" checked={entry.attendance === "present"} onChange={(event) => updateEntry(entry.memberId, { attendance: event.target.checked ? "present" : "absent" })} inputProps={{ "aria-label": `Present · ${entry.memberName}` }} />}
+                    control={<Checkbox size="medium" checked={entry.attendance === "present"} onChange={(event) => updateEntry(entry.memberId, { attendance: event.target.checked ? "present" : "absent" })} slotProps={{ input: { "aria-label": `Present · ${entry.memberName}` } }} />}
                     label={entry.memberName}
                   />
                 </Paper>
