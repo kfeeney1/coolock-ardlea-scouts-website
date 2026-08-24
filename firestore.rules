@@ -214,6 +214,10 @@ service cloud.firestore {
     match /meetingRecords/{meetingId} {
       allow read: if isAdmin()
         || (isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Group Secretary"])
+        || (isActiveLeader()
           && resource.data.meetingType == "leader"
           && resource.data.section is string
           && hasSection(resource.data.section));
