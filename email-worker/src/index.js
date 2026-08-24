@@ -29,7 +29,9 @@ function mapString(document, key, childKey) { return document?.fields?.[key]?.ma
 async function requireActiveLeader(request, env) {
   const token = bearer(request); const uid = decodeFirebaseUid(token); if (!token || !uid) return null;
   const document = await getDocument(env, token, "adminUsers", uid); if (!document || !fieldBoolean(document, "active")) return null;
-  return { token, uid, role: fieldString(document, "role") || "leader" };
+  const role = fieldString(document, "role");
+  if (!new Set(["leader", "admin", "super-admin"]).has(role)) return null;
+  return { token, uid, role };
 }
 
 async function requireAdministrator(request, env) {
