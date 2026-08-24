@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("leader can sign out from the shared dashboard header", async ({ page }, testInfo) => {
+test("leader can sign out from the shared dashboard menu", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Authenticated logout check runs once on desktop Chromium.");
 
   const email = process.env.E2E_LEADER_EMAIL?.trim();
@@ -13,6 +13,9 @@ test("leader can sign out from the shared dashboard header", async ({ page }, te
   await page.getByRole("button", { name: "Sign In" }).click();
 
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
+  await expect(menuButton).toBeVisible();
+  await menuButton.click();
   await expect(page.getByRole("button", { name: "Sign Out" })).toBeVisible();
   await page.getByRole("button", { name: "Sign Out" }).click();
 
