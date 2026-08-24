@@ -23,6 +23,11 @@ if (!scoutLeader.exists) throw new Error("Canonical population must create TEST_
 const scoutLeaderName = scoutLeader.data().displayName;
 if (typeof scoutLeaderName !== "string" || !scoutLeaderName.trim()) throw new Error("TEST_uid_scout_programme_scouter must have a canonical displayName.");
 
+const groupLeader = await db.collection("organisationLeadership").doc("TEST_uid_group_leader").get();
+if (!groupLeader.exists) throw new Error("Canonical population must create TEST_uid_group_leader before Playwright persistence seeding.");
+const groupLeaderName = groupLeader.data().displayName;
+if (typeof groupLeaderName !== "string" || !groupLeaderName.trim()) throw new Error("TEST_uid_group_leader must have a canonical displayName.");
+
 await db.collection("meetingRecords").doc("TEST_e2e_meeting_scout").set({
   title: "TEST E2E Scout Leader Meeting",
   meetingType: "leader",
@@ -32,6 +37,22 @@ await db.collection("meetingRecords").doc("TEST_e2e_meeting_scout").set({
   notes: "Baseline Playwright meeting minutes.",
   decisions: "Baseline decision.",
   actions: "Baseline action.",
+  createdBy: "TEST_SEED",
+  createdAt: FieldValue.serverTimestamp(),
+  updatedBy: "TEST_SEED",
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+});
+
+await db.collection("meetingRecords").doc("TEST_e2e_meeting_group_council").set({
+  title: "TEST E2E Group Council Meeting",
+  meetingType: "group",
+  section: "Group",
+  meetingDate: "2099-01-16T20:00",
+  attendees: [groupLeaderName],
+  notes: "Baseline Group Council minutes for Playwright role access checks.",
+  decisions: "Baseline Group Council decision.",
+  actions: "Baseline Group Council action.",
   createdBy: "TEST_SEED",
   createdAt: FieldValue.serverTimestamp(),
   updatedBy: "TEST_SEED",

@@ -6,6 +6,7 @@ import { createMeetingRecord, loadMeetingRecords, updateMeetingRecord } from "..
 import type { MeetingInput, MeetingRecord, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+const FULL_MEETING_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
 
 const emptyForm: MeetingInput = {
   title: "",
@@ -36,6 +37,7 @@ export default function MeetingRecords() {
   const [success, setSuccess] = useState("");
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+  const hasFullMeetingHistoryAccess = Boolean(isAdmin || (adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole)));
   const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
   const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : sections, [isAdmin, sections]);
 
@@ -44,14 +46,14 @@ export default function MeetingRecords() {
     setLoading(true);
     setError("");
     try {
-      setRecords(await loadMeetingRecords(sections, Boolean(isAdmin)));
+      setRecords(await loadMeetingRecords(sections, hasFullMeetingHistoryAccess));
     } catch (loadError) {
       console.error("Unable to load meeting records:", loadError);
       setError("Unable to load meeting records for your permitted scope.");
     } finally {
       setLoading(false);
     }
-  }, [adminProfile, isAdmin, sections]);
+  }, [adminProfile, hasFullMeetingHistoryAccess, sections]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -115,6 +117,8 @@ export default function MeetingRecords() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const canEditRecord = (record: MeetingRecord) => isAdmin || (record.meetingType === "leader" && sections.includes(record.section));
+
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
@@ -168,7 +172,7 @@ export default function MeetingRecords() {
                   <Chip size="small" variant="outlined" label={formatMeetingDate(record.meetingDate)} />
                 </Stack>
               </Box>
-              <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>
+              {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
             </Stack>
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2">Attendees</Typography>
