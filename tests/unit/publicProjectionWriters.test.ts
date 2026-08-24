@@ -28,6 +28,7 @@ async function activeSourceFiles(): Promise<Array<{ file: string; source: string
 
 function writesPublicLeadership(source: string): boolean {
   if (/\b(?:replace|upsert)\(["']publicLeadership["']\s*,/.test(source)) return true;
+  if (/\bbatch\.set\(\s*db\.collection\(["']publicLeadership["']\)\.doc\([^)]*\)\s*,/.test(source)) return true;
 
   const publicRefs = new Set<string>();
   for (const match of source.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*doc\([^;\n]*["']publicLeadership["'][^;\n]*\)/g)) {
