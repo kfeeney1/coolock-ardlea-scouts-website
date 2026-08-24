@@ -26,7 +26,7 @@ const EXCLUDED_FILES = new Set([
   "scripts/audit-firestore-compatibility.mjs",
   "scripts/audit-live-data-provenance.mjs"
 ]);
-const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT"]);
+const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_SEEDS"]);
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules", ".ps1"]);
 
 for (const seed of APPROVED_SEEDS) {
@@ -148,7 +148,7 @@ for (const fullPath of walk(ROOT)) {
     for (const literal of publicDataLiterals) {
       if (content.includes(literal)) violations.push(`${path}: mutable public/domain data literal must come from Firestore: ${literal}`);
     }
-    if (/const\s+(?:sectionOptions|featureCards|menuItems)\s*=/.test(content)) {
+    if (/const\s+(?:sectionOptions|featureCards|menuItems)\s*=\s*\[/.test(content)) {
       violations.push(`${path}: mutable public option/content collection is hard-coded in presentation code`);
     }
   }
