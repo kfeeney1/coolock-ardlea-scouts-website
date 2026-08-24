@@ -5,6 +5,7 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Collapse,
   Container,
   FormControlLabel,
   MenuItem,
@@ -19,12 +20,8 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import type { AttendanceInsightMember } from "../services/attendanceInsightsLogic";
-import {
-  createWeeklyMeeting,
-  loadWeeklyMeetings,
-  updateWeeklyMeeting
-} from "../services/weeklyTracker";
-import type { WeeklyAttendance, WeeklyMemberEntry, WeeklyMeetingRecord } from "../services/weeklyTracker";
+import { createWeeklyMeeting, loadWeeklyMeetings, updateWeeklyMeeting } from "../services/weeklyTracker";
+import type { WeeklyMemberEntry, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { buildWeeklyMemberSummaries, newWeeklyEntry } from "../services/weeklyTrackerLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
@@ -38,10 +35,7 @@ function displayDate(value: string): string {
 export default function WeeklySectionTracker() {
   const { adminProfile } = useAdminAuth();
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-  const availableSections = useMemo(
-    () => isAdmin ? GROUP_SECTIONS : adminProfile?.sections ?? [],
-    [adminProfile?.sections, isAdmin]
-  );
+  const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : adminProfile?.sections ?? [], [adminProfile?.sections, isAdmin]);
   const [section, setSection] = useState("");
   const [meetingDate, setMeetingDate] = useState(today);
   const [members, setMembers] = useState<AttendanceInsightMember[]>([]);
@@ -49,6 +43,7 @@ export default function WeeklySectionTracker() {
   const [entries, setEntries] = useState<WeeklyMemberEntry[]>([]);
   const [notes, setNotes] = useState("");
   const [recordId, setRecordId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -62,25 +57,18 @@ export default function WeeklySectionTracker() {
     setLoading(true);
     setError("");
     const scope = { isAdmin: Boolean(isAdmin), sections: adminProfile?.sections ?? [] };
-
     try {
-      const loadedMembers = await loadAttendanceInsightMembers(scope);
+      const [loadedMembers, loadedRecords] = await Promise.all([
+        loadAttendanceInsightMembers(scope),
+        loadWeeklyMeetings(adminProfile?.sections ?? [], Boolean(isAdmin))
+      ]);
       setMembers(loadedMembers.filter((member) => member.status === "active"));
+      setRecords(loadedRecords);
     } catch (loadError) {
-      console.error("Unable to load weekly tracker members:", loadError);
+      console.error("Unable to load weekly tracker:", loadError);
       setMembers([]);
       setRecords([]);
-      setError("Unable to load active members for your permitted sections.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setRecords(await loadWeeklyMeetings(adminProfile?.sections ?? [], Boolean(isAdmin)));
-    } catch (loadError) {
-      console.error("Unable to load weekly meeting history:", loadError);
-      setRecords([]);
-      setError("Active members are available, but weekly history cannot be loaded right now.");
+      setError("Unable to load weekly attendance data for your permitted sections.");
     } finally {
       setLoading(false);
     }
@@ -110,6 +98,10 @@ export default function WeeklySectionTracker() {
     setEntries((current) => current.map((entry) => entry.memberId === memberId ? { ...entry, ...patch } : entry));
   };
 
+  const markAllPresent = () => {
+    setEntries((current) => current.map((entry) => ({ ...entry, attendance: "present" })));
+  };
+
   const save = async () => {
     setError("");
     setSuccess("");
@@ -119,18 +111,22 @@ export default function WeeklySectionTracker() {
     }
     setSaving(true);
     try {
-      const input = { section, meetingDate, notes, entries };
+      const completedEntries = entries.map((entry) => ({
+        ...entry,
+        attendance: entry.attendance === "present" ? "present" as const : "absent" as const
+      }));
+      const input = { section, meetingDate, notes, entries: completedEntries };
       if (recordId) {
         await updateWeeklyMeeting(recordId, input);
-        setSuccess("Weekly meeting record updated.");
+        setSuccess("Attendance updated.");
       } else {
         await createWeeklyMeeting(input);
-        setSuccess("Weekly meeting record saved.");
+        setSuccess("Attendance saved.");
       }
       await refresh();
     } catch (saveError) {
       console.error("Unable to save weekly tracker:", saveError);
-      setError("Unable to save this weekly record. Check your permissions and try again.");
+      setError("Unable to save this attendance record. Check your permissions and try again.");
     } finally {
       setSaving(false);
     }
@@ -139,23 +135,19 @@ export default function WeeklySectionTracker() {
   const sectionRecords = records.filter((record) => record.section === section);
   const summaries = buildWeeklyMemberSummaries(sectionRecords);
   const presentCount = entries.filter((entry) => entry.attendance === "present").length;
-  const absentCount = entries.filter((entry) => entry.attendance === "absent").length;
-  const subsThisWeek = entries.filter((entry) => entry.subsPaid).reduce((sum, entry) => sum + entry.subsAmount, 0);
-  const badgesThisWeek = entries.reduce((sum, entry) => sum + entry.badges.length, 0);
+  const totalCount = entries.length;
+  const absentCount = totalCount - presentCount;
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-    <Container maxWidth="xl">
+    <Container maxWidth="lg">
       <LeaderDashboardHeader />
-      <LeaderPageHeader
-        title="Weekly Section Tracker"
-        description="Record ordinary weekly meeting attendance, subs collected and badges achieved for each member in your section."
-      />
+      <LeaderPageHeader title="Weekly Section Tracker" description="Take attendance quickly during the meeting, then add optional meeting details when you have time." />
 
       {!isAdmin && availableSections.length === 0 && <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-      <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
           <TextField select label="Section" value={section} onChange={(event) => setSection(event.target.value)} disabled={availableSections.length === 0}>
             {availableSections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
@@ -165,50 +157,69 @@ export default function WeeklySectionTracker() {
       </Paper>
 
       {loading ? <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box> : <>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
-          <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="h4" color="secondary">{presentCount}</Typography><Typography color="text.secondary">Present</Typography></Paper>
-          <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="h4" color="secondary">{absentCount}</Typography><Typography color="text.secondary">Absent</Typography></Paper>
-          <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="h4" color="secondary">€{subsThisWeek.toFixed(2)}</Typography><Typography color="text.secondary">Subs recorded</Typography></Paper>
-          <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="h4" color="secondary">{badgesThisWeek}</Typography><Typography color="text.secondary">Badges achieved</Typography></Paper>
-        </Box>
-
-        <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ mb: 2, justifyContent: "space-between" }}>
+        <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2, justifyContent: "space-between", alignItems: { sm: "center" } }}>
             <Box>
               <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{section || "Section"} · {displayDate(meetingDate)}</Typography>
-              <Typography color="text.secondary">{recordId ? "Editing an existing weekly record." : "New weekly record."}</Typography>
+              <Typography color="text.secondary">{recordId ? "Existing attendance record" : "New attendance record"}</Typography>
             </Box>
-            <Chip label={`${entries.length} members`} variant="outlined" />
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+              <Chip color="success" label={`${presentCount} / ${totalCount} present`} />
+              <Chip variant="outlined" label={`${absentCount} absent`} />
+            </Stack>
           </Stack>
 
-          {entries.length === 0 ? <Alert severity="info">No active members are available for this section.</Alert> : <Stack spacing={1.5}>
-            {entries.map((entry) => <Paper key={entry.memberId} variant="outlined" sx={{ p: 2 }}>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(180px, 1.2fr) minmax(160px, 0.8fr) minmax(200px, 1fr) minmax(220px, 1.3fr)" }, gap: 2, alignItems: "center" }}>
-                <Typography sx={{ fontWeight: 800 }}>{entry.memberName}</Typography>
-                <TextField select size="small" label={`Attendance · ${entry.memberName}`} value={entry.attendance} onChange={(event) => updateEntry(entry.memberId, { attendance: event.target.value as WeeklyAttendance })}>
-                  <MenuItem value="unrecorded">Not recorded</MenuItem>
-                  <MenuItem value="present">Present</MenuItem>
-                  <MenuItem value="absent">Absent</MenuItem>
-                </TextField>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <FormControlLabel control={<Checkbox checked={entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsPaid: event.target.checked })} />} label="Subs paid" />
-                  <TextField size="small" label="€" type="number" value={entry.subsAmount} disabled={!entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsAmount: Number(event.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, step: "0.50" } }} sx={{ width: 100 }} />
-                </Stack>
-                <TextField size="small" label="Badges achieved" helperText="Separate multiple badges with commas" value={entry.badges.join(", ")} onChange={(event) => updateEntry(entry.memberId, { badges: event.target.value.split(",").map((badge) => badge.trim()).filter(Boolean) })} />
-              </Box>
-            </Paper>)}
-          </Stack>}
+          <Button variant="outlined" color="success" onClick={markAllPresent} disabled={entries.length === 0} sx={{ mb: 2, minHeight: 48 }}>Mark all present</Button>
 
-          <TextField fullWidth multiline minRows={3} label="Weekly notes" value={notes} onChange={(event) => setNotes(event.target.value)} sx={{ mt: 2 }} />
-          <Button variant="contained" color="success" onClick={() => void save()} disabled={saving || entries.length === 0} sx={{ mt: 2 }}>
-            {saving ? "Saving..." : recordId ? "Update Weekly Record" : "Save Weekly Record"}
+          {entries.length === 0 ? <Alert severity="info">No active members are available for this section.</Alert> : (
+            <Stack spacing={0.75} data-testid="attendance-list">
+              {entries.map((entry) => (
+                <Paper key={entry.memberId} variant="outlined" sx={{ px: 1.25, py: 0.5 }}>
+                  <FormControlLabel
+                    sx={{ m: 0, width: "100%", minHeight: 54, "& .MuiFormControlLabel-label": { fontSize: { xs: "1.05rem", sm: "1rem" }, fontWeight: 700 } }}
+                    control={<Checkbox size="medium" checked={entry.attendance === "present"} onChange={(event) => updateEntry(entry.memberId, { attendance: event.target.checked ? "present" : "absent" })} inputProps={{ "aria-label": `Present · ${entry.memberName}` }} />}
+                    label={entry.memberName}
+                  />
+                </Paper>
+              ))}
+            </Stack>
+          )}
+
+          <Button variant="text" color="secondary" onClick={() => setDetailsOpen((open) => !open)} aria-expanded={detailsOpen} sx={{ mt: 2 }}>
+            {detailsOpen ? "Hide meeting details" : "Add subs, badges & notes"}
+          </Button>
+
+          <Collapse in={detailsOpen} timeout="auto" unmountOnExit>
+            <Box sx={{ mt: 1.5, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+              <Typography variant="h6" sx={{ mb: 1.5 }}>Optional meeting details</Typography>
+              <Stack spacing={1.25}>
+                {entries.map((entry) => <Paper key={entry.memberId} variant="outlined" sx={{ p: 1.5 }}>
+                  <Typography sx={{ fontWeight: 800, mb: 1 }}>{entry.memberName}</Typography>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "180px 1fr" }, gap: 1.5, alignItems: "center" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                      <FormControlLabel control={<Checkbox checked={entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsPaid: event.target.checked })} />} label="Subs paid" />
+                      <TextField size="small" label="€" type="number" value={entry.subsAmount} disabled={!entry.subsPaid} onChange={(event) => updateEntry(entry.memberId, { subsAmount: Number(event.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, step: "0.50" } }} sx={{ width: 90 }} />
+                    </Stack>
+                    <TextField size="small" label={`Badges · ${entry.memberName}`} helperText="Separate multiple badges with commas" value={entry.badges.join(", ")} onChange={(event) => updateEntry(entry.memberId, { badges: event.target.value.split(",").map((badge) => badge.trim()).filter(Boolean) })} />
+                  </Box>
+                </Paper>)}
+              </Stack>
+              <TextField fullWidth multiline minRows={3} label="Weekly notes" value={notes} onChange={(event) => setNotes(event.target.value)} sx={{ mt: 2 }} />
+            </Box>
+          </Collapse>
+        </Paper>
+
+        <Paper elevation={4} sx={{ position: "sticky", bottom: 8, zIndex: 5, p: 1.5, mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
+          <Typography sx={{ fontWeight: 800 }}>{presentCount} of {totalCount} present</Typography>
+          <Button variant="contained" color="success" onClick={() => void save()} disabled={saving || entries.length === 0} sx={{ minHeight: 48, minWidth: 150 }}>
+            {saving ? "Saving..." : recordId ? "Update Attendance" : "Save Attendance"}
           </Button>
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Section history & member totals</Typography>
-          {sectionRecords.length === 0 ? <Alert severity="info">No weekly records have been saved for this section yet.</Alert> : <>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>{sectionRecords.length} weekly meeting{sectionRecords.length === 1 ? "" : "s"} recorded.</Typography>
+          <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Attendance history</Typography>
+          {sectionRecords.length === 0 ? <Alert severity="info">No weekly attendance has been saved for this section yet.</Alert> : <>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>{sectionRecords.length} meeting{sectionRecords.length === 1 ? "" : "s"} recorded for {section}.</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
               {summaries.map((summary) => <Paper key={summary.memberId} variant="outlined" sx={{ p: 2 }}>
                 <Typography sx={{ fontWeight: 800 }}>{summary.memberName}</Typography>
@@ -216,10 +227,7 @@ export default function WeeklySectionTracker() {
                   <Chip size="small" label={summary.attendanceRate === null ? "No attendance rate" : `${summary.attendanceRate}% attendance`} />
                   <Chip size="small" variant="outlined" label={`${summary.present} present`} />
                   <Chip size="small" variant="outlined" label={`${summary.absent} absent`} />
-                  <Chip size="small" variant="outlined" label={`€${summary.subsPaidTotal.toFixed(2)} subs`} />
-                  <Chip size="small" variant="outlined" label={`${summary.badges.length} badges`} />
                 </Stack>
-                {summary.badges.length > 0 && <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Badges: {summary.badges.join(", ")}</Typography>}
               </Paper>)}
             </Box>
           </>}
