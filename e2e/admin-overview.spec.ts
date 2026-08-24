@@ -35,12 +35,19 @@ for (const [role, email] of [
     await expect(overview.getByText("Outstanding Event Consent")).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
+
+    await expect(overview.getByRole("link", { name: /^Pending Parent Requests:/ })).toHaveAttribute("href", "/leader/parent-access");
+    await expect(overview.getByRole("link", { name: /^Pending Leader Requests:/ })).toHaveAttribute("href", "/leader/requests");
+    await expect(overview.getByRole("link", { name: /^New Join Applications:/ })).toHaveAttribute("href", "/leader/join");
+    await expect(overview.getByRole("link", { name: /^Active Members:/ })).toHaveAttribute("href", "/leader/members");
+    await expect(overview.getByRole("link", { name: /^Outstanding Event Consent:/ })).toHaveAttribute("href", "/leader/event-consent");
+    await expect(overview.getByRole("link", { name: /^Upcoming Events:/ })).toHaveAttribute("href", "/leader/events");
     await expect(overview.getByRole("link", { name: "Manage Members" })).toHaveAttribute("href", "/leader/members");
     await expect(overview.getByRole("link", { name: "View All" })).toHaveAttribute("href", "/leader/events");
   });
 }
 
-test("section leader sees a scoped operations overview without admin approval queues", async ({ page }, testInfo) => {
+test("section leader sees a scoped operations overview with linked tiles", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
@@ -55,4 +62,13 @@ test("section leader sees a scoped operations overview without admin approval qu
   await expect(overview.getByText("Outstanding Event Consent")).toBeVisible();
   await expect(overview.getByText("Pending Parent Requests")).toHaveCount(0);
   await expect(overview.getByText("Pending Leader Requests")).toHaveCount(0);
+
+  await expect(overview.getByRole("link", { name: /^New Join Applications:/ })).toHaveAttribute("href", "/leader/join");
+  await expect(overview.getByRole("link", { name: /^Active Members:/ })).toHaveAttribute("href", "/leader/members");
+  await expect(overview.getByRole("link", { name: /^Outstanding Event Consent:/ })).toHaveAttribute("href", "/leader/event-consent");
+  await expect(overview.getByRole("link", { name: /^Upcoming Events:/ })).toHaveAttribute("href", "/leader/events");
+
+  await overview.getByRole("link", { name: /^Active Members:/ }).click();
+  await expect(page).toHaveURL(/\/leader\/members$/);
+  await expect(page.getByRole("heading", { name: /Member Management/i })).toBeVisible();
 });
