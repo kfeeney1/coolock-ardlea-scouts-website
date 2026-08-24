@@ -56,6 +56,12 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/seed-flow-data.mjs
 
+      - name: Seed canonical weekly meetings
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-weekly-meeting-data.mjs
+
       - name: Seed canonical public website content
         if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
         env:
