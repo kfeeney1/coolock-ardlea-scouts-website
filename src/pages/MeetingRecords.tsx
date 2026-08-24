@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { createMeetingRecord, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
@@ -36,34 +36,36 @@ export default function MeetingRecords() {
   const [success, setSuccess] = useState("");
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-  const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : adminProfile?.sections ?? [], [adminProfile?.sections, isAdmin]);
+  const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
+  const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : sections, [isAdmin, sections]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
+    if (!adminProfile) return;
     setLoading(true);
     setError("");
     try {
-      setRecords(await loadMeetingRecords(adminProfile?.sections ?? [], Boolean(isAdmin)));
+      setRecords(await loadMeetingRecords(sections, Boolean(isAdmin)));
     } catch (loadError) {
       console.error("Unable to load meeting records:", loadError);
       setError("Unable to load meeting records for your permitted scope.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [adminProfile, isAdmin, sections]);
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const resetForm = () => {
     setEditingId(null);
     setAttendeesText("");
-    setForm({ ...emptyForm, section: adminProfile?.sections?.[0] ?? "" });
+    setForm({ ...emptyForm, section: sections[0] ?? "" });
   };
 
   useEffect(() => {
-    if (!form.section && adminProfile?.sections?.length) {
-      setForm((current) => ({ ...current, section: adminProfile.sections[0] }));
+    if (!form.section && sections.length) {
+      setForm((current) => ({ ...current, section: sections[0] }));
     }
-  }, [adminProfile?.sections, form.section]);
+  }, [form.section, sections]);
 
   const save = async () => {
     setError("");
