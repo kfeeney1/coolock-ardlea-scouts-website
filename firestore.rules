@@ -212,9 +212,11 @@ service cloud.firestore {
     }
 
     match /meetingRecords/{meetingId} {
-      allow read: if isActiveLeader()
-        && ((resource.data.meetingType == "group" && isAdmin())
-          || (resource.data.meetingType == "leader" && resource.data.section is string && hasSection(resource.data.section)));
+      allow read: if isAdmin()
+        || (isActiveLeader()
+          && resource.data.meetingType == "leader"
+          && resource.data.section is string
+          && hasSection(resource.data.section));
       allow create: if isActiveLeader()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.title is string
