@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -71,10 +71,20 @@ function validMeetings(docs: QueryDocumentSnapshot<DocumentData>[]): MeetingReco
   return docs.map(mapMeeting).filter((meeting): meeting is MeetingRecord => meeting !== null);
 }
 
+function newestFirst(meetings: MeetingRecord[]): MeetingRecord[] {
+  return meetings.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+}
+
 export async function loadMeetingRecords(sections: string[], isAdmin: boolean): Promise<MeetingRecord[]> {
   if (isAdmin) {
-    const snapshot = await getDocs(query(collection(db, "meetingRecords"), orderBy("meetingDate", "desc")));
-    return validMeetings(snapshot.docs);
+    // Keep admin reads constrained to the canonical meeting types. A broad collection
+    // query can be rejected by Firestore rules if even one stale/legacy document in
+    // the collection falls outside the current access contract.
+    const [groupSnapshot, leaderSnapshot] = await Promise.all([
+      getDocs(query(collection(db, "meetingRecords"), where("meetingType", "==", "group"))),
+      getDocs(query(collection(db, "meetingRecords"), where("meetingType", "==", "leader")))
+    ]);
+    return newestFirst(validMeetings([...groupSnapshot.docs, ...leaderSnapshot.docs]));
   }
 
   const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
@@ -85,8 +95,7 @@ export async function loadMeetingRecords(sections: string[], isAdmin: boolean): 
     where("section", "==", section)
   ))));
 
-  return validMeetings(snapshots.flatMap((snapshot) => snapshot.docs))
-    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+  return newestFirst(validMeetings(snapshots.flatMap((snapshot) => snapshot.docs)));
 }
 
 export async function createMeetingRecord(input: MeetingInput): Promise<string> {
