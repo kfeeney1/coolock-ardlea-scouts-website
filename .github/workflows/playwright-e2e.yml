@@ -35,6 +35,7 @@ jobs:
       E2E_PARENT_EMAIL: test.beaver.parent1@example.com
       E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
       E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
+      E2E_GROUP_LEADER_EMAIL: test.group.leader@example.com
       E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
       E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
       E2E_ADMIN_EMAIL: test.webadmin@example.com
@@ -85,6 +86,7 @@ jobs:
         run: |
           node scripts/seed-population-data.mjs seed
           node scripts/seed-flow-data.mjs
+          node scripts/seed-weekly-meeting-data.mjs
           node scripts/seed-public-site-content.mjs seed
           node scripts/seed-playwright-records.mjs
           node scripts/rebuild-public-leadership.mjs
