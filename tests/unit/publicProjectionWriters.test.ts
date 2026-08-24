@@ -4,12 +4,6 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 const ROOTS = ["src/services", "scripts"];
-const PUBLIC_WRITE_MARKERS = [
-  /(?:collection|doc)\([^)]*["']publicLeadership["'][^;]{0,400}\.set\(/s,
-  /(?:setDoc|updateDoc|batch\.set|transaction\.set)\([^;]{0,400}["']publicLeadership["']/s,
-  /replace\(["']publicLeadership["']/,
-  /upsert\(["']publicLeadership["']/
-];
 const CANONICAL_SECTION_WRITER_FILES = [
   "src/services/leaderAccess.ts",
   "src/services/leaderProfile.ts",
@@ -32,6 +26,23 @@ async function activeSourceFiles(): Promise<Array<{ file: string; source: string
   return Promise.all(files.map(async (file) => ({ file, source: await readFile(file, "utf8") })));
 }
 
+function writesPublicLeadership(source: string): boolean {
+  if (/\b(?:replace|upsert)\(["']publicLeadership["']\s*,/.test(source)) return true;
+
+  const publicRefs = new Set<string>();
+  for (const match of source.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*doc\([^;\n]*["']publicLeadership["'][^;\n]*\)/g)) {
+    publicRefs.add(match[1]);
+  }
+
+  for (const ref of publicRefs) {
+    const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`\\b(?:setDoc|updateDoc|batch\\.set|transaction\\.set)\\(\\s*${escaped}\\s*,`).test(source)) return true;
+  }
+
+  if (/\b(?:setDoc|updateDoc|batch\.set|transaction\.set)\(\s*doc\([^)]*["']publicLeadership["'][^)]*\)\s*,/.test(source)) return true;
+  return false;
+}
+
 function firestoreWriteObjects(source: string): string[] {
   const writes: string[] = [];
   const pattern = /(?:setDoc|updateDoc|addDoc|batch\.set|transaction\.set)\([^,]+,\s*\{([\s\S]*?)\}\s*(?:,\s*\{[^}]*\})?\s*\)/g;
@@ -44,8 +55,7 @@ describe("leadership data writers", () => {
     const writers: string[] = [];
 
     for (const { file, source } of await activeSourceFiles()) {
-      const writesPublicLeadership = PUBLIC_WRITE_MARKERS.some((pattern) => pattern.test(source));
-      if (!writesPublicLeadership) continue;
+      if (!writesPublicLeadership(source)) continue;
 
       writers.push(file);
       assert.match(source, /publicProjectionVersion\s*:/, `${file} writes publicLeadership without publicProjectionVersion`);
