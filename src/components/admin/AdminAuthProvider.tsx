@@ -25,6 +25,7 @@ export type AdminProfile = {
     displayName: string;
     role: SystemRole;
     sections: string[];
+    scoutingRole: string;
 };
 
 type AdminAuthContextValue = {
@@ -39,7 +40,10 @@ type AdminAuthContextValue = {
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
-    const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    const [snapshot, organisationSnapshot] = await Promise.all([
+        getDoc(doc(db, "adminUsers", user.uid)),
+        getDoc(doc(db, "organisationLeadership", user.uid))
+    ]);
     if (!snapshot.exists()) return null;
     const data = snapshot.data();
     if (data.active !== true) return null;
@@ -53,13 +57,15 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
     }
 
     if (sections.length === 0) return null;
+    const organisationData = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
 
     return {
         uid: user.uid,
         email: user.email ?? "",
         displayName: typeof data.displayName === "string" ? data.displayName : user.email ?? "Leader",
         role,
-        sections
+        sections,
+        scoutingRole: typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : ""
     };
 }
 
