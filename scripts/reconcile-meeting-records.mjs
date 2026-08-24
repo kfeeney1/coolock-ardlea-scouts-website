@@ -12,6 +12,18 @@ const db = getFirestore();
 
 const VALID_TYPES = new Set(["group", "leader"]);
 const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"]);
+const CANONICAL_SEEDED_MEETINGS = new Map([
+  ["TEST_flow_meeting_group", {
+    meetingDate: "2026-08-20",
+    actions: "Group Leader to publish programme plan.",
+    updatedBy: "TEST_SEED"
+  }],
+  ["TEST_flow_meeting_leader", {
+    meetingDate: "2026-08-21",
+    actions: "Confirm camp kit list.",
+    updatedBy: "TEST_SEED"
+  }]
+]);
 
 function text(value) { return typeof value === "string" ? value.trim() : ""; }
 function stringArray(value) { return Array.isArray(value) && value.every((item) => typeof item === "string") ? value.map((item) => item.trim()).filter(Boolean) : null; }
@@ -25,6 +37,9 @@ for (const doc of snapshot.docs) {
   const path = `meetingRecords/${doc.id}`;
   const patch = {};
   const deletes = [];
+  const canonicalSeed = data.testData === true && data.createdBySeed === "TEST_SEED"
+    ? CANONICAL_SEEDED_MEETINGS.get(doc.id)
+    : undefined;
 
   const meetingType = text(data.meetingType);
   const section = text(data.section);
@@ -39,13 +54,15 @@ for (const doc of snapshot.docs) {
 
   if (!text(data.meetingDate)) {
     const legacyDate = text(data.date);
-    if (legacyDate) patch.meetingDate = legacyDate;
-    else blockers.push(`${path}: cannot reconcile missing meetingDate because no legacy date value exists`);
+    if (canonicalSeed?.meetingDate) patch.meetingDate = canonicalSeed.meetingDate;
+    else if (legacyDate) patch.meetingDate = legacyDate;
+    else blockers.push(`${path}: cannot reconcile missing meetingDate because no safe source value exists`);
   }
 
   if (typeof data.actions !== "string") {
     const legacyActions = stringArray(data.actionItems);
-    if (legacyActions) patch.actions = legacyActions.join("\n");
+    if (canonicalSeed?.actions !== undefined) patch.actions = canonicalSeed.actions;
+    else if (legacyActions) patch.actions = legacyActions.join("\n");
     else if (data.actions === undefined && data.actionItems === undefined) patch.actions = "";
     else blockers.push(`${path}: cannot reconcile actions/actionItems safely`);
   }
@@ -57,7 +74,8 @@ for (const doc of snapshot.docs) {
 
   if (!text(data.createdBy)) blockers.push(`${path}: createdBy is missing and cannot be inferred safely`);
   if (!text(data.updatedBy)) {
-    if (text(data.createdBy)) patch.updatedBy = text(data.createdBy);
+    if (canonicalSeed?.updatedBy) patch.updatedBy = canonicalSeed.updatedBy;
+    else if (text(data.createdBy)) patch.updatedBy = text(data.createdBy);
     else blockers.push(`${path}: updatedBy is missing and createdBy is unavailable`);
   }
 
