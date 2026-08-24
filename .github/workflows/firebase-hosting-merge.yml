@@ -48,6 +48,10 @@ jobs:
           done
           echo "Canonical seed failed after 3 attempts."
           exit 1
+      - name: Seed canonical super-admin login
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-superadmin-login.mjs
       - name: Restore canonical public website content
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}

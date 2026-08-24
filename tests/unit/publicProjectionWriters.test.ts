@@ -4,15 +4,6 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 const ROOTS = ["src/services", "scripts"];
-const PUBLIC_WRITER_MARKERS = [
-  /collection\([^)]+["']publicLeadership["']/,
-  /doc\([^)]+["']publicLeadership["']/,
-  /collection\(["']publicLeadership["']\)/,
-  /doc\(["']publicLeadership["']\)/,
-  /replace\(["']publicLeadership["']/,
-  /upsert\(["']publicLeadership["']/
-];
-const WRITE_MARKERS = [/\.set\(/, /setDoc\(/, /batch\.set\(/, /transaction\.set\(/, /updateDoc\(/];
 const CANONICAL_SECTION_WRITER_FILES = [
   "src/services/leaderAccess.ts",
   "src/services/leaderProfile.ts",
@@ -35,6 +26,24 @@ async function activeSourceFiles(): Promise<Array<{ file: string; source: string
   return Promise.all(files.map(async (file) => ({ file, source: await readFile(file, "utf8") })));
 }
 
+function writesPublicLeadership(source: string): boolean {
+  if (/\b(?:replace|upsert)\(["']publicLeadership["']\s*,/.test(source)) return true;
+  if (/\bbatch\.set\(\s*db\.collection\(["']publicLeadership["']\)\.doc\([^)]*\)\s*,/.test(source)) return true;
+
+  const publicRefs = new Set<string>();
+  for (const match of source.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*doc\([^;\n]*["']publicLeadership["'][^;\n]*\)/g)) {
+    publicRefs.add(match[1]);
+  }
+
+  for (const ref of publicRefs) {
+    const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`\\b(?:setDoc|updateDoc|batch\\.set|transaction\\.set)\\(\\s*${escaped}\\s*,`).test(source)) return true;
+  }
+
+  if (/\b(?:setDoc|updateDoc|batch\.set|transaction\.set)\(\s*doc\([^)]*["']publicLeadership["'][^)]*\)\s*,/.test(source)) return true;
+  return false;
+}
+
 function firestoreWriteObjects(source: string): string[] {
   const writes: string[] = [];
   const pattern = /(?:setDoc|updateDoc|addDoc|batch\.set|transaction\.set)\([^,]+,\s*\{([\s\S]*?)\}\s*(?:,\s*\{[^}]*\})?\s*\)/g;
@@ -47,9 +56,7 @@ describe("leadership data writers", () => {
     const writers: string[] = [];
 
     for (const { file, source } of await activeSourceFiles()) {
-      const referencesPublicLeadership = PUBLIC_WRITER_MARKERS.some((pattern) => pattern.test(source));
-      const writesDocuments = WRITE_MARKERS.some((pattern) => pattern.test(source));
-      if (!referencesPublicLeadership || !writesDocuments) continue;
+      if (!writesPublicLeadership(source)) continue;
 
       writers.push(file);
       assert.match(source, /publicProjectionVersion\s*:/, `${file} writes publicLeadership without publicProjectionVersion`);
