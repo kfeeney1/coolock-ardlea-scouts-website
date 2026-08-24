@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const fixtureTitle = "TEST E2E Scout Leader Meeting";
 
 function desktopOnly(testInfo: TestInfo) {
@@ -28,8 +29,8 @@ test("meeting records rejects unauthenticated users", async ({ page }) => {
 
 test("section leader sees only section meeting type and can persist edits", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
-  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.leader.only@example.com");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  await login(page, leaderEmail!);
   await page.goto("/leader/meetings");
 
   await expect(page.getByRole("heading", { name: "Meeting Records" })).toBeVisible();
