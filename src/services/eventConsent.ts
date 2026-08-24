@@ -14,6 +14,7 @@ import type { DocumentData, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import type { EventRecord } from "./eventAdmin";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type ResponseProcessingStatus = "new" | "matched" | "ignored";
 
@@ -55,21 +56,11 @@ export type EventConsentResponse = {
 
 export type SubmitEventConsentInput = Omit<
     EventConsentResponse,
-    | "id"
-    | "processingStatus"
-    | "matchedMemberId"
-    | "processedBy"
-    | "processedAt"
-    | "submittedAt"
+    "id" | "processingStatus" | "matchedMemberId" | "processedBy" | "processedAt" | "submittedAt"
 >;
 
 function timestampToDate(value: unknown): Date | null {
-    if (
-        value &&
-        typeof value === "object" &&
-        "toDate" in value &&
-        typeof (value as Timestamp).toDate === "function"
-    ) {
+    if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
         return (value as Timestamp).toDate();
     }
     return null;
@@ -80,39 +71,36 @@ function stringValue(data: DocumentData, key: string): string {
     return typeof value === "string" ? value.trim() : "";
 }
 
-function profileSections(data: DocumentData): string[] {
-    const sections = Array.isArray(data.sections)
-        ? data.sections
-              .filter((section): section is string => typeof section === "string")
-              .map((section) => section.trim())
-              .filter(Boolean)
-        : [];
-    const legacySection = stringValue(data, "section");
-    return [...new Set([...sections, legacySection].filter(Boolean))];
-}
-
 async function currentLeaderProfile(): Promise<DocumentData> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
 
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!snapshot.exists()) throw new Error("Leader profile not found.");
+    if (!snapshot.exists() || snapshot.data().active !== true) throw new Error("Active leader profile is required.");
     return snapshot.data();
 }
 
-function mapLink(token: string, data: DocumentData): PublicEventLink {
+function mapLink(token: string, data: DocumentData): PublicEventLink | null {
+    const eventId = stringValue(data, "eventId");
+    const title = stringValue(data, "title");
+    const eventType = stringValue(data, "eventType");
+    const section = stringValue(data, "section");
+    const startDate = stringValue(data, "startDate");
+    const endDate = stringValue(data, "endDate");
+    if (!eventId || !title || !eventType || !section || !startDate || !endDate || typeof data.active !== "boolean") return null;
+
     return {
         token,
-        eventId: stringValue(data, "eventId"),
-        title: stringValue(data, "title"),
+        eventId,
+        title,
         description: stringValue(data, "description"),
-        eventType: stringValue(data, "eventType"),
-        section: stringValue(data, "section"),
+        eventType,
+        section,
         location: stringValue(data, "location"),
         meetingPoint: stringValue(data, "meetingPoint"),
         returnDetails: stringValue(data, "returnDetails"),
-        startDate: stringValue(data, "startDate"),
-        endDate: stringValue(data, "endDate"),
+        startDate,
+        endDate,
         consentRequired: data.consentRequired === true,
         active: data.active === true,
         createdAt: timestampToDate(data.createdAt),
@@ -120,20 +108,28 @@ function mapLink(token: string, data: DocumentData): PublicEventLink {
     };
 }
 
-function mapResponse(id: string, data: DocumentData): EventConsentResponse {
-    const processingStatus: ResponseProcessingStatus =
-        data.processingStatus === "matched" || data.processingStatus === "ignored"
-            ? data.processingStatus
-            : "new";
+function mapResponse(id: string, data: DocumentData): EventConsentResponse | null {
+    const processingStatus = data.processingStatus as ResponseProcessingStatus;
+    const attendance = data.attendance as "attending" | "not-attending";
+    const token = stringValue(data, "token");
+    const eventId = stringValue(data, "eventId");
+    const childName = stringValue(data, "childName");
+    const dateOfBirth = stringValue(data, "dateOfBirth");
+    const parentName = stringValue(data, "parentName");
+    if (
+        !["new", "matched", "ignored"].includes(processingStatus) ||
+        !["attending", "not-attending"].includes(attendance) ||
+        !token || !eventId || !childName || !dateOfBirth || !parentName
+    ) return null;
 
     return {
         id,
-        token: stringValue(data, "token"),
-        eventId: stringValue(data, "eventId"),
-        childName: stringValue(data, "childName"),
-        dateOfBirth: stringValue(data, "dateOfBirth"),
-        parentName: stringValue(data, "parentName"),
-        attendance: data.attendance === "not-attending" ? "not-attending" : "attending",
+        token,
+        eventId,
+        childName,
+        dateOfBirth,
+        parentName,
+        attendance,
         consentGiven: data.consentGiven === true,
         emergencyDetailsConfirmed: data.emergencyDetailsConfirmed === true,
         medicalDetailsChanged: data.medicalDetailsChanged === true,
@@ -172,18 +168,16 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
     if (!user) throw new Error("No signed-in leader.");
 
     const existing = await getDocs(
-        query(
-            collection(db, "eventConsentLinks"),
-            where("eventId", "==", event.id),
-            where("section", "==", event.section)
-        )
+        query(collection(db, "eventConsentLinks"), where("eventId", "==", event.id), where("section", "==", event.section))
     );
 
     if (!existing.empty) {
         const snapshot = existing.docs[0];
         await setDoc(snapshot.ref, publicEventPayload(event), { merge: true });
         const refreshed = await getDoc(snapshot.ref);
-        return mapLink(refreshed.id, refreshed.data() || {});
+        const mapped = mapLink(refreshed.id, refreshed.data() || {});
+        if (!mapped) throw new Error("Event consent link does not match the canonical data contract.");
+        return mapped;
     }
 
     const token = crypto.randomUUID().replaceAll("-", "");
@@ -194,30 +188,26 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
         createdBy: user.uid
     });
     const created = await getDoc(linkRef);
-    return mapLink(created.id, created.data() || {});
+    const mapped = mapLink(created.id, created.data() || {});
+    if (!mapped) throw new Error("New event consent link does not match the canonical data contract.");
+    return mapped;
 }
 
 export async function loadEventConsentLinks(): Promise<PublicEventLink[]> {
     const profile = await currentLeaderProfile();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
 
-    if (isAdmin) {
-        const snapshot = await getDocs(collection(db, "eventConsentLinks"));
-        return snapshot.docs.map((item) => mapLink(item.id, item.data()));
-    }
+    const docs = isAdmin
+        ? (await getDocs(collection(db, "eventConsentLinks"))).docs
+        : (await Promise.all(
+            normalizeLeaderSections(profile).map((section) =>
+                getDocs(query(collection(db, "eventConsentLinks"), where("section", "==", section)))
+            )
+          )).flatMap((snapshot) => snapshot.docs);
 
-    const sections = profileSections(profile);
-    if (sections.length === 0) return [];
-
-    const snapshots = await Promise.all(
-        sections.map((section) =>
-            getDocs(query(collection(db, "eventConsentLinks"), where("section", "==", section)))
-        )
-    );
-
-    return snapshots.flatMap((snapshot) =>
-        snapshot.docs.map((item) => mapLink(item.id, item.data()))
-    );
+    return docs
+        .map((item) => mapLink(item.id, item.data()))
+        .filter((link): link is PublicEventLink => link !== null);
 }
 
 export async function loadPublicEventLink(token: string): Promise<PublicEventLink | null> {
@@ -248,19 +238,14 @@ export async function loadEventConsentResponses(eventId: string): Promise<EventC
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
     if (!isAdmin) return [];
 
-    const snapshot = await getDocs(
-        query(collection(db, "eventConsentResponses"), where("eventId", "==", eventId))
-    );
-
+    const snapshot = await getDocs(query(collection(db, "eventConsentResponses"), where("eventId", "==", eventId)));
     return snapshot.docs
         .map((item) => mapResponse(item.id, item.data()))
+        .filter((response): response is EventConsentResponse => response !== null)
         .sort((a, b) => (b.submittedAt?.getTime() || 0) - (a.submittedAt?.getTime() || 0));
 }
 
-export async function markEventConsentResponseMatched(
-    responseId: string,
-    memberId: string
-): Promise<void> {
+export async function markEventConsentResponseMatched(responseId: string, memberId: string): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
 

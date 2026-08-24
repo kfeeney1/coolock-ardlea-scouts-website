@@ -2,20 +2,20 @@
 
 The Playwright suite always runs public-page, Parent Portal UI and unauthenticated route-protection checks.
 
-Authenticated permission tests use Firebase Authentication users created by the active E2E seed scripts. Their email addresses are fixed synthetic test values and are not secrets. All accounts share one password stored securely in GitHub Actions.
+Authenticated permission tests use Firebase Authentication users created by the canonical comprehensive population seed. Their email addresses are fixed synthetic test values and are not secrets. All accounts share one password stored securely in GitHub Actions.
 
 ## Seeded E2E accounts
 
 | Test account | Email | Required state |
 | --- | --- | --- |
-| Parent only | `test.parent.only@example.com` | Approved `parentAccounts/{uid}` record and no active `adminUsers/{uid}` record |
-| Parent + Leader | `test.leader.parent@example.com` | Approved parent record and active Beaver leader record under the same Firebase UID |
-| Leader | `test.leader.only@example.com` | Active Scout leader |
-| Multi-section Leader | `test.leader.multisection@example.com` | Active leader assigned to Beavers and Cubs |
+| Parent only | `test.beaver.parent1@example.com` | Approved Beavers `parentAccounts/{uid}` record and no active `adminUsers/{uid}` record |
+| Parent + Leader | `test.beaver.section.leader@example.com` | Approved parent record and active Beaver Section Leader record under the same Firebase UID |
+| Leader | `test.scout.programme.scouter@example.com` | Active Scouts Programme Scouter |
+| Multi-section Leader | `test.multi.section.leader@example.com` | Active leader assigned to Beavers and Cubs |
 | Admin | `test.webadmin@example.com` | Active `admin` |
 | Super Admin | `test.superadmin@example.com` | Active `super-admin` |
 
-Every hard-coded test identity or `TEST_*` record consumed by application tests, E2E specs, workflows, or utility code is checked by the repository seed-contract quality gate. A consumer may only reference data defined by an active seed source. Migration and repair scripts are the only exception; they may name retired IDs solely so those records can be detected or removed.
+Every hard-coded test identity or `TEST_*` record consumed by application tests, E2E specs, workflows, or utility code is checked by the repository seed-contract quality gate. A consumer may only reference data defined by an active canonical seed source. Migration and cleanup scripts are the only exception; they may name retired IDs solely so those records can be detected or removed.
 
 ## One GitHub Actions secret
 
@@ -26,7 +26,7 @@ Under **Repository Settings → Secrets and variables → Actions → Secrets**,
 
 Do not use a password that you use anywhere else. The value is supplied both to the Firebase test-data seeder and to Playwright, but is never committed to the repository.
 
-The emails and expected multi-section assignment (`Beavers,Cubs`) are configured directly in the workflow because they are non-sensitive synthetic test data.
+The emails and expected multi-section assignment (`Beavers,Cubs`) are configured directly in the workflow because they are non-sensitive synthetic test data and are also defined by the canonical population seed.
 
 ## Creating/updating the users
 

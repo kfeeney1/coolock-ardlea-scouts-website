@@ -13,7 +13,7 @@ if (action === "seed" && (!password || password.length < 8)) throw new Error("E2
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const auth = getAuth();
-const marker = { testData: true, testSeed: "comprehensive-population-v2", createdBySeed: "TEST_SEED" };
+const marker = { testData: true, testSeed: "comprehensive-population-v3", createdBySeed: "TEST_SEED" };
 const reviewedBy = "TEST_SEED";
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 
@@ -66,6 +66,7 @@ function membersForSection(plan) {
       emergencyContactPhone: `0877${String(plan.section.length)}${String(number).padStart(4, "0")}`,
       status: "active",
       source: "manual",
+      sourceJoinApplicationId: "",
       createdBy: reviewedBy,
       updatedBy: reviewedBy,
       testFamilyType: "comprehensive-population"
@@ -121,6 +122,22 @@ function parentOnlyUsers() {
   })));
 }
 
+const scenarioLeaders = [
+  {
+    uid: "TEST_uid_multi_section_leader",
+    email: "test.multi.section.leader@example.com",
+    displayName: "Test Multi Section Leader",
+    accessRole: "leader",
+    sections: ["Beavers", "Cubs"],
+    scoutingRole: "Scouter",
+    organisationSection: "Beavers",
+    organisationOrder: 95,
+    reportsToUid: "TEST_uid_group_leader",
+    showPublicly: false,
+    kind: "multi-section-leader"
+  }
+];
+
 const privateAdminUsers = [
   {
     uid: WEB_ADMIN_UID,
@@ -150,7 +167,7 @@ const privateAdminUsers = [
   }
 ];
 
-const leaders = [...groupLeaders(), ...sectionLeaders(), ...privateAdminUsers];
+const leaders = [...groupLeaders(), ...sectionLeaders(), ...scenarioLeaders, ...privateAdminUsers];
 const parents = parentOnlyUsers();
 const authUsers = [...leaders, ...parents];
 
@@ -165,21 +182,21 @@ async function upsertAuthUser(user) {
   }
 }
 
-async function upsert(collectionName, id, data) {
+async function replace(collectionName, id, data) {
   await db.collection(collectionName).doc(id).set({
     ...data,
     ...marker,
     updatedAt: FieldValue.serverTimestamp()
-  }, { merge: true });
+  });
 }
 
 async function seedMember(member) {
   const { id, ...data } = member;
-  await upsert("members", id, data);
+  await replace("members", id, { ...data, createdAt: FieldValue.serverTimestamp() });
 }
 
 async function seedParentAccount(user) {
-  await upsert("parentAccounts", user.uid, {
+  await replace("parentAccounts", user.uid, {
     uid: user.uid,
     email: user.email,
     displayName: user.displayName,
@@ -195,14 +212,14 @@ async function seedParentAccount(user) {
 }
 
 async function seedLeader(user) {
-  await upsert("adminUsers", user.uid, {
+  await replace("adminUsers", user.uid, {
     uid: user.uid,
     email: user.email,
     displayName: user.displayName,
     role: user.accessRole,
     sections: user.sections,
-    section: user.sections[0] || "",
     active: true,
+    mobileNumber: "0872000000",
     testRoleType: user.kind
   });
 
@@ -216,10 +233,14 @@ async function seedLeader(user) {
     active: true,
     testRoleType: user.kind
   };
-  await upsert("organisationLeadership", user.uid, organisationRecord);
+  await replace("organisationLeadership", user.uid, organisationRecord);
 
   if (user.accessRole === "leader" && user.showPublicly) {
-    await upsert("publicLeadership", user.uid, organisationRecord);
+    await replace("publicLeadership", user.uid, {
+      ...organisationRecord,
+      publicProjectionVersion: 2,
+      sourceAccessRole: "leader"
+    });
   } else {
     await db.collection("publicLeadership").doc(user.uid).delete().catch(() => {});
   }
@@ -237,7 +258,7 @@ async function seedLeader(user) {
 }
 
 async function seed() {
-  console.log("Seeding comprehensive TEST population...");
+  console.log("Seeding canonical comprehensive TEST population...");
   for (const user of authUsers) await upsertAuthUser(user);
   for (const member of members) await seedMember(member);
   for (const leader of leaders) await seedLeader(leader);
@@ -248,7 +269,7 @@ async function seed() {
   console.log(`Seeded ${sections.length * sectionRoleTemplates.length} section leadership roles.`);
   console.log(`Seeded ${parents.length} parent-only users and ${sections.length} parent+leader users.`);
   console.log(`Seeded ${sectionLeaders().filter((leader) => leader.kind === "leader-only").length} leader-only section users.`);
-  console.log("Seeded 2 private website administration fixtures; neither is public.");
+  console.log("Seeded one private multi-section leader scenario and two private website administration fixtures.");
 }
 
 async function deleteKnownDoc(collectionName, id) {
@@ -263,7 +284,7 @@ async function deleteKnownDoc(collectionName, id) {
 }
 
 async function cleanup() {
-  console.log("Removing comprehensive TEST population only...");
+  console.log("Removing canonical comprehensive TEST population only...");
   for (const user of authUsers) {
     try { await auth.deleteUser(user.uid); } catch (error) { if (error?.code !== "auth/user-not-found") throw error; }
   }
@@ -275,7 +296,7 @@ async function cleanup() {
     if (leader.kind === "parent-leader") await deleteKnownDoc("parentAccounts", leader.uid);
   }
   for (const parent of parents) await deleteKnownDoc("parentAccounts", parent.uid);
-  console.log("Comprehensive TEST population cleanup complete.");
+  console.log("Canonical comprehensive TEST population cleanup complete.");
 }
 
 if (action === "seed") await seed(); else await cleanup();

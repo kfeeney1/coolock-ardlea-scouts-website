@@ -13,6 +13,7 @@ import {
     auth,
     db
 } from "../firebase";
+import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type LeaderProfileData = {
     displayName: string;
@@ -27,91 +28,44 @@ const clean = (
     maxLength: number
 ): string => value.trim().slice(0, maxLength);
 
-export async function loadLeaderProfile(): Promise<
-    LeaderProfileData
-> {
+export async function loadLeaderProfile(): Promise<LeaderProfileData> {
     const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in leader was found.");
 
-    if (!user) {
-        throw new Error(
-            "No signed-in leader was found."
-        );
-    }
-
-    const snapshot = await getDoc(
-        doc(
-            db,
-            "adminUsers",
-            user.uid
-        )
-    );
-
-    if (!snapshot.exists()) {
-        throw new Error(
-            "Leader profile was not found."
-        );
-    }
+    const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!snapshot.exists()) throw new Error("Leader profile was not found.");
 
     const data = snapshot.data();
+    const sections = normalizeLeaderSections(data);
+    if (sections.length === 0) throw new Error("Leader profile has no canonical section assignment.");
 
     return {
-        displayName:
-            typeof data.displayName === "string"
-                ? data.displayName
-                : "",
+        displayName: typeof data.displayName === "string" ? data.displayName : "",
         email: user.email ?? "",
-        mobileNumber:
-            typeof data.mobileNumber === "string"
-                ? data.mobileNumber
-                : "",
-        section:
-            typeof data.section === "string"
-                ? data.section
-                : "",
-        role:
-            typeof data.role === "string"
-                ? data.role
-                : "leader"
+        mobileNumber: typeof data.mobileNumber === "string" ? data.mobileNumber : "",
+        section: sections[0],
+        role: normalizeLeaderRole(data.role)
     };
 }
 
 export async function updateLeaderProfile(
-    profile: Pick<
-        LeaderProfileData,
-        "displayName" |
-        "mobileNumber" |
-        "section"
-    >
+    profile: Pick<LeaderProfileData, "displayName" | "mobileNumber" | "section">
 ): Promise<void> {
     const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in leader was found.");
 
-    if (!user) {
-        throw new Error(
-            "No signed-in leader was found."
-        );
-    }
+    const profileRef = doc(db, "adminUsers", user.uid);
+    const snapshot = await getDoc(profileRef);
+    if (!snapshot.exists()) throw new Error("Leader profile was not found.");
 
-    await updateDoc(
-        doc(
-            db,
-            "adminUsers",
-            user.uid
-        ),
-        {
-            displayName: clean(
-                profile.displayName,
-                150
-            ),
-            mobileNumber: clean(
-                profile.mobileNumber,
-                40
-            ),
-            section: clean(
-                profile.section,
-                40
-            )
-        }
-    );
+    const existingSections = normalizeLeaderSections(snapshot.data());
+    if (existingSections.length === 0) throw new Error("Leader profile has no canonical section assignment.");
+
+    await updateDoc(profileRef, {
+        displayName: clean(profile.displayName, 150),
+        mobileNumber: clean(profile.mobileNumber, 40),
+        sections: existingSections
+    });
 }
 
 export async function changeLeaderPassword(
@@ -119,29 +73,9 @@ export async function changeLeaderPassword(
     newPassword: string
 ): Promise<void> {
     const user = auth.currentUser;
+    if (!user || !user.email) throw new Error("No password-based leader account was found.");
 
-    if (
-        !user ||
-        !user.email
-    ) {
-        throw new Error(
-            "No password-based leader account was found."
-        );
-    }
-
-    const credential =
-        EmailAuthProvider.credential(
-            user.email,
-            currentPassword
-        );
-
-    await reauthenticateWithCredential(
-        user,
-        credential
-    );
-
-    await updatePassword(
-        user,
-        newPassword
-    );
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
 }

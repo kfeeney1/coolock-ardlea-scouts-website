@@ -5,15 +5,13 @@ const ROOT = process.cwd();
 const APPROVED_SEEDS = [
   "scripts/seed-population-data.mjs",
   "scripts/seed-flow-data.mjs",
-  "scripts/seed-test-data.mjs",
-  "scripts/seed-e2e-auth-users.mjs",
+  "scripts/seed-public-site-content.mjs",
   "scripts/seed-playwright-records.mjs"
 ];
 const EXCLUDED_DIRS = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".firebase"]);
 const MIGRATION_ONLY_FILES = new Set([
-  "scripts/backfill-organisation-leadership.mjs",
   "scripts/inspect-legacy-test-references.mjs",
-  "scripts/repair-firestore-compatibility.mjs",
+  "scripts/repair-parent-account-linked-sections.mjs",
   "scripts/reconcile-seeded-accounts.mjs",
   "scripts/purge-test-data.mjs",
   "tests/unit/noLegacyAdminFixture.test.ts"
@@ -25,13 +23,22 @@ const EXCLUDED_FILES = new Set([
   "scripts/verify-playwright-seed-contract.mjs",
   "scripts/verify-test-population.mjs",
   "scripts/verify-flow-data.mjs",
-  "scripts/audit-firestore-compatibility.mjs"
+  "scripts/audit-firestore-compatibility.mjs",
+  "scripts/audit-live-data-provenance.mjs"
 ]);
-const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_ROLE_OVERRIDES"]);
-const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules"]);
+const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_SEEDS"]);
+const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules", ".ps1"]);
 
 for (const seed of APPROVED_SEEDS) {
   if (!existsSync(join(ROOT, seed))) throw new Error(`Approved seed source is missing: ${seed}`);
+}
+for (const retired of [
+  "scripts/seed-test-data.mjs",
+  "scripts/seed-e2e-auth-users.mjs",
+  "scripts/backfill-organisation-leadership.mjs",
+  "scripts/repair-firestore-compatibility.mjs"
+]) {
+  if (existsSync(join(ROOT, retired))) throw new Error(`Retired data source must be removed: ${retired}`);
 }
 
 const seedCorpus = APPROVED_SEEDS.map((file) => readFileSync(join(ROOT, file), "utf8")).join("\n");
@@ -42,7 +49,6 @@ const allowedEmails = new Set(seedCorpus.match(/[A-Za-z0-9._%+-]+@example\.com/g
 const sectionKeys = ["beaver", "cub", "scout", "venture", "rover"];
 const sectionRoleKeys = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const groupRoleKeys = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
-
 for (const section of sectionKeys) {
   for (let i = 1; i <= 30; i += 1) {
     const n = String(i).padStart(2, "0");
@@ -63,7 +69,35 @@ for (const role of groupRoleKeys) {
   allowedEmails.add(`test.${role.replaceAll("_", ".")}@example.com`);
 }
 
-const legacyForbidden = ["TEST_uid_admin_01", "test.admin@example.com", "Orla Kelly"];
+const legacyForbidden = [
+  "TEST_uid_admin_01",
+  "test.admin@example.com",
+  "Orla Kelly",
+  "test.leader.parent@example.com",
+  "test.leader.only@example.com",
+  "test.leader.multisection@example.com"
+];
+const forbiddenRuntimePatterns = [
+  { pattern: /data\.section\s*\|\|/g, label: "legacy leader section fallback" },
+  { pattern: /data\.scoutSection/g, label: "legacy scoutSection read" },
+  { pattern: /formType\s*===?\s*["']youth["']/g, label: "legacy youth formType" },
+  { pattern: /formType\s*===?\s*["']scouter["']/g, label: "legacy scouter formType" },
+  { pattern: /status[^\n]*\|\|\s*["']active["']/g, label: "fail-open active status default" },
+  { pattern: /status[^\n]*\|\|\s*["']draft["']/g, label: "fail-open draft status default" },
+  { pattern: /role[^\n]*\|\|\s*["']leader["']/g, label: "fail-open leader role default" }
+];
+const PUBLIC_PRESENTATION_ROOTS = ["src/pages/", "src/components/"];
+const publicDataLiterals = [
+  "80th 160th Coolock Ardlea Scout Group",
+  "Ages 6–9",
+  "Ages 9–12",
+  "Ages 12–15",
+  "Ages 15–18",
+  "Ages 18–26"
+];
+const publicLiteralAllowedFiles = new Set([
+  "src/services/publicSiteContent.ts"
+]);
 
 function walk(dir) {
   const files = [];
@@ -102,13 +136,38 @@ for (const fullPath of walk(ROOT)) {
   for (const email of new Set(content.match(/[A-Za-z0-9._%+-]+@example\.com/g) || [])) {
     if (email.startsWith("test.") && !allowedEmails.has(email)) violations.push(`${path}: unseeded test email ${email}`);
   }
+
+  if ((path.startsWith("src/") || path === "firestore.rules" || path.startsWith("email-worker/src/")) && !MIGRATION_ONLY_FILES.has(path)) {
+    for (const { pattern, label } of forbiddenRuntimePatterns) {
+      pattern.lastIndex = 0;
+      if (pattern.test(content)) violations.push(`${path}: ${label}`);
+    }
+  }
+
+  if (PUBLIC_PRESENTATION_ROOTS.some((root) => path.startsWith(root)) && !publicLiteralAllowedFiles.has(path)) {
+    for (const literal of publicDataLiterals) {
+      if (content.includes(literal)) violations.push(`${path}: mutable public/domain data literal must come from Firestore: ${literal}`);
+    }
+    if (/const\s+(?:sectionOptions|featureCards|menuItems)\s*=\s*\[/.test(content)) {
+      violations.push(`${path}: mutable public option/content collection is hard-coded in presentation code`);
+    }
+  }
+}
+
+const obsoletePathPatterns = [
+  /^leader-.*-backup-/,
+  /(?:^|\/)JoinManagement\.tsx\.(?:filter|waiting-filter)-backup-/
+];
+for (const fullPath of walk(ROOT)) {
+  const path = relative(ROOT, fullPath).replaceAll("\\", "/");
+  if (obsoletePathPatterns.some((pattern) => pattern.test(path))) violations.push(`${path}: obsolete source backup must not remain in the supported repository`);
 }
 
 if (violations.length) {
-  console.error("Repository seed-contract violations found:");
+  console.error("Repository canonical data-contract violations found:");
   for (const violation of [...new Set(violations)].sort()) console.error(`- ${violation}`);
   process.exit(1);
 }
 
-console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} active seed sources.`);
-console.log("Migration/repair files are isolated from the consumer contract and may reference legacy IDs solely to remove or repair them.");
+console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} canonical seed sources.`);
+console.log("Runtime code may not silently accept legacy aliases, presentation code may not own mutable organisation/domain content, and obsolete source backups are forbidden.");

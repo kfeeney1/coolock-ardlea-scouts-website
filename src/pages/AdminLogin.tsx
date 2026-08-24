@@ -13,6 +13,7 @@ import type { FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 import { auth } from "../firebase";
 import { brandColours } from "../theme/theme";
 
@@ -20,6 +21,7 @@ type LocationState = { from?: string };
 
 export default function AdminLogin() {
     const { login, authorised, loading } = useAdminAuth();
+    const content = usePublicSiteContent();
     const navigate = useNavigate();
     const location = useLocation();
     const [email, setEmail] = useState("");
@@ -66,14 +68,10 @@ export default function AdminLogin() {
 
         try {
             await sendPasswordResetEmail(auth, trimmedEmail);
-            setMessage(
-                "If an account exists for that email address, Firebase has sent a password-reset email. Check your inbox and spam folder."
-            );
+            setMessage("If an account exists for that email address, Firebase has sent a password-reset email. Check your inbox and spam folder.");
         } catch (resetError) {
             console.error("Unable to send leader password reset email:", resetError);
-            setMessage(
-                "If an account exists for that email address, a password-reset email will be sent. Check your inbox and spam folder."
-            );
+            setMessage("If an account exists for that email address, a password-reset email will be sent. Check your inbox and spam folder.");
         } finally {
             setResettingPassword(false);
         }
@@ -85,7 +83,7 @@ export default function AdminLogin() {
                 <Paper elevation={4} sx={{ overflow: "hidden" }}>
                     <Box sx={{ background: `linear-gradient(135deg, ${brandColours.coral}, ${brandColours.navy})`, color: "white", p: { xs: 3, md: 5 }, textAlign: "center" }}>
                         <Typography variant="h3" component="h1">Leader Login</Typography>
-                        <Typography sx={{ mt: 1 }}>80th 160th Coolock Ardlea Scout Group</Typography>
+                        <Typography sx={{ mt: 1 }}>{content.group.name}</Typography>
                     </Box>
                     <Box component="form" onSubmit={submit} sx={{ p: { xs: 3, md: 5 } }}>
                         <Alert severity="info" sx={{ mb: 3 }}>This area is restricted to approved Scout leaders.</Alert>
@@ -96,15 +94,7 @@ export default function AdminLogin() {
                         <Button fullWidth type="submit" variant="contained" color="success" size="large" disabled={submitting || resettingPassword} sx={{ mt: 4 }}>
                             {submitting ? "Signing in..." : "Sign In"}
                         </Button>
-                        <Button
-                            fullWidth
-                            type="button"
-                            variant="text"
-                            color="secondary"
-                            disabled={submitting || resettingPassword}
-                            onClick={() => void resetPassword()}
-                            sx={{ mt: 1 }}
-                        >
+                        <Button fullWidth type="button" variant="text" color="secondary" disabled={submitting || resettingPassword} onClick={() => void resetPassword()} sx={{ mt: 1 }}>
                             {resettingPassword ? "Sending reset email..." : "Forgot Password?"}
                         </Button>
                         <Button fullWidth component={Link} to="/leader/register" variant="outlined" color="secondary" size="large" sx={{ mt: 2 }}>

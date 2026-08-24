@@ -59,19 +59,19 @@ test("ordinary leaders must scope join application list queries to assigned sect
   await assertFails(getDocs(collection(db, "joinApplications")));
 });
 
-test("ordinary leaders can query both legacy and canonical consent section fields", async () => {
+test("ordinary leaders can query canonical consent section fields and legacy section aliases are denied", async () => {
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
-    ["consentApplications/legacy-cub", { scoutSection: "Cubs", status: "active", source: "website" }],
-    ["consentApplications/current-cub", { section: "Cubs", scoutSection: "Cubs", status: "active", source: "website" }],
-    ["consentApplications/scout", { section: "Scouts", scoutSection: "Scouts", status: "active", source: "website" }],
+    ["consentApplications/current-cub", { section: "Cubs", formType: "youth-activity-consent", status: "active", source: "website" }],
+    ["consentApplications/scout", { section: "Scouts", formType: "youth-activity-consent", status: "active", source: "website" }],
+    ["consentApplications/legacy-cub", { scoutSection: "Cubs", formType: "youth", status: "active", source: "website" }],
   ]);
 
   const db = testEnv.authenticatedContext("leader-cubs").firestore();
   await assertSucceeds(
     getDocs(query(collection(db, "consentApplications"), where("section", "==", "Cubs")))
   );
-  await assertSucceeds(
+  await assertFails(
     getDocs(query(collection(db, "consentApplications"), where("scoutSection", "==", "Cubs")))
   );
   await assertFails(getDocs(collection(db, "consentApplications")));

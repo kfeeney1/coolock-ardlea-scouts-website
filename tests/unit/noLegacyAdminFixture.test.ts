@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const guardedFiles = [
-  "scripts/seed-e2e-auth-users.mjs",
   "scripts/seed-population-data.mjs",
+  "scripts/seed-flow-data.mjs",
+  "scripts/seed-playwright-records.mjs",
   "scripts/verify-test-population.mjs",
   "e2e/organisation-chart.spec.ts"
 ];

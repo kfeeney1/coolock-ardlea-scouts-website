@@ -10,28 +10,13 @@ import {
     updateDoc,
     where
 } from "firebase/firestore";
-
-import type {
-    DocumentData,
-    QueryDocumentSnapshot,
-    Timestamp
-} from "firebase/firestore";
+import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 
-export type JoinStatus =
-    | "new"
-    | "contacted"
-    | "waiting-list"
-    | "accepted"
-    | "closed";
-
-export type ContactMethod =
-    | "phone"
-    | "email"
-    | "text"
-    | "in-person"
-    | "other";
+export type JoinStatus = "new" | "contacted" | "waiting-list" | "accepted" | "closed";
+export type ContactMethod = "phone" | "email" | "text" | "in-person" | "other";
 
 export type ContactHistoryEntry = {
     id: string;
@@ -60,13 +45,11 @@ export type JoinApplicationRecord = {
     data: Record<string, unknown>;
 };
 
+const JOIN_STATUSES = ["new", "contacted", "waiting-list", "accepted", "closed"] as const;
+const CONTACT_METHODS = ["phone", "email", "text", "in-person", "other"] as const;
+
 function timestampToDate(value: unknown): Date | null {
-    if (
-        value &&
-        typeof value === "object" &&
-        "toDate" in value &&
-        typeof (value as Timestamp).toDate === "function"
-    ) {
+    if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
         return (value as Timestamp).toDate();
     }
     return null;
@@ -77,103 +60,63 @@ function stringValue(data: DocumentData, key: string): string {
     return typeof value === "string" ? value.trim() : "";
 }
 
-function firstStringValue(data: DocumentData, keys: string[]): string {
-    for (const key of keys) {
-        const value = stringValue(data, key);
-        if (value) return value;
-    }
-    return "";
-}
-
 function mapContactHistory(value: unknown): ContactHistoryEntry[] {
     if (!Array.isArray(value)) return [];
-    return value
-        .filter((item) => item && typeof item === "object")
-        .map((item) => {
-            const record = item as Record<string, unknown>;
-            const method = record.method;
-            return {
-                id: typeof record.id === "string" ? record.id : crypto.randomUUID(),
-                date: typeof record.date === "string" ? record.date : "",
-                method: (["phone", "email", "text", "in-person", "other"] as ContactMethod[]).includes(method as ContactMethod)
-                    ? (method as ContactMethod)
-                    : "other",
-                note: typeof record.note === "string" ? record.note.trim() : "",
-                leaderUid: typeof record.leaderUid === "string" ? record.leaderUid : ""
-            };
-        });
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const record = item as Record<string, unknown>;
+        if (
+            typeof record.id !== "string" ||
+            typeof record.date !== "string" ||
+            typeof record.method !== "string" ||
+            !CONTACT_METHODS.includes(record.method as ContactMethod) ||
+            typeof record.note !== "string" ||
+            typeof record.leaderUid !== "string"
+        ) return [];
+        return [{
+            id: record.id,
+            date: record.date,
+            method: record.method as ContactMethod,
+            note: record.note.trim(),
+            leaderUid: record.leaderUid
+        }];
+    });
 }
 
-function looksLikePhoneNumber(value: string): boolean {
-    if (!value) return false;
-    const validCharacters = /^[0-9+\-()\s]+$/;
-    const digitCount = (value.match(/\d/g) ?? []).length;
-    return validCharacters.test(value) && digitCount >= 7;
-}
-
-function latestPhoneFromContactHistory(history: ContactHistoryEntry[]): string {
-    const phoneEntries = history
-        .filter((entry) => entry.method === "phone" && looksLikePhoneNumber(entry.note))
-        .sort((left, right) => {
-            const leftTime = Date.parse(left.date);
-            const rightTime = Date.parse(right.date);
-            if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) return 0;
-            return rightTime - leftTime;
-        });
-    return phoneEntries[0]?.note ?? "";
-}
-
-function resolvePhoneNumber(data: DocumentData, history: ContactHistoryEntry[]): string {
-    const directPhone = firstStringValue(data, [
-        "mobileNumber",
-        "phone",
-        "phoneNumber",
-        "parentPhone",
-        "parentMobile",
-        "contactNumber",
-        "telephone",
-        "tel"
-    ]);
-    return directPhone || latestPhoneFromContactHistory(history);
-}
-
-function mapJoin(snapshot: QueryDocumentSnapshot<DocumentData>): JoinApplicationRecord {
+function mapJoin(snapshot: QueryDocumentSnapshot<DocumentData>): JoinApplicationRecord | null {
     const data = snapshot.data();
-    const firstName = firstStringValue(data, ["childFirstName", "firstName"]);
-    const lastName = firstStringValue(data, ["childLastName", "lastName"]);
-    const contactHistory = mapContactHistory(data.contactHistory);
+    const childFirstName = stringValue(data, "childFirstName");
+    const childLastName = stringValue(data, "childLastName");
+    const childDob = stringValue(data, "dateOfBirth");
+    const parentName = stringValue(data, "parentName");
+    const emailAddress = stringValue(data, "emailAddress");
+    const mobileNumber = stringValue(data, "mobileNumber");
+    const section = stringValue(data, "section");
+    const status = stringValue(data, "status") as JoinStatus;
+
+    if (
+        !childFirstName || !childLastName || !childDob || !parentName || !emailAddress || !mobileNumber || !section ||
+        !JOIN_STATUSES.includes(status)
+    ) return null;
 
     return {
         id: snapshot.id,
-        childFirstName: firstName,
-        childLastName: lastName,
-        childName:
-            [firstName, lastName].filter(Boolean).join(" ") ||
-            firstStringValue(data, ["childName", "name"]) ||
-            "Unnamed applicant",
-        childDob: firstStringValue(data, ["childDob", "dateOfBirth", "dob"]),
-        parentName: firstStringValue(data, ["parentName", "parentGuardianName", "guardianName"]),
-        emailAddress: firstStringValue(data, ["emailAddress", "email", "parentEmail"]),
-        mobileNumber: resolvePhoneNumber(data, contactHistory),
-        section: firstStringValue(data, ["section", "scoutSection"]),
-        status: (["new", "contacted", "waiting-list", "accepted", "closed"] as JoinStatus[]).includes(data.status as JoinStatus)
-            ? (data.status as JoinStatus)
-            : "new",
+        childFirstName,
+        childLastName,
+        childName: `${childFirstName} ${childLastName}`.trim(),
+        childDob,
+        parentName,
+        emailAddress,
+        mobileNumber,
+        section,
+        status,
         notes: stringValue(data, "notes"),
-        contactHistory,
+        contactHistory: mapContactHistory(data.contactHistory),
         submittedAt: timestampToDate(data.submittedAt),
         updatedAt: timestampToDate(data.updatedAt),
         memberId: stringValue(data, "memberId"),
         data
     };
-}
-
-function profileSections(data: DocumentData): string[] {
-    const sections = Array.isArray(data.sections)
-        ? data.sections.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-        : [];
-    const legacy = stringValue(data, "section");
-    return [...new Set([...sections.map((section) => section.trim()), legacy].filter(Boolean))];
 }
 
 export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
@@ -192,7 +135,7 @@ export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
     if (isAdmin) {
         documents = (await getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc")))).docs;
     } else {
-        const sections = profileSections(profile);
+        const sections = normalizeLeaderSections(profile);
         if (sections.length === 0) return [];
         const snapshots = await Promise.all(
             sections.map((section) => getDocs(query(collection(db, "joinApplications"), where("section", "==", section))))
@@ -204,14 +147,12 @@ export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
 
     return documents
         .map(mapJoin)
+        .filter((record): record is JoinApplicationRecord => record !== null)
         .sort((left, right) => (right.submittedAt?.getTime() ?? 0) - (left.submittedAt?.getTime() ?? 0));
 }
 
 export async function updateJoinStatus(applicationId: string, status: JoinStatus): Promise<void> {
-    await updateDoc(doc(db, "joinApplications", applicationId), {
-        status,
-        updatedAt: serverTimestamp()
-    });
+    await updateDoc(doc(db, "joinApplications", applicationId), { status, updatedAt: serverTimestamp() });
 }
 
 export async function updateJoinNotes(applicationId: string, notes: string): Promise<void> {
@@ -244,9 +185,7 @@ export async function addContactHistoryEntry(
     });
 }
 
-export async function convertJoinApplicationToMember(
-    application: JoinApplicationRecord
-): Promise<string> {
+export async function convertJoinApplicationToMember(application: JoinApplicationRecord): Promise<string> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
 
@@ -255,17 +194,13 @@ export async function convertJoinApplicationToMember(
 
     await runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(applicationRef);
-        if (!snapshot.exists()) {
-            throw new Error("The joining application no longer exists.");
-        }
+        if (!snapshot.exists()) throw new Error("The joining application no longer exists.");
 
         const current = snapshot.data();
         if (current.memberId && typeof current.memberId === "string") {
             throw new Error("This enquiry has already been converted to a member.");
         }
-        if (current.status !== "accepted") {
-            throw new Error("Only accepted joining enquiries can be converted to members.");
-        }
+        if (current.status !== "accepted") throw new Error("Only accepted joining enquiries can be converted to members.");
 
         transaction.set(memberRef, {
             firstName: application.childFirstName,
@@ -276,11 +211,15 @@ export async function convertJoinApplicationToMember(
             parentName: application.parentName,
             emailAddress: application.emailAddress,
             mobileNumber: application.mobileNumber,
+            emergencyContactName: stringValue(current, "emergencyContactName"),
+            emergencyContactPhone: stringValue(current, "emergencyContactPhone"),
             status: "active",
             source: "join-application",
             sourceJoinApplicationId: application.id,
             createdAt: serverTimestamp(),
-            createdBy: user.uid
+            createdBy: user.uid,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
         });
 
         transaction.update(applicationRef, {

@@ -21,9 +21,7 @@ export type MeetingRecord = {
 export type MeetingInput = Omit<MeetingRecord, "id" | "createdAt" | "updatedAt">;
 
 function timestampToDate(value: unknown): Date | null {
-  if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
-    return (value as Timestamp).toDate();
-  }
+  if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") return (value as Timestamp).toDate();
   return null;
 }
 
@@ -32,19 +30,31 @@ function stringValue(data: DocumentData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean) : [];
+function stringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.every((item) => typeof item === "string")
+    ? value.map((item) => item.trim()).filter(Boolean)
+    : null;
 }
 
-function mapMeeting(snapshot: QueryDocumentSnapshot<DocumentData>): MeetingRecord {
+function mapMeeting(snapshot: QueryDocumentSnapshot<DocumentData>): MeetingRecord | null {
   const data = snapshot.data();
+  const title = stringValue(data, "title");
+  const meetingType = data.meetingType as MeetingType;
+  const section = stringValue(data, "section");
+  const meetingDate = stringValue(data, "meetingDate");
+  const attendees = stringArray(data.attendees);
+  if (!title || !["group", "leader"].includes(meetingType) || !section || !meetingDate || !attendees) return null;
+  if (meetingType === "group" && section !== "Group") return null;
+  if ("date" in data || "actionItems" in data) return null;
+
   return {
     id: snapshot.id,
-    title: stringValue(data, "title") || "Untitled meeting",
-    meetingType: data.meetingType === "group" ? "group" : "leader",
-    section: stringValue(data, "section"),
-    meetingDate: stringValue(data, "meetingDate"),
-    attendees: stringArray(data.attendees),
+    title,
+    meetingType,
+    section,
+    meetingDate,
+    attendees,
     notes: stringValue(data, "notes"),
     decisions: stringValue(data, "decisions"),
     actions: stringValue(data, "actions"),
@@ -57,17 +67,17 @@ function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
 }
 
-function sortByMeetingDate(records: MeetingRecord[]): MeetingRecord[] {
-  return records.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+function validMeetings(docs: QueryDocumentSnapshot<DocumentData>[]): MeetingRecord[] {
+  return docs.map(mapMeeting).filter((meeting): meeting is MeetingRecord => meeting !== null);
 }
 
 export async function loadMeetingRecords(sections: string[], isAdmin: boolean): Promise<MeetingRecord[]> {
   if (isAdmin) {
     const snapshot = await getDocs(query(collection(db, "meetingRecords"), orderBy("meetingDate", "desc")));
-    return snapshot.docs.map(mapMeeting);
+    return validMeetings(snapshot.docs);
   }
 
-  const uniqueSections = [...new Set(sections.filter(Boolean))];
+  const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
   if (uniqueSections.length === 0) return [];
   const snapshots = await Promise.all(uniqueSections.map((section) => getDocs(query(
     collection(db, "meetingRecords"),
@@ -75,13 +85,15 @@ export async function loadMeetingRecords(sections: string[], isAdmin: boolean): 
     where("section", "==", section)
   ))));
 
-  return sortByMeetingDate(snapshots.flatMap((snapshot) => snapshot.docs.map(mapMeeting)));
+  return validMeetings(snapshots.flatMap((snapshot) => snapshot.docs))
+    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 }
 
 export async function createMeetingRecord(input: MeetingInput): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   const cleaned = cleanInput(input);
+  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new Error("Meeting does not match the canonical data contract.");
   const result = await addDoc(collection(db, "meetingRecords"), {
     ...cleaned,
     createdBy: user.uid,
@@ -108,8 +120,10 @@ function cleanInput(input: MeetingInput): MeetingInput {
 export async function updateMeetingRecord(id: string, input: MeetingInput): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
+  const cleaned = cleanInput(input);
+  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new Error("Meeting does not match the canonical data contract.");
   await updateDoc(doc(db, "meetingRecords", id), {
-    ...cleanInput(input),
+    ...cleaned,
     updatedAt: serverTimestamp(),
     updatedBy: user.uid
   });

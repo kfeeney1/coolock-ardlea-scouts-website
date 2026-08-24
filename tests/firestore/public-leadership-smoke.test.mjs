@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -26,7 +26,10 @@ beforeEach(async () => {
       organisationSection: "Scouts",
       organisationOrder: 10,
       reportsToUid: "",
+      showPublicly: true,
       active: true,
+      sourceAccessRole: "leader",
+      publicProjectionVersion: 2,
     });
   });
 });
@@ -35,9 +38,19 @@ after(async () => {
   await testEnv.cleanup();
 });
 
+function publicLeadershipQuery(db) {
+  return query(
+    collection(db, "publicLeadership"),
+    where("publicProjectionVersion", "==", 2),
+    where("sourceAccessRole", "==", "leader"),
+    where("active", "==", true),
+    where("showPublicly", "==", true)
+  );
+}
+
 test("anonymous visitors can list public leadership for About", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDocs(collection(db, "publicLeadership")));
+  await assertSucceeds(getDocs(publicLeadershipQuery(db)));
 });
 
 test("anonymous visitors can read an individual public leader", async () => {

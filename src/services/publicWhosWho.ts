@@ -1,6 +1,6 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { isAllowedPublicAppointment } from "./publicWhosWhoLogic";
+import { isAllowedPublicAppointment, isCurrentPublicProjection } from "./publicWhosWhoLogic";
 
 export type PublicWhosWhoLeader = {
   uid: string;
@@ -16,16 +16,21 @@ function text(value: unknown): string {
 }
 
 export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
-  const snapshot = await getDocs(collection(db, "publicLeadership"));
+  const publicQuery = query(
+    collection(db, "publicLeadership"),
+    where("publicProjectionVersion", "==", 2),
+    where("sourceAccessRole", "==", "leader"),
+    where("active", "==", true),
+    where("showPublicly", "==", true)
+  );
+  const snapshot = await getDocs(publicQuery);
   return snapshot.docs
     .map((item) => {
       const data = item.data();
       const displayName = text(data.displayName);
       const scoutingRole = text(data.scoutingRole);
       const organisationSection = text(data.organisationSection);
-      const active = data.active === true;
-      const showPublicly = data.showPublicly === true;
-      if (!active || !showPublicly || !displayName || !isAllowedPublicAppointment(scoutingRole, organisationSection)) return null;
+      if (!isCurrentPublicProjection(data) || !displayName || !isAllowedPublicAppointment(scoutingRole, organisationSection)) return null;
       return {
         uid: item.id,
         displayName,

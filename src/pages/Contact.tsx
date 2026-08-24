@@ -1,22 +1,12 @@
 import { Container, Typography } from "@mui/material";
+import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 
-
-export default function Contact(){
-
+export default function Contact() {
+    const content = usePublicSiteContent();
     return (
-
         <Container>
-
-            <Typography variant="h3">
-                Contact Us
-            </Typography>
-
-            <Typography sx={{mt:2}}>
-                Contact details will be added soon.
-            </Typography>
-
+            <Typography variant="h3">{content.contact.title}</Typography>
+            <Typography sx={{ mt: 2 }}>{content.contact.body}</Typography>
         </Container>
-
     );
-
 }

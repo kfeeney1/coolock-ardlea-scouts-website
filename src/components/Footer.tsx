@@ -6,8 +6,10 @@ import {
 
 import { BUILD_NUMBER } from "../buildInfo";
 import { brandColours } from "../theme/theme";
+import { usePublicSiteContent } from "./PublicSiteContentProvider";
 
 export default function Footer() {
+    const content = usePublicSiteContent();
     return (
         <Box
             component="footer"
@@ -31,7 +33,7 @@ export default function Footer() {
                     }}
                 >
                     © {new Date().getFullYear()}{" "}
-                    80th 160th Coolock Ardlea Scout Group
+                    {content.group.name}
                 </Typography>
 
                 <Typography
