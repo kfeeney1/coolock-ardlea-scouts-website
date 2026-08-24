@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/check-live-deployment.mjs"
       - ".github/workflows/post-deploy-smoke.yml"
+      - ".github/workflows/firebase-hosting-merge.yml"
       - "src/services/organisationChart.ts"
       - "public/public-leadership.json"
       - "scripts/export-public-leadership.mjs"
@@ -38,11 +39,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify live site uses Firestore-only public organisation data
+      - name: Verify live site uses current Firestore-only build
         run: npm run smoke:live
         env:
           SITE_URL: https://coolock-ardlea-scouts.web.app
           EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+          EXPECTED_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
           ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
