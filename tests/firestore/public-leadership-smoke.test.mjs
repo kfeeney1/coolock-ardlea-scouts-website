@@ -26,7 +26,10 @@ beforeEach(async () => {
       organisationSection: "Scouts",
       organisationOrder: 10,
       reportsToUid: "",
+      showPublicly: true,
       active: true,
+      sourceAccessRole: "leader",
+      publicProjectionVersion: 2,
     });
   });
 });
