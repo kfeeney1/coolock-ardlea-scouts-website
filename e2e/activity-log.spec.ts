@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const leaderEmail = process.env.E2E_LEADER_EMAIL;
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Activity Log role checks run once on desktop Chromium.");
@@ -39,11 +40,11 @@ for (const [role, email] of [
   });
 }
 
-test("section Leader cannot see Activity Log navigation", async ({ page }, testInfo) => {
+test("section leader cannot see Activity Log navigation", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
-  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page, "test.leader.only@example.com");
+  await login(page, leaderEmail!);
   await openLeaderMenu(page);
   await expect(page.getByRole("link", { name: "Activity Log" })).toHaveCount(0);
 });
