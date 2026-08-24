@@ -29,9 +29,22 @@ function isPublicRole(role, section) {
   if (YOUTH_SECTIONS.has(sectionKey)) return SECTION_ROLES.has(roleKey(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
-function validTestMarker(source) {
-  if (source.testData !== true) return source.testSeed === undefined && source.createdBySeed === undefined;
-  return CANONICAL_TEST_SEEDS.has(text(source.testSeed)) && source.createdBySeed === "TEST_SEED";
+function hasNoSeedMarker(record) {
+  return record?.testData !== true && record?.testSeed === undefined && record?.createdBySeed === undefined;
+}
+function isCanonicalSeedRecord(record) {
+  return record?.testData === true
+    && CANONICAL_TEST_SEEDS.has(text(record.testSeed))
+    && record.createdBySeed === "TEST_SEED";
+}
+function hasManualAccessProvenance(access) {
+  if (!hasNoSeedMarker(access)) return false;
+  return Boolean(text(access.approvedBy) || text(access.updatedBy));
+}
+function hasPublishableProvenance(source, access) {
+  const seeded = isCanonicalSeedRecord(source) && isCanonicalSeedRecord(access);
+  const manual = hasNoSeedMarker(source) && hasManualAccessProvenance(access);
+  return seeded || manual;
 }
 
 const [organisationSnapshot, adminSnapshot, existingPublicSnapshot] = await Promise.all([
@@ -42,6 +55,7 @@ const [organisationSnapshot, adminSnapshot, existingPublicSnapshot] = await Prom
 
 const adminByUid = new Map(adminSnapshot.docs.map((doc) => [doc.id, doc.data()]));
 const desired = new Map();
+const excludedUnprovenanced = [];
 const rejected = [];
 
 for (const doc of organisationSnapshot.docs) {
@@ -59,8 +73,8 @@ for (const doc of organisationSnapshot.docs) {
     rejected.push(`${doc.id}: invalid organisationOrder`);
     continue;
   }
-  if (!validTestMarker(source)) {
-    rejected.push(`${doc.id}: non-canonical test provenance marker`);
+  if (!hasPublishableProvenance(source, access)) {
+    excludedUnprovenanced.push(doc.id);
     continue;
   }
 
@@ -84,7 +98,7 @@ for (const doc of organisationSnapshot.docs) {
 }
 
 if (rejected.length) {
-  throw new Error(`Refusing to rebuild publicLeadership from malformed/non-canonical source data:\n${rejected.join("\n")}`);
+  throw new Error(`Refusing to rebuild publicLeadership from malformed canonical/proven records:\n${rejected.join("\n")}`);
 }
 
 const batch = db.batch();
@@ -92,6 +106,9 @@ for (const doc of existingPublicSnapshot.docs) batch.delete(doc.ref);
 for (const [uid, record] of desired) batch.set(db.collection("publicLeadership").doc(uid), record);
 await batch.commit();
 
-console.log("Rebuilt publicLeadership only from existing canonical organisation/admin data.");
+console.log("Rebuilt publicLeadership only from proven canonical seed or explicit manual/admin data.");
 console.log(`Removed ${existingPublicSnapshot.size} existing public record(s).`);
 console.log(`Published ${desired.size} eligible leader record(s) with projection v${PUBLIC_PROJECTION_VERSION}.`);
+if (excludedUnprovenanced.length) {
+  console.log(`Excluded ${excludedUnprovenanced.length} unprovenanced legacy/ambiguous source record(s): ${excludedUnprovenanced.join(", ")}`);
+}
