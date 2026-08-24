@@ -120,14 +120,40 @@ export default function AdminOverviewPanel() {
             }}
           >
             {cards.map(([label, value, path]) => (
-              <Paper key={String(label)} variant="outlined" sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1 }}>
+              <Paper
+                key={String(label)}
+                component={Link}
+                to={String(path)}
+                variant="outlined"
+                aria-label={`${label}: ${value}`}
+                sx={{
+                  p: 2.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  color: "inherit",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: 3,
+                    borderColor: "secondary.main"
+                  },
+                  "&:focus-visible": {
+                    outline: "3px solid",
+                    outlineColor: "secondary.main",
+                    outlineOffset: 2
+                  }
+                }}
+              >
                 <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
                   {value}
                 </Typography>
                 <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
-                <Button component={Link} to={String(path)} size="small" sx={{ alignSelf: "flex-start", px: 0 }}>
+                <Typography variant="body2" color="primary" sx={{ fontWeight: 700, mt: "auto" }}>
                   Open
-                </Button>
+                </Typography>
               </Paper>
             ))}
           </Box>
