@@ -119,7 +119,7 @@ test("leaders cannot create transfer history into an unassigned section", async 
 
 test("admins can list parent accounts", async () => {
   await seedDocuments([
-    ["adminUsers/admin-1", { active: true, role: "admin", sections: [] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
     ["parentAccounts/parent-1", { status: "approved", memberIds: [], linkedSections: [] }],
   ]);
   const db = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
@@ -127,7 +127,7 @@ test("admins can list parent accounts", async () => {
 });
 
 test("admins cannot promote themselves to super-admin", async () => {
-  await seedDocuments([["adminUsers/admin-1", { active: true, role: "admin", sections: [], displayName: "Test Admin" }]]);
+  await seedDocuments([["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"], displayName: "Test Admin" }]]);
   const db = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
   await assertFails(updateDoc(doc(db, "adminUsers/admin-1"), { role: "super-admin" }));
 });
@@ -151,34 +151,29 @@ test("leaders can append valid audit entries but cannot edit them", async () => 
   await assertFails(updateDoc(auditRef, { description: "Rewritten history" }));
 });
 
-test("public join applications accept valid submissions and reject invalid consent", async () => {
+test("public join applications accept valid canonical submissions and reject invalid consent", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
-
-  await assertSucceeds(setDoc(doc(db, "joinApplications/valid"), {
+  const canonical = {
     childFirstName: "Alex",
     childLastName: "Scout",
+    dateOfBirth: "2016-05-10",
     parentName: "Test Parent",
     emailAddress: "parent@example.com",
     mobileNumber: "0870000000",
+    emergencyContactName: "Test Emergency",
+    emergencyContactPhone: "0871111111",
     section: "Cubs",
     informationConfirmed: true,
     contactConsent: true,
     status: "new",
     source: "website",
     submittedAt: serverTimestamp(),
-  }));
+  };
 
+  await assertSucceeds(setDoc(doc(db, "joinApplications/valid"), canonical));
   await assertFails(setDoc(doc(db, "joinApplications/invalid"), {
-    childFirstName: "Alex",
-    childLastName: "Scout",
-    parentName: "Test Parent",
-    emailAddress: "parent@example.com",
-    mobileNumber: "0870000000",
-    section: "Cubs",
-    informationConfirmed: true,
+    ...canonical,
     contactConsent: false,
-    status: "new",
-    source: "website",
     submittedAt: serverTimestamp(),
   }));
 });
