@@ -9,6 +9,26 @@ const workflow = readFileSync(workflowPath, "utf8");
 const seededEmails = new Set([...populationSeed.matchAll(/email:\s*"([^"]+@example\.com)"/g)].map((match) => match[1]));
 const seededUids = new Set([...populationSeed.matchAll(/uid:\s*(?:"([^"]+)"|WEB_ADMIN_UID)/g)].map((match) => match[1] || "TEST_uid_web_admin_01"));
 
+// The comprehensive population seed intentionally generates most canonical identities
+// from section/role templates instead of duplicating every email as a literal. Mirror
+// those deterministic formulas here so this verifier checks what the seed actually
+// creates rather than only the strings that happen to appear verbatim in the file.
+const generatedSections = ["beaver", "cub", "scout", "venture", "rover"];
+const generatedSectionRoles = ["section.leader", "assistant.section.leader", "programme.scouter", "scouter"];
+const generatedGroupRoles = ["group.leader", "group.chairperson", "group.secretary", "group.treasurer", "group.quartermaster", "group.youth.champion"];
+for (const section of generatedSections) {
+  for (let number = 1; number <= 30; number += 1) {
+    seededEmails.add(`test.${section}.${String(number).padStart(2, "0")}.parent@example.com`);
+  }
+  for (const role of generatedSectionRoles) {
+    seededEmails.add(`test.${section}.${role}@example.com`);
+  }
+  for (const number of [1, 2]) {
+    seededEmails.add(`test.${section}.parent${number}@example.com`);
+  }
+}
+for (const role of generatedGroupRoles) seededEmails.add(`test.${role}@example.com`);
+
 const envAccountKeys = [
   "E2E_PARENT_EMAIL",
   "E2E_PARENT_LEADER_EMAIL",
@@ -76,4 +96,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`Playwright seed contract verified against comprehensive population and canonical public content: ${seededEmails.size} explicit seeded account email(s), ${e2eFiles.length} spec file(s) checked.`);
+console.log(`Playwright seed contract verified against comprehensive population and canonical public content: ${seededEmails.size} canonical seeded account email(s), ${e2eFiles.length} spec file(s) checked.`);
