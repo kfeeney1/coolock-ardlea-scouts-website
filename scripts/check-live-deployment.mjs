@@ -2,6 +2,7 @@ const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
 const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
 const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
+const expectedBuildSha = String(process.env.EXPECTED_BUILD_SHA || "").trim();
 const allowPendingDeployWarning = String(process.env.ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING || "").toLowerCase() === "true";
 
 if (!siteUrl.startsWith("https://")) {
@@ -47,6 +48,16 @@ for (const path of routes) {
 }
 
 if (root) {
+  const buildMatch = root.text.match(/<meta\s+name=["']app-build-sha["']\s+content=["']([^"']+)["']/i);
+  const liveBuildSha = buildMatch?.[1]?.trim() || "";
+  if (!liveBuildSha) {
+    pendingOrFail("Live SPA shell has no app-build-sha fingerprint.");
+  } else if (expectedBuildSha && liveBuildSha !== expectedBuildSha) {
+    fail(`Live Hosting is serving build ${liveBuildSha}, expected ${expectedBuildSha}.`);
+  } else {
+    pass(`Live SPA shell identifies deployed build ${liveBuildSha}.`);
+  }
+
   const headers = root.response.headers;
   const csp = headers.get("content-security-policy") || "";
   for (const directive of ["base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
@@ -91,7 +102,6 @@ if (!indexResponse.ok) fail(`/index.html returned ${indexResponse.status}`);
 if (!indexCache.includes("no-store")) fail("SPA shell is not configured with no-store caching");
 else pass("SPA shell uses no-store caching");
 
-// The old snapshot must no longer exist as deployable data. Firebase Hosting rewrites a missing path to index.html.
 const obsoleteSnapshot = await fetch(`${siteUrl}/public-leadership.json?t=${Date.now()}`, { cache: "no-store" });
 const obsoleteSnapshotText = await obsoleteSnapshot.text();
 let obsoleteSnapshotIsJsonArray = false;
