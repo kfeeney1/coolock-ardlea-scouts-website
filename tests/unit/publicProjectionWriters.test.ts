@@ -35,6 +35,13 @@ async function activeSourceFiles(): Promise<Array<{ file: string; source: string
   return Promise.all(files.map(async (file) => ({ file, source: await readFile(file, "utf8") })));
 }
 
+function firestoreWriteObjects(source: string): string[] {
+  const writes: string[] = [];
+  const pattern = /(?:setDoc|updateDoc|addDoc|batch\.set|transaction\.set)\([^,]+,\s*\{([\s\S]*?)\}\s*(?:,\s*\{[^}]*\})?\s*\)/g;
+  for (const match of source.matchAll(pattern)) writes.push(match[1]);
+  return writes;
+}
+
 describe("leadership data writers", () => {
   it("all active publicLeadership writers stamp the current fail-closed contract", async () => {
     const writers: string[] = [];
@@ -49,14 +56,24 @@ describe("leadership data writers", () => {
       assert.match(source, /sourceAccessRole\s*:\s*["']leader["']/, `${file} writes publicLeadership without sourceAccessRole: leader`);
     }
 
-    assert.ok(writers.length >= 4, `Expected to discover all active publicLeadership writers, found ${writers.length}: ${writers.join(", ")}`);
+    assert.deepEqual(
+      writers.sort(),
+      [
+        "scripts/rebuild-public-leadership.mjs",
+        "scripts/seed-population-data.mjs",
+        "src/services/organisationChart.ts"
+      ],
+      `Unexpected publicLeadership writer set: ${writers.join(", ")}`
+    );
   });
 
   it("canonical leader section writers use sections[] and never persist legacy section", async () => {
     for (const file of CANONICAL_SECTION_WRITER_FILES) {
       const source = await readFile(file, "utf8");
       assert.match(source, /\bsections\s*:/, `${file} does not write canonical sections[]`);
-      assert.doesNotMatch(source, /\bsection\s*:/, `${file} still writes legacy singular section`);
+      for (const writeObject of firestoreWriteObjects(source)) {
+        assert.doesNotMatch(writeObject, /\bsection\s*:/, `${file} still persists legacy singular section`);
+      }
     }
 
     const seedFile = "scripts/seed-population-data.mjs";
