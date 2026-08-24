@@ -29,43 +29,46 @@ function eligibleRole(role, section) {
   if (YOUTH_SECTIONS.has(sectionKey)) return SECTION_ROLES.has(roleKey(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
-function hasNoSeedMarker(record) {
-  return record?.testData !== true && record?.testSeed === undefined && record?.createdBySeed === undefined;
-}
 function isCanonicalSeedRecord(record) {
   return record?.testData === true
     && CANONICAL_TEST_SEEDS.has(text(record.testSeed))
     && record.createdBySeed === "TEST_SEED";
 }
-function hasManualAccessProvenance(access) {
-  if (!hasNoSeedMarker(access)) return false;
-  return Boolean(text(access.approvedBy) || text(access.updatedBy));
+function isApprovedManualRegistration(uid, request) {
+  return request
+    && text(request.uid || uid) === uid
+    && request.status === "approved"
+    && request.privacyConfirmed === true
+    && Boolean(text(request.reviewedBy));
 }
-function hasPublishableProvenance(source, access) {
+function hasPublishableProvenance(uid, source, access, registration) {
   return (isCanonicalSeedRecord(source) && isCanonicalSeedRecord(access))
-    || (hasNoSeedMarker(source) && hasManualAccessProvenance(access));
+    || (isApprovedManualRegistration(uid, registration) && source?.testData !== true && access?.testData !== true);
 }
 function fail(message) { throw new Error(`Public Who's Who verification failed: ${message}`); }
 
-const [adminSnapshot, organisationSnapshot, publicSnapshot] = await Promise.all([
+const [adminSnapshot, organisationSnapshot, publicSnapshot, registrationSnapshot] = await Promise.all([
   db.collection("adminUsers").get(),
   db.collection("organisationLeadership").get(),
-  db.collection("publicLeadership").get()
+  db.collection("publicLeadership").get(),
+  db.collection("leaderRegistrationRequests").get()
 ]);
 
 const adminByUid = new Map(adminSnapshot.docs.map((doc) => [doc.id, doc.data()]));
 const organisationByUid = new Map(organisationSnapshot.docs.map((doc) => [doc.id, doc.data()]));
 const publicByUid = new Map(publicSnapshot.docs.map((doc) => [doc.id, doc.data()]));
+const registrationByUid = new Map(registrationSnapshot.docs.map((doc) => [doc.id, doc.data()]));
 
 for (const [uid, data] of publicByUid) {
   const access = adminByUid.get(uid);
   const source = organisationByUid.get(uid);
+  const registration = registrationByUid.get(uid);
   if (!access) fail(`${uid} has no matching adminUsers access profile`);
   if (!source) fail(`${uid} has no matching organisationLeadership record`);
   if (text(access.role).toLowerCase() !== "leader") fail(`${uid} has non-leader access role ${JSON.stringify(access.role)}`);
   if (access.active !== true) fail(`${uid} access profile is not explicitly active`);
   if (source.active !== true || source.showPublicly !== true) fail(`${uid} source organisation record is not explicitly active/public`);
-  if (!hasPublishableProvenance(source, access)) fail(`${uid} has no canonical seed or explicit manual/admin provenance`);
+  if (!hasPublishableProvenance(uid, source, access, registration)) fail(`${uid} is neither current canonical seed data nor backed by an approved leader registration`);
   if (data.sourceAccessRole !== "leader") fail(`${uid} is missing sourceAccessRole=leader`);
   if (data.publicProjectionVersion !== PUBLIC_PROJECTION_VERSION) fail(`${uid} has stale projection version ${JSON.stringify(data.publicProjectionVersion)}`);
   if (!eligibleRole(data.scoutingRole, data.organisationSection)) fail(`${uid} has ineligible public appointment ${JSON.stringify(data.organisationSection)} / ${JSON.stringify(data.scoutingRole)}`);
@@ -77,14 +80,15 @@ for (const [uid, data] of publicByUid) {
 const expected = [];
 for (const [uid, source] of organisationByUid) {
   const access = adminByUid.get(uid);
+  const registration = registrationByUid.get(uid);
   if (!access || text(access.role).toLowerCase() !== "leader") continue;
   if (access.active !== true || source.active !== true || source.showPublicly !== true) continue;
   if (!eligibleRole(source.scoutingRole, source.organisationSection)) continue;
-  if (!hasPublishableProvenance(source, access)) continue;
+  if (!hasPublishableProvenance(uid, source, access, registration)) continue;
   expected.push(uid);
   if (!publicByUid.has(uid)) fail(`${uid} is eligible and proven but missing from publicLeadership`);
 }
 
 if (publicByUid.size !== expected.length) fail(`expected ${expected.length} public records, found ${publicByUid.size}`);
 
-console.log(`Public Who's Who verified: ${publicByUid.size} current v${PUBLIC_PROJECTION_VERSION} leader record(s), all provenance-backed.`);
+console.log(`Public Who's Who verified: ${publicByUid.size} current v${PUBLIC_PROJECTION_VERSION} leader record(s), all from canonical seed or approved registration provenance.`);

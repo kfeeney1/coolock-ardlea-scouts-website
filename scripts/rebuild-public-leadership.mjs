@@ -29,31 +29,35 @@ function isPublicRole(role, section) {
   if (YOUTH_SECTIONS.has(sectionKey)) return SECTION_ROLES.has(roleKey(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
-function hasNoSeedMarker(record) {
-  return record?.testData !== true && record?.testSeed === undefined && record?.createdBySeed === undefined;
-}
 function isCanonicalSeedRecord(record) {
   return record?.testData === true
     && CANONICAL_TEST_SEEDS.has(text(record.testSeed))
     && record.createdBySeed === "TEST_SEED";
 }
-function hasManualAccessProvenance(access) {
-  if (!hasNoSeedMarker(access)) return false;
-  return Boolean(text(access.approvedBy) || text(access.updatedBy));
+function isApprovedManualRegistration(uid, request) {
+  return request
+    && text(request.uid || uid) === uid
+    && request.status === "approved"
+    && request.privacyConfirmed === true
+    && Boolean(text(request.reviewedBy));
 }
-function hasPublishableProvenance(source, access) {
+function hasPublishableProvenance(uid, source, access, registration) {
   const seeded = isCanonicalSeedRecord(source) && isCanonicalSeedRecord(access);
-  const manual = hasNoSeedMarker(source) && hasManualAccessProvenance(access);
+  const manual = isApprovedManualRegistration(uid, registration)
+    && source?.testData !== true
+    && access?.testData !== true;
   return seeded || manual;
 }
 
-const [organisationSnapshot, adminSnapshot, existingPublicSnapshot] = await Promise.all([
+const [organisationSnapshot, adminSnapshot, existingPublicSnapshot, registrationSnapshot] = await Promise.all([
   db.collection("organisationLeadership").get(),
   db.collection("adminUsers").get(),
-  db.collection("publicLeadership").get()
+  db.collection("publicLeadership").get(),
+  db.collection("leaderRegistrationRequests").get()
 ]);
 
 const adminByUid = new Map(adminSnapshot.docs.map((doc) => [doc.id, doc.data()]));
+const registrationByUid = new Map(registrationSnapshot.docs.map((doc) => [doc.id, doc.data()]));
 const desired = new Map();
 const excludedUnprovenanced = [];
 const rejected = [];
@@ -61,6 +65,7 @@ const rejected = [];
 for (const doc of organisationSnapshot.docs) {
   const source = doc.data();
   const access = adminByUid.get(doc.id);
+  const registration = registrationByUid.get(doc.id);
   if (!access || text(access.role).toLowerCase() !== "leader" || access.active !== true) continue;
   if (source.active !== true || source.showPublicly !== true) continue;
   if (!isPublicRole(source.scoutingRole, source.organisationSection)) continue;
@@ -73,7 +78,7 @@ for (const doc of organisationSnapshot.docs) {
     rejected.push(`${doc.id}: invalid organisationOrder`);
     continue;
   }
-  if (!hasPublishableProvenance(source, access)) {
+  if (!hasPublishableProvenance(doc.id, source, access, registration)) {
     excludedUnprovenanced.push(doc.id);
     continue;
   }
@@ -106,9 +111,9 @@ for (const doc of existingPublicSnapshot.docs) batch.delete(doc.ref);
 for (const [uid, record] of desired) batch.set(db.collection("publicLeadership").doc(uid), record);
 await batch.commit();
 
-console.log("Rebuilt publicLeadership only from proven canonical seed or explicit manual/admin data.");
+console.log("Rebuilt publicLeadership only from current canonical seed or approved leader registrations.");
 console.log(`Removed ${existingPublicSnapshot.size} existing public record(s).`);
 console.log(`Published ${desired.size} eligible leader record(s) with projection v${PUBLIC_PROJECTION_VERSION}.`);
 if (excludedUnprovenanced.length) {
-  console.log(`Excluded ${excludedUnprovenanced.length} unprovenanced legacy/ambiguous source record(s): ${excludedUnprovenanced.join(", ")}`);
+  console.log(`Excluded ${excludedUnprovenanced.length} legacy/ambiguous source record(s): ${excludedUnprovenanced.join(", ")}`);
 }
