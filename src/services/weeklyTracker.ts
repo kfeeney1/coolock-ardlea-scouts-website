@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -22,6 +22,8 @@ export type WeeklyMeetingRecord = {
 };
 
 export type WeeklyMeetingInput = Omit<WeeklyMeetingRecord, "id">;
+
+const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 
 function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
@@ -87,16 +89,16 @@ function validRecords(docs: QueryDocumentSnapshot<DocumentData>[]): WeeklyMeetin
 }
 
 export async function loadWeeklyMeetings(sections: string[], isAdmin: boolean): Promise<WeeklyMeetingRecord[]> {
-  if (isAdmin) {
-    const snapshot = await getDocs(query(collection(db, "weeklyMeetings"), orderBy("meetingDate", "desc")));
-    return validRecords(snapshot.docs);
-  }
-  const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
-  if (uniqueSections.length === 0) return [];
-  const snapshots = await Promise.all(uniqueSections.map((section) => getDocs(query(
+  const requestedSections = isAdmin
+    ? GROUP_SECTIONS
+    : [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
+  if (requestedSections.length === 0) return [];
+
+  const snapshots = await Promise.all(requestedSections.map((section) => getDocs(query(
     collection(db, "weeklyMeetings"),
     where("section", "==", section)
   ))));
+
   return validRecords(snapshots.flatMap((snapshot) => snapshot.docs))
     .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 }
