@@ -134,23 +134,6 @@ async function syncPublicEvent(eventId: string, input: EventInput): Promise<void
     });
 }
 
-function eventToInput(event: EventRecord): EventInput {
-    return {
-        title: event.title,
-        description: event.description,
-        eventType: event.eventType,
-        section: event.section,
-        location: event.location,
-        meetingPoint: event.meetingPoint,
-        returnDetails: event.returnDetails,
-        leaderNotes: event.leaderNotes,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        status: event.status,
-        consentRequired: event.consentRequired
-    };
-}
-
 export async function loadEvents(): Promise<EventRecord[]> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
@@ -168,13 +151,10 @@ export async function loadEvents(): Promise<EventRecord[]> {
             )
           )).flatMap((snapshot) => snapshot.docs);
 
-    const events = docs
+    return docs
         .map(mapEvent)
         .filter((event): event is EventRecord => event !== null)
         .sort((a, b) => b.startDate.localeCompare(a.startDate));
-
-    await Promise.all(events.map((event) => syncPublicEvent(event.id, eventToInput(event))));
-    return events;
 }
 
 export async function createEvent(input: EventInput): Promise<string> {
