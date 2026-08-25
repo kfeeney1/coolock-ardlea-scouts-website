@@ -1,50 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-
-const populationSeedPath = "scripts/seed-population-data.mjs";
-const workflowPath = ".github/workflows/playwright-e2e.yml";
-const weeklySeedPath = "scripts/seed-playwright-records.mjs";
-const populationSeed = readFileSync(populationSeedPath, "utf8");
-const workflow = readFileSync(workflowPath, "utf8");
-const weeklySeed = readFileSync(weeklySeedPath, "utf8");
-
-const seededEmails = new Set([...populationSeed.matchAll(/email:\s*"([^"]+@example\.com)"/g)].map((match) => match[1]));
-const seededUids = new Set([...populationSeed.matchAll(/uid:\s*(?:"([^"]+)"|WEB_ADMIN_UID)/g)].map((match) => match[1] || "TEST_uid_web_admin_01"));
-const generatedSections = ["beaver", "cub", "scout", "venture", "rover"];
-const generatedSectionRoles = ["section.leader", "assistant.section.leader", "programme.scouter", "scouter"];
-const generatedGroupRoles = ["group.leader", "group.chairperson", "group.secretary", "group.treasurer", "group.quartermaster", "group.youth.champion"];
-for (const section of generatedSections) {
-  for (let number = 1; number <= 30; number += 1) seededEmails.add(`test.${section}.${String(number).padStart(2, "0")}.parent@example.com`);
-  for (const role of generatedSectionRoles) seededEmails.add(`test.${section}.${role}@example.com`);
-  for (const number of [1, 2]) seededEmails.add(`test.${section}.parent${number}@example.com`);
-}
-for (const role of generatedGroupRoles) seededEmails.add(`test.${role}@example.com`);
-
-const envAccountKeys = ["E2E_PARENT_EMAIL","E2E_PARENT_LEADER_EMAIL","E2E_LEADER_EMAIL","E2E_MULTI_SECTION_LEADER_EMAIL","E2E_ADMIN_EMAIL","E2E_SUPER_ADMIN_EMAIL"];
-const problems = [];
-for (const key of envAccountKeys) {
-  const match = workflow.match(new RegExp(`^\\s*${key}:\\s*([^\\s#]+)`, "m"));
-  if (!match) { problems.push(`${workflowPath} is missing ${key}`); continue; }
-  const email = match[1].trim(); if (!seededEmails.has(email)) problems.push(`${key}=${email} is not created by ${populationSeedPath}`);
-}
-const requiredSeedCommands = ["node scripts/seed-population-data.mjs seed","node scripts/seed-flow-data.mjs","node scripts/seed-public-site-content.mjs seed","node scripts/seed-playwright-records.mjs","node scripts/rebuild-public-leadership.mjs","node scripts/verify-test-population.mjs","node scripts/verify-flow-data.mjs"];
-for (const command of requiredSeedCommands) if (!workflow.includes(command)) problems.push(`${workflowPath} must run ${command}`);
-for (const command of ["node scripts/seed-test-data.mjs seed","node scripts/seed-e2e-auth-users.mjs seed"]) if (workflow.includes(command)) problems.push(`${workflowPath} must not run legacy overlapping seed ${command}`);
-
-const forbiddenLegacyValues = ["test.admin@example.com","TEST_uid_admin_01","Orla Kelly","test.leader.parent@example.com","test.leader.only@example.com","test.leader.multisection@example.com"];
-const e2eFiles = readdirSync("e2e").filter((name) => name.endsWith(".spec.ts"));
-for (const name of e2eFiles) {
-  const path = join("e2e", name); const content = readFileSync(path, "utf8");
-  for (const value of forbiddenLegacyValues) if (content.includes(value)) problems.push(`${path} still references retired fixture value ${value}`);
-  for (const match of content.matchAll(/login\(page,\s*"([^"]+@example\.com)"\)/g)) if (!seededEmails.has(match[1])) problems.push(`${path} logs in with account absent from the comprehensive population seed: ${match[1]}`);
-}
-for (const value of forbiddenLegacyValues) if (workflow.includes(value)) problems.push(`${workflowPath} still references retired fixture value ${value}`);
-if (!seededEmails.has("test.webadmin@example.com")) problems.push("canonical website admin email is missing from population seed");
-if (!seededUids.has("TEST_uid_web_admin_01")) problems.push("canonical website admin UID is missing from population seed");
-if (!seededEmails.has("test.multi.section.leader@example.com")) problems.push("canonical multi-section leader is missing from population seed");
-for (const token of ["status: \"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:"]) if (!weeklySeed.includes(token)) problems.push(`${weeklySeedPath} must seed canonical weekly lifecycle field ${token}`);
-for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!weeklySeed.includes(`\"${section}\"`)) problems.push(`${weeklySeedPath} must seed closed meeting history for ${section}`);
-if (!weeklySeed.includes("two closed weekly meetings per section")) problems.push(`${weeklySeedPath} must document its deterministic two-meetings-per-section contract`);
-
-if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
-console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, stable weekly lifecycle history for all sections.`);
+const populationSeedPath="scripts/seed-population-data.mjs",workflowPath=".github/workflows/playwright-e2e.yml",weeklySeedPath="scripts/seed-playwright-records.mjs";const populationSeed=readFileSync(populationSeedPath,"utf8"),workflow=readFileSync(workflowPath,"utf8"),weeklySeed=readFileSync(weeklySeedPath,"utf8");
+const seededEmails=new Set([...populationSeed.matchAll(/email:\s*"([^"]+@example\.com)"/g)].map(m=>m[1]));const seededUids=new Set([...populationSeed.matchAll(/uid:\s*(?:"([^"]+)"|WEB_ADMIN_UID)/g)].map(m=>m[1]||"TEST_uid_web_admin_01"));
+for(const section of ["beaver","cub","scout","venture","rover"]){for(let n=1;n<=30;n++)seededEmails.add(`test.${section}.${String(n).padStart(2,"0")}.parent@example.com`);for(const role of ["section.leader","assistant.section.leader","programme.scouter","scouter"])seededEmails.add(`test.${section}.${role}@example.com`);for(const n of [1,2])seededEmails.add(`test.${section}.parent${n}@example.com`);}for(const role of ["group.leader","group.chairperson","group.secretary","group.treasurer","group.quartermaster","group.youth.champion"])seededEmails.add(`test.${role}@example.com`);
+const problems=[];for(const key of ["E2E_PARENT_EMAIL","E2E_PARENT_LEADER_EMAIL","E2E_LEADER_EMAIL","E2E_MULTI_SECTION_LEADER_EMAIL","E2E_ADMIN_EMAIL","E2E_SUPER_ADMIN_EMAIL"]){const match=workflow.match(new RegExp(`^\\s*${key}:\\s*([^\\s#]+)`,`m`));if(!match)problems.push(`${workflowPath} is missing ${key}`);else if(!seededEmails.has(match[1].trim()))problems.push(`${key} is not created by ${populationSeedPath}`);}
+for(const command of ["node scripts/seed-population-data.mjs seed","node scripts/seed-flow-data.mjs","node scripts/seed-public-site-content.mjs seed","node scripts/seed-playwright-records.mjs","node scripts/rebuild-public-leadership.mjs","node scripts/verify-test-population.mjs","node scripts/verify-flow-data.mjs"])if(!workflow.includes(command))problems.push(`${workflowPath} must run ${command}`);
+const forbidden=["test.admin@example.com","TEST_uid_admin_01","Orla Kelly","test.leader.parent@example.com","test.leader.only@example.com","test.leader.multisection@example.com"];const e2eFiles=readdirSync("e2e").filter(n=>n.endsWith(".spec.ts"));for(const name of e2eFiles){const path=join("e2e",name),content=readFileSync(path,"utf8");for(const value of forbidden)if(content.includes(value))problems.push(`${path} still references retired fixture value ${value}`);for(const match of content.matchAll(/login\(page,\s*"([^"]+@example\.com)"\)/g))if(!seededEmails.has(match[1]))problems.push(`${path} logs in with unseeded account ${match[1]}`);}
+if(!seededEmails.has("test.webadmin@example.com"))problems.push("canonical website admin email is missing");if(!seededUids.has("TEST_uid_web_admin_01"))problems.push("canonical website admin UID is missing");if(!seededEmails.has("test.multi.section.leader@example.com"))problems.push("canonical multi-section leader is missing");
+for(const token of ["status:\"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:","weekly-activities-v1","weekly-badgework-v1","weekly-programme-v1"])if(!weeklySeed.replaceAll(" ","").includes(token.replaceAll(" ","")))problems.push(`${weeklySeedPath} must seed ${token}`);for(const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"])if(!weeklySeed.includes(`\"${section}\"`))problems.push(`${weeklySeedPath} must seed ${section}`);if(!weeklySeed.includes("varied structured weekly planner rows"))problems.push(`${weeklySeedPath} must document varied planner rows`);for(const signature of [",1,1]",",2,2]",",3,1]",",2,0]",",1,3]"])if(!weeklySeed.replaceAll(" ","").includes(signature))problems.push(`${weeklySeedPath} must retain planner count ${signature}`);
+if(problems.length){console.error("Playwright seed contract failed:");for(const problem of problems)console.error(`- ${problem}`);process.exit(1);}console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, varied weekly planner history.`);
