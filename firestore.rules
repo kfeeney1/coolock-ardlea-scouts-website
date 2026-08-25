@@ -19,6 +19,18 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
+    function isGroupLeader() {
+      return isActiveLeader()
+        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Leader";
+    }
+    function isGroupSecretary() {
+      return isActiveLeader()
+        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+    }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
@@ -106,7 +118,7 @@ service cloud.firestore {
         && request.resource.data.displayName is string && request.resource.data.dateOfBirth is string
         && request.resource.data.status in ["active", "inactive", "left"]
         && ((request.resource.data.source == "join-application" && request.resource.data.status == "active") || request.resource.data.source == "manual");
-      allow read: if (isActiveLeader() && hasSection(resource.data.section)) || isApprovedParentForMember(memberId);
+      allow read: if (isActiveLeader() && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary())) || isApprovedParentForMember(memberId);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.status in ["active", "inactive", "left"]
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]);
@@ -241,25 +253,39 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId} {
-      allow read: if isActiveLeader() && resource.data.section is string && hasSection(resource.data.section);
+      allow read: if isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary());
       allow create: if isActiveLeader()
         && request.resource.data.section is string
-        && hasSection(request.resource.data.section)
+        && (hasSection(request.resource.data.section) || isGroupLeader())
         && request.resource.data.meetingDate is string
-        && request.resource.data.entries is list
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.plannedActivities is string
+        && request.resource.data.plannedBadgework is string
+        && request.resource.data.programmeNotes is string
         && request.resource.data.notes is string
+        && request.resource.data.entries is list
+        && request.resource.data.injuries is list
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.keys().hasOnly(["section", "meetingDate", "notes", "entries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       allow update: if isActiveLeader()
         && resource.data.section is string
         && request.resource.data.section is string
-        && hasSection(resource.data.section)
-        && hasSection(request.resource.data.section)
-        && request.resource.data.entries is list
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.plannedActivities is string
+        && request.resource.data.plannedBadgework is string
+        && request.resource.data.programmeNotes is string
         && request.resource.data.notes is string
+        && request.resource.data.entries is list
+        && request.resource.data.injuries is list
         && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "notes", "entries", "updatedBy", "updatedAt"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
       allow delete: if false;
     }
 

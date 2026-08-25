@@ -1,131 +1,28 @@
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 export type WeeklyAttendance = "present" | "absent" | "unrecorded";
-
-export type WeeklyMemberEntry = {
-  memberId: string;
-  memberName: string;
-  attendance: WeeklyAttendance;
-  subsPaid: boolean;
-  subsAmount: number;
-  badges: string[];
-};
-
-export type WeeklyMeetingRecord = {
-  id: string;
-  section: string;
-  meetingDate: string;
-  notes: string;
-  entries: WeeklyMemberEntry[];
-};
-
+export type WeeklyMeetingStatus = "open" | "closed";
+export type InjurySeverity = "minor" | "moderate" | "serious";
+export type WeeklyMemberEntry = { memberId: string; memberName: string; attendance: WeeklyAttendance; subsPaid: boolean; subsAmount: number; badges: string[] };
+export type WeeklyInjury = { memberId: string; memberName: string; concern: string; severity: InjurySeverity; actionTaken: string; parentInformed: boolean; recordedAt: string };
+export type WeeklyMeetingRecord = { id: string; section: string; meetingDate: string; status: WeeklyMeetingStatus; location: string; plannedActivities: string; plannedBadgework: string; programmeNotes: string; notes: string; entries: WeeklyMemberEntry[]; injuries: WeeklyInjury[] };
 export type WeeklyMeetingInput = Omit<WeeklyMeetingRecord, "id">;
+export type WeeklyAccess = { scoutingRole: string; canViewAll: boolean; canEditAll: boolean; readOnly: boolean };
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+const LEGACY_PLAN_MARKER = "weekly-plan-v1";
+function clean(value: string, max: number) { return value.trim().slice(0, max); }
+function cleanEntry(entry: WeeklyMemberEntry): WeeklyMemberEntry { return { memberId: clean(entry.memberId,160), memberName: clean(entry.memberName,160), attendance: entry.attendance, subsPaid: entry.subsPaid === true, subsAmount: Number.isFinite(entry.subsAmount) ? Math.max(0,Math.min(1000,Number(entry.subsAmount.toFixed(2)))) : 0, badges: [...new Set(entry.badges.map((b)=>clean(b,120)).filter(Boolean))].slice(0,20) }; }
+function cleanInjury(i: WeeklyInjury): WeeklyInjury { return { memberId: clean(i.memberId,160), memberName: clean(i.memberName,160), concern: clean(i.concern,2000), severity: ["minor","moderate","serious"].includes(i.severity) ? i.severity : "minor", actionTaken: clean(i.actionTaken,2000), parentInformed: i.parentInformed === true, recordedAt: clean(i.recordedAt,40) }; }
+function cleanInput(input: WeeklyMeetingInput): WeeklyMeetingInput { return { section: clean(input.section,80), meetingDate: clean(input.meetingDate,20), status: input.status === "closed" ? "closed" : "open", location: clean(input.location,240), plannedActivities: clean(input.plannedActivities,4000), plannedBadgework: clean(input.plannedBadgework,4000), programmeNotes: clean(input.programmeNotes,4000), notes: clean(input.notes,4000), entries: input.entries.map(cleanEntry).filter((e)=>e.memberId&&e.memberName).slice(0,100), injuries: input.injuries.map(cleanInjury).filter((i)=>i.memberId&&i.memberName&&i.concern).slice(0,50) }; }
+function mapEntry(value: unknown): WeeklyMemberEntry | null { if (!value || typeof value !== "object" || Array.isArray(value)) return null; const d=value as Record<string,unknown>; const memberId=typeof d.memberId==="string"?d.memberId.trim():""; const memberName=typeof d.memberName==="string"?d.memberName.trim():""; const attendance=d.attendance as WeeklyAttendance; if(!memberId||!memberName||!["present","absent","unrecorded"].includes(attendance)) return null; return { memberId, memberName, attendance, subsPaid:d.subsPaid===true, subsAmount:typeof d.subsAmount==="number"?d.subsAmount:0, badges:Array.isArray(d.badges)?d.badges.filter((x):x is string=>typeof x==="string"):[] }; }
+function mapInjury(value: unknown): WeeklyInjury | null { if(!value||typeof value!=="object"||Array.isArray(value)) return null; const d=value as Record<string,unknown>; const memberId=typeof d.memberId==="string"?d.memberId.trim():""; const memberName=typeof d.memberName==="string"?d.memberName.trim():""; const concern=typeof d.concern==="string"?d.concern.trim():""; if(!memberId||!memberName||!concern) return null; const severity=d.severity as InjurySeverity; return { memberId, memberName, concern, severity:["minor","moderate","serious"].includes(severity)?severity:"minor", actionTaken:typeof d.actionTaken==="string"?d.actionTaken.trim():"", parentInformed:d.parentInformed===true, recordedAt:typeof d.recordedAt==="string"?d.recordedAt:"" }; }
+function legacyNotes(value: unknown) { const empty={ location:"", plannedActivities:"", plannedBadgework:"", programmeNotes:"", notes:"" }; if(typeof value!=="string"||!value.trim()) return empty; try { const p=JSON.parse(value) as Record<string,unknown>; if(p.marker!==LEGACY_PLAN_MARKER) return {...empty,notes:value.trim()}; return { location:typeof p.location==="string"?p.location:"", plannedActivities:typeof p.plannedActivities==="string"?p.plannedActivities:"", plannedBadgework:typeof p.plannedBadgework==="string"?p.plannedBadgework:"", programmeNotes:typeof p.programmeNotes==="string"?p.programmeNotes:"", notes:typeof p.postMeetingNotes==="string"?p.postMeetingNotes:"" }; } catch { return {...empty,notes:value.trim()}; } }
+function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeetingRecord | null { const data=snapshot.data(); const section=typeof data.section==="string"?data.section.trim():""; const meetingDate=typeof data.meetingDate==="string"?data.meetingDate.trim():""; if(!section||!meetingDate||!Array.isArray(data.entries)) return null; const entries=data.entries.map(mapEntry); if(entries.some((e)=>e===null)) return null; const legacy=legacyNotes(data.notes); const isStructured=typeof data.status==="string" || typeof data.location==="string" || Array.isArray(data.injuries); return { id:snapshot.id, section, meetingDate, status:data.status==="open"?"open":"closed", location:typeof data.location==="string"?data.location.trim():legacy.location, plannedActivities:typeof data.plannedActivities==="string"?data.plannedActivities.trim():legacy.plannedActivities, plannedBadgework:typeof data.plannedBadgework==="string"?data.plannedBadgework.trim():legacy.plannedBadgework, programmeNotes:typeof data.programmeNotes==="string"?data.programmeNotes.trim():legacy.programmeNotes, notes:isStructured && typeof data.notes==="string"?data.notes.trim():legacy.notes, entries:entries as WeeklyMemberEntry[], injuries:Array.isArray(data.injuries)?data.injuries.map(mapInjury).filter((x):x is WeeklyInjury=>x!==null):[] }; }
 
-function clean(value: string, max: number): string {
-  return value.trim().slice(0, max);
-}
-
-function cleanEntry(entry: WeeklyMemberEntry): WeeklyMemberEntry {
-  return {
-    memberId: clean(entry.memberId, 160),
-    memberName: clean(entry.memberName, 160),
-    attendance: entry.attendance,
-    subsPaid: entry.subsPaid === true,
-    subsAmount: Number.isFinite(entry.subsAmount) ? Math.max(0, Math.min(1000, Number(entry.subsAmount.toFixed(2)))) : 0,
-    badges: [...new Set(entry.badges.map((badge) => clean(badge, 120)).filter(Boolean))].slice(0, 20)
-  };
-}
-
-function cleanInput(input: WeeklyMeetingInput): WeeklyMeetingInput {
-  return {
-    section: clean(input.section, 80),
-    meetingDate: clean(input.meetingDate, 20),
-    notes: clean(input.notes, 4000),
-    entries: input.entries.map(cleanEntry).filter((entry) => entry.memberId && entry.memberName).slice(0, 100)
-  };
-}
-
-function mapEntry(value: unknown): WeeklyMemberEntry | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const data = value as Record<string, unknown>;
-  const memberId = typeof data.memberId === "string" ? data.memberId.trim() : "";
-  const memberName = typeof data.memberName === "string" ? data.memberName.trim() : "";
-  const attendance = data.attendance as WeeklyAttendance;
-  if (!memberId || !memberName || !["present", "absent", "unrecorded"].includes(attendance)) return null;
-  if (!Array.isArray(data.badges) || !data.badges.every((item) => typeof item === "string")) return null;
-  if (typeof data.subsPaid !== "boolean" || typeof data.subsAmount !== "number" || !Number.isFinite(data.subsAmount)) return null;
-  return {
-    memberId,
-    memberName,
-    attendance,
-    subsPaid: data.subsPaid,
-    subsAmount: data.subsAmount,
-    badges: data.badges.map((item) => item.trim()).filter(Boolean)
-  };
-}
-
-function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeetingRecord | null {
-  const data = snapshot.data();
-  const section = typeof data.section === "string" ? data.section.trim() : "";
-  const meetingDate = typeof data.meetingDate === "string" ? data.meetingDate.trim() : "";
-  if (!section || !meetingDate || !Array.isArray(data.entries)) return null;
-  const entries = data.entries.map(mapEntry);
-  if (entries.some((entry) => entry === null)) return null;
-  return {
-    id: snapshot.id,
-    section,
-    meetingDate,
-    notes: typeof data.notes === "string" ? data.notes.trim() : "",
-    entries: entries as WeeklyMemberEntry[]
-  };
-}
-
-function validRecords(docs: QueryDocumentSnapshot<DocumentData>[]): WeeklyMeetingRecord[] {
-  return docs.map(mapRecord).filter((record): record is WeeklyMeetingRecord => record !== null);
-}
-
-export async function loadWeeklyMeetings(sections: string[], isAdmin: boolean): Promise<WeeklyMeetingRecord[]> {
-  const requestedSections = isAdmin
-    ? GROUP_SECTIONS
-    : [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
-  if (requestedSections.length === 0) return [];
-
-  const snapshots = await Promise.all(requestedSections.map((section) => getDocs(query(
-    collection(db, "weeklyMeetings"),
-    where("section", "==", section)
-  ))));
-
-  return validRecords(snapshots.flatMap((snapshot) => snapshot.docs))
-    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
-}
-
-export async function createWeeklyMeeting(input: WeeklyMeetingInput): Promise<string> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
-  const cleaned = cleanInput(input);
-  if (!cleaned.section || !cleaned.meetingDate) throw new Error("Weekly meeting does not match the canonical data contract.");
-  const result = await addDoc(collection(db, "weeklyMeetings"), {
-    ...cleaned,
-    createdBy: user.uid,
-    createdAt: serverTimestamp(),
-    updatedBy: user.uid,
-    updatedAt: serverTimestamp()
-  });
-  return result.id;
-}
-
-export async function updateWeeklyMeeting(id: string, input: WeeklyMeetingInput): Promise<void> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
-  const cleaned = cleanInput(input);
-  if (!cleaned.section || !cleaned.meetingDate) throw new Error("Weekly meeting does not match the canonical data contract.");
-  await updateDoc(doc(db, "weeklyMeetings", id), {
-    ...cleaned,
-    updatedBy: user.uid,
-    updatedAt: serverTimestamp()
-  });
-}
+export async function loadWeeklyAccess(): Promise<WeeklyAccess> { const user=auth.currentUser; if(!user) return {scoutingRole:"",canViewAll:false,canEditAll:false,readOnly:false}; const snap=await getDoc(doc(db,"organisationLeadership",user.uid)); const role=snap.exists()&&typeof snap.data().scoutingRole==="string"?snap.data().scoutingRole:""; return { scoutingRole:role, canViewAll:["Group Leader","Group Secretary"].includes(role), canEditAll:role==="Group Leader", readOnly:role==="Group Secretary" }; }
+export async function loadWeeklyMeetings(sections:string[],isAdmin:boolean,canViewAll=false):Promise<WeeklyMeetingRecord[]> { const requested=(isAdmin||canViewAll)?GROUP_SECTIONS:[...new Set(sections.map((s)=>s.trim()).filter(Boolean))]; if(!requested.length)return[]; const snapshots=await Promise.all(requested.map((section)=>getDocs(query(collection(db,"weeklyMeetings"),where("section","==",section))))); return snapshots.flatMap((s)=>s.docs).map(mapRecord).filter((r):r is WeeklyMeetingRecord=>r!==null).sort((a,b)=>b.meetingDate.localeCompare(a.meetingDate)); }
+export async function createWeeklyMeeting(input:WeeklyMeetingInput):Promise<string>{ const user=auth.currentUser;if(!user)throw new Error("Leader authentication is required.");const cleaned=cleanInput(input);const result=await addDoc(collection(db,"weeklyMeetings"),{...cleaned,createdBy:user.uid,createdAt:serverTimestamp(),updatedBy:user.uid,updatedAt:serverTimestamp()});return result.id; }
+export async function updateWeeklyMeeting(id:string,input:WeeklyMeetingInput):Promise<void>{ const user=auth.currentUser;if(!user)throw new Error("Leader authentication is required.");const cleaned=cleanInput(input);await updateDoc(doc(db,"weeklyMeetings",id),{...cleaned,updatedBy:user.uid,updatedAt:serverTimestamp()}); }

@@ -3,79 +3,34 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
-const fixtureDate = "2099-01-15";
+const lifecycleDate = "2099-03-01";
+const copyDate = "2099-03-08";
 const scoutMemberName = "Casey OBrien Scouts 01";
 
-function desktopOnly(testInfo: TestInfo) {
-  test.skip(testInfo.project.name !== "chromium", "Weekly tracker role checks run once on desktop Chromium.");
+function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Weekly meeting lifecycle runs once on desktop Chromium."); }
+async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
+
+async function openOrCreateLifecycleMeeting(page: Page) {
+  const existing = page.getByRole("button", { name: /1 Mar 2099 · Scouts/ });
+  if (await existing.count()) { await existing.first().click(); return; }
+  const closed = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" });
+  if (await closed.count()) { await closed.first().getByRole("button", { name: "View / Edit" }).click(); if (await page.getByRole("button", { name: "Reopen Meeting" }).count()) await page.getByRole("button", { name: "Reopen Meeting" }).click(); return; }
+  await page.getByLabel("Meeting date").fill(lifecycleDate); await page.getByRole("button", { name: "Create Meeting" }).click(); await expect(page.getByText("Meeting created.")).toBeVisible();
 }
 
-async function login(page: Page, email: string) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(email);
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
+test("weekly meetings reject unauthenticated users", async ({ page }) => { await page.goto("/leader/weekly"); await expect(page).toHaveURL(/\/leader\/login$/); });
 
-test("weekly tracker rejects unauthenticated users", async ({ page }) => {
-  await page.goto("/leader/weekly");
-  await expect(page).toHaveURL(/\/leader\/login$/);
+test("section leader completes create attendance badgework injury notes close reopen and copy flow", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials."); await login(page, leaderEmail!); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByLabel("Section")).toHaveText(/Scouts/); await openOrCreateLifecycleMeeting(page);
+  await page.getByRole("button", { name: "Attendance" }).click(); await page.getByRole("button", { name: "Mark all present" }).click(); await expect(page.getByText(/30\/30 Present/)).toBeVisible(); await expect(page.getByRole("checkbox", { name: scoutMemberName })).toBeChecked();
+  await page.getByRole("button", { name: "Badgework" }).click(); await page.getByLabel("Planned badgework").fill("Adventure Skills: Pioneering"); await page.getByLabel(`Badges · ${scoutMemberName}`).fill("Pioneering Stage 2");
+  await page.getByRole("button", { name: "Injuries / Medical" }).click(); if (!await page.getByText(/Small graze during wide game/).count()) { await page.getByLabel("Member").click(); await page.getByRole("option", { name: scoutMemberName }).click(); await page.getByLabel("Injury / medical concern").fill("Small graze during wide game"); await page.getByLabel("Severity").click(); await page.getByRole("option", { name: "Minor" }).click(); await page.getByLabel("Action taken").fill("Cleaned and covered"); await page.getByRole("checkbox", { name: "Parent informed" }).check(); await page.getByRole("button", { name: "Add Incident" }).click(); } await expect(page.getByText(/Small graze during wide game/)).toBeVisible();
+  await page.getByRole("button", { name: "Notes" }).click(); await page.getByLabel("Location").fill("Scout Den"); await page.getByLabel("Planned games & activities").fill("Wide game, pioneering relay"); await page.getByLabel("Programme template notes").fill("Reusable opening game and patrol rotation."); await page.getByLabel("Additional meeting notes").fill("Visitors and equipment issue recorded after meeting."); await page.getByRole("button", { name: "Save Changes" }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
+  await page.getByRole("button", { name: "Close Meeting" }).click(); await expect(page.getByText("Meeting closed and added to history.")).toBeVisible(); await page.getByRole("button", { name: "Meetings" }).click(); const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" }); await expect(historyCard).toBeVisible(); await historyCard.getByRole("button", { name: "View / Edit" }).click(); await page.getByRole("button", { name: "Reopen Meeting" }).click(); await expect(page.getByText("Meeting reopened.")).toBeVisible(); await page.getByRole("button", { name: "Close Meeting" }).click(); await expect(page.getByText("Meeting closed and added to history.")).toBeVisible();
+  await page.getByRole("button", { name: "Meetings" }).click(); const priorCopy = page.getByRole("button", { name: /8 Mar 2099 · Scouts/ }); if (await priorCopy.count()) { await priorCopy.first().click(); } else { const closedCard=page.getByTestId(/meeting-history-/).filter({hasText:"1 Mar 2099 · Scouts"}); await closedCard.getByRole("button",{name:"Copy Meeting"}).click(); await page.getByLabel("Choose date").fill(copyDate); await page.getByRole("button",{name:"Create Copy"}).click(); await expect(page.getByText(/Meeting copied\. Attendance, completed badgework, injuries and post-meeting notes were reset\./)).toBeVisible(); }
+  await page.getByRole("button", { name: "Attendance" }).click(); await expect(page.getByText(/0\/30 Present/)).toBeVisible(); await page.getByRole("button", { name: "Badgework" }).click(); await expect(page.getByLabel("Planned badgework")).toHaveValue("Adventure Skills: Pioneering"); await expect(page.getByLabel(`Badges · ${scoutMemberName}`)).toHaveCount(0); await page.getByRole("button", { name: "Injuries / Medical" }).click(); await expect(page.getByText(/Small graze during wide game/)).toHaveCount(0); await page.getByRole("button", { name: "Notes" }).click(); await expect(page.getByLabel("Location")).toHaveValue("Scout Den"); await expect(page.getByLabel("Planned games & activities")).toHaveValue("Wide game, pioneering relay"); await expect(page.getByLabel("Programme template notes")).toHaveValue("Reusable opening game and patrol rotation."); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
 });
 
-test("section leader can take attendance with checkboxes and retrieve it after reload", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await login(page, leaderEmail!);
-  await page.goto("/leader/weekly");
-
-  await expect(page.getByRole("heading", { name: "Weekly Section Tracker" })).toBeVisible();
-  await expect(page.getByLabel("Section")).toHaveText(/Scouts/);
-  await page.getByLabel("Meeting date").fill(fixtureDate);
-
-  const attendance = page.getByRole("checkbox", { name: `Present · ${scoutMemberName}` });
-  await expect(attendance).toBeVisible();
-  if (!(await attendance.isChecked())) await attendance.check();
-  await expect(attendance).toBeChecked();
-
-  await page.getByRole("button", { name: /Attendance$/ }).click();
-  await expect(page.getByText(/Attendance (saved|updated)\./)).toBeVisible();
-
-  await page.reload();
-  await page.getByLabel("Meeting date").fill(fixtureDate);
-  await expect(page.getByRole("checkbox", { name: `Present · ${scoutMemberName}` })).toBeChecked();
-  await expect(page.getByRole("heading", { name: "Attendance history" })).toBeVisible();
-  await expect(page.getByText(/weekly history cannot be loaded/i)).toHaveCount(0);
-});
-
-test("mark all present supports fast roll call and optional details remain secondary", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await login(page, leaderEmail!);
-  await page.goto("/leader/weekly");
-  await page.getByLabel("Meeting date").fill(fixtureDate);
-
-  const attendanceList = page.getByTestId("attendance-list");
-  await expect(attendanceList.getByRole("checkbox").first()).toBeVisible();
-  await page.getByRole("button", { name: "Mark all present" }).click();
-  const checkboxes = attendanceList.getByRole("checkbox");
-  const count = await checkboxes.count();
-  for (let i = 0; i < count; i += 1) await expect(checkboxes.nth(i)).toBeChecked();
-
-  await expect(page.getByLabel("Weekly notes")).toHaveCount(0);
-  await page.getByRole("button", { name: "Add subs, badges & notes" }).click();
-  await expect(page.getByLabel("Weekly notes")).toBeVisible();
-});
-
-test("administrator can choose all sections and load weekly history", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
-  await login(page, adminEmail!);
-  await page.goto("/leader/weekly");
-  await expect(page.getByRole("heading", { name: "Weekly Section Tracker" })).toBeVisible();
-  await expect(page.getByText(/weekly history cannot be loaded/i)).toHaveCount(0);
-  await page.getByLabel("Section").click();
-  await expect(page.getByRole("option", { name: "Beavers" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Cubs" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Scouts" })).toBeVisible();
-});
+test("seeded meeting history is stable for every section", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials."); await login(page, adminEmail!); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) await expect(page.getByText(new RegExp(`· ${section}$`)).first()).toBeVisible(); });
+test("group leader can create meetings across sections", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure canonical E2E password."); await login(page, "test.group.leader@example.com"); await page.goto("/leader/weekly"); await page.getByLabel("Section").click(); await expect(page.getByRole("option", { name: "Beavers" })).toBeVisible(); await expect(page.getByRole("option", { name: "Rovers" })).toBeVisible(); });
+test("group secretary can view all meeting history but cannot edit", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure canonical E2E password."); await login(page, "test.group.secretary@example.com"); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Create Meeting" })).toHaveCount(0); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); await expect(page.getByText(/· Beavers$/).first()).toBeVisible(); await expect(page.getByText(/· Rovers$/).first()).toBeVisible(); });
