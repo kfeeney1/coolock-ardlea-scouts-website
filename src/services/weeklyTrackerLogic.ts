@@ -49,11 +49,11 @@ export function newWeeklyEntry(memberId: string, memberName: string): WeeklyMemb
   return { memberId, memberName, attendance: "unrecorded", subsPaid: false, subsAmount: 0, badges: [] };
 }
 
-export function newActivityPlan(id = crypto.randomUUID()): WeeklyActivityPlan {
+export function newActivityPlan(id: string = crypto.randomUUID()): WeeklyActivityPlan {
   return { id, activity: "", leader: "", notes: "", equipment: "", startTime: "", finishTime: "" };
 }
 
-export function newBadgeworkPlan(id = crypto.randomUUID()): WeeklyBadgeworkPlan {
+export function newBadgeworkPlan(id: string = crypto.randomUUID()): WeeklyBadgeworkPlan {
   return { id, badge: "", notes: "" };
 }
 
