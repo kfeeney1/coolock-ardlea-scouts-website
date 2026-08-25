@@ -13,6 +13,7 @@ const MIGRATION_ONLY_FILES = new Set([
   "scripts/inspect-legacy-test-references.mjs",
   "scripts/repair-parent-account-linked-sections.mjs",
   "scripts/reconcile-seeded-accounts.mjs",
+  "scripts/reconcile-weekly-meetings.mjs",
   "scripts/purge-test-data.mjs",
   "tests/unit/noLegacyAdminFixture.test.ts"
 ]);
