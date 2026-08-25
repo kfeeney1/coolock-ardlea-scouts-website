@@ -2,7 +2,7 @@ import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updat
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { defaultActivityPlans, defaultBadgeworkPlans, newActivityPlan, newBadgeworkPlan } from "./weeklyTrackerLogic";
-export { defaultActivityPlans, defaultBadgeworkPlans, newActivityPlan, newBadgeworkPlan } from "./weeklyTrackerLogic";
+export { defaultActivityPlans, defaultBadgeworkPlans, newActivityPlan, newBadgeworkPlan };
 
 export type WeeklyAttendance = "present" | "absent" | "unrecorded";
 export type WeeklyMeetingStatus = "open" | "closed";
