@@ -68,6 +68,10 @@ if (root) {
   else pass("X-Content-Type-Options is nosniff");
   if (headers.get("x-frame-options") !== "DENY") fail("X-Frame-Options is not DENY");
   else pass("X-Frame-Options is DENY");
+  if (headers.get("referrer-policy") !== "strict-origin-when-cross-origin") fail("Referrer-Policy is not strict-origin-when-cross-origin");
+  else pass("Referrer-Policy is strict-origin-when-cross-origin");
+  if (headers.get("permissions-policy") !== "camera=(), microphone=(), geolocation=()") fail("Permissions-Policy does not match the production baseline");
+  else pass("Permissions-Policy matches the production baseline");
 
   const jsMatch = root.text.match(/src="(\/assets\/[^"]+\.js)"/);
   if (!jsMatch) {
