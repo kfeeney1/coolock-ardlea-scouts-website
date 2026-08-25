@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { createMeetingRecord, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
@@ -35,6 +35,7 @@ export default function MeetingRecords() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const formRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const hasFullMeetingHistoryAccess = Boolean(isAdmin || (adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole)));
@@ -114,7 +115,7 @@ export default function MeetingRecords() {
       actions: record.actions
     });
     setAttendeesText(record.attendees.join("\n"));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const canEditRecord = (record: MeetingRecord) => isAdmin || (record.meetingType === "leader" && sections.includes(record.section));
@@ -130,7 +131,7 @@ export default function MeetingRecords() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-      <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
+      <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
