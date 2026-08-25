@@ -199,7 +199,7 @@ export default function ParentPortal() {
                 <Container maxWidth={shellWidth}>
                     {leaderHeader}
                     <Paper variant={leaderAccount ? "outlined" : "elevation"} elevation={leaderAccount ? 0 : 3} sx={{ p: { xs: 3, md: 4 }, minHeight: 240, borderRadius: 2 }}>
-                        {!leaderAccount && <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>}
+                        {!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>}
                         <Box sx={{ minHeight: 140, display: "grid", placeItems: "center" }}>
                             <CircularProgress color="success" size={32} />
                         </Box>
@@ -215,7 +215,7 @@ export default function ParentPortal() {
                 <Container maxWidth={leaderAccount ? "xl" : "sm"}>
                     {leaderHeader}
                     <Paper variant={leaderAccount ? "outlined" : "elevation"} elevation={leaderAccount ? 0 : 3} sx={{ p: { xs: 3, md: 4 }, borderRadius: 2 }}>
-                        {!leaderAccount && <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>}
+                        {!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>}
                         {leaderAccessDenied && <Alert severity="warning" sx={{ mt: leaderAccount ? 0 : 2 }}>This account does not have leader access. Parent accounts cannot open Leader Dashboard pages.</Alert>}
                         <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 2, mb: 3 }}>
                             {leaderAccount ? "Use this same Leader account for parent access — no second login or password is required." : "You are already signed in. Set up parent access for this existing account."}
@@ -242,7 +242,7 @@ export default function ParentPortal() {
                         {!leaderAccount && (
                             <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}>
                                 <Box>
-                                    <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
+                                    <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>
                                     <Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {account.displayName || account.email}</Typography>
                                 </Box>
                                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -284,7 +284,7 @@ export default function ParentPortal() {
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
             <Container maxWidth="sm">
                 <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
-                    <Typography variant="h3" color="secondary">Parent Consent Portal</Typography>
+                    <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>
                     <Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to manage consent and medical information for children linked to your parent account.</Typography>
                     <Alert severity="info" sx={{ mt: 2, mb: 3 }}>Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.</Alert>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
