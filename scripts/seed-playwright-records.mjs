@@ -63,14 +63,22 @@ await db.collection("meetingRecords").doc("TEST_e2e_meeting_group_council").set(
 await db.collection("weeklyMeetings").doc("TEST_e2e_weekly_scout").set({
   section: "Scouts",
   meetingDate: "2099-01-15",
-  notes: "Baseline Playwright weekly record.",
+  notes: JSON.stringify({
+    marker: "weekly-plan-v1",
+    version: 1,
+    location: "Scout Den",
+    plannedActivities: "Wide game, pioneering relay",
+    plannedBadgework: "Adventure Skills: Pioneering",
+    programmeNotes: "Reusable opening game and patrol rotation.",
+    postMeetingNotes: "Baseline Playwright weekly post-meeting note that must not be copied."
+  }),
   entries: [{
     memberId: "TEST_member_scout_01",
     memberName: scoutMemberName,
-    attendance: "unrecorded",
-    subsPaid: false,
-    subsAmount: 0,
-    badges: []
+    attendance: "present",
+    subsPaid: true,
+    subsAmount: 5,
+    badges: ["TEST Completed Badge"]
   }],
   createdBy: "TEST_SEED",
   createdAt: FieldValue.serverTimestamp(),
