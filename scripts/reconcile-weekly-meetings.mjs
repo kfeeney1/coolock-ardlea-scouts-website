@@ -6,16 +6,20 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const checkOnly = process.argv.includes("--check");
-const marker = "weekly-plan-v1";
+const legacyMarker = "weekly-plan-v1";
+const activityMarker = "weekly-activities-v1";
+const badgeworkMarker = "weekly-badgework-v1";
+const programmeMarker = "weekly-programme-v1";
 
 function legacyPlan(notes) {
-  const empty = { location: "", plannedActivities: "", plannedBadgework: "", programmeNotes: "", notes: typeof notes === "string" ? notes.trim() : "" };
+  const empty = { location: "", theme: "", plannedActivities: "", plannedBadgework: "", programmeNotes: "", notes: typeof notes === "string" ? notes.trim() : "" };
   if (typeof notes !== "string" || !notes.trim()) return empty;
   try {
     const parsed = JSON.parse(notes);
-    if (parsed?.marker !== marker) return empty;
+    if (parsed?.marker !== legacyMarker) return empty;
     return {
       location: typeof parsed.location === "string" ? parsed.location.trim() : "",
+      theme: typeof parsed.theme === "string" ? parsed.theme.trim() : "",
       plannedActivities: typeof parsed.plannedActivities === "string" ? parsed.plannedActivities.trim() : "",
       plannedBadgework: typeof parsed.plannedBadgework === "string" ? parsed.plannedBadgework.trim() : "",
       programmeNotes: typeof parsed.programmeNotes === "string" ? parsed.programmeNotes.trim() : "",
@@ -23,6 +27,16 @@ function legacyPlan(notes) {
     };
   } catch { return empty; }
 }
+
+function activityPayload(text) {
+  const items = text ? [{ id: "legacy-activity-1", activity: text, leader: "", notes: "", equipment: "", startTime: "", finishTime: "" }] : [];
+  return JSON.stringify({ marker: activityMarker, items });
+}
+function badgeworkPayload(text) {
+  const items = text ? [{ id: "legacy-badgework-1", badge: text, notes: "" }] : [];
+  return JSON.stringify({ marker: badgeworkMarker, items });
+}
+function programmePayload(theme, notes) { return JSON.stringify({ marker: programmeMarker, theme, notes }); }
 
 const snapshot = await db.collection("weeklyMeetings").get();
 let migrated = 0;
@@ -47,9 +61,9 @@ for (const doc of snapshot.docs) {
     await doc.ref.update({
       status: "closed",
       location: plan.location,
-      plannedActivities: plan.plannedActivities,
-      plannedBadgework: plan.plannedBadgework,
-      programmeNotes: plan.programmeNotes,
+      plannedActivities: activityPayload(plan.plannedActivities),
+      plannedBadgework: badgeworkPayload(plan.plannedBadgework),
+      programmeNotes: programmePayload(plan.theme, plan.programmeNotes),
       notes: plan.notes,
       injuries: [],
       updatedBy: "WEEKLY_MEETING_MIGRATION",
