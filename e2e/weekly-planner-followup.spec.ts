@@ -33,7 +33,7 @@ async function openOrCreate(page: Page, date: string, displayDate: RegExp) {
   await page.getByRole("button", { name: "Create Meeting" }).click();
 }
 
-test("saving a meeting returns to the meetings landing page", async ({ page }, testInfo) => {
+test("future meeting opens directly in programme and saving returns to landing", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
@@ -41,6 +41,8 @@ test("saving a meeting returns to the meetings landing page", async ({ page }, t
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-01", /1 Apr 2099 · Scouts/);
 
+  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Badgework Plan" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Save Meeting" })).toBeVisible();
   await page.getByRole("button", { name: "Save Meeting" }).click();
 
@@ -48,34 +50,54 @@ test("saving a meeting returns to the meetings landing page", async ({ page }, t
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Open Meeting" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /1 Apr 2099 · Scouts/ })).toBeVisible();
 });
 
-test("activity leader selector is section-scoped and supports All and Other", async ({ page }, testInfo) => {
+test("activity can have multiple section leaders and badgework is planned with programme", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
   await login(page);
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-08", /8 Apr 2099 · Scouts/);
-  await page.getByRole("button", { name: "Programme" }).click();
+  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
 
-  await page.getByLabel("Leader 1").click();
-  await expect(page.getByRole("option", { name: "All" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Scouts Programme Scouter · Programme Scouter" })).toBeVisible();
-  await expect(page.getByRole("option", { name: /Cubs Section Leader/ })).toHaveCount(0);
-  await page.getByRole("option", { name: "All" }).click();
+  const firstActivity = page.getByTestId("activity-plan-row").first();
+  const sectionLeader = firstActivity.getByLabel(/Scouts Section Leader · Section Leader/);
+  const programmeScouter = firstActivity.getByLabel(/Scouts Programme Scouter · Programme Scouter/);
+  await sectionLeader.check();
+  await programmeScouter.check();
+  await expect(sectionLeader).toBeChecked();
+  await expect(programmeScouter).toBeChecked();
+  await expect(firstActivity.getByLabel(/Cubs Section Leader/)).toHaveCount(0);
 
-  await page.getByLabel("Leader 2").click();
-  await page.getByRole("option", { name: "Other" }).click();
-  await page.getByLabel("Other leader 2").fill("Guest Instructor");
+  const badgework = page.getByTestId("badgework-plan-row").first();
+  await badgework.getByLabel("Badgework 1").fill("Adventure Skills");
+  await badgework.getByLabel("Badgework instructions / notes 1").fill("Work through the next practical requirement.");
 
   await page.getByRole("button", { name: "Save Meeting" }).click();
-  await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
   await page.getByRole("button", { name: /8 Apr 2099 · Scouts/ }).click();
-  await page.getByRole("button", { name: "Programme" }).click();
+  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
 
-  await expect(page.getByRole("combobox", { name: "Leader 1" })).toHaveText("All");
-  await expect(page.getByRole("combobox", { name: "Leader 2" })).toHaveText("Other");
-  await expect(page.getByLabel("Other leader 2")).toHaveValue("Guest Instructor");
+  const reopenedActivity = page.getByTestId("activity-plan-row").first();
+  await expect(reopenedActivity.getByLabel(/Scouts Section Leader · Section Leader/)).toBeChecked();
+  await expect(reopenedActivity.getByLabel(/Scouts Programme Scouter · Programme Scouter/)).toBeChecked();
+  await expect(page.getByTestId("badgework-plan-row").first().getByLabel("Badgework 1")).toHaveValue("Adventure Skills");
+});
+
+test("weekly planner fits a phone viewport without horizontal overflow", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto("/leader/weekly");
+  await openOrCreate(page, "2099-04-15", /15 Apr 2099 · Scouts/);
+
+  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
+  await expect(page.getByTestId("weekly-step-nav")).toBeVisible();
+  await expect(page.getByTestId("activity-plan-row").first()).toBeVisible();
+  await expect(page.getByTestId("badgework-plan-row").first()).toBeVisible();
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
 });
