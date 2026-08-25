@@ -335,8 +335,9 @@ service cloud.firestore {
       allow get, list: if isAdmin();
       allow create: if isActiveLeader()
         && request.resource.data.actorUid == request.auth.uid
-        && request.resource.data.actorEmail is string
-        && request.resource.data.category is string
+        && request.auth.token.email is string
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.category in ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "system"]
         && request.resource.data.action is string
         && request.resource.data.targetId is string
         && request.resource.data.targetLabel is string
