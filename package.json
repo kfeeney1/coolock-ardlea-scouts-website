@@ -10,10 +10,11 @@
     "test": "node --experimental-strip-types --test tests/unit/*.test.ts",
     "test:e2e": "npx playwright test",
     "check:production-env": "node scripts/check-production-env.mjs",
+    "check:hosting-config": "node scripts/check-hosting-config.mjs",
     "check:smoke-script": "node --check scripts/check-live-deployment.mjs",
     "check:seed-contract": "node scripts/verify-repo-seed-contract.mjs",
     "smoke:live": "node scripts/check-live-deployment.mjs",
-    "quality": "npm run lint && npm test && npm run check:seed-contract && npm run check:smoke-script && npm run build",
+    "quality": "npm run lint && npm test && npm run check:seed-contract && npm run check:hosting-config && npm run check:smoke-script && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
