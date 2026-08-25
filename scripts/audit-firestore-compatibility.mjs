@@ -24,6 +24,9 @@ const RESPONSE_STATUSES = new Set(["new", "matched", "ignored"]);
 const PARENT_STATUSES = new Set(["pending", "approved", "rejected"]);
 const LEADER_REQUEST_STATUSES = new Set(["pending", "approved", "rejected"]);
 const AUDIT_CATEGORIES = new Set(["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "system"]);
+const MEMBER_HISTORY_TYPES = new Set(["created", "section-transfer", "status-change", "section-and-status-change"]);
+const CURRENT_CONSENT_TYPES = new Set(["youth-activity-consent", "scouter-es3-medical-advice"]);
+const LEGACY_CONSENT_TYPES = new Set(["youth", "scouter"]);
 
 function text(value) { return typeof value === "string" ? value.trim() : ""; }
 function isBool(value) { return typeof value === "boolean"; }
@@ -55,12 +58,21 @@ for (const doc of adminDocs) {
   const data = doc.data();
   if (!ACCESS_ROLES.has(data.role)) fail("adminUsers", doc.id, `unsupported role ${JSON.stringify(data.role)}`);
   if (data.active !== true && data.active !== false) fail("adminUsers", doc.id, "active must be boolean");
-  if (!isStringArray(data.sections) || data.sections.length === 0) fail("adminUsers", doc.id, "sections must be a non-empty string array");
-  if (data.section !== undefined) fail("adminUsers", doc.id, "legacy section field must not be present");
+
+  const canonicalSections = isStringArray(data.sections) && data.sections.length > 0;
+  const hasLegacySection = data.section !== undefined;
+  if (data.active === true) {
+    if (!canonicalSections) fail("adminUsers", doc.id, "active profile must have a non-empty sections string array");
+    if (hasLegacySection) fail("adminUsers", doc.id, "active profile must not retain legacy section field");
+  } else {
+    if (!canonicalSections || hasLegacySection) warn("adminUsers", doc.id, "inactive legacy profile is retained for history but is not canonical for active login");
+  }
+
   if (isStringArray(data.sections)) {
     if (hasDuplicates(data.sections)) fail("adminUsers", doc.id, "sections contains duplicates");
     for (const section of data.sections) if (!validSection(section)) fail("adminUsers", doc.id, `unsupported section ${JSON.stringify(section)}`);
   }
+  if (hasLegacySection && text(data.section) && !validSection(data.section)) fail("adminUsers", doc.id, `unsupported legacy section ${JSON.stringify(data.section)}`);
 }
 
 const memberDocs = await docs("members");
@@ -68,7 +80,7 @@ const members = new Map(memberDocs.map((doc) => [doc.id, doc.data()]));
 for (const doc of memberDocs) {
   const data = doc.data();
   if (!text(data.displayName)) fail("members", doc.id, "displayName is required");
-  if (!validSection(data.section) || !YOUTH_SECTIONS.has(text(data.section))) fail("members", doc.id, `unsupported member section ${JSON.stringify(data.section)}`);
+  if (!YOUTH_SECTIONS.has(text(data.section))) fail("members", doc.id, `unsupported member section ${JSON.stringify(data.section)}`);
   if (!MEMBER_STATUSES.has(data.status)) fail("members", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
   if (!new Set(["manual", "join-application"]).has(data.source)) fail("members", doc.id, `unsupported source ${JSON.stringify(data.source)}`);
 }
@@ -133,7 +145,7 @@ const events = new Map(eventDocs.map((doc) => [doc.id, doc.data()]));
 for (const doc of eventDocs) {
   const data = doc.data();
   if (!text(data.title)) fail("events", doc.id, "title is required");
-  if (!YOUTH_SECTIONS.has(text(data.section))) fail("events", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (!validSection(data.section) || text(data.section) === "Scouter") fail("events", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
   if (!EVENT_STATUSES.has(data.status)) fail("events", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
   if (data.consentRequired !== undefined && !isBool(data.consentRequired)) fail("events", doc.id, "consentRequired must be boolean");
   if (data.attendance !== undefined && !isObject(data.attendance)) fail("events", doc.id, "attendance must be an object map");
@@ -153,7 +165,7 @@ const links = new Map(linkDocs.map((doc) => [doc.id, doc.data()]));
 for (const doc of linkDocs) {
   const data = doc.data();
   if (!text(data.eventId) || !events.has(text(data.eventId))) fail("eventConsentLinks", doc.id, "eventId is missing or references no event");
-  if (!YOUTH_SECTIONS.has(text(data.section))) fail("eventConsentLinks", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (!validSection(data.section) || text(data.section) === "Scouter") fail("eventConsentLinks", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
   if (!isBool(data.active)) fail("eventConsentLinks", doc.id, "active must be boolean");
 }
 
@@ -167,16 +179,23 @@ for (const doc of await docs("eventConsentResponses")) {
 
 for (const doc of await docs("consentApplications")) {
   const data = doc.data();
-  if (!YOUTH_SECTIONS.has(text(data.section))) fail("consentApplications", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
-  if (data.scoutSection !== undefined) fail("consentApplications", doc.id, "legacy scoutSection field must not be present");
+  const section = text(data.section) || text(data.scoutSection);
+  if (!validSection(section)) fail("consentApplications", doc.id, `unsupported/missing section ${JSON.stringify(section)}`);
+  if (data.scoutSection !== undefined) warn("consentApplications", doc.id, "legacy scoutSection is retained and tolerated by current readers; migrate when safely attributable");
   if (data.source !== "website") fail("consentApplications", doc.id, `source must be website, found ${JSON.stringify(data.source)}`);
-  if (!new Set(["youth-activity-consent", "scouter-es3-medical-advice"]).has(data.formType)) fail("consentApplications", doc.id, `unsupported formType ${JSON.stringify(data.formType)}`);
+  if (!CURRENT_CONSENT_TYPES.has(data.formType)) {
+    if (LEGACY_CONSENT_TYPES.has(data.formType)) warn("consentApplications", doc.id, `legacy formType ${JSON.stringify(data.formType)} is retained for backwards compatibility`);
+    else fail("consentApplications", doc.id, `unsupported formType ${JSON.stringify(data.formType)}`);
+  }
+  if (section === "Scouter" && data.formType !== "scouter" && data.formType !== "scouter-es3-medical-advice") {
+    fail("consentApplications", doc.id, "Scouter section must use a scouter consent form type");
+  }
 }
 
 for (const doc of await docs("memberHistory")) {
   const data = doc.data();
   if (!text(data.memberId) || !members.has(text(data.memberId))) fail("memberHistory", doc.id, "memberId is missing or references no member");
-  if (!new Set(["section-transfer", "status-change", "section-and-status-change"]).has(data.changeType)) fail("memberHistory", doc.id, `unsupported changeType ${JSON.stringify(data.changeType)}`);
+  if (!MEMBER_HISTORY_TYPES.has(data.changeType)) fail("memberHistory", doc.id, `unsupported changeType ${JSON.stringify(data.changeType)}`);
 }
 
 const organisationDocs = await docs("organisationLeadership");
@@ -234,4 +253,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log("Live Firestore data matches the current non-meeting collection contracts; meetingRecords and weeklyMeetings are covered by dedicated audits.");
+console.log("Live Firestore data matches the current non-meeting collection contracts; supported historical records are reported as warnings, and meetingRecords/weeklyMeetings are covered by dedicated audits.");
