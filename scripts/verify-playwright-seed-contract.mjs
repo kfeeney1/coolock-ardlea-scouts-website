@@ -42,9 +42,10 @@ for (const value of forbiddenLegacyValues) if (workflow.includes(value)) problem
 if (!seededEmails.has("test.webadmin@example.com")) problems.push("canonical website admin email is missing from population seed");
 if (!seededUids.has("TEST_uid_web_admin_01")) problems.push("canonical website admin UID is missing from population seed");
 if (!seededEmails.has("test.multi.section.leader@example.com")) problems.push("canonical multi-section leader is missing from population seed");
-for (const token of ["status: \"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:"]) if (!weeklySeed.includes(token)) problems.push(`${weeklySeedPath} must seed canonical weekly lifecycle field ${token}`);
+for (const token of ["status: \"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:","weekly-activities-v1","weekly-badgework-v1","weekly-programme-v1"]) if (!weeklySeed.includes(token)) problems.push(`${weeklySeedPath} must seed canonical weekly planner token ${token}`);
 for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!weeklySeed.includes(`\"${section}\"`)) problems.push(`${weeklySeedPath} must seed closed meeting history for ${section}`);
-if (!weeklySeed.includes("two closed weekly meetings per section")) problems.push(`${weeklySeedPath} must document its deterministic two-meetings-per-section contract`);
+if (!weeklySeed.includes("varied structured weekly planner rows")) problems.push(`${weeklySeedPath} must document its varied planner-row contract`);
+for (const signature of ["1, 1]","2, 2]","3, 1]","2, 0]","1, 3]"]) if (!weeklySeed.includes(signature)) problems.push(`${weeklySeedPath} must retain varied activity/badgework counts including ${signature}`);
 
 if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
-console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, stable weekly lifecycle history for all sections.`);
+console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, stable varied weekly planner history for all sections.`);
