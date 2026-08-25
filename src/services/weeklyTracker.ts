@@ -28,6 +28,26 @@ export type WeeklyMeetingRecord = {
 export type WeeklyMeetingInput = Omit<WeeklyMeetingRecord, "id">;
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+const PLAN_VERSION = 1;
+const PLAN_MARKER = "weekly-plan-v1";
+
+type StoredWeeklyNotes = {
+  marker: typeof PLAN_MARKER;
+  version: typeof PLAN_VERSION;
+  location: string;
+  plannedActivities: string;
+  plannedBadgework: string;
+  programmeNotes: string;
+  postMeetingNotes: string;
+};
+
+const emptyPlan = {
+  location: "",
+  plannedActivities: "",
+  plannedBadgework: "",
+  programmeNotes: "",
+  notes: ""
+};
 
 function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
@@ -57,6 +77,38 @@ function cleanInput(input: WeeklyMeetingInput): WeeklyMeetingInput {
   };
 }
 
+function encodeNotes(input: WeeklyMeetingInput): string {
+  const stored: StoredWeeklyNotes = {
+    marker: PLAN_MARKER,
+    version: PLAN_VERSION,
+    location: input.location,
+    plannedActivities: input.plannedActivities,
+    plannedBadgework: input.plannedBadgework,
+    programmeNotes: input.programmeNotes,
+    postMeetingNotes: input.notes
+  };
+  return JSON.stringify(stored);
+}
+
+function decodeNotes(value: unknown): Omit<WeeklyMeetingRecord, "id" | "section" | "meetingDate" | "entries"> {
+  if (typeof value !== "string") return emptyPlan;
+  const raw = value.trim();
+  if (!raw) return emptyPlan;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredWeeklyNotes>;
+    if (parsed.marker !== PLAN_MARKER || parsed.version !== PLAN_VERSION) return { ...emptyPlan, notes: raw };
+    return {
+      location: typeof parsed.location === "string" ? parsed.location.trim() : "",
+      plannedActivities: typeof parsed.plannedActivities === "string" ? parsed.plannedActivities.trim() : "",
+      plannedBadgework: typeof parsed.plannedBadgework === "string" ? parsed.plannedBadgework.trim() : "",
+      programmeNotes: typeof parsed.programmeNotes === "string" ? parsed.programmeNotes.trim() : "",
+      notes: typeof parsed.postMeetingNotes === "string" ? parsed.postMeetingNotes.trim() : ""
+    };
+  } catch {
+    return { ...emptyPlan, notes: raw };
+  }
+}
+
 function mapEntry(value: unknown): WeeklyMemberEntry | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const data = value as Record<string, unknown>;
@@ -76,10 +128,6 @@ function mapEntry(value: unknown): WeeklyMemberEntry | null {
   };
 }
 
-function optionalString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
 function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeetingRecord | null {
   const data = snapshot.data();
   const section = typeof data.section === "string" ? data.section.trim() : "";
@@ -91,11 +139,7 @@ function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeeting
     id: snapshot.id,
     section,
     meetingDate,
-    location: optionalString(data.location),
-    plannedActivities: optionalString(data.plannedActivities),
-    plannedBadgework: optionalString(data.plannedBadgework),
-    programmeNotes: optionalString(data.programmeNotes),
-    notes: optionalString(data.notes),
+    ...decodeNotes(data.notes),
     entries: entries as WeeklyMemberEntry[]
   };
 }
@@ -125,7 +169,10 @@ export async function createWeeklyMeeting(input: WeeklyMeetingInput): Promise<st
   const cleaned = cleanInput(input);
   if (!cleaned.section || !cleaned.meetingDate) throw new Error("Weekly meeting does not match the canonical data contract.");
   const result = await addDoc(collection(db, "weeklyMeetings"), {
-    ...cleaned,
+    section: cleaned.section,
+    meetingDate: cleaned.meetingDate,
+    notes: encodeNotes(cleaned),
+    entries: cleaned.entries,
     createdBy: user.uid,
     createdAt: serverTimestamp(),
     updatedBy: user.uid,
@@ -140,7 +187,10 @@ export async function updateWeeklyMeeting(id: string, input: WeeklyMeetingInput)
   const cleaned = cleanInput(input);
   if (!cleaned.section || !cleaned.meetingDate) throw new Error("Weekly meeting does not match the canonical data contract.");
   await updateDoc(doc(db, "weeklyMeetings", id), {
-    ...cleaned,
+    section: cleaned.section,
+    meetingDate: cleaned.meetingDate,
+    notes: encodeNotes(cleaned),
+    entries: cleaned.entries,
     updatedBy: user.uid,
     updatedAt: serverTimestamp()
   });
