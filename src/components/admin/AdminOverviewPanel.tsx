@@ -99,7 +99,7 @@ export default function AdminOverviewPanel() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {loading ? (
+      {error ? null : loading ? (
         <Paper variant="outlined" sx={{ minHeight: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <CircularProgress color="secondary" />
         </Paper>
