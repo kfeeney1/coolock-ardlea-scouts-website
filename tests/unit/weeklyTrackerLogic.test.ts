@@ -8,6 +8,10 @@ const records: WeeklyMeetingRecord[] = [
     id: "week-1",
     section: "Cubs",
     meetingDate: "2026-08-01",
+    location: "",
+    plannedActivities: "",
+    plannedBadgework: "",
+    programmeNotes: "",
     notes: "",
     entries: [
       { memberId: "m1", memberName: "Alex Scout", attendance: "present", subsPaid: true, subsAmount: 3, badges: ["Hiker"] },
@@ -18,6 +22,10 @@ const records: WeeklyMeetingRecord[] = [
     id: "week-2",
     section: "Cubs",
     meetingDate: "2026-08-08",
+    location: "",
+    plannedActivities: "",
+    plannedBadgework: "",
+    programmeNotes: "",
     notes: "",
     entries: [
       { memberId: "m1", memberName: "Alex Scout", attendance: "absent", subsPaid: true, subsAmount: 3, badges: ["Hiker", "Teamwork"] },
