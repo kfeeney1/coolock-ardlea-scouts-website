@@ -43,7 +43,7 @@ if (!seededEmails.has("test.webadmin@example.com")) problems.push("canonical web
 if (!seededUids.has("TEST_uid_web_admin_01")) problems.push("canonical website admin UID is missing from population seed");
 if (!seededEmails.has("test.multi.section.leader@example.com")) problems.push("canonical multi-section leader is missing from population seed");
 for (const token of ["status: \"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:"]) if (!weeklySeed.includes(token)) problems.push(`${weeklySeedPath} must seed canonical weekly lifecycle field ${token}`);
-for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!weeklySeed.includes(`[\"${section}\"`)) problems.push(`${weeklySeedPath} must seed closed meeting history for ${section}`);
+for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!weeklySeed.includes(`\"${section}\"`)) problems.push(`${weeklySeedPath} must seed closed meeting history for ${section}`);
 if (!weeklySeed.includes("two closed weekly meetings per section")) problems.push(`${weeklySeedPath} must document its deterministic two-meetings-per-section contract`);
 
 if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
