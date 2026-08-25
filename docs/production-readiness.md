@@ -9,15 +9,17 @@ The Quality workflow must pass before merge. It verifies:
 - production npm dependencies have no known high/critical vulnerabilities reported by `npm audit`
 - required Firebase and email-service environment variables are present
 - `VITE_EMAIL_API_URL` is a valid HTTPS URL
-- lint, unit tests, smoke-checker syntax and the production build pass
-- Firebase Hosting configuration retains baseline browser security headers and safe cache behaviour
+- lint, unit tests, seed-contract checks, smoke-checker syntax and the production build pass
+- Firebase Hosting still publishes `dist`, retains the SPA rewrite, preserves the baseline browser security/privacy headers, keeps `/index.html` non-cacheable and keeps hashed assets immutable for one year
+
+The Hosting configuration contract is enforced by `npm run check:hosting-config` and is also part of `npm run quality`. This makes accidental weakening of the production Hosting baseline a merge-blocking regression instead of relying on manual review of `firebase.json`.
 
 After a successful live Firebase Hosting deployment, the **Post-deploy smoke** workflow automatically verifies the deployed system rather than only the build artifact. It can also be run manually from GitHub Actions.
 
 The live smoke check verifies:
 
 - `/`, `/about`, `/join`, `/leader/login` and `/parent` return the SPA shell successfully
-- the production response includes the expected CSP, clickjacking and MIME-sniffing protections
+- the production response includes the expected CSP, clickjacking, MIME-sniffing, referrer and browser-permission protections
 - `/index.html` remains non-cacheable
 - a deployed Vite asset is reachable and has one-year immutable caching
 - the production email Worker answers CORS preflight successfully
