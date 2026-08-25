@@ -48,6 +48,7 @@ export default function LeaderPageHeader({
             >
                 <Box>
                     <Typography
+                        component="h1"
                         variant="h4"
                         color="secondary"
                         sx={{

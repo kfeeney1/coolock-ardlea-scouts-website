@@ -8,7 +8,7 @@ export default function About() {
     <Box sx={{ py: { xs: 4, md: 6 }, backgroundColor: "background.default" }}>
       <Container maxWidth="lg">
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 4 }}>
-          <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
+          <Typography component="h1" variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
             {content.about.title}
           </Typography>
           <Typography sx={{ mt: 2 }}>{content.about.intro}</Typography>
