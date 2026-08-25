@@ -65,8 +65,8 @@ export default function WeeklySectionTracker() {
   useEffect(()=>{void refresh();},[adminProfile?.sections,isAdmin]);
 
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
-  const persist=async(next:WeeklyMeetingRecord,message:string)=>{ if(readOnly)return; setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;await updateWeeklyMeeting(id,input);setSelected(next);setSuccess(message);await refresh(access);}catch(e){console.error(e);setError("Unable to save this meeting.");}finally{setSaving(false);} };
-  const save=()=>selected?persist(selected,"Meeting saved."):Promise.resolve();
+  const persist=async(next:WeeklyMeetingRecord,message:string):Promise<boolean>=>{ if(readOnly)return false; setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;await updateWeeklyMeeting(id,input);setSelected(next);setSuccess(message);await refresh(access);return true;}catch(e){console.error(e);setError("Unable to save this meeting.");return false;}finally{setSaving(false);} };
+  const save=async()=>{if(selected&&await persist(selected,"Meeting saved."))setSelected(null);};
 
   const createMeeting=async()=>{
     setError("");setSuccess("");
