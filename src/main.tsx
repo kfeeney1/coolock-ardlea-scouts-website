@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 
 import App from "./App";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import theme from "./theme/theme";
 
 import "./index.css";
@@ -33,21 +34,15 @@ function clearLegacyWhosWhoCaches(): void {
 clearLegacyWhosWhoCaches();
 
 ReactDOM
-    .createRoot(document.getElementById("root")!)
-    .render(
-
-        <React.StrictMode>
-
-            <BrowserRouter>
-
-                <ThemeProvider theme={theme}>
-
-                    <App />
-
-                </ThemeProvider>
-
-            </BrowserRouter>
-
-        </React.StrictMode>
-
-    );
+  .createRoot(document.getElementById("root")!)
+  .render(
+    <React.StrictMode>
+      <ThemeProvider theme={theme}>
+        <AppErrorBoundary>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </AppErrorBoundary>
+      </ThemeProvider>
+    </React.StrictMode>
+  );
