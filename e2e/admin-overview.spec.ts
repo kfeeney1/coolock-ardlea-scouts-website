@@ -27,6 +27,7 @@ for (const [role, email] of [
     await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
 
     const overview = page.getByTestId("admin-overview");
+    await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
     await expect(overview.getByText("Scope: All sections")).toBeVisible();
     await expect(overview.getByText("Pending Parent Requests")).toBeVisible();
     await expect(overview.getByText("Pending Leader Requests")).toBeVisible();
@@ -35,6 +36,10 @@ for (const [role, email] of [
     await expect(overview.getByText("Outstanding Event Consent")).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
+
+    await overview.getByRole("button", { name: "Refresh Overview" }).click();
+    await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
+    await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
 
     await expect(overview.getByRole("link", { name: /^Pending Parent Requests:/ })).toHaveAttribute("href", "/leader/parent-access");
     await expect(overview.getByRole("link", { name: /^Pending Leader Requests:/ })).toHaveAttribute("href", "/leader/requests");
@@ -56,6 +61,7 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
 
   const overview = page.getByTestId("admin-overview");
+  await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
   await expect(overview.getByText(/^Scope:/)).toBeVisible();
   await expect(overview.getByText("New Join Applications")).toBeVisible();
   await expect(overview.getByText("Active Members")).toBeVisible();
