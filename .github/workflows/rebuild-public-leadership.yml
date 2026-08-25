@@ -1,14 +1,6 @@
 name: Rebuild Public Who's Who
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "src/components/PublicWhosWho.tsx"
-      - "src/services/publicWhosWho.ts"
-      - "scripts/rebuild-public-leadership.mjs"
-      - ".github/workflows/rebuild-public-leadership.yml"
   workflow_dispatch:
 
 concurrency:
