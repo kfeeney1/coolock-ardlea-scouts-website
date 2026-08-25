@@ -25,6 +25,12 @@ test.describe("parent access management", () => {
     await page.goto("/leader/parent-access");
     await expect(page.getByRole("heading", { name: "Parent Access" })).toBeVisible();
 
+    const approvedCard = page.getByTestId(/^parent-access-/).filter({ has: page.getByText("approved", { exact: true }) }).first();
+    if (await approvedCard.count()) {
+      await expect(approvedCard.getByRole("button", { name: "Approve Access" })).toHaveCount(0);
+      await expect(approvedCard.getByRole("button", { name: "Manage Linked Children" })).toBeVisible();
+    }
+
     const manageButton = page.getByRole("button", { name: "Manage Linked Children" }).first();
     await expect(manageButton).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
