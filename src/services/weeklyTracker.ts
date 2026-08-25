@@ -17,6 +17,10 @@ export type WeeklyMeetingRecord = {
   id: string;
   section: string;
   meetingDate: string;
+  location: string;
+  plannedActivities: string;
+  plannedBadgework: string;
+  programmeNotes: string;
   notes: string;
   entries: WeeklyMemberEntry[];
 };
@@ -44,6 +48,10 @@ function cleanInput(input: WeeklyMeetingInput): WeeklyMeetingInput {
   return {
     section: clean(input.section, 80),
     meetingDate: clean(input.meetingDate, 20),
+    location: clean(input.location, 240),
+    plannedActivities: clean(input.plannedActivities, 4000),
+    plannedBadgework: clean(input.plannedBadgework, 4000),
+    programmeNotes: clean(input.programmeNotes, 4000),
     notes: clean(input.notes, 4000),
     entries: input.entries.map(cleanEntry).filter((entry) => entry.memberId && entry.memberName).slice(0, 100)
   };
@@ -68,6 +76,10 @@ function mapEntry(value: unknown): WeeklyMemberEntry | null {
   };
 }
 
+function optionalString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeetingRecord | null {
   const data = snapshot.data();
   const section = typeof data.section === "string" ? data.section.trim() : "";
@@ -79,7 +91,11 @@ function mapRecord(snapshot: QueryDocumentSnapshot<DocumentData>): WeeklyMeeting
     id: snapshot.id,
     section,
     meetingDate,
-    notes: typeof data.notes === "string" ? data.notes.trim() : "",
+    location: optionalString(data.location),
+    plannedActivities: optionalString(data.plannedActivities),
+    plannedBadgework: optionalString(data.plannedBadgework),
+    programmeNotes: optionalString(data.programmeNotes),
+    notes: optionalString(data.notes),
     entries: entries as WeeklyMemberEntry[]
   };
 }
