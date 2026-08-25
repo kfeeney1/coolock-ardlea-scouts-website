@@ -75,7 +75,7 @@ test("activity leader selector is section-scoped and supports All and Other", as
   await page.getByRole("button", { name: /8 Apr 2099 · Scouts/ }).click();
   await page.getByRole("button", { name: "Programme" }).click();
 
-  await expect(page.getByLabel("Leader 1")).toHaveValue("All leaders");
-  await expect(page.getByLabel("Leader 2")).toHaveValue("__other__");
+  await expect(page.getByLabel("Leader 1")).toHaveText("All");
+  await expect(page.getByLabel("Leader 2")).toHaveText("Other");
   await expect(page.getByLabel("Other leader 2")).toHaveValue("Guest Instructor");
 });
