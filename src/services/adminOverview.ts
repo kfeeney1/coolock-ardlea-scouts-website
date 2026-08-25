@@ -1,4 +1,4 @@
-import { collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, query, where, type Query, type QueryConstraint, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 
@@ -73,8 +73,17 @@ async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
   return counts.reduce((total, count) => total + count, 0);
 }
 
-async function loadScopedCollection(collectionName: string, profile: AdminProfile): Promise<FirestoreSnapshot[]> {
-  if (isAdmin(profile)) return (await getDocs(collection(db, collectionName))).docs;
+async function loadScopedCollection(
+  collectionName: string,
+  profile: AdminProfile,
+  adminConstraints: QueryConstraint[] = []
+): Promise<FirestoreSnapshot[]> {
+  if (isAdmin(profile)) {
+    const target = adminConstraints.length > 0
+      ? query(collection(db, collectionName), ...adminConstraints)
+      : collection(db, collectionName);
+    return (await getDocs(target)).docs;
+  }
 
   const sections = [...new Set(profile.sections.map((section) => section.trim()).filter(Boolean))];
   if (sections.length === 0) return [];
@@ -94,12 +103,13 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
   if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
 
   const admin = isAdmin(profile);
+  const today = todayIso();
   const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments] = await Promise.all([
     admin ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending"))) : Promise.resolve(0),
     admin ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending"))) : Promise.resolve(0),
     countScopedNewJoins(profile),
-    loadScopedCollection("members", profile),
-    loadScopedCollection("events", profile)
+    loadScopedCollection("members", profile, [where("status", "==", "active")]),
+    loadScopedCollection("events", profile, [where("startDate", ">=", today)])
   ]);
 
   const members: RawMember[] = memberDocuments.flatMap((snapshot) => {
@@ -117,7 +127,6 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     .map(([section, count]) => ({ section, count }))
     .sort((a, b) => a.section.localeCompare(b.section));
 
-  const today = todayIso();
   const upcomingEvents = eventDocuments.flatMap((snapshot) => {
       const data = snapshot.data();
       const title = stringValue(data.title);

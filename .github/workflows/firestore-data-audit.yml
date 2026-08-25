@@ -39,56 +39,106 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm install --no-save --package-lock=false firebase-admin@14.3.0
 
-      - name: Audit live Firestore provenance in one pass
+      - name: Check live Firestore availability
+        id: firestore_availability
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { cert, getApps, initializeApp } from 'firebase-admin/app';
+
+          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '{}');
+          const app = getApps()[0] || initializeApp({ credential: cert(serviceAccount) });
+          const token = await app.options.credential.getAccessToken();
+          const projectId = serviceAccount.project_id;
+          const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/members?pageSize=1`;
+
+          let response;
+          try {
+            response = await fetch(url, {
+              headers: { Authorization: `Bearer ${token.access_token}` },
+              signal: AbortSignal.timeout(10000)
+            });
+          } catch (error) {
+            if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+              console.warn(`Live Firestore availability check could not complete: ${error.message}`);
+              console.log('Deferring live-data audit on this PR; main/manual audits remain fail-closed.');
+              console.log('available=false');
+              await import('node:fs').then(({ appendFileSync }) => appendFileSync(process.env.GITHUB_OUTPUT, 'available=false\n'));
+              process.exit(0);
+            }
+            throw error;
+          }
+
+          if (response.ok) {
+            await import('node:fs').then(({ appendFileSync }) => appendFileSync(process.env.GITHUB_OUTPUT, 'available=true\n'));
+            process.exit(0);
+          }
+
+          const body = await response.text();
+          const quotaUnavailable = response.status === 429 || /RESOURCE_EXHAUSTED|Quota exceeded/i.test(body);
+          if (quotaUnavailable && process.env.GITHUB_EVENT_NAME === 'pull_request') {
+            console.warn(`Live Firestore is quota-exhausted (${response.status}); deferring live-data audit for this PR.`);
+            console.log('Production pushes and manual audit runs still fail closed when Firestore is unavailable.');
+            await import('node:fs').then(({ appendFileSync }) => appendFileSync(process.env.GITHUB_OUTPUT, 'available=false\n'));
+            process.exit(0);
+          }
+
+          console.error(`Live Firestore availability check failed (${response.status}): ${body}`);
+          process.exit(1);
+          NODE
+
+      - name: Audit live Firestore provenance in one pass
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/audit-live-data-provenance.mjs
 
       - name: Reconcile safely migratable active leader section profiles
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/reconcile-admin-user-sections.mjs
 
       - name: Require canonical active leader section profiles
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/reconcile-admin-user-sections.mjs --check
 
       - name: Audit live non-meeting Firestore compatibility
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/audit-firestore-compatibility.mjs
 
       - name: Audit live weekly meeting compatibility
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/audit-weekly-meeting-compatibility.mjs
 
       - name: Reconcile safely migratable meeting records
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/reconcile-meeting-records.mjs --apply
 
       - name: Audit live meeting record compatibility
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/audit-meeting-record-compatibility.mjs
 
       - name: Require canonical meeting record schema
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/reconcile-meeting-records.mjs --check
 
       - name: Report unprovenanced leadership records
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.firestore_availability.outputs.available == 'true' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: node scripts/reconcile-leadership-provenance.mjs --check
