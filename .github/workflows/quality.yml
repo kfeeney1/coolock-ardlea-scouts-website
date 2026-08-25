@@ -30,7 +30,12 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Explain Dependabot production-config policy
+        if: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' }}
+        run: echo "Dependabot pull requests do not receive repository secrets, so production environment validation is intentionally deferred. The install, production dependency audit, lint, unit tests, seed contract, hosting config and production build still run in this job."
+
       - name: Validate production configuration
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm run check:production-env
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
