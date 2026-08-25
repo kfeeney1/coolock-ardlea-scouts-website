@@ -1,4 +1,4 @@
-import type { WeeklyMeetingRecord, WeeklyMemberEntry } from "./weeklyTracker";
+import type { WeeklyActivityPlan, WeeklyBadgeworkPlan, WeeklyMeetingRecord, WeeklyMemberEntry } from "./weeklyTracker";
 
 export type WeeklyMemberSummary = {
   memberId: string;
@@ -47,4 +47,20 @@ export function buildWeeklyMemberSummaries(records: WeeklyMeetingRecord[]): Week
 
 export function newWeeklyEntry(memberId: string, memberName: string): WeeklyMemberEntry {
   return { memberId, memberName, attendance: "unrecorded", subsPaid: false, subsAmount: 0, badges: [] };
+}
+
+export function newActivityPlan(id: string = crypto.randomUUID()): WeeklyActivityPlan {
+  return { id, activity: "", leader: "", notes: "", equipment: "", startTime: "", finishTime: "" };
+}
+
+export function newBadgeworkPlan(id: string = crypto.randomUUID()): WeeklyBadgeworkPlan {
+  return { id, badge: "", notes: "" };
+}
+
+export function defaultActivityPlans(): WeeklyActivityPlan[] {
+  return [newActivityPlan(), newActivityPlan()];
+}
+
+export function defaultBadgeworkPlans(): WeeklyBadgeworkPlan[] {
+  return [newBadgeworkPlan()];
 }
