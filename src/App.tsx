@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
@@ -44,7 +44,7 @@ function RouteFallback() {
   );
 }
 
-function protectedRoute(element: React.ReactNode) {
+function protectedRoute(element: ReactNode) {
   return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>;
 }
 
