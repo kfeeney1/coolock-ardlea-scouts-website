@@ -7,8 +7,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-  schedule:
-    - cron: "15 9 * * *"
 
 permissions:
   contents: read
@@ -58,63 +56,3 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           channelId: live
           projectId: coolock-ardlea-scouts
-
-  maintain_live_data:
-    if: github.event_name != 'push'
-    needs: build_and_deploy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - name: Install app dependencies
-        run: npm ci
-      - name: Install Firebase Admin SDK for deployment data checks
-        run: npm install --no-save --ignore-scripts firebase-admin
-      - name: Restore canonical comprehensive seed population
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-          E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-        run: |
-          set -e
-          for attempt in 1 2 3; do
-            echo "Canonical seed attempt ${attempt}/3"
-            if node scripts/seed-population-data.mjs seed; then
-              exit 0
-            fi
-            if [ "$attempt" -lt 3 ]; then
-              delay=$((attempt * 15))
-              echo "Canonical seed attempt ${attempt} failed; retrying in ${delay}s..."
-              sleep "$delay"
-            fi
-          done
-          echo "Canonical seed failed after 3 attempts."
-          exit 1
-      - name: Seed canonical super-admin login
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-superadmin-login.mjs
-      - name: Restore canonical public website content
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/seed-public-site-content.mjs seed
-      - name: Reconcile live test accounts to canonical seed data
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-seeded-accounts.mjs
-      - name: Migrate legacy weekly meetings to lifecycle schema
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-weekly-meetings.mjs
-      - name: Remove leadership outside canonical seed or approved registrations
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-leadership-provenance.mjs
-      - name: Rebuild curated public Who's Who
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/rebuild-public-leadership.mjs
-      - name: Verify public Who's Who projection
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/verify-public-leadership.mjs
