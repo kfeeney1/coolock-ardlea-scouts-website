@@ -7,32 +7,25 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 
+const EXPECTED_COLLECTIONS = new Set([
+  "adminUsers", "parentAccounts", "leaderRegistrationRequests", "joinApplications", "members",
+  "memberHistory", "events", "publicEvents", "eventConsentLinks", "eventConsentResponses",
+  "consentApplications", "meetingRecords", "weeklyMeetings", "organisationLeadership",
+  "publicLeadership", "publicSiteContent", "auditLog"
+]);
+const DEDICATED_AUDIT_COLLECTIONS = new Set(["meetingRecords", "weeklyMeetings"]);
 const SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Scouter", "All Sections"]);
+const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
 const ACCESS_ROLES = new Set(["leader", "admin", "super-admin"]);
 const MEMBER_STATUSES = new Set(["active", "inactive", "left"]);
 const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
 const JOIN_STATUSES = new Set(["new", "contacted", "waiting-list", "accepted", "closed"]);
 const RESPONSE_STATUSES = new Set(["new", "matched", "ignored"]);
-const MEETING_TYPES = new Set(["group", "leader"]);
-const LIFECYCLE_TYPES = new Set(["created", "section-transfer", "status-change", "section-and-status-change"]);
 const PARENT_STATUSES = new Set(["pending", "approved", "rejected"]);
 const LEADER_REQUEST_STATUSES = new Set(["pending", "approved", "rejected"]);
-const LEADER_REQUEST_ROLES = new Set(["Scouter", "Section Leader", "Group Leader", "Other", "Programme Scouter"]);
-const LEADER_REQUEST_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"]);
-const PUBLIC_GROUP_ROLES = new Set([
-  "group leader", "group chairperson", "group secretary", "group treasurer",
-  "group quartermaster", "group quartermaster/bo'sun", "group bo'sun", "group youth champion"
-]);
-const PUBLIC_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
+const AUDIT_CATEGORIES = new Set(["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "system"]);
 
 function text(value) { return typeof value === "string" ? value.trim() : ""; }
-function roleKey(value) { return text(value).toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " "); }
-function sectionKey(value) { return text(value).toLowerCase(); }
-// Group visibility is role-restricted; section visibility is title-agnostic so all opted-in section leaders/scouters are covered.
-function isPublicOrganisationRole(role, section) {
-  if (PUBLIC_SECTIONS.has(sectionKey(section))) return Boolean(roleKey(role));
-  return sectionKey(section) === "group" && PUBLIC_GROUP_ROLES.has(roleKey(role));
-}
 function isBool(value) { return typeof value === "boolean"; }
 function isObject(value) { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
 function isTimestamp(value) { return Boolean(value) && typeof value === "object" && typeof value.toDate === "function"; }
@@ -40,183 +33,205 @@ function isStringArray(value) { return Array.isArray(value) && value.every((item
 function validSection(value) { return SECTIONS.has(text(value)); }
 function hasDuplicates(values) { return new Set(values).size !== values.length; }
 
-const errors = [], warnings = [], counts = new Map();
-function issue(collection, id, message) { errors.push(`${collection}/${id}: ${message}`); }
+const errors = [];
+const warnings = [];
+const counts = new Map();
+function fail(collection, id, message) { errors.push(`${collection}/${id}: ${message}`); }
 function warn(collection, id, message) { warnings.push(`${collection}/${id}: ${message}`); }
-async function docs(name) { const snapshot = await db.collection(name).get(); counts.set(name, snapshot.size); return snapshot.docs; }
+async function docs(name) {
+  const snapshot = await db.collection(name).get();
+  counts.set(name, snapshot.size);
+  return snapshot.docs;
+}
 
-const rootCollections = (await db.listCollections()).map((c) => c.id).sort();
-console.log(`Live Firestore root collections (${rootCollections.length}): ${rootCollections.join(", ")}`);
+const roots = await db.listCollections();
+for (const root of roots) {
+  if (!EXPECTED_COLLECTIONS.has(root.id)) fail(root.id, "*", "unexpected root collection");
+}
 
 const adminDocs = await docs("adminUsers");
-const privilegedUids = new Set();
+const admins = new Map(adminDocs.map((doc) => [doc.id, doc.data()]));
 for (const doc of adminDocs) {
   const data = doc.data();
-  if (!ACCESS_ROLES.has(data.role)) issue("adminUsers", doc.id, `unsupported role ${JSON.stringify(data.role)}`);
-  if (!isBool(data.active)) issue("adminUsers", doc.id, "active must be boolean");
-  if (data.uid !== undefined && text(data.uid) && text(data.uid) !== doc.id) issue("adminUsers", doc.id, "uid field does not match document id");
-  const sections = Array.isArray(data.sections) ? data.sections : (text(data.section) ? [data.section] : []);
-  for (const section of sections) if (!validSection(section)) issue("adminUsers", doc.id, `unsupported section ${JSON.stringify(section)}`);
-  if (data.role === "admin" || data.role === "super-admin") privilegedUids.add(doc.id);
-}
-
-const organisationDocs = await docs("organisationLeadership");
-const organisation = new Map(organisationDocs.map((doc) => [doc.id, doc.data()]));
-for (const doc of organisationDocs) {
-  const data = doc.data();
-  if (!text(data.displayName)) issue("organisationLeadership", doc.id, "displayName is required");
-  if (!text(data.scoutingRole)) issue("organisationLeadership", doc.id, "scoutingRole is required");
-  if (!validSection(data.organisationSection)) issue("organisationLeadership", doc.id, `unsupported organisationSection ${JSON.stringify(data.organisationSection)}`);
-  if (typeof data.organisationOrder !== "number" || !Number.isFinite(data.organisationOrder)) issue("organisationLeadership", doc.id, "organisationOrder must be a finite number");
-  if (!isBool(data.showPublicly)) issue("organisationLeadership", doc.id, "showPublicly must be boolean");
-  if (!isBool(data.active)) issue("organisationLeadership", doc.id, "active must be boolean");
-  if (data.showPublicly === true && privilegedUids.has(doc.id)) issue("organisationLeadership", doc.id, "privileged admin/super-admin is marked public");
-  if (data.showPublicly === true && !isPublicOrganisationRole(data.scoutingRole, data.organisationSection)) issue("organisationLeadership", doc.id, `public record is not eligible for section/role ${JSON.stringify(data.organisationSection)} / ${JSON.stringify(data.scoutingRole)}`);
-}
-
-for (const doc of await docs("publicLeadership")) {
-  const data = doc.data();
-  if (privilegedUids.has(doc.id)) issue("publicLeadership", doc.id, "privileged admin/super-admin must never be public");
-  if (!organisation.has(doc.id)) issue("publicLeadership", doc.id, "has no matching organisationLeadership record");
-  if (!isPublicOrganisationRole(data.scoutingRole, data.organisationSection)) issue("publicLeadership", doc.id, `record is not eligible for section/role ${JSON.stringify(data.organisationSection)} / ${JSON.stringify(data.scoutingRole)}`);
-  if (data.showPublicly !== true) issue("publicLeadership", doc.id, "showPublicly must be true");
-  if (data.active !== true) issue("publicLeadership", doc.id, "active must be true");
-  const source = organisation.get(doc.id);
-  if (source && source.showPublicly !== true) issue("publicLeadership", doc.id, "source organisation record is not public");
+  if (!ACCESS_ROLES.has(data.role)) fail("adminUsers", doc.id, `unsupported role ${JSON.stringify(data.role)}`);
+  if (data.active !== true && data.active !== false) fail("adminUsers", doc.id, "active must be boolean");
+  if (!isStringArray(data.sections) || data.sections.length === 0) fail("adminUsers", doc.id, "sections must be a non-empty string array");
+  if (data.section !== undefined) fail("adminUsers", doc.id, "legacy section field must not be present");
+  if (isStringArray(data.sections)) {
+    if (hasDuplicates(data.sections)) fail("adminUsers", doc.id, "sections contains duplicates");
+    for (const section of data.sections) if (!validSection(section)) fail("adminUsers", doc.id, `unsupported section ${JSON.stringify(section)}`);
+  }
 }
 
 const memberDocs = await docs("members");
 const members = new Map(memberDocs.map((doc) => [doc.id, doc.data()]));
 for (const doc of memberDocs) {
   const data = doc.data();
-  if (!text(data.displayName) && !(text(data.firstName) || text(data.lastName))) issue("members", doc.id, "member name is missing");
-  if (!validSection(data.section)) issue("members", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
-  if (data.status !== undefined && !MEMBER_STATUSES.has(data.status)) issue("members", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (!text(data.displayName)) fail("members", doc.id, "displayName is required");
+  if (!validSection(data.section) || !YOUTH_SECTIONS.has(text(data.section))) fail("members", doc.id, `unsupported member section ${JSON.stringify(data.section)}`);
+  if (!MEMBER_STATUSES.has(data.status)) fail("members", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (!new Set(["manual", "join-application"]).has(data.source)) fail("members", doc.id, `unsupported source ${JSON.stringify(data.source)}`);
 }
 
 for (const doc of await docs("parentAccounts")) {
   const data = doc.data();
-  if (text(data.uid) !== doc.id) issue("parentAccounts", doc.id, "uid is required and must match document id");
-  if (!text(data.email)) issue("parentAccounts", doc.id, "email is required");
-  if (!text(data.displayName)) issue("parentAccounts", doc.id, "displayName is required");
-  if (data.mobileNumber !== undefined && typeof data.mobileNumber !== "string") issue("parentAccounts", doc.id, "mobileNumber must be a string when present");
-  if (!PARENT_STATUSES.has(data.status)) issue("parentAccounts", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
-  if (!isStringArray(data.memberIds)) issue("parentAccounts", doc.id, "memberIds must be an array of strings");
-  if (!isStringArray(data.linkedSections)) issue("parentAccounts", doc.id, "linkedSections must be an array of strings");
+  if (text(data.uid) !== doc.id) fail("parentAccounts", doc.id, "uid must match document id");
+  if (!text(data.email)) fail("parentAccounts", doc.id, "email is required");
+  if (!text(data.displayName)) fail("parentAccounts", doc.id, "displayName is required");
+  if (!PARENT_STATUSES.has(data.status)) fail("parentAccounts", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (!isStringArray(data.memberIds)) fail("parentAccounts", doc.id, "memberIds must be a string array");
+  if (!isStringArray(data.linkedSections)) fail("parentAccounts", doc.id, "linkedSections must be a string array");
   const memberIds = isStringArray(data.memberIds) ? data.memberIds : [];
   const linkedSections = isStringArray(data.linkedSections) ? data.linkedSections : [];
-  if (hasDuplicates(memberIds)) issue("parentAccounts", doc.id, "memberIds contains duplicates");
-  if (hasDuplicates(linkedSections)) issue("parentAccounts", doc.id, "linkedSections contains duplicates");
+  if (hasDuplicates(memberIds)) fail("parentAccounts", doc.id, "memberIds contains duplicates");
+  if (hasDuplicates(linkedSections)) fail("parentAccounts", doc.id, "linkedSections contains duplicates");
+  if (data.status !== "approved" && (memberIds.length || linkedSections.length)) fail("parentAccounts", doc.id, "non-approved account retains member/section links");
   for (const memberId of memberIds) {
     const member = members.get(memberId);
-    if (!member) issue("parentAccounts", doc.id, `references missing member ${memberId}`);
-    else if (text(member.section) && !linkedSections.includes(text(member.section))) issue("parentAccounts", doc.id, `linkedSections does not include section for member ${memberId}`);
+    if (!member) fail("parentAccounts", doc.id, `references missing member ${memberId}`);
+    else if (!linkedSections.includes(text(member.section))) fail("parentAccounts", doc.id, `linkedSections omits section for ${memberId}`);
   }
-  for (const section of linkedSections) if (!validSection(section)) issue("parentAccounts", doc.id, `unsupported linked section ${JSON.stringify(section)}`);
-  if (data.status !== "approved" && (memberIds.length || linkedSections.length)) issue("parentAccounts", doc.id, "non-approved account must not retain member or section links");
-  if (data.status === "approved" || data.status === "rejected") {
-    if (!text(data.reviewedBy)) issue("parentAccounts", doc.id, "reviewedBy is required after review");
-    if (!isTimestamp(data.reviewedAt)) issue("parentAccounts", doc.id, "reviewedAt must be a Firestore timestamp after review");
+  for (const section of linkedSections) if (!YOUTH_SECTIONS.has(text(section))) fail("parentAccounts", doc.id, `unsupported linked section ${JSON.stringify(section)}`);
+  if (["approved", "rejected"].includes(data.status)) {
+    if (!text(data.reviewedBy)) fail("parentAccounts", doc.id, "reviewedBy is required after review");
+    if (!isTimestamp(data.reviewedAt)) fail("parentAccounts", doc.id, "reviewedAt must be a timestamp after review");
   }
-  if (data.createdAt !== undefined && !isTimestamp(data.createdAt)) issue("parentAccounts", doc.id, "createdAt must be a Firestore timestamp when present");
-  if (data.updatedAt !== undefined && !isTimestamp(data.updatedAt)) issue("parentAccounts", doc.id, "updatedAt must be a Firestore timestamp when present");
 }
 
 for (const doc of await docs("leaderRegistrationRequests")) {
   const data = doc.data();
-  if (text(data.uid) !== doc.id) issue("leaderRegistrationRequests", doc.id, "uid is required and must match document id");
-  if (!text(data.fullName)) issue("leaderRegistrationRequests", doc.id, "fullName is required");
-  if (!text(data.email)) issue("leaderRegistrationRequests", doc.id, "email is required");
-  if (data.mobileNumber !== undefined && typeof data.mobileNumber !== "string") issue("leaderRegistrationRequests", doc.id, "mobileNumber must be a string when present");
-  if (!text(data.requestedRole)) issue("leaderRegistrationRequests", doc.id, "requestedRole is required");
-  else if (!LEADER_REQUEST_ROLES.has(text(data.requestedRole))) warn("leaderRegistrationRequests", doc.id, `requestedRole ${JSON.stringify(data.requestedRole)} is legacy/unrecognised by the current form`);
-  if (!text(data.requestedSection)) issue("leaderRegistrationRequests", doc.id, "requestedSection is required");
-  else if (!LEADER_REQUEST_SECTIONS.has(text(data.requestedSection))) issue("leaderRegistrationRequests", doc.id, `unsupported requestedSection ${JSON.stringify(data.requestedSection)}`);
-  if (typeof data.reason !== "string") issue("leaderRegistrationRequests", doc.id, "reason must be a string");
-  if (data.privacyConfirmed !== true) issue("leaderRegistrationRequests", doc.id, "privacyConfirmed must be true");
-  if (!LEADER_REQUEST_STATUSES.has(data.status)) issue("leaderRegistrationRequests", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
-  if (!isTimestamp(data.submittedAt)) issue("leaderRegistrationRequests", doc.id, "submittedAt must be a Firestore timestamp");
-  if (data.reviewNote !== undefined && typeof data.reviewNote !== "string") issue("leaderRegistrationRequests", doc.id, "reviewNote must be a string when present");
-  if (data.status === "approved" || data.status === "rejected") {
-    if (!text(data.reviewedBy)) issue("leaderRegistrationRequests", doc.id, "reviewedBy is required after review");
-    if (!isTimestamp(data.reviewedAt)) issue("leaderRegistrationRequests", doc.id, "reviewedAt must be a Firestore timestamp after review");
-  } else {
-    if (data.reviewedAt !== null && data.reviewedAt !== undefined) issue("leaderRegistrationRequests", doc.id, "pending request must not have reviewedAt");
-    if (text(data.reviewedBy)) issue("leaderRegistrationRequests", doc.id, "pending request must not have reviewedBy");
+  if (text(data.uid) !== doc.id) fail("leaderRegistrationRequests", doc.id, "uid must match document id");
+  if (!text(data.fullName) || !text(data.email)) fail("leaderRegistrationRequests", doc.id, "fullName and email are required");
+  if (data.privacyConfirmed !== true) fail("leaderRegistrationRequests", doc.id, "privacyConfirmed must be true");
+  if (!LEADER_REQUEST_STATUSES.has(data.status)) fail("leaderRegistrationRequests", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (!isTimestamp(data.submittedAt)) fail("leaderRegistrationRequests", doc.id, "submittedAt must be a timestamp");
+  if (["approved", "rejected"].includes(data.status)) {
+    if (!text(data.reviewedBy)) fail("leaderRegistrationRequests", doc.id, "reviewedBy is required after review");
+    if (!isTimestamp(data.reviewedAt)) fail("leaderRegistrationRequests", doc.id, "reviewedAt must be a timestamp after review");
   }
 }
 
-for (const doc of await docs("joinApplications")) {
-  const data = doc.data(), section = text(data.section) || text(data.scoutSection);
-  if (!validSection(section)) issue("joinApplications", doc.id, `unsupported/missing section ${JSON.stringify(section)}`);
-  if (data.status !== undefined && !JOIN_STATUSES.has(data.status)) issue("joinApplications", doc.id, `legacy/unsupported status ${JSON.stringify(data.status)}`);
-}
-for (const doc of await docs("consentApplications")) {
-  const data = doc.data(), section = text(data.section) || text(data.scoutSection);
-  if (!validSection(section)) issue("consentApplications", doc.id, `unsupported/missing section ${JSON.stringify(section)}`);
-  if (!text(data.formType)) warn("consentApplications", doc.id, "legacy record has no formType; current readers tolerate this");
-}
-for (const doc of await docs("events")) {
+const joinDocs = await docs("joinApplications");
+const joins = new Map(joinDocs.map((doc) => [doc.id, doc.data()]));
+for (const doc of joinDocs) {
   const data = doc.data();
-  if (!text(data.title)) issue("events", doc.id, "title is required");
-  if (!validSection(data.section)) issue("events", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
-  if (data.status !== undefined && !EVENT_STATUSES.has(data.status)) issue("events", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
-  if (data.consentRequired !== undefined && !isBool(data.consentRequired)) issue("events", doc.id, "consentRequired must be boolean");
-  if (data.attendance !== undefined && !isObject(data.attendance)) issue("events", doc.id, "attendance must be an object map");
-  if (data.consent !== undefined && !isObject(data.consent)) issue("events", doc.id, "consent must be an object map");
+  if (!YOUTH_SECTIONS.has(text(data.section))) fail("joinApplications", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (data.scoutSection !== undefined) fail("joinApplications", doc.id, "legacy scoutSection field must not be present");
+  if (!JOIN_STATUSES.has(data.status)) fail("joinApplications", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (data.source !== "website") fail("joinApplications", doc.id, `source must be website, found ${JSON.stringify(data.source)}`);
 }
-const events = new Map((await db.collection("events").get()).docs.map((doc) => [doc.id, doc.data()]));
+
+for (const [id, data] of members) {
+  if (data.source === "join-application") {
+    const sourceId = text(data.sourceJoinApplicationId);
+    if (!sourceId || !joins.has(sourceId)) fail("members", id, "join-application source is missing or invalid");
+  }
+}
+
+const eventDocs = await docs("events");
+const events = new Map(eventDocs.map((doc) => [doc.id, doc.data()]));
+for (const doc of eventDocs) {
+  const data = doc.data();
+  if (!text(data.title)) fail("events", doc.id, "title is required");
+  if (!YOUTH_SECTIONS.has(text(data.section))) fail("events", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (!EVENT_STATUSES.has(data.status)) fail("events", doc.id, `unsupported status ${JSON.stringify(data.status)}`);
+  if (data.consentRequired !== undefined && !isBool(data.consentRequired)) fail("events", doc.id, "consentRequired must be boolean");
+  if (data.attendance !== undefined && !isObject(data.attendance)) fail("events", doc.id, "attendance must be an object map");
+  if (data.consent !== undefined && !isObject(data.consent)) fail("events", doc.id, "consent must be an object map");
+}
+
 for (const doc of await docs("publicEvents")) {
-  const data = doc.data(), eventId = text(data.eventId) || doc.id, source = events.get(eventId);
-  if (!source) issue("publicEvents", doc.id, `references missing event ${eventId}`);
-  else if (source.status !== "open") issue("publicEvents", doc.id, `source event ${eventId} is ${source.status}, not open`);
-}
-for (const doc of await docs("eventConsentLinks")) {
   const data = doc.data();
-  if (!text(data.eventId)) issue("eventConsentLinks", doc.id, "eventId is required");
-  if (!validSection(data.section)) issue("eventConsentLinks", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
-  if (!isBool(data.active)) issue("eventConsentLinks", doc.id, "active must be boolean");
-  if (text(data.eventId) && !events.has(text(data.eventId))) issue("eventConsentLinks", doc.id, `references missing event ${text(data.eventId)}`);
+  const eventId = text(data.eventId) || doc.id;
+  const source = events.get(eventId);
+  if (!source) fail("publicEvents", doc.id, `references missing event ${eventId}`);
+  else if (source.status !== "open") fail("publicEvents", doc.id, `source event is ${JSON.stringify(source.status)}, not open`);
 }
+
+const linkDocs = await docs("eventConsentLinks");
+const links = new Map(linkDocs.map((doc) => [doc.id, doc.data()]));
+for (const doc of linkDocs) {
+  const data = doc.data();
+  if (!text(data.eventId) || !events.has(text(data.eventId))) fail("eventConsentLinks", doc.id, "eventId is missing or references no event");
+  if (!YOUTH_SECTIONS.has(text(data.section))) fail("eventConsentLinks", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (!isBool(data.active)) fail("eventConsentLinks", doc.id, "active must be boolean");
+}
+
 for (const doc of await docs("eventConsentResponses")) {
   const data = doc.data();
-  if (!text(data.eventId)) issue("eventConsentResponses", doc.id, "eventId is required");
-  if (!text(data.token)) issue("eventConsentResponses", doc.id, "token is required");
-  if (data.processingStatus !== undefined && !RESPONSE_STATUSES.has(data.processingStatus)) issue("eventConsentResponses", doc.id, `unsupported processingStatus ${JSON.stringify(data.processingStatus)}`);
-}
-for (const doc of await docs("meetingRecords")) {
-  const data = doc.data();
-  if (!text(data.title)) issue("meetingRecords", doc.id, "title is required");
-  if (!MEETING_TYPES.has(data.meetingType)) issue("meetingRecords", doc.id, `unsupported meetingType ${JSON.stringify(data.meetingType)}`);
-  if (!validSection(data.section)) issue("meetingRecords", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
-  if (!Array.isArray(data.attendees)) issue("meetingRecords", doc.id, "attendees must be an array");
-  if (!Array.isArray(data.actionItems)) issue("meetingRecords", doc.id, "actionItems must be an array");
-}
-for (const doc of await docs("memberHistory")) {
-  const data = doc.data();
-  if (!text(data.memberId)) issue("memberHistory", doc.id, "memberId is required");
-  if (!LIFECYCLE_TYPES.has(data.changeType)) issue("memberHistory", doc.id, `unsupported changeType ${JSON.stringify(data.changeType)}`);
-  if (data.fromSection !== undefined && !validSection(data.fromSection)) issue("memberHistory", doc.id, `unsupported fromSection ${JSON.stringify(data.fromSection)}`);
-  if (data.toSection !== undefined && !validSection(data.toSection)) issue("memberHistory", doc.id, `unsupported toSection ${JSON.stringify(data.toSection)}`);
-  if (data.fromStatus !== undefined && !MEMBER_STATUSES.has(data.fromStatus)) issue("memberHistory", doc.id, `unsupported fromStatus ${JSON.stringify(data.fromStatus)}`);
-  if (data.toStatus !== undefined && !MEMBER_STATUSES.has(data.toStatus)) issue("memberHistory", doc.id, `unsupported toStatus ${JSON.stringify(data.toStatus)}`);
+  if (!text(data.eventId)) fail("eventConsentResponses", doc.id, "eventId is required");
+  if (!text(data.token) || !links.has(text(data.token))) fail("eventConsentResponses", doc.id, "token is missing or references no consent link");
+  else if (text(links.get(text(data.token)).eventId) !== text(data.eventId)) fail("eventConsentResponses", doc.id, "eventId differs from source consent link");
+  if (!RESPONSE_STATUSES.has(data.processingStatus)) fail("eventConsentResponses", doc.id, `unsupported processingStatus ${JSON.stringify(data.processingStatus)}`);
 }
 
-for (const name of rootCollections) {
-  if (!counts.has(name)) {
-    const snapshot = await db.collection(name).get();
-    counts.set(name, snapshot.size);
-    warn(name, "*", "collection is present but has no collection-specific compatibility validator yet");
+for (const doc of await docs("consentApplications")) {
+  const data = doc.data();
+  if (!YOUTH_SECTIONS.has(text(data.section))) fail("consentApplications", doc.id, `unsupported section ${JSON.stringify(data.section)}`);
+  if (data.scoutSection !== undefined) fail("consentApplications", doc.id, "legacy scoutSection field must not be present");
+  if (data.source !== "website") fail("consentApplications", doc.id, `source must be website, found ${JSON.stringify(data.source)}`);
+  if (!new Set(["youth-activity-consent", "scouter-es3-medical-advice"]).has(data.formType)) fail("consentApplications", doc.id, `unsupported formType ${JSON.stringify(data.formType)}`);
+}
+
+for (const doc of await docs("memberHistory")) {
+  const data = doc.data();
+  if (!text(data.memberId) || !members.has(text(data.memberId))) fail("memberHistory", doc.id, "memberId is missing or references no member");
+  if (!new Set(["section-transfer", "status-change", "section-and-status-change"]).has(data.changeType)) fail("memberHistory", doc.id, `unsupported changeType ${JSON.stringify(data.changeType)}`);
+}
+
+const organisationDocs = await docs("organisationLeadership");
+const organisation = new Map(organisationDocs.map((doc) => [doc.id, doc.data()]));
+for (const doc of organisationDocs) {
+  const data = doc.data();
+  if (!admins.has(doc.id)) fail("organisationLeadership", doc.id, "has no adminUsers identity source");
+  if (!text(data.displayName) || !text(data.scoutingRole)) fail("organisationLeadership", doc.id, "displayName and scoutingRole are required");
+  if (!validSection(data.organisationSection)) fail("organisationLeadership", doc.id, `unsupported organisationSection ${JSON.stringify(data.organisationSection)}`);
+  if (!isBool(data.showPublicly) || !isBool(data.active)) fail("organisationLeadership", doc.id, "showPublicly and active must be boolean");
+}
+
+for (const doc of await docs("publicLeadership")) {
+  const data = doc.data();
+  const source = organisation.get(doc.id);
+  const access = admins.get(doc.id);
+  if (!source) fail("publicLeadership", doc.id, "has no organisationLeadership source");
+  if (!access || access.role !== "leader" || access.active !== true) fail("publicLeadership", doc.id, "has no active leader access source");
+  if (data.publicProjectionVersion !== 2 || data.sourceAccessRole !== "leader") fail("publicLeadership", doc.id, "public projection metadata is not canonical");
+  if (data.showPublicly !== true || data.active !== true) fail("publicLeadership", doc.id, "public projection must be active and public");
+}
+
+for (const doc of await docs("publicSiteContent")) {
+  const data = doc.data();
+  if (doc.id !== "TEST_site") fail("publicSiteContent", doc.id, "unexpected document id");
+  if (data.contentVersion !== 1 || data.testData !== true || data.testSeed !== "public-site-content-v1" || data.createdBySeed !== "TEST_SEED") {
+    fail("publicSiteContent", doc.id, "public content provenance/version is not canonical");
   }
 }
 
-console.log("\nCollection counts:");
-for (const [name, count] of [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))) console.log(`- ${name}: ${count}`);
-if (warnings.length) { console.log(`\nWarnings (${warnings.length}):`); for (const warning of warnings) console.log(`WARN ${warning}`); }
-if (errors.length) {
-  console.error(`\nCompatibility errors (${errors.length}):`);
-  for (const error of errors) console.error(`ERROR ${error}`);
-  process.exitCode = 1;
-} else {
-  console.log("\nNo hard compatibility issues found. Live Firestore data matches the current website contracts covered by this audit.");
+for (const doc of await docs("auditLog")) {
+  const data = doc.data();
+  const actor = admins.get(text(data.actorUid));
+  if (!actor) fail("auditLog", doc.id, "actorUid references no adminUsers profile");
+  if (!text(data.actorEmail)) fail("auditLog", doc.id, "actorEmail is required");
+  if (!AUDIT_CATEGORIES.has(data.category)) fail("auditLog", doc.id, `unsupported category ${JSON.stringify(data.category)}`);
+  if (!isTimestamp(data.createdAt)) fail("auditLog", doc.id, "createdAt must be a timestamp");
 }
+
+for (const collectionName of DEDICATED_AUDIT_COLLECTIONS) {
+  const snapshot = await db.collection(collectionName).get();
+  counts.set(collectionName, snapshot.size);
+  warn(collectionName, "*", "validated by its dedicated compatibility audit in the same workflow");
+}
+
+console.log("Live Firestore compatibility summary:");
+for (const [name, count] of [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))) console.log(`- ${name}: ${count}`);
+if (warnings.length) {
+  console.log(`Warnings (${warnings.length}):`);
+  for (const warning of warnings.sort()) console.log(`- ${warning}`);
+}
+if (errors.length) {
+  console.error(`Live Firestore compatibility audit failed with ${errors.length} issue(s):`);
+  for (const error of errors.sort()) console.error(`- ${error}`);
+  process.exit(1);
+}
+
+console.log("Live Firestore data matches the current non-meeting collection contracts; meetingRecords and weeklyMeetings are covered by dedicated audits.");
