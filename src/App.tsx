@@ -1,42 +1,94 @@
-import EventConsent from "./pages/EventConsent";
-import EventConsentManagement from "./pages/EventConsentManagement";
-import EventsManagement from "./pages/EventsManagement";
-import AttendanceInsights from "./pages/AttendanceInsights";
-import LeaderCommunications from "./pages/LeaderCommunications";
-import MeetingRecords from "./pages/MeetingRecords";
-import WeeklySectionTracker from "./pages/WeeklySectionTracker";
-import OrganisationChart from "./pages/OrganisationChart";
-import MemberManagement from "./pages/MemberManagement";
-import MemberHistory from "./pages/MemberHistory";
-import JoinManagement from "./pages/JoinManagement";
-import LeaderInfo from "./pages/LeaderInfo";
-import ConsentManagement from "./pages/ConsentManagement";
-import ParentAccessManagement from "./pages/ParentAccessManagement";
-import ParentPortal from "./pages/ParentPortal";
-import LeaderProfile from "./pages/LeaderProfile";
-import LeaderReports from "./pages/LeaderReports";
-import LeaderRequests from "./pages/LeaderRequests";
-import LeaderRegister from "./pages/LeaderRegister";
-import LeaderAccessManagement from "./pages/LeaderAccessManagement";
-import ActivityLog from "./pages/ActivityLog";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
-import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
-import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+
+import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
+import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import Layout from "./components/Layout";
-import About from "./pages/About";
-import Activities from "./pages/Activities";
-import ConsentForm from "./pages/ConsentForm";
-import Contact from "./pages/Contact";
-import Home from "./pages/Home";
-import Join from "./pages/Join";
+import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
+
+const Home = lazy(() => import("./pages/Home"));
+const About = lazy(() => import("./pages/About"));
+const Activities = lazy(() => import("./pages/Activities"));
+const ConsentForm = lazy(() => import("./pages/ConsentForm"));
+const EventConsent = lazy(() => import("./pages/EventConsent"));
+const ParentPortal = lazy(() => import("./pages/ParentPortal"));
+const Join = lazy(() => import("./pages/Join"));
+const Contact = lazy(() => import("./pages/Contact"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const LeaderRegister = lazy(() => import("./pages/LeaderRegister"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const LeaderRequests = lazy(() => import("./pages/LeaderRequests"));
+const LeaderAccessManagement = lazy(() => import("./pages/LeaderAccessManagement"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const LeaderProfile = lazy(() => import("./pages/LeaderProfile"));
+const LeaderReports = lazy(() => import("./pages/LeaderReports"));
+const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
+const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
+const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
+const WeeklySectionTracker = lazy(() => import("./pages/WeeklySectionTracker"));
+const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
+const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
+const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
+const JoinManagement = lazy(() => import("./pages/JoinManagement"));
+const MemberManagement = lazy(() => import("./pages/MemberManagement"));
+const MemberHistory = lazy(() => import("./pages/MemberHistory"));
+const EventsManagement = lazy(() => import("./pages/EventsManagement"));
+const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
+const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
+
+function RouteFallback() {
+  return (
+    <div role="status" aria-live="polite" style={{ padding: "2rem", textAlign: "center" }}>
+      Loading page…
+    </div>
+  );
+}
+
+function protectedRoute(element: React.ReactNode) {
+  return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>;
+}
 
 export default function App() {
- return <PublicSiteContentProvider><AdminAuthProvider><Routes><Route element={<Layout />}>
-  <Route path="/" element={<Home />} /><Route path="/about" element={<About />} /><Route path="/whos-who" element={<Navigate to="/about" replace />} /><Route path="/activities" element={<Activities />} /><Route path="/activities/consent" element={<ConsentForm />} /><Route path="/event-consent/:token" element={<EventConsent />} /><Route path="/parent" element={<ParentPortal />} /><Route path="/join" element={<Join />} /><Route path="/contact" element={<Contact />} />
-  <Route path="/leader/login" element={<AdminLogin />} /><Route path="/leader/register" element={<LeaderRegister />} />
-  <Route path="/leader" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} /><Route path="/leader/requests" element={<ProtectedAdminRoute><LeaderRequests /></ProtectedAdminRoute>} /><Route path="/leader/access" element={<ProtectedAdminRoute><LeaderAccessManagement /></ProtectedAdminRoute>} /><Route path="/leader/activity" element={<ProtectedAdminRoute><ActivityLog /></ProtectedAdminRoute>} /><Route path="/leader/profile" element={<ProtectedAdminRoute><LeaderProfile /></ProtectedAdminRoute>} /><Route path="/leader/reports" element={<ProtectedAdminRoute><LeaderReports /></ProtectedAdminRoute>} /><Route path="/leader/attendance" element={<ProtectedAdminRoute><AttendanceInsights /></ProtectedAdminRoute>} /><Route path="/leader/communications" element={<ProtectedAdminRoute><LeaderCommunications /></ProtectedAdminRoute>} /><Route path="/leader/meetings" element={<ProtectedAdminRoute><MeetingRecords /></ProtectedAdminRoute>} /><Route path="/leader/weekly" element={<ProtectedAdminRoute><WeeklySectionTracker /></ProtectedAdminRoute>} /><Route path="/leader/organisation" element={<ProtectedAdminRoute><OrganisationChart /></ProtectedAdminRoute>} /><Route path="/leader/consents" element={<ProtectedAdminRoute><ConsentManagement /></ProtectedAdminRoute>} /><Route path="/leader/info" element={<ProtectedAdminRoute><LeaderInfo /></ProtectedAdminRoute>} /><Route path="/leader/join" element={<ProtectedAdminRoute><JoinManagement /></ProtectedAdminRoute>} /><Route path="/leader/members" element={<ProtectedAdminRoute><MemberManagement /></ProtectedAdminRoute>} /><Route path="/leader/member-history" element={<ProtectedAdminRoute><MemberHistory /></ProtectedAdminRoute>} /><Route path="/leader/events" element={<ProtectedAdminRoute><EventsManagement /></ProtectedAdminRoute>} /><Route path="/leader/event-consent" element={<ProtectedAdminRoute><EventConsentManagement /></ProtectedAdminRoute>} /><Route path="/leader/parent-access" element={<ProtectedAdminRoute><ParentAccessManagement /></ProtectedAdminRoute>} />
- </Route></Routes></AdminAuthProvider></PublicSiteContentProvider>;
+  return (
+    <PublicSiteContentProvider>
+      <AdminAuthProvider>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/whos-who" element={<Navigate to="/about" replace />} />
+              <Route path="/activities" element={<Activities />} />
+              <Route path="/activities/consent" element={<ConsentForm />} />
+              <Route path="/event-consent/:token" element={<EventConsent />} />
+              <Route path="/parent" element={<ParentPortal />} />
+              <Route path="/join" element={<Join />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/leader/login" element={<AdminLogin />} />
+              <Route path="/leader/register" element={<LeaderRegister />} />
+              <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
+              <Route path="/leader/requests" element={protectedRoute(<LeaderRequests />)} />
+              <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
+              <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
+              <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
+              <Route path="/leader/reports" element={protectedRoute(<LeaderReports />)} />
+              <Route path="/leader/attendance" element={protectedRoute(<AttendanceInsights />)} />
+              <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
+              <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
+              <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
+              <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
+              <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
+              <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
+              <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
+              <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
+              <Route path="/leader/member-history" element={protectedRoute(<MemberHistory />)} />
+              <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
+              <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
+              <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </AdminAuthProvider>
+    </PublicSiteContentProvider>
+  );
 }
