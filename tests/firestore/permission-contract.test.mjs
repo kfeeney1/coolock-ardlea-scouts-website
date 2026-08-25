@@ -10,6 +10,7 @@ import {
   doc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
   where,
 } from "firebase/firestore";
@@ -119,4 +120,33 @@ test("member lifecycle query is denied when the referenced member is outside lea
   await assertFails(
     getDocs(query(collection(db, "memberHistory"), where("memberId", "==", "member-scout")))
   );
+});
+
+test("audit log writes bind actor email to the authenticated identity and known categories", async () => {
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+  ]);
+
+  const db = testEnv.authenticatedContext("leader-cubs", { email: "leader-cubs@example.com" }).firestore();
+  const canonical = {
+    actorUid: "leader-cubs",
+    actorEmail: "leader-cubs@example.com",
+    category: "member",
+    action: "member-updated",
+    targetId: "member-cub",
+    targetLabel: "Test Cub",
+    description: "Updated member record",
+    section: "Cubs",
+    createdAt: serverTimestamp(),
+  };
+
+  await assertSucceeds(setDoc(doc(db, "auditLog/canonical"), canonical));
+  await assertFails(setDoc(doc(db, "auditLog/forged-email"), {
+    ...canonical,
+    actorEmail: "someone-else@example.com",
+  }));
+  await assertFails(setDoc(doc(db, "auditLog/unknown-category"), {
+    ...canonical,
+    category: "made-up-category",
+  }));
 });
