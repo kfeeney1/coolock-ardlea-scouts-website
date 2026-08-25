@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, newWeeklyEntry } from "../../src/services/weeklyTrackerLogic.ts";
-import { defaultActivityPlans, defaultBadgeworkPlans } from "../../src/services/weeklyTracker.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, newWeeklyEntry } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
