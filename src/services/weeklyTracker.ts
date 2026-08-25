@@ -1,6 +1,8 @@
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { defaultActivityPlans, defaultBadgeworkPlans, newActivityPlan, newBadgeworkPlan } from "./weeklyTrackerLogic";
+export { defaultActivityPlans, defaultBadgeworkPlans, newActivityPlan, newBadgeworkPlan } from "./weeklyTrackerLogic";
 
 export type WeeklyAttendance = "present" | "absent" | "unrecorded";
 export type WeeklyMeetingStatus = "open" | "closed";
@@ -18,11 +20,6 @@ const LEGACY_PLAN_MARKER = "weekly-plan-v1";
 const ACTIVITY_MARKER = "weekly-activities-v1";
 const BADGEWORK_MARKER = "weekly-badgework-v1";
 const PROGRAMME_MARKER = "weekly-programme-v1";
-
-export const newActivityPlan = (id = crypto.randomUUID()): WeeklyActivityPlan => ({ id, activity: "", leader: "", notes: "", equipment: "", startTime: "", finishTime: "" });
-export const newBadgeworkPlan = (id = crypto.randomUUID()): WeeklyBadgeworkPlan => ({ id, badge: "", notes: "" });
-export const defaultActivityPlans = (): WeeklyActivityPlan[] => [newActivityPlan(), newActivityPlan()];
-export const defaultBadgeworkPlans = (): WeeklyBadgeworkPlan[] => [newBadgeworkPlan()];
 
 function clean(value: string, max: number) { return value.trim().slice(0, max); }
 function cleanEntry(entry: WeeklyMemberEntry): WeeklyMemberEntry { return { memberId: clean(entry.memberId,160), memberName: clean(entry.memberName,160), attendance: entry.attendance, subsPaid: entry.subsPaid === true, subsAmount: Number.isFinite(entry.subsAmount) ? Math.max(0,Math.min(1000,Number(entry.subsAmount.toFixed(2)))) : 0, badges: [...new Set(entry.badges.map((b)=>clean(b,120)).filter(Boolean))].slice(0,20) }; }
