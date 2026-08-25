@@ -72,8 +72,7 @@ async function loginParent(page: Page) {
 }
 
 test.describe("accessibility baseline", () => {
-  test.beforeEach((fixtures, testInfo) => {
-    void fixtures;
+  test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "Accessibility baseline runs once on desktop Chromium.");
   });
 
