@@ -57,6 +57,24 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByText("TEST Playwright meeting persistence check.", { exact: true })).toBeVisible();
 });
 
+test("editing a meeting on mobile scrolls the edit form into view instead of the page top", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Mobile edit-scroll regression runs once on Chromium.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page, leaderEmail!);
+  await page.goto("/leader/meetings");
+
+  const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
+  await expect(fixtureHeading).toBeVisible();
+  await fixtureHeading.scrollIntoViewIfNeeded();
+  await fixtureHeading.locator("..").locator("..").getByRole("button", { name: "Edit" }).click();
+
+  const form = page.getByTestId("meeting-record-form");
+  await expect(form).toBeInViewport();
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).not.toBeInViewport();
+  await expect(page.getByLabel("Meeting title")).toHaveValue(fixtureTitle);
+});
+
 for (const officer of [
   { role: "Group Leader", email: "test.group.leader@example.com" },
   { role: "Group Secretary", email: "test.group.secretary@example.com" }

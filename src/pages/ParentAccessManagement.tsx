@@ -122,7 +122,7 @@ export default function ParentAccessManagement() {
                             const query = isActive ? memberSearch.trim().toLowerCase() : "";
                             const matches = query ? members.filter((member) => `${member.displayName} ${member.section}`.toLowerCase().includes(query)).slice(0, 30) : [];
                             return (
-                                <Paper key={parent.uid} variant="outlined" sx={{ p: 2.5 }}>
+                                <Paper key={parent.uid} data-testid={`parent-access-${parent.uid}`} variant="outlined" sx={{ p: 2.5 }}>
                                     <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
@@ -143,7 +143,7 @@ export default function ParentAccessManagement() {
                                         </Box>
                                         <Stack spacing={1} sx={{ minWidth: 190 }}>
                                             <Button variant={isActive ? "contained" : "outlined"} color="secondary" aria-expanded={isActive} onClick={() => toggleParent(parent.uid)}>{isActive ? "Close Child Linking" : "Manage Linked Children"}</Button>
-                                            <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>
+                                            {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>}
                                             <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>
                                         </Stack>
                                     </Box>
