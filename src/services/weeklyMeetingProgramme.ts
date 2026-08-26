@@ -3,6 +3,7 @@ import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 export type ParentProgrammeItem = {
   name: string;
   durationMinutes: number;
+  equipment: string;
 };
 
 export type ParentWeeklyMeetingProgramme = {
@@ -22,8 +23,8 @@ type WeeklyProgrammeSource = {
   status: "open" | "closed";
   location: string;
   theme: string;
-  activities: Array<{ activity: string; durationMinutes: number }>;
-  badgeworkPlan: Array<{ badge: string; durationMinutes: number }>;
+  activities: Array<{ activity: string; durationMinutes: number; equipment?: string }>;
+  badgeworkPlan: Array<{ badge: string; durationMinutes: number; equipment?: string }>;
 };
 
 const clean = (value: string, max: number) => value.trim().slice(0, max);
@@ -37,11 +38,11 @@ export function buildParentWeeklyMeetingProgramme(source: WeeklyProgrammeSource)
     location: clean(source.location, 240),
     theme: clean(source.theme, 240),
     activities: source.activities
-      .map((item) => ({ name: clean(item.activity, 240), durationMinutes: cleanDuration(item.durationMinutes) }))
+      .map((item) => ({ name: clean(item.activity, 240), durationMinutes: cleanDuration(item.durationMinutes), equipment: clean(item.equipment ?? "", 500) }))
       .filter((item) => item.name)
       .slice(0, 30),
     badgework: source.badgeworkPlan
-      .map((item) => ({ name: clean(item.badge, 240), durationMinutes: cleanDuration(item.durationMinutes) }))
+      .map((item) => ({ name: clean(item.badge, 240), durationMinutes: cleanDuration(item.durationMinutes), equipment: clean(item.equipment ?? "", 500) }))
       .filter((item) => item.name)
       .slice(0, 30)
   };
@@ -58,7 +59,11 @@ function mapProgramme(snapshot: QueryDocumentSnapshot<DocumentData>): ParentWeek
       const item = value as Record<string, unknown>;
       const name = typeof item.name === "string" ? item.name.trim() : "";
       if (!name) return null;
-      return { name, durationMinutes: typeof item.durationMinutes === "number" ? cleanDuration(item.durationMinutes) : 0 };
+      return {
+        name,
+        durationMinutes: typeof item.durationMinutes === "number" ? cleanDuration(item.durationMinutes) : 0,
+        equipment: typeof item.equipment === "string" ? item.equipment.trim() : ""
+      };
     })
     .filter((item): item is ParentProgrammeItem => item !== null);
   return {
@@ -94,11 +99,17 @@ export function buildWeeklyMeetingWhatsAppText(programme: Omit<ParentWeeklyMeeti
   if (programme.theme) lines.push(`Theme: ${programme.theme}`);
   if (programme.activities.length) {
     lines.push("", "Activities / Games:");
-    for (const item of programme.activities) lines.push(`• ${item.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`);
+    for (const item of programme.activities) {
+      lines.push(`• ${item.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`);
+      if (item.equipment) lines.push(`  Equipment: ${item.equipment}`);
+    }
   }
   if (programme.badgework.length) {
     lines.push("", "Badgework:");
-    for (const item of programme.badgework) lines.push(`• ${item.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`);
+    for (const item of programme.badgework) {
+      lines.push(`• ${item.name}${item.durationMinutes ? ` (${item.durationMinutes} min)` : ""}`);
+      if (item.equipment) lines.push(`  Equipment: ${item.equipment}`);
+    }
   }
   return lines.join("\n");
 }
