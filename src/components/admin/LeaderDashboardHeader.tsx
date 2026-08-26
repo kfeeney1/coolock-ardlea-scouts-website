@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "./AdminAuthProvider";
 
-type NavItem = { label: string; path: string; adminOnly?: boolean; };
+type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; };
 const navItems: NavItem[] = [
  { label: "Weekly Meetings", path: "/leader/weekly" },
  { label: "Events & Activities", path: "/leader/events" },
@@ -18,7 +18,7 @@ const navItems: NavItem[] = [
  { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
  { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
  { label: "Leader Access", path: "/leader/access", adminOnly: true },
- { label: "Activity Log", path: "/leader/activity", adminOnly: true },
+ { label: "Activity Log", path: "/leader/activity", activityLogOnly: true },
  { label: "Parent Portal", path: "/parent" },
  { label: "Join Us Management", path: "/leader/join" },
  { label: "Consent Management", path: "/leader/consents" },
@@ -32,7 +32,9 @@ export default function LeaderDashboardHeader() {
  const [menuOpen, setMenuOpen] = useState(false);
  const [signingOut, setSigningOut] = useState(false);
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
- const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+ const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
+ const canViewActivityLog = isAdmin || isGroupOfficer;
+ const visibleItems = navItems.filter((item) => (!item.adminOnly || isAdmin) && (!item.activityLogOnly || canViewActivityLog));
  const currentItem = visibleItems.find((item) => item.path === location.pathname);
  const handleSignOut = async () => {
   setSigningOut(true);
