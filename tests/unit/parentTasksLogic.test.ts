@@ -77,6 +77,17 @@ test("summariseParentTasks counts required consent and upcoming events", () => {
     assert.equal(summary.upcomingEventCount, 2);
 });
 
+test("summariseParentTasks exposes the next event and next consent action in date order", () => {
+    const laterConsent = event({ token: "token-2", eventId: "event-2", title: "Later Camp", startDate: "2099-02-01" });
+    const nextEvent = event({ token: "token-3", eventId: "event-3", title: "Next Hike", startDate: "2099-01-05", consentRequired: false });
+    const firstConsent = event({ token: "token-4", eventId: "event-4", title: "Consent Trip", startDate: "2099-01-10" });
+
+    const summary = summariseParentTasks([laterConsent, nextEvent, firstConsent], [], []);
+
+    assert.equal(summary.nextEvent?.title, "Next Hike");
+    assert.equal(summary.nextConsentEvent?.title, "Consent Trip");
+});
+
 test("summariseParentTasks flags missing and never-reviewed medical records", () => {
     const summary = summariseParentTasks(
         [],
@@ -94,6 +105,8 @@ test("summariseParentTasks reports no action when parent-reviewed records are cu
         eventConsentCount: 0,
         medicalAttentionCount: 0,
         upcomingEventCount: 0,
-        totalAttentionCount: 0
+        totalAttentionCount: 0,
+        nextEvent: null,
+        nextConsentEvent: null
     });
 });
