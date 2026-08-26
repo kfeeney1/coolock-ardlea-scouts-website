@@ -16,8 +16,11 @@ async function requireDoc(collection, id) {
   return snapshot.data();
 }
 
-function activity(id, name, leader, equipment, startTime, finishTime, notes = "") {
-  return { id, activity: name, leader, equipment, startTime, finishTime, notes };
+function activity(id, name, leader, equipment, durationMinutes, notes = "") {
+  return { id, activity: name, leader, equipment, durationMinutes, notes };
+}
+function plannedBadgework(id, badge, leader, equipment, durationMinutes, notes = "") {
+  return { id, badge, leader, equipment, durationMinutes, notes };
 }
 function activities(items) { return JSON.stringify({ marker: activityMarker, items }); }
 function badgework(items) { return JSON.stringify({ marker: badgeworkMarker, items }); }
@@ -42,14 +45,14 @@ const sectionPlans = [
 for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of sectionPlans) {
   const member = await requireDoc("members", `TEST_member_${key}_01`);
   const activityItems = [
-    activity(`${key}-a1`, "Opening game", "Section Leader", "Cones", "19:00", "19:15", "Fast opener"),
-    activity(`${key}-a2`, "Team challenge", "Programme Scouter", "Rope", "19:15", "19:40", "Patrol rotation"),
-    activity(`${key}-a3`, "Closing game", "Scouter", "Ball", "20:10", "20:25", "Short finish")
+    activity(`${key}-a1`, "Opening game", "Section Leader", "Cones", 15, "Fast opener"),
+    activity(`${key}-a2`, "Team challenge", "Programme Scouter", "Rope", 25, "Patrol rotation"),
+    activity(`${key}-a3`, "Closing game", "Scouter", "Ball", 15, "Short finish")
   ].slice(0, Number(activityCount));
   const badgeItems = [
-    { id: `${key}-b1`, badge: "Adventure Skills", notes: "Core badgework" },
-    { id: `${key}-b2`, badge: "Teamwork", notes: "Small-group work" },
-    { id: `${key}-b3`, badge: "Community", notes: "Follow-up activity" }
+    plannedBadgework(`${key}-b1`, "Adventure Skills", "Programme Scouter", "Skills equipment", 30, "Core badgework"),
+    plannedBadgework(`${key}-b2`, "Teamwork", "Section Leader", "Patrol resources", 20, "Small-group work"),
+    plannedBadgework(`${key}-b3`, "Community", "Scouter", "Project materials", 25, "Follow-up activity")
   ].slice(0, Number(badgeCount));
   const base = {
     section,
@@ -70,4 +73,4 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
-console.log("Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows.");
+console.log("Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows with duration-based activities and mirrored badgework planning.");
