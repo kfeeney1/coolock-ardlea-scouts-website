@@ -8,7 +8,7 @@ initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 
 const VALID_TYPES = new Set(["group", "leader"]);
-const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"]);
+const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Group Leaders"]);
 const FULL_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
 
 function text(value) {
@@ -43,7 +43,7 @@ for (const doc of meetingSnapshot.docs) {
   if (!VALID_TYPES.has(meetingType)) fail(path, `meetingType must be group or leader, found ${JSON.stringify(data.meetingType)}`);
   if (!VALID_SECTIONS.has(section)) fail(path, `section is unsupported or missing: ${JSON.stringify(data.section)}`);
   if (meetingType === "group" && section !== "Group") fail(path, "group meetings must use section Group");
-  if (meetingType === "leader" && section === "Group") fail(path, "leader meetings must use a youth section, not Group");
+  if (meetingType === "leader" && section === "Group") fail(path, "leader meetings must use a youth section or Group Leaders, not Group");
   if (!text(data.meetingDate)) fail(path, "meetingDate is required");
   if (!isStringArray(data.attendees) || data.attendees.length === 0) fail(path, "attendees must be a non-empty string array");
   for (const field of ["notes", "decisions", "actions"]) {
