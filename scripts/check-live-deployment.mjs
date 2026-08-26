@@ -43,7 +43,8 @@ function javascriptReferences(source, sourceUrl) {
   const references = new Set();
   const patterns = [
     /["'](\/assets\/[^"'\s]+\.js)["']/g,
-    /["'](\.\.?\/[^"'\s]+\.js)["']/g
+    /["'](\.\.?\/[^"'\s]+\.js)["']/g,
+    /["'](assets\/[^"'\s]+\.js)["']/g
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
