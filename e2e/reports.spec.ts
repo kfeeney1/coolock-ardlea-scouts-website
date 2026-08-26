@@ -15,7 +15,7 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("expanded reports show canonical scope and download summary CSVs", async ({ page }, testInfo) => {
+test("reports v2 filters event reports and downloads summary CSVs", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page);
@@ -23,9 +23,13 @@ test("expanded reports show canonical scope and download summary CSVs", async ({
 
   await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
   await expect(page.getByTestId("report-summary-cards")).toContainText("150");
-  await expect(page.getByTestId("membership-summary-report")).toBeVisible();
-  await expect(page.getByTestId("event-overview-report")).toBeVisible();
-  await expect(page.getByTestId("event-detail-report")).toContainText("Export Outstanding Consent");
+  await expect(page.getByTestId("report-date-filter")).toBeVisible();
+  await expect(page.getByTestId("attendance-trends-report")).toBeVisible();
+  await expect(page.getByTestId("printable-report-summary")).toContainText("Printable operational summary");
+
+  await page.getByLabel("From date").fill("2098-01-01");
+  await page.getByLabel("To date").fill("2099-12-31");
+  await expect(page.getByTestId("report-date-filter")).toContainText(/events in range/);
 
   const membershipDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Membership Summary" }).click();
@@ -36,4 +40,9 @@ test("expanded reports show canonical scope and download summary CSVs", async ({
   await page.getByRole("button", { name: "Export Event Overview" }).click();
   const eventDownload = await eventDownloadPromise;
   expect(eventDownload.suggestedFilename()).toMatch(/^event-overview-\d{4}-\d{2}-\d{2}\.csv$/);
+
+  const trendDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export Attendance Trends" }).click();
+  const trendDownload = await trendDownloadPromise;
+  expect(trendDownload.suggestedFilename()).toMatch(/^attendance-trends-\d{4}-\d{2}-\d{2}\.csv$/);
 });

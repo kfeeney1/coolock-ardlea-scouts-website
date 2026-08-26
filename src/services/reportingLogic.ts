@@ -35,6 +35,15 @@ export function csvCell(value: unknown): string {
     return `"${text.replaceAll('"', '""')}"`;
 }
 
+export function filterEventsByDateRange(events: EventReportRecord[], fromDate = "", toDate = ""): EventReportRecord[] {
+    return events.filter((event) => {
+        if (!event.startDate) return !fromDate && !toDate;
+        if (fromDate && event.startDate < fromDate) return false;
+        if (toDate && event.startDate > toDate) return false;
+        return true;
+    });
+}
+
 export function memberReportCsv(rows: MemberReportRow[]): string {
     const header = ["Member", "Section", "Status", "Parent / Guardian", "Email", "Mobile"];
     const body = rows.map((row) => [
@@ -110,6 +119,19 @@ export function eventOverviewCsv(events: EventReportRecord[]): string {
         Object.values(event.attendance).filter((value) => value === "not-attending").length,
         Object.values(event.consent).filter((value) => value === "received").length
     ].map(csvCell).join(","));
+    return [header.map(csvCell).join(","), ...body].join("\r\n");
+}
+
+export function attendanceTrendCsv(events: EventReportRecord[]): string {
+    const header = ["Event", "Date", "Section", "Recorded responses", "Attending", "Not attending", "Attendance rate"];
+    const body = events.map((event) => {
+        const values = Object.values(event.attendance);
+        const attending = values.filter((value) => value === "attending").length;
+        const notAttending = values.filter((value) => value === "not-attending").length;
+        const recorded = attending + notAttending;
+        const rate = recorded === 0 ? "" : `${Math.round((attending / recorded) * 100)}%`;
+        return [event.title, event.startDate, event.section, recorded, attending, notAttending, rate].map(csvCell).join(",");
+    });
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
