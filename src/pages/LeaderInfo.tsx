@@ -1,5 +1,6 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import OrganisationChartContent from "../components/admin/OrganisationChartContent";
 
 import {
     Accordion,
@@ -55,6 +56,7 @@ const faqs = [
     { q: "Who can see Group and section meeting history?", a: "Access is role-based. Group Leader and Group Secretary roles can view the broader meeting history needed for their roles, while section leaders remain scoped to their permitted sections." },
     { q: "Where can I see attendance trends?", a: "Attendance Insights provides reporting based on recorded attendance. Weekly Meeting History remains the place to inspect the detail of an individual meeting." },
     { q: "Why might I see fewer menu options than another leader?", a: "The Leader Portal is permission-aware. Available pages and actions depend on your approved access level, assigned sections and Scouting role." },
+    { q: "Where is the organisational chart?", a: "The internal organisational chart is now included on this Info & FAQ page so leaders can find organisational information and guidance in one place." },
     { q: "Where is Sign Out?", a: "Sign Out is the final action in the expandable Leader Menu, keeping the dashboard header compact on mobile." },
     { q: "How is production data protected from schema drift?", a: "CI includes live Firestore provenance and compatibility checks for current collection contracts, including weekly meetings and meeting records. Safely migratable legacy shapes have dedicated reconcilers, while ambiguous or incompatible records remain blocking findings." },
     { q: "What happens if production Firestore is temporarily quota-exhausted during a pull request?", a: "Pull-request live-data auditing first probes production availability. If Firestore is quota-exhausted or unreachable, that live portion is explicitly deferred rather than producing a false application failure. Pushes to main and manual production audits still fail closed." },
@@ -79,12 +81,22 @@ export default function LeaderInfo() {
 
                 <LeaderPageHeader
                     title="Leader Portal Information"
-                    description="Current portal capabilities, development status and frequently asked questions."
+                    description="Current portal capabilities, organisational information, development status and frequently asked questions."
                 />
 
                 <Alert severity="success" sx={{ mb: 3 }}>
                     Stages 1–8 are complete. The portal is now in ongoing maintenance and continuous improvement: future changes should preserve the security, data-integrity, accessibility, recovery and regression safeguards established during Stage 8.
                 </Alert>
+
+                <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>
+                    Organisational Chart
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                    Internal organisational hierarchy, sections and reporting relationships for active leaders.
+                </Typography>
+                <Box sx={{ mb: 5 }}>
+                    <OrganisationChartContent />
+                </Box>
 
                 <Typography variant="h4" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>
                     Development Roadmap
