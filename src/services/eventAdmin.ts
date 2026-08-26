@@ -16,6 +16,7 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import { canTransitionEventStatus, eventCloseOutIssues } from "./eventLifecycleLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type EventStatus = "draft" | "open" | "closed" | "completed";
@@ -162,6 +163,7 @@ export async function createEvent(input: EventInput): Promise<string> {
     if (!user) throw new Error("No signed-in leader.");
     const title = clean(input.title, 200);
     if (!title) throw new Error("Event title is required.");
+    if (input.status !== "draft" && input.status !== "open") throw new Error("New events must start as Draft or Open.");
 
     const eventRef = await addDoc(collection(db, "events"), {
         title,
@@ -200,7 +202,26 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
 
-    await updateDoc(doc(db, "events", eventId), {
+    const eventRef = doc(db, "events", eventId);
+    const currentSnapshot = await getDoc(eventRef);
+    if (!currentSnapshot.exists()) throw new Error("Event not found.");
+    const current = currentSnapshot.data();
+    const currentStatus = current.status as EventStatus;
+    if (!EVENT_STATUSES.includes(currentStatus)) throw new Error("Event has an invalid current status.");
+    if (!canTransitionEventStatus(currentStatus, input.status)) {
+        throw new Error(`Event status cannot move directly from ${currentStatus} to ${input.status}.`);
+    }
+    if (input.status === "completed") {
+        const issues = eventCloseOutIssues({
+            status: currentStatus,
+            consentRequired: current.consentRequired === true,
+            attendance: mapAttendance(current.attendance),
+            consent: mapConsent(current.consent)
+        });
+        if (issues.length > 0) throw new Error(issues.join(" "));
+    }
+
+    await updateDoc(eventRef, {
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
         eventType: clean(input.eventType, 80),
@@ -220,11 +241,13 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     await syncPublicEvent(eventId, input);
     await recordAuditEvent({
         category: "event",
-        action: "Event updated",
+        action: input.status === "completed" ? "Event completed" : "Event updated",
         targetId: eventId,
         targetLabel: clean(input.title, 200),
         section: clean(input.section, 80),
-        description: `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}.`
+        description: input.status === "completed"
+            ? "Completed event after attendance and consent close-out checks passed."
+            : `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}.`
     });
 }
 
@@ -236,7 +259,12 @@ export async function updateEventRoster(
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
 
-    await updateDoc(doc(db, "events", eventId), {
+    const eventRef = doc(db, "events", eventId);
+    const currentSnapshot = await getDoc(eventRef);
+    if (!currentSnapshot.exists()) throw new Error("Event not found.");
+    if (currentSnapshot.data().status === "completed") throw new Error("Completed event rosters are read-only.");
+
+    await updateDoc(eventRef, {
         attendance,
         consent,
         updatedAt: serverTimestamp(),
