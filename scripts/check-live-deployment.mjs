@@ -43,12 +43,14 @@ function javascriptReferences(source, sourceUrl) {
   const references = new Set();
   const patterns = [
     /["'](\/assets\/[^"'\s]+\.js)["']/g,
-    /["'](\.\.?\/[^"'\s]+\.js)["']/g
+    /["'](\.\.?\/[^"'\s]+\.js)["']/g,
+    /["'](assets\/[^"'\s]+\.js)["']/g
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
       try {
-        const url = new URL(match[1], sourceUrl);
+        const reference = match[1];
+        const url = new URL(reference.startsWith("assets/") ? `/${reference}` : reference, sourceUrl);
         if (url.origin === new URL(siteUrl).origin && url.pathname.startsWith("/assets/")) references.add(url.href);
       } catch {}
     }
