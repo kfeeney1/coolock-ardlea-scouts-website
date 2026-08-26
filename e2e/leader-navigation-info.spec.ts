@@ -22,6 +22,6 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
 
   await menu.getByRole("link", { name: "Info & FAQ" }).click();
   await expect(page).toHaveURL(/\/leader\/info$/);
-  await expect(page.getByRole("heading", { name: "Organisational Chart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Organisational Chart", exact: true })).toBeVisible();
   await expect(page.getByText("Internal organisational hierarchy, sections and reporting relationships for active leaders.")).toBeVisible();
 });
