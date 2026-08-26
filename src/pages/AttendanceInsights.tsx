@@ -180,7 +180,7 @@ export default function AttendanceInsights() {
 
                         <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(280px, 1fr) 280px" }, gap: 2 }}>
-                                <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} inputProps={{ "data-testid": "attendance-member-search" }} />
+                                <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
                                 <FormControl>
                                     <InputLabel>Section</InputLabel>
                                     <Select label="Section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)}>
