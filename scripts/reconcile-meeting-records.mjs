@@ -11,7 +11,7 @@ initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 
 const VALID_TYPES = new Set(["group", "leader"]);
-const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"]);
+const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Group Leaders"]);
 const CANONICAL_SEEDED_MEETINGS = new Map([
   ["TEST_flow_meeting_group", {
     meetingDate: "2026-08-20",
