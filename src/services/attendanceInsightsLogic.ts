@@ -14,6 +14,26 @@ export type AttendanceInsightEvent = {
     attendance: Record<string, string>;
 };
 
+export type AttendanceInsightMeeting = {
+    id: string;
+    section: string;
+    meetingDate: string;
+    status: string;
+    entries: Array<{ memberId: string; attendance: string }>;
+};
+
+export type AttendanceHistoryRow = {
+    id: string;
+    title: string;
+    date: string;
+    status: "present" | "absent" | "unrecorded" | "attending" | "not-attending";
+};
+
+export type MemberAttendanceHistory = {
+    meetings: AttendanceHistoryRow[];
+    events: AttendanceHistoryRow[];
+};
+
 export type MemberAttendanceInsight = {
     memberId: string;
     displayName: string;
@@ -26,6 +46,38 @@ export type MemberAttendanceInsight = {
     lastRecordedDate: string;
     lastAttendanceStatus: "attending" | "not-attending" | "unrecorded";
 };
+
+export function buildMemberAttendanceHistory(
+    member: AttendanceInsightMember,
+    events: AttendanceInsightEvent[],
+    meetings: AttendanceInsightMeeting[]
+): MemberAttendanceHistory {
+    const eventRows = events
+        .filter((event) => event.status === "completed")
+        .filter((event) => event.section === "All Sections" || event.section === member.section)
+        .map<AttendanceHistoryRow>((event) => {
+            const raw = event.attendance[member.id];
+            return {
+                id: event.id,
+                title: event.title,
+                date: event.startDate,
+                status: raw === "attending" || raw === "not-attending" ? raw : "unrecorded"
+            };
+        })
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+    const meetingRows = meetings
+        .filter((meeting) => meeting.status === "closed" && meeting.section === member.section)
+        .flatMap<AttendanceHistoryRow>((meeting) => {
+            const entry = meeting.entries.find((candidate) => candidate.memberId === member.id);
+            if (!entry) return [];
+            const status = entry.attendance === "present" || entry.attendance === "absent" ? entry.attendance : "unrecorded";
+            return [{ id: meeting.id, title: "Weekly Meeting", date: meeting.meetingDate, status }];
+        })
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+    return { meetings: meetingRows, events: eventRows };
+}
 
 export function buildMemberAttendanceInsights(
     members: AttendanceInsightMember[],
