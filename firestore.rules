@@ -359,7 +359,7 @@ service cloud.firestore {
     }
 
     match /auditLog/{entryId} {
-      allow get, list: if isAdmin();
+      allow get, list: if isAdmin() || isGroupLeader() || isGroupSecretary();
       allow create: if isActiveLeader()
         && request.resource.data.actorUid == request.auth.uid
         && request.auth.token.email is string
