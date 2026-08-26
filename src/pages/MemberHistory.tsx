@@ -18,6 +18,14 @@ function formatDate(value: Date | null): string {
     : "Date unavailable";
 }
 
+function matchesSearch(member: MemberOption, value: string): boolean {
+  const normalized = value.trim().toLocaleLowerCase();
+  return !normalized
+    || member.displayName.toLocaleLowerCase().includes(normalized)
+    || member.section.toLocaleLowerCase().includes(normalized)
+    || member.status.toLocaleLowerCase().includes(normalized);
+}
+
 export default function MemberHistory() {
   const { adminProfile } = useAdminAuth();
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -95,17 +103,22 @@ export default function MemberHistory() {
     return () => { cancelled = true; };
   }, [selectedId]);
 
-  const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredMembers = useMemo(
-    () => members.filter((member) =>
-      !normalizedSearch
-      || member.displayName.toLocaleLowerCase().includes(normalizedSearch)
-      || member.section.toLocaleLowerCase().includes(normalizedSearch)
-      || member.status.toLocaleLowerCase().includes(normalizedSearch)
-    ),
-    [members, normalizedSearch]
+    () => members.filter((member) => matchesSearch(member, search)),
+    [members, search]
   );
-  const selected = useMemo(() => members.find((member) => member.id === selectedId), [members, selectedId]);
+  const selected = useMemo(
+    () => filteredMembers.find((member) => member.id === selectedId),
+    [filteredMembers, selectedId]
+  );
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    const matches = members.filter((member) => matchesSearch(member, value));
+    if (!matches.some((member) => member.id === selectedId)) {
+      setSelectedId(matches[0]?.id || "");
+    }
+  };
 
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
@@ -128,7 +141,7 @@ export default function MemberHistory() {
               <TextField
                 label="Search members"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => handleSearchChange(event.target.value)}
                 placeholder="Search by name, section or status"
                 slotProps={{ htmlInput: { "data-testid": "member-history-search" } }}
               />
@@ -152,7 +165,7 @@ export default function MemberHistory() {
         </Paper>
 
         {selected && (
-          <Paper variant="outlined" sx={{ p: 3 }}>
+          <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 2 }}>
               <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>{selected.displayName}</Typography>
               <Chip label={selected.section || "No section"} variant="outlined" />
