@@ -31,9 +31,11 @@ test("member history search narrows the permitted member selector", async ({ pag
   await search.fill("Casey OBrien Scouts 01");
   await expect(page.getByTestId("member-history-match-count")).toHaveText("1 of 30 members shown");
 
-  await page.getByLabel("Member").click();
-  await expect(page.getByRole("option", { name: /Casey OBrien Scouts 01/ })).toBeVisible();
-  await page.getByRole("option", { name: /Casey OBrien Scouts 01/ }).click();
+  const memberSelect = page.getByRole("combobox", { name: "Member" });
+  await memberSelect.click();
+  const memberOption = page.getByRole("option", { name: /Casey OBrien Scouts 01/ });
+  await expect(memberOption).toBeVisible();
+  await memberOption.click();
   await expect(page.getByRole("heading", { name: "Casey OBrien Scouts 01" })).toBeVisible();
 
   await search.fill("member that does not exist");
