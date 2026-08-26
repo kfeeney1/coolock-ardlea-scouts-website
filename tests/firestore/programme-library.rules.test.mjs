@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -54,9 +54,12 @@ test("programme library queries must stay inside the leader section", async () =
   await seed([
     ["adminUsers/leader-scouts", { active: true, role: "leader", sections: ["Scouts"] }],
     ["programmeLibrary/template-1", { ...template, createdAt: new Date(), updatedAt: new Date() }],
+    ["programmeLibrary/template-cubs", { ...template, section: "Cubs", createdAt: new Date(), updatedAt: new Date() }],
   ]);
   const db = testEnv.authenticatedContext("leader-scouts").firestore();
-  await assertSucceeds(getDocs(collection(db, "programmeLibrary")));
+  await assertSucceeds(getDocs(query(collection(db, "programmeLibrary"), where("section", "==", "Scouts"))));
+  await assertFails(getDocs(collection(db, "programmeLibrary")));
+  await assertFails(getDocs(query(collection(db, "programmeLibrary"), where("section", "==", "Cubs"))));
 });
 
 test("unauthenticated users cannot read programme templates", async () => {
