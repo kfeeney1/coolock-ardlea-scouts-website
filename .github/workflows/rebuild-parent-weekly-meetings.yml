@@ -1,0 +1,26 @@
+name: Rebuild Parent Weekly Programmes
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type REBUILD to rebuild parent-safe weekly meeting projections'
+        required: true
+        type: string
+
+jobs:
+  rebuild:
+    if: ${{ inputs.confirmation == 'REBUILD' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Rebuild parent-safe weekly meeting projections
+        run: node scripts/rebuild-parent-weekly-meetings.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          APPLY: 'true'

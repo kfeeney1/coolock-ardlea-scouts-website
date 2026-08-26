@@ -25,6 +25,18 @@ function plannedBadgework(id, badge, leader, equipment, durationMinutes, notes =
 function activities(items) { return JSON.stringify({ marker: activityMarker, items }); }
 function badgework(items) { return JSON.stringify({ marker: badgeworkMarker, items }); }
 function programme(theme, notes) { return JSON.stringify({ marker: programmeMarker, theme, notes }); }
+function parentProgramme(section, meetingDate, activityItems, badgeItems) {
+  return {
+    section,
+    meetingDate,
+    status: "closed",
+    location: "Scout Den",
+    theme: `${section} Test Theme`,
+    activities: activityItems.map((item) => ({ name: item.activity, durationMinutes: item.durationMinutes })),
+    badgework: badgeItems.map((item) => ({ name: item.badge, durationMinutes: item.durationMinutes })),
+    updatedAt: FieldValue.serverTimestamp()
+  };
+}
 
 const scoutMember = await requireDoc("members", "TEST_member_scout_01");
 const scoutMemberName = scoutMember.displayName;
@@ -67,10 +79,13 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
     createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker
   };
   const primaryId = section === "Scouts" ? "TEST_e2e_weekly_scout" : `TEST_e2e_weekly_${key}_01`;
+  const secondId = `TEST_e2e_weekly_${key}_02`;
   await db.collection("weeklyMeetings").doc(primaryId).set({ ...base, meetingDate: primaryDate });
-  await db.collection("weeklyMeetings").doc(`TEST_e2e_weekly_${key}_02`).set({ ...base, meetingDate: secondDate, notes: "Second deterministic historical meeting." });
+  await db.collection("weeklyMeetings").doc(secondId).set({ ...base, meetingDate: secondDate, notes: "Second deterministic historical meeting." });
+  await db.collection("parentWeeklyMeetings").doc(primaryId).set(parentProgramme(section, primaryDate, activityItems, badgeItems));
+  await db.collection("parentWeeklyMeetings").doc(secondId).set(parentProgramme(section, secondDate, activityItems, badgeItems));
 }
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
-console.log("Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows with duration-based activities and mirrored badgework planning.");
+console.log("Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows with duration-based activities, mirrored badgework planning and parent-safe programme projections.");

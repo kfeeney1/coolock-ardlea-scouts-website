@@ -289,6 +289,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /parentWeeklyMeetings/{weeklyMeetingId} {
+      allow get, list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.meetingDate is string
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.theme is string
+        && request.resource.data.activities is list
+        && request.resource.data.badgework is list
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.meetingDate is string
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.theme is string
+        && request.resource.data.activities is list
+        && request.resource.data.badgework is list
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
+      allow delete: if false;
+    }
+
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
       allow create, update: if isAdmin()

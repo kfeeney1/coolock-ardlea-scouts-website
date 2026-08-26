@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
+import ParentWeeklyProgramme from "./ParentWeeklyProgramme";
 import { loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
 import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import { summariseParentTasks, type ParentTaskSummary } from "../../services/parentTasksLogic";
@@ -123,6 +124,8 @@ export default function ParentThingsToDo({ memberIds, sections }: Props) {
                             </Button>
                         </Paper>
                     </Box>
+
+                    <ParentWeeklyProgramme sections={sections} />
                 </>
             )}
         </Paper>
