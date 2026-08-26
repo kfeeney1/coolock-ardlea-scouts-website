@@ -289,6 +289,48 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /programmeLibrary/{templateId} {
+      allow get, list: if isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader());
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.kind in ["activity", "badgework"]
+        && request.resource.data.name is string
+        && request.resource.data.leader is string
+        && request.resource.data.notes is string
+        && request.resource.data.equipment is string
+        && request.resource.data.durationMinutes is number
+        && request.resource.data.durationMinutes >= 0
+        && request.resource.data.durationMinutes <= 360
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["kind", "section", "name", "leader", "notes", "equipment", "durationMinutes", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section == resource.data.section
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && request.resource.data.kind in ["activity", "badgework"]
+        && request.resource.data.name is string
+        && request.resource.data.leader is string
+        && request.resource.data.notes is string
+        && request.resource.data.equipment is string
+        && request.resource.data.durationMinutes is number
+        && request.resource.data.durationMinutes >= 0
+        && request.resource.data.durationMinutes <= 360
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["kind", "name", "leader", "notes", "equipment", "durationMinutes", "updatedBy", "updatedAt"]);
+      allow delete: if isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader());
+    }
+
     match /parentWeeklyMeetings/{weeklyMeetingId} {
       allow get, list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
