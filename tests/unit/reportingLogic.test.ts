@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    attendanceTrendCsv,
     csvCell,
     eventOverviewCsv,
     eventRosterCsv,
+    filterEventsByDateRange,
     memberReportCsv,
     membershipSummaryCsv,
     outstandingConsentCsv,
@@ -39,6 +41,16 @@ test("csvCell escapes quotes and neutralises spreadsheet formulas", () => {
     assert.equal(csvCell(" +SUM(A1:A2)"), '"\' +SUM(A1:A2)"');
 });
 
+test("filterEventsByDateRange applies inclusive start and end dates", () => {
+    const rows = [
+        event,
+        { ...event, id: "event-2", title: "Earlier", startDate: "2026-09-01" },
+        { ...event, id: "event-3", title: "Later", startDate: "2026-11-01" }
+    ];
+    assert.deepEqual(filterEventsByDateRange(rows, "2026-09-01", "2026-10-02").map((row) => row.id), ["event-1", "event-2"]);
+    assert.deepEqual(filterEventsByDateRange(rows, "2026-10-02", "2026-10-02").map((row) => row.id), ["event-1"]);
+});
+
 test("memberReportCsv excludes sensitive medical, DOB and emergency columns", () => {
     const csv = memberReportCsv([members[0]]);
     assert.match(csv, /Member.*Section.*Status.*Parent \/ Guardian.*Email.*Mobile/);
@@ -67,6 +79,13 @@ test("eventOverviewCsv summarises event attendance and received consent counts",
     assert.match(csv, /Status.*Consent required.*Attending.*Not attending.*Consent received/);
     assert.match(csv, /Weekend Camp.*open.*Yes.*1.*1.*1/);
     assert.doesNotMatch(csv, /Member|Phone|Medical/i);
+});
+
+test("attendanceTrendCsv calculates rate from recorded responses only", () => {
+    const csv = attendanceTrendCsv([event, { ...event, id: "event-2", title: "No Responses", attendance: {} }]);
+    assert.match(csv, /Recorded responses.*Attending.*Not attending.*Attendance rate/);
+    assert.match(csv, /Weekend Camp.*2.*1.*1.*50%/);
+    assert.match(csv, /No Responses.*0.*0.*0/);
 });
 
 test("outstandingConsentCsv contains only members without received consent", () => {
