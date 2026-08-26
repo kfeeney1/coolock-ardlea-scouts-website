@@ -167,7 +167,7 @@ export default function LeaderReports() {
                 {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box> : (
                     <Stack spacing={3}>
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="report-date-filter">
-                            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+                            <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: { md: "center" } }}>
                                 <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
                                 <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
                                 <Button variant="outlined" onClick={() => { setFromDate(""); setToDate(""); }} disabled={!fromDate && !toDate}>Clear dates</Button>
@@ -182,7 +182,7 @@ export default function LeaderReports() {
                         </Box>
 
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="printable-report-summary">
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ sm: "center" }}>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                                 <Box>
                                     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Printable operational summary</Typography>
                                     <Typography color="text.secondary">{scopeLabel} · {dateRangeLabel} · {members.length} members · {filteredEvents.length} events</Typography>
