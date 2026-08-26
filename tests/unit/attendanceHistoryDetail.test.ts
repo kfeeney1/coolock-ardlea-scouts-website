@@ -14,6 +14,12 @@ const meetings = [
 
 test("member attendance history separates completed events from closed weekly meetings", () => {
   const history = buildMemberAttendanceHistory(member, events, meetings);
-  assert.deepEqual(history.meetings, [{ id: "meeting-1", title: "Weekly Meeting", date: "2099-01-15", status: "present" }]);
-  assert.deepEqual(history.events, [{ id: "event-1", title: "Camp", date: "2099-01-20", status: "attending" }]);
+  assert.deepEqual(history.meetings, [{ id: "meeting-1", title: "Weekly Meeting", date: "2099-01-15", source: "meeting", status: "present" }]);
+  assert.deepEqual(history.events, [{ id: "event-1", title: "Camp", date: "2099-01-20", source: "event", status: "attending" }]);
+});
+
+test("member attendance history applies an inclusive date range to both sources", () => {
+  const history = buildMemberAttendanceHistory(member, events, meetings, { from: "2099-01-18", to: "2099-01-20" });
+  assert.equal(history.meetings.length, 0);
+  assert.deepEqual(history.events, [{ id: "event-1", title: "Camp", date: "2099-01-20", source: "event", status: "attending" }]);
 });
