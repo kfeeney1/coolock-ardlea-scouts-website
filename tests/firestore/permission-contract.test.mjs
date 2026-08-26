@@ -150,3 +150,48 @@ test("audit log writes bind actor email to the authenticated identity and known 
     category: "made-up-category",
   }));
 });
+
+test("Activity Log is readable by Group Leader and Group Secretary but not ordinary leaders", async () => {
+  await seed([
+    ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"] }],
+    ["adminUsers/group-secretary", { active: true, role: "leader", sections: ["Group"] }],
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["organisationLeadership/group-leader", {
+      active: true,
+      scoutingRole: "Group Leader",
+      displayName: "Test Group Leader",
+      organisationSection: "Group",
+      organisationOrder: 1,
+      reportsToUid: "",
+      showPublicly: true,
+    }],
+    ["organisationLeadership/group-secretary", {
+      active: true,
+      scoutingRole: "Group Secretary",
+      displayName: "Test Group Secretary",
+      organisationSection: "Group",
+      organisationOrder: 2,
+      reportsToUid: "group-leader",
+      showPublicly: true,
+    }],
+    ["auditLog/example", {
+      actorUid: "leader-cubs",
+      actorEmail: "leader-cubs@example.com",
+      category: "member",
+      action: "member-updated",
+      targetId: "member-cub",
+      targetLabel: "Test Cub",
+      description: "Updated member record",
+      section: "Cubs",
+      createdAt: new Date("2026-08-26T12:00:00Z"),
+    }],
+  ]);
+
+  const groupLeaderDb = testEnv.authenticatedContext("group-leader").firestore();
+  const groupSecretaryDb = testEnv.authenticatedContext("group-secretary").firestore();
+  const ordinaryLeaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
+
+  await assertSucceeds(getDocs(collection(groupLeaderDb, "auditLog")));
+  await assertSucceeds(getDocs(collection(groupSecretaryDb, "auditLog")));
+  await assertFails(getDocs(collection(ordinaryLeaderDb, "auditLog")));
+});

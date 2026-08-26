@@ -23,7 +23,9 @@ async function openLeaderMenu(page: Page) {
 
 for (const [role, email] of [
   ["Admin", "test.webadmin@example.com"],
-  ["Super Admin", "test.superadmin@example.com"]
+  ["Super Admin", "test.superadmin@example.com"],
+  ["Group Leader", "test.group.leader@example.com"],
+  ["Group Secretary", "test.group.secretary@example.com"]
 ] as const) {
   test(`${role} can open the read-only Activity Log`, async ({ page }, testInfo) => {
     desktopOnly(testInfo);
@@ -37,6 +39,7 @@ for (const [role, email] of [
     await expect(page).toHaveURL(/\/leader\/activity$/);
     await expect(page.getByRole("heading", { name: "Activity Log" })).toBeVisible();
     await expect(page.getByText(/Read-only history of important administrative and leader actions/i)).toBeVisible();
+    await expect(page.getByText("Unable to load the activity log.")).toHaveCount(0);
   });
 }
 
