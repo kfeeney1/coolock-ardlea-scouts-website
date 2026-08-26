@@ -19,10 +19,9 @@ test("mobile Weekly Meetings keeps editable content clear of sticky save actions
   await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
 
-  const openMeetingPanel = page.getByRole("heading", { name: "Open Meeting" }).locator("..");
-  const meetingButton = openMeetingPanel.getByRole("button").first();
-  await expect(meetingButton).toBeVisible();
-  await meetingButton.click();
+  const historyCard = page.getByTestId(/meeting-history-/).first();
+  await expect(historyCard).toBeVisible();
+  await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click();
 
   await page.getByRole("button", { name: "Notes", exact: true }).click();
   const notes = page.getByLabel("Additional meeting notes");
