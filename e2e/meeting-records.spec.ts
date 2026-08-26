@@ -152,18 +152,18 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
 
   const heading = page.getByText(title, { exact: true });
   await expect(heading).toBeVisible();
-  let card = heading.locator("..").locator("..");
-  await expect(card.getByText("Group Leaders Meeting", { exact: true })).toBeVisible();
-  await expect(card.getByText("Group Leaders", { exact: true })).toBeVisible();
-  await card.getByRole("button", { name: "Edit" }).click();
+  let recordCard = heading.locator("..").locator("..").locator("..");
+  await expect(recordCard.getByText("Group Leaders Meeting", { exact: true })).toBeVisible();
+  await expect(recordCard.getByText("Group Leaders", { exact: true })).toBeVisible();
+  await recordCard.getByRole("button", { name: "Edit" }).click();
 
   await page.getByLabel("Notes / Minutes").fill(revisedMinutes);
   await page.getByRole("button", { name: "Update Meeting" }).click();
   await expect(page.getByText(/previous version has been retained/i)).toBeVisible();
   await expect(page.getByText(revisedMinutes, { exact: true })).toBeVisible();
 
-  card = page.getByText(title, { exact: true }).locator("..").locator("..");
-  await card.getByRole("button", { name: "Version History" }).click();
-  await expect(card.getByRole("heading", { name: "Previous versions" })).toBeVisible();
-  await expect(card.getByText(originalMinutes, { exact: true })).toBeVisible();
+  recordCard = page.getByText(title, { exact: true }).locator("..").locator("..").locator("..");
+  await recordCard.getByRole("button", { name: "Version History" }).click();
+  await expect(recordCard.getByText("Previous versions", { exact: true })).toBeVisible();
+  await expect(recordCard.getByText(originalMinutes, { exact: true })).toBeVisible();
 });
