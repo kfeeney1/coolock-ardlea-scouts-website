@@ -1,7 +1,7 @@
 import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
-export type AuditCategory = "parent-access" | "leader-request" | "leader-access" | "member" | "event" | "event-consent" | "system";
+export type AuditCategory = "parent-access" | "leader-request" | "leader-access" | "member" | "event" | "event-consent" | "meeting-record" | "system";
 
 export type AuditLogEntry = {
   id: string;
@@ -17,7 +17,7 @@ export type AuditLogEntry = {
 };
 
 type AuditWrite = Omit<AuditLogEntry, "id" | "actorUid" | "actorEmail" | "createdAt">;
-const AUDIT_CATEGORIES = ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "system"] as const;
+const AUDIT_CATEGORIES = ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "meeting-record", "system"] as const;
 
 export async function recordAuditEvent(event: AuditWrite) {
   const user = auth.currentUser;
