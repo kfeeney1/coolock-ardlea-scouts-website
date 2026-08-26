@@ -39,6 +39,48 @@ async function get(path) {
   return { response, text };
 }
 
+function javascriptReferences(source, sourceUrl) {
+  const references = new Set();
+  const patterns = [
+    /["'](\/assets\/[^"'\s]+\.js)["']/g,
+    /["'](\.\.?\/[^"'\s]+\.js)["']/g
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      try {
+        const url = new URL(match[1], sourceUrl);
+        if (url.origin === new URL(siteUrl).origin && url.pathname.startsWith("/assets/")) references.add(url.href);
+      } catch {}
+    }
+  }
+  return [...references];
+}
+
+async function loadJavascriptGraph(entryPath) {
+  const entryUrl = new URL(entryPath, siteUrl).href;
+  const queue = [entryUrl];
+  const seen = new Set();
+  const sources = [];
+  let entryCache = "";
+  while (queue.length && seen.size < 100) {
+    const url = queue.shift();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      fail(`JavaScript asset ${new URL(url).pathname} returned ${response.status}`);
+      continue;
+    }
+    if (url === entryUrl) entryCache = response.headers.get("cache-control") || "";
+    const source = await response.text();
+    sources.push(source);
+    for (const reference of javascriptReferences(source, url)) {
+      if (!seen.has(reference)) queue.push(reference);
+    }
+  }
+  return { sources, assetCount: seen.size, entryCache };
+}
+
 const routes = ["/", "/about", "/join", "/leader/login", "/parent"];
 let root;
 for (const path of routes) {
@@ -73,29 +115,24 @@ if (root) {
   if (headers.get("permissions-policy") !== "camera=(), microphone=(), geolocation=()") fail("Permissions-Policy does not match the production baseline");
   else pass("Permissions-Policy matches the production baseline");
 
-  const jsMatch = root.text.match(/src="(\/assets\/[^"]+\.js)"/);
+  const jsMatch = root.text.match(/src=["'](\/assets\/[^"']+\.js)["']/);
   if (!jsMatch) {
     fail("No hashed Vite JavaScript asset was found in the live SPA shell");
   } else {
-    const asset = await fetch(`${siteUrl}${jsMatch[1]}`, { cache: "no-store" });
-    if (!asset.ok) {
-      fail(`Hashed JavaScript asset returned ${asset.status}`);
-    } else {
-      const cache = asset.headers.get("cache-control") || "";
-      if (!cache.includes("immutable") || !cache.includes("max-age=31536000")) fail("Hashed JavaScript asset does not have immutable one-year caching");
-      else pass("Hashed JavaScript asset has immutable one-year caching");
+    const graph = await loadJavascriptGraph(jsMatch[1]);
+    if (!graph.entryCache.includes("immutable") || !graph.entryCache.includes("max-age=31536000")) fail("Hashed JavaScript asset does not have immutable one-year caching");
+    else pass("Hashed JavaScript asset has immutable one-year caching");
 
-      const javascript = await asset.text();
-      if (javascript.includes("public-leadership.json")) {
-        pendingOrFail("Live JavaScript still references the obsolete public-leadership.json snapshot.");
-      } else {
-        pass("Live JavaScript does not reference the obsolete public-leadership.json snapshot");
-      }
-      if (!javascript.includes("publicLeadership")) {
-        pendingOrFail("Live JavaScript does not contain the publicLeadership Firestore collection reference.");
-      } else {
-        pass("Live JavaScript contains the publicLeadership Firestore collection reference");
-      }
+    const allJavascript = graph.sources.join("\n");
+    if (allJavascript.includes("public-leadership.json")) {
+      pendingOrFail("Live JavaScript graph still references the obsolete public-leadership.json snapshot.");
+    } else {
+      pass(`Live JavaScript graph (${graph.assetCount} asset(s)) does not reference the obsolete public-leadership.json snapshot`);
+    }
+    if (!allJavascript.includes("publicLeadership")) {
+      pendingOrFail("Live JavaScript graph does not contain the publicLeadership Firestore collection reference.");
+    } else {
+      pass("Live JavaScript graph contains the publicLeadership Firestore collection reference");
     }
   }
 }
@@ -122,28 +159,68 @@ if (obsoleteSnapshotIsJsonArray) {
   pass("Obsolete public-leadership.json is no longer available as JSON data");
 }
 
-console.log(`Checking anonymous publicLeadership access in Firebase project '${firebaseProjectId}'.`);
-const publicLeadershipUrl = new URL(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents/publicLeadership`);
-publicLeadershipUrl.searchParams.set("key", firebaseApiKey);
-const publicLeadershipResponse = await fetch(publicLeadershipUrl, { cache: "no-store" });
-if (!publicLeadershipResponse.ok) {
+console.log(`Checking anonymous publicLeadership query in Firebase project '${firebaseProjectId}'.`);
+const firestoreBase = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseProjectId)}/databases/(default)/documents`;
+const unrestrictedUrl = new URL(`${firestoreBase}/publicLeadership`);
+unrestrictedUrl.searchParams.set("key", firebaseApiKey);
+const unrestrictedResponse = await fetch(unrestrictedUrl, { cache: "no-store" });
+if (unrestrictedResponse.status === 403) {
+  pass("Unrestricted anonymous publicLeadership collection listing is denied");
+} else if (unrestrictedResponse.ok) {
+  fail("Unrestricted anonymous publicLeadership collection listing unexpectedly succeeded");
+} else {
+  fail(`Unrestricted anonymous publicLeadership collection listing returned unexpected ${unrestrictedResponse.status}`);
+}
+
+const queryUrl = new URL(`${firestoreBase}:runQuery`);
+queryUrl.searchParams.set("key", firebaseApiKey);
+const queryResponse = await fetch(queryUrl, {
+  method: "POST",
+  cache: "no-store",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    structuredQuery: {
+      from: [{ collectionId: "publicLeadership" }],
+      where: {
+        compositeFilter: {
+          op: "AND",
+          filters: [
+            { fieldFilter: { field: { fieldPath: "publicProjectionVersion" }, op: "EQUAL", value: { integerValue: "2" } } },
+            { fieldFilter: { field: { fieldPath: "sourceAccessRole" }, op: "EQUAL", value: { stringValue: "leader" } } },
+            { fieldFilter: { field: { fieldPath: "active" }, op: "EQUAL", value: { booleanValue: true } } },
+            { fieldFilter: { field: { fieldPath: "showPublicly" }, op: "EQUAL", value: { booleanValue: true } } }
+          ]
+        }
+      }
+    }
+  })
+});
+if (!queryResponse.ok) {
   let detail = "";
   try {
-    const body = await publicLeadershipResponse.json();
+    const body = await queryResponse.json();
     detail = body?.error?.message ? `: ${body.error.message}` : "";
   } catch {}
-  const message = `Anonymous publicLeadership Firestore read returned ${publicLeadershipResponse.status}${detail}`;
+  const message = `Constrained anonymous publicLeadership query returned ${queryResponse.status}${detail}`;
   if (allowPendingDeployWarning) warn(`${message}. Production rules may still be pending this PR's merge deployment.`);
   else fail(message);
 } else {
-  const payload = await publicLeadershipResponse.json();
-  const documents = Array.isArray(payload.documents) ? payload.documents : [];
+  const payload = await queryResponse.json();
+  const documents = Array.isArray(payload) ? payload.map((item) => item?.document).filter(Boolean) : [];
   const privilegedLooking = documents.filter((document) => {
     const uid = String(document?.name || "").split("/").pop() || "";
     return /(^|[_-])(super[_-]?admin|admin)([_-]|$)/i.test(uid);
   });
-  if (privilegedLooking.length > 0) fail(`publicLeadership contains ${privilegedLooking.length} admin/super-admin-shaped document ID(s).`);
-  else pass(`Anonymous publicLeadership Firestore read returned 200 with ${documents.length} document(s) and no admin-shaped IDs`);
+  const invalidProjection = documents.filter((document) => {
+    const fields = document?.fields || {};
+    return String(fields.publicProjectionVersion?.integerValue || "") !== "2"
+      || fields.sourceAccessRole?.stringValue !== "leader"
+      || fields.active?.booleanValue !== true
+      || fields.showPublicly?.booleanValue !== true;
+  });
+  if (privilegedLooking.length > 0) fail(`publicLeadership query exposed ${privilegedLooking.length} admin/super-admin-shaped document ID(s).`);
+  if (invalidProjection.length > 0) fail(`publicLeadership query returned ${invalidProjection.length} document(s) outside the public projection contract.`);
+  if (privilegedLooking.length === 0 && invalidProjection.length === 0) pass(`Constrained anonymous publicLeadership query returned 200 with ${documents.length} valid public document(s)`);
 }
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
