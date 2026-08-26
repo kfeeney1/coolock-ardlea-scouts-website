@@ -38,6 +38,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByLabel("Section")).toBeVisible();
   await openMeetingType(page);
   await expect(page.getByRole("option", { name: "Leader / Section Meeting", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toHaveCount(0);
   await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
@@ -50,7 +51,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByLabel("Meeting title")).toHaveValue(fixtureTitle);
   await page.getByLabel("Notes / Minutes").fill("TEST Playwright meeting persistence check.");
   await page.getByRole("button", { name: "Update Meeting" }).click();
-  await expect(page.getByText("Meeting record updated.")).toBeVisible();
+  await expect(page.getByText(/Meeting record updated/)).toBeVisible();
 
   await page.reload();
   await expect(page.getByText(fixtureTitle, { exact: true })).toBeVisible();
@@ -91,6 +92,7 @@ for (const officer of [
     await expect(page.getByText(groupFixtureTitle, { exact: true })).toBeVisible();
 
     await openMeetingType(page);
+    await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toHaveCount(0);
     await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
@@ -98,6 +100,7 @@ for (const officer of [
     const groupRecord = page.getByText(groupFixtureTitle, { exact: true }).locator("..").locator("..");
     await expect(scoutRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
     await expect(groupRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
+    await expect(scoutRecord.getByRole("button", { name: "Version History" })).toHaveCount(0);
   });
 }
 
@@ -110,6 +113,7 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
   await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
 
   await openMeetingType(page);
+  await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toBeVisible();
   await page.getByRole("option", { name: "Group Council Meeting", exact: true }).click();
 
   const title = `TEST E2E Group Council ${Date.now()}`;
@@ -126,4 +130,40 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
   await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   await expect(page.getByText("TEST admin meeting persistence check.", { exact: true })).toBeVisible();
+});
+
+test("administrator can create a Group Leaders Meeting and retains the pre-edit version", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page, "test.webadmin@example.com");
+  await page.goto("/leader/meetings");
+
+  await openMeetingType(page);
+  await page.getByRole("option", { name: "Group Leaders Meeting", exact: true }).click();
+
+  const title = `TEST E2E Group Leaders ${Date.now()}`;
+  const originalMinutes = "TEST original Group Leaders minutes retained for audit.";
+  const revisedMinutes = "TEST revised Group Leaders minutes.";
+  await page.getByLabel("Meeting title").fill(title);
+  await page.getByLabel("Meeting date and time").fill("2026-08-25T20:00");
+  await page.getByLabel("Attendees").fill("Test Group Leader\nTest Cub Leader\nTest Scout Leader");
+  await page.getByLabel("Notes / Minutes").fill(originalMinutes);
+  await page.getByRole("button", { name: "Save Meeting" }).click();
+
+  const heading = page.getByText(title, { exact: true });
+  await expect(heading).toBeVisible();
+  let card = heading.locator("..").locator("..");
+  await expect(card.getByText("Group Leaders Meeting", { exact: true })).toBeVisible();
+  await expect(card.getByText("Group Leaders", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Edit" }).click();
+
+  await page.getByLabel("Notes / Minutes").fill(revisedMinutes);
+  await page.getByRole("button", { name: "Update Meeting" }).click();
+  await expect(page.getByText(/previous version has been retained/i)).toBeVisible();
+  await expect(page.getByText(revisedMinutes, { exact: true })).toBeVisible();
+
+  card = page.getByText(title, { exact: true }).locator("..").locator("..");
+  await card.getByRole("button", { name: "Version History" }).click();
+  await expect(card.getByRole("heading", { name: "Previous versions" })).toBeVisible();
+  await expect(card.getByText(originalMinutes, { exact: true })).toBeVisible();
 });
