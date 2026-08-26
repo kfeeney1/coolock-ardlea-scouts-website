@@ -1,12 +1,14 @@
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { isSupportedMeetingImportFile, parseMeetingDocument } from "../services/meetingRecordImport";
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const FULL_MEETING_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
+const MAX_IMPORT_BYTES = 500_000;
 
 const emptyForm: MeetingInput = {
   title: "",
@@ -45,6 +47,8 @@ export default function MeetingRecords() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [importMessage, setImportMessage] = useState("");
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [versionsByMeeting, setVersionsByMeeting] = useState<Record<string, MeetingRecordVersion[]>>({});
   const [versionLoadingId, setVersionLoadingId] = useState<string | null>(null);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
@@ -75,6 +79,8 @@ export default function MeetingRecords() {
   const resetForm = () => {
     setEditingId(null);
     setAttendeesText("");
+    setImportMessage("");
+    setImportWarnings([]);
     setForm({ ...emptyForm, section: sections[0] ?? "" });
   };
 
@@ -83,6 +89,60 @@ export default function MeetingRecords() {
       setForm((current) => ({ ...current, section: sections[0] }));
     }
   }, [form.meetingType, form.section, sections]);
+
+  const importDocument = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    setSuccess("");
+    setImportMessage("");
+    setImportWarnings([]);
+
+    if (!isSupportedMeetingImportFile(file.name, file.type)) {
+      setError("This file type cannot be read safely in the browser. Export Word or PDF minutes as .txt, .md or .html and upload that file instead.");
+      return;
+    }
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError("The meeting document is too large. Upload a text export smaller than 500 KB.");
+      return;
+    }
+
+    try {
+      const imported = parseMeetingDocument(await file.text());
+      const warnings = [...imported.warnings];
+      let meetingType = imported.meetingType;
+      if (!isAdmin && meetingType !== "leader") {
+        meetingType = "leader";
+        warnings.push("This account cannot create Group Council or Group Leaders records, so the imported draft was changed to a section leader meeting.");
+      }
+
+      let section = meetingType === "leader" ? imported.section : "";
+      if (meetingType === "leader" && (!section || !availableSections.includes(section))) {
+        if (imported.section && !availableSections.includes(imported.section)) warnings.push(`The imported section ${imported.section} is outside your permitted sections.`);
+        section = availableSections[0] ?? "";
+      }
+
+      setEditingId(null);
+      setForm({
+        title: imported.title,
+        meetingType,
+        section,
+        meetingDate: imported.meetingDate,
+        attendees: imported.attendees,
+        notes: imported.notes,
+        decisions: imported.decisions,
+        actions: imported.actions
+      });
+      setAttendeesText(imported.attendees.join("\n"));
+      setImportMessage(`Imported draft from ${file.name}. Review every field below before saving.`);
+      setImportWarnings(warnings);
+      window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } catch (importError) {
+      console.error("Unable to import meeting document:", importError);
+      setError("Unable to read this meeting document. Check that it is a valid text, Markdown or HTML export and try again.");
+    }
+  };
 
   const save = async () => {
     setError("");
@@ -124,6 +184,8 @@ export default function MeetingRecords() {
 
   const edit = (record: MeetingRecord) => {
     setEditingId(record.id);
+    setImportMessage("");
+    setImportWarnings([]);
     setForm({
       title: record.title,
       meetingType: record.meetingType,
@@ -173,8 +235,20 @@ export default function MeetingRecords() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
+      <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Import a meeting document</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Upload a text, Markdown or HTML export of meeting minutes. The document is read only in your browser and converted into an editable draft; nothing is saved until you review the fields and press Save Meeting.</Typography>
+        <Button variant="outlined" component="label">
+          Choose meeting document
+          <input hidden type="file" accept=".txt,.md,.html,.htm,text/plain,text/markdown,text/html" onChange={(event) => void importDocument(event)} />
+        </Button>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>For Word or PDF minutes, export or save a copy as text/HTML first. Recommended headings: Title, Meeting Type, Section, Date, Attendees, Minutes, Decisions and Action Items.</Typography>
+      </Paper>
+
       <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
+        {importMessage && <Alert severity="success" sx={{ mb: 2 }}>{importMessage}</Alert>}
+        {importWarnings.length > 0 && <Alert severity="warning" sx={{ mb: 2 }}><Typography sx={{ fontWeight: 700, mb: 0.5 }}>Check the imported draft</Typography>{importWarnings.map((warning) => <Typography key={warning} variant="body2">• {warning}</Typography>)}</Alert>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
