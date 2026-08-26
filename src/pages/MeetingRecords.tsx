@@ -88,7 +88,8 @@ export default function MeetingRecords() {
     setError("");
     setSuccess("");
     const attendees = attendeesText.split(/\n|,/).map((value) => value.trim()).filter(Boolean);
-    const input: MeetingInput = { ...form, attendees, section: form.meetingType === "leader" ? form.section : "Group" };
+    const section = form.meetingType === "leader" ? form.section : form.meetingType === "group-leaders" ? "Group Leaders" : "Group";
+    const input: MeetingInput = { ...form, attendees, section };
     if (!input.title.trim() || !input.meetingDate || attendees.length === 0) {
       setError("Title, meeting date and at least one attendee are required.");
       return;
@@ -106,7 +107,7 @@ export default function MeetingRecords() {
           delete next[editingId];
           return next;
         });
-        setSuccess("Meeting record updated. The previous version has been retained.");
+        setSuccess("Meeting record updated. The previous version has been retained in the audit history.");
       } else {
         await createMeetingRecord(input);
         setSuccess("Meeting record saved.");
@@ -126,7 +127,7 @@ export default function MeetingRecords() {
     setForm({
       title: record.title,
       meetingType: record.meetingType,
-      section: record.section === "Group" ? "" : record.section,
+      section: record.meetingType === "leader" ? record.section : "",
       meetingDate: record.meetingDate,
       attendees: record.attendees,
       notes: record.notes,
@@ -138,8 +139,7 @@ export default function MeetingRecords() {
   };
 
   const canEditRecord = (record: MeetingRecord) => {
-    if (record.meetingType === "group") return isAdmin;
-    if (record.meetingType === "group-leaders") return Boolean(isAdmin || isGroupOfficer);
+    if (record.meetingType === "group" || record.meetingType === "group-leaders") return isAdmin;
     return Boolean(isAdmin || sections.includes(record.section));
   };
 
@@ -182,7 +182,7 @@ export default function MeetingRecords() {
             <InputLabel id="meeting-type-label">Meeting type</InputLabel>
             <Select id="meeting-type" labelId="meeting-type-label" label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "leader" ? form.section : "" })}>
               <MenuItem value="leader">Leader / Section Meeting</MenuItem>
-              {(isAdmin || isGroupOfficer) && <MenuItem value="group-leaders">Group Leaders Meeting</MenuItem>}
+              {isAdmin && <MenuItem value="group-leaders">Group Leaders Meeting</MenuItem>}
               {isAdmin && <MenuItem value="group">Group Council Meeting</MenuItem>}
             </Select>
           </FormControl>
@@ -217,7 +217,7 @@ export default function MeetingRecords() {
                 </Stack>
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <Button variant="text" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>
+                {isAdmin && <Button variant="text" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
                 {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
               </Stack>
             </Stack>
@@ -228,7 +228,7 @@ export default function MeetingRecords() {
             {record.decisions && <><Typography variant="subtitle2">Decisions</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1.5 }}>{record.decisions}</Typography></>}
             {record.actions && <><Typography variant="subtitle2">Actions</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{record.actions}</Typography></>}
 
-            {expandedVersionId === record.id && <Box sx={{ mt: 2 }} data-testid={`meeting-version-history-${record.id}`}>
+            {isAdmin && expandedVersionId === record.id && <Box sx={{ mt: 2 }} data-testid={`meeting-version-history-${record.id}`}>
               <Divider sx={{ mb: 2 }} />
               <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Previous versions</Typography>
               {versionLoadingId === record.id ? <Typography color="text.secondary">Loading version history...</Typography> : (versionsByMeeting[record.id]?.length ?? 0) === 0 ? <Alert severity="info">No previous versions have been recorded yet.</Alert> : <Stack spacing={1.5}>
