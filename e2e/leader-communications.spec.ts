@@ -53,8 +53,8 @@ test("ordinary leader sees composer first and can share its content through What
     const recipients = page.getByTestId("communication-recipients");
     await expect(composer).toBeVisible();
     await expect(recipients).toBeVisible();
-    const composerComesFirst = await composer.evaluate((node, recipientNode) => Boolean(node.compareDocumentPosition(recipientNode as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await recipients.elementHandle());
-    expect(composerComesFirst).toBe(true);
+    const order = await page.locator('[data-testid="communication-composer"], [data-testid="communication-recipients"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-testid")));
+    expect(order).toEqual(["communication-composer", "communication-recipients"]);
 
     await page.getByLabel("Subject").fill("TEST Scouts reminder");
     await page.getByLabel("Message").fill("TEST Bring your necker and water bottle.");
