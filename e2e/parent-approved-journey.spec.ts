@@ -19,7 +19,7 @@ test.describe("approved parent journey", () => {
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
   });
 
-  test("parent sees a things-to-do summary and linked consent information", async ({ page }) => {
+  test("parent sees searchable consent tiles and can open a linked consent form", async ({ page }) => {
     await loginParent(page);
 
     const summary = page.getByTestId("parent-things-to-do");
@@ -32,6 +32,13 @@ test.describe("approved parent journey", () => {
     await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(secondMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Consent linked", { exact: true }).first()).toBeVisible();
+
+    const search = page.getByTestId("parent-consent-search");
+    await search.fill(firstMember);
+    await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(secondMember, { exact: true })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Review Consent" }).click();
     await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
   });
 
