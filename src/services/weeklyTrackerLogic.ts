@@ -50,11 +50,11 @@ export function newWeeklyEntry(memberId: string, memberName: string): WeeklyMemb
 }
 
 export function newActivityPlan(id: string = crypto.randomUUID()): WeeklyActivityPlan {
-  return { id, activity: "", leader: "", notes: "", equipment: "", startTime: "", finishTime: "" };
+  return { id, activity: "", leader: "", notes: "", equipment: "", durationMinutes: 0 };
 }
 
 export function newBadgeworkPlan(id: string = crypto.randomUUID()): WeeklyBadgeworkPlan {
-  return { id, badge: "", notes: "" };
+  return { id, badge: "", leader: "", notes: "", equipment: "", durationMinutes: 0 };
 }
 
 export function defaultActivityPlans(): WeeklyActivityPlan[] {
@@ -63,4 +63,8 @@ export function defaultActivityPlans(): WeeklyActivityPlan[] {
 
 export function defaultBadgeworkPlans(): WeeklyBadgeworkPlan[] {
   return [newBadgeworkPlan()];
+}
+
+export function totalProgrammeDuration(activities: WeeklyActivityPlan[], badgework: WeeklyBadgeworkPlan[]): number {
+  return [...activities, ...badgework].reduce((total, item) => total + Math.max(0, Number(item.durationMinutes) || 0), 0);
 }
