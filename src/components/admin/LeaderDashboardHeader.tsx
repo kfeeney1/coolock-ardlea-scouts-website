@@ -6,13 +6,12 @@ import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = { label: string; path: string; adminOnly?: boolean; };
 const navItems: NavItem[] = [
+ { label: "Weekly Meetings", path: "/leader/weekly" },
+ { label: "Events & Activities", path: "/leader/events" },
  { label: "Member Management", path: "/leader/members" },
  { label: "Member History", path: "/leader/member-history" },
- { label: "Weekly Tracker", path: "/leader/weekly" },
  { label: "Attendance Insights", path: "/leader/attendance" },
- { label: "Organisational Chart", path: "/leader/organisation" },
  { label: "Parent Communications", path: "/leader/communications" },
- { label: "Events & Activities", path: "/leader/events" },
  { label: "Meeting Records", path: "/leader/meetings" },
  { label: "Reports & Exports", path: "/leader/reports" },
  { label: "Event Consent", path: "/leader/event-consent" },
