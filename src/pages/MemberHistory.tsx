@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,6 +22,7 @@ export default function MemberHistory() {
   const { adminProfile } = useAdminAuth();
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [search, setSearch] = useState("");
   const [history, setHistory] = useState<MemberLifecycleHistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -94,6 +95,16 @@ export default function MemberHistory() {
     return () => { cancelled = true; };
   }, [selectedId]);
 
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredMembers = useMemo(
+    () => members.filter((member) =>
+      !normalizedSearch
+      || member.displayName.toLocaleLowerCase().includes(normalizedSearch)
+      || member.section.toLocaleLowerCase().includes(normalizedSearch)
+      || member.status.toLocaleLowerCase().includes(normalizedSearch)
+    ),
+    [members, normalizedSearch]
+  );
   const selected = useMemo(() => members.find((member) => member.id === selectedId), [members, selectedId]);
 
   return (
@@ -102,7 +113,7 @@ export default function MemberHistory() {
         <LeaderDashboardHeader />
         <LeaderPageHeader
           title="Member History"
-          description="Review recorded section transfers and membership status changes. History is append-only and follows the member record."
+          description="Search members and review recorded section transfers and membership status changes. History is append-only and follows the member record."
         />
 
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -113,14 +124,30 @@ export default function MemberHistory() {
           ) : members.length === 0 ? (
             <Alert severity="info">No member records are available in your assigned sections.</Alert>
           ) : (
-            <FormControl fullWidth>
-              <InputLabel>Member</InputLabel>
-              <Select label="Member" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-                {members.map((member) => (
-                  <MenuItem key={member.id} value={member.id}>{member.displayName} · {member.section} · {member.status}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Stack spacing={2}>
+              <TextField
+                label="Search members"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name, section or status"
+                slotProps={{ htmlInput: { "data-testid": "member-history-search" } }}
+              />
+              {filteredMembers.length === 0 ? (
+                <Alert severity="info">No members match your search.</Alert>
+              ) : (
+                <FormControl fullWidth>
+                  <InputLabel>Member</InputLabel>
+                  <Select label="Member" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+                    {filteredMembers.map((member) => (
+                      <MenuItem key={member.id} value={member.id}>{member.displayName} · {member.section} · {member.status}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              <Typography variant="body2" color="text.secondary" data-testid="member-history-match-count">
+                {filteredMembers.length} of {members.length} members shown
+              </Typography>
+            </Stack>
           )}
         </Paper>
 
