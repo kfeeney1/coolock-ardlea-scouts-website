@@ -1,6 +1,4 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
-import { db } from "../firebase";
 
 export type ParentProgrammeItem = {
   name: string;
@@ -78,6 +76,10 @@ function mapProgramme(snapshot: QueryDocumentSnapshot<DocumentData>): ParentWeek
 export async function loadParentWeeklyMeetingProgrammes(sections: string[]): Promise<ParentWeeklyMeetingProgramme[]> {
   const requested = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
   if (!requested.length) return [];
+  const [{ collection, getDocs, query, where }, { db }] = await Promise.all([
+    import("firebase/firestore"),
+    import("../firebase")
+  ]);
   const snapshots = await Promise.all(requested.map((section) => getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", section)))));
   return snapshots
     .flatMap((snapshot) => snapshot.docs)
