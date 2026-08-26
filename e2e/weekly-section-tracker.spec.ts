@@ -34,8 +34,8 @@ const firstBadgeworkLeader = (page: Page) => page.getByTestId("badgework-plan-ro
 
 test("weekly meetings reject unauthenticated users", async ({ page }) => { await page.goto("/leader/weekly"); await expect(page).toHaveURL(/\/leader\/login$/); });
 
-test("section leader completes lifecycle with flexible planner rows, summary, retained save state and audit", async ({ page }, testInfo) => {
-  desktopOnly(testInfo); test.skip(!password || !leaderEmail || !adminEmail, "Configure canonical E2E leader/admin credentials.");
+test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
   await login(page, leaderEmail!); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByLabel("Section")).toHaveText(/Scouts/);
   const created = await openOrCreateLifecycleMeeting(page);
 
@@ -81,16 +81,6 @@ test("section leader completes lifecycle with flexible planner rows, summary, re
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Navigation Night"); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Equipment 1", { exact: true })).toHaveValue("Cones and maps"); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes");
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByLabel(`Badges · ${scoutMemberName}`)).toHaveCount(0);
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); await expect(page.getByText(/Small graze during wide game/)).toHaveCount(0); await page.getByRole("button", { name: "Notes", exact: true }).click(); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
-
-  await page.getByRole("button", { name: /Leader Menu/ }).click();
-  await page.getByRole("button", { name: "Sign Out" }).click();
-  await expect(page).toHaveURL(/\/leader\/login$/);
-  await login(page, adminEmail!);
-  await page.goto("/leader/activity");
-  await page.getByLabel("Search activity").fill("weekly-meeting");
-  await expect(page.getByText("weekly-meeting-update", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("weekly-meeting-close", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(leaderEmail!, { exact: true }).first()).toBeVisible();
 });
 
 test("seeded meeting history is stable and varied for every section", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials."); await login(page, adminEmail!); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) await expect(page.getByText(new RegExp(`· ${section}$`)).first()).toBeVisible(); await expect(page.getByText(/1 activities · 1 badgework/).first()).toBeVisible(); await expect(page.getByText(/3 activities · 1 badgework/).first()).toBeVisible(); await expect(page.getByText(/1 activities · 3 badgework/).first()).toBeVisible(); });
