@@ -23,6 +23,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
@@ -151,9 +152,7 @@ function countsFor(event: EventRecord, members: MemberRecord[]) {
 
     relevantMembers.forEach((member) => {
         const attendance = event.attendance[member.id] || "invited";
-        const consent =
-            event.consent[member.id] ||
-            (event.consentRequired ? "required" : "not-required");
+        const consent = event.consent[member.id] || (event.consentRequired ? "required" : "not-required");
 
         if (attendance === "attending") attending += 1;
         else if (attendance === "not-attending") notAttending += 1;
@@ -194,12 +193,8 @@ export default function EventsManagement() {
     const load = async () => {
         setLoading(true);
         setError("");
-
         try {
-            const [loadedEvents, loadedMembers] = await Promise.all([
-                loadEvents(),
-                loadMembers()
-            ]);
+            const [loadedEvents, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
             setEvents(loadedEvents);
             setMembers(loadedMembers);
         } catch (loadError) {
@@ -216,30 +211,11 @@ export default function EventsManagement() {
 
     const visibleEvents = useMemo(() => {
         const query = search.trim().toLowerCase();
-
         return events.filter((event) => {
-            if (
-                sectionFilter !== "All Sections" &&
-                event.section !== "All Sections" &&
-                event.section !== sectionFilter
-            ) {
-                return false;
-            }
-
-            if (statusFilter !== "all" && event.status !== statusFilter) {
-                return false;
-            }
-
+            if (sectionFilter !== "All Sections" && event.section !== "All Sections" && event.section !== sectionFilter) return false;
+            if (statusFilter !== "all" && event.status !== statusFilter) return false;
             if (!query) return true;
-
-            return [
-                event.title,
-                event.description,
-                event.location,
-                event.meetingPoint,
-                event.section,
-                event.eventType
-            ]
+            return [event.title, event.description, event.location, event.meetingPoint, event.section, event.eventType]
                 .join(" ")
                 .toLowerCase()
                 .includes(query);
@@ -257,10 +233,7 @@ export default function EventsManagement() {
         [events]
     );
 
-    const rosterMembers = useMemo(() => {
-        if (!rosterEvent) return [];
-        return eventMembers(rosterEvent, members);
-    }, [members, rosterEvent]);
+    const rosterMembers = useMemo(() => (rosterEvent ? eventMembers(rosterEvent, members) : []), [members, rosterEvent]);
 
     const openCreate = () => {
         setEditing(null);
@@ -284,12 +257,10 @@ export default function EventsManagement() {
             setError("Event title is required.");
             return;
         }
-
         if (!draft.startDate) {
             setError("Start date is required.");
             return;
         }
-
         if (draft.endDate && draft.endDate < draft.startDate) {
             setError("End date cannot be before the start date.");
             return;
@@ -297,20 +268,14 @@ export default function EventsManagement() {
 
         setSaving(true);
         setError("");
-
         try {
             if (editing) {
                 await updateEvent(editing.id, draft);
-                setMessage(
-                    draft.status === "completed"
-                        ? "Event completed and moved to history."
-                        : "Event updated."
-                );
+                setMessage(draft.status === "completed" ? "Event completed and moved to history." : "Event updated.");
             } else {
                 await createEvent(draft);
                 setMessage("Event created.");
             }
-
             setEventDialogOpen(false);
             await load();
         } catch (saveError) {
@@ -324,14 +289,10 @@ export default function EventsManagement() {
     const openRoster = (event: EventRecord) => {
         const nextAttendance: Record<string, AttendanceStatus> = {};
         const nextConsent: Record<string, EventConsentStatus> = {};
-
         eventMembers(event, members).forEach((member) => {
             nextAttendance[member.id] = event.attendance[member.id] || "invited";
-            nextConsent[member.id] =
-                event.consent[member.id] ||
-                (event.consentRequired ? "required" : "not-required");
+            nextConsent[member.id] = event.consent[member.id] || (event.consentRequired ? "required" : "not-required");
         });
-
         setRosterEvent(event);
         setAttendance(nextAttendance);
         setConsent(nextConsent);
@@ -341,10 +302,8 @@ export default function EventsManagement() {
 
     const saveRoster = async () => {
         if (!rosterEvent || rosterEvent.status === "completed") return;
-
         setSavingRoster(true);
         setError("");
-
         try {
             await updateEventRoster(rosterEvent.id, attendance, consent);
             setMessage("Attendance and consent roster updated.");
@@ -361,24 +320,11 @@ export default function EventsManagement() {
     const printRoster = (event: EventRecord) => {
         const relevantMembers = eventMembers(event, members);
         const summary = countsFor(event, members);
-        const rows = relevantMembers
-            .map((member) => {
-                const attendanceStatus = event.attendance[member.id] || "invited";
-                const consentStatus =
-                    event.consent[member.id] ||
-                    (event.consentRequired ? "required" : "not-required");
-
-                return `<tr><td>${escapeHtml(member.displayName)}</td><td>${escapeHtml(
-                    member.section
-                )}</td><td>${escapeHtml(attendanceLabel(attendanceStatus))}</td><td>${escapeHtml(
-                    consentLabel(consentStatus)
-                )}</td><td>${escapeHtml(member.parentName || "")}</td><td>${escapeHtml(
-                    member.mobileNumber || ""
-                )}</td><td>${escapeHtml(member.emergencyContactName || "")}</td><td>${escapeHtml(
-                    member.emergencyContactPhone || ""
-                )}</td></tr>`;
-            })
-            .join("");
+        const rows = relevantMembers.map((member) => {
+            const attendanceStatus = event.attendance[member.id] || "invited";
+            const consentStatus = event.consent[member.id] || (event.consentRequired ? "required" : "not-required");
+            return `<tr><td>${escapeHtml(member.displayName)}</td><td>${escapeHtml(member.section)}</td><td>${escapeHtml(attendanceLabel(attendanceStatus))}</td><td>${escapeHtml(consentLabel(consentStatus))}</td><td>${escapeHtml(member.parentName || "")}</td><td>${escapeHtml(member.mobileNumber || "")}</td><td>${escapeHtml(member.emergencyContactName || "")}</td><td>${escapeHtml(member.emergencyContactPhone || "")}</td></tr>`;
+        }).join("");
 
         const printWindow = window.open("", "_blank", "width=1200,height=850");
         if (!printWindow) {
@@ -386,35 +332,7 @@ export default function EventsManagement() {
             return;
         }
 
-        printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(
-            event.title
-        )} - Event Report</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#1f2937}h1{color:#081E67;margin-bottom:6px}.meta{margin-bottom:14px;color:#4b5563}.summary{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.summary span{border:1px solid #d1d5db;border-radius:6px;padding:7px 10px}.notes{padding:12px;border:1px solid #ddd;margin:14px 0;white-space:pre-wrap}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:7px;text-align:left}th{background:#EEF1FA;color:#081E67}.controls{margin-bottom:20px}@media print{.controls{display:none}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save PDF</button></div><h1>${escapeHtml(
-            event.title
-        )}</h1><div class="meta">${escapeHtml(event.eventType)} · ${escapeHtml(
-            event.section
-        )} · ${escapeHtml(event.startDate)}${event.endDate ? ` to ${escapeHtml(event.endDate)}` : ""}${
-            event.location ? ` · ${escapeHtml(event.location)}` : ""
-        } · ${escapeHtml(statusLabel(event.status))}</div><div class="summary"><span><strong>${
-            summary.members
-        }</strong> members</span><span><strong>${summary.attending}</strong> attending</span><span><strong>${
-            summary.notAttending
-        }</strong> not attending</span><span><strong>${summary.invited}</strong> invited</span><span><strong>${
-            summary.consentReceived
-        }</strong> consent received</span><span><strong>${
-            summary.consentOutstanding
-        }</strong> consent outstanding</span></div>${
-            event.meetingPoint
-                ? `<div><strong>Meeting point:</strong> ${escapeHtml(event.meetingPoint)}</div>`
-                : ""
-        }${
-            event.returnDetails
-                ? `<div><strong>Return details:</strong> ${escapeHtml(event.returnDetails)}</div>`
-                : ""
-        }${
-            event.leaderNotes
-                ? `<div class="notes"><strong>Leader notes</strong><br/>${escapeHtml(event.leaderNotes)}</div>`
-                : ""
-        }<table><thead><tr><th>Member</th><th>Section</th><th>Attendance</th><th>Consent</th><th>Parent / Guardian</th><th>Phone</th><th>Emergency Contact</th><th>Emergency Phone</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+        printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(event.title)} - Event Report</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#1f2937}h1{color:#081E67;margin-bottom:6px}.meta{margin-bottom:14px;color:#4b5563}.summary{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.summary span{border:1px solid #d1d5db;border-radius:6px;padding:7px 10px}.notes{padding:12px;border:1px solid #ddd;margin:14px 0;white-space:pre-wrap}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:7px;text-align:left}th{background:#EEF1FA;color:#081E67}.controls{margin-bottom:20px}@media print{.controls{display:none}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save PDF</button></div><h1>${escapeHtml(event.title)}</h1><div class="meta">${escapeHtml(event.eventType)} · ${escapeHtml(event.section)} · ${escapeHtml(event.startDate)}${event.endDate ? ` to ${escapeHtml(event.endDate)}` : ""}${event.location ? ` · ${escapeHtml(event.location)}` : ""} · ${escapeHtml(statusLabel(event.status))}</div><div class="summary"><span><strong>${summary.members}</strong> members</span><span><strong>${summary.attending}</strong> attending</span><span><strong>${summary.notAttending}</strong> not attending</span><span><strong>${summary.invited}</strong> invited</span><span><strong>${summary.consentReceived}</strong> consent received</span><span><strong>${summary.consentOutstanding}</strong> consent outstanding</span></div>${event.meetingPoint ? `<div><strong>Meeting point:</strong> ${escapeHtml(event.meetingPoint)}</div>` : ""}${event.returnDetails ? `<div><strong>Return details:</strong> ${escapeHtml(event.returnDetails)}</div>` : ""}${event.leaderNotes ? `<div class="notes"><strong>Leader notes</strong><br/>${escapeHtml(event.leaderNotes)}</div>` : ""}<table><thead><tr><th>Member</th><th>Section</th><th>Attendance</th><th>Consent</th><th>Parent / Guardian</th><th>Phone</th><th>Emergency Contact</th><th>Emergency Phone</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
         printWindow.document.close();
     };
 
@@ -422,47 +340,16 @@ export default function EventsManagement() {
         const summary = countsFor(event, members);
         const rows = eventMembers(event, members).map((member) => {
             const attendanceStatus = event.attendance[member.id] || "invited";
-            const consentStatus =
-                event.consent[member.id] ||
-                (event.consentRequired ? "required" : "not-required");
-
-            return [
-                event.title,
-                event.startDate,
-                event.status,
-                member.displayName,
-                member.section,
-                attendanceLabel(attendanceStatus),
-                consentLabel(consentStatus),
-                member.parentName || "",
-                member.mobileNumber || "",
-                member.emergencyContactName || "",
-                member.emergencyContactPhone || ""
-            ]
+            const consentStatus = event.consent[member.id] || (event.consentRequired ? "required" : "not-required");
+            return [event.title, event.startDate, event.status, member.displayName, member.section, attendanceLabel(attendanceStatus), consentLabel(consentStatus), member.parentName || "", member.mobileNumber || "", member.emergencyContactName || "", member.emergencyContactPhone || ""]
                 .map((value) => csvCell(String(value)))
                 .join(",");
         });
 
         const csv = [
-            `Event summary,${csvCell(
-                `${summary.attending} attending; ${summary.notAttending} not attending; ${summary.invited} invited; ${summary.consentReceived} consent received; ${summary.consentOutstanding} consent outstanding`
-            )}`,
+            `Event summary,${csvCell(`${summary.attending} attending; ${summary.notAttending} not attending; ${summary.invited} invited; ${summary.consentReceived} consent received; ${summary.consentOutstanding} consent outstanding`)}`,
             "",
-            [
-                "Event",
-                "Date",
-                "Event Status",
-                "Member",
-                "Section",
-                "Attendance",
-                "Consent",
-                "Parent / Guardian",
-                "Phone",
-                "Emergency Contact",
-                "Emergency Phone"
-            ]
-                .map(csvCell)
-                .join(","),
+            ["Event", "Date", "Event Status", "Member", "Section", "Attendance", "Consent", "Parent / Guardian", "Phone", "Emergency Contact", "Emergency Phone"].map(csvCell).join(","),
             ...rows
         ].join("\r\n");
 
@@ -543,7 +430,7 @@ export default function EventsManagement() {
                             const summary = countsFor(event, members);
                             const completed = event.status === "completed";
                             return (
-                                <Paper key={event.id} variant="outlined" sx={{ p: 2.5 }}>
+                                <Paper key={event.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`event-card-${event.id}`}>
                                     <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, justifyContent: "space-between", gap: 2 }}>
                                         <Box sx={{ flex: 1 }}>
                                             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
@@ -566,6 +453,11 @@ export default function EventsManagement() {
                                             </Stack>
                                         </Box>
                                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 150 } }}>
+                                            {event.consentRequired && (
+                                                <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">
+                                                    Manage Consent
+                                                </Button>
+                                            )}
                                             <Button variant="outlined" color="secondary" onClick={() => printRoster(event)}>Report</Button>
                                             <Button variant="outlined" color="secondary" onClick={() => exportRoster(event)}>Export CSV</Button>
                                             <Button variant="outlined" color="secondary" disabled={completed} onClick={() => openEdit(event)}>Edit</Button>
