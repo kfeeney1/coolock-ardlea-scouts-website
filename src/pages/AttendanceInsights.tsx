@@ -39,6 +39,10 @@ function statusLabel(status: AttendanceHistoryRow["status"]): string {
     return "Unrecorded";
 }
 
+function rateLabel(rate: number | null): string {
+    return rate === null ? "—" : `${rate}%`;
+}
+
 export default function AttendanceInsights() {
     const { adminProfile } = useAdminAuth();
     const [members, setMembers] = useState<AttendanceInsightMember[]>([]);
@@ -48,12 +52,15 @@ export default function AttendanceInsights() {
     const [error, setError] = useState("");
     const [sectionFilter, setSectionFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
     const [historyType, setHistoryType] = useState<"meetings" | "events">("meetings");
 
     const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
     const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
     const scope = useMemo(() => ({ isAdmin, sections }), [isAdmin, sections]);
+    const dateRange = useMemo(() => ({ from: fromDate || undefined, to: toDate || undefined }), [fromDate, toDate]);
 
     useEffect(() => {
         let cancelled = false;
@@ -82,7 +89,10 @@ export default function AttendanceInsights() {
         return () => { cancelled = true; };
     }, [scope, sections, isAdmin]);
 
-    const insights = useMemo(() => buildMemberAttendanceInsights(members, events), [members, events]);
+    const insights = useMemo(
+        () => buildMemberAttendanceInsights(members, events, meetings, dateRange),
+        [members, events, meetings, dateRange]
+    );
     const availableSections = useMemo(
         () => [...new Set(insights.map((item) => item.section).filter(Boolean))].sort(),
         [insights]
@@ -93,13 +103,13 @@ export default function AttendanceInsights() {
         && (!normalizedSearch || item.displayName.toLocaleLowerCase().includes(normalizedSearch))
     );
     const selectedMember = members.find((member) => member.id === selectedMemberId) ?? null;
-    const selectedHistory = selectedMember ? buildMemberAttendanceHistory(selectedMember, events, meetings) : null;
+    const selectedHistory = selectedMember ? buildMemberAttendanceHistory(selectedMember, events, meetings, dateRange) : null;
     const historyRows = selectedHistory?.[historyType] ?? [];
-    const completedEvents = events.filter((event) => event.status === "completed").length;
-    const withRecordedAttendance = visibleInsights.filter((item) => item.attendanceRate !== null);
-    const averageRate = withRecordedAttendance.length > 0
-        ? Math.round(withRecordedAttendance.reduce((sum, item) => sum + (item.attendanceRate || 0), 0) / withRecordedAttendance.length)
-        : null;
+
+    const averageRate = (kind: "meeting" | "event" | "combined") => {
+        const rates = visibleInsights.map((item) => item[kind].rate).filter((rate): rate is number => rate !== null);
+        return rates.length > 0 ? Math.round(rates.reduce((sum, rate) => sum + rate, 0) / rates.length) : null;
+    };
 
     const scopeLabel = isAdmin
         ? "All sections"
@@ -107,22 +117,25 @@ export default function AttendanceInsights() {
           ? sections.join(", ")
           : "No sections assigned";
 
+    const invalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
+
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Attendance History & Insights"
-                    description="Search members, review attendance summaries, and open a member to see their meeting or event attendance history."
+                    description="Search members, compare weekly meeting and event attendance, and review attendance over a selected date range."
                 />
 
                 <Alert severity="info" sx={{ mb: 3 }}>
-                    Scope: <strong>{scopeLabel}</strong>. Event insights use completed events only; weekly history uses closed meetings only.
+                    Scope: <strong>{scopeLabel}</strong>. Analytics use closed Weekly Meetings and completed events only.
                 </Alert>
                 {!isAdmin && sections.length === 0 && (
                     <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned, so no attendance data can be loaded.</Alert>
                 )}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+                {invalidDateRange && <Alert severity="warning" sx={{ mb: 3 }}>The From date must be on or before the To date.</Alert>}
 
                 {loading ? (
                     <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
@@ -148,7 +161,7 @@ export default function AttendanceInsights() {
                                 </Button>
                             </Stack>
                             {historyRows.length === 0 ? (
-                                <Alert severity="info">No {historyType} attendance is recorded for this member.</Alert>
+                                <Alert severity="info">No {historyType} attendance is recorded for this member in the selected date range.</Alert>
                             ) : (
                                 <Stack spacing={1} data-testid="attendance-history-list">
                                     {historyRows.map((row) => (
@@ -172,14 +185,8 @@ export default function AttendanceInsights() {
                     </Stack>
                 ) : (
                     <>
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
-                            <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="h4" color="secondary">{completedEvents}</Typography><Typography color="text.secondary">Completed events in scope</Typography></Paper>
-                            <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="h4" color="secondary">{visibleInsights.length}</Typography><Typography color="text.secondary">Matching active members</Typography></Paper>
-                            <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="h4" color="secondary">{averageRate === null ? "—" : `${averageRate}%`}</Typography><Typography color="text.secondary">Average recorded event attendance</Typography></Paper>
-                        </Box>
-
                         <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(280px, 1fr) 280px" }, gap: 2 }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 1fr) 220px 190px 190px" }, gap: 2 }}>
                                 <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
                                 <FormControl>
                                     <InputLabel>Section</InputLabel>
@@ -188,11 +195,25 @@ export default function AttendanceInsights() {
                                         {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
                                     </Select>
                                 </FormControl>
+                                <TextField label="From" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-from-date" } }} />
+                                <TextField label="To" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-to-date" } }} />
                             </Box>
+                            {(fromDate || toDate) && (
+                                <Button sx={{ mt: 2 }} size="small" onClick={() => { setFromDate(""); setToDate(""); }}>
+                                    Clear date range
+                                </Button>
+                            )}
                         </Paper>
 
-                        {visibleInsights.length === 0 ? (
-                            <Alert severity="info">No active members match the current search and section filters.</Alert>
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
+                            <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="h4" color="secondary">{visibleInsights.length}</Typography><Typography color="text.secondary">Matching active members</Typography></Paper>
+                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="meeting-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("meeting"))}</Typography><Typography color="text.secondary">Average meeting attendance</Typography></Paper>
+                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="event-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("event"))}</Typography><Typography color="text.secondary">Average event attendance</Typography></Paper>
+                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="combined-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("combined"))}</Typography><Typography color="text.secondary">Average combined attendance</Typography></Paper>
+                        </Box>
+
+                        {invalidDateRange ? null : visibleInsights.length === 0 ? (
+                            <Alert severity="info">No active members match the current search, section and date filters.</Alert>
                         ) : (
                             <Box sx={{ display: "grid", gap: 2 }}>
                                 {visibleInsights.map((item) => (
@@ -202,16 +223,17 @@ export default function AttendanceInsights() {
                                                 <Typography variant="h5" color="secondary">{item.displayName}</Typography>
                                                 <Typography color="text.secondary">{item.section}</Typography>
                                                 <Typography variant="body2" sx={{ mt: 1 }}>
-                                                    Last recorded event: {formatDate(item.lastRecordedDate)}
-                                                    {item.lastAttendanceStatus !== "unrecorded" ? ` · ${item.lastAttendanceStatus === "attending" ? "Attending" : "Not attending"}` : ""}
+                                                    Last recorded attendance: {formatDate(item.lastRecordedDate)}
+                                                    {item.lastRecordedSource ? ` · ${item.lastRecordedSource === "meeting" ? "Weekly Meeting" : "Event"}` : ""}
+                                                    {item.lastAttendanceStatus !== "unrecorded" ? ` · ${item.lastAttendanceStatus === "attended" ? "Attended" : "Did not attend"}` : ""}
                                                 </Typography>
                                             </Box>
                                             <Stack spacing={1} sx={{ alignItems: { md: "flex-end" } }}>
                                                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", justifyContent: { md: "flex-end" } }}>
-                                                    <Chip label={`${item.attended} attending`} color="success" variant="outlined" />
-                                                    <Chip label={`${item.notAttended} not attending`} variant="outlined" />
-                                                    <Chip label={`${item.unrecorded} unrecorded`} variant="outlined" />
-                                                    <Chip label={item.attendanceRate === null ? "No recorded rate" : `${item.attendanceRate}% recorded attendance`} color={item.attendanceRate !== null && item.attendanceRate < 60 ? "warning" : "default"} />
+                                                    <Chip label={`Meetings ${rateLabel(item.meeting.rate)}`} color={item.meeting.rate !== null && item.meeting.rate < 60 ? "warning" : "default"} variant="outlined" />
+                                                    <Chip label={`Events ${rateLabel(item.event.rate)}`} color={item.event.rate !== null && item.event.rate < 60 ? "warning" : "default"} variant="outlined" />
+                                                    <Chip label={`Combined ${rateLabel(item.combined.rate)}`} color={item.combined.rate !== null && item.combined.rate < 60 ? "warning" : "success"} variant="outlined" />
+                                                    <Chip label={`${item.combined.recorded} recorded · ${item.combined.unrecorded} unrecorded`} variant="outlined" />
                                                 </Stack>
                                                 <Button variant="outlined" onClick={() => { setSelectedMemberId(item.memberId); setHistoryType("meetings"); }}>
                                                     View attendance
