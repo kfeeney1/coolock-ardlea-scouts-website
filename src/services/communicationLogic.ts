@@ -43,3 +43,10 @@ export function validateCommunication(subject: string, message: string, recipien
     if (message.trim().length > 2500) return "Message must be 2,500 characters or fewer.";
     return null;
 }
+
+export function buildWhatsAppCommunicationUrl(subject: string, message: string): string {
+    const cleanSubject = subject.trim();
+    const cleanMessage = message.trim();
+    const text = [cleanSubject, cleanMessage].filter(Boolean).join("\n\n");
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}

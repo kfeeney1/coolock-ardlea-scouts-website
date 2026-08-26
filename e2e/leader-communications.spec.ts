@@ -37,7 +37,7 @@ test("communications route rejects unauthenticated users", async ({ page }) => {
     await expect(page).toHaveURL(/\/leader\/login$/);
 });
 
-test("ordinary leader can open section-scoped parent communications", async ({ page }, testInfo) => {
+test("ordinary leader sees composer first and can share its content through WhatsApp", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
@@ -48,9 +48,21 @@ test("ordinary leader can open section-scoped parent communications", async ({ p
     await expect(page).toHaveURL(/\/leader\/communications$/);
     await expect(page.getByRole("heading", { name: "Parent Communications" })).toBeVisible();
     await expect(page.getByText(/Scope:/)).toContainText("Scouts");
-    await expect(page.getByLabel("Subject")).toBeVisible();
-    await expect(page.getByLabel("Message")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Send to 0 recipients/ })).toBeDisabled();
+
+    const composer = page.getByTestId("communication-composer");
+    const recipients = page.getByTestId("communication-recipients");
+    await expect(composer).toBeVisible();
+    await expect(recipients).toBeVisible();
+    const order = await page.locator('[data-testid="communication-composer"], [data-testid="communication-recipients"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-testid")));
+    expect(order).toEqual(["communication-composer", "communication-recipients"]);
+
+    await page.getByLabel("Subject").fill("TEST Scouts reminder");
+    await page.getByLabel("Message").fill("TEST Bring your necker and water bottle.");
+    const whatsapp = page.getByRole("link", { name: "Share via WhatsApp" });
+    await expect(whatsapp).toHaveAttribute("href", "https://wa.me/?text=TEST%20Scouts%20reminder%0A%0ATEST%20Bring%20your%20necker%20and%20water%20bottle.");
+    await expect(whatsapp).toHaveAttribute("target", "_blank");
+
+    await expect(page.getByRole("button", { name: /Send Email to 0 recipients/ })).toBeDisabled();
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Menu · Parent Communications/ })).toBeVisible();
 });
@@ -77,6 +89,7 @@ test("leader dashboard navigation uses the same expandable menu on Pixel 7", asy
 
     await expect(page).toHaveURL(/\/leader\/communications$/);
     await expect(page.getByRole("heading", { name: "Parent Communications" })).toBeVisible();
+    await expect(page.getByTestId("communication-composer")).toBeInViewport();
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Menu · Parent Communications/ })).toBeVisible();
 });
