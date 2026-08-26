@@ -25,9 +25,11 @@ export default function ActivityLog() {
   const [search, setSearch] = useState("");
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+  const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
+  const canViewActivityLog = isAdmin || isGroupOfficer;
 
   const refresh = async () => {
-    if (!isAdmin) return;
+    if (!canViewActivityLog) return;
     setLoading(true);
     setError("");
     try {
@@ -40,7 +42,7 @@ export default function ActivityLog() {
     }
   };
 
-  useEffect(() => { void refresh(); }, [isAdmin]);
+  useEffect(() => { void refresh(); }, [canViewActivityLog]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -48,8 +50,8 @@ export default function ActivityLog() {
     return entries.filter((entry) => [entry.category, entry.action, entry.actorEmail, entry.targetLabel, auditDescription(entry), entry.section].join(" ").toLowerCase().includes(q));
   }, [entries, search]);
 
-  if (!isAdmin) {
-    return <Container maxWidth="md" sx={{ py: 6 }}><Alert severity="error">Administrator access is required to view the Activity Log.</Alert></Container>;
+  if (!canViewActivityLog) {
+    return <Container maxWidth="md" sx={{ py: 6 }}><Alert severity="error">Admin, Group Leader or Group Secretary access is required to view the Activity Log.</Alert></Container>;
   }
 
   return (
