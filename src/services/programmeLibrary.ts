@@ -1,6 +1,3 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
-
-import { auth, db } from "../firebase";
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan } from "./weeklyTracker";
 
 export type ProgrammeLibraryKind = "activity" | "badgework";
@@ -68,7 +65,7 @@ function mapProgrammeLibraryItem(id: string, value: Record<string, unknown>): Pr
   const section = typeof value.section === "string" ? value.section.trim() : "";
   const name = typeof value.name === "string" ? value.name.trim() : "";
   if (!kind || !section || !name) return null;
-  return cleanProgrammeLibraryInput({
+  const cleaned = cleanProgrammeLibraryInput({
     kind,
     section,
     name,
@@ -76,23 +73,31 @@ function mapProgrammeLibraryItem(id: string, value: Record<string, unknown>): Pr
     notes: typeof value.notes === "string" ? value.notes : "",
     equipment: typeof value.equipment === "string" ? value.equipment : "",
     durationMinutes: typeof value.durationMinutes === "number" ? value.durationMinutes : 0
-  }) as ProgrammeLibraryItem;
+  });
+  return { id, ...cleaned };
+}
+
+async function firestoreRuntime() {
+  const [firestore, app] = await Promise.all([
+    import("firebase/firestore"),
+    import("../firebase")
+  ]);
+  return { ...firestore, auth: app.auth, db: app.db };
 }
 
 export async function loadProgrammeLibrary(sections: string[]): Promise<ProgrammeLibraryItem[]> {
   const requested = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
   if (!requested.length) return [];
+  const { collection, getDocs, query, where, db } = await firestoreRuntime();
   const snapshots = await Promise.all(requested.map((section) => getDocs(query(collection(db, "programmeLibrary"), where("section", "==", section)))));
   const items = snapshots.flatMap((snapshot) => snapshot.docs)
-    .map((snapshot) => {
-      const mapped = mapProgrammeLibraryItem(snapshot.id, snapshot.data());
-      return mapped ? { ...mapped, id: snapshot.id } : null;
-    })
+    .map((snapshot) => mapProgrammeLibraryItem(snapshot.id, snapshot.data()))
     .filter((item): item is ProgrammeLibraryItem => item !== null);
   return sortProgrammeLibrary(items);
 }
 
 export async function createProgrammeLibraryItem(input: ProgrammeLibraryInput): Promise<string> {
+  const { addDoc, collection, serverTimestamp, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   const cleaned = cleanProgrammeLibraryInput(input);
@@ -108,6 +113,7 @@ export async function createProgrammeLibraryItem(input: ProgrammeLibraryInput): 
 }
 
 export async function updateProgrammeLibraryItem(id: string, input: ProgrammeLibraryInput): Promise<void> {
+  const { doc, serverTimestamp, updateDoc, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   const cleaned = cleanProgrammeLibraryInput(input);
@@ -116,6 +122,7 @@ export async function updateProgrammeLibraryItem(id: string, input: ProgrammeLib
 }
 
 export async function deleteProgrammeLibraryItem(id: string): Promise<void> {
+  const { deleteDoc, doc, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   await deleteDoc(doc(db, "programmeLibrary", id));
