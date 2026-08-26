@@ -31,15 +31,16 @@ test("ordinary leader can search members and inspect meeting or event attendance
   await expect(page.getByRole("heading", { name: "Attendance History & Insights" })).toBeVisible();
   await expect(page.getByText(/Scope:/)).toContainText("Scouts");
 
+  const seededMember = "Casey OBrien Scouts 01";
   const search = page.getByLabel("Search members");
-  await search.fill("Casey Carroll Scouts 01");
+  await search.fill(seededMember);
   const cards = page.getByTestId("attendance-member-card");
   await expect(cards).toHaveCount(1);
-  await expect(cards.first()).toContainText("Casey Carroll Scouts 01");
+  await expect(cards.first()).toContainText(seededMember);
   await cards.first().getByRole("button", { name: "View attendance" }).click();
 
   const detail = page.getByTestId("attendance-member-detail");
-  await expect(detail.getByRole("heading", { name: "Casey Carroll Scouts 01" })).toBeVisible();
+  await expect(detail.getByRole("heading", { name: seededMember })).toBeVisible();
   await expect(detail.getByRole("button", { name: /Meetings \(/ })).toBeVisible();
   await expect(detail.getByTestId("attendance-history-list")).toContainText("15 Jan 2099");
   await expect(detail.getByTestId("attendance-history-list")).toContainText("Attended");
@@ -47,5 +48,5 @@ test("ordinary leader can search members and inspect meeting or event attendance
   await detail.getByRole("button", { name: /Events \(/ }).click();
   await expect(detail.getByRole("button", { name: /Events \(/ })).toHaveAttribute("class", /MuiButton-contained/);
   await detail.getByRole("button", { name: "Back to members" }).click();
-  await expect(search).toHaveValue("Casey Carroll Scouts 01");
+  await expect(search).toHaveValue(seededMember);
 });
