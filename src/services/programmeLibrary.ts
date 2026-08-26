@@ -1,6 +1,3 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
-
-import { auth, db } from "../firebase";
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan } from "./weeklyTracker";
 
 export type ProgrammeLibraryKind = "activity" | "badgework";
@@ -55,59 +52,10 @@ export function programmeLibraryItemToBadgework(item: ProgrammeLibraryItem): Wee
   };
 }
 
-function mapLibraryItem(id: string, value: Record<string, unknown>): ProgrammeLibraryItem | null {
-  const kind = value.kind === "badgework" ? "badgework" : value.kind === "activity" ? "activity" : null;
-  const section = typeof value.section === "string" ? value.section.trim() : "";
-  const name = typeof value.name === "string" ? value.name.trim() : "";
-  if (!kind || !section || !name) return null;
-  return {
-    id,
-    kind,
-    section,
-    name,
-    leader: typeof value.leader === "string" ? value.leader.trim() : "",
-    notes: typeof value.notes === "string" ? value.notes.trim() : "",
-    equipment: typeof value.equipment === "string" ? value.equipment.trim() : "",
-    durationMinutes: typeof value.durationMinutes === "number" ? cleanDuration(value.durationMinutes) : 0
-  };
+export function isProgrammeLibraryItemForSection(item: ProgrammeLibraryItem, section: string): boolean {
+  return item.section === section.trim();
 }
 
-export async function loadProgrammeLibrary(sections: string[]): Promise<ProgrammeLibraryItem[]> {
-  const requested = [...new Set(sections.map((section) => section.trim()).filter(Boolean))];
-  if (!requested.length) return [];
-  const snapshots = await Promise.all(requested.map((section) => getDocs(query(collection(db, "programmeLibrary"), where("section", "==", section)))));
-  return snapshots
-    .flatMap((snapshot) => snapshot.docs)
-    .map((snapshot) => mapLibraryItem(snapshot.id, snapshot.data()))
-    .filter((item): item is ProgrammeLibraryItem => item !== null)
-    .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
-}
-
-export async function createProgrammeLibraryItem(input: ProgrammeLibraryInput): Promise<string> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
-  const cleaned = cleanProgrammeLibraryInput(input);
-  if (!cleaned.section || !cleaned.name) throw new Error("Section and name are required.");
-  const created = await addDoc(collection(db, "programmeLibrary"), {
-    ...cleaned,
-    createdBy: user.uid,
-    createdAt: serverTimestamp(),
-    updatedBy: user.uid,
-    updatedAt: serverTimestamp()
-  });
-  return created.id;
-}
-
-export async function updateProgrammeLibraryItem(id: string, input: ProgrammeLibraryInput): Promise<void> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
-  const cleaned = cleanProgrammeLibraryInput(input);
-  if (!cleaned.section || !cleaned.name) throw new Error("Section and name are required.");
-  await updateDoc(doc(db, "programmeLibrary", id), { ...cleaned, updatedBy: user.uid, updatedAt: serverTimestamp() });
-}
-
-export async function deleteProgrammeLibraryItem(id: string): Promise<void> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
-  await deleteDoc(doc(db, "programmeLibrary", id));
+export function sortProgrammeLibrary(items: ProgrammeLibraryItem[]): ProgrammeLibraryItem[] {
+  return [...items].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
 }
