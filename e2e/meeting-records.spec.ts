@@ -58,6 +58,52 @@ test("section leader sees only section meeting type and can persist edits", asyn
   await expect(page.getByText("TEST Playwright meeting persistence check.", { exact: true })).toBeVisible();
 });
 
+test("section leader can import a text meeting document, review it and save it", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  await login(page, leaderEmail!);
+  await page.goto("/leader/meetings");
+
+  const title = `TEST E2E Imported Meeting ${Date.now()}`;
+  const importedMinutes = "TEST imported minutes remain editable before save.";
+  const documentText = [
+    `Title: ${title}`,
+    "Meeting Type: Leader / Section Meeting",
+    "Section: Scouts",
+    "Date: 05/09/2026 19:30",
+    "Attendees:",
+    "- Test Scout Leader",
+    "- Test Assistant Leader",
+    "Minutes:",
+    importedMinutes,
+    "Decisions:",
+    "TEST use the den as the wet-weather fallback.",
+    "Action Items:",
+    "TEST confirm programme equipment."
+  ].join("\n");
+
+  await page.locator('input[type="file"][accept*=".txt"]').setInputFiles({
+    name: "TEST-imported-meeting.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(documentText)
+  });
+
+  await expect(page.getByText(/Imported draft from TEST-imported-meeting\.txt/)).toBeVisible();
+  await expect(page.getByText(/Review every field below before saving/)).toBeVisible();
+  await expect(page.getByLabel("Meeting title")).toHaveValue(title);
+  await expect(page.getByLabel("Meeting date and time")).toHaveValue("2026-09-05T19:30");
+  await expect(page.getByLabel("Attendees")).toHaveValue("Test Scout Leader\nTest Assistant Leader");
+  await expect(page.getByLabel("Notes / Minutes")).toHaveValue(importedMinutes);
+  await expect(page.getByLabel("Decisions")).toHaveValue("TEST use the den as the wet-weather fallback.");
+  await expect(page.getByLabel("Action Items")).toHaveValue("TEST confirm programme equipment.");
+
+  await page.getByLabel("Notes / Minutes").fill(`${importedMinutes} Reviewed by Playwright.`);
+  await page.getByRole("button", { name: "Save Meeting" }).click();
+  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${importedMinutes} Reviewed by Playwright.`, { exact: true })).toBeVisible();
+});
+
 test("editing a meeting on mobile scrolls the edit form into view instead of the page top", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Mobile edit-scroll regression runs once on Chromium.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
