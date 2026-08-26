@@ -10,6 +10,13 @@ function formatDate(value: Date | null) {
   return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value);
 }
 
+function auditDescription(entry: AuditLogEntry) {
+  if (entry.category === "system" && entry.action === "meeting-record-update") {
+    return "Updated meeting record; previous version retained.";
+  }
+  return entry.description;
+}
+
 export default function ActivityLog() {
   const { adminProfile } = useAdminAuth();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
@@ -38,7 +45,7 @@ export default function ActivityLog() {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return entries;
-    return entries.filter((entry) => [entry.category, entry.action, entry.actorEmail, entry.targetLabel, entry.description, entry.section].join(" ").toLowerCase().includes(q));
+    return entries.filter((entry) => [entry.category, entry.action, entry.actorEmail, entry.targetLabel, auditDescription(entry), entry.section].join(" ").toLowerCase().includes(q));
   }, [entries, search]);
 
   if (!isAdmin) {
@@ -74,7 +81,7 @@ export default function ActivityLog() {
                       <Chip size="small" label={entry.category} variant="outlined" />
                       <Typography sx={{ fontWeight: 800 }}>{entry.action}</Typography>
                     </Stack>
-                    <Typography>{entry.description}</Typography>
+                    <Typography>{auditDescription(entry)}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
                       {entry.targetLabel || entry.targetId}{entry.section ? ` · ${entry.section}` : ""}
                     </Typography>

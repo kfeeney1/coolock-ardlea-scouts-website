@@ -2,8 +2,8 @@ import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
-import { createMeetingRecord, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
-import type { MeetingInput, MeetingRecord, MeetingType } from "../services/meetingRecords";
+import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
+import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const FULL_MEETING_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
@@ -25,6 +25,16 @@ function formatMeetingDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
+function formatVersionDate(value: Date | null): string {
+  return value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Timestamp pending";
+}
+
+function meetingTypeLabel(type: MeetingType): string {
+  if (type === "group") return "Group Council";
+  if (type === "group-leaders") return "Group Leaders Meeting";
+  return "Leader Meeting";
+}
+
 export default function MeetingRecords() {
   const { adminProfile } = useAdminAuth();
   const [records, setRecords] = useState<MeetingRecord[]>([]);
@@ -35,10 +45,14 @@ export default function MeetingRecords() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [versionsByMeeting, setVersionsByMeeting] = useState<Record<string, MeetingRecordVersion[]>>({});
+  const [versionLoadingId, setVersionLoadingId] = useState<string | null>(null);
+  const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-  const hasFullMeetingHistoryAccess = Boolean(isAdmin || (adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole)));
+  const isGroupOfficer = Boolean(adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole));
+  const hasFullMeetingHistoryAccess = Boolean(isAdmin || isGroupOfficer);
   const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
   const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : sections, [isAdmin, sections]);
 
@@ -65,16 +79,17 @@ export default function MeetingRecords() {
   };
 
   useEffect(() => {
-    if (!form.section && sections.length) {
+    if (!form.section && sections.length && form.meetingType === "leader") {
       setForm((current) => ({ ...current, section: sections[0] }));
     }
-  }, [form.section, sections]);
+  }, [form.meetingType, form.section, sections]);
 
   const save = async () => {
     setError("");
     setSuccess("");
     const attendees = attendeesText.split(/\n|,/).map((value) => value.trim()).filter(Boolean);
-    const input: MeetingInput = { ...form, attendees, section: form.meetingType === "group" ? "Group" : form.section };
+    const section = form.meetingType === "leader" ? form.section : form.meetingType === "group-leaders" ? "Group Leaders" : "Group";
+    const input: MeetingInput = { ...form, attendees, section };
     if (!input.title.trim() || !input.meetingDate || attendees.length === 0) {
       setError("Title, meeting date and at least one attendee are required.");
       return;
@@ -87,7 +102,12 @@ export default function MeetingRecords() {
     try {
       if (editingId) {
         await updateMeetingRecord(editingId, input);
-        setSuccess("Meeting record updated.");
+        setVersionsByMeeting((current) => {
+          const next = { ...current };
+          delete next[editingId];
+          return next;
+        });
+        setSuccess("Meeting record updated. The previous version has been retained in the audit history.");
       } else {
         await createMeetingRecord(input);
         setSuccess("Meeting record saved.");
@@ -107,7 +127,7 @@ export default function MeetingRecords() {
     setForm({
       title: record.title,
       meetingType: record.meetingType,
-      section: record.section === "Group" ? "" : record.section,
+      section: record.meetingType === "leader" ? record.section : "",
       meetingDate: record.meetingDate,
       attendees: record.attendees,
       notes: record.notes,
@@ -118,14 +138,36 @@ export default function MeetingRecords() {
     window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const canEditRecord = (record: MeetingRecord) => isAdmin || (record.meetingType === "leader" && sections.includes(record.section));
+  const canEditRecord = (record: MeetingRecord) => {
+    if (record.meetingType === "group" || record.meetingType === "group-leaders") return isAdmin;
+    return Boolean(isAdmin || sections.includes(record.section));
+  };
+
+  const toggleVersions = async (record: MeetingRecord) => {
+    if (expandedVersionId === record.id) {
+      setExpandedVersionId(null);
+      return;
+    }
+    setExpandedVersionId(record.id);
+    if (versionsByMeeting[record.id]) return;
+    setVersionLoadingId(record.id);
+    try {
+      const versions = await loadMeetingRecordVersions(record.id);
+      setVersionsByMeeting((current) => ({ ...current, [record.id]: versions }));
+    } catch (loadError) {
+      console.error("Unable to load meeting record versions:", loadError);
+      setError("Unable to load the version history for this meeting.");
+    } finally {
+      setVersionLoadingId(null);
+    }
+  };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
         <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Meeting Records</Typography>
-        <Typography color="text.secondary">Record Group Council and section leader meetings, including attendance, minutes, decisions and follow-up actions.</Typography>
+        <Typography color="text.secondary">Record Group Council, Group Leaders and section leader meetings, including attendance, minutes, decisions and follow-up actions.</Typography>
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -138,8 +180,9 @@ export default function MeetingRecords() {
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
           <FormControl>
             <InputLabel id="meeting-type-label">Meeting type</InputLabel>
-            <Select id="meeting-type" labelId="meeting-type-label" label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "group" ? "" : form.section })}>
+            <Select id="meeting-type" labelId="meeting-type-label" label="Meeting type" value={form.meetingType} onChange={(event) => setForm({ ...form, meetingType: event.target.value as MeetingType, section: event.target.value === "leader" ? form.section : "" })}>
               <MenuItem value="leader">Leader / Section Meeting</MenuItem>
+              {isAdmin && <MenuItem value="group-leaders">Group Leaders Meeting</MenuItem>}
               {isAdmin && <MenuItem value="group">Group Council Meeting</MenuItem>}
             </Select>
           </FormControl>
@@ -163,17 +206,20 @@ export default function MeetingRecords() {
       <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 } }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Meeting history</Typography>
         {loading ? <Typography color="text.secondary">Loading meeting records...</Typography> : records.length === 0 ? <Alert severity="info">No meeting records have been saved in your permitted scope yet.</Alert> : <Stack spacing={2}>
-          {records.map((record) => <Paper key={record.id} variant="outlined" sx={{ p: 2.5 }}>
+          {records.map((record) => <Paper key={record.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`meeting-record-${record.id}`}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" } }}>
               <Box>
                 <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{record.title}</Typography>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>
-                  <Chip size="small" label={record.meetingType === "group" ? "Group Council" : "Leader Meeting"} />
+                  <Chip size="small" label={meetingTypeLabel(record.meetingType)} />
                   <Chip size="small" variant="outlined" label={record.section} />
                   <Chip size="small" variant="outlined" label={formatMeetingDate(record.meetingDate)} />
                 </Stack>
               </Box>
-              {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                {isAdmin && <Button variant="text" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
+                {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
+              </Stack>
             </Stack>
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2">Attendees</Typography>
@@ -181,6 +227,24 @@ export default function MeetingRecords() {
             {record.notes && <><Typography variant="subtitle2">Minutes</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1.5 }}>{record.notes}</Typography></>}
             {record.decisions && <><Typography variant="subtitle2">Decisions</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1.5 }}>{record.decisions}</Typography></>}
             {record.actions && <><Typography variant="subtitle2">Actions</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{record.actions}</Typography></>}
+
+            {isAdmin && expandedVersionId === record.id && <Box sx={{ mt: 2 }} data-testid={`meeting-version-history-${record.id}`}>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Previous versions</Typography>
+              {versionLoadingId === record.id ? <Typography color="text.secondary">Loading version history...</Typography> : (versionsByMeeting[record.id]?.length ?? 0) === 0 ? <Alert severity="info">No previous versions have been recorded yet.</Alert> : <Stack spacing={1.5}>
+                {versionsByMeeting[record.id].map((version, index) => <Paper key={version.id} variant="outlined" sx={{ p: 2 }}>
+                  <Typography sx={{ fontWeight: 800 }}>Previous version {versionsByMeeting[record.id].length - index}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Saved before an edit · {formatVersionDate(version.versionedAt)}</Typography>
+                  <Typography variant="subtitle2">Title</Typography>
+                  <Typography sx={{ mb: 1 }}>{version.title}</Typography>
+                  <Typography variant="subtitle2">Attendees</Typography>
+                  <Typography sx={{ mb: 1 }}>{version.attendees.join(", ")}</Typography>
+                  {version.notes && <><Typography variant="subtitle2">Minutes</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{version.notes}</Typography></>}
+                  {version.decisions && <><Typography variant="subtitle2">Decisions</Typography><Typography sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{version.decisions}</Typography></>}
+                  {version.actions && <><Typography variant="subtitle2">Actions</Typography><Typography sx={{ whiteSpace: "pre-wrap" }}>{version.actions}</Typography></>}
+                </Paper>)}
+              </Stack>}
+            </Box>}
           </Paper>)}
         </Stack>}
       </Paper>
