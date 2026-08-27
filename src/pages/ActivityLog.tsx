@@ -1,7 +1,9 @@
-import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import OperationalSearchField from "../components/admin/OperationalSearchField";
+import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAuditLog, type AuditLogEntry } from "../services/auditLog";
 
@@ -67,14 +69,20 @@ export default function ActivityLog() {
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-          <TextField fullWidth label="Search activity" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <OperationalSearchField
+            label="Search activity"
+            value={search}
+            onChange={setSearch}
+            placeholder="Search actions, people, sections or targets"
+            testId="activity-log-search"
+          />
         </Paper>
 
         {loading ? (
-          <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress color="secondary" /></Box>
+          <OperationalLoading minHeight={260} label="Loading activity log" />
         ) : (
           <Stack spacing={1.5} data-testid="activity-log-list">
-            {visible.length === 0 && <Alert severity="info">No activity has been recorded yet.</Alert>}
+            {visible.length === 0 && <OperationalEmptyState>No activity matches the current search.</OperationalEmptyState>}
             {visible.map((entry) => (
               <Paper key={entry.id} variant="outlined" sx={{ p: 2.25 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
