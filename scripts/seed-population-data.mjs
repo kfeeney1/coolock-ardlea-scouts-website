@@ -16,6 +16,7 @@ const auth = getAuth();
 const marker = { testData: true, testSeed: "comprehensive-population-v3", createdBySeed: "TEST_SEED" };
 const reviewedBy = "TEST_SEED";
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
+const MEMBERS_PER_SECTION = 6;
 
 const sections = [
   { section: "Beavers", key: "beaver", birthYear: 2019 },
@@ -48,7 +49,7 @@ function pad(value) { return String(value).padStart(2, "0"); }
 function memberId(plan, number) { return `TEST_member_${plan.key}_${pad(number)}`; }
 
 function membersForSection(plan) {
-  return Array.from({ length: 30 }, (_, index) => {
+  return Array.from({ length: MEMBERS_PER_SECTION }, (_, index) => {
     const number = index + 1;
     const firstName = firstNames[(index + plan.section.length) % firstNames.length];
     const lastName = lastNames[(index * 3 + plan.section.length) % lastNames.length];
@@ -190,6 +191,29 @@ async function replace(collectionName, id, data) {
   });
 }
 
+async function pruneSeededDocs(collectionName, expectedIds) {
+  const snapshot = await db.collection(collectionName).where("testSeed", "==", marker.testSeed).get();
+  for (const doc of snapshot.docs) {
+    if (expectedIds.has(doc.id)) continue;
+    const data = doc.data();
+    if (data?.testData !== true || data?.createdBySeed !== marker.createdBySeed) {
+      throw new Error(`Refusing to prune ${collectionName}/${doc.id}: canonical TEST markers are incomplete.`);
+    }
+    await doc.ref.delete();
+  }
+}
+
+async function deleteAllSeededDocs(collectionName) {
+  const snapshot = await db.collection(collectionName).where("testSeed", "==", marker.testSeed).get();
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (data?.testData !== true || data?.createdBySeed !== marker.createdBySeed) {
+      throw new Error(`Refusing to delete ${collectionName}/${doc.id}: canonical TEST markers are incomplete.`);
+    }
+    await doc.ref.delete();
+  }
+}
+
 async function seedMember(member) {
   const { id, ...data } = member;
   await replace("members", id, { ...data, createdAt: FieldValue.serverTimestamp() });
@@ -258,13 +282,14 @@ async function seedLeader(user) {
 }
 
 async function seed() {
-  console.log("Seeding canonical comprehensive TEST population...");
+  console.log("Seeding minimal canonical TEST population for Playwright...");
+  await pruneSeededDocs("members", new Set(members.map((member) => member.id)));
   for (const user of authUsers) await upsertAuthUser(user);
   for (const member of members) await seedMember(member);
   for (const leader of leaders) await seedLeader(leader);
   for (const parent of parents) await seedParentAccount(parent);
 
-  console.log(`Seeded ${members.length} members: 30 each in Beavers, Cubs, Scouts, Ventures and Rovers.`);
+  console.log(`Seeded ${members.length} members: ${MEMBERS_PER_SECTION} per youth section.`);
   console.log(`Seeded ${groupRoles.length} Group executive roles.`);
   console.log(`Seeded ${sections.length * sectionRoleTemplates.length} section leadership roles.`);
   console.log(`Seeded ${parents.length} parent-only users and ${sections.length} parent+leader users.`);
@@ -272,30 +297,14 @@ async function seed() {
   console.log("Seeded one private multi-section leader scenario and two private website administration fixtures.");
 }
 
-async function deleteKnownDoc(collectionName, id) {
-  const ref = db.collection(collectionName).doc(id);
-  const snapshot = await ref.get();
-  if (!snapshot.exists) return;
-  const data = snapshot.data();
-  if (data?.testData !== true || data?.testSeed !== marker.testSeed) {
-    throw new Error(`Refusing to delete ${collectionName}/${id}: comprehensive population marker is missing.`);
-  }
-  await ref.delete();
-}
-
 async function cleanup() {
   console.log("Removing canonical comprehensive TEST population only...");
   for (const user of authUsers) {
     try { await auth.deleteUser(user.uid); } catch (error) { if (error?.code !== "auth/user-not-found") throw error; }
   }
-  for (const member of members) await deleteKnownDoc("members", member.id);
-  for (const leader of leaders) {
-    await deleteKnownDoc("adminUsers", leader.uid);
-    await deleteKnownDoc("organisationLeadership", leader.uid);
-    if (leader.accessRole === "leader" && leader.showPublicly) await deleteKnownDoc("publicLeadership", leader.uid);
-    if (leader.kind === "parent-leader") await deleteKnownDoc("parentAccounts", leader.uid);
+  for (const collectionName of ["members", "adminUsers", "organisationLeadership", "publicLeadership", "parentAccounts"]) {
+    await deleteAllSeededDocs(collectionName);
   }
-  for (const parent of parents) await deleteKnownDoc("parentAccounts", parent.uid);
   console.log("Canonical comprehensive TEST population cleanup complete.");
 }
 
