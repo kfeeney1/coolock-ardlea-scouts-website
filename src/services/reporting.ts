@@ -11,6 +11,11 @@ type Scope = {
 
 const MEMBER_STATUSES = new Set(["active", "inactive", "left"]);
 const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
+const memberReportCache = new Map<string, MemberReportRow[]>();
+
+function scopeKey(scope: Scope): string {
+    return scope.isAdmin ? "admin" : [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))].sort().join("|");
+}
 
 function stringValue(data: Record<string, unknown>, key: string): string {
     const value = data[key];
@@ -52,7 +57,7 @@ function canonicalMember(item: Awaited<ReturnType<typeof scopedDocs>>[number]) {
 
 export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRow[]> {
     const docs = await scopedDocs("members", scope);
-    return docs
+    const rows = docs
         .flatMap((item) => {
             const member = canonicalMember(item);
             if (!member) return [];
@@ -67,6 +72,8 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
             }];
         })
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    memberReportCache.set(scopeKey(scope), rows);
+    return rows;
 }
 
 export async function loadAttendanceInsightMembers(scope: Scope): Promise<AttendanceInsightMember[]> {
@@ -103,8 +110,9 @@ export async function loadEventReportRecords(scope: Scope): Promise<EventReportR
         .sort((a, b) => b.startDate.localeCompare(a.startDate));
 }
 
-export async function loadEventReportMembers(event: EventReportRecord, scope: Scope, preloadedMembers?: MemberReportRow[]): Promise<EventReportMember[]> {
-    if (preloadedMembers) return eventReportMembers(event, preloadedMembers);
+export async function loadEventReportMembers(event: EventReportRecord, scope: Scope): Promise<EventReportMember[]> {
+    const cachedRows = memberReportCache.get(scopeKey(scope));
+    if (cachedRows) return eventReportMembers(event, cachedRows);
 
     const docs = await scopedDocs("members", scope);
     const rows: MemberReportRow[] = docs.flatMap((item) => {
