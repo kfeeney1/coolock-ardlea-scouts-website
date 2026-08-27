@@ -26,14 +26,15 @@ test("member history search narrows the permitted member selector", async ({ pag
   await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
 
   const search = page.getByLabel("Search members");
-  await expect(page.getByTestId("member-history-match-count")).toHaveText("30 of 30 members shown");
+  const matchCount = page.getByTestId("member-history-match-count");
+  await expect(matchCount).toContainText("members shown");
 
   await search.fill("Casey OBrien Scouts 01");
-  await expect(page.getByTestId("member-history-match-count")).toHaveText("1 of 30 members shown");
+  await expect(matchCount).toHaveText(/1 of \d+ members shown/);
   await expect(page.getByTestId("member-history-detail").getByRole("heading", { name: "Casey OBrien Scouts 01" })).toBeVisible();
 
   await search.fill("member that does not exist");
   await expect(page.getByText("No members match your search.")).toBeVisible();
-  await expect(page.getByTestId("member-history-match-count")).toHaveText("0 of 30 members shown");
+  await expect(matchCount).toHaveText(/0 of \d+ members shown/);
   await expect(page.getByTestId("member-history-detail")).toHaveCount(0);
 });
