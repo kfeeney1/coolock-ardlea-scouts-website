@@ -97,8 +97,17 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     await expect(page.getByRole("link", { name: "Weekly Meetings", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Events & Activities", exact: true })).toBeVisible();
 
-    for (const route of ["/leader/meetings", "/leader/events", "/leader/attendance", "/leader/reports", "/leader/info"]) {
+    const corePages = [
+      { route: "/leader/weekly", heading: "Weekly Meetings" },
+      { route: "/leader/events", heading: "Events & Activities" },
+      { route: "/leader/attendance", heading: "Attendance History & Insights" },
+      { route: "/leader/reports", heading: "Reports" },
+      { route: "/leader/info", heading: "Leader Portal Information" }
+    ];
+
+    for (const { route, heading } of corePages) {
       await page.goto(route);
+      await expect(page.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
       await expectNoHorizontalPageOverflow(page);
       await expectMobileAccessibilityBaseline(page);
     }
