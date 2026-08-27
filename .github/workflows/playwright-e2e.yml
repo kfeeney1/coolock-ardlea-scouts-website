@@ -99,6 +99,20 @@ jobs:
           node scripts/verify-test-population.mjs
           node scripts/verify-flow-data.mjs
 
+      - name: Prove canonical seed is safe when existing data remains
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: |
+          echo "Re-seeding the same emulator without cleanup to prove deterministic seed idempotency."
+          node scripts/seed-population-data.mjs seed
+          node scripts/seed-flow-data.mjs
+          node scripts/seed-public-site-content.mjs seed
+          node scripts/seed-playwright-records.mjs
+          node scripts/rebuild-public-leadership.mjs
+          node scripts/verify-test-population.mjs
+          node scripts/verify-flow-data.mjs
+
       - name: Install Playwright test runner
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm install --no-save --package-lock=false @playwright/test
