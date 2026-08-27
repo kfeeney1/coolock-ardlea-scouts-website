@@ -33,6 +33,7 @@ const EXPECTED_COLLECTIONS = new Set([
   "consentApplications",
   "meetingRecords",
   "weeklyMeetings",
+  "parentWeeklyMeetings",
   "organisationLeadership",
   "publicLeadership",
   "publicSiteContent",
@@ -90,8 +91,6 @@ for (const collectionName of EXPECTED_COLLECTIONS) {
 
 const get = (collection, id) => docsByCollection.get(collection)?.get(id);
 
-// publicSiteContent is new in the current branch. Its absence on the pre-merge
-// live database is expected; if present, it must have canonical provenance.
 const siteDocs = docsByCollection.get("publicSiteContent");
 for (const [id, site] of siteDocs) {
   if (id !== "TEST_site") fail("publicSiteContent", id, "unexpected public site content document");
@@ -131,9 +130,6 @@ for (const [id, data] of docsByCollection.get("publicLeadership")) {
     fail("publicLeadership", id, "has no active leader adminUsers source");
     continue;
   }
-  // Current/manual projections must exactly mirror their source. Historical
-  // seeded projections are still legitimate seed-origin data and are refreshed
-  // by the canonical post-merge reset.
   if (!validSeedMarker(data)) {
     for (const field of ["displayName", "scoutingRole", "organisationSection", "reportsToUid"]) {
       if (!sameText(data[field], organisation[field])) fail("publicLeadership", id, `${field} differs from organisationLeadership source`);
@@ -190,8 +186,15 @@ for (const [id, data] of docsByCollection.get("parentAccounts")) {
   }
 }
 
-for (const [id, data] of docsByCollection.get("organisationLeadership")) {
+for (const [id] of docsByCollection.get("organisationLeadership")) {
   if (!get("adminUsers", id)) fail("organisationLeadership", id, "has no adminUsers identity source");
+}
+
+// parentWeeklyMeetings is an intentional parent-safe projection of weeklyMeetings.
+// Its document id must resolve to a source weekly meeting; the projection can be
+// unmarked because production writes deliberately strip private/test provenance.
+for (const [id] of docsByCollection.get("parentWeeklyMeetings")) {
+  if (!get("weeklyMeetings", id)) fail("parentWeeklyMeetings", id, "has no weeklyMeetings source");
 }
 
 console.log("Live Firestore provenance summary:");
