@@ -5,6 +5,7 @@ import {
     attendanceTrendCsv,
     csvCell,
     eventOverviewCsv,
+    eventReportMembers,
     eventRosterCsv,
     filterEventsByDateRange,
     memberReportCsv,
@@ -14,9 +15,9 @@ import {
 } from "../../src/services/reportingLogic.ts";
 
 const members = [
-    { displayName: "Alex Example", section: "Cubs", status: "active", parentName: "Pat Example", emailAddress: "pat@example.com", mobileNumber: "0870000000" },
-    { displayName: "Jamie Example", section: "Cubs", status: "inactive", parentName: "", emailAddress: "", mobileNumber: "" },
-    { displayName: "Sam Example", section: "Scouts", status: "active", parentName: "", emailAddress: "", mobileNumber: "" }
+    { id: "member1", displayName: "Alex Example", section: "Cubs", status: "active", parentName: "Pat Example", emailAddress: "pat@example.com", mobileNumber: "0870000000" },
+    { id: "member2", displayName: "Jamie Example", section: "Cubs", status: "inactive", parentName: "", emailAddress: "", mobileNumber: "" },
+    { id: "member3", displayName: "Sam Example", section: "Scouts", status: "active", parentName: "", emailAddress: "", mobileNumber: "" }
 ];
 
 const event = {
@@ -49,6 +50,11 @@ test("filterEventsByDateRange applies inclusive start and end dates", () => {
     ];
     assert.deepEqual(filterEventsByDateRange(rows, "2026-09-01", "2026-10-02").map((row) => row.id), ["event-1", "event-2"]);
     assert.deepEqual(filterEventsByDateRange(rows, "2026-10-02", "2026-10-02").map((row) => row.id), ["event-1"]);
+});
+
+test("eventReportMembers reuses active members from the loaded report snapshot", () => {
+    assert.deepEqual(eventReportMembers(event, members), [eventMembers[0]]);
+    assert.deepEqual(eventReportMembers({ ...event, section: "All Sections" }, members).map((member) => member.id), ["member1", "member3"]);
 });
 
 test("memberReportCsv excludes sensitive medical, DOB and emergency columns", () => {

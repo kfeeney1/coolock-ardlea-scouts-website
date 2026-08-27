@@ -2,7 +2,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
 import type { AttendanceInsightMember } from "./attendanceInsightsLogic";
-import type { EventReportMember, EventReportRecord, MemberReportRow } from "./reportingLogic";
+import { eventReportMembers, type EventReportMember, type EventReportRecord, type MemberReportRow } from "./reportingLogic";
 
 type Scope = {
     isAdmin: boolean;
@@ -11,6 +11,11 @@ type Scope = {
 
 const MEMBER_STATUSES = new Set(["active", "inactive", "left"]);
 const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
+const memberReportCache = new Map<string, MemberReportRow[]>();
+
+function scopeKey(scope: Scope): string {
+    return scope.isAdmin ? "admin" : [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))].sort().join("|");
+}
 
 function stringValue(data: Record<string, unknown>, key: string): string {
     const value = data[key];
@@ -52,11 +57,12 @@ function canonicalMember(item: Awaited<ReturnType<typeof scopedDocs>>[number]) {
 
 export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRow[]> {
     const docs = await scopedDocs("members", scope);
-    return docs
+    const rows = docs
         .flatMap((item) => {
             const member = canonicalMember(item);
             if (!member) return [];
             return [{
+                id: member.id,
                 displayName: member.displayName,
                 section: member.section,
                 status: member.status,
@@ -66,6 +72,8 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
             }];
         })
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    memberReportCache.set(scopeKey(scope), rows);
+    return rows;
 }
 
 export async function loadAttendanceInsightMembers(scope: Scope): Promise<AttendanceInsightMember[]> {
@@ -103,14 +111,22 @@ export async function loadEventReportRecords(scope: Scope): Promise<EventReportR
 }
 
 export async function loadEventReportMembers(event: EventReportRecord, scope: Scope): Promise<EventReportMember[]> {
+    const cachedRows = memberReportCache.get(scopeKey(scope));
+    if (cachedRows) return eventReportMembers(event, cachedRows);
+
     const docs = await scopedDocs("members", scope);
-    return docs
-        .flatMap((item) => {
-            const member = canonicalMember(item);
-            return member ? [member] : [];
-        })
-        .filter((member) => member.status === "active")
-        .filter((member) => event.section === "All Sections" || member.section === event.section)
-        .map(({ id, displayName, section }) => ({ id, displayName, section }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const rows: MemberReportRow[] = docs.flatMap((item) => {
+        const member = canonicalMember(item);
+        if (!member) return [];
+        return [{
+            id: member.id,
+            displayName: member.displayName,
+            section: member.section,
+            status: member.status,
+            parentName: "",
+            emailAddress: "",
+            mobileNumber: ""
+        }];
+    });
+    return eventReportMembers(event, rows);
 }

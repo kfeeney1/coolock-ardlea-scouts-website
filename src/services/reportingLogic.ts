@@ -1,4 +1,5 @@
 export type MemberReportRow = {
+    id: string;
     displayName: string;
     section: string;
     status: string;
@@ -42,6 +43,14 @@ export function filterEventsByDateRange(events: EventReportRecord[], fromDate = 
         if (toDate && event.startDate > toDate) return false;
         return true;
     });
+}
+
+export function eventReportMembers(event: EventReportRecord, rows: MemberReportRow[]): EventReportMember[] {
+    return rows
+        .filter((member) => member.status === "active")
+        .filter((member) => event.section === "All Sections" || member.section === event.section)
+        .map(({ id, displayName, section }) => ({ id, displayName, section }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 export function memberReportCsv(rows: MemberReportRow[]): string {
