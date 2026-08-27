@@ -38,7 +38,10 @@ test.describe("approved parent journey", () => {
     await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(secondMember, { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Review Consent" }).click();
+    await page
+      .getByTestId("parent-consent-tile-TEST_member_beaver_01")
+      .getByRole("button", { name: "Review Consent" })
+      .click();
     await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
   });
 
