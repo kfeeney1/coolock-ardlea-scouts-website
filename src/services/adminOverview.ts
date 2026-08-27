@@ -32,6 +32,7 @@ type CacheEntry = { expiresAt: number; value: AdminOverview };
 const OVERVIEW_CACHE_MS = 90_000;
 const overviewCache = new Map<string, CacheEntry>();
 const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
+const YOUTH_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -111,6 +112,19 @@ async function loadScopedCollection(collectionName: string, profile: AdminProfil
   return [...byId.values()];
 }
 
+async function loadScopedWeeklyMeetings(profile: AdminProfile): Promise<FirestoreSnapshot[]> {
+  const sections = isAdmin(profile)
+    ? YOUTH_SECTIONS
+    : [...new Set(profile.sections.map((section) => section.trim()).filter(Boolean))];
+  if (sections.length === 0) return [];
+  const snapshots = await Promise.all(
+    sections.map((section) => getDocs(query(collection(db, "weeklyMeetings"), where("section", "==", section))))
+  );
+  const byId = new Map<string, FirestoreSnapshot>();
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((document) => byId.set(document.id, document)));
+  return [...byId.values()];
+}
+
 export async function loadAdminOverview(profile: AdminProfile, force = false): Promise<AdminOverview> {
   const key = cacheKey(profile);
   const cached = overviewCache.get(key);
@@ -123,7 +137,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     countScopedNewJoins(profile),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile),
-    loadScopedCollection("weeklyMeetings", profile)
+    loadScopedWeeklyMeetings(profile)
   ]);
 
   const members: RawMember[] = memberDocuments.flatMap((snapshot) => {
