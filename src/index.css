@@ -11,3 +11,22 @@ body,
 body {
   min-width: 320px;
 }
+
+@media (max-width: 600px) {
+  [data-testid="event-detail-report"] {
+    min-width: 0;
+  }
+
+  [data-testid="event-detail-report"] .MuiFormControl-root,
+  [data-testid="event-detail-report"] .MuiInputBase-root {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  [data-testid="event-detail-report"] .MuiSelect-select {
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
