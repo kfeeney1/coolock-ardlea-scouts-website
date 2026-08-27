@@ -50,8 +50,9 @@ const allowedEmails = new Set(seedCorpus.match(/[A-Za-z0-9._%+-]+@example\.com/g
 const sectionKeys = ["beaver", "cub", "scout", "venture", "rover"];
 const sectionRoleKeys = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const groupRoleKeys = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
+const membersPerSection = 6;
 for (const section of sectionKeys) {
-  for (let i = 1; i <= 30; i += 1) {
+  for (let i = 1; i <= membersPerSection; i += 1) {
     const n = String(i).padStart(2, "0");
     allowedTokens.add(`TEST_member_${section}_${n}`);
     allowedEmails.add(`test.${section}.${n}.parent@example.com`);
@@ -171,4 +172,5 @@ if (violations.length) {
 }
 
 console.log(`Repository seed contract verified against ${APPROVED_SEEDS.length} canonical seed sources.`);
+console.log(`Playwright member identifiers are limited to the ${membersPerSection}-per-section minimal fixture set.`);
 console.log("Runtime code may not silently accept legacy aliases, presentation code may not own mutable organisation/domain content, and obsolete source backups are forbidden.");
