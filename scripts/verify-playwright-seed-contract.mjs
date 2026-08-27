@@ -13,8 +13,9 @@ const seededUids = new Set([...populationSeed.matchAll(/uid:\s*(?:"([^"]+)"|WEB_
 const generatedSections = ["beaver", "cub", "scout", "venture", "rover"];
 const generatedSectionRoles = ["section.leader", "assistant.section.leader", "programme.scouter", "scouter"];
 const generatedGroupRoles = ["group.leader", "group.chairperson", "group.secretary", "group.treasurer", "group.quartermaster", "group.youth.champion"];
+const membersPerSection = 6;
 for (const section of generatedSections) {
-  for (let number = 1; number <= 30; number += 1) seededEmails.add(`test.${section}.${String(number).padStart(2, "0")}.parent@example.com`);
+  for (let number = 1; number <= membersPerSection; number += 1) seededEmails.add(`test.${section}.${String(number).padStart(2, "0")}.parent@example.com`);
   for (const role of generatedSectionRoles) seededEmails.add(`test.${section}.${role}@example.com`);
   for (const number of [1, 2]) seededEmails.add(`test.${section}.parent${number}@example.com`);
 }
@@ -42,10 +43,11 @@ for (const value of forbiddenLegacyValues) if (workflow.includes(value)) problem
 if (!seededEmails.has("test.webadmin@example.com")) problems.push("canonical website admin email is missing from population seed");
 if (!seededUids.has("TEST_uid_web_admin_01")) problems.push("canonical website admin UID is missing from population seed");
 if (!seededEmails.has("test.multi.section.leader@example.com")) problems.push("canonical multi-section leader is missing from population seed");
+if (!populationSeed.includes("const MEMBERS_PER_SECTION = 6")) problems.push(`${populationSeedPath} must keep the minimal six-member-per-section Playwright fixture contract`);
 for (const token of ["status: \"closed\"","injuries:","plannedActivities:","plannedBadgework:","programmeNotes:","weekly-activities-v1","weekly-badgework-v1","weekly-programme-v1","durationMinutes","plannedBadgework(","leader, equipment, durationMinutes","parentWeeklyMeetings","parentProgramme("]) if (!weeklySeed.includes(token)) problems.push(`${weeklySeedPath} must seed canonical weekly planner token ${token}`);
 for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!weeklySeed.includes(`\"${section}\"`)) problems.push(`${weeklySeedPath} must seed closed meeting history for ${section}`);
 if (!weeklySeed.includes("parent-safe programme projections")) problems.push(`${weeklySeedPath} must document its parent-safe weekly programme projection contract`);
 for (const signature of ["1, 1]","2, 2]","3, 1]","2, 0]","1, 3]"]) if (!weeklySeed.includes(signature)) problems.push(`${weeklySeedPath} must retain varied activity/badgework counts including ${signature}`);
 
 if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
-console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, stable varied weekly planner history and parent-safe projections for all sections.`);
+console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, ${membersPerSection} members per section, stable varied weekly planner history and parent-safe projections for all sections.`);

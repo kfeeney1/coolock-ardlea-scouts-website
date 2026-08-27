@@ -197,7 +197,7 @@ async function seed() {
     ["section-and-status-change", "Cubs", "Scouts", "inactive", "active"]
   ];
   for (const [changeType, fromSection, toSection, fromStatus, toStatus] of history) {
-    await set("memberHistory", `TEST_flow_history_${changeType}`, { memberId: "TEST_member_beaver_30", memberName: "TEST Lifecycle Member", changeType, fromSection, toSection, fromStatus, toStatus, changedBy: "TEST_SEED", changedAt: now });
+    await set("memberHistory", `TEST_flow_history_${changeType}`, { memberId: "TEST_member_beaver_06", memberName: "TEST Lifecycle Member", changeType, fromSection, toSection, fromStatus, toStatus, changedBy: "TEST_SEED", changedAt: now });
   }
 
   for (const [uid, fullName, requestedRole, requestedSection, status] of leaderRequests) {
