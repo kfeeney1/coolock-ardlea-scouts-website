@@ -13,7 +13,7 @@ Authenticated permission tests use Firebase Authentication users created by the 
 | Leader | `test.scout.programme.scouter@example.com` | Active Scouts Programme Scouter |
 | Multi-section Leader | `test.multi.section.leader@example.com` | Active leader assigned to Beavers and Cubs |
 | Admin | `test.webadmin@example.com` | Active `admin` |
-| Super Admin | `test.superadmin@example.com` | Active `super-admin` |
+| Super Admin | `superadmin@example.com` | Active `super-admin` |
 
 Every hard-coded test identity or `TEST_*` record consumed by application tests, E2E specs, workflows, or utility code is checked by the repository seed-contract quality gate. A consumer may only reference data defined by an active canonical seed source. Migration and cleanup scripts are the only exception; they may name retired IDs solely so those records can be detected or removed.
 

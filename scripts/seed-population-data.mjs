@@ -155,7 +155,7 @@ const privateAdminUsers = [
   },
   {
     uid: "TEST_uid_super_admin_01",
-    email: "test.superadmin@example.com",
+    email: "superadmin@example.com",
     displayName: "Test Website Super Admin",
     accessRole: "super-admin",
     sections: ["Group"],
