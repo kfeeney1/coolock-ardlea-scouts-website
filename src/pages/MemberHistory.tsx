@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import OperationalSearchField from "../components/admin/OperationalSearchField";
+import OperationalStatusChip from "../components/admin/OperationalStatusChip";
 import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { db } from "../firebase";
@@ -26,6 +27,12 @@ function matchesSearch(member: MemberOption, value: string): boolean {
     || member.displayName.toLocaleLowerCase().includes(normalized)
     || member.section.toLocaleLowerCase().includes(normalized)
     || member.status.toLocaleLowerCase().includes(normalized);
+}
+
+function memberStatusTone(status: string): "success" | "warning" | "default" {
+  if (status === "active") return "success";
+  if (status === "inactive") return "warning";
+  return "default";
 }
 
 export default function MemberHistory() {
@@ -171,7 +178,7 @@ export default function MemberHistory() {
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 2 }}>
               <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>{selected.displayName}</Typography>
               <Chip label={selected.section || "No section"} variant="outlined" />
-              <Chip label={selected.status} />
+              <OperationalStatusChip label={selected.status} tone={memberStatusTone(selected.status)} />
             </Stack>
 
             {historyLoading ? (
