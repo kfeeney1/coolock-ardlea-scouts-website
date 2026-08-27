@@ -23,7 +23,7 @@ async function openLeaderMenu(page: Page) {
 
 for (const [role, email] of [
   ["Admin", "test.webadmin@example.com"],
-  ["Super Admin", "test.superadmin@example.com"],
+  ["Super Admin", "superadmin@example.com"],
   ["Group Leader", "test.group.leader@example.com"],
   ["Group Secretary", "test.group.secretary@example.com"]
 ] as const) {
