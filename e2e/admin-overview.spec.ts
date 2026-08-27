@@ -16,7 +16,7 @@ async function login(page: Page, email: string) {
 
 for (const [role, email] of [
   ["Admin", "test.webadmin@example.com"],
-  ["Super Admin", "test.superadmin@example.com"]
+  ["Super Admin", "superadmin@example.com"]
 ] as const) {
   test(`${role} sees the full operations overview and approval queues`, async ({ page }, testInfo) => {
     desktopOnly(testInfo);
