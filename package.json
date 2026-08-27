@@ -10,6 +10,7 @@
     "test": "node --experimental-strip-types --test tests/unit/*.test.ts",
     "test:e2e": "npx playwright test",
     "audit:production": "npm audit --omit=dev --audit-level=high",
+    "audit:source": "node scripts/report-source-complexity.mjs",
     "check:production-env": "node scripts/check-production-env.mjs",
     "check:hosting-config": "node scripts/check-hosting-config.mjs",
     "check:smoke-script": "node --check scripts/check-live-deployment.mjs",
