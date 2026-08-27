@@ -2,7 +2,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
 import type { AttendanceInsightMember } from "./attendanceInsightsLogic";
-import type { EventReportMember, EventReportRecord, MemberReportRow } from "./reportingLogic";
+import { eventReportMembers, type EventReportMember, type EventReportRecord, type MemberReportRow } from "./reportingLogic";
 
 type Scope = {
     isAdmin: boolean;
@@ -57,6 +57,7 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
             const member = canonicalMember(item);
             if (!member) return [];
             return [{
+                id: member.id,
                 displayName: member.displayName,
                 section: member.section,
                 status: member.status,
@@ -102,15 +103,22 @@ export async function loadEventReportRecords(scope: Scope): Promise<EventReportR
         .sort((a, b) => b.startDate.localeCompare(a.startDate));
 }
 
-export async function loadEventReportMembers(event: EventReportRecord, scope: Scope): Promise<EventReportMember[]> {
+export async function loadEventReportMembers(event: EventReportRecord, scope: Scope, preloadedMembers?: MemberReportRow[]): Promise<EventReportMember[]> {
+    if (preloadedMembers) return eventReportMembers(event, preloadedMembers);
+
     const docs = await scopedDocs("members", scope);
-    return docs
-        .flatMap((item) => {
-            const member = canonicalMember(item);
-            return member ? [member] : [];
-        })
-        .filter((member) => member.status === "active")
-        .filter((member) => event.section === "All Sections" || member.section === event.section)
-        .map(({ id, displayName, section }) => ({ id, displayName, section }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const rows: MemberReportRow[] = docs.flatMap((item) => {
+        const member = canonicalMember(item);
+        if (!member) return [];
+        return [{
+            id: member.id,
+            displayName: member.displayName,
+            section: member.section,
+            status: member.status,
+            parentName: "",
+            emailAddress: "",
+            mobileNumber: ""
+        }];
+    });
+    return eventReportMembers(event, rows);
 }
