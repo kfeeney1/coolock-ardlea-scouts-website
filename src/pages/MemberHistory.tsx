@@ -1,9 +1,12 @@
-import { Alert, Box, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import OperationalSearchField from "../components/admin/OperationalSearchField";
+import OperationalStatusChip from "../components/admin/OperationalStatusChip";
+import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { db } from "../firebase";
 import { firestoreFailureMessage } from "../services/firestoreErrors";
@@ -24,6 +27,12 @@ function matchesSearch(member: MemberOption, value: string): boolean {
     || member.displayName.toLocaleLowerCase().includes(normalized)
     || member.section.toLocaleLowerCase().includes(normalized)
     || member.status.toLocaleLowerCase().includes(normalized);
+}
+
+function memberStatusTone(status: string): "success" | "warning" | "default" {
+  if (status === "active") return "success";
+  if (status === "inactive") return "warning";
+  return "default";
 }
 
 export default function MemberHistory() {
@@ -133,20 +142,20 @@ export default function MemberHistory() {
 
         <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
           {loading ? (
-            <Box sx={{ minHeight: 100, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>
+            <OperationalLoading minHeight={100} label="Loading members" />
           ) : members.length === 0 ? (
-            <Alert severity="info">No member records are available in your assigned sections.</Alert>
+            <OperationalEmptyState>No member records are available in your assigned sections.</OperationalEmptyState>
           ) : (
             <Stack spacing={2}>
-              <TextField
+              <OperationalSearchField
                 label="Search members"
                 value={search}
-                onChange={(event) => handleSearchChange(event.target.value)}
+                onChange={handleSearchChange}
                 placeholder="Search by name, section or status"
-                slotProps={{ htmlInput: { "data-testid": "member-history-search" } }}
+                testId="member-history-search"
               />
               {filteredMembers.length === 0 ? (
-                <Alert severity="info">No members match your search.</Alert>
+                <OperationalEmptyState>No members match your search.</OperationalEmptyState>
               ) : (
                 <FormControl fullWidth>
                   <InputLabel>Member</InputLabel>
@@ -169,13 +178,13 @@ export default function MemberHistory() {
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 2 }}>
               <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>{selected.displayName}</Typography>
               <Chip label={selected.section || "No section"} variant="outlined" />
-              <Chip label={selected.status} />
+              <OperationalStatusChip label={selected.status} tone={memberStatusTone(selected.status)} />
             </Stack>
 
             {historyLoading ? (
-              <Box sx={{ minHeight: 120, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>
+              <OperationalLoading minHeight={120} label="Loading member history" />
             ) : history.length === 0 ? (
-              <Alert severity="info">No section transfers or membership status changes have been recorded for this member yet.</Alert>
+              <OperationalEmptyState>No section transfers or membership status changes have been recorded for this member yet.</OperationalEmptyState>
             ) : (
               <Stack spacing={1.5}>
                 {history.map((entry) => (
