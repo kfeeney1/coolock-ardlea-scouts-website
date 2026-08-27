@@ -20,7 +20,9 @@ const emptyOverview: AdminOverview = {
   activeMembers: 0,
   outstandingConsent: 0,
   membersBySection: [],
-  upcomingEvents: []
+  upcomingEvents: [],
+  nextMeeting: null,
+  attentionItems: []
 };
 
 export default function AdminOverviewPanel() {
@@ -45,9 +47,7 @@ export default function AdminOverviewPanel() {
     }
   }, [adminProfile]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const scopeLabel = useMemo(() => {
     if (isAdmin) return "All sections";
@@ -73,28 +73,13 @@ export default function AdminOverviewPanel() {
 
   return (
     <Box sx={{ mb: 3 }} data-testid="admin-overview">
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: { xs: "stretch", md: "center" },
-          justifyContent: "space-between",
-          gap: 2,
-          mb: 2
-        }}
-      >
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between", gap: 2, mb: 2 }}>
         <Box>
-          <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>
-            Operations Overview
-          </Typography>
-          <Typography color="text.secondary">
-            What needs attention across joins, members, events and consent.
-          </Typography>
+          <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>Operations Overview</Typography>
+          <Typography color="text.secondary">What needs attention across meetings, joins, members, events and consent.</Typography>
           <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} sx={{ mt: 1 }} />
         </Box>
-        <Button variant="outlined" color="secondary" onClick={() => void refresh(true)}>
-          Refresh Overview
-        </Button>
+        <Button variant="outlined" color="secondary" onClick={() => void refresh(true)}>Refresh Overview</Button>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -106,106 +91,82 @@ export default function AdminOverviewPanel() {
       ) : (
         <>
           {!isAdmin && adminProfile.sections.length === 0 && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              No sections are assigned to this leader account. Ask an administrator to update Leader Access before using section data.
-            </Alert>
+            <Alert severity="warning" sx={{ mb: 2 }}>No sections are assigned to this leader account. Ask an administrator to update Leader Access before using section data.</Alert>
           )}
 
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, minmax(0, 1fr))" },
-              gap: 2,
-              mb: 2
-            }}
-          >
+          <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Today &amp; Needs Attention</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1.4fr" }, gap: 2, mb: 3 }}>
+            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="next-meeting-card">
+              <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Next Meeting</Typography>
+              {overview.nextMeeting ? (
+                <Stack spacing={1.25}>
+                  <Typography sx={{ fontWeight: 800 }}>{overview.nextMeeting.section} · {overview.nextMeeting.meetingDate}</Typography>
+                  <Typography color="text.secondary">{overview.nextMeeting.location || "Location not set"}</Typography>
+                  <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
+                    <Chip size="small" color={overview.nextMeeting.programmeReady ? "success" : "warning"} label={overview.nextMeeting.programmeReady ? "Programme ready" : "Programme needed"} />
+                    <Chip size="small" variant="outlined" label={overview.nextMeeting.attendanceStarted ? "Attendance started" : "Attendance not started"} />
+                  </Stack>
+                  <Button component={Link} to="/leader/weekly" sx={{ alignSelf: "flex-start", px: 0 }}>Open Weekly Meetings</Button>
+                </Stack>
+              ) : (
+                <Typography color="text.secondary">No upcoming open meeting in your current scope.</Typography>
+              )}
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="needs-attention-card">
+              <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Needs Attention</Typography>
+              {overview.attentionItems.length === 0 ? (
+                <Alert severity="success">Nothing currently needs attention in your scope.</Alert>
+              ) : (
+                <Stack spacing={1.25}>
+                  {overview.attentionItems.map((item) => (
+                    <Box key={item.id} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5, pb: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
+                      <Box>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                          <Chip size="small" color={item.severity === "warning" ? "warning" : "info"} label={item.severity === "warning" ? "Action" : "Today"} />
+                          <Typography sx={{ fontWeight: 700 }}>{item.label}</Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{item.detail}</Typography>
+                      </Box>
+                      <Button component={Link} to={item.path} size="small" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>Open</Button>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Box>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2, mb: 2 }}>
             {cards.map(([label, value, path]) => (
-              <Paper
-                key={String(label)}
-                component={Link}
-                to={String(path)}
-                variant="outlined"
-                aria-label={`${label}: ${value}`}
-                sx={{
-                  p: 2.5,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  color: "inherit",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 3,
-                    borderColor: "secondary.main"
-                  },
-                  "&:focus-visible": {
-                    outline: "3px solid",
-                    outlineColor: "secondary.main",
-                    outlineOffset: 2
-                  }
-                }}
-              >
-                <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
-                  {value}
-                </Typography>
+              <Paper key={String(label)} component={Link} to={String(path)} variant="outlined" aria-label={`${label}: ${value}`} sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1, color: "inherit", textDecoration: "none", cursor: "pointer", transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3, borderColor: "secondary.main" }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
+                <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{value}</Typography>
                 <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
-                <Typography variant="body2" color="primary" sx={{ fontWeight: 700, mt: "auto" }}>
-                  Open
-                </Typography>
+                <Typography variant="body2" color="primary" sx={{ fontWeight: 700, mt: "auto" }}>Open</Typography>
               </Paper>
             ))}
           </Box>
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1.5fr" }, gap: 2 }}>
             <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>
-                Members by Section
-              </Typography>
-              {overview.membersBySection.length === 0 ? (
-                <Typography color="text.secondary">No active members found in your current scope.</Typography>
-              ) : (
-                <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
-                  {overview.membersBySection.map((item) => (
-                    <Chip key={item.section} label={`${item.section}: ${item.count}`} variant="outlined" />
-                  ))}
-                </Stack>
+              <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Members by Section</Typography>
+              {overview.membersBySection.length === 0 ? <Typography color="text.secondary">No active members found in your current scope.</Typography> : (
+                <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>{overview.membersBySection.map((item) => <Chip key={item.section} label={`${item.section}: ${item.count}`} variant="outlined" />)}</Stack>
               )}
-              <Button component={Link} to="/leader/members" sx={{ mt: 2, px: 0 }}>
-                Manage Members
-              </Button>
+              <Button component={Link} to="/leader/members" sx={{ mt: 2, px: 0 }}>Manage Members</Button>
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, mb: 1.5 }}>
-                <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>
-                  Upcoming Events
-                </Typography>
+                <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>Upcoming Events</Typography>
                 <Button component={Link} to="/leader/events" size="small">View All</Button>
               </Box>
-              {overview.upcomingEvents.length === 0 ? (
-                <Typography color="text.secondary">No upcoming open or draft events in your current scope.</Typography>
-              ) : (
-                <Stack spacing={1.25}>
-                  {overview.upcomingEvents.slice(0, 5).map((event) => (
-                    <Box key={event.id} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-                      <Box>
-                        <Typography sx={{ fontWeight: 700 }}>{event.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {event.startDate || "Date not set"} · {event.section} · {event.status}
-                        </Typography>
-                      </Box>
-                      {event.consentRequired && (
-                        <Chip
-                          size="small"
-                          color={event.outstandingConsent > 0 ? "warning" : "success"}
-                          label={event.outstandingConsent > 0 ? `${event.outstandingConsent} consent outstanding` : "Consent complete"}
-                        />
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
+              {overview.upcomingEvents.length === 0 ? <Typography color="text.secondary">No upcoming open or draft events in your current scope.</Typography> : (
+                <Stack spacing={1.25}>{overview.upcomingEvents.slice(0, 5).map((event) => (
+                  <Box key={event.id} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+                    <Box><Typography sx={{ fontWeight: 700 }}>{event.title}</Typography><Typography variant="body2" color="text.secondary">{event.startDate || "Date not set"} · {event.section} · {event.status}</Typography></Box>
+                    {event.consentRequired && <Chip size="small" color={event.outstandingConsent > 0 ? "warning" : "success"} label={event.outstandingConsent > 0 ? `${event.outstandingConsent} consent outstanding` : "Consent complete"} />}
+                  </Box>
+                ))}</Stack>
               )}
             </Paper>
           </Box>
