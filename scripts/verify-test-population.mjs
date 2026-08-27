@@ -11,6 +11,7 @@ const auth = getAuth();
 const TEST_SEED = "comprehensive-population-v3";
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 const MULTI_SECTION_UID = "TEST_uid_multi_section_leader";
+const MEMBERS_PER_SECTION = 6;
 const SECTIONS = [
   { section: "Beavers", key: "beaver" },
   { section: "Cubs", key: "cub" },
@@ -29,13 +30,14 @@ async function seededDocs(name) {
   return snapshot.docs;
 }
 
+const expectedMemberCount = SECTIONS.length * MEMBERS_PER_SECTION;
 const members = await seededDocs("members");
-if (members.length !== 150) fail(`expected 150 members, found ${members.length}`);
+if (members.length !== expectedMemberCount) fail(`expected ${expectedMemberCount} members, found ${members.length}`);
 for (const { section } of SECTIONS) {
   const sectionDocs = members.filter((doc) => doc.data().section === section);
-  if (sectionDocs.length !== 30) fail(`expected 30 ${section} members, found ${sectionDocs.length}`);
+  if (sectionDocs.length !== MEMBERS_PER_SECTION) fail(`expected ${MEMBERS_PER_SECTION} ${section} members, found ${sectionDocs.length}`);
 }
-if (new Set(members.map((doc) => doc.data().displayName)).size !== 150) fail("member display names are not unique");
+if (new Set(members.map((doc) => doc.data().displayName)).size !== expectedMemberCount) fail("member display names are not unique");
 for (const doc of members) {
   for (const key of ["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "source", "sourceJoinApplicationId"]) {
     if (!(key in doc.data())) fail(`members/${doc.id} missing canonical field ${key}`);
@@ -115,8 +117,8 @@ for (const uid of expectedAuthUids) {
 }
 if (missingAuthUids.length) fail(`missing comprehensive Auth users: ${missingAuthUids.join(", ")}`);
 
-console.log("Canonical comprehensive TEST population verified successfully.");
-console.log("- Members: 150 total, exactly 30 in each youth section");
+console.log("Minimal canonical TEST population verified successfully.");
+console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
 console.log("- Who's Who: exactly six Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
 console.log("- Leader/admin profiles: 26 public leaders + 1 private multi-section leader + 2 private website admins");
