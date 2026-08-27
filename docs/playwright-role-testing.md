@@ -2,7 +2,7 @@
 
 The Playwright suite always runs public-page, Parent Portal UI and unauthenticated route-protection checks.
 
-Authenticated permission tests use Firebase Authentication users created by the canonical comprehensive population seed. Their email addresses are fixed synthetic test values and are not secrets. All accounts share one password stored securely in GitHub Actions.
+Authenticated permission tests use Firebase Authentication users created by the canonical comprehensive population seed. Their email addresses are fixed synthetic test values and are not secrets. All canonical test accounts use the development-only password `password1`.
 
 ## Seeded E2E accounts
 
@@ -17,20 +17,17 @@ Authenticated permission tests use Firebase Authentication users created by the 
 
 Every hard-coded test identity or `TEST_*` record consumed by application tests, E2E specs, workflows, or utility code is checked by the repository seed-contract quality gate. A consumer may only reference data defined by an active canonical seed source. Migration and cleanup scripts are the only exception; they may name retired IDs solely so those records can be detected or removed.
 
-## One GitHub Actions secret
+## Canonical test password
 
-Under **Repository Settings → Secrets and variables → Actions → Secrets**, add just one secret:
+All canonical development and Playwright test accounts use:
 
-- **Name:** `E2E_TEST_USER_PASSWORD`
-- **Secret:** choose a test-only password of at least 8 characters.
+- **Password:** `password1`
 
-Do not use a password that you use anywhere else. The value is supplied both to the Firebase test-data seeder and to Playwright, but is never committed to the repository.
+This value is intentionally fixed because these accounts are synthetic development/test identities only. Do not reuse this password for any real user or production account.
 
-The emails and expected multi-section assignment (`Beavers,Cubs`) are configured directly in the workflow because they are non-sensitive synthetic test data and are also defined by the canonical population seed.
+The emails, password and expected multi-section assignment (`Beavers,Cubs`) are configured directly in the workflows so live development seeding and emulator-backed Playwright runs use the same credentials.
 
 ## Creating/updating the users
-
-After `E2E_TEST_USER_PASSWORD` exists:
 
 1. Open **Actions → Seed Firebase Test Data**.
 2. Select **Run workflow**.
@@ -38,7 +35,7 @@ After `E2E_TEST_USER_PASSWORD` exists:
 4. Tick the confirmation box.
 5. Run the workflow.
 
-The workflow creates or updates the deterministic test records and Authentication users. Re-running `seed` refreshes the same test UIDs and resets them to the configured shared test password.
+The workflow creates or updates the deterministic test records and Authentication users. Re-running `seed` refreshes the same test UIDs and resets every canonical test account to `password1`.
 
 ## Coverage
 
