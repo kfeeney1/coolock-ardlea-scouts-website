@@ -2,6 +2,7 @@ import { Alert, Box, Button, Chip, Container, Paper, Stack, Typography } from "@
 import { useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import OperationalFilterBar from "../components/admin/OperationalFilterBar";
 import OperationalSearchField from "../components/admin/OperationalSearchField";
 import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -68,7 +69,7 @@ export default function ActivityLog() {
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <OperationalFilterBar>
           <OperationalSearchField
             label="Search activity"
             value={search}
@@ -76,7 +77,7 @@ export default function ActivityLog() {
             placeholder="Search actions, people, sections or targets"
             testId="activity-log-search"
           />
-        </Paper>
+        </OperationalFilterBar>
 
         {loading ? (
           <OperationalLoading minHeight={260} label="Loading activity log" />
