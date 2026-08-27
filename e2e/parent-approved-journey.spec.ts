@@ -38,13 +38,21 @@ test.describe("approved parent journey", () => {
     await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(secondMember, { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Review Consent" }).click();
+    await page
+      .getByTestId("parent-consent-tile-TEST_member_beaver_01")
+      .getByRole("button", { name: "Review Consent" })
+      .click();
     await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {
     test.skip(process.env.E2E_PARENT_EVENT_CONSENT_ENABLED !== "true", "Enable when parent linked-section event-consent coverage is required.");
     await loginParent(page);
+
+    const nextAction = page.getByTestId("parent-next-action");
+    await expect(nextAction).toContainText("Next action");
+    await expect(nextAction).toContainText("TEST Beavers Open Day Trip");
+    await expect(nextAction.getByRole("button", { name: "Review consent" })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
     await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();

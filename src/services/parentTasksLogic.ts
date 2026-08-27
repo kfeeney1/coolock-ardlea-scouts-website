@@ -6,6 +6,8 @@ export type ParentTaskSummary = {
     medicalAttentionCount: number;
     upcomingEventCount: number;
     totalAttentionCount: number;
+    nextEvent: ParentEventConsentLink | null;
+    nextConsentEvent: ParentEventConsentLink | null;
 };
 
 export function summariseParentTasks(
@@ -26,12 +28,16 @@ export function summariseParentTasks(
         return records.length === 0 || records.every((record) => !record.updatedByParent);
     }).length;
 
-    const eventConsentCount = events.filter((event) => event.consentRequired).length;
+    const sortedEvents = [...events].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const consentEvents = sortedEvents.filter((event) => event.consentRequired);
+    const eventConsentCount = consentEvents.length;
 
     return {
         eventConsentCount,
         medicalAttentionCount,
-        upcomingEventCount: events.length,
-        totalAttentionCount: eventConsentCount + medicalAttentionCount
+        upcomingEventCount: sortedEvents.length,
+        totalAttentionCount: eventConsentCount + medicalAttentionCount,
+        nextEvent: sortedEvents[0] || null,
+        nextConsentEvent: consentEvents[0] || null
     };
 }
