@@ -287,7 +287,7 @@ export default function BadgeworkTracking() {
             })}
           </Stack>
 
-          <Paper variant="outlined" sx={{ mt: 3, p: 2, position: { xs: "sticky", md: "static" }, bottom: { xs: 8, md: "auto" }, zIndex: 2 }}>
+          <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
               <Box>
                 <Typography sx={{ fontWeight: 800 }}>{hasUnsavedChanges ? `${draft.size} unsaved ${draft.size === 1 ? "change" : "changes"}` : "No unsaved changes"}</Typography>
