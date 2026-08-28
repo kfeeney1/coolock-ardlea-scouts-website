@@ -37,7 +37,7 @@ test("communications route rejects unauthenticated users", async ({ page }) => {
     await expect(page).toHaveURL(/\/leader\/login$/);
 });
 
-test("ordinary leader sees composer first and can share its content through WhatsApp", async ({ page }, testInfo) => {
+test("ordinary leader composes first, then chooses recipients, while WhatsApp stays on step one", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
@@ -52,9 +52,7 @@ test("ordinary leader sees composer first and can share its content through What
     const composer = page.getByTestId("communication-composer");
     const recipients = page.getByTestId("communication-recipients");
     await expect(composer).toBeVisible();
-    await expect(recipients).toBeVisible();
-    const order = await page.locator('[data-testid="communication-composer"], [data-testid="communication-recipients"]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-testid")));
-    expect(order).toEqual(["communication-composer", "communication-recipients"]);
+    await expect(recipients).toHaveCount(0);
 
     await page.getByLabel("Subject").fill("TEST Scouts reminder");
     await page.getByLabel("Message").fill("TEST Bring your necker and water bottle.");
@@ -62,7 +60,17 @@ test("ordinary leader sees composer first and can share its content through What
     await expect(whatsapp).toHaveAttribute("href", "https://wa.me/?text=TEST%20Scouts%20reminder%0A%0ATEST%20Bring%20your%20necker%20and%20water%20bottle.");
     await expect(whatsapp).toHaveAttribute("target", "_blank");
 
+    await page.getByRole("button", { name: "Continue to recipients" }).click();
+    await expect(composer).toHaveCount(0);
+    await expect(recipients).toBeVisible();
+    await expect(recipients).toContainText("TEST Scouts reminder");
+    await expect(recipients).toContainText("TEST Bring your necker and water bottle.");
     await expect(page.getByRole("button", { name: /Send Email to 0 recipients/ })).toBeDisabled();
+
+    await page.getByRole("button", { name: "Back to message" }).click();
+    await expect(composer).toBeVisible();
+    await expect(page.getByLabel("Subject")).toHaveValue("TEST Scouts reminder");
+    await expect(page.getByLabel("Message")).toHaveValue("TEST Bring your necker and water bottle.");
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Menu · Parent Communications/ })).toBeVisible();
 });
@@ -89,7 +97,8 @@ test("leader dashboard navigation uses the same expandable menu on Pixel 7", asy
 
     await expect(page).toHaveURL(/\/leader\/communications$/);
     await expect(page.getByRole("heading", { name: "Parent Communications" })).toBeVisible();
-    await expect(page.getByTestId("communication-composer")).toBeInViewport();
+    await expect(page.getByTestId("communication-composer")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue to recipients" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Menu · Parent Communications/ })).toBeVisible();
 });
