@@ -16,8 +16,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Patch equipment incident rules
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           path = Path("firestore.rules")
           text = path.read_text()
@@ -117,7 +118,9 @@ jobs:
                   raise SystemExit(0)
               raise SystemExit("Expected equipment incident rules block was not found")
           path.write_text(text.replace(old, new))
+          PY
       - name: Commit patched rules
+        shell: bash
         run: |
           if git diff --quiet -- firestore.rules; then
             echo "No rules changes required"
