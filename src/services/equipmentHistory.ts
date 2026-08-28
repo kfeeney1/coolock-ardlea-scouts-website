@@ -10,6 +10,7 @@ import {
   where
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { recordAuditEvent } from "./auditLog";
 import type { EquipmentItem } from "./equipment";
 import type { EquipmentHistoryType } from "./equipmentHistoryLogic";
 import { availableStockForMovement, validateStockMovement } from "./equipmentHistoryLogic";
@@ -98,6 +99,8 @@ export async function moveEquipmentStock(item: EquipmentItem, quantity: number, 
   const sourceRef = doc(db, "equipmentItems", item.id);
   const movementId = doc(collection(db, "equipmentHistory")).id;
   let destinationItemId: string | null = null;
+  let auditName = item.name;
+  let auditFrom = item.location;
 
   await runTransaction(db, async (transaction) => {
     const sourceSnapshot = await transaction.get(sourceRef);
@@ -112,6 +115,8 @@ export async function moveEquipmentStock(item: EquipmentItem, quantity: number, 
     if (liveValidation) throw new Error(liveValidation);
 
     const itemName = text(data.name) || item.name;
+    auditName = itemName;
+    auditFrom = currentLocation;
     const available = availableStockForMovement({ totalQuantity, checkedOutQuantity, unavailableQuantity });
     const fullRelocation = quantity === totalQuantity && available === totalQuantity;
 
@@ -196,5 +201,13 @@ export async function moveEquipmentStock(item: EquipmentItem, quantity: number, 
     });
   });
 
+  await recordAuditEvent({
+    category: "equipment",
+    action: "stock-moved",
+    targetId: item.id,
+    targetLabel: auditName,
+    description: `Moved ${quantity} × ${auditName} from ${auditFrom} to ${safeDestination}${destinationItemId ? " into a separate destination stock record" : ""}.`,
+    section: "Group"
+  });
   return destinationItemId;
 }
