@@ -67,3 +67,53 @@ test("admin can add stock, check it out to a section and return it", async ({ pa
   const returnedCard = page.getByText("TEST Checkout Tent", { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
 });
+
+test("missing checkout equipment becomes unavailable and triggers the incident email call", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  const account = adminCredentials();
+  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  let notificationCalls = 0;
+  await page.route("**/equipment-incident", async (route) => {
+    notificationCalls += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 2 }) });
+  });
+  await loginLeader(page, account!);
+  await page.goto("/leader/equipment");
+
+  await page.getByRole("button", { name: "Add equipment" }).click();
+  const addDialog = page.getByRole("dialog", { name: "Add equipment" });
+  await addDialog.getByLabel("Equipment name").fill("TEST Incident Tent");
+  const addComboboxes = addDialog.getByRole("combobox");
+  await addComboboxes.nth(0).click();
+  await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await addComboboxes.nth(1).click();
+  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  await addDialog.getByLabel("Total quantity").fill("3");
+  await addDialog.getByRole("button", { name: "Save equipment" }).click();
+
+  await page.getByRole("button", { name: "Check out equipment" }).click();
+  const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
+  await checkoutDialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Scouts" }).click();
+  const checkoutRow = checkoutDialog.getByText("TEST Incident Tent", { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await checkoutRow.getByLabel("Qty").fill("2");
+  await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+
+  await page.getByRole("button", { name: "Report issue" }).click();
+  const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
+  const incidentComboboxes = incidentDialog.getByRole("combobox");
+  await incidentComboboxes.nth(0).click();
+  await page.getByRole("option", { name: /Scouts checkout · TEST Incident Tent · 2 out/ }).click();
+  await incidentComboboxes.nth(1).click();
+  await page.getByRole("option", { name: "Missing" }).click();
+  await incidentDialog.getByLabel("Quantity affected").fill("1");
+  await incidentDialog.getByLabel("What happened?").fill("One tent was not returned with the rest of the section equipment.");
+  await incidentDialog.getByRole("button", { name: "Report issue" }).click();
+
+  await expect(page.getByText("1 × TEST Incident Tent", { exact: false }).first()).toBeVisible();
+  const inventoryCard = page.getByText("TEST Incident Tent", { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
+  await expect(inventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
+  await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
+  await expect.poll(() => notificationCalls).toBe(1);
+});
