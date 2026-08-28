@@ -3,6 +3,7 @@ import {
     Box,
     Button,
     Checkbox,
+    Chip,
     CircularProgress,
     Container,
     FormControl,
@@ -31,6 +32,8 @@ import type { CommunicationRecipient, CommunicationTemplate } from "../services/
 import { loadCommunicationRecipients } from "../services/communications";
 import { sendLeaderCommunication } from "../services/emailNotifications";
 
+type CommunicationStep = "message" | "recipients";
+
 export default function LeaderCommunications() {
     const { adminProfile } = useAdminAuth();
     const [recipients, setRecipients] = useState<CommunicationRecipient[]>([]);
@@ -38,6 +41,7 @@ export default function LeaderCommunications() {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [step, setStep] = useState<CommunicationStep>("message");
     const [sectionFilter, setSectionFilter] = useState("all");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [template, setTemplate] = useState<CommunicationTemplate>("general");
@@ -90,6 +94,17 @@ export default function LeaderCommunications() {
         setTemplate(value);
         setSubject(communicationTemplates[value].subject);
         setBody(communicationTemplates[value].message);
+    };
+
+    const continueToRecipients = () => {
+        setError("");
+        setMessage("");
+        const validation = validateCommunication(subject, body, 1);
+        if (validation) {
+            setError(validation);
+            return;
+        }
+        setStep("recipients");
     };
 
     const changeSection = (value: string) => {
@@ -147,12 +162,17 @@ export default function LeaderCommunications() {
 
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-            <Container maxWidth="xl">
+            <Container maxWidth="lg">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Parent Communications"
-                    description="Compose parent messages first, then choose the section-scoped recipients or share the same message through WhatsApp."
+                    description="Compose the message first, then choose recipients and send it. WhatsApp sharing remains available directly from the message step."
                 />
+
+                <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 2, flexWrap: "wrap" }}>
+                    <Chip color={step === "message" ? "secondary" : "success"} label="1. Compose message" />
+                    <Chip color={step === "recipients" ? "secondary" : "default"} label="2. Choose recipients & send" />
+                </Stack>
 
                 <Alert severity="info" sx={{ mb: 3 }}>
                     Scope: <strong>{scopeLabel}</strong>. Only active members are selectable. The email worker re-checks your Firestore access for every recipient before sending.
@@ -169,108 +189,129 @@ export default function LeaderCommunications() {
                     <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}>
                         <CircularProgress color="success" />
                     </Box>
-                ) : (
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "minmax(360px, 0.8fr) minmax(0, 1fr)" }, gap: 3 }}>
-                        <Paper variant="outlined" sx={{ p: 3, alignSelf: "start" }} data-testid="communication-composer">
-                            <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>
-                                Compose message
-                            </Typography>
-                            <Stack spacing={2}>
-                                <FormControl fullWidth>
-                                    <InputLabel>Template</InputLabel>
-                                    <Select label="Template" value={template} onChange={(event) => applyTemplate(event.target.value as CommunicationTemplate)}>
-                                        {(Object.entries(communicationTemplates) as Array<[CommunicationTemplate, (typeof communicationTemplates)[CommunicationTemplate]]>).map(([key, value]) => (
-                                            <MenuItem key={key} value={key}>{value.label}</MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <TextField
-                                    label="Subject"
-                                    value={subject}
-                                    onChange={(event) => setSubject(event.target.value)}
-                                    slotProps={{ htmlInput: { maxLength: 120 } }}
-                                    helperText={`${subject.length}/120`}
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="Message"
-                                    value={body}
-                                    onChange={(event) => setBody(event.target.value)}
-                                    slotProps={{ htmlInput: { maxLength: 2500 } }}
-                                    helperText={`${body.length}/2500 · Do not include medical or other sensitive information.`}
-                                    multiline
-                                    minRows={8}
-                                    fullWidth
-                                />
-                                <Alert severity="warning">
-                                    Email sends a separate copy to each selected parent/guardian. WhatsApp opens the composed message for you to choose the chat or group yourself; the website does not expose or transfer recipient phone numbers.
-                                </Alert>
-                                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                                    <Button variant="contained" color="success" size="large" disabled={sending || selectedRecipients.length === 0} onClick={() => void send()}>
-                                        {sending ? "Sending..." : `Send Email to ${selectedRecipients.length} recipient${selectedRecipients.length === 1 ? "" : "s"}`}
-                                    </Button>
-                                    <Button
-                                        component="a"
-                                        href={canShareWhatsApp ? whatsappUrl : undefined}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        variant="outlined"
-                                        color="success"
-                                        size="large"
-                                        aria-disabled={!canShareWhatsApp}
-                                        onClick={(event) => { if (!canShareWhatsApp) event.preventDefault(); }}
-                                    >
-                                        Share via WhatsApp
-                                    </Button>
-                                </Stack>
-                            </Stack>
-                        </Paper>
-
-                        <Paper variant="outlined" sx={{ p: 3 }} data-testid="communication-recipients">
-                            <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>
-                                Recipients
-                            </Typography>
-                            <Typography color="text.secondary" sx={{ mb: 2 }}>
-                                Choose recipients only when sending by email. WhatsApp sharing uses the composed text without selecting or exposing parent contact details.
-                            </Typography>
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
-                                <FormControl sx={{ minWidth: 240 }}>
-                                    <InputLabel>Section</InputLabel>
-                                    <Select label="Section" value={sectionFilter} onChange={(event) => changeSection(event.target.value)}>
-                                        <MenuItem value="all">All permitted sections</MenuItem>
-                                        {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
-                                    </Select>
-                                </FormControl>
-                                <Button variant="outlined" color="secondary" disabled={visibleRecipients.length === 0} onClick={toggleVisible}>
-                                    {allVisibleSelected ? "Clear visible" : "Select visible"}
+                ) : step === "message" ? (
+                    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }} data-testid="communication-composer">
+                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>
+                            Compose message
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ mb: 2.5 }}>
+                            Prepare the message before choosing who should receive it.
+                        </Typography>
+                        <Stack spacing={2}>
+                            <FormControl fullWidth>
+                                <InputLabel>Template</InputLabel>
+                                <Select label="Template" value={template} onChange={(event) => applyTemplate(event.target.value as CommunicationTemplate)}>
+                                    {(Object.entries(communicationTemplates) as Array<[CommunicationTemplate, (typeof communicationTemplates)[CommunicationTemplate]]>).map(([key, value]) => (
+                                        <MenuItem key={key} value={key}>{value.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <TextField
+                                label="Subject"
+                                value={subject}
+                                onChange={(event) => setSubject(event.target.value)}
+                                slotProps={{ htmlInput: { maxLength: 120 } }}
+                                helperText={`${subject.length}/120`}
+                                fullWidth
+                            />
+                            <TextField
+                                label="Message"
+                                value={body}
+                                onChange={(event) => setBody(event.target.value)}
+                                slotProps={{ htmlInput: { maxLength: 2500 } }}
+                                helperText={`${body.length}/2500 · Do not include medical or other sensitive information.`}
+                                multiline
+                                minRows={8}
+                                fullWidth
+                            />
+                            <Alert severity="warning">
+                                Email sends a separate copy to each selected parent/guardian. WhatsApp opens the composed message for you to choose the chat or group yourself; the website does not expose or transfer recipient phone numbers.
+                            </Alert>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "space-between" }}>
+                                <Button
+                                    component="a"
+                                    href={canShareWhatsApp ? whatsappUrl : undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    variant="outlined"
+                                    color="success"
+                                    size="large"
+                                    aria-disabled={!canShareWhatsApp}
+                                    onClick={(event) => { if (!canShareWhatsApp) event.preventDefault(); }}
+                                >
+                                    Share via WhatsApp
+                                </Button>
+                                <Button variant="contained" color="success" size="large" onClick={continueToRecipients}>
+                                    Continue to recipients
                                 </Button>
                             </Stack>
+                        </Stack>
+                    </Paper>
+                ) : (
+                    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }} data-testid="communication-recipients">
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 2.5 }}>
+                            <Box>
+                                <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 0.5 }}>
+                                    Choose recipients & send
+                                </Typography>
+                                <Typography color="text.secondary">
+                                    Select the active members whose linked parents/guardians should receive this email.
+                                </Typography>
+                            </Box>
+                            <Button variant="outlined" onClick={() => setStep("message")}>Back to message</Button>
+                        </Stack>
 
-                            <Typography color="text.secondary" sx={{ mb: 2 }}>
-                                {selectedRecipients.length} selected · {visibleRecipients.length} active member{visibleRecipients.length === 1 ? "" : "s"} visible
+                        <Paper variant="outlined" sx={{ p: 1.5, mb: 2.5 }}>
+                            <Typography sx={{ fontWeight: 800, mb: 0.5 }}>{subject.trim() || "Untitled message"}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
+                                {body.trim()}
                             </Typography>
-
-                            {visibleRecipients.length === 0 ? (
-                                <Alert severity="info">No active members are available in the selected section.</Alert>
-                            ) : (
-                                <Box sx={{ display: "grid", gap: 1 }}>
-                                    {visibleRecipients.map((recipient) => (
-                                        <Paper key={recipient.id} variant="outlined" sx={{ px: 2, py: 1 }}>
-                                            <FormControlLabel
-                                                control={<Checkbox checked={selectedIds.includes(recipient.id)} onChange={() => toggleRecipient(recipient.id)} />}
-                                                label={
-                                                    <Box>
-                                                        <Typography sx={{ fontWeight: 700 }}>{recipient.displayName}</Typography>
-                                                        <Typography variant="body2" color="text.secondary">{recipient.section}</Typography>
-                                                    </Box>
-                                                }
-                                            />
-                                        </Paper>
-                                    ))}
-                                </Box>
-                            )}
                         </Paper>
-                    </Box>
+
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+                            <FormControl sx={{ minWidth: { sm: 240 } }}>
+                                <InputLabel>Section</InputLabel>
+                                <Select label="Section" value={sectionFilter} onChange={(event) => changeSection(event.target.value)}>
+                                    <MenuItem value="all">All permitted sections</MenuItem>
+                                    {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+                                </Select>
+                            </FormControl>
+                            <Button variant="outlined" color="secondary" disabled={visibleRecipients.length === 0} onClick={toggleVisible}>
+                                {allVisibleSelected ? "Clear visible" : "Select visible"}
+                            </Button>
+                        </Stack>
+
+                        <Typography color="text.secondary" sx={{ mb: 2 }}>
+                            {selectedRecipients.length} selected · {visibleRecipients.length} active member{visibleRecipients.length === 1 ? "" : "s"} visible
+                        </Typography>
+
+                        {visibleRecipients.length === 0 ? (
+                            <Alert severity="info">No active members are available in the selected section.</Alert>
+                        ) : (
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 1 }}>
+                                {visibleRecipients.map((recipient) => (
+                                    <Paper key={recipient.id} variant="outlined" sx={{ px: 2, py: 1 }}>
+                                        <FormControlLabel
+                                            sx={{ m: 0, width: "100%" }}
+                                            control={<Checkbox checked={selectedIds.includes(recipient.id)} onChange={() => toggleRecipient(recipient.id)} />}
+                                            label={
+                                                <Box>
+                                                    <Typography sx={{ fontWeight: 700 }}>{recipient.displayName}</Typography>
+                                                    <Typography variant="body2" color="text.secondary">{recipient.section}</Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </Paper>
+                                ))}
+                            </Box>
+                        )}
+
+                        <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+                            <Button variant="contained" color="success" size="large" disabled={sending || selectedRecipients.length === 0} onClick={() => void send()}>
+                                {sending ? "Sending..." : `Send Email to ${selectedRecipients.length} recipient${selectedRecipients.length === 1 ? "" : "s"}`}
+                            </Button>
+                        </Box>
+                    </Paper>
                 )}
             </Container>
         </Box>
