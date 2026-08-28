@@ -391,6 +391,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /siteSettings/{settingsId} {
+      allow get: if signedIn() && settingsId == "session";
+      allow list: if false;
+      allow create, update: if isAdmin()
+        && settingsId == "session"
+        && request.resource.data.parentInactivityMinutes is number
+        && request.resource.data.parentInactivityMinutes >= 5
+        && request.resource.data.parentInactivityMinutes <= 240
+        && request.resource.data.leaderDesktopInactivityMinutes is number
+        && request.resource.data.leaderDesktopInactivityMinutes >= 5
+        && request.resource.data.leaderDesktopInactivityMinutes <= 240
+        && request.resource.data.leaderPhoneInactivityMinutes is number
+        && request.resource.data.leaderPhoneInactivityMinutes >= 5
+        && request.resource.data.leaderPhoneInactivityMinutes <= 240
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes", "updatedAt", "updatedBy"]);
+      allow delete: if false;
+    }
+
     match /publicSiteContent/{contentId} {
       allow get: if contentId == "TEST_site"
         && resource.data.contentVersion == 1
