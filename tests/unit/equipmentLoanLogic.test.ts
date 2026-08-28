@@ -8,32 +8,18 @@ import {
   outstandingLoanQuantity,
   validateCheckoutQuantity
 } from "../../src/services/equipmentLoanLogic.ts";
-import type { AdminProfile } from "../../src/components/admin/AdminAuthProvider.tsx";
-import type { EquipmentItem } from "../../src/services/equipment.ts";
 
-const leader: AdminProfile = {
-  uid: "leader",
-  email: "leader@example.test",
-  displayName: "Scout Leader",
+const leader = {
   role: "leader",
   sections: ["Scouts"],
   scoutingRole: "Section Leader"
 };
-const quartermaster: AdminProfile = { ...leader, uid: "qm", sections: ["Group"], scoutingRole: "Group Quartermaster / Bo'sun" };
-const item: EquipmentItem = {
-  id: "tent",
+const quartermaster = { role: "leader", sections: ["Group"], scoutingRole: "Group Quartermaster / Bo'sun" };
+const item = {
   name: "4-person Tent",
-  category: "Camping & Sleeping",
-  trackingMode: "quantity",
   totalQuantity: 12,
   checkedOutQuantity: 3,
-  location: "Main Store",
-  condition: "good",
-  notes: "",
-  replacementValue: 250,
-  archived: false,
-  createdBy: "qm",
-  updatedBy: "qm"
+  archived: false
 };
 
 test("availability subtracts checked-out stock without going negative", () => {
