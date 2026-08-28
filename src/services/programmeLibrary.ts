@@ -1,6 +1,7 @@
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan } from "./weeklyTracker";
 
 export type ProgrammeLibraryKind = "activity" | "badgework";
+export type ProgrammeLibraryDurationFilter = "all" | "quick" | "standard" | "long";
 
 export type ProgrammeLibraryItem = {
   id: string;
@@ -14,6 +15,11 @@ export type ProgrammeLibraryItem = {
 };
 
 export type ProgrammeLibraryInput = Omit<ProgrammeLibraryItem, "id">;
+export type ProgrammeLibraryFilters = {
+  search?: string;
+  kind?: "all" | ProgrammeLibraryKind;
+  duration?: ProgrammeLibraryDurationFilter;
+};
 
 const clean = (value: string, max: number) => value.trim().slice(0, max);
 const cleanDuration = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(360, Math.round(value))) : 0;
@@ -31,25 +37,11 @@ export function cleanProgrammeLibraryInput(input: ProgrammeLibraryInput): Progra
 }
 
 export function programmeLibraryItemToActivity(item: ProgrammeLibraryItem): WeeklyActivityPlan {
-  return {
-    id: crypto.randomUUID(),
-    activity: item.name,
-    leader: item.leader,
-    notes: item.notes,
-    equipment: item.equipment,
-    durationMinutes: item.durationMinutes
-  };
+  return { id: crypto.randomUUID(), activity: item.name, leader: item.leader, notes: item.notes, equipment: item.equipment, durationMinutes: item.durationMinutes };
 }
 
 export function programmeLibraryItemToBadgework(item: ProgrammeLibraryItem): WeeklyBadgeworkPlan {
-  return {
-    id: crypto.randomUUID(),
-    badge: item.name,
-    leader: item.leader,
-    notes: item.notes,
-    equipment: item.equipment,
-    durationMinutes: item.durationMinutes
-  };
+  return { id: crypto.randomUUID(), badge: item.name, leader: item.leader, notes: item.notes, equipment: item.equipment, durationMinutes: item.durationMinutes };
 }
 
 export function isProgrammeLibraryItemForSection(item: ProgrammeLibraryItem, section: string): boolean {
@@ -58,6 +50,25 @@ export function isProgrammeLibraryItemForSection(item: ProgrammeLibraryItem, sec
 
 export function sortProgrammeLibrary(items: ProgrammeLibraryItem[]): ProgrammeLibraryItem[] {
   return [...items].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+}
+
+function matchesDuration(item: ProgrammeLibraryItem, filter: ProgrammeLibraryDurationFilter): boolean {
+  if (filter === "quick") return item.durationMinutes > 0 && item.durationMinutes <= 15;
+  if (filter === "standard") return item.durationMinutes > 15 && item.durationMinutes <= 30;
+  if (filter === "long") return item.durationMinutes > 30;
+  return true;
+}
+
+export function filterProgrammeLibrary(items: ProgrammeLibraryItem[], filters: ProgrammeLibraryFilters = {}): ProgrammeLibraryItem[] {
+  const search = filters.search?.trim().toLocaleLowerCase() ?? "";
+  const kind = filters.kind ?? "all";
+  const duration = filters.duration ?? "all";
+  return sortProgrammeLibrary(items.filter((item) => {
+    if (kind !== "all" && item.kind !== kind) return false;
+    if (!matchesDuration(item, duration)) return false;
+    if (!search) return true;
+    return [item.name, item.leader, item.notes, item.equipment].some((value) => value.toLocaleLowerCase().includes(search));
+  }));
 }
 
 function mapProgrammeLibraryItem(id: string, value: Record<string, unknown>): ProgrammeLibraryItem | null {
@@ -78,10 +89,7 @@ function mapProgrammeLibraryItem(id: string, value: Record<string, unknown>): Pr
 }
 
 async function firestoreRuntime() {
-  const [firestore, app] = await Promise.all([
-    import("firebase/firestore"),
-    import("../firebase")
-  ]);
+  const [firestore, app] = await Promise.all([import("firebase/firestore"), import("../firebase")]);
   return { ...firestore, auth: app.auth, db: app.db };
 }
 
