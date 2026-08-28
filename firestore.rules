@@ -161,15 +161,15 @@ service cloud.firestore {
         allow create, update: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
           && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
+          && request.resource.data.awardId == awardId
           && request.resource.data.memberId == memberId
           && request.resource.data.skillId is string
           && request.resource.data.stage is number
           && request.resource.data.stage >= 1
           && request.resource.data.stage <= 9
-          && awardId == request.resource.data.skillId + "-stage-" + request.resource.data.stage
           && request.resource.data.awardedAt == request.time
           && request.resource.data.awardedBy == request.auth.uid
-          && request.resource.data.keys().hasOnly(["memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
+          && request.resource.data.keys().hasOnly(["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
         allow delete: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
           && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
