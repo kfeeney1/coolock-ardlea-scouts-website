@@ -27,6 +27,7 @@ const SECTION_ROLE_KEYS = [
 ];
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 const SUPER_ADMIN_UID = "TEST_uid_super_admin_01";
+const MODERN_SUPER_ADMIN_UID = "TEST_uid_modern_super_admin_01";
 const MULTI_SECTION_LEADER_UID = "TEST_uid_multi_section_leader";
 
 const leaderUids = new Set([
@@ -34,7 +35,8 @@ const leaderUids = new Set([
   ...SECTION_KEYS.flatMap((section) => SECTION_ROLE_KEYS.map((role) => `TEST_uid_${section}_${role}`)),
   MULTI_SECTION_LEADER_UID,
   WEB_ADMIN_UID,
-  SUPER_ADMIN_UID
+  SUPER_ADMIN_UID,
+  MODERN_SUPER_ADMIN_UID
 ]);
 const parentOnlyUids = SECTION_KEYS.flatMap((section) => [1, 2].map((number) => `TEST_uid_${section}_parent_${number}`));
 const parentLeaderUids = SECTION_KEYS.map((section) => `TEST_uid_${section}_section_leader`);
