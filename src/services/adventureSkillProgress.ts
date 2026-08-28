@@ -191,6 +191,7 @@ export async function setStageAwardForMembers(memberIds: string[], skillId: stri
       return;
     }
     await setDoc(awardRef, {
+      awardId,
       memberId,
       skillId,
       stage,
