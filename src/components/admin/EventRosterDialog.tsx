@@ -21,9 +21,9 @@ export default function EventRosterDialog({ event, members, attendance, consent,
     const readOnly = event?.status === "completed";
     return (
         <Dialog open={Boolean(event)} onClose={onClose} maxWidth="lg" fullWidth>
-            <DialogTitle>{readOnly ? "Event History Roster" : "Attendance & Consent Roster"}</DialogTitle>
+            <DialogTitle>{readOnly ? "Event Attendance History" : "Attendance & Consent"}</DialogTitle>
             <DialogContent dividers>
-                {readOnly && <Alert severity="info" sx={{ mb: 2 }}>This completed-event roster is read-only.</Alert>}
+                {readOnly && <Alert severity="info" sx={{ mb: 2 }}>Attendance for this completed event is read-only.</Alert>}
                 {members.length === 0 ? <Alert severity="info">No active members are available for this event section.</Alert> : (
                     <Box sx={{ display: "grid", gap: 1.5 }}>
                         {members.map((member) => (
@@ -41,7 +41,7 @@ export default function EventRosterDialog({ event, members, attendance, consent,
             <DialogActions>
                 {event && <><Button color="secondary" onClick={onPrint}>Report</Button><Button color="secondary" onClick={onExport}>Export CSV</Button></>}
                 <Button onClick={onClose}>Close</Button>
-                {!readOnly && <Button variant="contained" color="success" disabled={saving} onClick={onSave}>{saving ? "Saving..." : "Save Roster"}</Button>}
+                {!readOnly && <Button variant="contained" color="success" disabled={saving} onClick={onSave}>{saving ? "Saving..." : "Save Attendance"}</Button>}
             </DialogActions>
         </Dialog>
     );
