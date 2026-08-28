@@ -25,6 +25,70 @@ export type EventReportRecord = {
     consentRequired: boolean;
 };
 
+export type ReportingInsights = {
+    activeMembers: number;
+    inactiveMembers: number;
+    leftMembers: number;
+    activeBySection: Array<{ section: string; count: number }>;
+    recordedResponses: number;
+    attendingResponses: number;
+    notAttendingResponses: number;
+    attendanceRate: number | null;
+    eventsWithAttendance: number;
+    eventsWithoutAttendance: number;
+    consentRequiredEvents: number;
+    consentReceived: number;
+    consentEventsWithoutReceived: number;
+};
+
+export function buildReportingInsights(members: MemberReportRow[], events: EventReportRecord[]): ReportingInsights {
+    const activeBySection = [...new Set(members.map((member) => member.section))]
+        .map((section) => ({
+            section,
+            count: members.filter((member) => member.section === section && member.status === "active").length
+        }))
+        .filter((entry) => entry.count > 0)
+        .sort((a, b) => b.count - a.count || a.section.localeCompare(b.section));
+
+    let attendingResponses = 0;
+    let notAttendingResponses = 0;
+    let eventsWithAttendance = 0;
+    let consentReceived = 0;
+    let consentEventsWithoutReceived = 0;
+
+    for (const event of events) {
+        const attendanceValues = Object.values(event.attendance);
+        const attending = attendanceValues.filter((value) => value === "attending").length;
+        const notAttending = attendanceValues.filter((value) => value === "not-attending").length;
+        attendingResponses += attending;
+        notAttendingResponses += notAttending;
+        if (attending + notAttending > 0) eventsWithAttendance += 1;
+
+        if (event.consentRequired) {
+            const received = Object.values(event.consent).filter((value) => value === "received").length;
+            consentReceived += received;
+            if (received === 0) consentEventsWithoutReceived += 1;
+        }
+    }
+
+    const recordedResponses = attendingResponses + notAttendingResponses;
+    return {
+        activeMembers: members.filter((member) => member.status === "active").length,
+        inactiveMembers: members.filter((member) => member.status === "inactive").length,
+        leftMembers: members.filter((member) => member.status === "left").length,
+        activeBySection,
+        recordedResponses,
+        attendingResponses,
+        notAttendingResponses,
+        attendanceRate: recordedResponses === 0 ? null : Math.round((attendingResponses / recordedResponses) * 100),
+        eventsWithAttendance,
+        eventsWithoutAttendance: events.length - eventsWithAttendance,
+        consentRequiredEvents: events.filter((event) => event.consentRequired).length,
+        consentReceived,
+        consentEventsWithoutReceived
+    };
+}
+
 function safeSpreadsheetValue(value: string): string {
     const trimmedStart = value.trimStart();
     if (/^[=+\-@]/.test(trimmedStart)) return `'${value}`;
@@ -55,15 +119,7 @@ export function eventReportMembers(event: EventReportRecord, rows: MemberReportR
 
 export function memberReportCsv(rows: MemberReportRow[]): string {
     const header = ["Member", "Section", "Status", "Parent / Guardian", "Email", "Mobile"];
-    const body = rows.map((row) => [
-        row.displayName,
-        row.section,
-        row.status,
-        row.parentName,
-        row.emailAddress,
-        row.mobileNumber
-    ].map(csvCell).join(","));
-
+    const body = rows.map((row) => [row.displayName, row.section, row.status, row.parentName, row.emailAddress, row.mobileNumber].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
@@ -72,21 +128,9 @@ export function membershipSummaryCsv(rows: MemberReportRow[]): string {
     const header = ["Section", "Active", "Inactive", "Left", "Total"];
     const body = sections.map((section) => {
         const scoped = rows.filter((row) => row.section === section);
-        return [
-            section,
-            scoped.filter((row) => row.status === "active").length,
-            scoped.filter((row) => row.status === "inactive").length,
-            scoped.filter((row) => row.status === "left").length,
-            scoped.length
-        ].map(csvCell).join(",");
+        return [section, scoped.filter((row) => row.status === "active").length, scoped.filter((row) => row.status === "inactive").length, scoped.filter((row) => row.status === "left").length, scoped.length].map(csvCell).join(",");
     });
-    const total = [
-        "All permitted sections",
-        rows.filter((row) => row.status === "active").length,
-        rows.filter((row) => row.status === "inactive").length,
-        rows.filter((row) => row.status === "left").length,
-        rows.length
-    ].map(csvCell).join(",");
+    const total = ["All permitted sections", rows.filter((row) => row.status === "active").length, rows.filter((row) => row.status === "inactive").length, rows.filter((row) => row.status === "left").length, rows.length].map(csvCell).join(",");
     return [header.map(csvCell).join(","), ...body, total].join("\r\n");
 }
 
@@ -104,30 +148,13 @@ function consentLabel(value: string, required: boolean): string {
 
 export function eventRosterCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members.map((member) => [
-        event.title,
-        event.startDate,
-        member.displayName,
-        member.section,
-        attendanceLabel(event.attendance[member.id] || "invited"),
-        consentLabel(event.consent[member.id] || "", event.consentRequired)
-    ].map(csvCell).join(","));
-
+    const body = members.map((member) => [event.title, event.startDate, member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), consentLabel(event.consent[member.id] || "", event.consentRequired)].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
 export function eventOverviewCsv(events: EventReportRecord[]): string {
     const header = ["Event", "Date", "Section", "Status", "Consent required", "Attending", "Not attending", "Consent received"];
-    const body = events.map((event) => [
-        event.title,
-        event.startDate,
-        event.section,
-        event.status,
-        event.consentRequired ? "Yes" : "No",
-        Object.values(event.attendance).filter((value) => value === "attending").length,
-        Object.values(event.attendance).filter((value) => value === "not-attending").length,
-        Object.values(event.consent).filter((value) => value === "received").length
-    ].map(csvCell).join(","));
+    const body = events.map((event) => [event.title, event.startDate, event.section, event.status, event.consentRequired ? "Yes" : "No", Object.values(event.attendance).filter((value) => value === "attending").length, Object.values(event.attendance).filter((value) => value === "not-attending").length, Object.values(event.consent).filter((value) => value === "received").length].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
@@ -146,16 +173,7 @@ export function attendanceTrendCsv(events: EventReportRecord[]): string {
 
 export function outstandingConsentCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members
-        .filter((member) => event.consentRequired && event.consent[member.id] !== "received")
-        .map((member) => [
-            event.title,
-            event.startDate,
-            member.displayName,
-            member.section,
-            attendanceLabel(event.attendance[member.id] || "invited"),
-            "Outstanding"
-        ].map(csvCell).join(","));
+    const body = members.filter((member) => event.consentRequired && event.consent[member.id] !== "received").map((member) => [event.title, event.startDate, member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), "Outstanding"].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
