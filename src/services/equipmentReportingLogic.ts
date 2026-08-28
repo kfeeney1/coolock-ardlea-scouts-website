@@ -19,7 +19,7 @@ export type EquipmentReportLoan = {
   expectedReturnDate: string;
   notes: string;
   status: "open" | "returned";
-  lines: Array<{ itemId: string; itemName: string; quantity: number; returnedQuantity: number; incidentQuantity: number }>;
+  lines: Array<{ itemId: string; itemName: string; quantity: number; returnedQuantity: number; incidentQuantity?: number }>;
 };
 
 export type EquipmentReportIncident = {
@@ -51,7 +51,7 @@ export type EquipmentReportFilters = {
 
 const RESERVATION_PREFIX = "[equipment-reservation]";
 const available = (item: EquipmentReportItem) => Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
-const outstanding = (line: EquipmentReportLoan["lines"][number]) => Math.max(0, line.quantity - line.returnedQuantity - line.incidentQuantity);
+const outstanding = (line: EquipmentReportLoan["lines"][number]) => Math.max(0, line.quantity - line.returnedQuantity - (line.incidentQuantity ?? 0));
 const dateValue = (value: Date | null) => value ? value.toISOString().slice(0, 10) : "";
 const money = (value: number | null) => value === null ? "" : value.toFixed(2);
 const isReservation = (loan: EquipmentReportLoan) => loan.notes.startsWith(RESERVATION_PREFIX);
@@ -137,10 +137,9 @@ export function overdueEquipmentCsv(loans: EquipmentReportLoan[], today: string,
   return csv(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
 }
 
-export function repairMaintenanceCsv(items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
-  const itemIds = new Set(filterItems(items, filters).filter((item) => ["needs-attention", "repair"].includes(item.condition) || item.unavailableQuantity > 0).map((item) => item.id));
+export function repairMaintenanceCsv(_items: EquipmentReportItem[], incidents: EquipmentReportIncident[], filters: EquipmentReportFilters = {}): string {
   const rows = filterIncidents(incidents, filters)
-    .filter((incident) => incident.status !== "resolved" && (incident.type === "damaged" || incident.type === "maintenance") && (itemIds.size === 0 || itemIds.has(incident.itemId)))
+    .filter((incident) => incident.status !== "resolved" && (incident.type === "damaged" || incident.type === "maintenance"))
     .map((incident) => [incident.itemName, incident.itemCategory, incident.itemLocation, incident.quantity, incident.type, incident.status, incident.section, dateValue(incident.reportedAt), incident.description]);
   return csv(["Equipment", "Category", "Location", "Quantity", "Issue", "Status", "Section", "Reported", "Description"], rows);
 }
@@ -163,7 +162,7 @@ export function equipmentUsageCsv(loans: EquipmentReportLoan[], filters: Equipme
       const current = totals.get(line.itemId) ?? { itemName: line.itemName, issued: 0, returned: 0, incident: 0, transactions: 0 };
       current.issued += line.quantity;
       current.returned += line.returnedQuantity;
-      current.incident += line.incidentQuantity;
+      current.incident += line.incidentQuantity ?? 0;
       current.transactions += 1;
       totals.set(line.itemId, current);
     }
