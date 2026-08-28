@@ -211,7 +211,7 @@ export default function BadgeworkTracking() {
                   label={<Box sx={{ pt: 0.6 }}>
                     <Typography>{requirement.statement}</Typography>
                     {requirement.sharedCompetencyKey && <Typography variant="caption" color="success.dark" sx={{ fontWeight: 700 }}>Shared competency · completing this also updates equivalent badgework.</Typography>}
-                    {state === "some" && <Typography variant="caption" display="block" color="warning.dark">Completed by some selected children.</Typography>}
+                    {state === "some" && <Typography variant="caption" color="warning.dark" sx={{ display: "block" }}>Completed by some selected children.</Typography>}
                   </Box>}
                 />
               </Paper>;
