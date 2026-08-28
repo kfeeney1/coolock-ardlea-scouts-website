@@ -21,6 +21,7 @@ test("requirement writes are attributed, source-aware and bounded to catalogue s
 
 test("awards remain separate from requirement completion and use stable document IDs", () => {
   assert.match(rules, /match \/awards\/\{awardId\}/);
-  assert.match(rules, /awardId == request\.resource\.data\.skillId \+ "-stage-" \+ request\.resource\.data\.stage/);
+  assert.match(rules, /request\.resource\.data\.awardId == awardId/);
+  assert.match(rules, /request\.resource\.data\.keys\(\)\.hasOnly\(\["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"\]\)/);
   assert.match(rules, /request\.resource\.data\.awardedBy == request\.auth\.uid/);
 });
