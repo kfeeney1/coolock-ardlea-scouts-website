@@ -79,8 +79,7 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Select 1 member and continue" }).click();
     await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
 
-    await page.getByRole("combobox", { name: "Adventure Skill" }).click();
-    await page.getByRole("option", { name: "Camping", exact: true }).click();
+    // Camping Stage 1 is the canonical default when entering the badgework step.
     await expect(page.getByText("Stage 1 award")).toBeVisible();
 
     const awardPanel = page.getByTestId("badge-award-panel");
