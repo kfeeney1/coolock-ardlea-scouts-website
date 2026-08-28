@@ -31,7 +31,8 @@ const requirement = (uid, memberId = "member-1") => ({
   sourceId: "",
 });
 
-const award = (uid, memberId = "member-1") => ({
+const award = (uid, memberId = "member-1", awardId = "camping-stage-1") => ({
+  awardId,
   memberId,
   skillId: "camping",
   stage: 1,
@@ -82,6 +83,7 @@ test("awards are separately protected and attributed", async () => {
   const db = testEnv.authenticatedContext("leader-beavers").firestore();
   await assertSucceeds(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers")));
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/wrong-id"), award("leader-beavers")));
+  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers", "member-1", "wrong-id")));
 });
 
 test("requirement writes reject forged attribution and unsupported source types", async () => {
