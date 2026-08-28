@@ -42,9 +42,20 @@ test("catalogue lookup resolves every skill ID", () => {
 
 test("explicit Buddy System equivalence links the matching handbook competencies", () => {
     const buddyRequirements = requirementsForSharedCompetency("buddy-system");
-    const skillIds = buddyRequirements.map((requirement) => requirement.id.split("-stage-")[0]).sort();
-    assert.deepEqual(skillIds, ["camping", "hillwalking", "paddling", "rowing", "sailing"]);
-    assert.ok(buddyRequirements.every((requirement) => requirement.statement.toLowerCase().includes("buddy system")));
+    assert.deepEqual(
+        buddyRequirements.map((requirement) => requirement.id).sort(),
+        [
+            "camping-stage-1-requirement-06",
+            "hillwalking-stage-1-requirement-09",
+            "paddling-stage-1-requirement-06",
+            "rowing-stage-1-requirement-02",
+            "sailing-stage-1-requirement-02"
+        ]
+    );
+
+    for (const requirement of buddyRequirements) {
+        assert.match(requirement.statement, /buddy[^a-z0-9]*system/i, requirement.id);
+    }
 });
 
 test("Swimming uses the March 2026 source and stops at Stage 6", () => {
