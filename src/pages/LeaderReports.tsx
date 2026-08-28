@@ -19,14 +19,11 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { recordAuditEvent } from "../services/auditLog";
-import {
-    loadEventReportMembers,
-    loadEventReportRecords,
-    loadMemberReportRows
-} from "../services/reporting";
+import { loadEventReportMembers, loadEventReportRecords, loadMemberReportRows } from "../services/reporting";
 import type { EventReportRecord, MemberReportRow } from "../services/reportingLogic";
 import {
     attendanceTrendCsv,
+    buildReportingInsights,
     eventOverviewCsv,
     eventRosterCsv,
     filterEventsByDateRange,
@@ -69,10 +66,7 @@ export default function LeaderReports() {
             setLoading(true);
             setError("");
             try {
-                const [memberRows, eventRows] = await Promise.all([
-                    loadMemberReportRows(scope),
-                    loadEventReportRecords(scope)
-                ]);
+                const [memberRows, eventRows] = await Promise.all([loadMemberReportRows(scope), loadEventReportRecords(scope)]);
                 if (!cancelled) {
                     setMembers(memberRows);
                     setEvents(eventRows);
@@ -89,6 +83,7 @@ export default function LeaderReports() {
     }, [scope]);
 
     const filteredEvents = useMemo(() => filterEventsByDateRange(events, fromDate, toDate), [events, fromDate, toDate]);
+    const insights = useMemo(() => buildReportingInsights(members, filteredEvents), [members, filteredEvents]);
 
     useEffect(() => {
         if (selectedEventId && filteredEvents.some((event) => event.id === selectedEventId)) return;
@@ -158,7 +153,7 @@ export default function LeaderReports() {
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-                <LeaderPageHeader title="Reports & Exports" description="Download operational reports limited to the records your leader account is permitted to access." />
+                <LeaderPageHeader title="Reports & Exports" description="Review operational insights and download reports limited to the records your leader account is permitted to access." />
 
                 <Alert severity="info" sx={{ mb: 3 }}>Report scope: <strong>{scopeLabel}</strong>. Default exports deliberately exclude medical details, date of birth and emergency-contact information.</Alert>
                 {!isAdmin && sections.length === 0 && <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned, so no report data can be loaded.</Alert>}
@@ -180,6 +175,36 @@ export default function LeaderReports() {
                             <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="overline">Events in range</Typography><Typography variant="h4" sx={{ fontWeight: 800 }}>{filteredEvents.length}</Typography><Typography color="text.secondary">{consentEvents} require consent</Typography></Paper>
                             <Paper variant="outlined" sx={{ p: 2.5 }}><Typography variant="overline">Section scope</Typography><Typography variant="h6" sx={{ fontWeight: 800 }}>{scopeLabel}</Typography><Typography color="text.secondary">Exports respect leader permissions</Typography></Paper>
                         </Box>
+
+                        <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="reporting-insights">
+                            <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 0.5 }}>Operational insights</Typography>
+                            <Typography color="text.secondary" sx={{ mb: 2.5 }}>Calculated from the report snapshot already loaded for your permitted scope and selected date range.</Typography>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2 }}>
+                                <Box>
+                                    <Typography variant="overline">Recorded attendance rate</Typography>
+                                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{insights.attendanceRate === null ? "—" : `${insights.attendanceRate}%`}</Typography>
+                                    <Typography color="text.secondary">{insights.recordedResponses} recorded response{insights.recordedResponses === 1 ? "" : "s"}; missing responses are excluded</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="overline">Attendance recording</Typography>
+                                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{insights.eventsWithAttendance}/{filteredEvents.length}</Typography>
+                                    <Typography color="text.secondary">events have at least one recorded attendance response</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="overline">Consent received</Typography>
+                                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{insights.consentReceived}</Typography>
+                                    <Typography color="text.secondary">received records across {insights.consentRequiredEvents} consent-required event{insights.consentRequiredEvents === 1 ? "" : "s"}</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="overline">Active membership</Typography>
+                                    <Typography variant="h4" sx={{ fontWeight: 800 }}>{insights.activeMembers}</Typography>
+                                    <Typography color="text.secondary">{insights.inactiveMembers} inactive · {insights.leftMembers} left</Typography>
+                                </Box>
+                            </Box>
+                            {insights.activeBySection.length > 0 && <Typography variant="body2" sx={{ mt: 2 }}><strong>Active by section:</strong> {insights.activeBySection.map((entry) => `${entry.section} ${entry.count}`).join(" · ")}</Typography>}
+                            {insights.eventsWithoutAttendance > 0 && <Alert severity="warning" sx={{ mt: 2 }}>{insights.eventsWithoutAttendance} event{insights.eventsWithoutAttendance === 1 ? " has" : "s have"} no recorded attendance response in this range.</Alert>}
+                            {insights.consentEventsWithoutReceived > 0 && <Alert severity="warning" sx={{ mt: 1.5 }}>{insights.consentEventsWithoutReceived} consent-required event{insights.consentEventsWithoutReceived === 1 ? " has" : "s have"} no consent marked received yet.</Alert>}
+                        </Paper>
 
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="printable-report-summary">
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
