@@ -125,6 +125,57 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /memberAdventureSkillProgress/{memberId} {
+      allow read, write: if false;
+
+      match /requirements/{requirementId} {
+        allow get, list: if isApprovedParentForMember(memberId)
+          || (isActiveLeader()
+            && exists(/databases/$(database)/documents/members/$(memberId))
+            && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader() || isGroupSecretary()));
+        allow create, update: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
+          && request.resource.data.memberId == memberId
+          && request.resource.data.requirementId == requirementId
+          && request.resource.data.skillId is string
+          && request.resource.data.stage is number
+          && request.resource.data.stage >= 1
+          && request.resource.data.stage <= 9
+          && request.resource.data.sharedCompetencyKey is string
+          && request.resource.data.completedAt == request.time
+          && request.resource.data.completedBy == request.auth.uid
+          && request.resource.data.sourceType in ["manual", "weeklyMeeting", "event", "activity", "migration"]
+          && request.resource.data.sourceId is string
+          && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
+        allow delete: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
+      }
+
+      match /awards/{awardId} {
+        allow get, list: if isApprovedParentForMember(memberId)
+          || (isActiveLeader()
+            && exists(/databases/$(database)/documents/members/$(memberId))
+            && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader() || isGroupSecretary()));
+        allow create, update: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
+          && request.resource.data.memberId == memberId
+          && request.resource.data.skillId is string
+          && request.resource.data.stage is number
+          && request.resource.data.stage >= 1
+          && request.resource.data.stage <= 9
+          && awardId == request.resource.data.skillId + "-stage-" + request.resource.data.stage
+          && request.resource.data.awardedAt == request.time
+          && request.resource.data.awardedBy == request.auth.uid
+          && request.resource.data.keys().hasOnly(["memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
+        allow delete: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
+      }
+    }
+
     match /memberHistory/{entryId} {
       allow read: if isActiveLeader()
         && resource.data.memberId is string
@@ -357,7 +408,6 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
       allow delete: if false;
     }
-
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
       allow create, update: if isAdmin()
