@@ -10,8 +10,18 @@ import {
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import { notifyEquipmentIncident } from "./emailNotifications";
-import type { EquipmentIncidentStatus, EquipmentIncidentType, EquipmentNotificationState } from "./equipmentIncidentLogic";
-import { incidentRequiresUrgentNotification } from "./equipmentIncidentLogic";
+import type {
+  EquipmentIncidentResolution,
+  EquipmentIncidentStatus,
+  EquipmentIncidentType,
+  EquipmentNotificationState
+} from "./equipmentIncidentLogic";
+import {
+  incidentRequiresUrgentNotification,
+  incidentResolutionLabel,
+  resolvedEquipmentQuantities,
+  validateIncidentResolution
+} from "./equipmentIncidentLogic";
 
 export type EquipmentIncident = {
   id: string;
@@ -31,6 +41,10 @@ export type EquipmentIncident = {
   updatedAt: Date | null;
   notificationState: EquipmentNotificationState;
   notificationSentAt: Date | null;
+  resolutionType: EquipmentIncidentResolution | "";
+  resolutionNotes: string;
+  resolvedBy: string;
+  resolvedAt: Date | null;
 };
 
 export type ReportEquipmentIncidentRequest = {
@@ -44,7 +58,7 @@ export type ReportEquipmentIncidentRequest = {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to report an equipment issue.");
+  if (!uid) throw new Error("You must be signed in to manage an equipment issue.");
   return uid;
 }
 
@@ -64,6 +78,9 @@ function mapIncident(id: string, data: Record<string, unknown>): EquipmentIncide
   const notificationState = ["pending", "sent", "failed"].includes(String(data.notificationState))
     ? data.notificationState as EquipmentNotificationState
     : "pending";
+  const resolutionType = ["found-returned", "repaired", "replaced", "written-off", "no-action"].includes(String(data.resolutionType))
+    ? data.resolutionType as EquipmentIncidentResolution
+    : "";
   return {
     id,
     itemId: data.itemId,
@@ -81,7 +98,11 @@ function mapIncident(id: string, data: Record<string, unknown>): EquipmentIncide
     updatedBy: text(data.updatedBy),
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     notificationState,
-    notificationSentAt: data.notificationSentAt instanceof Timestamp ? data.notificationSentAt.toDate() : null
+    notificationSentAt: data.notificationSentAt instanceof Timestamp ? data.notificationSentAt.toDate() : null,
+    resolutionType,
+    resolutionNotes: text(data.resolutionNotes),
+    resolvedBy: text(data.resolvedBy),
+    resolvedAt: data.resolvedAt instanceof Timestamp ? data.resolvedAt.toDate() : null
   };
 }
 
@@ -184,7 +205,11 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
       updatedBy: uid,
       updatedAt: serverTimestamp(),
       notificationState: incidentRequiresUrgentNotification(request.type) ? "pending" : "sent",
-      notificationSentAt: incidentRequiresUrgentNotification(request.type) ? null : serverTimestamp()
+      notificationSentAt: incidentRequiresUrgentNotification(request.type) ? null : serverTimestamp(),
+      resolutionType: "",
+      resolutionNotes: "",
+      resolvedBy: "",
+      resolvedAt: null
     });
   });
 
@@ -198,6 +223,81 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
   });
 
   return incidentRef.id;
+}
+
+export async function startEquipmentIncidentInvestigation(incident: EquipmentIncident): Promise<void> {
+  const uid = currentUid();
+  if (incident.status !== "reported") throw new Error("Only newly reported equipment issues can be moved to investigating.");
+  await updateDoc(doc(db, "equipmentIncidents", incident.id), {
+    status: "investigating",
+    updatedBy: uid,
+    updatedAt: serverTimestamp()
+  });
+  await recordAuditEvent({
+    category: "equipment",
+    action: "incident-investigating",
+    targetId: incident.id,
+    targetLabel: incident.itemName,
+    description: `Started investigating ${incident.quantity} × ${incident.itemName} for ${incident.section}.`,
+    section: incident.section
+  });
+}
+
+export async function resolveEquipmentIncident(
+  incident: EquipmentIncident,
+  resolution: EquipmentIncidentResolution,
+  notes: string
+): Promise<void> {
+  const uid = currentUid();
+  const safeNotes = notes.trim();
+  const validation = validateIncidentResolution(resolution, safeNotes);
+  if (validation) throw new Error(validation);
+  if (incident.status === "resolved") throw new Error("This equipment issue has already been resolved.");
+
+  const incidentRef = doc(db, "equipmentIncidents", incident.id);
+  const itemRef = doc(db, "equipmentItems", incident.itemId);
+  await runTransaction(db, async (transaction) => {
+    const [incidentSnapshot, itemSnapshot] = await Promise.all([
+      transaction.get(incidentRef),
+      transaction.get(itemRef)
+    ]);
+    if (!incidentSnapshot.exists()) throw new Error("That equipment issue no longer exists.");
+    if (!itemSnapshot.exists()) throw new Error("The linked equipment item no longer exists.");
+    const incidentData = incidentSnapshot.data();
+    if (incidentData.status === "resolved") throw new Error("This equipment issue has already been resolved.");
+    const quantity = integer(incidentData.quantity);
+    const itemData = itemSnapshot.data();
+    const next = resolvedEquipmentQuantities({
+      totalQuantity: integer(itemData.totalQuantity),
+      checkedOutQuantity: integer(itemData.checkedOutQuantity),
+      unavailableQuantity: integer(itemData.unavailableQuantity)
+    }, quantity, resolution);
+
+    transaction.update(itemRef, {
+      totalQuantity: next.totalQuantity,
+      unavailableQuantity: next.unavailableQuantity,
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+    transaction.update(incidentRef, {
+      status: "resolved",
+      resolutionType: resolution,
+      resolutionNotes: safeNotes,
+      resolvedBy: uid,
+      resolvedAt: serverTimestamp(),
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  await recordAuditEvent({
+    category: "equipment",
+    action: `incident-resolved-${resolution}`,
+    targetId: incident.id,
+    targetLabel: incident.itemName,
+    description: `Resolved ${incident.quantity} × ${incident.itemName} as ${incidentResolutionLabel(resolution)} for ${incident.section}${safeNotes ? `: ${safeNotes}` : "."}`,
+    section: incident.section
+  });
 }
 
 export async function sendEquipmentIncidentNotification(incidentId: string): Promise<void> {
