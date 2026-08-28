@@ -21,11 +21,22 @@ import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
 import type { EquipmentIncident, ReportEquipmentIncidentRequest } from "../../services/equipmentIncidents";
-import { reportEquipmentIncident, sendEquipmentIncidentNotification } from "../../services/equipmentIncidents";
+import {
+  reportEquipmentIncident,
+  resolveEquipmentIncident,
+  sendEquipmentIncidentNotification,
+  startEquipmentIncidentInvestigation
+} from "../../services/equipmentIncidents";
 import { canManageEquipment } from "../../services/equipmentLogic";
 import { canUseEquipmentForSection, outstandingLoanQuantity } from "../../services/equipmentLoanLogic";
-import { incidentRequiresUrgentNotification, incidentTypeLabel } from "../../services/equipmentIncidentLogic";
-import type { EquipmentIncidentType } from "../../services/equipmentIncidentLogic";
+import {
+  incidentRequiresUrgentNotification,
+  incidentResolutionLabel,
+  incidentStatusLabel,
+  incidentTypeLabel,
+  validateIncidentResolution
+} from "../../services/equipmentIncidentLogic";
+import type { EquipmentIncidentResolution, EquipmentIncidentType } from "../../services/equipmentIncidentLogic";
 
 type Props = {
   profile: AdminProfile | null;
@@ -52,6 +63,9 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const [type, setType] = useState<EquipmentIncidentType>("damaged");
   const [quantity, setQuantity] = useState(1);
   const [description, setDescription] = useState("");
+  const [resolving, setResolving] = useState<EquipmentIncident | null>(null);
+  const [resolution, setResolution] = useState<EquipmentIncidentResolution>("found-returned");
+  const [resolutionNotes, setResolutionNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const manager = canManageEquipment(profile);
@@ -145,29 +159,72 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
     }
   };
 
+  const investigate = async (incident: EquipmentIncident) => {
+    setSaving(true);
+    onError("");
+    try {
+      await startEquipmentIncidentInvestigation(incident);
+      await onChanged();
+    } catch (error) {
+      console.error("Unable to start equipment investigation:", error);
+      onError(error instanceof Error ? error.message : "Unable to update the equipment issue.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openResolution = (incident: EquipmentIncident) => {
+    setResolving(incident);
+    setResolution(incident.type === "damaged" || incident.type === "maintenance" ? "repaired" : "found-returned");
+    setResolutionNotes("");
+  };
+
+  const submitResolution = async () => {
+    if (!resolving) return;
+    const validation = validateIncidentResolution(resolution, resolutionNotes);
+    if (validation) return onError(validation);
+    setSaving(true);
+    onError("");
+    try {
+      await resolveEquipmentIncident(resolving, resolution, resolutionNotes);
+      setResolving(null);
+      await onChanged();
+    } catch (error) {
+      console.error("Unable to resolve equipment issue:", error);
+      onError(error instanceof Error ? error.message : "Unable to resolve the equipment issue.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return <>
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-incidents-panel">
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
         <Box>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Broken, lost &amp; missing</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Report damaged, lost, missing or maintenance issues. Broken, lost and missing reports alert the Quartermaster and Group Leader.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Report damaged, lost, missing or maintenance issues. Equipment managers can investigate and resolve each report with a permanent audit trail.</Typography>
         </Box>
         <Button variant="contained" color="warning" onClick={openDialog} disabled={sources.length === 0}>Report issue</Button>
       </Stack>
 
       {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
         {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" sx={{ p: 1.75 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" } }}>
-            <Box>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
+            <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                 <Chip size="small" color={incident.type === "maintenance" ? "info" : "warning"} label={incidentTypeLabel(incident.type)} />
+                <Chip size="small" variant="outlined" color={incident.status === "investigating" ? "info" : "default"} label={incidentStatusLabel(incident.status)} />
                 <Typography sx={{ fontWeight: 800 }}>{incident.quantity} × {incident.itemName}</Typography>
                 <Chip size="small" variant="outlined" label={incident.section} />
               </Stack>
               <Typography variant="body2" sx={{ mt: 0.75 }}>{incident.description}</Typography>
               <Typography variant="caption" color="text.secondary">{incident.itemLocation || "Location not recorded"}{incident.loanId ? " · Reported from a checkout" : " · Reported from stores"}</Typography>
             </Box>
-            {incidentRequiresUrgentNotification(incident.type) && <Chip size="small" variant="outlined" color={incident.notificationState === "failed" ? "error" : incident.notificationState === "sent" ? "success" : "warning"} label={incident.notificationState === "sent" ? "Email sent" : incident.notificationState === "failed" ? "Email failed" : "Email pending"} />}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
+              {incidentRequiresUrgentNotification(incident.type) && <Chip size="small" variant="outlined" color={incident.notificationState === "failed" ? "error" : incident.notificationState === "sent" ? "success" : "warning"} label={incident.notificationState === "sent" ? "Email sent" : incident.notificationState === "failed" ? "Email failed" : "Email pending"} />}
+              {manager && incident.status === "reported" && <Button size="small" variant="outlined" onClick={() => void investigate(incident)} disabled={saving}>Start investigation</Button>}
+              {manager && <Button size="small" variant="contained" color="success" onClick={() => openResolution(incident)} disabled={saving}>Resolve</Button>}
+            </Stack>
           </Stack>
         </Paper>)}
       </Stack>}
@@ -198,6 +255,28 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
         </Stack>
       </DialogContent>
       <DialogActions><Button onClick={() => setOpen(false)} disabled={saving}>Cancel</Button><Button variant="contained" color="warning" onClick={() => void submit()} disabled={saving}>{saving ? "Reporting…" : "Report issue"}</Button></DialogActions>
+    </Dialog>
+
+    <Dialog open={Boolean(resolving)} onClose={() => !saving && setResolving(null)} fullWidth maxWidth="sm">
+      <DialogTitle>Resolve equipment issue</DialogTitle>
+      <DialogContent dividers>
+        {resolving && <Stack spacing={2}>
+          <Alert severity="info">Resolving {resolving.quantity} × {resolving.itemName}. The affected quantity will leave the unavailable count. A write-off also reduces the total stock quantity.</Alert>
+          <FormControl fullWidth>
+            <InputLabel>Resolution</InputLabel>
+            <Select label="Resolution" value={resolution} onChange={(event) => setResolution(event.target.value as EquipmentIncidentResolution)}>
+              <MenuItem value="found-returned">{incidentResolutionLabel("found-returned")}</MenuItem>
+              <MenuItem value="repaired">{incidentResolutionLabel("repaired")}</MenuItem>
+              <MenuItem value="replaced">{incidentResolutionLabel("replaced")}</MenuItem>
+              <MenuItem value="written-off">{incidentResolutionLabel("written-off")}</MenuItem>
+              <MenuItem value="no-action">{incidentResolutionLabel("no-action")}</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField label="Resolution notes" value={resolutionNotes} onChange={(event) => setResolutionNotes(event.target.value)} multiline minRows={3} required={resolution === "written-off"} helperText={resolution === "written-off" ? "A reason is required for write-offs." : "Optional, but useful for the equipment history."} />
+          {resolution === "written-off" && <Alert severity="warning">Writing off this incident permanently reduces the equipment total by {resolving.quantity}.</Alert>}
+        </Stack>}
+      </DialogContent>
+      <DialogActions><Button onClick={() => setResolving(null)} disabled={saving}>Cancel</Button><Button variant="contained" color="success" onClick={() => void submitResolution()} disabled={saving}>{saving ? "Resolving…" : "Confirm resolution"}</Button></DialogActions>
     </Dialog>
   </>;
 }
