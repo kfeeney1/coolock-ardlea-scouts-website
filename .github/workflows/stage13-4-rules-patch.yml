@@ -1,0 +1,130 @@
+name: Stage 13.4 rules patch
+
+on:
+  push:
+    branches:
+      - stage-13-4-equipment-incident-resolution
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch equipment incident rules
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("firestore.rules")
+          text = path.read_text()
+          old = '''    match /equipmentIncidents/{incidentId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && request.resource.data.itemId is string
+        && request.resource.data.itemName is string
+        && request.resource.data.itemCategory is string
+        && request.resource.data.itemLocation is string
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.type in ["damaged", "lost", "missing", "maintenance"]
+        && request.resource.data.status == "reported"
+        && request.resource.data.section is string
+        && request.resource.data.loanId is string
+        && request.resource.data.description is string
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.notificationState in ["pending", "sent"]
+        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && (canManageEquipment()
+          || (request.resource.data.loanId != ""
+            && hasSection(request.resource.data.section)
+            && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
+            && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section))
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedBy == resource.data.reportedBy
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.notificationState in ["sent", "failed"]
+        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]);
+      allow delete: if false;
+    }
+'''
+          new = '''    match /equipmentIncidents/{incidentId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && request.resource.data.itemId is string
+        && request.resource.data.itemName is string
+        && request.resource.data.itemCategory is string
+        && request.resource.data.itemLocation is string
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.type in ["damaged", "lost", "missing", "maintenance"]
+        && request.resource.data.status == "reported"
+        && request.resource.data.section is string
+        && request.resource.data.loanId is string
+        && request.resource.data.description is string
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.notificationState in ["pending", "sent"]
+        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && request.resource.data.resolutionType == ""
+        && request.resource.data.resolutionNotes == ""
+        && request.resource.data.resolvedBy == ""
+        && request.resource.data.resolvedAt == null
+        && (canManageEquipment()
+          || (request.resource.data.loanId != ""
+            && hasSection(request.resource.data.section)
+            && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
+            && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section))
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt"]);
+      allow update: if (isActiveLeader()
+          && resource.data.reportedBy == request.auth.uid
+          && request.resource.data.reportedBy == resource.data.reportedBy
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.notificationState in ["sent", "failed"]
+          && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]))
+        || (canManageEquipment()
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && ((resource.data.status == "reported"
+              && request.resource.data.status == "investigating"
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "updatedBy", "updatedAt"]))
+            || (resource.data.status in ["reported", "investigating"]
+              && request.resource.data.status == "resolved"
+              && request.resource.data.resolutionType in ["found-returned", "repaired", "replaced", "written-off", "no-action"]
+              && request.resource.data.resolutionNotes is string
+              && (request.resource.data.resolutionType != "written-off" || request.resource.data.resolutionNotes != "")
+              && request.resource.data.resolvedBy == request.auth.uid
+              && request.resource.data.resolvedAt == request.time
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "updatedBy", "updatedAt"]))));
+      allow delete: if false;
+    }
+'''
+          if old not in text:
+              if new in text:
+                  print("Rules already patched")
+                  raise SystemExit(0)
+              raise SystemExit("Expected equipment incident rules block was not found")
+          path.write_text(text.replace(old, new))
+      - name: Commit patched rules
+        run: |
+          if git diff --quiet -- firestore.rules; then
+            echo "No rules changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules
+          git commit -m "Allow equipment managers to resolve incidents"
+          git push
