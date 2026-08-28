@@ -2,6 +2,8 @@ import { collection, getCountFromServer, getDocs, query, where, type Query, type
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 import { buildLeaderToday, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
+import { canManageEquipment } from "./equipmentLogic";
+import { incidentTypeLabel } from "./equipmentIncidentLogic";
 
 export type AdminOverviewEvent = {
   id: string;
@@ -55,7 +57,7 @@ function isAdmin(profile: AdminProfile): boolean {
 }
 
 function cacheKey(profile: AdminProfile): string {
-  return `${profile.role}:${[...new Set(profile.sections)].sort().join("|")}`;
+  return `${profile.role}:${profile.scoutingRole}:${[...new Set(profile.sections)].sort().join("|")}`;
 }
 
 function encodedProgrammeHasContent(value: unknown, itemField?: string): boolean {
@@ -125,19 +127,41 @@ async function loadScopedWeeklyMeetings(profile: AdminProfile): Promise<Firestor
   return [...byId.values()];
 }
 
+async function loadEquipmentAttention(profile: AdminProfile): Promise<LeaderAttentionItem[]> {
+  if (!canManageEquipment(profile)) return [];
+  const snapshot = await getDocs(collection(db, "equipmentIncidents"));
+  return snapshot.docs.flatMap((document) => {
+    const data = document.data();
+    const status = stringValue(data.status);
+    const type = stringValue(data.type);
+    const itemName = stringValue(data.itemName);
+    const section = stringValue(data.section) || "Group";
+    const quantity = typeof data.quantity === "number" && Number.isInteger(data.quantity) ? data.quantity : 0;
+    if (status === "resolved" || !["damaged", "lost", "missing", "maintenance"].includes(type) || !itemName || quantity <= 0) return [];
+    return [{
+      id: `equipment-incident-${document.id}`,
+      label: `${incidentTypeLabel(type as "damaged" | "lost" | "missing" | "maintenance")}: ${quantity} × ${itemName}`,
+      detail: `${section} · ${stringValue(data.description) || "Equipment issue needs review."}`,
+      path: "/leader/equipment",
+      severity: "warning" as const
+    }];
+  }).slice(0, 4);
+}
+
 export async function loadAdminOverview(profile: AdminProfile, force = false): Promise<AdminOverview> {
   const key = cacheKey(profile);
   const cached = overviewCache.get(key);
   if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
 
   const admin = isAdmin(profile);
-  const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments, meetingDocuments] = await Promise.all([
+  const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments, meetingDocuments, equipmentAttention] = await Promise.all([
     admin ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending"))) : Promise.resolve(0),
     admin ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending"))) : Promise.resolve(0),
     countScopedNewJoins(profile),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile),
-    loadScopedWeeklyMeetings(profile)
+    loadScopedWeeklyMeetings(profile),
+    loadEquipmentAttention(profile)
   ]);
 
   const members: RawMember[] = memberDocuments.flatMap((snapshot) => {
@@ -180,7 +204,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     membersBySection,
     upcomingEvents,
     nextMeeting: leaderToday.nextMeeting,
-    attentionItems: leaderToday.attentionItems
+    attentionItems: [...equipmentAttention, ...leaderToday.attentionItems].slice(0, 8)
   };
 
   overviewCache.set(key, { value: overview, expiresAt: Date.now() + OVERVIEW_CACHE_MS });
