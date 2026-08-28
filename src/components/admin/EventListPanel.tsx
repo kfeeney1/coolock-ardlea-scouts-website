@@ -80,7 +80,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                         </Box>
                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 150 } }}>
                             {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
-                            <Button variant="outlined" color="secondary" onClick={() => onPrint(event)}>Report</Button><Button variant="outlined" color="secondary" onClick={() => onExport(event)}>Export CSV</Button><Button variant="outlined" color="secondary" disabled={completed} onClick={() => onEdit(event)}>Edit</Button><Button variant="contained" color={completed ? "secondary" : "success"} onClick={() => onRoster(event)}>{completed ? "View Roster" : "Roster"}</Button>
+                            <Button variant="outlined" color="secondary" onClick={() => onPrint(event)}>Report</Button><Button variant="outlined" color="secondary" onClick={() => onExport(event)}>Export CSV</Button><Button variant="outlined" color="secondary" disabled={completed} onClick={() => onEdit(event)}>Edit</Button><Button variant="contained" color={completed ? "secondary" : "success"} onClick={() => onRoster(event)}>{completed ? "View Attendance" : "Attendance"}</Button>
                         </Stack>
                     </Box>
                 </Paper>;

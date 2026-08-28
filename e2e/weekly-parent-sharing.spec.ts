@@ -2,7 +2,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
-const leaderEmail = process.env.E2E_LEADER_EMAIL;
+const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Weekly parent-sharing coverage runs once on desktop Chromium.");
@@ -33,8 +33,8 @@ test("approved parent sees programme and badgework but never leader-only meeting
 
 test("leader WhatsApp share includes programme equipment but excludes private meeting data", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
-  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await login(page, leaderEmail!, "leader");
+  test.skip(!password, "Configure canonical E2E leader credentials.");
+  await login(page, sectionLeaderEmail, "leader");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/weekly");
 

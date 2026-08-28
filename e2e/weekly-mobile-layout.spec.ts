@@ -1,11 +1,11 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
-const leaderEmail = process.env.E2E_LEADER_EMAIL;
+const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 
 async function login(page: Page) {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(leaderEmail!);
+  await page.getByLabel("Email address").fill(sectionLeaderEmail);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -13,7 +13,7 @@ async function login(page: Page) {
 
 test("mobile Weekly Meetings keeps editable content clear of sticky save actions", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Mobile layout regression runs once on Chromium.");
-  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  test.skip(!password, "Configure canonical E2E leader credentials.");
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await page.goto("/leader/weekly");
