@@ -102,6 +102,28 @@ export async function saveEquipmentRequirement(input: Omit<EquipmentProgrammeReq
   });
 }
 
+export async function copyEquipmentRequirement(
+  sourceType: EquipmentProgrammeSourceType,
+  sourceId: string,
+  targetSourceType: EquipmentProgrammeSourceType,
+  targetSourceId: string,
+  targetSourceLabel: string,
+  targetSection: string,
+  targetDate: string,
+): Promise<boolean> {
+  const source = await loadEquipmentRequirement(sourceType, sourceId);
+  if (!source || source.lines.length === 0) return false;
+  await saveEquipmentRequirement({
+    sourceType: targetSourceType,
+    sourceId: targetSourceId,
+    sourceLabel: targetSourceLabel,
+    section: targetSection,
+    date: targetDate,
+    lines: source.lines.map((line) => ({ ...line })),
+  }, "");
+  return true;
+}
+
 export async function reserveEquipmentRequirement(requirement: EquipmentProgrammeRequirement): Promise<string> {
   if (!requirement.lines.length) throw new Error("Add planned equipment before creating a reservation.");
   if (requirement.loanId) throw new Error("This equipment plan is already allocated.");
