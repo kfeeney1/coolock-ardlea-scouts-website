@@ -30,8 +30,16 @@ function incident(uid, section = "Scouts", loanId = "loan-1") {
     updatedBy: uid,
     updatedAt: serverTimestamp(),
     notificationState: "pending",
-    notificationSentAt: null
+    notificationSentAt: null,
+    resolutionType: "",
+    resolutionNotes: "",
+    resolvedBy: "",
+    resolvedAt: null
   };
+}
+
+function storedIncident(uid, section = "Scouts", loanId = "loan-1") {
+  return { ...incident(uid, section, loanId), reportedAt: new Date(), updatedAt: new Date() };
 }
 
 before(async () => {
@@ -77,10 +85,98 @@ test("active leaders can read incidents while parents cannot", async () => {
   await seed([
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
     ["parentAccounts/parent", { status: "approved", memberIds: [], linkedSections: ["Scouts"] }],
-    ["equipmentIncidents/incident-1", { ...incident("scout-leader"), reportedAt: new Date(), updatedAt: new Date() }]
+    ["equipmentIncidents/incident-1", storedIncident("scout-leader")]
   ]);
   const leaderDb = testEnv.authenticatedContext("scout-leader", { email: "scout@example.test" }).firestore();
   const parentDb = testEnv.authenticatedContext("parent", { email: "parent@example.test" }).firestore();
   await assertSucceeds(getDocs(collection(leaderDb, "equipmentIncidents")));
   await assertFails(getDocs(collection(parentDb, "equipmentIncidents")));
+});
+
+test("equipment administrator can investigate and resolve an incident", async () => {
+  await seed([
+    ["adminUsers/web-admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["equipmentIncidents/incident-1", storedIncident("scout-leader")]
+  ]);
+  const db = testEnv.authenticatedContext("web-admin", { email: "admin@example.test" }).firestore();
+  await assertSucceeds(updateDoc(doc(db, "equipmentIncidents/incident-1"), {
+    status: "investigating",
+    updatedBy: "web-admin",
+    updatedAt: serverTimestamp()
+  }));
+  await assertSucceeds(updateDoc(doc(db, "equipmentIncidents/incident-1"), {
+    status: "resolved",
+    resolutionType: "found-returned",
+    resolutionNotes: "Found in the trailer.",
+    resolvedBy: "web-admin",
+    resolvedAt: serverTimestamp(),
+    updatedBy: "web-admin",
+    updatedAt: serverTimestamp()
+  }));
+});
+
+test("quartermaster and group leader can resolve incidents", async () => {
+  await seed([
+    ["adminUsers/qm", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/qm", { active: true, scoutingRole: "Group Quartermaster / Bo'sun" }],
+    ["adminUsers/gl", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/gl", { active: true, scoutingRole: "Group Leader" }],
+    ["equipmentIncidents/qm-incident", storedIncident("scout-leader")],
+    ["equipmentIncidents/gl-incident", storedIncident("scout-leader")]
+  ]);
+  for (const uid of ["qm", "gl"]) {
+    const db = testEnv.authenticatedContext(uid, { email: `${uid}@example.test` }).firestore();
+    await assertSucceeds(updateDoc(doc(db, `equipmentIncidents/${uid}-incident`), {
+      status: "resolved",
+      resolutionType: "repaired",
+      resolutionNotes: "Back in service.",
+      resolvedBy: uid,
+      resolvedAt: serverTimestamp(),
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    }));
+  }
+});
+
+test("ordinary leader cannot resolve an incident", async () => {
+  await seed([
+    ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["equipmentIncidents/incident-1", storedIncident("another-leader")]
+  ]);
+  const db = testEnv.authenticatedContext("scout-leader", { email: "scout@example.test" }).firestore();
+  await assertFails(updateDoc(doc(db, "equipmentIncidents/incident-1"), {
+    status: "resolved",
+    resolutionType: "found-returned",
+    resolutionNotes: "",
+    resolvedBy: "scout-leader",
+    resolvedAt: serverTimestamp(),
+    updatedBy: "scout-leader",
+    updatedAt: serverTimestamp()
+  }));
+});
+
+test("write-offs require a resolution reason", async () => {
+  await seed([
+    ["adminUsers/web-admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["equipmentIncidents/incident-1", storedIncident("scout-leader")]
+  ]);
+  const db = testEnv.authenticatedContext("web-admin", { email: "admin@example.test" }).firestore();
+  await assertFails(updateDoc(doc(db, "equipmentIncidents/incident-1"), {
+    status: "resolved",
+    resolutionType: "written-off",
+    resolutionNotes: "",
+    resolvedBy: "web-admin",
+    resolvedAt: serverTimestamp(),
+    updatedBy: "web-admin",
+    updatedAt: serverTimestamp()
+  }));
+  await assertSucceeds(updateDoc(doc(db, "equipmentIncidents/incident-1"), {
+    status: "resolved",
+    resolutionType: "written-off",
+    resolutionNotes: "Confirmed lost after store and trailer check.",
+    resolvedBy: "web-admin",
+    resolvedAt: serverTimestamp(),
+    updatedBy: "web-admin",
+    updatedAt: serverTimestamp()
+  }));
 });
