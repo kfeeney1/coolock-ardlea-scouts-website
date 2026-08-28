@@ -16,6 +16,7 @@ import {
   outstandingLoanQuantity
 } from "./equipmentLoanLogic";
 import type { EquipmentLoanLine } from "./equipmentLoanLogic";
+import { EQUIPMENT_RESERVATION_NOTE_PREFIX, isEquipmentReservationLoan } from "./equipmentProgrammeLogic";
 
 export type EquipmentLoan = {
   id: string;
@@ -39,6 +40,14 @@ export type CheckoutRequest = {
   section: string;
   expectedReturnDate: string;
   notes: string;
+  lines: CheckoutRequestLine[];
+};
+
+export type ReservationRequest = {
+  section: string;
+  reservationDate: string;
+  sourceId: string;
+  sourceLabel: string;
   lines: CheckoutRequestLine[];
 };
 
@@ -106,12 +115,12 @@ export async function loadEquipmentLoans(): Promise<EquipmentLoan[]> {
     .sort((a, b) => a.status.localeCompare(b.status) || a.expectedReturnDate.localeCompare(b.expectedReturnDate));
 }
 
-export async function checkoutEquipment(request: CheckoutRequest): Promise<string> {
+async function allocateEquipment(request: CheckoutRequest, reservation = false): Promise<string> {
   const uid = currentUid();
   const section = request.section.trim();
   const lines = request.lines.filter((line) => Number.isInteger(line.quantity) && line.quantity > 0);
   if (!section) throw new Error("Choose the section taking the equipment.");
-  if (!request.expectedReturnDate) throw new Error("Choose an expected return date.");
+  if (!request.expectedReturnDate) throw new Error(reservation ? "Choose the reservation date." : "Choose an expected return date.");
   if (lines.length === 0) throw new Error("Select at least one equipment item.");
 
   const loanRef = doc(collection(db, "equipmentLoans"));
@@ -135,9 +144,11 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
         unavailableQuantity: integer(data.unavailableQuantity),
         archived: data.archived === true
       };
-      if (item.archived) throw new Error(`${item.name} is archived and cannot be checked out.`);
+      if (item.archived) throw new Error(`${item.name} is archived and cannot be ${reservation ? "reserved" : "checked out"}.`);
       const available = availableEquipmentQuantity(item as EquipmentItem);
-      if (requested.quantity > available) throw new Error(`Only ${available} × ${item.name} ${available === 1 ? "is" : "are"} available.`);
+      if (requested.quantity > available) {
+        throw new Error(`Only ${available} × ${item.name} ${available === 1 ? "is" : "are"} available; another checkout or reservation may already hold the remaining stock.`);
+      }
 
       loanLines.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, returnedQuantity: 0, incidentQuantity: 0 });
       historyRows.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, location: text(data.location) });
@@ -162,27 +173,169 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
     });
   });
 
+  if (!reservation) {
+    await Promise.all(historyRows.map((row) => recordEquipmentHistory({
+      itemId: row.itemId,
+      itemName: row.itemName,
+      type: "equipment-checked-out",
+      quantity: row.quantity,
+      section,
+      fromLocation: row.location,
+      toLocation: section,
+      details: `Checked out ${row.quantity} × ${row.itemName} to ${section}; expected back ${request.expectedReturnDate}.`,
+      sourceId: loanRef.id,
+      linkedItemId: ""
+    })));
+  }
+  await recordAuditEvent({
+    category: "equipment",
+    action: reservation ? "equipment-reserved" : "equipment-checked-out",
+    targetId: loanRef.id,
+    targetLabel: section,
+    description: reservation
+      ? `Reserved ${auditSummary} for ${section} on ${request.expectedReturnDate}.`
+      : `Checked out ${auditSummary} to ${section}; expected back ${request.expectedReturnDate}.`,
+    section
+  });
+  return loanRef.id;
+}
+
+export async function checkoutEquipment(request: CheckoutRequest): Promise<string> {
+  return allocateEquipment(request, false);
+}
+
+export async function reserveEquipment(request: ReservationRequest): Promise<string> {
+  const sourceId = request.sourceId.trim();
+  if (!sourceId) throw new Error("A programme source is required before equipment can be reserved.");
+  return allocateEquipment({
+    section: request.section,
+    expectedReturnDate: request.reservationDate,
+    notes: `${EQUIPMENT_RESERVATION_NOTE_PREFIX} ${sourceId} · ${request.sourceLabel.trim()}`,
+    lines: request.lines
+  }, true);
+}
+
+export async function cancelEquipmentReservation(reservationId: string): Promise<void> {
+  const uid = currentUid();
+  const loanRef = doc(db, "equipmentLoans", reservationId);
+  let auditSection = "Group";
+  let auditSummary = "";
+
+  await runTransaction(db, async (transaction) => {
+    const loanSnapshot = await transaction.get(loanRef);
+    if (!loanSnapshot.exists()) throw new Error("That equipment reservation no longer exists.");
+    const loan = mapLoan(loanSnapshot.id, loanSnapshot.data());
+    if (!loan || loan.status !== "open" || !isEquipmentReservationLoan(loan)) throw new Error("That equipment reservation is no longer active.");
+
+    const outstanding = loan.lines
+      .map((line) => ({ line, quantity: outstandingLoanQuantity(line) }))
+      .filter(({ quantity }) => quantity > 0);
+    const refs = outstanding.map(({ line }) => doc(db, "equipmentItems", line.itemId));
+    const itemSnapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+
+    outstanding.forEach(({ line, quantity }, index) => {
+      const snapshot = itemSnapshots[index];
+      if (!snapshot.exists()) throw new Error(`${line.itemName} no longer exists in the inventory.`);
+      const checkedOutQuantity = integer(snapshot.data().checkedOutQuantity);
+      if (quantity > checkedOutQuantity) throw new Error(`The allocated stock count for ${line.itemName} is inconsistent. Ask the Quartermaster to review it.`);
+      transaction.update(refs[index], {
+        checkedOutQuantity: checkedOutQuantity - quantity,
+        updatedBy: uid,
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    transaction.update(loanRef, {
+      lines: loan.lines.map((line) => ({ ...line, returnedQuantity: line.returnedQuantity + outstandingLoanQuantity(line) })),
+      status: "returned",
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+    auditSection = loan.section;
+    auditSummary = outstanding.map(({ line, quantity }) => `${quantity} × ${line.itemName}`).join(", ");
+  });
+
+  await recordAuditEvent({
+    category: "equipment",
+    action: "equipment-reservation-cancelled",
+    targetId: reservationId,
+    targetLabel: auditSection,
+    description: `Cancelled reservation for ${auditSummary || "equipment"} for ${auditSection}; stock was released.`,
+    section: auditSection
+  });
+}
+
+export async function convertEquipmentReservation(reservationId: string, expectedReturnDate: string, notes: string): Promise<string> {
+  const uid = currentUid();
+  if (!expectedReturnDate) throw new Error("Choose an expected return date.");
+  const reservationRef = doc(db, "equipmentLoans", reservationId);
+  const checkoutRef = doc(collection(db, "equipmentLoans"));
+  let auditSection = "Group";
+  let auditSummary = "";
+  const historyRows: Array<{ itemId: string; itemName: string; quantity: number; location: string }> = [];
+
+  await runTransaction(db, async (transaction) => {
+    const reservationSnapshot = await transaction.get(reservationRef);
+    if (!reservationSnapshot.exists()) throw new Error("That equipment reservation no longer exists.");
+    const reservation = mapLoan(reservationSnapshot.id, reservationSnapshot.data());
+    if (!reservation || reservation.status !== "open" || !isEquipmentReservationLoan(reservation)) throw new Error("That equipment reservation is no longer active.");
+
+    const checkoutLines = reservation.lines
+      .map((line) => ({ ...line, quantity: outstandingLoanQuantity(line), returnedQuantity: 0, incidentQuantity: 0 }))
+      .filter((line) => line.quantity > 0);
+    if (!checkoutLines.length) throw new Error("That reservation has no equipment left to check out.");
+
+    const refs = checkoutLines.map((line) => doc(db, "equipmentItems", line.itemId));
+    const itemSnapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+    checkoutLines.forEach((line, index) => {
+      const snapshot = itemSnapshots[index];
+      if (!snapshot.exists()) throw new Error(`${line.itemName} no longer exists in the inventory.`);
+      if (integer(snapshot.data().checkedOutQuantity) < line.quantity) throw new Error(`The reserved stock count for ${line.itemName} is inconsistent. Ask the Quartermaster to review it.`);
+      historyRows.push({ itemId: line.itemId, itemName: line.itemName, quantity: line.quantity, location: text(snapshot.data().location) });
+    });
+
+    transaction.update(reservationRef, {
+      lines: reservation.lines.map((line) => ({ ...line, returnedQuantity: line.returnedQuantity + outstandingLoanQuantity(line) })),
+      status: "returned",
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+    transaction.set(checkoutRef, {
+      section: reservation.section,
+      expectedReturnDate,
+      notes: notes.trim(),
+      status: "open",
+      lines: checkoutLines,
+      createdBy: uid,
+      createdAt: serverTimestamp(),
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+    auditSection = reservation.section;
+    auditSummary = checkoutLines.map((line) => `${line.quantity} × ${line.itemName}`).join(", ");
+  });
+
   await Promise.all(historyRows.map((row) => recordEquipmentHistory({
     itemId: row.itemId,
     itemName: row.itemName,
     type: "equipment-checked-out",
     quantity: row.quantity,
-    section,
+    section: auditSection,
     fromLocation: row.location,
-    toLocation: section,
-    details: `Checked out ${row.quantity} × ${row.itemName} to ${section}; expected back ${request.expectedReturnDate}.`,
-    sourceId: loanRef.id,
+    toLocation: auditSection,
+    details: `Checked out reserved ${row.quantity} × ${row.itemName} to ${auditSection}; expected back ${expectedReturnDate}.`,
+    sourceId: checkoutRef.id,
     linkedItemId: ""
   })));
   await recordAuditEvent({
     category: "equipment",
-    action: "equipment-checked-out",
-    targetId: loanRef.id,
-    targetLabel: section,
-    description: `Checked out ${auditSummary} to ${section}; expected back ${request.expectedReturnDate}.`,
-    section
+    action: "equipment-reservation-checked-out",
+    targetId: checkoutRef.id,
+    targetLabel: auditSection,
+    description: `Converted reservation ${reservationId} to checkout: ${auditSummary}; expected back ${expectedReturnDate}.`,
+    section: auditSection
   });
-  return loanRef.id;
+  return checkoutRef.id;
 }
 
 export async function returnEquipment(request: ReturnRequest): Promise<void> {
@@ -197,6 +350,7 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
     if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
     const loan = mapLoan(loanSnapshot.id, loanSnapshot.data());
     if (!loan || loan.status !== "open") throw new Error("That equipment checkout is already closed.");
+    if (isEquipmentReservationLoan(loan)) throw new Error("Use the programme equipment reservation controls to cancel a reservation before checkout.");
 
     const selected = loan.lines
       .map((line) => ({ line, quantity: request.quantities[line.itemId] ?? 0 }))

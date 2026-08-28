@@ -28,6 +28,7 @@ import {
   outstandingLoanQuantity,
   validateCheckoutQuantity
 } from "../../services/equipmentLoanLogic";
+import { isEquipmentReservationLoan } from "../../services/equipmentProgrammeLogic";
 
 function defaultReturnDate(): string {
   const date = new Date();
@@ -55,7 +56,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
 
   const sectionOptions = useMemo(() => checkoutSectionOptions(profile), [profile]);
   const activeItems = useMemo(() => items.filter((item) => !item.archived), [items]);
-  const openLoans = useMemo(() => loans.filter((loan) => loan.status === "open"), [loans]);
+  const openLoans = useMemo(() => loans.filter((loan) => loan.status === "open" && !isEquipmentReservationLoan(loan)), [loans]);
   const sectionsWithHoldings = useMemo(() => Array.from(new Set(openLoans.map((loan) => loan.section))).sort((a, b) => a.localeCompare(b)), [openLoans]);
 
   const openCheckout = () => {
@@ -123,7 +124,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
         <Box>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Check-out & section holdings</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Leaders can issue shared equipment to their section and record partial or full returns.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Leaders can issue shared equipment to their section and record partial or full returns. Future reservations are managed from the linked programme item and do not appear here until checked out.</Typography>
         </Box>
         <Button variant="contained" color="success" onClick={openCheckout} disabled={sectionOptions.length === 0}>Check out equipment</Button>
       </Stack>
@@ -167,7 +168,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
             const available = availableEquipmentQuantity(item);
             return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
-                <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available</Typography></Box>
+                <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available after current checkouts and reservations</Typography></Box>
                 <TextField label="Qty" type="number" value={checkoutQuantities[item.id] ?? 0} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
               </Stack>
             </Paper>;

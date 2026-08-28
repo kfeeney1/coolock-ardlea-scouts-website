@@ -7,6 +7,11 @@ import EventListPanel from "../components/admin/EventListPanel";
 import EventRosterDialog from "../components/admin/EventRosterDialog";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import ProgrammeEquipmentDialog from "../components/admin/ProgrammeEquipmentDialog";
+import { loadEquipmentItems } from "../services/equipment";
+import type { EquipmentItem } from "../services/equipment";
+import { loadEquipmentLoans } from "../services/equipmentLoans";
+import type { EquipmentLoan } from "../services/equipmentLoans";
 import { createEvent, loadEvents, updateEvent, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
 import { EMPTY_EVENT, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents } from "../services/eventManagementLogic";
@@ -18,6 +23,9 @@ export default function EventsManagement() {
     const requestedEventId = searchParams.get("event") ?? "";
     const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
+    const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>([]);
+    const [equipmentLoans, setEquipmentLoans] = useState<EquipmentLoan[]>([]);
+    const [equipmentEvent, setEquipmentEvent] = useState<EventRecord | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
@@ -37,9 +45,17 @@ export default function EventsManagement() {
         setLoading(true);
         setError("");
         try {
-            const [loadedEvents, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
+            const [loadedEvents, loadedMembers, loadedEquipmentItems, loadedEquipmentLoans] = await Promise.all([
+                loadEvents(),
+                loadMembers(),
+                loadEquipmentItems(),
+                loadEquipmentLoans(),
+            ]);
             setEvents(loadedEvents);
             setMembers(loadedMembers);
+            setEquipmentItems(loadedEquipmentItems);
+            setEquipmentLoans(loadedEquipmentLoans);
+            setEquipmentEvent((current) => current ? loadedEvents.find((event) => event.id === current.id) ?? current : null);
             const requestedEvent = requestedEventId ? loadedEvents.find((event) => event.id === requestedEventId) : null;
             if (requestedEvent) {
                 setSearch(requestedEvent.title);
@@ -48,7 +64,7 @@ export default function EventsManagement() {
             }
         } catch (loadError) {
             console.error("Unable to load events:", loadError);
-            setError("Unable to load events and activities.");
+            setError("Unable to load events, activities and equipment.");
         } finally {
             setLoading(false);
         }
@@ -157,10 +173,23 @@ export default function EventsManagement() {
             {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-            <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} onEdit={openEdit} onRoster={openRoster} onPrint={printRoster} onExport={exportRoster} />
+            <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} onEdit={openEdit} onRoster={openRoster} onEquipment={setEquipmentEvent} onPrint={printRoster} onExport={exportRoster} />
 
             <EventEditorDialog open={eventDialogOpen} editing={editing} draft={draft} saving={saving} onClose={() => setEventDialogOpen(false)} onChange={setDraft} onSave={() => void saveEvent()} />
             <EventRosterDialog event={rosterEvent} members={rosterMembers} attendance={attendance} consent={consent} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterEvent(null)} onSave={() => void saveRoster()} onPrint={() => rosterEvent && printRoster(rosterEvent)} onExport={() => rosterEvent && exportRoster(rosterEvent)} />
+            {equipmentEvent && <ProgrammeEquipmentDialog
+                open
+                sourceType={equipmentEvent.eventType.toLowerCase().includes("activity") ? "activity" : "event"}
+                sourceId={equipmentEvent.id}
+                sourceLabel={equipmentEvent.title}
+                section={equipmentEvent.section}
+                date={equipmentEvent.startDate}
+                items={equipmentItems}
+                loans={equipmentLoans}
+                readOnly={equipmentEvent.status === "completed"}
+                onClose={() => setEquipmentEvent(null)}
+                onChanged={load}
+            />}
         </Container>
     </Box>;
 }
