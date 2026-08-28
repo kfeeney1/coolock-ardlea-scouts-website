@@ -50,6 +50,12 @@ jobs:
           E2E_TEST_USER_PASSWORD: password1
         run: node scripts/seed-population-data.mjs seed
 
+      - name: Seed default and Modern Scout superadmins
+        if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: node scripts/seed-superadmin-login.mjs
+
       - name: Seed canonical system-flow fixtures
         if: ${{ inputs.action == 'reset' || inputs.action == 'seed' }}
         env:
