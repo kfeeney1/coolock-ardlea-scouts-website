@@ -67,7 +67,7 @@ test.describe("Adventure Skills badgework", () => {
     await page.goto(`/leader/badgework?sourceType=weeklyMeeting&sourceId=TEST_e2e_weekly_scout&memberIds=${firstMemberId},${secondMemberId}&returnTo=/leader/weekly`);
     await expect(page.getByText(/Recording badgework from Weekly Meeting/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Select 2 members and continue" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: "Back to Weekly Meeting" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to Weekly Meeting" })).toBeVisible();
   });
 
   test("saved badgework and award are visible read-only to the linked parent", async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Select 1 member and continue" }).click();
     await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
 
-    await page.getByLabel("Adventure Skill").click();
+    await page.getByRole("combobox", { name: "Adventure Skill" }).click();
     await page.getByRole("option", { name: "Camping", exact: true }).click();
     await expect(page.getByText("Stage 1 award")).toBeVisible();
 
