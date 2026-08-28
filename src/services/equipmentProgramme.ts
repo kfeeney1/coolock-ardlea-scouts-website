@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import type { EquipmentLoan } from "./equipmentLoans";
 import {
@@ -83,15 +83,23 @@ export async function saveEquipmentRequirement(input: Omit<EquipmentProgrammeReq
   const userId = uid();
   const lines = input.lines.filter((line) => line.itemId && line.itemName.trim() && Number.isInteger(line.quantity) && line.quantity > 0);
   const ref = doc(db, "equipmentProgrammeRequirements", requirementId(input.sourceType, input.sourceId));
-  await setDoc(ref, {
+  const current = await getDoc(ref);
+  const mutable = {
     ...input,
     lines,
     loanId: existingLoanId,
     updatedBy: userId,
     updatedAt: serverTimestamp(),
+  };
+  if (current.exists()) {
+    await setDoc(ref, mutable, { merge: true });
+    return;
+  }
+  await setDoc(ref, {
+    ...mutable,
     createdBy: userId,
     createdAt: serverTimestamp(),
-  }, { merge: true });
+  });
 }
 
 export async function reserveEquipmentRequirement(requirement: EquipmentProgrammeRequirement): Promise<string> {
