@@ -49,5 +49,14 @@ for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!week
 if (!weeklySeed.includes("parent-safe programme projections")) problems.push(`${weeklySeedPath} must document its parent-safe weekly programme projection contract`);
 for (const signature of ["1, 1]","2, 2]","3, 1]","2, 0]","1, 3]"]) if (!weeklySeed.includes(signature)) problems.push(`${weeklySeedPath} must retain varied activity/badgework counts including ${signature}`);
 
+// Equipment regression tests deliberately create transient stock and transactions through the UI.
+// Keeping equipment out of the canonical persistence seed prevents test-only stock, loans,
+// incidents, history and programme allocations becoming permanent fixture dependencies.
+const equipmentCollections = ["equipmentItems", "equipmentLoans", "equipmentIncidents", "equipmentHistory", "equipmentProgrammeRequirements"];
+for (const collectionName of equipmentCollections) {
+  const collectionReference = `db.collection(\"${collectionName}\")`;
+  if (weeklySeed.includes(collectionReference)) problems.push(`${weeklySeedPath} must not seed ${collectionName}; equipment E2E data must be created transiently by the tests that use it`);
+}
+
 if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
-console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, ${membersPerSection} members per section, stable varied weekly planner history and parent-safe projections for all sections.`);
+console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, ${membersPerSection} members per section, stable varied weekly planner history, parent-safe projections, and no permanent equipment fixtures.`);
