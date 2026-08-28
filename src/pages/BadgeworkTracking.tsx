@@ -32,12 +32,15 @@ import { completeStageDraft, draftSelectionState, setDraftRequirement } from "..
 import { requirementSelectionState, selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
 import { badgeworkSourceContextFromParams, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 
+type BadgeworkStep = "members" | "badgework";
+
 export default function BadgeworkTracking() {
   const [searchParams] = useSearchParams();
   const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sourceSelectionApplied, setSourceSelectionApplied] = useState(false);
+  const [workflowStep, setWorkflowStep] = useState<BadgeworkStep>("members");
   const [skillId, setSkillId] = useState(adventureSkills[0]?.id ?? "");
   const [stageNumber, setStageNumber] = useState(1);
   const [section, setSection] = useState("all");
@@ -62,6 +65,7 @@ export default function BadgeworkTracking() {
       (!query || `${member.displayName} ${member.section}`.toLowerCase().includes(query))
     );
   }, [activeMembers, search, section]);
+  const selectedMembers = useMemo(() => activeMembers.filter((member) => selectedIds.includes(member.id)), [activeMembers, selectedIds]);
 
   const refreshProgress = async (memberIds: readonly string[]) => {
     if (memberIds.length === 0) return;
@@ -94,11 +98,12 @@ export default function BadgeworkTracking() {
   }, [activeMembers, sourceContext, sourceSelectionApplied]);
 
   useEffect(() => {
+    if (workflowStep !== "badgework") return;
     void refreshProgress(selectedIds).catch((loadError) => {
       console.error("Unable to load Adventure Skills progress:", loadError);
       setError("Unable to load Adventure Skills progress.");
     });
-  }, [selectedIds.join("|")]);
+  }, [workflowStep, selectedIds.join("|")]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -134,16 +139,10 @@ export default function BadgeworkTracking() {
   };
 
   const toggleMember = (memberId: string) => {
-    if (!confirmDiscard()) return;
-    setDraft(new Map());
-    setMessage("");
     setSelectedIds((current) => current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]);
   };
 
   const toggleAllVisible = () => {
-    if (!confirmDiscard()) return;
-    setDraft(new Map());
-    setMessage("");
     const visibleIds = visibleMembers.map((member) => member.id);
     const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
     setSelectedIds((current) => allSelected
@@ -152,10 +151,22 @@ export default function BadgeworkTracking() {
   };
 
   const clearSelection = () => {
+    setSelectedIds([]);
+    setMessage("");
+  };
+
+  const continueToBadgework = () => {
+    if (selectedIds.length === 0) return;
+    setError("");
+    setMessage("");
+    setWorkflowStep("badgework");
+  };
+
+  const changeMembers = () => {
     if (!confirmDiscard()) return;
     setDraft(new Map());
     setMessage("");
-    setSelectedIds([]);
+    setWorkflowStep("members");
   };
 
   const progressSource = sourceContext
@@ -205,18 +216,25 @@ export default function BadgeworkTracking() {
       <LeaderDashboardHeader />
       <LeaderPageHeader
         title="Adventure Skills Badgework"
-        description="Select one or more children, mark the competency changes you want, then save them together. Shared competencies automatically carry across linked Adventure Skills."
+        description="Choose the children first, then record and save their Adventure Skills competency changes."
       />
 
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }} useFlexGap>
+        <Chip color={workflowStep === "members" ? "secondary" : "success"} label="1. Select members" />
+        <Chip color={workflowStep === "badgework" ? "secondary" : "default"} label="2. Badgework & save" />
+      </Stack>
+
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>
-        Recording badgework from {sourceLabel(sourceContext.sourceType)}. Saved competency points keep this source link in the child&apos;s Adventure Skills progress.
+        Recording badgework from {sourceLabel(sourceContext.sourceType)}. The attending children have been preselected; confirm the members before continuing.
       </Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
       {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
-        <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
-          <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>1. Select children</Typography>
+        {workflowStep === "members" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
+          <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 0.75 }}>Select members</Typography>
+          <Typography color="text.secondary" sx={{ mb: 2.5 }}>Choose the child or children whose badgework you want to update, then continue to the competency screen.</Typography>
+
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2, mb: 2 }}>
             <TextField label="Search children" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or section" />
             <FormControl>
@@ -226,11 +244,13 @@ export default function BadgeworkTracking() {
               </Select>
             </FormControl>
           </Box>
+
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2, alignItems: { sm: "center" } }}>
             <FormControlLabel control={<Checkbox checked={allVisibleSelected} indeterminate={someVisibleSelected} onChange={toggleAllVisible} />} label="Select all shown" />
             <Chip color={selectedIds.length ? "success" : "default"} label={selectedMemberSummary(selectedIds, visibleMembers.length)} />
             {selectedIds.length > 0 && <Button size="small" onClick={clearSelection}>Clear selection</Button>}
           </Stack>
+
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
             {visibleMembers.map((member) => <Paper key={member.id} variant="outlined" sx={{ p: 1.25 }}>
               <FormControlLabel
@@ -240,11 +260,31 @@ export default function BadgeworkTracking() {
               />
             </Paper>)}
           </Box>
-          {visibleMembers.length === 0 && <Alert severity="info">No active children match the current filters.</Alert>}
-        </Paper>
+          {visibleMembers.length === 0 && <Alert severity="info" sx={{ mt: 2 }}>No active children match the current filters.</Alert>}
 
-        <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
-          <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>2. Record badgework</Typography>
+          <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+            <Button variant="contained" color="success" size="large" disabled={selectedIds.length === 0} onClick={continueToBadgework}>
+              Select {selectedIds.length || ""} {selectedIds.length === 1 ? "member" : "members"} and continue
+            </Button>
+          </Box>
+        </Paper>}
+
+        {workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2.5 }}>
+            <Box>
+              <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Record badgework</Typography>
+              <Typography color="text.secondary">Changes below are drafts until you select Save changes.</Typography>
+            </Box>
+            <Button variant="outlined" onClick={changeMembers}>Change members</Button>
+          </Stack>
+
+          <Paper variant="outlined" sx={{ p: 1.5, mb: 3 }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
+              <Typography sx={{ fontWeight: 800 }}>{selectedIds.length} selected:</Typography>
+              {selectedMembers.map((member) => <Chip key={member.id} size="small" label={`${member.displayName} · ${member.section}`} />)}
+            </Stack>
+          </Paper>
+
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr auto" }, gap: 2, alignItems: "center", mb: 3 }}>
             <FormControl fullWidth>
               <InputLabel>Adventure Skill</InputLabel>
@@ -258,12 +298,11 @@ export default function BadgeworkTracking() {
                 {skill?.stages.map((item) => <MenuItem key={item.stage} value={item.stage}>Stage {item.stage}</MenuItem>)}
               </Select>
             </FormControl>
-            <Button variant="outlined" color="success" disabled={saving || selectedIds.length === 0} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
+            <Button variant="outlined" color="success" disabled={saving} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
           </Box>
 
-          {selectedIds.length === 0 && <Alert severity="info" sx={{ mb: 2 }}>Select at least one child before recording badgework.</Alert>}
           {hasUnsavedChanges && <Alert severity="warning" sx={{ mb: 2 }}>
-            You have {draft.size} unsaved badgework {draft.size === 1 ? "change" : "changes"}. Review the competency points below, then select Save changes.
+            You have {draft.size} unsaved badgework {draft.size === 1 ? "change" : "changes"}. Review the competency points below, then save.
           </Alert>}
 
           <Stack spacing={1.25}>
@@ -273,7 +312,7 @@ export default function BadgeworkTracking() {
               const changed = draft.has(requirement.id);
               return <Paper key={requirement.id} variant="outlined" sx={{ p: 1.5 }}>
                 <FormControlLabel
-                  disabled={saving || selectedIds.length === 0}
+                  disabled={saving}
                   sx={{ m: 0, width: "100%", alignItems: "flex-start" }}
                   control={<Checkbox checked={state === "all"} indeterminate={state === "some"} onChange={(_, checked) => updateRequirementDraft(requirement.id, checked)} />}
                   label={<Box sx={{ pt: 0.6 }}>
@@ -287,21 +326,21 @@ export default function BadgeworkTracking() {
             })}
           </Stack>
 
-          <Paper variant="outlined" sx={{ mt: 3, p: 2, position: { xs: "sticky", md: "static" }, bottom: { xs: 8, md: "auto" }, zIndex: 2 }}>
+          <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
               <Box>
                 <Typography sx={{ fontWeight: 800 }}>{hasUnsavedChanges ? `${draft.size} unsaved ${draft.size === 1 ? "change" : "changes"}` : "No unsaved changes"}</Typography>
-                <Typography variant="body2" color="text.secondary">Competency changes are only written to the member records when you save.</Typography>
+                <Typography variant="body2" color="text.secondary">Nothing is written to the member records until you save.</Typography>
               </Box>
               <Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1}>
                 <Button disabled={saving || !hasUnsavedChanges} onClick={discardDraft}>Discard</Button>
-                <Button variant="contained" color="success" disabled={saving || !hasUnsavedChanges || selectedIds.length === 0} onClick={() => void saveChanges()}>
+                <Button variant="contained" color="success" disabled={saving || !hasUnsavedChanges} onClick={() => void saveChanges()}>
                   {saving ? "Saving…" : "Save changes"}
                 </Button>
               </Stack>
             </Stack>
           </Paper>
-        </Paper>
+        </Paper>}
       </>}
     </Container>
   </Box>;
