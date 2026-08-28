@@ -1,5 +1,4 @@
-export const DESKTOP_INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000;
-export const PHONE_INACTIVITY_TIMEOUT_MS = 90 * 60 * 1000;
+import type { SessionSettings } from "./siteSettings";
 
 export const SESSION_LAST_ACTIVITY_KEY = "scout-session-last-activity";
 
@@ -8,10 +7,18 @@ export function isPhoneDevice(userAgent: string, mobileHint?: boolean): boolean 
     return /Android.+Mobile|iPhone|iPod|Windows Phone|Mobile/i.test(userAgent);
 }
 
-export function sessionInactivityTimeoutMs(userAgent: string, mobileHint?: boolean): number {
-    return isPhoneDevice(userAgent, mobileHint)
-        ? PHONE_INACTIVITY_TIMEOUT_MS
-        : DESKTOP_INACTIVITY_TIMEOUT_MS;
+export function sessionInactivityTimeoutMs(
+    accountType: "parent" | "leader",
+    settings: SessionSettings,
+    userAgent: string,
+    mobileHint?: boolean
+): number {
+    const minutes = accountType === "parent"
+        ? settings.parentInactivityMinutes
+        : isPhoneDevice(userAgent, mobileHint)
+            ? settings.leaderPhoneInactivityMinutes
+            : settings.leaderDesktopInactivityMinutes;
+    return minutes * 60 * 1000;
 }
 
 export function remainingInactivityMs(lastActivity: number, now: number, timeoutMs: number): number {
