@@ -64,7 +64,7 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByText("2 selected:")).toBeVisible();
     await expect(page.getByText(/Completion source details are shown when one child is selected/i)).toBeVisible();
 
-    await page.goto(`/leader/badgework?sourceType=weeklyMeeting&sourceId=TEST_weekly_badgework&memberIds=${firstMemberId},${secondMemberId}&returnTo=/leader/weekly`);
+    await page.goto(`/leader/badgework?sourceType=weeklyMeeting&sourceId=TEST_e2e_weekly_beaver_01&memberIds=${firstMemberId},${secondMemberId}&returnTo=/leader/weekly`);
     await expect(page.getByText(/Recording badgework from Weekly Meeting/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Select 2 members and continue" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Back to Weekly Meeting" })).toBeVisible();
