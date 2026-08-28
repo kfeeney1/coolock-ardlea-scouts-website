@@ -120,7 +120,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
 
   return <>
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
-      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }} spacing={2}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
         <Box>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Check-out & section holdings</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>Leaders can issue shared equipment to their section and record partial or full returns.</Typography>
@@ -137,7 +137,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
               const outstanding = loan.lines.filter((line) => outstandingLoanQuantity(line) > 0);
               const canReturn = canUseEquipmentForSection(profile, loan.section);
               return <Paper key={loan.id} variant="outlined" sx={{ p: 2 }}>
-                <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }} spacing={2}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
                   <Box>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
                       <Chip label={`Due ${loan.expectedReturnDate}`} variant="outlined" />
@@ -166,7 +166,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
           <Stack spacing={1.25}>{activeItems.map((item) => {
             const available = availableEquipmentQuantity(item);
             return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
                 <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available</Typography></Box>
                 <TextField label="Qty" type="number" value={checkoutQuantities[item.id] ?? 0} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
               </Stack>
@@ -183,7 +183,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
         {returningLoan && <Stack spacing={1.5}>{returningLoan.lines.filter((line) => outstandingLoanQuantity(line) > 0).map((line) => {
           const outstanding = outstandingLoanQuantity(line);
           return <Paper key={line.itemId} variant="outlined" sx={{ p: 1.5 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
               <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{line.itemName}</Typography><Typography variant="body2" color="text.secondary">{outstanding} currently checked out</Typography></Box>
               <TextField label="Return" type="number" value={returnQuantities[line.itemId] ?? 0} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.itemId]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: outstanding, step: 1 } }} sx={{ width: { sm: 130 } }} />
             </Stack>
