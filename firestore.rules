@@ -581,6 +581,27 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /equipmentHistory/{entryId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && request.resource.data.itemId is string
+        && request.resource.data.itemName is string
+        && request.resource.data.type in ["item-created", "item-updated", "item-archived", "item-restored", "equipment-checked-out", "equipment-returned", "incident-reported", "incident-investigating", "incident-resolved", "stock-moved", "stock-moved-out", "stock-moved-in"]
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity >= 0
+        && request.resource.data.section is string
+        && request.resource.data.fromLocation is string
+        && request.resource.data.toLocation is string
+        && request.resource.data.details is string
+        && request.resource.data.sourceId is string
+        && request.resource.data.linkedItemId is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && (request.resource.data.type in ["equipment-checked-out", "equipment-returned", "incident-reported"] || canManageEquipment())
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "type", "quantity", "section", "fromLocation", "toLocation", "details", "sourceId", "linkedItemId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
       allow create, update: if isAdmin()
