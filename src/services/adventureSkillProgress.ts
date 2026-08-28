@@ -14,7 +14,8 @@ import {
   completionTargetsForRequirement,
   completionTargetsForStage,
   stageAwardId,
-  type AdventureProgressSourceType
+  type AdventureProgressSourceType,
+  type AdventureRequirementCompletion
 } from "./adventureSkillProgressLogic.ts";
 
 export type AdventureRequirementProgressRecord = {
@@ -46,6 +47,8 @@ export type AdventureProgressSource = {
   type: AdventureProgressSourceType;
   id?: string;
 };
+
+const MAX_PROGRESS_WRITES_PER_BATCH = 400;
 
 function timestampToDate(value: unknown): Date | null {
   if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
@@ -97,6 +100,44 @@ function memberProgressRoot(memberId: string) {
   return doc(db, "memberAdventureSkillProgress", memberId);
 }
 
+function uniqueMemberIds(memberIds: string[]): string[] {
+  const ids = [...new Set(memberIds.map((memberId) => memberId.trim()).filter(Boolean))];
+  if (ids.length === 0) throw new Error("Select at least one member.");
+  return ids;
+}
+
+async function commitRequirementTargets(
+  memberIds: string[],
+  targets: AdventureRequirementCompletion[],
+  completed: boolean,
+  userId: string,
+  source: AdventureProgressSource
+): Promise<void> {
+  const operations = memberIds.flatMap((memberId) => targets.map((target) => ({ memberId, target })));
+  for (let offset = 0; offset < operations.length; offset += MAX_PROGRESS_WRITES_PER_BATCH) {
+    const batch = writeBatch(db);
+    for (const { memberId, target } of operations.slice(offset, offset + MAX_PROGRESS_WRITES_PER_BATCH)) {
+      const requirementRef = doc(collection(memberProgressRoot(memberId), "requirements"), target.requirementId);
+      if (!completed) {
+        batch.delete(requirementRef);
+        continue;
+      }
+      batch.set(requirementRef, {
+        memberId,
+        requirementId: target.requirementId,
+        skillId: target.skillId,
+        stage: target.stage,
+        sharedCompetencyKey: target.sharedCompetencyKey,
+        completedAt: serverTimestamp(),
+        completedBy: userId,
+        sourceType: source.type,
+        sourceId: source.id?.trim() ?? ""
+      });
+    }
+    await batch.commit();
+  }
+}
+
 export async function loadMemberAdventureProgress(memberId: string): Promise<MemberAdventureProgress> {
   const root = memberProgressRoot(memberId);
   const [requirementsSnapshot, awardsSnapshot] = await Promise.all([
@@ -116,34 +157,13 @@ export async function setRequirementCompletionForMembers(
   completed: boolean,
   source: AdventureProgressSource = { type: "manual" }
 ): Promise<void> {
-  const userId = currentUserId();
-  const targets = completionTargetsForRequirement(requirementId);
-  const uniqueMemberIds = [...new Set(memberIds.filter(Boolean))];
-  if (uniqueMemberIds.length === 0) throw new Error("Select at least one member.");
-
-  const batch = writeBatch(db);
-  for (const memberId of uniqueMemberIds) {
-    const root = memberProgressRoot(memberId);
-    for (const target of targets) {
-      const requirementRef = doc(collection(root, "requirements"), target.requirementId);
-      if (!completed) {
-        batch.delete(requirementRef);
-        continue;
-      }
-      batch.set(requirementRef, {
-        memberId,
-        requirementId: target.requirementId,
-        skillId: target.skillId,
-        stage: target.stage,
-        sharedCompetencyKey: target.sharedCompetencyKey,
-        completedAt: serverTimestamp(),
-        completedBy: userId,
-        sourceType: source.type,
-        sourceId: source.id?.trim() ?? ""
-      });
-    }
-  }
-  await batch.commit();
+  await commitRequirementTargets(
+    uniqueMemberIds(memberIds),
+    completionTargetsForRequirement(requirementId),
+    completed,
+    currentUserId(),
+    source
+  );
 }
 
 export async function completeStageForMembers(
@@ -152,37 +172,19 @@ export async function completeStageForMembers(
   stage: number,
   source: AdventureProgressSource = { type: "manual" }
 ): Promise<void> {
-  const userId = currentUserId();
-  const uniqueMemberIds = [...new Set(memberIds.filter(Boolean))];
-  if (uniqueMemberIds.length === 0) throw new Error("Select at least one member.");
-  const targets = completionTargetsForStage(skillId, stage);
-  const batch = writeBatch(db);
-  for (const memberId of uniqueMemberIds) {
-    const root = memberProgressRoot(memberId);
-    for (const target of targets) {
-      batch.set(doc(collection(root, "requirements"), target.requirementId), {
-        memberId,
-        requirementId: target.requirementId,
-        skillId: target.skillId,
-        stage: target.stage,
-        sharedCompetencyKey: target.sharedCompetencyKey,
-        completedAt: serverTimestamp(),
-        completedBy: userId,
-        sourceType: source.type,
-        sourceId: source.id?.trim() ?? ""
-      });
-    }
-  }
-  await batch.commit();
+  await commitRequirementTargets(
+    uniqueMemberIds(memberIds),
+    completionTargetsForStage(skillId, stage),
+    true,
+    currentUserId(),
+    source
+  );
 }
 
 export async function setStageAwardForMembers(memberIds: string[], skillId: string, stage: number, awarded: boolean): Promise<void> {
   const userId = currentUserId();
   const awardId = stageAwardId(skillId, stage);
-  const uniqueMemberIds = [...new Set(memberIds.filter(Boolean))];
-  if (uniqueMemberIds.length === 0) throw new Error("Select at least one member.");
-
-  await Promise.all(uniqueMemberIds.map(async (memberId) => {
+  await Promise.all(uniqueMemberIds(memberIds).map(async (memberId) => {
     const awardRef = doc(collection(memberProgressRoot(memberId), "awards"), awardId);
     if (!awarded) {
       await deleteDoc(awardRef);
