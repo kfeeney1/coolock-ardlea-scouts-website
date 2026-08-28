@@ -7,6 +7,7 @@ export type EquipmentProgrammeRequirementLike = {
 };
 
 export type EquipmentProgrammeLoanLineLike = {
+  itemId?: string;
   quantity: number;
   returnedQuantity: number;
   incidentQuantity?: number;
@@ -48,13 +49,10 @@ export function outstandingRequirementQuantity(
   );
 }
 
-export function reservedQuantityForItem(
-  itemId: string,
-  loans: EquipmentProgrammeLoanLike[],
-): number {
+export function reservedQuantityForItem(itemId: string, loans: EquipmentProgrammeLoanLike[]): number {
   return loans
     .filter((loan) => loan.status === "open" && isEquipmentReservationLoan(loan))
     .flatMap((loan) => loan.lines)
-    .filter((line) => (line as EquipmentProgrammeLoanLineLike & { itemId?: string }).itemId === itemId)
+    .filter((line) => line.itemId === itemId)
     .reduce((sum, line) => sum + Math.max(0, line.quantity - line.returnedQuantity - (line.incidentQuantity ?? 0)), 0);
 }
