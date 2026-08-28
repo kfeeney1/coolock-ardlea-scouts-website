@@ -16,6 +16,16 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
 import { normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
+import {
+    remainingInactivityMs,
+    SESSION_LAST_ACTIVITY_KEY,
+    sessionInactivityTimeoutMs
+} from "../../services/sessionInactivity";
+import {
+    DEFAULT_SESSION_SETTINGS,
+    loadSessionSettings
+} from "../../services/siteSettings";
+import type { SessionSettings } from "../../services/siteSettings";
 
 export type SystemRole = "super-admin" | "admin" | "leader";
 
@@ -33,6 +43,8 @@ type AdminAuthContextValue = {
     adminProfile: AdminProfile | null;
     loading: boolean;
     authorised: boolean;
+    sessionSettings: SessionSettings;
+    refreshSessionSettings: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
 };
@@ -74,7 +86,17 @@ type Props = { children: ReactNode };
 export function AdminAuthProvider({ children }: Props) {
     const [user, setUser] = useState<User | null>(null);
     const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
+    const [sessionSettings, setSessionSettings] = useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
     const [loading, setLoading] = useState(true);
+
+    const refreshSessionSettings = async () => {
+        try {
+            setSessionSettings(await loadSessionSettings());
+        } catch (error) {
+            console.error("Unable to load session settings; using defaults:", error);
+            setSessionSettings(DEFAULT_SESSION_SETTINGS);
+        }
+    };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -82,20 +104,118 @@ export function AdminAuthProvider({ children }: Props) {
             setUser(nextUser);
             if (!nextUser) {
                 setAdminProfile(null);
+                setSessionSettings(DEFAULT_SESSION_SETTINGS);
                 setLoading(false);
                 return;
             }
-            try {
-                setAdminProfile(await loadAdminProfile(nextUser));
-            } catch (error) {
-                console.error("Unable to validate leader access:", error);
+
+            const [profileResult, settingsResult] = await Promise.allSettled([
+                loadAdminProfile(nextUser),
+                loadSessionSettings()
+            ]);
+
+            if (profileResult.status === "fulfilled") {
+                setAdminProfile(profileResult.value);
+            } else {
+                console.error("Unable to validate leader access:", profileResult.reason);
                 setAdminProfile(null);
-            } finally {
-                setLoading(false);
             }
+
+            if (settingsResult.status === "fulfilled") {
+                setSessionSettings(settingsResult.value);
+            } else {
+                console.error("Unable to load session settings; using defaults:", settingsResult.reason);
+                setSessionSettings(DEFAULT_SESSION_SETTINGS);
+            }
+            setLoading(false);
         });
         return unsubscribe;
     }, []);
+
+    useEffect(() => {
+        if (!user || loading) return;
+
+        const navigatorWithHints = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+        const accountType = adminProfile ? "leader" : "parent";
+        const timeoutMs = sessionInactivityTimeoutMs(
+            accountType,
+            sessionSettings,
+            navigator.userAgent,
+            navigatorWithHints.userAgentData?.mobile
+        );
+        const activityEvents: Array<keyof WindowEventMap> = [
+            "pointerdown",
+            "keydown",
+            "scroll",
+            "touchstart",
+            "wheel"
+        ];
+        let timeoutId: number | undefined;
+        let signingOut = false;
+
+        const readLastActivity = () => {
+            const stored = Number(window.localStorage.getItem(SESSION_LAST_ACTIVITY_KEY));
+            return Number.isFinite(stored) && stored > 0 ? stored : Date.now();
+        };
+
+        const expireSession = async () => {
+            if (signingOut) return;
+            signingOut = true;
+            try {
+                await signOut(auth);
+            } catch (error) {
+                signingOut = false;
+                console.error("Unable to sign out inactive session:", error);
+            }
+        };
+
+        const scheduleTimeout = () => {
+            if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+            const remaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+            if (remaining === 0) {
+                void expireSession();
+                return;
+            }
+            timeoutId = window.setTimeout(() => {
+                const latestRemaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+                if (latestRemaining === 0) void expireSession();
+                else scheduleTimeout();
+            }, remaining);
+        };
+
+        const recordActivity = () => {
+            window.localStorage.setItem(SESSION_LAST_ACTIVITY_KEY, String(Date.now()));
+            scheduleTimeout();
+        };
+
+        const checkOnReturn = () => {
+            const remaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+            if (remaining === 0) void expireSession();
+            else recordActivity();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") checkOnReturn();
+        };
+
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === SESSION_LAST_ACTIVITY_KEY) scheduleTimeout();
+        };
+
+        recordActivity();
+        activityEvents.forEach((eventName) => window.addEventListener(eventName, recordActivity, { passive: true }));
+        window.addEventListener("focus", checkOnReturn);
+        window.addEventListener("storage", handleStorage);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+            activityEvents.forEach((eventName) => window.removeEventListener(eventName, recordActivity));
+            window.removeEventListener("focus", checkOnReturn);
+            window.removeEventListener("storage", handleStorage);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [user, adminProfile, loading, sessionSettings]);
 
     const login = async (email: string, password: string) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
@@ -106,12 +226,14 @@ export function AdminAuthProvider({ children }: Props) {
         }
         setUser(credential.user);
         setAdminProfile(profile);
+        await refreshSessionSettings();
     };
 
     const logout = async () => {
         await signOut(auth);
         setUser(null);
         setAdminProfile(null);
+        setSessionSettings(DEFAULT_SESSION_SETTINGS);
     };
 
     const value = useMemo<AdminAuthContextValue>(() => ({
@@ -119,9 +241,11 @@ export function AdminAuthProvider({ children }: Props) {
         adminProfile,
         loading,
         authorised: Boolean(user) && Boolean(adminProfile),
+        sessionSettings,
+        refreshSessionSettings,
         login,
         logout
-    }), [user, adminProfile, loading]);
+    }), [user, adminProfile, loading, sessionSettings]);
 
     return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }
