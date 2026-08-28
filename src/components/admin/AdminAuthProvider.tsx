@@ -16,6 +16,11 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
 import { normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
+import {
+    remainingInactivityMs,
+    SESSION_LAST_ACTIVITY_KEY,
+    sessionInactivityTimeoutMs
+} from "../../services/sessionInactivity";
 
 export type SystemRole = "super-admin" | "admin" | "leader";
 
@@ -96,6 +101,88 @@ export function AdminAuthProvider({ children }: Props) {
         });
         return unsubscribe;
     }, []);
+
+    useEffect(() => {
+        if (!user) return;
+
+        const navigatorWithHints = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+        const timeoutMs = sessionInactivityTimeoutMs(
+            navigator.userAgent,
+            navigatorWithHints.userAgentData?.mobile
+        );
+        const activityEvents: Array<keyof WindowEventMap> = [
+            "pointerdown",
+            "keydown",
+            "scroll",
+            "touchstart",
+            "wheel"
+        ];
+        let timeoutId: number | undefined;
+        let signingOut = false;
+
+        const readLastActivity = () => {
+            const stored = Number(window.localStorage.getItem(SESSION_LAST_ACTIVITY_KEY));
+            return Number.isFinite(stored) && stored > 0 ? stored : Date.now();
+        };
+
+        const expireSession = async () => {
+            if (signingOut) return;
+            signingOut = true;
+            try {
+                await signOut(auth);
+            } catch (error) {
+                signingOut = false;
+                console.error("Unable to sign out inactive session:", error);
+            }
+        };
+
+        const scheduleTimeout = () => {
+            if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+            const remaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+            if (remaining === 0) {
+                void expireSession();
+                return;
+            }
+            timeoutId = window.setTimeout(() => {
+                const latestRemaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+                if (latestRemaining === 0) void expireSession();
+                else scheduleTimeout();
+            }, remaining);
+        };
+
+        const recordActivity = () => {
+            window.localStorage.setItem(SESSION_LAST_ACTIVITY_KEY, String(Date.now()));
+            scheduleTimeout();
+        };
+
+        const checkOnReturn = () => {
+            const remaining = remainingInactivityMs(readLastActivity(), Date.now(), timeoutMs);
+            if (remaining === 0) void expireSession();
+            else recordActivity();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") checkOnReturn();
+        };
+
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === SESSION_LAST_ACTIVITY_KEY) scheduleTimeout();
+        };
+
+        recordActivity();
+        activityEvents.forEach((eventName) => window.addEventListener(eventName, recordActivity, { passive: true }));
+        window.addEventListener("focus", checkOnReturn);
+        window.addEventListener("storage", handleStorage);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+            activityEvents.forEach((eventName) => window.removeEventListener(eventName, recordActivity));
+            window.removeEventListener("focus", checkOnReturn);
+            window.removeEventListener("storage", handleStorage);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [user]);
 
     const login = async (email: string, password: string) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
