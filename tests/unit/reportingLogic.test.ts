@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
     attendanceTrendCsv,
+    buildReportingInsights,
     csvCell,
     eventOverviewCsv,
     eventReportMembers,
@@ -36,6 +37,30 @@ const eventMembers = [
     { id: "member2", displayName: "Jamie Example", section: "Cubs" }
 ];
 
+test("buildReportingInsights summarises recorded responses without treating missing attendance as absent", () => {
+    const insights = buildReportingInsights(members, [
+        event,
+        { ...event, id: "event-2", section: "Scouts", attendance: {}, consent: {} }
+    ]);
+    assert.equal(insights.activeMembers, 2);
+    assert.equal(insights.inactiveMembers, 1);
+    assert.deepEqual(insights.activeBySection, [{ section: "Cubs", count: 1 }, { section: "Scouts", count: 1 }]);
+    assert.equal(insights.recordedResponses, 2);
+    assert.equal(insights.attendanceRate, 50);
+    assert.equal(insights.eventsWithAttendance, 1);
+    assert.equal(insights.eventsWithoutAttendance, 1);
+    assert.equal(insights.consentRequiredEvents, 2);
+    assert.equal(insights.consentReceived, 1);
+    assert.equal(insights.consentEventsWithoutReceived, 1);
+});
+
+test("buildReportingInsights returns no attendance rate when there are no recorded responses", () => {
+    const insights = buildReportingInsights(members, [{ ...event, attendance: {}, consentRequired: false, consent: {} }]);
+    assert.equal(insights.recordedResponses, 0);
+    assert.equal(insights.attendanceRate, null);
+    assert.equal(insights.eventsWithoutAttendance, 1);
+});
+
 test("csvCell escapes quotes and neutralises spreadsheet formulas", () => {
     assert.equal(csvCell('Jane "JJ" Doe'), '"Jane ""JJ"" Doe"');
     assert.equal(csvCell("=HYPERLINK(\"bad\")"), '"\'=HYPERLINK(""bad"")"');
@@ -43,11 +68,7 @@ test("csvCell escapes quotes and neutralises spreadsheet formulas", () => {
 });
 
 test("filterEventsByDateRange applies inclusive start and end dates", () => {
-    const rows = [
-        event,
-        { ...event, id: "event-2", title: "Earlier", startDate: "2026-09-01" },
-        { ...event, id: "event-3", title: "Later", startDate: "2026-11-01" }
-    ];
+    const rows = [event, { ...event, id: "event-2", title: "Earlier", startDate: "2026-09-01" }, { ...event, id: "event-3", title: "Later", startDate: "2026-11-01" }];
     assert.deepEqual(filterEventsByDateRange(rows, "2026-09-01", "2026-10-02").map((row) => row.id), ["event-1", "event-2"]);
     assert.deepEqual(filterEventsByDateRange(rows, "2026-10-02", "2026-10-02").map((row) => row.id), ["event-1"]);
 });
