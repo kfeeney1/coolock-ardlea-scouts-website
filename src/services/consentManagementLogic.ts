@@ -1,4 +1,4 @@
-import { daysUntilExpiry, isConsentExpired } from "./consentAdmin.ts";
+import { daysUntilExpiry, isConsentExpired } from "./consentDateLogic.ts";
 import type { ConsentAdminRecord } from "./consentAdmin.ts";
 
 export type TypeFilter = "all" | "youth" | "scouter";
