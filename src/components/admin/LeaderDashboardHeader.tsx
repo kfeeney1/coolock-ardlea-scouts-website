@@ -9,6 +9,7 @@ const navItems: NavItem[] = [
  { label: "Weekly Meetings", path: "/leader/weekly" },
  { label: "Events & Activities", path: "/leader/events" },
  { label: "Badgework", path: "/leader/badgework" },
+ { label: "Equipment & Stores", path: "/leader/equipment" },
  { label: "Member Management", path: "/leader/members" },
  { label: "Member History", path: "/leader/member-history" },
  { label: "Attendance Insights", path: "/leader/attendance" },
