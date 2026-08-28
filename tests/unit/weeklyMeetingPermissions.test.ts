@@ -1,43 +1,42 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import test from "node:test";
 
-import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../../src/services/weeklyMeetingPermissions";
+import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../../src/services/weeklyMeetingPermissions.ts";
 
-describe("weekly meeting history permissions", () => {
-  it("allows Section Leaders and the Group Leader to edit past operational fields", () => {
-    expect(canEditPastWeeklyMeeting("Section Leader", false)).toBe(true);
-    expect(canEditPastWeeklyMeeting("Group Leader", false)).toBe(true);
+test("Section Leaders and the Group Leader can edit past operational fields", () => {
+  assert.equal(canEditPastWeeklyMeeting("Section Leader", false), true);
+  assert.equal(canEditPastWeeklyMeeting("Group Leader", false), true);
+});
+
+test("admin access can edit past operational fields", () => {
+  assert.equal(canEditPastWeeklyMeeting("", true), true);
+});
+
+test("lower section roles and the Group Secretary are read-only for past meetings", () => {
+  assert.equal(canEditPastWeeklyMeeting("Assistant Section Leader", false), false);
+  assert.equal(canEditPastWeeklyMeeting("Programme Scouter", false), false);
+  assert.equal(canEditPastWeeklyMeeting("Scouter", false), false);
+  assert.equal(canEditPastWeeklyMeeting("Group Secretary", false), false);
+});
+
+test("programme and completed badgework are locked for every closed meeting", () => {
+  assert.deepEqual(weeklyMeetingEditMode("closed", "Section Leader", false, false), {
+    canEditOperationalFields: true,
+    canEditPlanningFields: false
   });
-
-  it("allows admin access to edit past operational fields", () => {
-    expect(canEditPastWeeklyMeeting("", true)).toBe(true);
+  assert.deepEqual(weeklyMeetingEditMode("closed", "Scouter", false, false), {
+    canEditOperationalFields: false,
+    canEditPlanningFields: false
   });
+});
 
-  it("keeps lower section roles and the Group Secretary read-only for past meetings", () => {
-    expect(canEditPastWeeklyMeeting("Assistant Section Leader", false)).toBe(false);
-    expect(canEditPastWeeklyMeeting("Programme Scouter", false)).toBe(false);
-    expect(canEditPastWeeklyMeeting("Scouter", false)).toBe(false);
-    expect(canEditPastWeeklyMeeting("Group Secretary", false)).toBe(false);
+test("open meetings remain editable for normal leaders unless their access is read-only", () => {
+  assert.deepEqual(weeklyMeetingEditMode("open", "Scouter", false, false), {
+    canEditOperationalFields: true,
+    canEditPlanningFields: true
   });
-
-  it("locks programme and completed badgework for every closed meeting", () => {
-    expect(weeklyMeetingEditMode("closed", "Section Leader", false, false)).toEqual({
-      canEditOperationalFields: true,
-      canEditPlanningFields: false
-    });
-    expect(weeklyMeetingEditMode("closed", "Scouter", false, false)).toEqual({
-      canEditOperationalFields: false,
-      canEditPlanningFields: false
-    });
-  });
-
-  it("keeps open meetings editable for normal leaders unless their access is read-only", () => {
-    expect(weeklyMeetingEditMode("open", "Scouter", false, false)).toEqual({
-      canEditOperationalFields: true,
-      canEditPlanningFields: true
-    });
-    expect(weeklyMeetingEditMode("open", "Group Secretary", false, true)).toEqual({
-      canEditOperationalFields: false,
-      canEditPlanningFields: false
-    });
+  assert.deepEqual(weeklyMeetingEditMode("open", "Group Secretary", false, true), {
+    canEditOperationalFields: false,
+    canEditPlanningFields: false
   });
 });
