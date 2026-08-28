@@ -424,6 +424,7 @@ service cloud.firestore {
         && request.resource.data.trackingMode in ["quantity", "individual"]
         && request.resource.data.totalQuantity is number
         && request.resource.data.totalQuantity >= 0
+        && request.resource.data.checkedOutQuantity == 0
         && request.resource.data.location is string
         && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
         && request.resource.data.notes is string
@@ -433,23 +434,34 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
-      allow update: if canManageEquipment()
-        && request.resource.data.name is string
-        && request.resource.data.category is string
-        && request.resource.data.trackingMode in ["quantity", "individual"]
-        && request.resource.data.totalQuantity is number
-        && request.resource.data.totalQuantity >= 0
-        && request.resource.data.location is string
-        && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
-        && request.resource.data.notes is string
-        && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
-        && request.resource.data.archived is bool
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if (canManageEquipment()
+          && request.resource.data.name is string
+          && request.resource.data.category is string
+          && request.resource.data.trackingMode in ["quantity", "individual"]
+          && request.resource.data.totalQuantity is number
+          && request.resource.data.totalQuantity >= 0
+          && (!request.resource.data.keys().hasAny(["checkedOutQuantity"])
+            || (request.resource.data.checkedOutQuantity is number
+              && request.resource.data.checkedOutQuantity >= 0
+              && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity))
+          && request.resource.data.location is string
+          && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
+          && request.resource.data.notes is string
+          && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
+          && request.resource.data.archived is bool
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
+        || (isActiveLeader()
+          && request.resource.data.checkedOutQuantity is number
+          && request.resource.data.checkedOutQuantity >= 0
+          && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "updatedBy", "updatedAt"]));
       allow delete: if false;
     }
 
@@ -473,6 +485,37 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt"]);
       allow update: if false;
       allow delete: if canManageEquipment();
+    }
+
+    match /equipmentLoans/{loanId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && (canManageEquipment() || hasSection(request.resource.data.section))
+        && request.resource.data.section is string
+        && request.resource.data.expectedReturnDate is string
+        && request.resource.data.notes is string
+        && request.resource.data.status == "open"
+        && request.resource.data.lines is list
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["section", "expectedReturnDate", "notes", "status", "lines", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && (canManageEquipment() || hasSection(resource.data.section))
+        && request.resource.data.section == resource.data.section
+        && request.resource.data.expectedReturnDate == resource.data.expectedReturnDate
+        && request.resource.data.notes == resource.data.notes
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status in ["open", "returned"]
+        && request.resource.data.lines is list
+        && request.resource.data.lines.size() > 0
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "lines", "updatedBy", "updatedAt"]);
+      allow delete: if false;
     }
 
     match /organisationLeadership/{leaderId} {
