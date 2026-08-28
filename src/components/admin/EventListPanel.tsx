@@ -19,6 +19,7 @@ type Props = {
     onStatusFilterChange: (value: EventStatus | "all") => void;
     onEdit: (event: EventRecord) => void;
     onRoster: (event: EventRecord) => void;
+    onEquipment: (event: EventRecord) => void;
     onPrint: (event: EventRecord) => void;
     onExport: (event: EventRecord) => void;
 };
@@ -30,7 +31,7 @@ function statusColor(status: EventStatus): "default" | "success" | "warning" | "
     return "default";
 }
 
-export default function EventListPanel({ events, visibleEvents, members, loading, search, sectionFilter, statusFilter, onSearchChange, onSectionFilterChange, onStatusFilterChange, onEdit, onRoster, onPrint, onExport }: Props) {
+export default function EventListPanel({ events, visibleEvents, members, loading, search, sectionFilter, statusFilter, onSearchChange, onSectionFilterChange, onStatusFilterChange, onEdit, onRoster, onEquipment, onPrint, onExport }: Props) {
     const totals = {
         total: events.length,
         open: events.filter((event) => event.status === "open").length,
@@ -85,6 +86,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 150 } }}>
                             {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
                             <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
+                            <Button variant="outlined" color="primary" onClick={() => onEquipment(event)}>Equipment</Button>
                             <Button variant="outlined" color="secondary" onClick={() => onPrint(event)}>Report</Button><Button variant="outlined" color="secondary" onClick={() => onExport(event)}>Export CSV</Button><Button variant="outlined" color="secondary" disabled={completed} onClick={() => onEdit(event)}>Edit</Button><Button variant="contained" color={completed ? "secondary" : "success"} onClick={() => onRoster(event)}>{completed ? "View Attendance" : "Attendance"}</Button>
                         </Stack>
                     </Box>
