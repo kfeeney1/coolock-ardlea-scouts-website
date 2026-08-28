@@ -23,6 +23,7 @@ import { buildMemberAttendanceHistory, buildMemberAttendanceInsights } from "../
 import type { AttendanceInsightMember, AttendanceHistoryRow } from "../services/attendanceInsightsLogic";
 import { loadAttendanceInsightMembers, loadEventReportRecords } from "../services/reporting";
 import type { EventReportRecord } from "../services/reportingLogic";
+import { buildScoutPeriods, findScoutPeriod } from "../services/scoutPeriods";
 import { loadWeeklyAccess, loadWeeklyMeetings } from "../services/weeklyTracker";
 import type { WeeklyMeetingRecord } from "../services/weeklyTracker";
 
@@ -52,6 +53,7 @@ export default function AttendanceInsights() {
     const [error, setError] = useState("");
     const [sectionFilter, setSectionFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [periodFilter, setPeriodFilter] = useState("custom");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function AttendanceInsights() {
     const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
     const scope = useMemo(() => ({ isAdmin, sections }), [isAdmin, sections]);
     const dateRange = useMemo(() => ({ from: fromDate || undefined, to: toDate || undefined }), [fromDate, toDate]);
+    const scoutPeriods = useMemo(() => buildScoutPeriods(), []);
 
     useEffect(() => {
         let cancelled = false;
@@ -119,13 +122,38 @@ export default function AttendanceInsights() {
 
     const invalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
+    const applyPeriod = (periodId: string) => {
+        setPeriodFilter(periodId);
+        if (periodId === "custom") return;
+        const period = findScoutPeriod(periodId);
+        if (!period) return;
+        setFromDate(period.from);
+        setToDate(period.to);
+    };
+
+    const updateFromDate = (value: string) => {
+        setPeriodFilter("custom");
+        setFromDate(value);
+    };
+
+    const updateToDate = (value: string) => {
+        setPeriodFilter("custom");
+        setToDate(value);
+    };
+
+    const clearDateRange = () => {
+        setPeriodFilter("custom");
+        setFromDate("");
+        setToDate("");
+    };
+
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Attendance History & Insights"
-                    description="Search members, compare weekly meeting and event attendance, and review attendance over a selected date range."
+                    description="Search members, compare weekly meeting and event attendance, and review attendance over a selected Scout period or custom date range."
                 />
 
                 <Alert severity="info" sx={{ mb: 3 }}>
@@ -186,7 +214,7 @@ export default function AttendanceInsights() {
                 ) : (
                     <>
                         <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 1fr) 220px 190px 190px" }, gap: 2 }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
                                 <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
                                 <FormControl>
                                     <InputLabel>Section</InputLabel>
@@ -195,11 +223,18 @@ export default function AttendanceInsights() {
                                         {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
                                     </Select>
                                 </FormControl>
-                                <TextField label="From" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-from-date" } }} />
-                                <TextField label="To" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-to-date" } }} />
+                                <FormControl>
+                                    <InputLabel>Scout period</InputLabel>
+                                    <Select label="Scout period" value={periodFilter} onChange={(event) => applyPeriod(event.target.value)} data-testid="attendance-period-filter">
+                                        <MenuItem value="custom">Custom / all dates</MenuItem>
+                                        {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
+                                <TextField label="From" type="date" value={fromDate} onChange={(event) => updateFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-from-date" } }} />
+                                <TextField label="To" type="date" value={toDate} onChange={(event) => updateToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-to-date" } }} />
                             </Box>
                             {(fromDate || toDate) && (
-                                <Button sx={{ mt: 2 }} size="small" onClick={() => { setFromDate(""); setToDate(""); }}>
+                                <Button sx={{ mt: 2 }} size="small" onClick={clearDateRange}>
                                     Clear date range
                                 </Button>
                             )}
