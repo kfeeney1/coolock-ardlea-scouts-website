@@ -20,6 +20,7 @@ export type EquipmentItem = {
   trackingMode: EquipmentTrackingMode;
   totalQuantity: number;
   checkedOutQuantity: number;
+  unavailableQuantity: number;
   location: string;
   condition: EquipmentCondition;
   notes: string;
@@ -34,7 +35,7 @@ export type EquipmentOption = {
   name: string;
 };
 
-export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived" | "checkedOutQuantity">;
+export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived" | "checkedOutQuantity" | "unavailableQuantity">;
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
@@ -49,7 +50,10 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
   const checkedOutQuantity = typeof data.checkedOutQuantity === "number" && Number.isInteger(data.checkedOutQuantity) && data.checkedOutQuantity >= 0
     ? data.checkedOutQuantity
     : 0;
-  if (checkedOutQuantity > data.totalQuantity) return null;
+  const unavailableQuantity = typeof data.unavailableQuantity === "number" && Number.isInteger(data.unavailableQuantity) && data.unavailableQuantity >= 0
+    ? data.unavailableQuantity
+    : 0;
+  if (checkedOutQuantity + unavailableQuantity > data.totalQuantity) return null;
   const condition = data.condition;
   if (!["good", "needs-attention", "repair", "missing", "lost", "retired"].includes(String(condition))) return null;
   return {
@@ -59,6 +63,7 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
     trackingMode: data.trackingMode,
     totalQuantity: data.totalQuantity,
     checkedOutQuantity,
+    unavailableQuantity,
     location: data.location,
     condition: condition as EquipmentCondition,
     notes: typeof data.notes === "string" ? data.notes : "",
@@ -125,6 +130,7 @@ export async function createEquipmentItem(input: EquipmentItemInput): Promise<st
     location: normaliseEquipmentLabel(input.location),
     notes: input.notes.trim(),
     checkedOutQuantity: 0,
+    unavailableQuantity: 0,
     archived: false,
     createdBy: uid,
     createdAt: serverTimestamp(),
@@ -165,7 +171,9 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
 }
 
 export async function setEquipmentArchived(item: EquipmentItem, archived: boolean): Promise<void> {
-  if (archived && item.checkedOutQuantity > 0) throw new Error("Return all checked-out stock before archiving this item.");
+  if (archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)) {
+    throw new Error("Resolve all checked-out or unavailable stock before archiving this item.");
+  }
   const uid = currentUid();
   await setDoc(doc(db, "equipmentItems", item.id), {
     archived,
