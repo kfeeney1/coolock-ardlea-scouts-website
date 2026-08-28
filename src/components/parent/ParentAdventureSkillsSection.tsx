@@ -14,9 +14,6 @@ import {
   Stack,
   Typography
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { loadLinkedMembers, type ParentLinkedMember } from "../../services/parentConsent";
@@ -85,7 +82,7 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
 
           <Stack spacing={1}>
             {skill.stages.map((stage) => <Accordion key={stage.stage} disableGutters elevation={0} sx={{ border: 1, borderColor: "divider", "&:before": { display: "none" } }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls={`${skill.skillId}-stage-${stage.stage}-content`} id={`${skill.skillId}-stage-${stage.stage}-header`}>
+              <AccordionSummary expandIcon={<Typography component="span" aria-hidden="true" sx={{ fontSize: 20, lineHeight: 1 }}>⌄</Typography>} aria-controls={`${skill.skillId}-stage-${stage.stage}-content`} id={`${skill.skillId}-stage-${stage.stage}-header`}>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap sx={{ width: "100%", pr: 1, alignItems: { sm: "center" }, justifyContent: "space-between" }}>
                   <Typography sx={{ fontWeight: 700 }}>Stage {stage.stage}</Typography>
                   <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: "wrap" }}>
@@ -99,15 +96,14 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
                 <Stack spacing={1}>
                   {stage.requirements.map((requirement) => <Paper key={requirement.requirementId} variant="outlined" sx={{ p: 1.25 }}>
                     <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
-                      {requirement.completed
-                        ? <CheckCircleOutlineIcon color="success" fontSize="small" sx={{ mt: 0.2, flexShrink: 0 }} aria-label="Completed" />
-                        : <RadioButtonUncheckedIcon color="disabled" fontSize="small" sx={{ mt: 0.2, flexShrink: 0 }} aria-label="Outstanding" />}
-                      <Box>
-                        <Typography variant="body2">{requirement.statement}</Typography>
-                        <Typography variant="caption" color={requirement.completed ? "success.dark" : "text.secondary"} sx={{ display: "block", mt: 0.25, fontWeight: 700 }}>
-                          {requirement.completed ? "Completed" : "Outstanding"}
-                        </Typography>
-                      </Box>
+                      <Chip
+                        size="small"
+                        color={requirement.completed ? "success" : "default"}
+                        variant={requirement.completed ? "filled" : "outlined"}
+                        label={requirement.completed ? "Completed" : "Outstanding"}
+                        sx={{ mt: 0.1, flexShrink: 0 }}
+                      />
+                      <Typography variant="body2" sx={{ pt: 0.25 }}>{requirement.statement}</Typography>
                     </Stack>
                   </Paper>)}
                 </Stack>
