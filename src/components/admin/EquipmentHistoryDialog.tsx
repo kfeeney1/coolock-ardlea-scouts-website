@@ -96,7 +96,7 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Timeline</Typography>
           {loading ? <Alert severity="info">Loading equipment history…</Alert> : history.length === 0 ? <Alert severity="info">No item history has been recorded yet. New stock changes, checkouts, returns, issues and movements will appear here.</Alert> : <Stack spacing={1.25}>
             {history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                 <Box>
                   <Typography sx={{ fontWeight: 800 }}>{equipmentHistoryLabel(entry.type)}</Typography>
                   <Typography variant="body2" color="text.secondary">{formatDate(entry.createdAt)}</Typography>
