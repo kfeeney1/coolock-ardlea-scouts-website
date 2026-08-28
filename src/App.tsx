@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
+import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
 
@@ -35,6 +36,7 @@ const MemberHistory = lazy(() => import("./pages/MemberHistory"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
+const SiteSettings = lazy(() => import("./pages/SiteSettings"));
 
 function RouteFallback() {
   return (
@@ -46,6 +48,10 @@ function RouteFallback() {
 
 function protectedRoute(element: ReactNode) {
   return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>;
+}
+
+function protectedSettingsRoute(element: ReactNode) {
+  return protectedRoute(<ProtectedSiteSettingsRoute>{element}</ProtectedSiteSettingsRoute>);
 }
 
 export default function App() {
@@ -85,6 +91,7 @@ export default function App() {
               <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
               <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
               <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
+              <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
             </Route>
           </Routes>
         </Suspense>
