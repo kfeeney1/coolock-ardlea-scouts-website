@@ -134,3 +134,54 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await expect(resolvedInventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 unavailable", { exact: true })).toHaveCount(0);
 });
+
+test("admin can partially move stock and see the movement in item history", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  const account = adminCredentials();
+  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  const destination = `TEST Move Store ${testInfo.retry}`;
+  const markerName = `TEST Move Marker ${testInfo.retry}`;
+  const itemName = `TEST Move Tents ${testInfo.retry}`;
+  await loginLeader(page, account!);
+  await page.goto("/leader/equipment");
+
+  await page.getByRole("button", { name: "Add equipment" }).click();
+  let addDialog = page.getByRole("dialog", { name: "Add equipment" });
+  await addDialog.getByLabel("Equipment name").fill(markerName);
+  let comboboxes = addDialog.getByRole("combobox");
+  await comboboxes.nth(0).click();
+  await page.getByRole("option", { name: "Other…" }).click();
+  await addDialog.getByLabel("New category").fill("TEST Movement");
+  await comboboxes.nth(1).click();
+  await page.getByRole("option", { name: "Other…" }).click();
+  await addDialog.getByLabel("New storage location").fill(destination);
+  await addDialog.getByLabel("Total quantity").fill("1");
+  await addDialog.getByRole("button", { name: "Save equipment" }).click();
+
+  await page.getByRole("button", { name: "Add equipment" }).click();
+  addDialog = page.getByRole("dialog", { name: "Add equipment" });
+  await addDialog.getByLabel("Equipment name").fill(itemName);
+  comboboxes = addDialog.getByRole("combobox");
+  await comboboxes.nth(0).click();
+  await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await comboboxes.nth(1).click();
+  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  await addDialog.getByLabel("Total quantity").fill("4");
+  await addDialog.getByRole("button", { name: "Save equipment" }).click();
+
+  const sourceCard = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: "TEST Checkout Store" });
+  await sourceCard.getByRole("button", { name: "History / move" }).click();
+  const historyDialog = page.getByRole("dialog", { name: `${itemName} history` });
+  await historyDialog.getByLabel("Destination").click();
+  await page.getByRole("option", { name: destination }).click();
+  await historyDialog.getByLabel("Quantity to move").fill("2");
+  await historyDialog.getByRole("button", { name: "Move stock" }).click();
+  await expect(historyDialog.getByText("Stock moved out", { exact: true })).toBeVisible();
+  await expect(historyDialog.getByText(`TEST Checkout Store → ${destination}`, { exact: true })).toBeVisible();
+  await historyDialog.getByRole("button", { name: "Close" }).click();
+
+  const sourceAfter = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: "TEST Checkout Store" });
+  const destinationAfter = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: destination });
+  await expect(sourceAfter.getByText("2 total", { exact: true })).toBeVisible();
+  await expect(destinationAfter.getByText("2 total", { exact: true })).toBeVisible();
+});
