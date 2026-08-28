@@ -110,7 +110,7 @@ test.describe("Adventure Skills badgework", () => {
     const camping = page.getByTestId("parent-adventure-skill-camping");
     await expect(camping).toContainText("1/9 stages awarded");
     await camping.getByRole("button", { name: /Stage 1/ }).click();
-    const campingStageOne = page.locator("#camping-stage-1-content");
+    const campingStageOne = camping.getByRole("region", { name: /Stage 1 12\/12 points/ });
     await expect(campingStageOne).toBeVisible();
     await expect(camping.getByText("Requirements complete", { exact: true })).toBeVisible();
     await expect(camping.getByText("Awarded", { exact: true })).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("Adventure Skills badgework", () => {
 
     const hillwalking = page.getByTestId("parent-adventure-skill-hillwalking");
     await hillwalking.getByRole("button", { name: /Stage 1/ }).click();
-    const hillwalkingStageOne = page.locator("#hillwalking-stage-1-content");
+    const hillwalkingStageOne = hillwalking.getByRole("region", { name: /Stage 1/ });
     const buddyStatement = hillwalkingStageOne.getByText(/Buddy System/i).first();
     await expect(buddyStatement).toBeVisible();
     const buddyRow = buddyStatement.locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')]");
