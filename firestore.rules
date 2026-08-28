@@ -681,6 +681,41 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /equipmentProgrammeRequirements/{requirementId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && (canManageEquipment() || hasSection(request.resource.data.section))
+        && request.resource.data.sourceType in ["weeklyMeeting", "event", "activity"]
+        && request.resource.data.sourceId is string
+        && request.resource.data.sourceLabel is string
+        && request.resource.data.section is string
+        && request.resource.data.date is string
+        && request.resource.data.lines is list
+        && request.resource.data.loanId is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["sourceType", "sourceId", "sourceLabel", "section", "date", "lines", "loanId", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && (canManageEquipment() || hasSection(resource.data.section))
+        && (canManageEquipment() || hasSection(request.resource.data.section))
+        && request.resource.data.sourceType in ["weeklyMeeting", "event", "activity"]
+        && request.resource.data.sourceId == resource.data.sourceId
+        && request.resource.data.sourceType == resource.data.sourceType
+        && request.resource.data.sourceLabel is string
+        && request.resource.data.section is string
+        && request.resource.data.date is string
+        && request.resource.data.lines is list
+        && request.resource.data.loanId is string
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["sourceLabel", "section", "date", "lines", "loanId", "updatedBy", "updatedAt"]);
+      allow delete: if false;
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
