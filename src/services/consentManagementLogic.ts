@@ -1,5 +1,5 @@
-import { daysUntilExpiry, isConsentExpired } from "./consentAdmin";
-import type { ConsentAdminRecord } from "./consentAdmin";
+import { daysUntilExpiry, isConsentExpired } from "./consentAdmin.ts";
+import type { ConsentAdminRecord } from "./consentAdmin.ts";
 
 export type TypeFilter = "all" | "youth" | "scouter";
 export type AlertFilter = "all" | "medical" | "medication" | "expiring" | "expired";
@@ -94,7 +94,7 @@ export function filtersForSummary(filter: SummaryFilter): { typeFilter: TypeFilt
 }
 
 function escapeHtml(value: string): string {
-    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;");
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
