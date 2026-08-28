@@ -1,20 +1,12 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import EventConsentEventPanel from "../components/admin/EventConsentEventPanel";
 import {
     Alert,
     Box,
     Button,
-    Chip,
     CircularProgress,
-    Container,
-    Divider,
-    FormControl,
-    InputLabel,
-    MenuItem,
-    Paper,
-    Select,
-    Stack,
-    Typography
+    Container
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
@@ -35,51 +27,12 @@ import {
     markEventConsentResponseMatched
 } from "../services/eventConsent";
 import type { EventConsentResponse, PublicEventLink } from "../services/eventConsent";
-
-function normalise(value: string): string {
-    return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function formatDate(value: Date | null): string {
-    if (!value) return "Unknown";
-    return new Intl.DateTimeFormat("en-IE", {
-        dateStyle: "medium",
-        timeStyle: "short"
-    }).format(value);
-}
-
-function eligibleEventMembers(event: EventRecord, members: MemberRecord[]): MemberRecord[] {
-    return members.filter(
-        (member) =>
-            member.status === "active" &&
-            (event.section === "All Sections" || member.section === event.section)
-    );
-}
-
-function findMatchingMember(
-    response: EventConsentResponse,
-    members: MemberRecord[],
-    usedMembers?: Set<string>
-): MemberRecord | undefined {
-    return members.find(
-        (candidate) =>
-            !usedMembers?.has(candidate.id) &&
-            normalise(candidate.displayName) === normalise(response.childName) &&
-            (!candidate.dateOfBirth || candidate.dateOfBirth === response.dateOfBirth)
-    );
-}
-
-function applyResponseToRoster(
-    response: EventConsentResponse,
-    memberId: string,
-    attendance: Record<string, AttendanceStatus>,
-    consent: Record<string, EventConsentStatus>
-) {
-    attendance[memberId] = response.attendance;
-    if (response.attendance === "not-attending") consent[memberId] = "not-required";
-    else if (response.consentGiven) consent[memberId] = "received";
-    else consent[memberId] = "required";
-}
+import {
+    applyResponseToRoster,
+    eligibleEventMembers,
+    findMatchingMember,
+    outstandingConsentMembers
+} from "../services/eventConsentManagementLogic";
 
 export default function EventConsentManagement() {
     const [events, setEvents] = useState<EventRecord[]>([]);
@@ -189,10 +142,7 @@ export default function EventConsentManagement() {
 
             const eligible = eligibleEventMembers(event, members);
             const targets = kind === "reminder"
-                ? eligible.filter((member) =>
-                    event.consent[member.id] !== "received" &&
-                    event.attendance[member.id] !== "not-attending"
-                )
+                ? outstandingConsentMembers(event, members)
                 : eligible;
 
             if (targets.length === 0) {
@@ -342,117 +292,32 @@ export default function EventConsentManagement() {
                     </Box>
                 ) : (
                     <Box sx={{ display: "grid", gap: 2 }}>
-                        {consentEvents.length === 0 && <Alert severity="info">No events currently require consent. Enable “Consent required” on an event first.</Alert>}
+                        {consentEvents.length === 0 && (
+                            <Alert severity="info">No events currently require consent. Enable “Consent required” on an event first.</Alert>
+                        )}
 
-                        {consentEvents.map((event) => {
-                            const link = linkFor(event.id);
-                            const eventResponses = responses[event.id] || [];
-                            const newResponses = eventResponses.filter((response) => response.processingStatus === "new");
-                            const matchedResponses = eventResponses.filter((response) => response.processingStatus === "matched");
-                            const ignoredResponses = eventResponses.filter((response) => response.processingStatus === "ignored");
-                            const eligibleMembers = eligibleEventMembers(event, members);
-                            const unmatchedResponses = newResponses.filter((response) => !findMatchingMember(response, eligibleMembers));
-                            const received = eligibleMembers.filter((member) => event.consent[member.id] === "received").length;
-                            const outstanding = eligibleMembers.filter(
-                                (member) => event.consent[member.id] !== "received" && event.attendance[member.id] !== "not-attending"
-                            ).length;
-                            const changedDetails = eventResponses.filter((response) => response.medicalDetailsChanged).length;
-
-                            return (
-                                <Paper key={event.id} variant="outlined" sx={{ p: 2.5 }}>
-                                    <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 2 }}>
-                                        <Box sx={{ flex: 1 }}>
-                                            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-                                                <Typography variant="h5" color="secondary">{event.title}</Typography>
-                                                <Chip label={event.status} size="small" variant="outlined" />
-                                                <Chip label={`${eligibleMembers.length} members`} size="small" />
-                                                <Chip label={`${received} consent received`} size="small" color="success" />
-                                                <Chip label={`${outstanding} outstanding`} size="small" color={outstanding ? "warning" : "default"} />
-                                                <Chip label={`${newResponses.length} new responses`} size="small" color={newResponses.length ? "warning" : "default"} />
-                                                {unmatchedResponses.length > 0 && <Chip label={`${unmatchedResponses.length} unmatched`} size="small" color="error" />}
-                                                {changedDetails > 0 && <Chip label={`${changedDetails} details changed`} size="small" color="warning" />}
-                                            </Stack>
-                                            <Typography sx={{ mt: 1 }}>{event.startDate}{event.location ? ` · ${event.location}` : ""}</Typography>
-                                            {link && <Typography color="text.secondary" sx={{ mt: 0.75, wordBreak: "break-all" }}>{window.location.origin}/event-consent/{link.token}</Typography>}
-
-                                            {unmatchedResponses.length > 0 && (
-                                                <Box sx={{ mt: 2.5 }}>
-                                                    <Divider sx={{ mb: 2 }} />
-                                                    <Typography variant="h6" color="error" sx={{ fontWeight: 800, mb: 0.5 }}>Unmatched Parent Responses</Typography>
-                                                    <Typography color="text.secondary" sx={{ mb: 1.5 }}>Select the correct member and manually match the response, or ignore duplicate/test submissions.</Typography>
-                                                    <Box sx={{ display: "grid", gap: 1.5 }}>
-                                                        {unmatchedResponses.map((response) => (
-                                                            <Paper key={response.id} variant="outlined" sx={{ p: 2, borderLeft: "5px solid", borderLeftColor: "error.main" }}>
-                                                                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
-                                                                    <Chip label="Needs manual matching" color="error" size="small" />
-                                                                    <Chip label={response.attendance === "attending" ? "Attending" : "Not attending"} size="small" variant="outlined" />
-                                                                    <Chip label={response.consentGiven ? "Consent given" : "Consent not given"} size="small" color={response.consentGiven ? "success" : "warning"} />
-                                                                </Stack>
-                                                                <Typography sx={{ fontWeight: 700 }}>Child: {response.childName || "Not supplied"}</Typography>
-                                                                <Typography variant="body2">Date of birth: {response.dateOfBirth || "Not supplied"}</Typography>
-                                                                <Typography variant="body2">Parent / Guardian: {response.parentName || "Not supplied"}</Typography>
-                                                                <Typography variant="body2">Emergency details confirmed: {response.emergencyDetailsConfirmed ? "Yes" : "No"}</Typography>
-                                                                <Typography variant="body2">Medical / emergency information changed: {response.medicalDetailsChanged ? "Yes" : "No"}</Typography>
-                                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Submitted: {formatDate(response.submittedAt)}</Typography>
-                                                                <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} sx={{ mt: 2 }}>
-                                                                    <FormControl size="small" sx={{ minWidth: 280, flex: 1 }}>
-                                                                        <InputLabel>Match to member</InputLabel>
-                                                                        <Select
-                                                                            label="Match to member"
-                                                                            value={selectedMembers[response.id] || ""}
-                                                                            onChange={(changeEvent) => setSelectedMembers((current) => ({ ...current, [response.id]: changeEvent.target.value }))}
-                                                                        >
-                                                                            {eligibleMembers.map((member) => (
-                                                                                <MenuItem key={member.id} value={member.id}>{member.displayName} · {member.section} · {member.dateOfBirth || "DOB not recorded"}</MenuItem>
-                                                                            ))}
-                                                                        </Select>
-                                                                    </FormControl>
-                                                                    <Button variant="contained" color="success" disabled={workingResponseId === response.id || !selectedMembers[response.id]} onClick={() => void manualMatch(event, response)}>Match to Member</Button>
-                                                                    <Button variant="outlined" color="error" disabled={workingResponseId === response.id} onClick={() => void ignoreResponse(response)}>Ignore Response</Button>
-                                                                </Stack>
-                                                            </Paper>
-                                                        ))}
-                                                    </Box>
-                                                </Box>
-                                            )}
-
-                                            {(matchedResponses.length > 0 || ignoredResponses.length > 0) && (
-                                                <Box sx={{ mt: 2.5 }}>
-                                                    <Divider sx={{ mb: 2 }} />
-                                                    <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Processed Responses</Typography>
-                                                    <Box sx={{ display: "grid", gap: 1 }}>
-                                                        {[...matchedResponses, ...ignoredResponses].map((response) => {
-                                                            const matchedMember = members.find((member) => member.id === response.matchedMemberId);
-                                                            return (
-                                                                <Paper key={response.id} variant="outlined" sx={{ p: 1.5 }}>
-                                                                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-                                                                        <Chip label={response.processingStatus === "matched" ? "Matched" : "Ignored"} color={response.processingStatus === "matched" ? "success" : "default"} size="small" />
-                                                                        <Typography sx={{ fontWeight: 700 }}>{response.childName}</Typography>
-                                                                        {matchedMember && <Typography variant="body2" color="text.secondary">→ {matchedMember.displayName}</Typography>}
-                                                                        <Typography variant="body2" color="text.secondary">{formatDate(response.processedAt)}</Typography>
-                                                                    </Stack>
-                                                                </Paper>
-                                                            );
-                                                        })}
-                                                    </Box>
-                                                </Box>
-                                            )}
-                                        </Box>
-
-                                        <Stack spacing={1.25} sx={{ minWidth: { lg: 230 } }}>
-                                            <Button variant={link?.active ? "outlined" : "contained"} color="secondary" disabled={workingEventId === event.id} onClick={() => void createOrRefreshLink(event)}>{link ? "Refresh Parent Link" : "Create Parent Link"}</Button>
-                                            {link && <Button variant="outlined" color="secondary" onClick={() => void copyLink(link)}>Copy Parent Link</Button>}
-                                            <Divider />
-                                            <Button variant="contained" color="secondary" disabled={event.status !== "open" || workingNotification !== ""} onClick={() => void sendNotification(event, "notice")}>{workingNotification === `${event.id}:notice` ? "Sending…" : "Send Event Notice"}</Button>
-                                            <Button variant="outlined" color="secondary" disabled={event.status !== "open" || workingNotification !== ""} onClick={() => void sendNotification(event, "update")}>{workingNotification === `${event.id}:update` ? "Sending…" : "Send Event Update"}</Button>
-                                            <Button variant="contained" color="warning" disabled={event.status !== "open" || outstanding === 0 || workingNotification !== ""} onClick={() => void sendNotification(event, "reminder")}>{workingNotification === `${event.id}:reminder` ? "Sending…" : `Send Consent Reminders (${outstanding})`}</Button>
-                                            <Divider />
-                                            <Button variant="contained" color="success" disabled={workingEventId === event.id || newResponses.length === 0} onClick={() => void syncResponses(event)}>Sync New Responses</Button>
-                                        </Stack>
-                                    </Box>
-                                </Paper>
-                            );
-                        })}
+                        {consentEvents.map((event) => (
+                            <EventConsentEventPanel
+                                key={event.id}
+                                event={event}
+                                members={members}
+                                link={linkFor(event.id)}
+                                responses={responses[event.id] || []}
+                                selectedMembers={selectedMembers}
+                                workingEventId={workingEventId}
+                                workingResponseId={workingResponseId}
+                                workingNotification={workingNotification}
+                                onSelectedMemberChange={(responseId, memberId) =>
+                                    setSelectedMembers((current) => ({ ...current, [responseId]: memberId }))
+                                }
+                                onCreateOrRefreshLink={(item) => void createOrRefreshLink(item)}
+                                onCopyLink={(item) => void copyLink(item)}
+                                onSendNotification={(item, kind) => void sendNotification(item, kind)}
+                                onSyncResponses={(item) => void syncResponses(item)}
+                                onManualMatch={(item, response) => void manualMatch(item, response)}
+                                onIgnoreResponse={(response) => void ignoreResponse(response)}
+                            />
+                        ))}
                     </Box>
                 )}
             </Container>
