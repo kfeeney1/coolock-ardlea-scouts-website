@@ -9,6 +9,7 @@ import {
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import type { EquipmentItem } from "./equipment";
+import { recordEquipmentHistory } from "./equipmentHistory";
 import {
   availableEquipmentQuantity,
   loanIsComplete,
@@ -115,6 +116,7 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
 
   const loanRef = doc(collection(db, "equipmentLoans"));
   let auditSummary = "";
+  const historyRows: Array<{ itemId: string; itemName: string; quantity: number; location: string }> = [];
 
   await runTransaction(db, async (transaction) => {
     const refs = lines.map((line) => doc(db, "equipmentItems", line.itemId));
@@ -138,6 +140,7 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
       if (requested.quantity > available) throw new Error(`Only ${available} × ${item.name} ${available === 1 ? "is" : "are"} available.`);
 
       loanLines.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, returnedQuantity: 0, incidentQuantity: 0 });
+      historyRows.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, location: text(data.location) });
       transaction.update(refs[index], {
         checkedOutQuantity: item.checkedOutQuantity + requested.quantity,
         updatedBy: uid,
@@ -159,6 +162,18 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
     });
   });
 
+  await Promise.all(historyRows.map((row) => recordEquipmentHistory({
+    itemId: row.itemId,
+    itemName: row.itemName,
+    type: "equipment-checked-out",
+    quantity: row.quantity,
+    section,
+    fromLocation: row.location,
+    toLocation: section,
+    details: `Checked out ${row.quantity} × ${row.itemName} to ${section}; expected back ${request.expectedReturnDate}.`,
+    sourceId: loanRef.id,
+    linkedItemId: ""
+  })));
   await recordAuditEvent({
     category: "equipment",
     action: "equipment-checked-out",
@@ -175,6 +190,7 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
   const loanRef = doc(db, "equipmentLoans", request.loanId);
   let auditSection = "Group";
   let auditSummary = "";
+  const historyRows: Array<{ itemId: string; itemName: string; quantity: number; location: string }> = [];
 
   await runTransaction(db, async (transaction) => {
     const loanSnapshot = await transaction.get(loanRef);
@@ -203,6 +219,7 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
       if (!snapshot.exists()) throw new Error(`${line.itemName} no longer exists in the inventory.`);
       const checkedOutQuantity = integer(snapshot.data().checkedOutQuantity);
       if (quantity > checkedOutQuantity) throw new Error(`The checked-out stock count for ${line.itemName} is inconsistent. Ask the Quartermaster to review it.`);
+      historyRows.push({ itemId: line.itemId, itemName: line.itemName, quantity, location: text(snapshot.data().location) });
       transaction.update(refs[index], {
         checkedOutQuantity: checkedOutQuantity - quantity,
         updatedBy: uid,
@@ -221,6 +238,18 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
     auditSummary = selected.map(({ line, quantity }) => `${quantity} × ${line.itemName}`).join(", ");
   });
 
+  await Promise.all(historyRows.map((row) => recordEquipmentHistory({
+    itemId: row.itemId,
+    itemName: row.itemName,
+    type: "equipment-returned",
+    quantity: row.quantity,
+    section: auditSection,
+    fromLocation: auditSection,
+    toLocation: row.location,
+    details: `Returned ${row.quantity} × ${row.itemName} from ${auditSection}.`,
+    sourceId: request.loanId,
+    linkedItemId: ""
+  })));
   await recordAuditEvent({
     category: "equipment",
     action: "equipment-returned",
