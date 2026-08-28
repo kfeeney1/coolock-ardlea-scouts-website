@@ -31,6 +31,13 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
     }
+    function isQuartermaster() {
+      return isActiveLeader()
+        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+    }
+    function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
@@ -408,6 +415,66 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
       allow delete: if false;
     }
+
+    match /equipmentItems/{itemId} {
+      allow get, list: if isActiveLeader();
+      allow create: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.category is string
+        && request.resource.data.trackingMode in ["quantity", "individual"]
+        && request.resource.data.totalQuantity is number
+        && request.resource.data.totalQuantity >= 0
+        && request.resource.data.location is string
+        && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
+        && request.resource.data.notes is string
+        && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
+        && request.resource.data.archived is bool
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.category is string
+        && request.resource.data.trackingMode in ["quantity", "individual"]
+        && request.resource.data.totalQuantity is number
+        && request.resource.data.totalQuantity >= 0
+        && request.resource.data.location is string
+        && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
+        && request.resource.data.notes is string
+        && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
+        && request.resource.data.archived is bool
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /equipmentCategories/{optionId} {
+      allow get, list: if isActiveLeader();
+      allow create: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt"]);
+      allow update: if false;
+      allow delete: if canManageEquipment();
+    }
+
+    match /equipmentLocations/{optionId} {
+      allow get, list: if isActiveLeader();
+      allow create: if canManageEquipment()
+        && request.resource.data.name is string
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["name", "createdBy", "createdAt"]);
+      allow update: if false;
+      allow delete: if canManageEquipment();
+    }
+
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
       allow create, update: if isAdmin()
@@ -476,7 +543,7 @@ service cloud.firestore {
         && request.resource.data.actorUid == request.auth.uid
         && request.auth.token.email is string
         && request.resource.data.actorEmail == request.auth.token.email
-        && request.resource.data.category in ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "system"]
+        && request.resource.data.category in ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "equipment", "system"]
         && request.resource.data.action is string
         && request.resource.data.targetId is string
         && request.resource.data.targetLabel is string
