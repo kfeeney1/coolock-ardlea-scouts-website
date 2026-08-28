@@ -92,10 +92,15 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText(/badgework .* saved for 1 selected child/i)).toBeVisible();
     await expect(awardPanel.getByText("Requirements complete", { exact: true })).toBeVisible();
-    await expect(awardPanel.getByRole("button", { name: "Award badge" })).toBeEnabled();
 
-    await awardPanel.getByRole("button", { name: "Award badge" }).click();
-    await expect(page.getByText(/Stage 1 Camping awarded to 1 selected child/i)).toBeVisible();
+    // Playwright retries reuse the same emulator. If an earlier attempt already
+    // awarded the badge, preserve that valid persisted state instead of failing.
+    const alreadyAwarded = await awardPanel.getByText("Awarded", { exact: true }).isVisible();
+    if (!alreadyAwarded) {
+      await expect(awardPanel.getByRole("button", { name: "Award badge" })).toBeEnabled();
+      await awardPanel.getByRole("button", { name: "Award badge" }).click();
+      await expect(page.getByText(/Stage 1 Camping awarded to 1 selected child/i)).toBeVisible();
+    }
     await expect(awardPanel.getByText("Awarded", { exact: true })).toBeVisible();
 
     await signOutLeader(page);
@@ -103,7 +108,7 @@ test.describe("Adventure Skills badgework", () => {
 
     await expect(page.getByRole("heading", { name: "Adventure Skills Progress" })).toBeVisible();
     const camping = page.getByTestId("parent-adventure-skill-camping");
-    await expect(camping).toContainText("1 stages awarded");
+    await expect(camping).toContainText("1/9 stages awarded");
     await camping.getByRole("button", { name: /Stage 1/ }).click();
     const campingStageOne = page.locator("#camping-stage-1-content");
     await expect(campingStageOne).toBeVisible();
