@@ -122,7 +122,7 @@ test.describe("Adventure Skills badgework", () => {
     const hillwalkingStageOne = hillwalking.getByRole("region", { name: /Stage 1/ });
     const buddyStatement = hillwalkingStageOne.getByText(/Buddy System/i).first();
     await expect(buddyStatement).toBeVisible();
-    const buddyRow = buddyStatement.locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')]");
+    const buddyRow = buddyStatement.locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
     await expect(buddyRow.getByText("Completed", { exact: true })).toBeVisible();
 
     await expect(page.getByRole("button", { name: "Award badge" })).toHaveCount(0);
