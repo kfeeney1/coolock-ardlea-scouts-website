@@ -18,6 +18,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
@@ -30,6 +31,9 @@ import {
   updateEquipmentItem
 } from "../services/equipment";
 import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
+import { loadEquipmentLoans } from "../services/equipmentLoans";
+import type { EquipmentLoan } from "../services/equipmentLoans";
+import { availableEquipmentQuantity } from "../services/equipmentLoanLogic";
 import {
   canDeleteEquipmentOption,
   canManageEquipment,
@@ -54,6 +58,7 @@ export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
   const [items, setItems] = useState<EquipmentItem[]>([]);
+  const [loans, setLoans] = useState<EquipmentLoan[]>([]);
   const [categories, setCategories] = useState<EquipmentOption[]>([]);
   const [locations, setLocations] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +79,14 @@ export default function EquipmentManagement() {
     setLoading(true);
     setError("");
     try {
-      const [nextItems, nextCategories, nextLocations] = await Promise.all([
+      const [nextItems, nextLoans, nextCategories, nextLocations] = await Promise.all([
         loadEquipmentItems(),
+        loadEquipmentLoans(),
         loadEquipmentOptions("categories"),
         loadEquipmentOptions("locations")
       ]);
       setItems(nextItems);
+      setLoans(nextLoans);
       setCategories(nextCategories);
       setLocations(nextLocations);
     } catch (loadError) {
@@ -136,6 +143,7 @@ export default function EquipmentManagement() {
     const name = normaliseEquipmentLabel(form.name);
     if (!name) return setError("Enter an equipment name.");
     if (!Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
+    if (editing && form.totalQuantity < editing.checkedOutQuantity) return setError(`At least ${editing.checkedOutQuantity} are currently checked out. Return stock before reducing the total below that number.`);
     if (form.replacementValue !== null && (!Number.isFinite(form.replacementValue) || form.replacementValue < 0)) return setError("Replacement value cannot be negative.");
 
     setSaving(true);
@@ -189,7 +197,7 @@ export default function EquipmentManagement() {
       await refresh();
     } catch (archiveError) {
       console.error("Unable to update equipment archive state:", archiveError);
-      setError("Unable to update that equipment item.");
+      setError(archiveError instanceof Error ? archiveError.message : "Unable to update that equipment item.");
     }
   };
 
@@ -215,9 +223,11 @@ export default function EquipmentManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
-      <LeaderPageHeader title="Equipment & Stores" description="Track the group's equipment, quantities, categories and storage locations." />
-      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the equipment catalogue. Stock management is restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
+      <LeaderPageHeader title="Equipment & Stores" description="Track stock, check equipment out to sections and record returns." />
+      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue and check equipment in or out for your assigned section. Stock records remain restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -236,19 +246,24 @@ export default function EquipmentManagement() {
 
       {loading ? <Alert severity="info">Loading equipment…</Alert> : visibleItems.length === 0 ? <Alert severity="info">No equipment matches the current filters.</Alert> : (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
-          {visibleItems.map((item) => <Paper key={item.id} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
-            <Stack spacing={1.25}>
-              <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · {item.location}</Typography></Box>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                <Chip label={`${item.totalQuantity} total`} color="primary" />
-                <Chip label={item.trackingMode === "individual" ? "Individually tracked" : "Quantity tracked"} variant="outlined" />
-                <Chip label={item.condition.replace("-", " ")} variant="outlined" />
-                {item.archived && <Chip label="Archived" />}
+          {visibleItems.map((item) => {
+            const available = availableEquipmentQuantity(item);
+            return <Paper key={item.id} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
+              <Stack spacing={1.25}>
+                <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · {item.location}</Typography></Box>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                  <Chip label={`${item.totalQuantity} total`} color="primary" />
+                  <Chip label={`${available} available`} color={available === 0 ? "warning" : "success"} variant="outlined" />
+                  {item.checkedOutQuantity > 0 && <Chip label={`${item.checkedOutQuantity} checked out`} variant="outlined" />}
+                  <Chip label={item.trackingMode === "individual" ? "Individually tracked" : "Quantity tracked"} variant="outlined" />
+                  <Chip label={item.condition.replace("-", " ")} variant="outlined" />
+                  {item.archived && <Chip label="Archived" />}
+                </Stack>
+                {item.notes && <Typography variant="body2">{item.notes}</Typography>}
+                {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => openEdit(item)}>Edit</Button><Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && item.checkedOutQuantity > 0} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button></Stack>}
               </Stack>
-              {item.notes && <Typography variant="body2">{item.notes}</Typography>}
-              {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => openEdit(item)}>Edit</Button><Button size="small" color={item.archived ? "success" : "warning"} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button></Stack>}
-            </Stack>
-          </Paper>)}
+            </Paper>;
+          })}
         </Box>
       )}
 
@@ -261,7 +276,7 @@ export default function EquipmentManagement() {
           <FormControl><InputLabel>Storage location</InputLabel><Select label="Storage location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select location</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.location === OTHER && <TextField label="New storage location" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
-          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: 0, step: 1 } }} value={form.totalQuantity} onChange={(event) => setForm({ ...form, totalQuantity: Number(event.target.value) })} />
+          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing?.checkedOutQuantity ?? 0, step: 1 } }} value={form.totalQuantity} onChange={(event) => setForm({ ...form, totalQuantity: Number(event.target.value) })} helperText={editing?.checkedOutQuantity ? `${editing.checkedOutQuantity} currently checked out` : undefined} />
           <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>
           <TextField label="Replacement value (€)" type="number" slotProps={{ htmlInput: { min: 0, step: "0.01" } }} value={form.replacementValue ?? ""} onChange={(event) => setForm({ ...form, replacementValue: event.target.value === "" ? null : Number(event.target.value) })} />
           <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />

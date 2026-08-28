@@ -19,6 +19,7 @@ export type EquipmentItem = {
   category: string;
   trackingMode: EquipmentTrackingMode;
   totalQuantity: number;
+  checkedOutQuantity: number;
   location: string;
   condition: EquipmentCondition;
   notes: string;
@@ -33,7 +34,7 @@ export type EquipmentOption = {
   name: string;
 };
 
-export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived">;
+export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived" | "checkedOutQuantity">;
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
@@ -45,6 +46,10 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
   if (typeof data.name !== "string" || typeof data.category !== "string" || typeof data.location !== "string") return null;
   if (data.trackingMode !== "quantity" && data.trackingMode !== "individual") return null;
   if (typeof data.totalQuantity !== "number" || !Number.isInteger(data.totalQuantity) || data.totalQuantity < 0) return null;
+  const checkedOutQuantity = typeof data.checkedOutQuantity === "number" && Number.isInteger(data.checkedOutQuantity) && data.checkedOutQuantity >= 0
+    ? data.checkedOutQuantity
+    : 0;
+  if (checkedOutQuantity > data.totalQuantity) return null;
   const condition = data.condition;
   if (!["good", "needs-attention", "repair", "missing", "lost", "retired"].includes(String(condition))) return null;
   return {
@@ -53,6 +58,7 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
     category: data.category,
     trackingMode: data.trackingMode,
     totalQuantity: data.totalQuantity,
+    checkedOutQuantity,
     location: data.location,
     condition: condition as EquipmentCondition,
     notes: typeof data.notes === "string" ? data.notes : "",
@@ -118,6 +124,7 @@ export async function createEquipmentItem(input: EquipmentItemInput): Promise<st
     category: normaliseEquipmentLabel(input.category),
     location: normaliseEquipmentLabel(input.location),
     notes: input.notes.trim(),
+    checkedOutQuantity: 0,
     archived: false,
     createdBy: uid,
     createdAt: serverTimestamp(),
@@ -158,6 +165,7 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
 }
 
 export async function setEquipmentArchived(item: EquipmentItem, archived: boolean): Promise<void> {
+  if (archived && item.checkedOutQuantity > 0) throw new Error("Return all checked-out stock before archiving this item.");
   const uid = currentUid();
   await setDoc(doc(db, "equipmentItems", item.id), {
     archived,
