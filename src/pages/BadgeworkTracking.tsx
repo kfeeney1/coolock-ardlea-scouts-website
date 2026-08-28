@@ -24,11 +24,11 @@ import { useSearchParams } from "react-router-dom";
 import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { loadMembers, type MemberRecord } from "../services/memberAdmin";
 import {
-  completeStageForMembers,
   loadMemberAdventureProgress,
   setRequirementCompletionForMembers,
   type MemberAdventureProgress
 } from "../services/adventureSkillProgress.ts";
+import { completeStageDraft, draftSelectionState, setDraftRequirement } from "../services/adventureSkillDraftLogic.ts";
 import { requirementSelectionState, selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
 import { badgeworkSourceContextFromParams, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 
@@ -43,6 +43,7 @@ export default function BadgeworkTracking() {
   const [section, setSection] = useState("all");
   const [search, setSearch] = useState("");
   const [progressByMemberId, setProgressByMemberId] = useState(new Map<string, MemberAdventureProgress>());
+  const [draft, setDraft] = useState(new Map<string, boolean>());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +51,7 @@ export default function BadgeworkTracking() {
 
   const skill = adventureSkills.find((item) => item.id === skillId) ?? adventureSkills[0];
   const stage = skill?.stages.find((item) => item.stage === stageNumber) ?? skill?.stages[0];
+  const hasUnsavedChanges = draft.size > 0;
 
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
   const sections = useMemo(() => ["all", ...new Set(activeMembers.map((member) => member.section).filter(Boolean))], [activeMembers]);
@@ -98,17 +100,50 @@ export default function BadgeworkTracking() {
     });
   }, [selectedIds.join("|")]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const confirmDiscard = () => !hasUnsavedChanges || window.confirm("You have unsaved badgework changes. Discard them?");
+
+  const discardDraft = () => {
+    setDraft(new Map());
+    setMessage("");
+  };
+
   const changeSkill = (nextSkillId: string) => {
+    if (!confirmDiscard()) return;
     const nextSkill = adventureSkills.find((item) => item.id === nextSkillId);
+    setDraft(new Map());
     setSkillId(nextSkillId);
     setStageNumber(nextSkill?.stages[0]?.stage ?? 1);
+    setMessage("");
+  };
+
+  const changeStage = (nextStage: number) => {
+    if (!confirmDiscard()) return;
+    setDraft(new Map());
+    setStageNumber(nextStage);
+    setMessage("");
   };
 
   const toggleMember = (memberId: string) => {
+    if (!confirmDiscard()) return;
+    setDraft(new Map());
+    setMessage("");
     setSelectedIds((current) => current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]);
   };
 
   const toggleAllVisible = () => {
+    if (!confirmDiscard()) return;
+    setDraft(new Map());
+    setMessage("");
     const visibleIds = visibleMembers.map((member) => member.id);
     const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
     setSelectedIds((current) => allSelected
@@ -116,39 +151,47 @@ export default function BadgeworkTracking() {
       : [...new Set([...current, ...visibleIds])]);
   };
 
+  const clearSelection = () => {
+    if (!confirmDiscard()) return;
+    setDraft(new Map());
+    setMessage("");
+    setSelectedIds([]);
+  };
+
   const progressSource = sourceContext
     ? { type: sourceContext.sourceType, id: sourceContext.sourceId }
     : { type: "manual" as const };
 
-  const updateRequirement = async (requirementId: string, completed: boolean) => {
+  const updateRequirementDraft = (requirementId: string, completed: boolean) => {
     if (selectedIds.length === 0) return;
-    setSaving(true);
     setError("");
     setMessage("");
-    try {
-      await setRequirementCompletionForMembers(selectedIds, requirementId, completed, progressSource);
-      await refreshProgress(selectedIds);
-      setMessage(completed ? "Badgework point saved." : "Badgework point cleared.");
-    } catch (saveError) {
-      console.error("Unable to update badgework:", saveError);
-      setError("Unable to save this badgework point.");
-    } finally {
-      setSaving(false);
-    }
+    setDraft((current) => setDraftRequirement(current, requirementId, completed));
   };
 
-  const completeStage = async () => {
-    if (!skill || !stage || selectedIds.length === 0) return;
+  const completeStageInDraft = () => {
+    if (!stage || selectedIds.length === 0) return;
+    setError("");
+    setMessage("");
+    setDraft((current) => completeStageDraft(current, stage.requirements.map((requirement) => requirement.id)));
+  };
+
+  const saveChanges = async () => {
+    if (selectedIds.length === 0 || draft.size === 0) return;
     setSaving(true);
     setError("");
     setMessage("");
     try {
-      await completeStageForMembers(selectedIds, skill.id, stage.stage, progressSource);
+      await Promise.all([...draft.entries()].map(([requirementId, completed]) =>
+        setRequirementCompletionForMembers(selectedIds, requirementId, completed, progressSource)
+      ));
       await refreshProgress(selectedIds);
-      setMessage(`${skill.name} Stage ${stage.stage} completed for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
+      const changeCount = draft.size;
+      setDraft(new Map());
+      setMessage(`${changeCount} badgework ${changeCount === 1 ? "change" : "changes"} saved for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
     } catch (saveError) {
-      console.error("Unable to complete Adventure Skills stage:", saveError);
-      setError("Unable to complete this badge stage.");
+      console.error("Unable to save badgework changes:", saveError);
+      setError("Unable to save badgework changes. Your unsaved selections are still shown; please try again.");
     } finally {
       setSaving(false);
     }
@@ -162,7 +205,7 @@ export default function BadgeworkTracking() {
       <LeaderDashboardHeader />
       <LeaderPageHeader
         title="Adventure Skills Badgework"
-        description="Select one or more children, then record individual competency points or complete a full stage. Shared competencies automatically carry across linked Adventure Skills."
+        description="Select one or more children, mark the competency changes you want, then save them together. Shared competencies automatically carry across linked Adventure Skills."
       />
 
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>
@@ -186,7 +229,7 @@ export default function BadgeworkTracking() {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2, alignItems: { sm: "center" } }}>
             <FormControlLabel control={<Checkbox checked={allVisibleSelected} indeterminate={someVisibleSelected} onChange={toggleAllVisible} />} label="Select all shown" />
             <Chip color={selectedIds.length ? "success" : "default"} label={selectedMemberSummary(selectedIds, visibleMembers.length)} />
-            {selectedIds.length > 0 && <Button size="small" onClick={() => setSelectedIds([])}>Clear selection</Button>}
+            {selectedIds.length > 0 && <Button size="small" onClick={clearSelection}>Clear selection</Button>}
           </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
             {visibleMembers.map((member) => <Paper key={member.id} variant="outlined" sx={{ p: 1.25 }}>
@@ -211,31 +254,53 @@ export default function BadgeworkTracking() {
             </FormControl>
             <FormControl fullWidth>
               <InputLabel>Stage</InputLabel>
-              <Select label="Stage" value={stage?.stage ?? 1} onChange={(event) => setStageNumber(Number(event.target.value))}>
+              <Select label="Stage" value={stage?.stage ?? 1} onChange={(event) => changeStage(Number(event.target.value))}>
                 {skill?.stages.map((item) => <MenuItem key={item.stage} value={item.stage}>Stage {item.stage}</MenuItem>)}
               </Select>
             </FormControl>
-            <Button variant="contained" color="success" disabled={saving || selectedIds.length === 0} onClick={() => void completeStage()} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Complete full stage</Button>
+            <Button variant="outlined" color="success" disabled={saving || selectedIds.length === 0} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
           </Box>
 
           {selectedIds.length === 0 && <Alert severity="info" sx={{ mb: 2 }}>Select at least one child before recording badgework.</Alert>}
+          {hasUnsavedChanges && <Alert severity="warning" sx={{ mb: 2 }}>
+            You have {draft.size} unsaved badgework {draft.size === 1 ? "change" : "changes"}. Review the competency points below, then select Save changes.
+          </Alert>}
+
           <Stack spacing={1.25}>
             {stage?.requirements.map((requirement) => {
-              const state = requirementSelectionState(selectedIds, progressByMemberId, requirement.id);
+              const persistedState = requirementSelectionState(selectedIds, progressByMemberId, requirement.id);
+              const state = draftSelectionState(draft, requirement.id, persistedState);
+              const changed = draft.has(requirement.id);
               return <Paper key={requirement.id} variant="outlined" sx={{ p: 1.5 }}>
                 <FormControlLabel
                   disabled={saving || selectedIds.length === 0}
                   sx={{ m: 0, width: "100%", alignItems: "flex-start" }}
-                  control={<Checkbox checked={state === "all"} indeterminate={state === "some"} onChange={(_, checked) => void updateRequirement(requirement.id, checked)} />}
+                  control={<Checkbox checked={state === "all"} indeterminate={state === "some"} onChange={(_, checked) => updateRequirementDraft(requirement.id, checked)} />}
                   label={<Box sx={{ pt: 0.6 }}>
                     <Typography>{requirement.statement}</Typography>
-                    {requirement.sharedCompetencyKey && <Typography variant="caption" color="success.dark" sx={{ fontWeight: 700 }}>Shared competency · completing this also updates equivalent badgework.</Typography>}
-                    {state === "some" && <Typography variant="caption" color="warning.dark" sx={{ display: "block" }}>Completed by some selected children.</Typography>}
+                    {changed && <Typography variant="caption" color="warning.dark" sx={{ display: "block", fontWeight: 700 }}>Unsaved change</Typography>}
+                    {requirement.sharedCompetencyKey && <Typography variant="caption" color="success.dark" sx={{ display: "block", fontWeight: 700 }}>Shared competency · saving this also updates equivalent badgework.</Typography>}
+                    {state === "some" && <Typography variant="caption" color="warning.dark" sx={{ display: "block" }}>Completed by some selected children. Tick to complete for all selected children.</Typography>}
                   </Box>}
                 />
               </Paper>;
             })}
           </Stack>
+
+          <Paper variant="outlined" sx={{ mt: 3, p: 2, position: { xs: "sticky", md: "static" }, bottom: { xs: 8, md: "auto" }, zIndex: 2 }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
+              <Box>
+                <Typography sx={{ fontWeight: 800 }}>{hasUnsavedChanges ? `${draft.size} unsaved ${draft.size === 1 ? "change" : "changes"}` : "No unsaved changes"}</Typography>
+                <Typography variant="body2" color="text.secondary">Competency changes are only written to the member records when you save.</Typography>
+              </Box>
+              <Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1}>
+                <Button disabled={saving || !hasUnsavedChanges} onClick={discardDraft}>Discard</Button>
+                <Button variant="contained" color="success" disabled={saving || !hasUnsavedChanges || selectedIds.length === 0} onClick={() => void saveChanges()}>
+                  {saving ? "Saving…" : "Save changes"}
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
         </Paper>
       </>}
     </Container>
