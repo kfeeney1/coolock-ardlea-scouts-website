@@ -15,6 +15,7 @@ import type {
 
 import { auth, db } from "../firebase";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+export { daysUntilExpiry, isConsentExpired } from "./consentDateLogic";
 
 export type ConsentType = "youth" | "scouter";
 export type ConsentStatus = "active" | "reviewed" | "expired" | "archived";
@@ -126,19 +127,4 @@ export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
         .map(mapConsent)
         .filter((record): record is ConsentAdminRecord => record !== null)
         .sort((left, right) => (right.submittedAt?.getTime() ?? 0) - (left.submittedAt?.getTime() ?? 0));
-}
-
-export function isConsentExpired(consentTo: string): boolean {
-    if (!consentTo) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return consentTo < today;
-}
-
-export function daysUntilExpiry(consentTo: string): number | null {
-    if (!consentTo) return null;
-    const end = new Date(`${consentTo}T00:00:00`);
-    if (Number.isNaN(end.getTime())) return null;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return Math.ceil((end.getTime() - today.getTime()) / 86_400_000);
 }
