@@ -106,7 +106,7 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
     {message && <Alert severity="success" sx={{ mb: 1.5 }}>{message}</Alert>}
     <Stack spacing={1.5}>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(220px, 1fr) 180px 180px" }, gap: 1 }}>
-        <TextField label="Search programme library" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, notes, equipment or leader" inputProps={{ "data-testid": "programme-library-search" }} />
+        <TextField label="Search programme library" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, notes, equipment or leader" slotProps={{ htmlInput: { "data-testid": "programme-library-search" } }} />
         <TextField select label="Type" value={kindFilter} onChange={(e) => setKindFilter(e.target.value as "all" | ProgrammeLibraryKind)}>
           <MenuItem value="all">All types</MenuItem><MenuItem value="activity">Activities</MenuItem><MenuItem value="badgework">Badgework</MenuItem>
         </TextField>
