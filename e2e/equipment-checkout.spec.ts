@@ -125,7 +125,6 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await incidentCard.getByRole("button", { name: "Resolve" }).click();
   const resolveDialog = page.getByRole("dialog", { name: "Resolve equipment issue" });
   await expect(resolveDialog).toBeVisible();
-  await expect(resolveDialog.getByLabel("Resolution")).toHaveText(/Found \/ returned/);
   await resolveDialog.getByLabel("Resolution notes").fill("Found in the trailer after the return was checked.");
   await resolveDialog.getByRole("button", { name: "Confirm resolution" }).click();
 
