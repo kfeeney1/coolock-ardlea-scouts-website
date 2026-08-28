@@ -425,6 +425,7 @@ service cloud.firestore {
         && request.resource.data.totalQuantity is number
         && request.resource.data.totalQuantity >= 0
         && request.resource.data.checkedOutQuantity == 0
+        && request.resource.data.unavailableQuantity == 0
         && request.resource.data.location is string
         && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
         && request.resource.data.notes is string
@@ -434,17 +435,21 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       allow update: if (canManageEquipment()
           && request.resource.data.name is string
           && request.resource.data.category is string
           && request.resource.data.trackingMode in ["quantity", "individual"]
           && request.resource.data.totalQuantity is number
           && request.resource.data.totalQuantity >= 0
-          && (!request.resource.data.keys().hasAny(["checkedOutQuantity"])
-            || (request.resource.data.checkedOutQuantity is number
-              && request.resource.data.checkedOutQuantity >= 0
-              && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity))
+          && request.resource.data.checkedOutQuantity is number
+          && request.resource.data.checkedOutQuantity >= 0
+          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
+            || (request.resource.data.unavailableQuantity is number
+              && request.resource.data.unavailableQuantity >= 0
+              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
+          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
+            || request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity)
           && request.resource.data.location is string
           && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
           && request.resource.data.notes is string
@@ -454,14 +459,18 @@ service cloud.firestore {
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.updatedBy == request.auth.uid
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
+          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
         || (isActiveLeader()
           && request.resource.data.checkedOutQuantity is number
           && request.resource.data.checkedOutQuantity >= 0
           && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
+          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
+            || (request.resource.data.unavailableQuantity is number
+              && request.resource.data.unavailableQuantity >= 0
+              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
           && request.resource.data.updatedBy == request.auth.uid
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "updatedBy", "updatedAt"]));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]));
       allow delete: if false;
     }
 
@@ -515,6 +524,42 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "lines", "updatedBy", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /equipmentIncidents/{incidentId} {
+      allow get, list: if isActiveLeader();
+      allow create: if isActiveLeader()
+        && request.resource.data.itemId is string
+        && request.resource.data.itemName is string
+        && request.resource.data.itemCategory is string
+        && request.resource.data.itemLocation is string
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.type in ["damaged", "lost", "missing", "maintenance"]
+        && request.resource.data.status == "reported"
+        && request.resource.data.section is string
+        && request.resource.data.loanId is string
+        && request.resource.data.description is string
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.notificationState in ["pending", "sent"]
+        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && (canManageEquipment()
+          || (request.resource.data.loanId != ""
+            && hasSection(request.resource.data.section)
+            && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
+            && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section))
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedBy == resource.data.reportedBy
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.notificationState in ["sent", "failed"]
+        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]);
       allow delete: if false;
     }
 

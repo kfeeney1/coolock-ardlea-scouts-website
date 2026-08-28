@@ -56,17 +56,24 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function integer(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
 function mapLoanLine(value: unknown): EquipmentLoanLine | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Record<string, unknown>;
   if (typeof data.itemId !== "string" || typeof data.itemName !== "string") return null;
   if (typeof data.quantity !== "number" || !Number.isInteger(data.quantity) || data.quantity <= 0) return null;
-  if (typeof data.returnedQuantity !== "number" || !Number.isInteger(data.returnedQuantity) || data.returnedQuantity < 0 || data.returnedQuantity > data.quantity) return null;
+  const returnedQuantity = integer(data.returnedQuantity);
+  const incidentQuantity = integer(data.incidentQuantity);
+  if (returnedQuantity + incidentQuantity > data.quantity) return null;
   return {
     itemId: data.itemId,
     itemName: data.itemName,
     quantity: data.quantity,
-    returnedQuantity: data.returnedQuantity
+    returnedQuantity,
+    incidentQuantity
   };
 }
 
@@ -119,17 +126,18 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
       const requested = lines[index];
       if (!snapshot.exists()) throw new Error("One of the selected equipment items no longer exists.");
       const data = snapshot.data();
-      const item: Pick<EquipmentItem, "name" | "totalQuantity" | "checkedOutQuantity" | "archived"> = {
+      const item: Pick<EquipmentItem, "name" | "totalQuantity" | "checkedOutQuantity" | "unavailableQuantity" | "archived"> = {
         name: typeof data.name === "string" ? data.name : "Equipment",
-        totalQuantity: typeof data.totalQuantity === "number" ? data.totalQuantity : 0,
-        checkedOutQuantity: typeof data.checkedOutQuantity === "number" ? data.checkedOutQuantity : 0,
+        totalQuantity: integer(data.totalQuantity),
+        checkedOutQuantity: integer(data.checkedOutQuantity),
+        unavailableQuantity: integer(data.unavailableQuantity),
         archived: data.archived === true
       };
       if (item.archived) throw new Error(`${item.name} is archived and cannot be checked out.`);
       const available = availableEquipmentQuantity(item as EquipmentItem);
       if (requested.quantity > available) throw new Error(`Only ${available} × ${item.name} ${available === 1 ? "is" : "are"} available.`);
 
-      loanLines.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, returnedQuantity: 0 });
+      loanLines.push({ itemId: requested.itemId, itemName: item.name, quantity: requested.quantity, returnedQuantity: 0, incidentQuantity: 0 });
       transaction.update(refs[index], {
         checkedOutQuantity: item.checkedOutQuantity + requested.quantity,
         updatedBy: uid,
@@ -193,7 +201,7 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
     selected.forEach(({ line, quantity }, index) => {
       const snapshot = itemSnapshots[index];
       if (!snapshot.exists()) throw new Error(`${line.itemName} no longer exists in the inventory.`);
-      const checkedOutQuantity = typeof snapshot.data().checkedOutQuantity === "number" ? snapshot.data().checkedOutQuantity : 0;
+      const checkedOutQuantity = integer(snapshot.data().checkedOutQuantity);
       if (quantity > checkedOutQuantity) throw new Error(`The checked-out stock count for ${line.itemName} is inconsistent. Ask the Quartermaster to review it.`);
       transaction.update(refs[index], {
         checkedOutQuantity: checkedOutQuantity - quantity,

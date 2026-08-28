@@ -22,8 +22,25 @@ function originAllowed(request, env) { const allowed = allowedOrigins(env); if (
 function decodeFirebaseUid(token) { try { const payload = token.split(".")[1]; if (!payload) return ""; const normalised = payload.replaceAll("-", "+").replaceAll("_", "/"); const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "="); const decoded = JSON.parse(atob(padded)); return clean(decoded.user_id || decoded.sub, 200); } catch { return ""; } }
 function bearer(request) { const auth = request.headers.get("Authorization") || ""; return auth.startsWith("Bearer ") ? auth.slice(7).trim() : ""; }
 async function getDocument(env, token, collection, uid) { const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/${collection}/${encodeURIComponent(uid)}`; const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); return response.ok ? response.json() : null; }
+async function listDocuments(env, token, collection) {
+  const result = [];
+  let pageToken = "";
+  do {
+    const url = new URL(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/${collection}`);
+    url.searchParams.set("pageSize", "100");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const response = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (Array.isArray(data.documents)) result.push(...data.documents);
+    pageToken = clean(data.nextPageToken, 500);
+  } while (pageToken && result.length < 500);
+  return result;
+}
+function documentId(document) { return clean(String(document?.name || "").split("/").pop(), 200); }
 function fieldString(document, key) { return document?.fields?.[key]?.stringValue || ""; }
 function fieldBoolean(document, key) { return document?.fields?.[key]?.booleanValue === true; }
+function fieldNumber(document, key) { const value = document?.fields?.[key]?.integerValue ?? document?.fields?.[key]?.doubleValue; const number = Number(value); return Number.isFinite(number) ? number : 0; }
 function mapString(document, key, childKey) { return document?.fields?.[key]?.mapValue?.fields?.[childKey]?.stringValue || ""; }
 
 async function requireActiveLeader(request, env) {
@@ -208,6 +225,60 @@ async function handleEventConsentProcessed(request, env, body) {
   return json(request, env, 200, { ok: true });
 }
 
+const EQUIPMENT_NOTIFICATION_ROLES = new Set(["Group Leader", "Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"]);
+const EQUIPMENT_URGENT_TYPES = new Set(["damaged", "lost", "missing"]);
+
+async function equipmentIncidentRecipients(env, leader) {
+  const leadership = await listDocuments(env, leader.token, "organisationLeadership");
+  const recipientIds = leadership
+    .filter(document => fieldBoolean(document, "active") && EQUIPMENT_NOTIFICATION_ROLES.has(fieldString(document, "scoutingRole")))
+    .map(documentId)
+    .filter(Boolean);
+  const recipients = [];
+  for (const uid of [...new Set(recipientIds)]) {
+    const profile = await getDocument(env, leader.token, "adminUsers", uid);
+    if (!profile || !fieldBoolean(profile, "active")) continue;
+    const email = fieldString(profile, "email").toLowerCase();
+    if (email.includes("@")) recipients.push(email);
+  }
+  return [...new Set(recipients)];
+}
+
+async function handleEquipmentIncident(request, env, body) {
+  const leader = await requireActiveLeader(request, env);
+  if (!leader) return json(request, env, 403, { ok: false, error: "Active leader access required." });
+  const incidentId = clean(body.incidentId, 100);
+  if (!incidentId) return json(request, env, 400, { ok: false, error: "Equipment incident is required." });
+
+  const incident = await getDocument(env, leader.token, "equipmentIncidents", incidentId);
+  if (!incident) return json(request, env, 404, { ok: false, error: "Equipment incident not found." });
+  if (fieldString(incident, "reportedBy") !== leader.uid) return json(request, env, 403, { ok: false, error: "Only the reporting leader can send this notification." });
+  if (fieldString(incident, "status") !== "reported") return json(request, env, 409, { ok: false, error: "Only newly reported incidents can send this notification." });
+  if (fieldString(incident, "notificationState") === "sent") return json(request, env, 200, { ok: true, skipped: true });
+
+  const type = fieldString(incident, "type");
+  if (!EQUIPMENT_URGENT_TYPES.has(type)) return json(request, env, 409, { ok: false, error: "This equipment issue does not require an urgent email notification." });
+  const recipients = await equipmentIncidentRecipients(env, leader);
+  if (!recipients.length) return json(request, env, 503, { ok: false, error: "No active Quartermaster or Group Leader email recipients were found." });
+
+  const labels = { damaged: "Broken / damaged", lost: "Lost", missing: "Missing" };
+  const issueLabel = labels[type] || "Equipment issue";
+  const itemName = fieldString(incident, "itemName") || "Equipment";
+  const section = fieldString(incident, "section") || "Group";
+  const location = fieldString(incident, "itemLocation") || "Not recorded";
+  const description = fieldString(incident, "description") || "No description supplied";
+  const quantity = Math.max(1, Math.trunc(fieldNumber(incident, "quantity")));
+  const bodyHtml = `<table role="presentation" style="font-size:15px;line-height:1.6;border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0;font-weight:700">Issue</td><td>${escapeHtml(issueLabel)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Equipment</td><td>${escapeHtml(`${quantity} × ${itemName}`)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Section</td><td>${escapeHtml(section)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Storage location</td><td>${escapeHtml(location)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Details</td><td>${escapeHtml(description)}</td></tr></table>`;
+  await sendEmail(env, recipients, `Equipment issue – ${issueLabel} – ${quantity} × ${itemName}`, brandedEmail({
+    heading: `${issueLabel} equipment reported`,
+    intro: "An equipment issue has been reported and needs review by the Quartermaster / Bo'sun and Group Leader.",
+    bodyHtml,
+    actionLabel: "Review Equipment & Stores",
+    actionUrl: `${env.SITE_URL}/leader/equipment`
+  }));
+  return json(request, env, 200, { ok: true, sent: recipients.length });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
@@ -226,6 +297,7 @@ export default {
       if (path === "/event-notification") return await handleEventNotification(request, env, body);
       if (path === "/leader-communication") return await handleLeaderCommunication(request, env, body);
       if (path === "/event-consent-processed") return await handleEventConsentProcessed(request, env, body);
+      if (path === "/equipment-incident") return await handleEquipmentIncident(request, env, body);
       return json(request, env, 404, { ok: false, error: "Not found." });
     } catch (error) {
       console.error("Email worker error", error);

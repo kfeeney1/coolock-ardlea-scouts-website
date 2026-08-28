@@ -19,6 +19,7 @@ const item = {
   trackingMode: "quantity",
   totalQuantity: 10,
   checkedOutQuantity: 0,
+  unavailableQuantity: 0,
   location: "Main Store",
   condition: "good",
   notes: "",
@@ -36,7 +37,7 @@ function loan(uid, section = "Scouts") {
     expectedReturnDate: "2026-09-04",
     notes: "Weekly meeting",
     status: "open",
-    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 0 }],
+    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 0, incidentQuantity: 0 }],
     createdBy: uid,
     createdAt: serverTimestamp(),
     updatedBy: uid,
@@ -67,7 +68,7 @@ test("section leader can create and return a checkout for their section", async 
     updatedAt: serverTimestamp()
   }));
   await assertSucceeds(updateDoc(doc(db, "equipmentLoans/loan-1"), {
-    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 2 }],
+    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 2, incidentQuantity: 0 }],
     status: "returned",
     updatedBy: "scout-leader",
     updatedAt: serverTimestamp()
@@ -83,7 +84,7 @@ test("section leader cannot create or update another section checkout", async ()
   await assertFails(setDoc(doc(db, "equipmentLoans/new-cubs-loan"), loan("scout-leader", "Cubs")));
   await assertFails(updateDoc(doc(db, "equipmentLoans/cubs-loan"), {
     status: "returned",
-    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 2 }],
+    lines: [{ itemId: "tent", itemName: "4-person Tent", quantity: 2, returnedQuantity: 2, incidentQuantity: 0 }],
     updatedBy: "scout-leader",
     updatedAt: serverTimestamp()
   }));

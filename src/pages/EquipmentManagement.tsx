@@ -18,6 +18,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -31,6 +32,8 @@ import {
   updateEquipmentItem
 } from "../services/equipment";
 import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
+import { loadEquipmentIncidents } from "../services/equipmentIncidents";
+import type { EquipmentIncident } from "../services/equipmentIncidents";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { availableEquipmentQuantity } from "../services/equipmentLoanLogic";
@@ -59,6 +62,7 @@ export default function EquipmentManagement() {
   const canManage = canManageEquipment(adminProfile);
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
+  const [incidents, setIncidents] = useState<EquipmentIncident[]>([]);
   const [categories, setCategories] = useState<EquipmentOption[]>([]);
   const [locations, setLocations] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,14 +83,16 @@ export default function EquipmentManagement() {
     setLoading(true);
     setError("");
     try {
-      const [nextItems, nextLoans, nextCategories, nextLocations] = await Promise.all([
+      const [nextItems, nextLoans, nextIncidents, nextCategories, nextLocations] = await Promise.all([
         loadEquipmentItems(),
         loadEquipmentLoans(),
+        loadEquipmentIncidents(),
         loadEquipmentOptions("categories"),
         loadEquipmentOptions("locations")
       ]);
       setItems(nextItems);
       setLoans(nextLoans);
+      setIncidents(nextIncidents);
       setCategories(nextCategories);
       setLocations(nextLocations);
     } catch (loadError) {
@@ -143,7 +149,8 @@ export default function EquipmentManagement() {
     const name = normaliseEquipmentLabel(form.name);
     if (!name) return setError("Enter an equipment name.");
     if (!Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
-    if (editing && form.totalQuantity < editing.checkedOutQuantity) return setError(`At least ${editing.checkedOutQuantity} are currently checked out. Return stock before reducing the total below that number.`);
+    const committedQuantity = editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0;
+    if (editing && form.totalQuantity < committedQuantity) return setError(`At least ${committedQuantity} are currently checked out or unavailable. Resolve stock before reducing the total below that number.`);
     if (form.replacementValue !== null && (!Number.isFinite(form.replacementValue) || form.replacementValue < 0)) return setError("Replacement value cannot be negative.");
 
     setSaving(true);
@@ -223,10 +230,11 @@ export default function EquipmentManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
-      <LeaderPageHeader title="Equipment & Stores" description="Track stock, check equipment out to sections and record returns." />
-      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue and check equipment in or out for your assigned section. Stock records remain restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
+      <LeaderPageHeader title="Equipment & Stores" description="Track stock, section holdings, returns and broken, lost or missing equipment." />
+      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, and report issues from your section holdings. Stock records remain restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
@@ -255,12 +263,13 @@ export default function EquipmentManagement() {
                   <Chip label={`${item.totalQuantity} total`} color="primary" />
                   <Chip label={`${available} available`} color={available === 0 ? "warning" : "success"} variant="outlined" />
                   {item.checkedOutQuantity > 0 && <Chip label={`${item.checkedOutQuantity} checked out`} variant="outlined" />}
+                  {item.unavailableQuantity > 0 && <Chip label={`${item.unavailableQuantity} unavailable`} color="warning" />}
                   <Chip label={item.trackingMode === "individual" ? "Individually tracked" : "Quantity tracked"} variant="outlined" />
                   <Chip label={item.condition.replace("-", " ")} variant="outlined" />
                   {item.archived && <Chip label="Archived" />}
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
-                {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => openEdit(item)}>Edit</Button><Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && item.checkedOutQuantity > 0} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button></Stack>}
+                {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => openEdit(item)}>Edit</Button><Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button></Stack>}
               </Stack>
             </Paper>;
           })}
@@ -276,7 +285,7 @@ export default function EquipmentManagement() {
           <FormControl><InputLabel>Storage location</InputLabel><Select label="Storage location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select location</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.location === OTHER && <TextField label="New storage location" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
-          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing?.checkedOutQuantity ?? 0, step: 1 } }} value={form.totalQuantity} onChange={(event) => setForm({ ...form, totalQuantity: Number(event.target.value) })} helperText={editing?.checkedOutQuantity ? `${editing.checkedOutQuantity} currently checked out` : undefined} />
+          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0, step: 1 } }} value={form.totalQuantity} onChange={(event) => setForm({ ...form, totalQuantity: Number(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
           <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>
           <TextField label="Replacement value (€)" type="number" slotProps={{ htmlInput: { min: 0, step: "0.01" } }} value={form.replacementValue ?? ""} onChange={(event) => setForm({ ...form, replacementValue: event.target.value === "" ? null : Number(event.target.value) })} />
           <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />

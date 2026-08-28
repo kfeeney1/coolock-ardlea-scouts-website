@@ -88,6 +88,10 @@ export async function notifyEventConsentProcessed(eventId: string, memberId: str
     await post("/event-consent-processed", { eventId, memberId }, true);
 }
 
+export async function notifyEquipmentIncident(incidentId: string): Promise<void> {
+    await post("/equipment-incident", { incidentId }, true);
+}
+
 export type LeaderCommunicationResult = {
     ok: true;
     sent: number;
