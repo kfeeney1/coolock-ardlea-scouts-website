@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { browserSessionPersistence, connectAuthEmulator, getAuth, setPersistence } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
@@ -27,6 +27,12 @@ const app = initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Keep authentication for the lifetime of the browser session only. Closing the
+// browser clears the Firebase session, so the next browser launch requires login.
+void setPersistence(auth, browserSessionPersistence).catch((error) => {
+    console.error("Unable to configure session-only authentication:", error);
+});
 
 const firestoreEmulator = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST?.trim();
 if (firestoreEmulator) {
