@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Container, Stack } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import EventEditorDialog from "../components/admin/EventEditorDialog";
 import EventListPanel from "../components/admin/EventListPanel";
@@ -13,6 +14,8 @@ import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
 export default function EventsManagement() {
+    const [searchParams] = useSearchParams();
+    const requestedEventId = searchParams.get("event") ?? "";
     const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,6 +40,12 @@ export default function EventsManagement() {
             const [loadedEvents, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
             setEvents(loadedEvents);
             setMembers(loadedMembers);
+            const requestedEvent = requestedEventId ? loadedEvents.find((event) => event.id === requestedEventId) : null;
+            if (requestedEvent) {
+                setSearch(requestedEvent.title);
+                setSectionFilter("All Sections");
+                setStatusFilter("all");
+            }
         } catch (loadError) {
             console.error("Unable to load events:", loadError);
             setError("Unable to load events and activities.");
@@ -45,7 +54,7 @@ export default function EventsManagement() {
         }
     };
 
-    useEffect(() => { void load(); }, []);
+    useEffect(() => { void load(); }, [requestedEventId]);
 
     const visibleEvents = useMemo(() => filterEvents(events, search, sectionFilter, statusFilter), [events, search, sectionFilter, statusFilter]);
     const rosterMembers = useMemo(() => rosterEvent ? eventMembers(rosterEvent, members) : [], [members, rosterEvent]);

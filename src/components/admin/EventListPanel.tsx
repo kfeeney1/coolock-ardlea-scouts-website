@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { MemberRecord } from "../../services/memberAdmin";
 import type { EventRecord, EventStatus } from "../../services/eventAdmin";
 import { EVENT_SECTIONS, EVENT_STATUSES, eventCounts, eventStatusLabel } from "../../services/eventManagementLogic";
+import { badgeworkSourceHref } from "../../services/adventureSkillSourceContext";
 
 type Props = {
     events: EventRecord[];
@@ -63,6 +64,9 @@ export default function EventListPanel({ events, visibleEvents, members, loading
             {visibleEvents.map((event) => {
                 const summary = eventCounts(event, members);
                 const completed = event.status === "completed";
+                const attendingMemberIds = Object.entries(event.attendance).filter(([, status]) => status === "attending").map(([memberId]) => memberId);
+                const sourceType = event.eventType.toLowerCase().includes("activity") ? "activity" as const : "event" as const;
+                const badgeworkHref = badgeworkSourceHref({ sourceType, sourceId: event.id, memberIds: attendingMemberIds, returnTo: `/leader/events?event=${encodeURIComponent(event.id)}` });
                 return <Paper key={event.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`event-card-${event.id}`}>
                     <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, justifyContent: "space-between", gap: 2 }}>
                         <Box sx={{ flex: 1 }}>
@@ -80,6 +84,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                         </Box>
                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 150 } }}>
                             {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
+                            <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
                             <Button variant="outlined" color="secondary" onClick={() => onPrint(event)}>Report</Button><Button variant="outlined" color="secondary" onClick={() => onExport(event)}>Export CSV</Button><Button variant="outlined" color="secondary" disabled={completed} onClick={() => onEdit(event)}>Edit</Button><Button variant="contained" color={completed ? "secondary" : "success"} onClick={() => onRoster(event)}>{completed ? "View Attendance" : "Attendance"}</Button>
                         </Stack>
                     </Box>

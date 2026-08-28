@@ -19,6 +19,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { loadMembers, type MemberRecord } from "../services/memberAdmin";
@@ -29,10 +30,14 @@ import {
   type MemberAdventureProgress
 } from "../services/adventureSkillProgress.ts";
 import { requirementSelectionState, selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
+import { badgeworkSourceContextFromParams, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 
 export default function BadgeworkTracking() {
+  const [searchParams] = useSearchParams();
+  const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sourceSelectionApplied, setSourceSelectionApplied] = useState(false);
   const [skillId, setSkillId] = useState(adventureSkills[0]?.id ?? "");
   const [stageNumber, setStageNumber] = useState(1);
   const [section, setSection] = useState("all");
@@ -80,6 +85,13 @@ export default function BadgeworkTracking() {
   }, []);
 
   useEffect(() => {
+    if (!sourceContext || sourceSelectionApplied || activeMembers.length === 0) return;
+    const allowed = new Set(activeMembers.map((member) => member.id));
+    setSelectedIds(sourceContext.memberIds.filter((memberId) => allowed.has(memberId)));
+    setSourceSelectionApplied(true);
+  }, [activeMembers, sourceContext, sourceSelectionApplied]);
+
+  useEffect(() => {
     void refreshProgress(selectedIds).catch((loadError) => {
       console.error("Unable to load Adventure Skills progress:", loadError);
       setError("Unable to load Adventure Skills progress.");
@@ -104,13 +116,17 @@ export default function BadgeworkTracking() {
       : [...new Set([...current, ...visibleIds])]);
   };
 
+  const progressSource = sourceContext
+    ? { type: sourceContext.sourceType, id: sourceContext.sourceId }
+    : { type: "manual" as const };
+
   const updateRequirement = async (requirementId: string, completed: boolean) => {
     if (selectedIds.length === 0) return;
     setSaving(true);
     setError("");
     setMessage("");
     try {
-      await setRequirementCompletionForMembers(selectedIds, requirementId, completed);
+      await setRequirementCompletionForMembers(selectedIds, requirementId, completed, progressSource);
       await refreshProgress(selectedIds);
       setMessage(completed ? "Badgework point saved." : "Badgework point cleared.");
     } catch (saveError) {
@@ -127,7 +143,7 @@ export default function BadgeworkTracking() {
     setError("");
     setMessage("");
     try {
-      await completeStageForMembers(selectedIds, skill.id, stage.stage);
+      await completeStageForMembers(selectedIds, skill.id, stage.stage, progressSource);
       await refreshProgress(selectedIds);
       setMessage(`${skill.name} Stage ${stage.stage} completed for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
     } catch (saveError) {
@@ -149,6 +165,9 @@ export default function BadgeworkTracking() {
         description="Select one or more children, then record individual competency points or complete a full stage. Shared competencies automatically carry across linked Adventure Skills."
       />
 
+      {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>
+        Recording badgework from {sourceLabel(sourceContext.sourceType)}. Saved competency points keep this source link in the child&apos;s Adventure Skills progress.
+      </Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
