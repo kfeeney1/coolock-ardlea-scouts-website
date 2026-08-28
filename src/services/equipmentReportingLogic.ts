@@ -1,6 +1,3 @@
-import { csvCell } from "./reportingLogic.ts";
-import { isEquipmentReservationLoan } from "./equipmentProgrammeLogic.ts";
-
 export type EquipmentReportItem = {
   id: string;
   name: string;
@@ -52,10 +49,22 @@ export type EquipmentReportFilters = {
   toDate?: string;
 };
 
+const RESERVATION_PREFIX = "[equipment-reservation]";
 const available = (item: EquipmentReportItem) => Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
 const outstanding = (line: EquipmentReportLoan["lines"][number]) => Math.max(0, line.quantity - line.returnedQuantity - line.incidentQuantity);
 const dateValue = (value: Date | null) => value ? value.toISOString().slice(0, 10) : "";
 const money = (value: number | null) => value === null ? "" : value.toFixed(2);
+const isReservation = (loan: EquipmentReportLoan) => loan.notes.startsWith(RESERVATION_PREFIX);
+
+function safeSpreadsheetValue(value: string): string {
+  return /^[=+\-@]/.test(value.trimStart()) ? `'${value}` : value;
+}
+
+function csvCell(value: unknown): string {
+  const text = safeSpreadsheetValue(String(value ?? ""));
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 const row = (values: unknown[]) => values.map(csvCell).join(",");
 const csv = (header: string[], rows: unknown[][]) => [row(header), ...rows.map(row)].join("\r\n");
 
@@ -116,14 +125,14 @@ export function equipmentByCategoryCsv(items: EquipmentReportItem[], filters: Eq
 
 export function currentSectionHoldingsCsv(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): string {
   const rows = filterLoans(loans, filters)
-    .filter((loan) => loan.status === "open" && !isEquipmentReservationLoan(loan))
+    .filter((loan) => loan.status === "open" && !isReservation(loan))
     .flatMap((loan) => loan.lines.map((line) => [loan.section, line.itemName, outstanding(line), loan.expectedReturnDate, loan.id]).filter((entry) => Number(entry[2]) > 0));
   return csv(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
 }
 
 export function overdueEquipmentCsv(loans: EquipmentReportLoan[], today: string, filters: EquipmentReportFilters = {}): string {
   const rows = filterLoans(loans, filters)
-    .filter((loan) => loan.status === "open" && !isEquipmentReservationLoan(loan) && loan.expectedReturnDate < today)
+    .filter((loan) => loan.status === "open" && !isReservation(loan) && loan.expectedReturnDate < today)
     .flatMap((loan) => loan.lines.map((line) => [loan.section, line.itemName, outstanding(line), loan.expectedReturnDate, loan.id]).filter((entry) => Number(entry[2]) > 0));
   return csv(["Section", "Equipment", "Outstanding quantity", "Expected return", "Checkout ID"], rows);
 }
@@ -148,7 +157,7 @@ export function lossDamageHistoryCsv(incidents: EquipmentReportIncident[], filte
 
 export function equipmentUsageCsv(loans: EquipmentReportLoan[], filters: EquipmentReportFilters = {}): string {
   const totals = new Map<string, { itemName: string; issued: number; returned: number; incident: number; transactions: number }>();
-  for (const loan of filterLoans(loans, filters).filter((entry) => !isEquipmentReservationLoan(entry))) {
+  for (const loan of filterLoans(loans, filters).filter((entry) => !isReservation(entry))) {
     for (const line of loan.lines) {
       if (filters.itemId && filters.itemId !== "all" && line.itemId !== filters.itemId) continue;
       const current = totals.get(line.itemId) ?? { itemName: line.itemName, issued: 0, returned: 0, incident: 0, transactions: 0 };
