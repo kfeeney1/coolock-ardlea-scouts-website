@@ -18,6 +18,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -72,6 +73,7 @@ export default function EquipmentManagement() {
   const [locationFilter, setLocationFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
+  const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
   const [form, setForm] = useState<EquipmentItemInput>(EMPTY_FORM);
   const [newCategory, setNewCategory] = useState("");
   const [newLocation, setNewLocation] = useState("");
@@ -95,6 +97,7 @@ export default function EquipmentManagement() {
       setIncidents(nextIncidents);
       setCategories(nextCategories);
       setLocations(nextLocations);
+      setHistoryItem((current) => current ? nextItems.find((item) => item.id === current.id) ?? current : null);
     } catch (loadError) {
       console.error("Unable to load equipment:", loadError);
       setError("Unable to load Equipment & Stores right now.");
@@ -230,8 +233,8 @@ export default function EquipmentManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
-      <LeaderPageHeader title="Equipment & Stores" description="Track stock, section holdings, returns and broken, lost or missing equipment." />
-      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, and report issues from your section holdings. Stock records remain restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
+      <LeaderPageHeader title="Equipment & Stores" description="Track stock, section holdings, returns, equipment history and broken, lost or missing equipment." />
+      {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
@@ -269,7 +272,11 @@ export default function EquipmentManagement() {
                   {item.archived && <Chip label="Archived" />}
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
-                {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => openEdit(item)}>Edit</Button><Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button></Stack>}
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                  <Button size="small" onClick={() => setHistoryItem(item)}>History{canManage && !item.archived && available > 0 ? " / move" : ""}</Button>
+                  {canManage && <Button size="small" onClick={() => openEdit(item)}>Edit</Button>}
+                  {canManage && <Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button>}
+                </Stack>
               </Stack>
             </Paper>;
           })}
@@ -293,6 +300,7 @@ export default function EquipmentManagement() {
         <DialogActions><Button onClick={() => setEditing(undefined)} disabled={saving}>Cancel</Button><Button variant="contained" color="success" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save equipment"}</Button></DialogActions>
       </Dialog>
 
+      <EquipmentHistoryDialog item={historyItem} locations={locationNames} canManage={canManage} onClose={() => setHistoryItem(null)} onChanged={refresh} onError={setError} />
       {optionManager("locations", locations, manageLocationsOpen, () => setManageLocationsOpen(false))}
       {optionManager("categories", categories, manageCategoriesOpen, () => setManageCategoriesOpen(false))}
     </Container>
