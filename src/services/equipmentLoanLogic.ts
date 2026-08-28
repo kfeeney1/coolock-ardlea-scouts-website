@@ -10,7 +10,7 @@ export type EquipmentAvailabilityItem = {
   name: string;
   totalQuantity: number;
   checkedOutQuantity: number;
-  unavailableQuantity: number;
+  unavailableQuantity?: number;
   archived: boolean;
 };
 
@@ -19,7 +19,7 @@ export type EquipmentLoanLine = {
   itemName: string;
   quantity: number;
   returnedQuantity: number;
-  incidentQuantity: number;
+  incidentQuantity?: number;
 };
 
 function isQuartermasterRole(role: string): boolean {
@@ -42,11 +42,11 @@ function canManageEquipment(profile: EquipmentLoanProfile): boolean {
 }
 
 export function availableEquipmentQuantity(item: Pick<EquipmentAvailabilityItem, "totalQuantity" | "checkedOutQuantity" | "unavailableQuantity">): number {
-  return Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
+  return Math.max(0, item.totalQuantity - item.checkedOutQuantity - (item.unavailableQuantity ?? 0));
 }
 
 export function outstandingLoanQuantity(line: EquipmentLoanLine): number {
-  return Math.max(0, line.quantity - line.returnedQuantity - line.incidentQuantity);
+  return Math.max(0, line.quantity - line.returnedQuantity - (line.incidentQuantity ?? 0));
 }
 
 export function canUseEquipmentForSection(profile: EquipmentLoanProfile | null, section: string): boolean {
