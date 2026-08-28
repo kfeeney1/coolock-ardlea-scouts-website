@@ -2,10 +2,16 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 
 import { auth, db } from "../firebase";
 import type { EquipmentLoan } from "./equipmentLoans";
 import { checkoutEquipment } from "./equipmentLoans";
-import { outstandingLoanQuantity } from "./equipmentLoanLogic";
+import {
+  equipmentProgrammeStatus,
+  outstandingRequirementQuantity,
+  type EquipmentProgrammeStatus,
+} from "./equipmentProgrammeLogic";
+
+export { equipmentProgrammeStatus, outstandingRequirementQuantity };
+export type { EquipmentProgrammeStatus };
 
 export type EquipmentProgrammeSourceType = "weeklyMeeting" | "event" | "activity";
-export type EquipmentProgrammeStatus = "planned" | "checked-out" | "partially-returned" | "returned";
 export type EquipmentRequirementLine = { itemId: string; itemName: string; quantity: number };
 export type EquipmentProgrammeRequirement = {
   id: string;
@@ -55,15 +61,6 @@ export async function saveEquipmentRequirement(input: Omit<EquipmentProgrammeReq
   await setDoc(ref, { ...input, lines, loanId: existingLoanId, updatedBy: userId, updatedAt: serverTimestamp(), createdBy: userId, createdAt: serverTimestamp() }, { merge: true });
 }
 
-export function equipmentProgrammeStatus(requirement: EquipmentProgrammeRequirement | null, loans: EquipmentLoan[]): EquipmentProgrammeStatus {
-  if (!requirement?.loanId) return "planned";
-  const loan = loans.find((value) => value.id === requirement.loanId);
-  if (!loan) return "planned";
-  if (loan.status === "returned") return "returned";
-  const returned = loan.lines.reduce((sum, line) => sum + line.returnedQuantity + line.incidentQuantity, 0);
-  return returned > 0 ? "partially-returned" : "checked-out";
-}
-
 export async function checkoutEquipmentRequirement(requirement: EquipmentProgrammeRequirement, expectedReturnDate: string): Promise<string> {
   if (!requirement.lines.length) throw new Error("Add planned equipment before creating a checkout.");
   const loanId = await checkoutEquipment({ section: requirement.section, expectedReturnDate, notes: `${requirement.sourceLabel} · planned equipment`, lines: requirement.lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })) });
@@ -71,7 +68,6 @@ export async function checkoutEquipmentRequirement(requirement: EquipmentProgram
   return loanId;
 }
 
-export function outstandingRequirementQuantity(requirement: EquipmentProgrammeRequirement, loans: EquipmentLoan[]): number {
-  const loan = loans.find((value) => value.id === requirement.loanId);
-  return loan ? loan.lines.reduce((sum, line) => sum + outstandingLoanQuantity(line), 0) : 0;
+export function getEquipmentProgrammeStatus(requirement: EquipmentProgrammeRequirement | null, loans: EquipmentLoan[]): EquipmentProgrammeStatus {
+  return equipmentProgrammeStatus(requirement, loans);
 }
