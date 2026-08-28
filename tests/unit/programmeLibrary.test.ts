@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   cleanProgrammeLibraryInput,
+  filterProgrammeLibrary,
   isProgrammeLibraryItemForSection,
   programmeLibraryItemToActivity,
   programmeLibraryItemToBadgework,
@@ -64,4 +65,25 @@ test("keeps programme library items section-scoped and sorted", () => {
     { ...base, id: "c", kind: "activity", name: "Capture the Flag" }
   ]);
   assert.deepEqual(sorted.map((item) => item.name), ["Capture the Flag", "Relay", "Pioneering"]);
+});
+
+test("filters programme library across names, notes, equipment and leaders", () => {
+  const items = [
+    base,
+    { ...base, id: "two", name: "Relay", leader: "Sam Scouter", equipment: "Batons", durationMinutes: 10 },
+    { ...base, id: "three", kind: "badgework" as const, name: "Pioneering", notes: "Practice square lashings", equipment: "Rope", durationMinutes: 40 }
+  ];
+  assert.deepEqual(filterProgrammeLibrary(items, { search: "rope" }).map((item) => item.id), ["three"]);
+  assert.deepEqual(filterProgrammeLibrary(items, { search: "sam" }).map((item) => item.id), ["two"]);
+});
+
+test("filters programme library by type and useful duration bands", () => {
+  const items = [
+    { ...base, id: "quick", name: "Quick Game", durationMinutes: 15 },
+    { ...base, id: "standard", name: "Standard Game", durationMinutes: 30 },
+    { ...base, id: "long", kind: "badgework" as const, name: "Long Badge", durationMinutes: 45 }
+  ];
+  assert.deepEqual(filterProgrammeLibrary(items, { duration: "quick" }).map((item) => item.id), ["quick"]);
+  assert.deepEqual(filterProgrammeLibrary(items, { duration: "standard" }).map((item) => item.id), ["standard"]);
+  assert.deepEqual(filterProgrammeLibrary(items, { duration: "long", kind: "badgework" }).map((item) => item.id), ["long"]);
 });
