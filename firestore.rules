@@ -547,19 +547,37 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && request.resource.data.notificationState in ["pending", "sent"]
         && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+        && request.resource.data.resolutionType == ""
+        && request.resource.data.resolutionNotes == ""
+        && request.resource.data.resolvedBy == ""
+        && request.resource.data.resolvedAt == null
         && (canManageEquipment()
           || (request.resource.data.loanId != ""
             && hasSection(request.resource.data.section)
             && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
             && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section))
-        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt"]);
-      allow update: if isActiveLeader()
-        && resource.data.reportedBy == request.auth.uid
-        && request.resource.data.reportedBy == resource.data.reportedBy
-        && request.resource.data.status == resource.data.status
-        && request.resource.data.notificationState in ["sent", "failed"]
-        && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]);
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt"]);
+      allow update: if (isActiveLeader()
+          && resource.data.reportedBy == request.auth.uid
+          && request.resource.data.reportedBy == resource.data.reportedBy
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.notificationState in ["sent", "failed"]
+          && (request.resource.data.notificationSentAt == null || request.resource.data.notificationSentAt == request.time)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notificationState", "notificationSentAt"]))
+        || (canManageEquipment()
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && ((resource.data.status == "reported"
+              && request.resource.data.status == "investigating"
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "updatedBy", "updatedAt"]))
+            || (resource.data.status in ["reported", "investigating"]
+              && request.resource.data.status == "resolved"
+              && request.resource.data.resolutionType in ["found-returned", "repaired", "replaced", "written-off", "no-action"]
+              && request.resource.data.resolutionNotes is string
+              && (request.resource.data.resolutionType != "written-off" || request.resource.data.resolutionNotes != "")
+              && request.resource.data.resolvedBy == request.auth.uid
+              && request.resource.data.resolvedAt == request.time
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "updatedBy", "updatedAt"]))));
       allow delete: if false;
     }
 
