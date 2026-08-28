@@ -48,13 +48,31 @@ test("parent summaries show awarded stages independently", () => {
   assert.equal(summary.awardedStages, 1);
 });
 
-test("shared Buddy System credit is reflected across linked skills", () => {
+test("parent stage detail exposes competency statements with completed and outstanding states", () => {
+  const campingStage1 = adventureSkillsById.get("camping")!.stages.find((stage) => stage.stage === 1)!;
+  const completedId = campingStage1.requirements[0].id;
+  const summary = parentAdventureSkillSummaries(progress([completedId]))
+    .find((skill) => skill.skillId === "camping")!;
+  const stage = summary.stages[0];
+
+  assert.equal(stage.requirements.length, campingStage1.requirements.length);
+  assert.deepEqual(
+    stage.requirements.map((requirement) => requirement.statement),
+    campingStage1.requirements.map((requirement) => requirement.statement)
+  );
+  assert.equal(stage.requirements.find((requirement) => requirement.requirementId === completedId)?.completed, true);
+  assert.equal(stage.requirements.some((requirement) => !requirement.completed), true);
+});
+
+test("shared Buddy System credit is reflected in parent competency detail across linked skills", () => {
   const summaries = parentAdventureSkillSummaries(progress(["camping-stage-1-requirement-06"]));
   const camping = summaries.find((skill) => skill.skillId === "camping")!;
   const hillwalking = summaries.find((skill) => skill.skillId === "hillwalking")!;
 
   assert.equal(camping.stages[0].completedRequirements >= 1, true);
   assert.equal(hillwalking.stages[0].completedRequirements >= 1, true);
+  assert.equal(camping.stages[0].requirements.find((requirement) => requirement.requirementId === "camping-stage-1-requirement-06")?.completed, true);
+  assert.equal(hillwalking.stages[0].requirements.some((requirement) => requirement.completed), true);
 });
 
 test("Swimming parent progress exposes six stages only", () => {

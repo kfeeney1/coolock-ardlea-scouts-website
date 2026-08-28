@@ -2,12 +2,19 @@ import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { isStageRequirementComplete } from "./adventureSkillProgressLogic.ts";
 import type { MemberAdventureProgress } from "./adventureSkillProgress.ts";
 
+export type ParentAdventureRequirementSummary = {
+  requirementId: string;
+  statement: string;
+  completed: boolean;
+};
+
 export type ParentAdventureStageSummary = {
   stage: number;
   completedRequirements: number;
   totalRequirements: number;
   requirementsComplete: boolean;
   awarded: boolean;
+  requirements: ParentAdventureRequirementSummary[];
 };
 
 export type ParentAdventureSkillSummary = {
@@ -27,16 +34,20 @@ export function parentAdventureSkillSummaries(progress: MemberAdventureProgress)
 
   return adventureSkills.map((skill) => {
     const stages = skill.stages.map((stage) => {
-      const completedRequirements = stage.requirements.filter((requirement) =>
-        isStageRequirementComplete(completedIds, requirement.id)
-      ).length;
-      const totalRequirements = stage.requirements.length;
+      const requirements = stage.requirements.map((requirement) => ({
+        requirementId: requirement.id,
+        statement: requirement.statement,
+        completed: isStageRequirementComplete(completedIds, requirement.id)
+      }));
+      const completedRequirements = requirements.filter((requirement) => requirement.completed).length;
+      const totalRequirements = requirements.length;
       return {
         stage: stage.stage,
         completedRequirements,
         totalRequirements,
         requirementsComplete: totalRequirements > 0 && completedRequirements === totalRequirements,
-        awarded: awarded.has(`${skill.id}-stage-${stage.stage}`)
+        awarded: awarded.has(`${skill.id}-stage-${stage.stage}`),
+        requirements
       };
     });
 
