@@ -72,6 +72,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  const incidentName = `TEST Incident Tent ${testInfo.retry}`;
   let notificationCalls = 0;
   await page.route("**/equipment-incident", async (route) => {
     notificationCalls += 1;
@@ -82,21 +83,21 @@ test("missing checkout equipment can be investigated and resolved back into stoc
 
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
-  await addDialog.getByLabel("Equipment name").fill("TEST Incident Tent");
+  await addDialog.getByLabel("Equipment name").fill(incidentName);
   const addComboboxes = addDialog.getByRole("combobox");
   await addComboboxes.nth(0).click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addComboboxes.nth(1).click();
-  await page.getByRole("option", { name: "Other…" }).click();
-  await addDialog.getByLabel("New storage location").fill("TEST Incident Store");
+  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
   await addDialog.getByLabel("Total quantity").fill("3");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
+  await expect(page.getByText(incidentName, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Check out equipment" }).click();
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.getByText("TEST Incident Tent", { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const checkoutRow = checkoutDialog.getByText(incidentName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await checkoutRow.getByLabel("Qty").fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
 
@@ -104,16 +105,16 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
   const incidentComboboxes = incidentDialog.getByRole("combobox");
   await incidentComboboxes.nth(0).click();
-  await page.getByRole("option", { name: /Scouts checkout · TEST Incident Tent · 2 out/ }).click();
+  await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${incidentName} · 2 out`) }).click();
   await incidentComboboxes.nth(1).click();
   await page.getByRole("option", { name: "Missing" }).click();
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill("One tent was not returned with the rest of the section equipment.");
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
 
-  const incidentCard = page.getByText("1 × TEST Incident Tent", { exact: false }).first().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const incidentCard = page.getByText(`1 × ${incidentName}`, { exact: false }).first().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(incidentCard).toBeVisible();
-  const inventoryCard = page.getByText("TEST Incident Tent", { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const inventoryCard = page.getByText(incidentName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
@@ -124,13 +125,12 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await incidentCard.getByRole("button", { name: "Resolve" }).click();
   const resolveDialog = page.getByRole("dialog", { name: "Resolve equipment issue" });
   await expect(resolveDialog).toBeVisible();
-  await resolveDialog.getByLabel("Resolution").click();
-  await page.getByRole("option", { name: "Found / returned" }).click();
+  await expect(resolveDialog.getByLabel("Resolution")).toHaveText(/Found \/ returned/);
   await resolveDialog.getByLabel("Resolution notes").fill("Found in the trailer after the return was checked.");
   await resolveDialog.getByRole("button", { name: "Confirm resolution" }).click();
 
-  await expect(page.getByText("No open equipment issues in your scope.")).toBeVisible();
-  const resolvedInventoryCard = page.getByText("TEST Incident Tent", { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await expect(page.getByText(`1 × ${incidentName}`, { exact: false })).toHaveCount(0);
+  const resolvedInventoryCard = page.getByText(incidentName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(resolvedInventoryCard.getByText("2 available", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 unavailable", { exact: true })).toHaveCount(0);
