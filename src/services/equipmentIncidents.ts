@@ -10,6 +10,7 @@ import {
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import { notifyEquipmentIncident } from "./emailNotifications";
+import { recordEquipmentHistory } from "./equipmentHistory";
 import type {
   EquipmentIncidentResolution,
   EquipmentIncidentStatus,
@@ -126,12 +127,14 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
   const incidentRef = doc(collection(db, "equipmentIncidents"));
   const itemRef = doc(db, "equipmentItems", request.itemId);
   let itemName = "Equipment";
+  let itemLocation = "";
 
   await runTransaction(db, async (transaction) => {
     const itemSnapshot = await transaction.get(itemRef);
     if (!itemSnapshot.exists()) throw new Error("That equipment item no longer exists.");
     const itemData = itemSnapshot.data();
     itemName = text(itemData.name) || "Equipment";
+    itemLocation = text(itemData.location);
     const totalQuantity = integer(itemData.totalQuantity);
     const checkedOutQuantity = integer(itemData.checkedOutQuantity);
     const unavailableQuantity = integer(itemData.unavailableQuantity);
@@ -193,7 +196,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
       itemId: request.itemId,
       itemName,
       itemCategory: text(itemData.category),
-      itemLocation: text(itemData.location),
+      itemLocation,
       quantity: request.quantity,
       type: request.type,
       status: "reported",
@@ -213,6 +216,18 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
     });
   });
 
+  await recordEquipmentHistory({
+    itemId: request.itemId,
+    itemName,
+    type: "incident-reported",
+    quantity: request.quantity,
+    section,
+    fromLocation: loanId ? section : itemLocation,
+    toLocation: "Unavailable",
+    details: `Reported ${request.quantity} × ${itemName} as ${request.type} for ${section}: ${description}`,
+    sourceId: incidentRef.id,
+    linkedItemId: ""
+  });
   await recordAuditEvent({
     category: "equipment",
     action: `incident-${request.type}`,
@@ -232,6 +247,18 @@ export async function startEquipmentIncidentInvestigation(incident: EquipmentInc
     status: "investigating",
     updatedBy: uid,
     updatedAt: serverTimestamp()
+  });
+  await recordEquipmentHistory({
+    itemId: incident.itemId,
+    itemName: incident.itemName,
+    type: "incident-investigating",
+    quantity: incident.quantity,
+    section: incident.section,
+    fromLocation: incident.itemLocation,
+    toLocation: "Unavailable",
+    details: `Started investigating ${incident.quantity} × ${incident.itemName} for ${incident.section}.`,
+    sourceId: incident.id,
+    linkedItemId: ""
   });
   await recordAuditEvent({
     category: "equipment",
@@ -290,6 +317,18 @@ export async function resolveEquipmentIncident(
     });
   });
 
+  await recordEquipmentHistory({
+    itemId: incident.itemId,
+    itemName: incident.itemName,
+    type: "incident-resolved",
+    quantity: incident.quantity,
+    section: incident.section,
+    fromLocation: "Unavailable",
+    toLocation: resolution === "written-off" ? "Written off" : incident.itemLocation,
+    details: `Resolved ${incident.quantity} × ${incident.itemName} as ${incidentResolutionLabel(resolution)} for ${incident.section}${safeNotes ? `: ${safeNotes}` : "."}`,
+    sourceId: incident.id,
+    linkedItemId: ""
+  });
   await recordAuditEvent({
     category: "equipment",
     action: `incident-resolved-${resolution}`,
