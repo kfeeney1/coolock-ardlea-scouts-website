@@ -7,7 +7,7 @@ export type EquipmentProgrammeRequirementLike = {
 export type EquipmentProgrammeLoanLineLike = {
   quantity: number;
   returnedQuantity: number;
-  incidentQuantity: number;
+  incidentQuantity?: number;
 };
 
 export type EquipmentProgrammeLoanLike = {
@@ -15,6 +15,10 @@ export type EquipmentProgrammeLoanLike = {
   status: "open" | "returned";
   lines: EquipmentProgrammeLoanLineLike[];
 };
+
+function incidentQuantity(line: EquipmentProgrammeLoanLineLike): number {
+  return line.incidentQuantity ?? 0;
+}
 
 export function equipmentProgrammeStatus(
   requirement: EquipmentProgrammeRequirementLike | null,
@@ -24,7 +28,7 @@ export function equipmentProgrammeStatus(
   const loan = loans.find((value) => value.id === requirement.loanId);
   if (!loan) return "planned";
   if (loan.status === "returned") return "returned";
-  const returned = loan.lines.reduce((sum, line) => sum + line.returnedQuantity + line.incidentQuantity, 0);
+  const returned = loan.lines.reduce((sum, line) => sum + line.returnedQuantity + incidentQuantity(line), 0);
   return returned > 0 ? "partially-returned" : "checked-out";
 }
 
@@ -35,7 +39,7 @@ export function outstandingRequirementQuantity(
   const loan = loans.find((value) => value.id === requirement.loanId);
   if (!loan) return 0;
   return loan.lines.reduce(
-    (sum, line) => sum + Math.max(0, line.quantity - line.returnedQuantity - line.incidentQuantity),
+    (sum, line) => sum + Math.max(0, line.quantity - line.returnedQuantity - incidentQuantity(line)),
     0,
   );
 }
