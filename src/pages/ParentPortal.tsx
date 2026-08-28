@@ -16,6 +16,7 @@ import { Link, useLocation } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSkillsSection";
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
@@ -178,7 +179,7 @@ export default function ParentPortal() {
             <LeaderPageHeader
                 title="Parent Portal"
                 description={account
-                    ? `Manage parent access for ${account.displayName || account.email}, including upcoming event consent and linked medical forms.`
+                    ? `Manage parent access for ${account.displayName || account.email}, including Adventure Skills progress, upcoming event consent and linked medical forms.`
                     : "Set up and manage parent access using the same account you use for Leader Dashboard."}
                 actions={
                     account ? (
@@ -263,7 +264,12 @@ export default function ParentPortal() {
 
                                 <ParentThingsToDo memberIds={account.memberIds} sections={account.linkedSections} />
 
-                                <Box id="parent-event-consent" sx={{ scrollMarginTop: 24 }}>
+                                <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}>
+                                    <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography>
+                                    <ParentAdventureSkillsSection memberIds={account.memberIds} />
+                                </Box>
+
+                                <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}>
                                     <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography>
                                     <ParentEventConsentSection sections={account.linkedSections} />
                                 </Box>
@@ -285,7 +291,7 @@ export default function ParentPortal() {
             <Container maxWidth="sm">
                 <Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}>
                     <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to manage consent and medical information for children linked to your parent account.</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to view Adventure Skills progress and manage consent and medical information for children linked to your parent account.</Typography>
                     <Alert severity="info" sx={{ mt: 2, mb: 3 }}>Already a leader? Do not register again. Sign in here using the same email and password as Leader Login.</Alert>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
