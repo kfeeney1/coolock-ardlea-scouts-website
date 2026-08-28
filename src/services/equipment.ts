@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import { recordEquipmentHistory } from "./equipmentHistory";
 import { normaliseEquipmentLabel } from "./equipmentLogic";
 import type { EquipmentCondition, EquipmentTrackingMode } from "./equipmentLogic";
 
@@ -138,6 +139,18 @@ export async function createEquipmentItem(input: EquipmentItemInput): Promise<st
     updatedAt: serverTimestamp()
   };
   const result = await addDoc(collection(db, "equipmentItems"), payload);
+  await recordEquipmentHistory({
+    itemId: result.id,
+    itemName: payload.name,
+    type: "item-created",
+    quantity: payload.totalQuantity,
+    section: "Group",
+    fromLocation: "",
+    toLocation: payload.location,
+    details: `Added ${payload.totalQuantity} × ${payload.name} to Equipment & Stores at ${payload.location}.`,
+    sourceId: result.id,
+    linkedItemId: ""
+  });
   await recordAuditEvent({
     category: "equipment",
     action: "item-created",
@@ -160,6 +173,18 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
     updatedBy: uid,
     updatedAt: serverTimestamp()
   });
+  await recordEquipmentHistory({
+    itemId,
+    itemName: input.name,
+    type: "item-updated",
+    quantity: input.totalQuantity,
+    section: "Group",
+    fromLocation: input.location,
+    toLocation: input.location,
+    details: `Updated inventory details for ${input.name}; total stock is ${input.totalQuantity}.`,
+    sourceId: itemId,
+    linkedItemId: ""
+  });
   await recordAuditEvent({
     category: "equipment",
     action: "item-updated",
@@ -180,6 +205,18 @@ export async function setEquipmentArchived(item: EquipmentItem, archived: boolea
     updatedBy: uid,
     updatedAt: serverTimestamp()
   }, { merge: true });
+  await recordEquipmentHistory({
+    itemId: item.id,
+    itemName: item.name,
+    type: archived ? "item-archived" : "item-restored",
+    quantity: item.totalQuantity,
+    section: "Group",
+    fromLocation: item.location,
+    toLocation: item.location,
+    details: `${archived ? "Archived" : "Restored"} equipment item ${item.name}.`,
+    sourceId: item.id,
+    linkedItemId: ""
+  });
   await recordAuditEvent({
     category: "equipment",
     action: archived ? "item-archived" : "item-restored",
