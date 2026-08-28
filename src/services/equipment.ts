@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
@@ -164,11 +165,19 @@ export async function createEquipmentItem(input: EquipmentItemInput): Promise<st
 
 export async function updateEquipmentItem(itemId: string, input: EquipmentItemInput): Promise<void> {
   const uid = currentUid();
-  await updateDoc(doc(db, "equipmentItems", itemId), {
+  const itemRef = doc(db, "equipmentItems", itemId);
+  const current = await getDoc(itemRef);
+  if (!current.exists()) throw new Error("That equipment item no longer exists.");
+  const currentLocation = typeof current.data().location === "string" ? normaliseEquipmentLabel(current.data().location) : "";
+  const nextLocation = normaliseEquipmentLabel(input.location);
+  if (currentLocation.toLowerCase() !== nextLocation.toLowerCase()) {
+    throw new Error("Use History / move to change an equipment storage location so the stock movement is recorded correctly.");
+  }
+  await updateDoc(itemRef, {
     ...input,
     name: normaliseEquipmentLabel(input.name),
     category: normaliseEquipmentLabel(input.category),
-    location: normaliseEquipmentLabel(input.location),
+    location: currentLocation,
     notes: input.notes.trim(),
     updatedBy: uid,
     updatedAt: serverTimestamp()
@@ -179,8 +188,8 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
     type: "item-updated",
     quantity: input.totalQuantity,
     section: "Group",
-    fromLocation: input.location,
-    toLocation: input.location,
+    fromLocation: currentLocation,
+    toLocation: currentLocation,
     details: `Updated inventory details for ${input.name}; total stock is ${input.totalQuantity}.`,
     sourceId: itemId,
     linkedItemId: ""
