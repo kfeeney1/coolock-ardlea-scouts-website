@@ -87,7 +87,8 @@ test("missing checkout equipment becomes unavailable and triggers the incident e
   await addComboboxes.nth(0).click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addComboboxes.nth(1).click();
-  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  await page.getByRole("option", { name: "Other…" }).click();
+  await addDialog.getByLabel("New storage location").fill("TEST Incident Store");
   await addDialog.getByLabel("Total quantity").fill("3");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
 
