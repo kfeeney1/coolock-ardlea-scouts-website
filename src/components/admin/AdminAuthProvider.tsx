@@ -26,6 +26,7 @@ import {
     loadSessionSettings
 } from "../../services/siteSettings";
 import type { SessionSettings } from "../../services/siteSettings";
+import { normalizeThemePreference, type ThemeName } from "../../theme/themePreferences";
 
 export type SystemRole = "super-admin" | "admin" | "leader";
 
@@ -36,6 +37,7 @@ export type AdminProfile = {
     role: SystemRole;
     sections: string[];
     scoutingRole: string;
+    uiTheme: ThemeName;
 };
 
 type AdminAuthContextValue = {
@@ -77,7 +79,8 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
         displayName: typeof data.displayName === "string" ? data.displayName : user.email ?? "Leader",
         role,
         sections,
-        scoutingRole: typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : ""
+        scoutingRole: typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : "",
+        uiTheme: normalizeThemePreference(data.uiTheme)
     };
 }
 
