@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webkitCriticalPath = /webkit-critical-path\.spec\.ts/;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -16,7 +18,12 @@ export default defineConfig({
     video: "retain-on-failure"
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-chromium", use: { ...devices["Pixel 7"] } }
+    { name: "chromium", testIgnore: webkitCriticalPath, use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile-chromium", testIgnore: webkitCriticalPath, use: { ...devices["Pixel 7"] } },
+    {
+      name: "webkit-critical",
+      testMatch: webkitCriticalPath,
+      use: { ...devices["iPhone 15"] }
+    }
   ]
 });
