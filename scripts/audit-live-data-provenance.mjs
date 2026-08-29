@@ -26,6 +26,7 @@ const EXPECTED_COLLECTIONS = new Set([
   "joinApplications",
   "members",
   "memberHistory",
+  "memberAdventureSkillProgress",
   "events",
   "publicEvents",
   "eventConsentLinks",
