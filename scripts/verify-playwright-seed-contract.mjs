@@ -49,14 +49,25 @@ for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) if (!week
 if (!weeklySeed.includes("parent-safe programme projections")) problems.push(`${weeklySeedPath} must document its parent-safe weekly programme projection contract`);
 for (const signature of ["1, 1]","2, 2]","3, 1]","2, 0]","1, 3]"]) if (!weeklySeed.includes(signature)) problems.push(`${weeklySeedPath} must retain varied activity/badgework counts including ${signature}`);
 
-// Equipment regression tests deliberately create transient stock and transactions through the UI.
-// Keeping equipment out of the canonical persistence seed prevents test-only stock, loans,
-// incidents, history and programme allocations becoming permanent fixture dependencies.
-const equipmentCollections = ["equipmentItems", "equipmentLoans", "equipmentIncidents", "equipmentHistory", "equipmentProgrammeRequirements"];
-for (const collectionName of equipmentCollections) {
+// Keep a small visible Equipment & Stores catalogue in the deterministic seed so manual,
+// mobile and reporting checks have meaningful inventory immediately after seeding. Transactional
+// state remains test-owned: no seeded loans, incidents, history rows or programme allocations.
+const requiredEquipmentIds = [
+  "TEST_equipment_tents",
+  "TEST_equipment_stoves",
+  "TEST_equipment_ropes",
+  "TEST_equipment_compasses",
+  "TEST_equipment_first_aid",
+  "TEST_equipment_tables"
+];
+if (!weeklySeed.includes('db.collection("equipmentItems")')) problems.push(`${weeklySeedPath} must seed the canonical Equipment & Stores catalogue`);
+for (const id of requiredEquipmentIds) if (!weeklySeed.includes(`id: \"${id}\"`)) problems.push(`${weeklySeedPath} is missing canonical equipment fixture ${id}`);
+if (!weeklySeed.includes("checkedOutQuantity: 0")) problems.push(`${weeklySeedPath} equipment fixtures must begin with no allocated stock`);
+if (!weeklySeed.includes("unavailableQuantity: 0")) problems.push(`${weeklySeedPath} equipment fixtures must begin with no unavailable stock`);
+for (const collectionName of ["equipmentLoans", "equipmentIncidents", "equipmentHistory", "equipmentProgrammeRequirements"]) {
   const collectionReference = `db.collection(\"${collectionName}\")`;
-  if (weeklySeed.includes(collectionReference)) problems.push(`${weeklySeedPath} must not seed ${collectionName}; equipment E2E data must be created transiently by the tests that use it`);
+  if (weeklySeed.includes(collectionReference)) problems.push(`${weeklySeedPath} must not seed ${collectionName}; transactional equipment E2E data must remain transient`);
 }
 
 if (problems.length) { console.error("Playwright seed contract failed:"); for (const problem of problems) console.error(`- ${problem}`); process.exit(1); }
-console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, ${membersPerSection} members per section, stable varied weekly planner history, parent-safe projections, and no permanent equipment fixtures.`);
+console.log(`Playwright seed contract verified: ${seededEmails.size} canonical accounts, ${e2eFiles.length} specs, ${membersPerSection} members per section, stable varied weekly planner history, parent-safe projections, ${requiredEquipmentIds.length} allocation-free equipment fixtures and no persistent equipment transactions.`);
