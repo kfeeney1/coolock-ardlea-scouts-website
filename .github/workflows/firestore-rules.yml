@@ -7,6 +7,9 @@ on:
       - "firestore.rules"
       - "firebase.json"
       - "tests/firestore/**"
+      - "src/services/**"
+      - "src/firebase.ts"
+      - "src/components/admin/AdminAuthProvider.tsx"
       - ".github/workflows/firestore-rules.yml"
   push:
     branches: [main]
