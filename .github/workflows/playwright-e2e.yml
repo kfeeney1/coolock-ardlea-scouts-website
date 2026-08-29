@@ -39,7 +39,7 @@ jobs:
       E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
       E2E_ADMIN_EMAIL: test.webadmin@example.com
       E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
-      PLAYWRIGHT_TEST_VERSION: "1.62.1"
+      PLAYWRIGHT_RUNNER_VERSION: "1.62.1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
 
       - name: Install pinned Playwright test runner
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false "@playwright/test@${PLAYWRIGHT_TEST_VERSION}"
+        run: npm install --no-save --package-lock=false "@playwright/test@${PLAYWRIGHT_RUNNER_VERSION}"
 
       - name: Report Playwright version
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
