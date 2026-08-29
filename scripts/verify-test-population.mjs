@@ -10,6 +10,8 @@ const db = getFirestore();
 const auth = getAuth();
 const TEST_SEED = "comprehensive-population-v3";
 const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
+const SUPER_ADMIN_UID = "TEST_uid_super_admin_01";
+const MODERN_SUPER_ADMIN_UID = "TEST_uid_modern_super_admin_01";
 const MULTI_SECTION_UID = "TEST_uid_multi_section_leader";
 const MEMBERS_PER_SECTION = 6;
 const SECTIONS = [
@@ -46,7 +48,7 @@ for (const doc of members) {
 }
 
 const adminUsers = await seededDocs("adminUsers");
-if (adminUsers.length !== 29) fail(`expected 29 leader/admin profiles, found ${adminUsers.length}`);
+if (adminUsers.length !== 30) fail(`expected 30 leader/admin profiles, found ${adminUsers.length}`);
 for (const doc of adminUsers) {
   const data = doc.data();
   if (!(data.role === "leader" || data.role === "admin" || data.role === "super-admin")) fail(`adminUsers/${doc.id} has invalid role`);
@@ -56,7 +58,7 @@ for (const doc of adminUsers) {
 }
 
 const organisation = await seededDocs("organisationLeadership");
-if (organisation.length !== 29) fail(`expected 29 organisation records, found ${organisation.length}`);
+if (organisation.length !== 30) fail(`expected 30 organisation records, found ${organisation.length}`);
 const publicLeadership = await seededDocs("publicLeadership");
 if (publicLeadership.length !== 26) fail(`expected 26 public leadership records, found ${publicLeadership.length}`);
 for (const doc of publicLeadership) {
@@ -78,14 +80,16 @@ for (const { section } of SECTIONS) {
   for (const doc of sectionDocs) if (!SECTION_ROLES.has(doc.data().scoutingRole)) fail(`${section} contains unexpected public role ${doc.data().scoutingRole}`);
 }
 
-for (const uid of [WEB_ADMIN_UID, "TEST_uid_super_admin_01", MULTI_SECTION_UID]) {
+for (const uid of [WEB_ADMIN_UID, SUPER_ADMIN_UID, MODERN_SUPER_ADMIN_UID, MULTI_SECTION_UID]) {
   if (publicLeadership.some((doc) => doc.id === uid)) fail(`${uid} is present in publicLeadership`);
 }
-for (const uid of [WEB_ADMIN_UID, "TEST_uid_super_admin_01"]) {
+for (const uid of [WEB_ADMIN_UID, SUPER_ADMIN_UID, MODERN_SUPER_ADMIN_UID]) {
   const profile = adminUsers.find((doc) => doc.id === uid);
   if (!profile) fail(`${uid} admin profile is missing`);
   if (!new Set(["admin", "super-admin"]).has(profile.data().role)) fail(`${uid} has unexpected access role`);
 }
+const modernProfile = adminUsers.find((doc) => doc.id === MODERN_SUPER_ADMIN_UID);
+if (modernProfile?.data().uiTheme !== "modern") fail(`${MODERN_SUPER_ADMIN_UID} must use modern theme`);
 const multiSection = adminUsers.find((doc) => doc.id === MULTI_SECTION_UID);
 if (!multiSection) fail("multi-section leader fixture is missing");
 if (JSON.stringify(multiSection.data().sections) !== JSON.stringify(["Beavers", "Cubs"])) fail("multi-section leader must have Beavers and Cubs");
@@ -106,9 +110,10 @@ const expectedAuthUids = new Set([
   ...SECTIONS.flatMap(({ key }) => [1, 2].map((number) => `TEST_uid_${key}_parent_${number}`)),
   MULTI_SECTION_UID,
   WEB_ADMIN_UID,
-  "TEST_uid_super_admin_01"
+  SUPER_ADMIN_UID,
+  MODERN_SUPER_ADMIN_UID
 ]);
-if (expectedAuthUids.size !== 39) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 39`);
+if (expectedAuthUids.size !== 40) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 40`);
 
 const missingAuthUids = [];
 for (const uid of expectedAuthUids) {
@@ -121,5 +126,5 @@ console.log("Minimal canonical TEST population verified successfully.");
 console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
 console.log("- Who's Who: exactly six Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
-console.log("- Leader/admin profiles: 26 public leaders + 1 private multi-section leader + 2 private website admins");
-console.log("- Firebase Auth: all 39 canonical identities present");
+console.log("- Leader/admin profiles: 26 public leaders + 1 private multi-section leader + 3 private website admins");
+console.log("- Firebase Auth: all 40 canonical identities present");
