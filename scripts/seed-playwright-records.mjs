@@ -88,4 +88,40 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
-console.log("Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows with duration-based activities, mirrored badgework planning and parent-safe programme projections.");
+// Minimal deterministic Equipment & Stores catalogue for emulator-backed UI and report testing.
+// Keep these fixtures allocation-free so checkout/return tests remain isolated and can assert
+// an empty holdings state after their own transient loans are returned.
+const equipmentSeedItems = [
+  { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220 },
+  { id: "TEST_equipment_stoves", name: "TEST Camping Stoves", category: "Cooking", trackingMode: "individual", totalQuantity: 4, location: "Main Equipment Store", condition: "good", notes: "Portable gas stoves for section cooking activities.", replacementValue: 85 },
+  { id: "TEST_equipment_ropes", name: "TEST Pioneering Ropes", category: "Pioneering", trackingMode: "quantity", totalQuantity: 12, location: "Equipment Trailer", condition: "good", notes: "Mixed ropes for pioneering and knot-work sessions.", replacementValue: 35 },
+  { id: "TEST_equipment_compasses", name: "TEST Compasses", category: "Navigation", trackingMode: "individual", totalQuantity: 10, location: "Leader Store", condition: "good", notes: "Baseplate compasses for hillwalking and navigation skills.", replacementValue: 25 },
+  { id: "TEST_equipment_first_aid", name: "TEST First Aid Kits", category: "Safety & First Aid", trackingMode: "individual", totalQuantity: 3, location: "Leader Store", condition: "needs-attention", notes: "One kit requires its consumables checklist reviewed before camp.", replacementValue: 60 },
+  { id: "TEST_equipment_tables", name: "TEST Folding Tables", category: "Camp Furniture", trackingMode: "quantity", totalQuantity: 6, location: "Equipment Trailer", condition: "good", notes: "Folding camp tables used for cooking and programme bases.", replacementValue: 75 }
+];
+for (const item of equipmentSeedItems) {
+  await db.collection("equipmentItems").doc(item.id).set({
+    name: item.name,
+    category: item.category,
+    trackingMode: item.trackingMode,
+    totalQuantity: item.totalQuantity,
+    checkedOutQuantity: 0,
+    unavailableQuantity: 0,
+    location: item.location,
+    condition: item.condition,
+    notes: item.notes,
+    replacementValue: item.replacementValue,
+    archived: false,
+    createdBy: "TEST_SEED",
+    createdAt: FieldValue.serverTimestamp(),
+    updatedBy: "TEST_SEED",
+    updatedAt: FieldValue.serverTimestamp(),
+    ...marker
+  });
+}
+
+for (const [id, name] of [["TEST_equipment_location_main", "Main Equipment Store"], ["TEST_equipment_location_trailer", "Equipment Trailer"], ["TEST_equipment_location_leader", "Leader Store"]]) {
+  await db.collection("equipmentLocations").doc(id).set({ name, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+}
+
+console.log(`Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows, parent-safe programme projections and ${equipmentSeedItems.length} allocation-free equipment items.`);
