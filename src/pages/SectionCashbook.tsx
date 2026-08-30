@@ -27,6 +27,7 @@ const RECEIPT_UPLOAD_TIMEOUT_MS = 15000;
 type FloatAction = "opening-float" | "float-top-up" | "money-out" | "close-float";
 
 const formatEuro = (cents: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
+const formatTimestamp = (value: Date) => new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value);
 const today = () => new Date().toISOString().slice(0, 10);
 function eurosToCents(value: string): number | null {
   const normalised = value.trim().replace(",", ".");
@@ -74,6 +75,7 @@ export default function SectionCashbook() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptRefreshKey, setReceiptRefreshKey] = useState(0);
   const [error, setError] = useState("");
   const [type, setType] = useState<FloatAction>("money-out");
   const [amount, setAmount] = useState("");
@@ -157,6 +159,7 @@ export default function SectionCashbook() {
         "Receipt upload timed out."
       );
       setReceiptFile(null);
+      setReceiptRefreshKey((value) => value + 1);
     } catch (receiptError) {
       console.error("Money out saved but receipt upload failed:", receiptError);
       setError("Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.");
@@ -238,7 +241,7 @@ export default function SectionCashbook() {
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Transaction history</Typography>
           {loading ? <Typography color="text.secondary">Loading section float…</Typography> : transactions.length === 0 ? <Alert severity="info">No float transactions have been recorded for this section.</Alert> : <Stack spacing={1.5}>{transactions.map((transaction) => {
             const signed = signedAmountCents(transaction); const isAdjustment = transaction.type === "adjustment"; const isTransfer = transaction.type === "transfer-in" || transaction.type === "transfer-out"; const isCorrected = reversedIds.has(transaction.id); const isReceiptEligible = transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY;
-            return <Paper key={transaction.id} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}><Box><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography><Chip size="small" label={transactionLabel(transaction)} variant="outlined" />{isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary">{transaction.transactionDate}{transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY ? ` · ${transaction.category}` : ""}</Typography>{transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}{isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Historical linked transfer {transaction.sourceTransactionId}</Typography>}{isReceiptEligible && <FinanceReceiptControl transactionId={transaction.id} section={transaction.section} />}</Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}><Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>{!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => { setCorrection(transaction); setCorrectionReason(""); setCorrectionDate(today()); }}>Correct entry</Button>}</Stack></Box></Paper>;
+            return <Paper key={transaction.id} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}><Box><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography><Chip size="small" label={transactionLabel(transaction)} variant="outlined" />{isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary">{transaction.transactionDate}{transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY ? ` · ${transaction.category}` : ""}</Typography>{isReceiptEligible && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>Entered {transaction.createdAt ? formatTimestamp(transaction.createdAt) : "timestamp pending"}</Typography>}{transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}{isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Historical linked transfer {transaction.sourceTransactionId}</Typography>}{isReceiptEligible && <FinanceReceiptControl transactionId={transaction.id} section={transaction.section} refreshKey={receiptRefreshKey} />}</Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}><Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>{!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => { setCorrection(transaction); setCorrectionReason(""); setCorrectionDate(today()); }}>Correct entry</Button>}</Stack></Box></Paper>;
           })}</Stack>}
         </Paper>
       </Stack>

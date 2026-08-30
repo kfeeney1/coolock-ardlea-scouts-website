@@ -19,6 +19,14 @@ function currentUid(): string {
   return uid;
 }
 
+function firestoreDate(value: unknown): Date | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as { toDate?: () => Date };
+  if (typeof candidate.toDate !== "function") return null;
+  const date = candidate.toDate();
+  return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
+}
+
 function mapTransaction(id: string, data: Record<string, unknown>): FinanceTransaction | null {
   const type = data.type as FinanceTransactionType;
   if (!["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"].includes(String(type))) return null;
@@ -34,7 +42,8 @@ function mapTransaction(id: string, data: Record<string, unknown>): FinanceTrans
     transactionDate: data.transactionDate,
     sourceTransactionId: typeof data.sourceTransactionId === "string" ? data.sourceTransactionId : "",
     reversalOfTransactionId: typeof data.reversalOfTransactionId === "string" ? data.reversalOfTransactionId : "",
-    createdBy: typeof data.createdBy === "string" ? data.createdBy : ""
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+    createdAt: firestoreDate(data.createdAt)
   };
 }
 
@@ -45,7 +54,7 @@ export async function loadFinanceTransactions(section?: string): Promise<Finance
   return snapshot.docs
     .map((item) => mapTransaction(item.id, item.data()))
     .filter((item): item is FinanceTransaction => item !== null)
-    .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate) || b.id.localeCompare(a.id));
+    .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate) || (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0) || b.id.localeCompare(a.id));
 }
 
 export async function createFinanceTransaction(input: FinanceTransactionInput): Promise<string> {

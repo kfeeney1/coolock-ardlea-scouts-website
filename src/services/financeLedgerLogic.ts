@@ -11,9 +11,10 @@ export type FinanceTransaction = {
   sourceTransactionId: string;
   reversalOfTransactionId: string;
   createdBy: string;
+  createdAt?: Date | null;
 };
 
-export type FinanceTransactionInput = Omit<FinanceTransaction, "id" | "createdBy">;
+export type FinanceTransactionInput = Omit<FinanceTransaction, "id" | "createdBy" | "createdAt">;
 
 export type FinanceReconciliation = {
   expectedBalanceCents: number;
