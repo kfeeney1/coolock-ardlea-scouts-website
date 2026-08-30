@@ -145,7 +145,7 @@ export default function SectionCashbook() {
                 {DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
               </Select>
             </FormControl>
-            <TextField type="date" label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+            <TextField type="date" label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} sx={{ gridColumn: { md: "1 / -1" } }} />
           </Box>
           <Button variant="contained" color="success" disabled={saving || !section} onClick={() => void submit()} sx={{ mt: 2, minHeight: 44 }}>{saving ? "Saving…" : "Add transaction"}</Button>
