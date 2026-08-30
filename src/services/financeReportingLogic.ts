@@ -1,4 +1,4 @@
-import { signedAmountCents, type FinanceTransaction } from "./financeLedgerLogic.ts";
+import { FLOAT_CLOSE_CATEGORY, signedAmountCents, type FinanceTransaction } from "./financeLedgerLogic.ts";
 import type { FinanceReceipt } from "./financeReceipts";
 
 export interface FinanceReportFilters {
@@ -27,6 +27,10 @@ export interface FinanceReportSummary {
   missingReceiptCount: number;
 }
 
+export function financeReceiptRequired(transaction: FinanceTransaction): boolean {
+  return transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY;
+}
+
 export function filterFinanceTransactions(transactions: FinanceTransaction[], filters: FinanceReportFilters): FinanceTransaction[] {
   return transactions.filter((transaction) => {
     if (filters.section && transaction.section !== filters.section) return false;
@@ -50,8 +54,8 @@ export function buildFinanceReportSummary(transactions: FinanceTransaction[], re
 
   for (const transaction of transactions) {
     if (transaction.type === "income") incomeCents += transaction.amountCents;
-    if (transaction.type === "expense") {
-      expenseCents += transaction.amountCents;
+    if (transaction.type === "expense") expenseCents += transaction.amountCents;
+    if (financeReceiptRequired(transaction)) {
       expenseCount += 1;
       if (!receiptTransactionIds.has(transaction.id)) missingReceiptCount += 1;
     }
@@ -98,7 +102,7 @@ export function financeReportCsv(transactions: FinanceTransaction[], receipts: F
   const header = ["Date", "Section", "Type", "Category", "Description", "Signed amount (EUR)", "Receipt count", "Receipt status"];
   const rows = transactions.map((transaction) => {
     const receiptCount = receiptCounts.get(transaction.id) ?? 0;
-    const receiptStatus = transaction.type === "expense" ? (receiptCount > 0 ? "Attached" : "Missing") : "Not required";
+    const receiptStatus = financeReceiptRequired(transaction) ? (receiptCount > 0 ? "Attached" : "Missing") : "Not required";
     return [
       transaction.transactionDate,
       transaction.section,
