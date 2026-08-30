@@ -1,4 +1,4 @@
-import { signedAmountCents, type FinanceTransaction } from "./financeLedgerLogic";
+import { signedAmountCents, type FinanceTransaction } from "./financeLedgerLogic.ts";
 import type { FinanceReceipt } from "./financeReceipts";
 
 export interface FinanceReportFilters {
