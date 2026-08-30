@@ -23,7 +23,9 @@ test("section leader can open the section-scoped cashbook and reconciliation wor
   await page.goto("/leader/finance");
 
   await expect(page.getByRole("heading", { name: "Section Cashbook" })).toBeVisible();
-  await expect(page.getByLabel("Section")).toHaveText(/Scouts/);
+  const sectionSelect = page.getByRole("combobox", { name: "Section" });
+  await expect(sectionSelect).toBeVisible();
+  await expect(sectionSelect).toContainText("Scouts");
   await expect(page.getByText("Calculated balance")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Cash reconciliation" })).toBeVisible();
   await expect(page.getByLabel("Physical cash counted (€)")).toBeVisible();
