@@ -3,8 +3,10 @@ import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import { validateFinanceTransferInput, type FinanceTransferInput } from "./financeTransferLogic";
 import {
+  assertNonNegativeFinanceBalance,
   calculateLedgerBalanceCents,
   createReversalInput,
+  signedAmountCents,
   validateFinanceTransactionInput,
   type FinanceTransaction,
   type FinanceTransactionInput,
@@ -52,6 +54,14 @@ export async function createFinanceTransaction(input: FinanceTransactionInput): 
   if (["adjustment", "transfer-in", "transfer-out"].includes(validated.type)) {
     throw new Error("Use the dedicated finance workflow for corrections and transfers.");
   }
+
+  const currentTransactions = await loadFinanceTransactions(validated.section);
+  const currentBalanceCents = calculateLedgerBalanceCents(currentTransactions);
+  if (validated.type === "opening-float" && currentBalanceCents > 0) {
+    throw new Error("Close the current section float before opening another one.");
+  }
+  assertNonNegativeFinanceBalance(currentBalanceCents, signedAmountCents(validated));
+
   const result = await addDoc(collection(db, "financeTransactions"), {
     ...validated,
     createdBy: uid,
@@ -71,6 +81,9 @@ export async function createFinanceTransaction(input: FinanceTransactionInput): 
 export async function createFinanceTransfer(input: FinanceTransferInput): Promise<string> {
   const uid = currentUid();
   const validated = validateFinanceTransferInput(input);
+  const currentBalanceCents = calculateLedgerBalanceCents(await loadFinanceTransactions(validated.fromSection));
+  assertNonNegativeFinanceBalance(currentBalanceCents, -validated.amountCents);
+
   const transferId = doc(collection(db, "financeTransactions")).id;
   const batch = writeBatch(db);
   const shared = {
@@ -112,6 +125,9 @@ export async function reverseFinanceTransaction(original: FinanceTransaction, tr
   if (original.type === "adjustment") throw new Error("An adjustment cannot itself be reversed from this workflow.");
   const uid = currentUid();
   const reversal = createReversalInput(original, transactionDate, description);
+  const currentBalanceCents = calculateLedgerBalanceCents(await loadFinanceTransactions(original.section));
+  assertNonNegativeFinanceBalance(currentBalanceCents, signedAmountCents(reversal));
+
   const reversalId = `reversal-${original.id}`;
   await setDoc(doc(db, "financeTransactions", reversalId), {
     ...reversal,
