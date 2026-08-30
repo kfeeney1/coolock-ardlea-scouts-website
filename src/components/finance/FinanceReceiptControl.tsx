@@ -10,16 +10,21 @@ interface Props {
 
 export default function FinanceReceiptControl({ transactionId, section, refreshKey = 0 }: Props) {
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const refresh = async () => {
+    setLoading(true);
+    setError("");
     try {
       const all = await loadFinanceReceipts(section);
       setReceipts(all.filter((item) => item.transactionId === transactionId));
     } catch (loadError) {
       console.error("Unable to load finance receipts:", loadError);
-      setError("Unable to load receipts.");
+      setError("Unable to check attached receipts.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,19 +45,27 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     }
   };
 
-  return <Stack spacing={1} sx={{ mt: 1.25, alignItems: "flex-start" }}>
+  return <Stack spacing={1} sx={{ mt: 1.25, alignItems: "flex-start" }} data-testid={`finance-receipts-${transactionId}`}>
     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-      <Button component="label" size="small" variant="outlined" disabled={uploading} sx={{ minHeight: 40 }}>
-        {uploading ? "Uploading…" : receipts.length ? "Add receipt" : "Attach receipt"}
+      {loading ? <Chip size="small" label="Checking receipt…" variant="outlined" /> : receipts.length > 0 ? <Chip size="small" label={receipts.length === 1 ? "Receipt attached" : `${receipts.length} receipts attached`} color="success" /> : <Chip size="small" label="No receipt attached" color="warning" variant="outlined" />}
+      <Button component="label" size="small" variant="outlined" disabled={uploading || loading} sx={{ minHeight: 40 }}>
+        {uploading ? "Uploading…" : receipts.length ? "Add another receipt" : "Attach receipt"}
         <input hidden type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void upload(file); }} />
       </Button>
-      {receipts.map((receipt) => receipt.contentType.startsWith("image/") ? (
-        <Box key={receipt.id} component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
-          <Box component="img" src={receipt.downloadUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
-        </Box>
-      ) : <Chip key={receipt.id} component="a" clickable href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" label={receipt.fileName} variant="outlined" />)}
     </Stack>
-    {receipts.length > 0 && <Typography variant="caption" color="text.secondary">{receipts.length} receipt{receipts.length === 1 ? "" : "s"} attached to this Money out record</Typography>}
+
+    {receipts.length > 0 && <Stack spacing={1} sx={{ width: "100%" }}>
+      {receipts.map((receipt, index) => <Stack key={receipt.id} direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
+        <Button component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" size="small" variant="contained" color="secondary">
+          {receipts.length === 1 ? "View receipt" : `View receipt ${index + 1}`}
+        </Button>
+        <Typography variant="caption" color="text.secondary">{receipt.fileName}</Typography>
+        {receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+          <Box component="img" src={receipt.downloadUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
+        </Box>}
+      </Stack>)}
+    </Stack>}
+
     {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
   </Stack>;
 }

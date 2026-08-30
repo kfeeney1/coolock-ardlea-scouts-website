@@ -41,10 +41,18 @@ service firebase.storage {
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
 
+    // Listing is required so the Section Floats UI can discover which
+    // receipts belong to a transaction. Rules remain section-scoped.
+    // In rules_version = '2', the recursive wildcard also matches the
+    // section root used by listAll().
+    match /attachments/finance-receipts/{section}/{allPaths=**} {
+      allow list: if canAccessFinanceSection(section);
+    }
+
     // Shared attachment namespace. Finance receipts are the first owner type;
     // event-gallery and other owner types will receive their own explicit rules.
     match /attachments/finance-receipts/{section}/{attachmentId}/{fileName} {
-      allow read: if canAccessFinanceSection(section);
+      allow get: if canAccessFinanceSection(section);
       allow create: if validReceiptWrite(section);
       allow update: if false;
       allow delete: if canAccessFinanceSection(section)
