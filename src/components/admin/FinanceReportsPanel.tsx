@@ -90,14 +90,14 @@ export default function FinanceReportsPanel() {
     <Box sx={{ mt: 2.5, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
       <FormControl fullWidth>
         <InputLabel id="finance-report-section-label">Section</InputLabel>
-        <Select labelId="finance-report-section-label" label="Section" value={section} onChange={(event) => setSection(event.target.value)}>
+        <Select labelId="finance-report-section-label" label="Section" value={section} displayEmpty renderValue={(value) => value || "All permitted sections"} onChange={(event) => setSection(event.target.value)}>
           <MenuItem value="">All permitted sections</MenuItem>
           {permittedSections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </Select>
       </FormControl>
       <FormControl fullWidth>
         <InputLabel id="finance-report-category-label">Category</InputLabel>
-        <Select labelId="finance-report-category-label" label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
+        <Select labelId="finance-report-category-label" label="Category" value={category} displayEmpty renderValue={(value) => value || "All categories"} onChange={(event) => setCategory(event.target.value)}>
           <MenuItem value="">All categories</MenuItem>
           {categories.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </Select>
