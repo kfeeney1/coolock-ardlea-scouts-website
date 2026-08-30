@@ -1,12 +1,14 @@
-name: Firestore Rules
+name: Firebase Rules
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "firestore.rules"
+      - "storage.rules"
       - "firebase.json"
       - "tests/firestore/**"
+      - "tests/storage/**"
       - "src/services/**"
       - "src/firebase.ts"
       - "src/components/admin/AdminAuthProvider.tsx"
@@ -45,8 +47,10 @@ jobs:
         run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
 
       - name: Run Firestore rules tests
-        # Each file clears the same emulator project in beforeEach, so file-level parallelism causes cross-test data races.
         run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
+
+      - name: Validate Storage rules
+        run: npx firebase emulators:exec --only firestore,storage --project coolock-ardlea-scouts "echo Storage rules compiled"
 
       - name: Authenticate to Firebase
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -54,6 +58,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
 
-      - name: Deploy Firestore rules
+      - name: Deploy Firebase rules
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx firebase deploy --only firestore:rules --project coolock-ardlea-scouts --non-interactive
+        run: npx firebase deploy --only firestore:rules,storage --project coolock-ardlea-scouts --non-interactive
