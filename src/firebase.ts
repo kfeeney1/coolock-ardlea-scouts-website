@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { browserSessionPersistence, connectAuthEmulator, getAuth, setPersistence } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
 
@@ -27,6 +28,7 @@ const app = initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // Keep authentication for the lifetime of the browser session only. Closing the
 // browser clears the Firebase session, so the next browser launch requires login.
@@ -49,6 +51,15 @@ if (authEmulator) {
     const port = Number(rawPort);
     if (host && Number.isInteger(port) && port > 0) {
         connectAuthEmulator(auth, `http://${host}:${port}`, { disableWarnings: true });
+    }
+}
+
+const storageEmulator = import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim();
+if (storageEmulator) {
+    const [host, rawPort] = storageEmulator.split(":");
+    const port = Number(rawPort);
+    if (host && Number.isInteger(port) && port > 0) {
+        connectStorageEmulator(storage, host, port);
     }
 }
 
