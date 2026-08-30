@@ -23,13 +23,14 @@ test("reports v2 filters event reports and downloads summary CSVs", async ({ pag
 
   await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
   await expect(page.getByTestId("report-summary-cards")).toBeVisible();
-  await expect(page.getByTestId("report-date-filter")).toBeVisible();
+  const dateFilter = page.getByTestId("report-date-filter");
+  await expect(dateFilter).toBeVisible();
   await expect(page.getByTestId("attendance-trends-report")).toBeVisible();
   await expect(page.getByTestId("printable-report-summary")).toContainText("Printable operational summary");
 
-  await page.getByLabel("From date").fill("2098-01-01");
-  await page.getByLabel("To date").fill("2099-12-31");
-  await expect(page.getByTestId("report-date-filter")).toContainText(/events in range/);
+  await dateFilter.getByLabel("From date").fill("2098-01-01");
+  await dateFilter.getByLabel("To date").fill("2099-12-31");
+  await expect(dateFilter).toContainText(/events in range/);
 
   const membershipDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Membership Summary" }).click();
