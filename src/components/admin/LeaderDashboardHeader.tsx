@@ -10,7 +10,7 @@ const navItems: NavItem[] = [
  { label: "Events & Activities", path: "/leader/events" },
  { label: "Badgework", path: "/leader/badgework" },
  { label: "Equipment & Stores", path: "/leader/equipment" },
- { label: "Section Cashbook", path: "/leader/finance" },
+ { label: "Section Floats", path: "/leader/finance" },
  { label: "Member Management", path: "/leader/members" },
  { label: "Member History", path: "/leader/member-history" },
  { label: "Attendance Insights", path: "/leader/attendance" },
