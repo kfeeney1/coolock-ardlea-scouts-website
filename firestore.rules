@@ -31,6 +31,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
     }
+    function isGroupTreasurer() {
+      return isActiveLeader()
+        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Treasurer";
+    }
     function isQuartermaster() {
       return isActiveLeader()
         && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
@@ -38,8 +44,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
     }
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
+    function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
+    }
+    function canAccessFinanceSection(section) {
+      return isActiveLeader() && section is string && (canViewAllFinance() || hasSection(section));
     }
     function hasResourceSection(data) {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
@@ -416,6 +426,26 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /financeTransactions/{transactionId} {
+      allow get, list: if canAccessFinanceSection(resource.data.section);
+      allow create: if canAccessFinanceSection(request.resource.data.section)
+        && request.resource.data.type in ["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]
+        && request.resource.data.amountCents is number
+        && ((request.resource.data.type == "adjustment" && request.resource.data.amountCents != 0)
+          || (request.resource.data.type != "adjustment" && request.resource.data.amountCents > 0))
+        && request.resource.data.category is string
+        && request.resource.data.description is string
+        && request.resource.data.transactionDate is string
+        && request.resource.data.sourceTransactionId is string
+        && request.resource.data.reversalOfTransactionId is string
+        && ((request.resource.data.type == "adjustment" && request.resource.data.reversalOfTransactionId != "")
+          || (request.resource.data.type != "adjustment" && request.resource.data.reversalOfTransactionId == ""))
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["section", "type", "amountCents", "category", "description", "transactionDate", "sourceTransactionId", "reversalOfTransactionId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
     match /equipmentItems/{itemId} {
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
@@ -670,7 +700,7 @@ service cloud.firestore {
         && request.resource.data.actorUid == request.auth.uid
         && request.auth.token.email is string
         && request.resource.data.actorEmail == request.auth.token.email
-        && request.resource.data.category in ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "equipment", "system"]
+        && request.resource.data.category in ["parent-access", "leader-request", "leader-access", "member", "event", "event-consent", "equipment", "finance", "system"]
         && request.resource.data.action is string
         && request.resource.data.targetId is string
         && request.resource.data.targetLabel is string
