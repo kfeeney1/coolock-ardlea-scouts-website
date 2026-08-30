@@ -43,13 +43,26 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           node -e 'const c=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); console.log(`Firebase deploy service account: ${c.client_email}`)'
-      - name: Deploy Firestore and Storage rules
+      - name: Deploy Firestore rules
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,storage --project coolock-ardlea-scouts
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules --project coolock-ardlea-scouts
           rm -f /tmp/firebase-service-account.json
+      - name: Deploy Storage rules
+        id: storage_rules
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only storage --project coolock-ardlea-scouts
+          rm -f /tmp/firebase-service-account.json
+      - name: Report Storage prerequisite
+        if: steps.storage_rules.outcome == 'failure'
+        run: |
+          echo '::warning::Firebase Storage rules were not deployed. Enable the Firebase Storage API (firebasestorage.googleapis.com) once as a project owner, then rerun this workflow. Hosting and Firestore deployment will continue.'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
