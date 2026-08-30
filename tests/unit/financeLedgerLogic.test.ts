@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DEFAULT_FINANCE_CATEGORIES,
+  assertNonNegativeFinanceBalance,
   calculateLedgerBalanceCents,
   createFinanceReconciliationWrite,
   createReversalInput,
@@ -17,6 +19,24 @@ test("calculates a section float from immutable ledger entries", () => {
     { type: "transfer-in", amountCents: 1000 },
     { type: "transfer-out", amountCents: 500 }
   ]), 6150);
+});
+
+test("section float movements cannot take the balance below zero", () => {
+  assert.equal(assertNonNegativeFinanceBalance(5000, -1750), 3250);
+  assert.equal(assertNonNegativeFinanceBalance(0, 2500), 2500);
+  assert.throws(() => assertNonNegativeFinanceBalance(1000, -1001), /below €0\.00/);
+});
+
+test("default finance categories contain outgoing purposes only", () => {
+  assert.deepEqual([...DEFAULT_FINANCE_CATEGORIES], [
+    "Equipment",
+    "Programme materials",
+    "Food",
+    "Transport",
+    "Venue",
+    "Reimbursement",
+    "Other"
+  ]);
 });
 
 test("reconciliation exposes rather than silently fixes float differences", () => {
@@ -80,16 +100,16 @@ test("validates normalized transaction details and whole-cent storage", () => {
     section: "  Beaver   Scouts ",
     type: "income",
     amountCents: 2500,
-    category: " Weekly   subs ",
-    description: " Cash   collected ",
+    category: " Float   top up ",
+    description: " Float   top up ",
     transactionDate: "2026-08-30",
     sourceTransactionId: " ",
     reversalOfTransactionId: ""
   });
 
   assert.equal(validated.section, "Beaver Scouts");
-  assert.equal(validated.category, "Weekly subs");
-  assert.equal(validated.description, "Cash collected");
+  assert.equal(validated.category, "Float top up");
+  assert.equal(validated.description, "Float top up");
   assert.throws(() => validateFinanceTransactionInput({ ...validated, amountCents: 12.5 }), /whole cents/);
 });
 

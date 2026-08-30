@@ -37,19 +37,18 @@ export type FinanceReconciliationRecord = FinanceReconciliationWrite & {
 };
 
 export const DEFAULT_FINANCE_CATEGORIES = [
-  "Weekly subs",
-  "Event income",
-  "Camp income",
-  "Fundraising",
   "Equipment",
   "Programme materials",
   "Food",
   "Transport",
   "Venue",
   "Reimbursement",
-  "Bank / transfer",
   "Other"
 ] as const;
+
+export const FLOAT_OPEN_CATEGORY = "Opening float";
+export const FLOAT_TOP_UP_CATEGORY = "Float top up";
+export const FLOAT_CLOSE_CATEGORY = "Float closure";
 
 const POSITIVE_TYPES = new Set<FinanceTransactionType>(["opening-float", "income", "transfer-in"]);
 const NEGATIVE_TYPES = new Set<FinanceTransactionType>(["expense", "transfer-out"]);
@@ -76,6 +75,16 @@ export function signedAmountCents(transaction: Pick<FinanceTransaction, "type" |
 
 export function calculateLedgerBalanceCents(transactions: Array<Pick<FinanceTransaction, "type" | "amountCents">>): number {
   return transactions.reduce((total, transaction) => total + signedAmountCents(transaction), 0);
+}
+
+export function assertNonNegativeFinanceBalance(currentBalanceCents: number, movementCents: number): number {
+  if (!Number.isInteger(currentBalanceCents) || currentBalanceCents < 0) {
+    throw new Error("The current float balance is invalid and must be reconciled before adding another transaction.");
+  }
+  if (!Number.isInteger(movementCents)) throw new Error("Finance movement must be stored as whole cents.");
+  const nextBalanceCents = currentBalanceCents + movementCents;
+  if (nextBalanceCents < 0) throw new Error("This transaction would take the section float below €0.00.");
+  return nextBalanceCents;
 }
 
 export function reconcileFinanceFloat(
