@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, getDocs, query, serverTimestamp, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import {
   calculateLedgerBalanceCents,
@@ -35,11 +35,12 @@ function mapTransaction(id: string, data: Record<string, unknown>): FinanceTrans
 }
 
 export async function loadFinanceTransactions(section?: string): Promise<FinanceTransaction[]> {
-  const snapshot = await getDocs(collection(db, "financeTransactions"));
+  const financeCollection = collection(db, "financeTransactions");
+  const source = section ? query(financeCollection, where("section", "==", section)) : financeCollection;
+  const snapshot = await getDocs(source);
   return snapshot.docs
     .map((item) => mapTransaction(item.id, item.data()))
     .filter((item): item is FinanceTransaction => item !== null)
-    .filter((item) => !section || item.section === section)
     .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate) || b.id.localeCompare(a.id));
 }
 
