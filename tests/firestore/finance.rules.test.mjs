@@ -56,7 +56,8 @@ test("Group Treasurer can manage finance across all sections", async () => {
     ["financeTransactions/scouts-income", { ...transaction({ section: "Scouts" }), createdAt: new Date() }],
   ]);
   const db = testEnv.authenticatedContext("treasurer", { email: "treasurer@example.com" }).firestore();
-  await assertSucceeds(getDocs(collection(db, "financeTransactions")));
+  await assertSucceeds(getDocs(query(collection(db, "financeTransactions"), where("section", "==", "Cubs"))));
+  await assertSucceeds(getDocs(query(collection(db, "financeTransactions"), where("section", "==", "Scouts"))));
   await assertSucceeds(setDoc(doc(db, "financeTransactions/beavers-income"), transaction({ section: "Beavers", createdBy: "treasurer" })));
 });
 
