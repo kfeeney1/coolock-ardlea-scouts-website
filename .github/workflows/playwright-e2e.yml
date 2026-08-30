@@ -152,9 +152,12 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm run test:e2e
 
-      - name: Print E2E service logs on failure
+      - name: Collect E2E service logs on failure
         if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
         run: |
+          mkdir -p e2e-debug
+          cp /tmp/firebase-emulator.log e2e-debug/firebase-emulator.log 2>/dev/null || true
+          cp /tmp/vite-preview.log e2e-debug/vite-preview.log 2>/dev/null || true
           echo "===== Firebase emulator log ====="
           cat /tmp/firebase-emulator.log || true
           echo "===== Vite preview log ====="
@@ -176,7 +179,6 @@ jobs:
           name: playwright-test-results
           path: |
             test-results/
-            /tmp/firebase-emulator.log
-            /tmp/vite-preview.log
+            e2e-debug/
           retention-days: 14
           if-no-files-found: ignore
