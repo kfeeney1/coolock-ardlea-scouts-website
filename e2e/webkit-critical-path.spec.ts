@@ -16,7 +16,11 @@ test.describe("WebKit critical path", () => {
     await page.getByLabel("Password").fill(password!);
     await page.getByRole("button", { name: "Sign In" }).click();
 
-    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    // WebKit can take a little longer to complete Firebase auth/profile hydration.
+    // Wait for the authenticated route and dashboard rather than relying on the
+    // default 5 s assertion window, while still failing if sign-in does not finish.
+    await expect(page).toHaveURL(/\/leader\/?$/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const menuButton = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
     await expect(menuButton).toBeVisible();

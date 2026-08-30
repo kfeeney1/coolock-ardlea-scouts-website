@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
@@ -41,14 +41,6 @@ const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
 
-function RouteFallback() {
-  return (
-    <div role="status" aria-live="polite" style={{ padding: "2rem", textAlign: "center" }}>
-      Loading page…
-    </div>
-  );
-}
-
 function protectedRoute(element: ReactNode) {
   return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>;
 }
@@ -62,45 +54,43 @@ export default function App() {
     <PublicSiteContentProvider>
       <AdminAuthProvider>
         <ThemeExperienceProvider>
-          <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/whos-who" element={<Navigate to="/about" replace />} />
-                <Route path="/activities" element={<Activities />} />
-                <Route path="/activities/consent" element={<ConsentForm />} />
-                <Route path="/event-consent/:token" element={<EventConsent />} />
-                <Route path="/parent" element={<ParentPortal />} />
-                <Route path="/join" element={<Join />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/leader/login" element={<AdminLogin />} />
-                <Route path="/leader/register" element={<LeaderRegister />} />
-                <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
-                <Route path="/leader/requests" element={protectedRoute(<LeaderRequests />)} />
-                <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
-                <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
-                <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
-                <Route path="/leader/reports" element={protectedRoute(<LeaderReports />)} />
-                <Route path="/leader/attendance" element={protectedRoute(<AttendanceInsights />)} />
-                <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
-                <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
-                <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
-                <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
-                <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
-                <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
-                <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
-                <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
-                <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
-                <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
-                <Route path="/leader/member-history" element={protectedRoute(<MemberHistory />)} />
-                <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
-                <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
-                <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
-                <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
-              </Route>
-            </Routes>
-          </Suspense>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/whos-who" element={<Navigate to="/about" replace />} />
+              <Route path="/activities" element={<Activities />} />
+              <Route path="/activities/consent" element={<ConsentForm />} />
+              <Route path="/event-consent/:token" element={<EventConsent />} />
+              <Route path="/parent" element={<ParentPortal />} />
+              <Route path="/join" element={<Join />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/leader/login" element={<AdminLogin />} />
+              <Route path="/leader/register" element={<LeaderRegister />} />
+              <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
+              <Route path="/leader/requests" element={protectedRoute(<LeaderRequests />)} />
+              <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
+              <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
+              <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
+              <Route path="/leader/reports" element={protectedRoute(<LeaderReports />)} />
+              <Route path="/leader/attendance" element={protectedRoute(<AttendanceInsights />)} />
+              <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
+              <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
+              <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
+              <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
+              <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
+              <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
+              <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
+              <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
+              <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
+              <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
+              <Route path="/leader/member-history" element={protectedRoute(<MemberHistory />)} />
+              <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
+              <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
+              <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
+              <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
+            </Route>
+          </Routes>
         </ThemeExperienceProvider>
       </AdminAuthProvider>
     </PublicSiteContentProvider>

@@ -21,12 +21,6 @@ function clearLegacyWhosWhoCaches(): void {
       // Storage can be blocked in private/restricted browser modes.
     }
   }
-
-  if ("caches" in window) {
-    void window.caches.keys()
-      .then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
-      .catch(() => undefined);
-  }
 }
 
 clearLegacyWhosWhoCaches();
