@@ -144,9 +144,21 @@ jobs:
           cat /tmp/vite-preview.log
           exit 1
 
+      - name: List discovered Playwright tests
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: npx --no-install playwright test --list
+
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm run test:e2e
+
+      - name: Print E2E service logs on failure
+        if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
+        run: |
+          echo "===== Firebase emulator log ====="
+          cat /tmp/firebase-emulator.log || true
+          echo "===== Vite preview log ====="
+          cat /tmp/vite-preview.log || true
 
       - name: Upload Playwright report
         if: ${{ always() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
@@ -162,6 +174,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
-          path: test-results/
+          path: |
+            test-results/
+            /tmp/firebase-emulator.log
+            /tmp/vite-preview.log
           retention-days: 14
           if-no-files-found: ignore
