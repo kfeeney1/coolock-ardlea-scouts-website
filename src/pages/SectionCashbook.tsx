@@ -23,6 +23,7 @@ import {
 } from "../services/financeLedgerLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
+const RECEIPT_UPLOAD_TIMEOUT_MS = 15000;
 type FloatAction = "opening-float" | "float-top-up" | "money-out" | "close-float";
 
 const formatEuro = (cents: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -32,6 +33,26 @@ function eurosToCents(value: string): number | null {
   if (!/^\d+(\.\d{1,2})?$/.test(normalised)) return null;
   const numeric = Number(normalised);
   return Number.isFinite(numeric) ? Math.round(numeric * 100) : null;
+}
+
+function currencyInputValue(value: string): string | null {
+  const normalised = value.replace(",", ".");
+  if (normalised === "" || /^\d+(\.\d{0,2})?$/.test(normalised)) return normalised;
+  return null;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 function transactionLabel(transaction: FinanceTransaction): string {
@@ -52,6 +73,7 @@ export default function SectionCashbook() {
   const [reconciliations, setReconciliations] = useState<FinanceReconciliationRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [error, setError] = useState("");
   const [type, setType] = useState<FloatAction>("money-out");
   const [amount, setAmount] = useState("");
@@ -105,21 +127,43 @@ export default function SectionCashbook() {
     const storedType: FinanceTransactionType = type === "opening-float" ? "opening-float" : type === "float-top-up" ? "income" : "expense";
     const storedCategory = type === "opening-float" ? FLOAT_OPEN_CATEGORY : type === "float-top-up" ? FLOAT_TOP_UP_CATEGORY : type === "close-float" ? FLOAT_CLOSE_CATEGORY : category;
     const storedDescription = description.trim() || (type === "opening-float" ? "Open float" : type === "float-top-up" ? "Float top up" : "Close float");
+    const selectedReceipt = type === "money-out" ? receiptFile : null;
 
     setSaving(true); setError("");
+    let transactionId = "";
     try {
-      const transactionId = await createFinanceTransaction({ section, type: storedType, amountCents, category: storedCategory, description: storedDescription, transactionDate, sourceTransactionId: "", reversalOfTransactionId: "" });
-      if (type === "money-out" && receiptFile) {
-        try {
-          await addFinanceReceipt(transactionId, section, receiptFile);
-        } catch (receiptError) {
-          console.error("Money out saved but receipt upload failed:", receiptError);
-          setError("Money out was saved, but the receipt did not upload. Attach it from Transaction history below.");
-        }
-      }
-      setAmount(""); setDescription(""); setReceiptFile(null); await refresh();
-    } catch (submitError) { console.error("Unable to add section float transaction:", submitError); setError(submitError instanceof Error ? submitError.message : "Unable to save this transaction."); }
-    finally { setSaving(false); }
+      transactionId = await createFinanceTransaction({ section, type: storedType, amountCents, category: storedCategory, description: storedDescription, transactionDate, sourceTransactionId: "", reversalOfTransactionId: "" });
+      setAmount("");
+      setDescription("");
+      await refresh();
+    } catch (submitError) {
+      console.error("Unable to add section float transaction:", submitError);
+      setError(submitError instanceof Error ? submitError.message : "Unable to save this transaction.");
+      return;
+    } finally {
+      setSaving(false);
+    }
+
+    if (!selectedReceipt || !transactionId) {
+      setReceiptFile(null);
+      return;
+    }
+
+    setUploadingReceipt(true);
+    try {
+      await withTimeout(
+        addFinanceReceipt(transactionId, section, selectedReceipt),
+        RECEIPT_UPLOAD_TIMEOUT_MS,
+        "Receipt upload timed out."
+      );
+      setReceiptFile(null);
+    } catch (receiptError) {
+      console.error("Money out saved but receipt upload failed:", receiptError);
+      setError("Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.");
+      setReceiptFile(null);
+    } finally {
+      setUploadingReceipt(false);
+    }
   };
 
   const saveReconciliation = async () => {
@@ -156,20 +200,30 @@ export default function SectionCashbook() {
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Float transaction</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
             <FormControl><InputLabel id="finance-type-label">Transaction</InputLabel><Select labelId="finance-type-label" id="finance-type" label="Transaction" value={type} onChange={(event) => setType(event.target.value as FloatAction)}><MenuItem value="opening-float">Open float</MenuItem><MenuItem value="float-top-up">Float top up</MenuItem><MenuItem value="money-out">Money out</MenuItem><MenuItem value="close-float">Close float</MenuItem></Select></FormControl>
-            <TextField label="Amount (€)" inputMode="decimal" value={isCloseFloat ? (balanceCents / 100).toFixed(2) : amount} onChange={(event) => setAmount(event.target.value)} disabled={isCloseFloat} helperText={isCloseFloat ? "Closing the float removes the full remaining balance." : undefined} />
+            <TextField
+              label="Amount (€)"
+              value={isCloseFloat ? (balanceCents / 100).toFixed(2) : amount}
+              onChange={(event) => {
+                const next = currencyInputValue(event.target.value);
+                if (next !== null) setAmount(next);
+              }}
+              disabled={isCloseFloat}
+              helperText={isCloseFloat ? "Closing the float removes the full remaining balance." : "Maximum two decimal places."}
+              slotProps={{ htmlInput: { inputMode: "decimal", pattern: "[0-9]*[.,]?[0-9]{0,2}" } }}
+            />
             {isMoneyOut && <FormControl><InputLabel id="finance-category-label">Outgoing category</InputLabel><Select labelId="finance-category-label" id="finance-category" label="Outgoing category" value={category} onChange={(event) => setCategory(event.target.value)}>{DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</Select></FormControl>}
             <TextField type="date" label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label={isMoneyOut ? "What was the money spent on?" : "Note (optional)"} value={description} onChange={(event) => setDescription(event.target.value)} sx={{ gridColumn: { md: "1 / -1" } }} />
           </Box>
           {isMoneyOut && <Stack spacing={0.75} sx={{ mt: 2, alignItems: "flex-start" }}>
             <Typography sx={{ fontWeight: 700 }}>Receipt</Typography>
-            <Button component="label" variant="outlined" sx={{ minHeight: 44 }}>
+            <Button component="label" variant="outlined" disabled={saving || uploadingReceipt} sx={{ minHeight: 44 }}>
               {receiptFile ? "Change receipt" : "Attach receipt"}
               <input hidden type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => { setReceiptFile(event.currentTarget.files?.[0] ?? null); event.currentTarget.value = ""; }} />
             </Button>
             <Typography variant="caption" color="text.secondary">{receiptFile ? receiptFile.name : "Optional now; a receipt can also be attached later from Transaction history."}</Typography>
           </Stack>}
-          <Button variant="contained" color="success" disabled={saving || !section || (isCloseFloat && balanceCents <= 0)} onClick={() => void submit()} sx={{ mt: 2, minHeight: 44 }}>{saving ? "Saving…" : type === "close-float" ? "Close float" : "Save transaction"}</Button>
+          <Button variant="contained" color="success" disabled={saving || uploadingReceipt || !section || (isCloseFloat && balanceCents <= 0)} onClick={() => void submit()} sx={{ mt: 2, minHeight: 44 }}>{uploadingReceipt ? "Uploading receipt…" : saving ? "Saving…" : type === "close-float" ? "Close float" : "Save transaction"}</Button>
         </Paper>
 
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
