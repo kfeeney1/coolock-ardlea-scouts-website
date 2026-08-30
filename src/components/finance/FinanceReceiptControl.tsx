@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { addFinanceReceipt, loadFinanceReceipts, type FinanceReceipt } from "../../services/financeReceipts";
 
 interface Props {
@@ -46,9 +46,13 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
         {uploading ? "Uploading…" : receipts.length ? "Add receipt" : "Attach receipt"}
         <input hidden type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void upload(file); }} />
       </Button>
-      {receipts.map((receipt) => <Chip key={receipt.id} component="a" clickable href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" label={receipt.fileName} variant="outlined" />)}
+      {receipts.map((receipt) => receipt.contentType.startsWith("image/") ? (
+        <Box key={receipt.id} component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+          <Box component="img" src={receipt.downloadUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
+        </Box>
+      ) : <Chip key={receipt.id} component="a" clickable href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" label={receipt.fileName} variant="outlined" />)}
     </Stack>
-    {receipts.length > 0 && <Typography variant="caption" color="text.secondary">{receipts.length} receipt{receipts.length === 1 ? "" : "s"} attached</Typography>}
+    {receipts.length > 0 && <Typography variant="caption" color="text.secondary">{receipts.length} receipt{receipts.length === 1 ? "" : "s"} attached to this Money out record</Typography>}
     {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
   </Stack>;
 }
