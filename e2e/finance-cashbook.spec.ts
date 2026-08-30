@@ -36,6 +36,13 @@ test("section leader sees the constrained Section Floats workflow", async ({ pag
   await expect(page.getByRole("option", { name: "Close float" })).toBeVisible();
   await page.keyboard.press("Escape");
 
+  const amount = page.getByLabel("Amount (€)");
+  await amount.fill("12.345");
+  await expect(amount).toHaveValue("");
+  await amount.fill("12.34");
+  await expect(amount).toHaveValue("12.34");
+  await expect(page.getByText("Maximum two decimal places.")).toBeVisible();
+
   await expect(page.getByRole("combobox", { name: "Outgoing category" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Attach receipt" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Float reconciliation" })).toBeVisible();
