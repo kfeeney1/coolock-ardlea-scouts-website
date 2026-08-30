@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function profile() {
+      return firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid)).data;
+    }
+    function isActiveLeader() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/adminUsers/$(request.auth.uid))
+        && profile().active == true
+        && profile().role in ["leader", "admin", "super-admin"]
+        && profile().sections is list
+        && profile().sections.size() > 0;
+    }
+    function isAdmin() { return isActiveLeader() && profile().role in ["admin", "super-admin"]; }
+    function leadershipRole() {
+      return firestore.get(/databases/(default)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole;
+    }
+    function hasLeadershipRole(role) {
+      return isActiveLeader()
+        && firestore.exists(/databases/(default)/documents/organisationLeadership/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+        && leadershipRole() == role;
+    }
+    function canViewAllFinance() {
+      return isAdmin() || hasLeadershipRole("Group Leader") || hasLeadershipRole("Group Treasurer");
+    }
+    function canAccessFinanceSection(section) {
+      return isActiveLeader() && (canViewAllFinance() || section in profile().sections);
+    }
+    function validReceiptWrite(section) {
+      return canAccessFinanceSection(section)
+        && request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        && request.resource.metadata.ownerType == "finance-receipt"
+        && request.resource.metadata.section == section
+        && request.resource.metadata.uploadedBy == request.auth.uid;
+    }
+
+    // Shared attachment namespace. Finance receipts are the first owner type;
+    // event-gallery and other owner types will receive their own explicit rules.
+    match /attachments/finance-receipts/{section}/{attachmentId}/{fileName} {
+      allow read: if canAccessFinanceSection(section);
+      allow create: if validReceiptWrite(section);
+      allow update: if false;
+      allow delete: if canAccessFinanceSection(section)
+        && resource.metadata.ownerType == "finance-receipt"
+        && resource.metadata.section == section;
+    }
+
+    // Deny every path that has not been explicitly designed and reviewed.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
