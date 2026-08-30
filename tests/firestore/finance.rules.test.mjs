@@ -29,6 +29,19 @@ function transaction(overrides = {}) {
   };
 }
 
+function reconciliation(overrides = {}) {
+  return {
+    section: "Cubs",
+    expectedBalanceCents: 5000,
+    countedBalanceCents: 5000,
+    differenceCents: 0,
+    note: "",
+    reconciledBy: "leader-cubs",
+    reconciledAt: serverTimestamp(),
+    ...overrides,
+  };
+}
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
@@ -59,6 +72,7 @@ test("Group Treasurer can manage finance across all sections", async () => {
   await assertSucceeds(getDocs(query(collection(db, "financeTransactions"), where("section", "==", "Cubs"))));
   await assertSucceeds(getDocs(query(collection(db, "financeTransactions"), where("section", "==", "Scouts"))));
   await assertSucceeds(setDoc(doc(db, "financeTransactions/beavers-income"), transaction({ section: "Beavers", createdBy: "treasurer" })));
+  await assertSucceeds(setDoc(doc(db, "financeReconciliations/beavers-count"), reconciliation({ section: "Beavers", reconciledBy: "treasurer" })));
 });
 
 test("Group Leader can manage finance across all sections", async () => {
@@ -70,31 +84,70 @@ test("Group Leader can manage finance across all sections", async () => {
   await assertSucceeds(setDoc(doc(db, "financeTransactions/scouts-income"), transaction({ section: "Scouts", createdBy: "group-leader" })));
 });
 
-test("parents cannot read or write finance transactions", async () => {
+test("parents cannot read or write finance records", async () => {
   await seedDocuments([
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-cub"], linkedSections: ["Cubs"] }],
     ["financeTransactions/cubs-income", { ...transaction(), createdAt: new Date() }],
+    ["financeReconciliations/cubs-count", { ...reconciliation(), reconciledAt: new Date() }],
   ]);
   const db = testEnv.authenticatedContext("parent-1", { email: "parent@example.com" }).firestore();
   await assertFails(getDoc(doc(db, "financeTransactions/cubs-income")));
   await assertFails(setDoc(doc(db, "financeTransactions/parent-write"), transaction({ createdBy: "parent-1" })));
+  await assertFails(getDoc(doc(db, "financeReconciliations/cubs-count")));
+  await assertFails(setDoc(doc(db, "financeReconciliations/parent-count"), reconciliation({ reconciledBy: "parent-1" })));
 });
 
 test("finance history is append-only", async () => {
   await seedDocuments([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
     ["financeTransactions/cubs-income", { ...transaction(), createdAt: new Date() }],
+    ["financeReconciliations/cubs-count", { ...reconciliation(), reconciledAt: new Date() }],
   ]);
   const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
-  const ref = doc(db, "financeTransactions/cubs-income");
-  await assertFails(updateDoc(ref, { amountCents: 999 }));
-  await assertFails(deleteDoc(ref));
+  const transactionRef = doc(db, "financeTransactions/cubs-income");
+  await assertFails(updateDoc(transactionRef, { amountCents: 999 }));
+  await assertFails(deleteDoc(transactionRef));
+  const reconciliationRef = doc(db, "financeReconciliations/cubs-count");
+  await assertFails(updateDoc(reconciliationRef, { countedBalanceCents: 4999 }));
+  await assertFails(deleteDoc(reconciliationRef));
 });
 
-test("adjustments must be non-zero and reference an earlier transaction", async () => {
+test("corrections must be exact deterministic reversals of an existing transaction", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["financeTransactions/original", { ...transaction(), createdAt: new Date() }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
+  const correction = transaction({ type: "adjustment", amountCents: -500, reversalOfTransactionId: "original" });
+  await assertFails(setDoc(doc(db, "financeTransactions/bad-adjustment-zero"), { ...correction, amountCents: 0 }));
+  await assertFails(setDoc(doc(db, "financeTransactions/bad-adjustment-link"), { ...correction, reversalOfTransactionId: "" }));
+  await assertFails(setDoc(doc(db, "financeTransactions/arbitrary-id"), correction));
+  await assertFails(setDoc(doc(db, "financeTransactions/reversal-original"), { ...correction, amountCents: -499 }));
+  await assertSucceeds(setDoc(doc(db, "financeTransactions/reversal-original"), correction));
+  await assertFails(setDoc(doc(db, "financeTransactions/reversal-original"), correction));
+});
+
+test("expense corrections restore the original positive ledger effect", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["financeTransactions/expense-original", { ...transaction({ type: "expense", amountCents: 725 }), createdAt: new Date() }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
+  await assertSucceeds(setDoc(doc(db, "financeTransactions/reversal-expense-original"), transaction({
+    type: "adjustment",
+    amountCents: 725,
+    reversalOfTransactionId: "expense-original",
+  })));
+});
+
+test("section reconciliation is section-scoped and internally consistent", async () => {
   await seedDocuments([["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }]]);
   const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
-  await assertFails(setDoc(doc(db, "financeTransactions/bad-adjustment-zero"), transaction({ type: "adjustment", amountCents: 0, reversalOfTransactionId: "original" })));
-  await assertFails(setDoc(doc(db, "financeTransactions/bad-adjustment-link"), transaction({ type: "adjustment", amountCents: -500, reversalOfTransactionId: "" })));
-  await assertSucceeds(setDoc(doc(db, "financeTransactions/good-adjustment"), transaction({ type: "adjustment", amountCents: -500, reversalOfTransactionId: "original" })));
+  await assertSucceeds(setDoc(doc(db, "financeReconciliations/balanced"), reconciliation()));
+  await assertSucceeds(getDocs(query(collection(db, "financeReconciliations"), where("section", "==", "Cubs"))));
+  await assertFails(getDocs(query(collection(db, "financeReconciliations"), where("section", "==", "Scouts"))));
+  await assertFails(setDoc(doc(db, "financeReconciliations/other-section"), reconciliation({ section: "Scouts" })));
+  await assertFails(setDoc(doc(db, "financeReconciliations/bad-arithmetic"), reconciliation({ countedBalanceCents: 4900, differenceCents: 0 })));
+  await assertFails(setDoc(doc(db, "financeReconciliations/missing-note"), reconciliation({ countedBalanceCents: 4900, differenceCents: -100 })));
+  await assertSucceeds(setDoc(doc(db, "financeReconciliations/explained-difference"), reconciliation({ countedBalanceCents: 4900, differenceCents: -100, note: "Cash count short" })));
 });
