@@ -5,7 +5,7 @@ import { recordAuditEvent } from "../../services/auditLog";
 import { loadFinanceTransactions } from "../../services/financeLedger";
 import { loadFinanceReceipts, type FinanceReceipt } from "../../services/financeReceipts";
 import { DEFAULT_FINANCE_CATEGORIES, type FinanceTransaction } from "../../services/financeLedgerLogic";
-import { buildFinanceMonthlyTotals, buildFinanceReportSummary, filterFinanceTransactions, financeReportCsv } from "../../services/financeReportingLogic";
+import { buildFinanceMonthlyTotals, buildFinanceReportSummary, filterFinanceTransactions, financeReceiptRequired, financeReportCsv } from "../../services/financeReportingLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
 
@@ -51,8 +51,8 @@ export default function FinanceReportsPanel() {
           setReceipts(receiptGroups.flat());
         }
       } catch (loadError) {
-        console.error("Unable to load finance reporting data:", loadError);
-        if (!cancelled) setError("Unable to load finance reporting data for your permitted sections.");
+        console.error("Unable to load section float reporting data:", loadError);
+        if (!cancelled) setError("Unable to load section float reporting data for your permitted sections.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -65,26 +65,26 @@ export default function FinanceReportsPanel() {
   const filteredReceipts = useMemo(() => receipts.filter((receipt) => filteredIds.has(receipt.transactionId)), [receipts, filteredIds]);
   const summary = useMemo(() => buildFinanceReportSummary(filtered, filteredReceipts), [filtered, filteredReceipts]);
   const monthly = useMemo(() => buildFinanceMonthlyTotals(filtered), [filtered]);
-  const categories = useMemo(() => [...new Set([...DEFAULT_FINANCE_CATEGORIES, ...transactions.map((item) => item.category)])].sort(), [transactions]);
+  const categories = useMemo(() => [...new Set([...DEFAULT_FINANCE_CATEGORIES, ...transactions.filter(financeReceiptRequired).map((item) => item.category)])].sort(), [transactions]);
   const missingReceiptRows = useMemo(() => {
     const receiptIds = new Set(receipts.map((receipt) => receipt.transactionId));
-    return filtered.filter((item) => item.type === "expense" && !receiptIds.has(item.id));
+    return filtered.filter((item) => financeReceiptRequired(item) && !receiptIds.has(item.id));
   }, [filtered, receipts]);
 
   const exportCsv = () => {
     if (filtered.length === 0) return;
-    downloadCsv(`finance-report-${new Date().toISOString().slice(0, 10)}.csv`, financeReportCsv(filtered, filteredReceipts));
-    void recordAuditEvent({ category: "finance", action: "finance-report-exported", targetId: "finance-report", targetLabel: "Finance report", description: `Exported ${filtered.length} finance transactions with ${summary.missingReceiptCount} missing expense receipts.`, section: section || "All permitted sections" });
+    downloadCsv(`section-floats-${new Date().toISOString().slice(0, 10)}.csv`, financeReportCsv(filtered, filteredReceipts));
+    void recordAuditEvent({ category: "finance", action: "finance-report-exported", targetId: "section-floats-report", targetLabel: "Section Floats report", description: `Exported ${filtered.length} float transactions with ${summary.missingReceiptCount} missing money-out receipts.`, section: section || "All permitted sections" });
   };
 
   const printReport = () => {
-    void recordAuditEvent({ category: "finance", action: "finance-report-printed", targetId: "finance-report", targetLabel: "Finance report", description: `Opened printable finance report for ${filtered.length} transactions.`, section: section || "All permitted sections" });
+    void recordAuditEvent({ category: "finance", action: "finance-report-printed", targetId: "section-floats-report", targetLabel: "Section Floats report", description: `Opened printable Section Floats report for ${filtered.length} transactions.`, section: section || "All permitted sections" });
     window.print();
   };
 
   return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }} data-testid="finance-reporting">
-    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Finance reporting</Typography>
-    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Review ledger movement, monthly totals and missing receipts. CSV exports use the same permission-scoped data shown here.</Typography>
+    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Section Floats reporting</Typography>
+    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Review float movement, monthly totals and missing receipts. CSV exports use the same permission-scoped data shown here.</Typography>
 
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
     <Box sx={{ mt: 2.5, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
@@ -96,36 +96,36 @@ export default function FinanceReportsPanel() {
         </Select>
       </FormControl>
       <FormControl fullWidth>
-        <InputLabel id="finance-report-category-label">Category</InputLabel>
-        <Select labelId="finance-report-category-label" label="Category" value={category} displayEmpty renderValue={(value) => value || "All categories"} onChange={(event) => setCategory(event.target.value)}>
-          <MenuItem value="">All categories</MenuItem>
+        <InputLabel id="finance-report-category-label">Outgoing category</InputLabel>
+        <Select labelId="finance-report-category-label" label="Outgoing category" value={category} displayEmpty renderValue={(value) => value || "All outgoing categories"} onChange={(event) => setCategory(event.target.value)}>
+          <MenuItem value="">All outgoing categories</MenuItem>
           {categories.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </Select>
       </FormControl>
-      <TextField type="date" label="Finance from date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      <TextField type="date" label="Finance to date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+      <TextField type="date" label="Float from date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+      <TextField type="date" label="Float to date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
     </Box>
 
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
-      <Button variant="outlined" onClick={() => { setSection(""); setCategory(""); setFromDate(""); setToDate(""); }}>Clear finance filters</Button>
-      <Button variant="contained" color="success" disabled={loading || filtered.length === 0} onClick={exportCsv}>Export Finance CSV</Button>
+      <Button variant="outlined" onClick={() => { setSection(""); setCategory(""); setFromDate(""); setToDate(""); }}>Clear float filters</Button>
+      <Button variant="contained" color="success" disabled={loading || filtered.length === 0} onClick={exportCsv}>Export Section Floats CSV</Button>
       <Button variant="outlined" color="secondary" disabled={loading || filtered.length === 0} onClick={printReport}>Print / Save PDF</Button>
     </Stack>
 
-    {loading ? <Typography color="text.secondary" sx={{ mt: 3 }}>Loading finance report…</Typography> : <>
+    {loading ? <Typography color="text.secondary" sx={{ mt: 3 }}>Loading Section Floats report…</Typography> : <>
       <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
-        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Income</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.incomeCents)}</Typography></Paper>
-        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Expenses</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.expenseCents)}</Typography></Paper>
-        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Net movement</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.netMovementCents)}</Typography></Paper>
-        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Missing receipts</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{summary.missingReceiptCount}</Typography><Typography variant="body2" color="text.secondary">of {summary.expenseCount} expenses</Typography></Paper>
+        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Float top ups</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.incomeCents)}</Typography></Paper>
+        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Money out</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.expenseCents)}</Typography></Paper>
+        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Net float movement</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{euro(summary.netMovementCents)}</Typography></Paper>
+        <Paper variant="outlined" sx={{ p: 2 }}><Typography variant="overline">Missing receipts</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{summary.missingReceiptCount}</Typography><Typography variant="body2" color="text.secondary">of {summary.expenseCount} money-out entries</Typography></Paper>
       </Box>
 
       <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2 }}>
         <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 800, mb: 1 }}>Monthly totals</Typography>
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>Monthly float movement</Typography>
           {monthly.length === 0 ? <Typography color="text.secondary">No transactions match these filters.</Typography> : <Stack spacing={1}>{monthly.map((item) => <Box key={item.month} sx={{ display: "grid", gridTemplateColumns: "1fr repeat(3, auto)", gap: 2, alignItems: "center" }}>
             <Typography sx={{ fontWeight: 700 }}>{item.month}</Typography>
-            <Typography variant="body2">In {euro(item.incomeCents)}</Typography>
+            <Typography variant="body2">Top up {euro(item.incomeCents)}</Typography>
             <Typography variant="body2">Out {euro(item.expenseCents)}</Typography>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>Net {euro(item.netCents)}</Typography>
           </Box>)}</Stack>}
@@ -133,15 +133,15 @@ export default function FinanceReportsPanel() {
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Typography sx={{ fontWeight: 800 }}>Receipt completeness</Typography>
-          {missingReceiptRows.length === 0 ? <Alert severity="success" sx={{ mt: 1.5 }}>All filtered expense entries have at least one receipt attached.</Alert> : <>
-            <Alert severity="warning" sx={{ mt: 1.5 }}>{missingReceiptRows.length} filtered expense entr{missingReceiptRows.length === 1 ? "y is" : "ies are"} missing a receipt.</Alert>
+          {missingReceiptRows.length === 0 ? <Alert severity="success" sx={{ mt: 1.5 }}>All filtered money-out entries have at least one receipt attached.</Alert> : <>
+            <Alert severity="warning" sx={{ mt: 1.5 }}>{missingReceiptRows.length} filtered money-out entr{missingReceiptRows.length === 1 ? "y is" : "ies are"} missing a receipt.</Alert>
             <Stack spacing={0.75} sx={{ mt: 1.5 }}>{missingReceiptRows.slice(0, 8).map((item) => <Typography key={item.id} variant="body2">{item.transactionDate} · {item.section} · {item.description} · {euro(item.amountCents)}</Typography>)}</Stack>
             {missingReceiptRows.length > 8 && <Typography variant="caption" color="text.secondary">Plus {missingReceiptRows.length - 8} more in the CSV export.</Typography>}
           </>}
         </Paper>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>{filtered.length} transaction{filtered.length === 1 ? "" : "s"} in the current finance report. Internal transfers are shown as linked ledger movement; across all sections their in/out values cancel in net movement.</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>{filtered.length} transaction{filtered.length === 1 ? "" : "s"} in the current Section Floats report. Historical transfer/correction entries remain readable for audit compatibility.</Typography>
     </>}
   </Paper>;
 }
