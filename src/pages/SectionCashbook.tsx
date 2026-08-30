@@ -22,6 +22,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
   createFinanceTransaction,
+  createFinanceTransfer,
   loadFinanceTransactions,
   reverseFinanceTransaction,
 } from "../services/financeLedger";
@@ -76,10 +77,21 @@ export default function SectionCashbook() {
   const [correction, setCorrection] = useState<FinanceTransaction | null>(null);
   const [correctionDate, setCorrectionDate] = useState(today());
   const [correctionReason, setCorrectionReason] = useState("");
+  const [transferTo, setTransferTo] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferDescription, setTransferDescription] = useState("");
+  const [transferDate, setTransferDate] = useState(today());
 
   useEffect(() => {
     if (!section && sections.length) setSection(sections[0]);
   }, [section, sections]);
+
+  const transferDestinations = useMemo(() => GROUP_SECTIONS.filter((item) => item !== section), [section]);
+
+  useEffect(() => {
+    if (!isAllSectionsRole) return;
+    if (!transferDestinations.includes(transferTo)) setTransferTo(transferDestinations[0] ?? "");
+  }, [isAllSectionsRole, transferDestinations, transferTo]);
 
   const refresh = async () => {
     if (!section) return;
@@ -132,6 +144,33 @@ export default function SectionCashbook() {
     } catch (submitError) {
       console.error("Unable to add cashbook transaction:", submitError);
       setError(submitError instanceof Error ? submitError.message : "Unable to save this transaction.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveTransfer = async () => {
+    const amountCents = eurosToCents(transferAmount);
+    if (amountCents === null || amountCents <= 0) {
+      setError("Enter a transfer amount greater than zero with no more than two decimal places.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await createFinanceTransfer({
+        fromSection: section,
+        toSection: transferTo,
+        amountCents,
+        description: transferDescription,
+        transactionDate: transferDate,
+      });
+      setTransferAmount("");
+      setTransferDescription("");
+      await refresh();
+    } catch (transferError) {
+      console.error("Unable to transfer section finance:", transferError);
+      setError(transferError instanceof Error ? transferError.message : "Unable to save this transfer.");
     } finally {
       setSaving(false);
     }
@@ -222,6 +261,24 @@ export default function SectionCashbook() {
           <Button variant="contained" color="success" disabled={saving || !section} onClick={() => void submit()} sx={{ mt: 2, minHeight: 44 }}>{saving ? "Saving…" : "Add transaction"}</Button>
         </Paper>
 
+        {isAllSectionsRole && <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>Transfer between sections</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>Transfers create linked money-out and money-in entries in one atomic write, so one side cannot be saved without the other.</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
+            <TextField label="From section" value={section} slotProps={{ input: { readOnly: true } }} />
+            <FormControl>
+              <InputLabel id="finance-transfer-to-label">To section</InputLabel>
+              <Select labelId="finance-transfer-to-label" id="finance-transfer-to" label="To section" value={transferTo} onChange={(event) => setTransferTo(event.target.value)}>
+                {transferDestinations.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Transfer amount (€)" inputMode="decimal" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} />
+            <TextField type="date" label="Transfer date" value={transferDate} onChange={(event) => setTransferDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField label="Transfer description" value={transferDescription} onChange={(event) => setTransferDescription(event.target.value)} sx={{ gridColumn: { md: "1 / -1" } }} />
+          </Box>
+          <Button variant="contained" color="secondary" disabled={saving || !section || !transferTo} onClick={() => void saveTransfer()} sx={{ mt: 2, minHeight: 44 }}>{saving ? "Saving…" : "Transfer money"}</Button>
+        </Paper>}
+
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>Cash reconciliation</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>Count the physical cash and compare it with the ledger. A difference is recorded for investigation; it does not alter the balance automatically.</Typography>
@@ -253,6 +310,7 @@ export default function SectionCashbook() {
             <Stack spacing={1.5}>{transactions.map((transaction) => {
               const signed = signedAmountCents(transaction);
               const isAdjustment = transaction.type === "adjustment";
+              const isTransfer = transaction.type === "transfer-in" || transaction.type === "transfer-out";
               const isCorrected = reversedIds.has(transaction.id);
               return <Paper key={transaction.id} variant="outlined" sx={{ p: 2 }}>
                 <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}>
@@ -260,14 +318,16 @@ export default function SectionCashbook() {
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                       <Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography>
                       {isAdjustment && <Chip size="small" label="Correction" variant="outlined" />}
+                      {isTransfer && <Chip size="small" label="Transfer" color="info" variant="outlined" />}
                       {isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}
                     </Stack>
                     <Typography variant="body2" color="text.secondary">{transaction.transactionDate} · {transaction.category} · {transaction.type}</Typography>
                     {transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}
+                    {isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Linked transfer {transaction.sourceTransactionId}</Typography>}
                   </Box>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
                     <Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>
-                    {!isAdjustment && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => { setCorrection(transaction); setCorrectionReason(""); setCorrectionDate(today()); }}>Correct entry</Button>}
+                    {!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => { setCorrection(transaction); setCorrectionReason(""); setCorrectionDate(today()); }}>Correct entry</Button>}
                   </Stack>
                 </Box>
               </Paper>;
