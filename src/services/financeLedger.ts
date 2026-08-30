@@ -1,5 +1,6 @@
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { recordAuditEvent } from "./auditLog";
 import {
   calculateLedgerBalanceCents,
   createReversalInput,
@@ -47,16 +48,44 @@ export async function loadFinanceTransactions(section?: string): Promise<Finance
 export async function createFinanceTransaction(input: FinanceTransactionInput): Promise<string> {
   const uid = currentUid();
   const validated = validateFinanceTransactionInput(input);
+  if (validated.type === "adjustment") {
+    throw new Error("Use the correction workflow to reverse an existing transaction.");
+  }
   const result = await addDoc(collection(db, "financeTransactions"), {
     ...validated,
     createdBy: uid,
     createdAt: serverTimestamp()
   });
+  void recordAuditEvent({
+    category: "finance",
+    action: "transaction-created",
+    targetId: result.id,
+    targetLabel: validated.description,
+    description: `${validated.type} recorded for ${validated.section}`,
+    section: validated.section
+  });
   return result.id;
 }
 
 export async function reverseFinanceTransaction(original: FinanceTransaction, transactionDate: string, description?: string): Promise<string> {
-  return createFinanceTransaction(createReversalInput(original, transactionDate, description));
+  if (original.type === "adjustment") throw new Error("An adjustment cannot itself be reversed from this workflow.");
+  const uid = currentUid();
+  const reversal = createReversalInput(original, transactionDate, description);
+  const reversalId = `reversal-${original.id}`;
+  await setDoc(doc(db, "financeTransactions", reversalId), {
+    ...reversal,
+    createdBy: uid,
+    createdAt: serverTimestamp()
+  });
+  void recordAuditEvent({
+    category: "finance",
+    action: "transaction-corrected",
+    targetId: original.id,
+    targetLabel: original.description,
+    description: `Created linked correction ${reversalId}`,
+    section: original.section
+  });
+  return reversalId;
 }
 
 export async function loadFinanceBalanceCents(section: string): Promise<number> {

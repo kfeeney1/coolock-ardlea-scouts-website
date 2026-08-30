@@ -431,18 +431,44 @@ service cloud.firestore {
       allow create: if canAccessFinanceSection(request.resource.data.section)
         && request.resource.data.type in ["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]
         && request.resource.data.amountCents is number
-        && ((request.resource.data.type == "adjustment" && request.resource.data.amountCents != 0)
-          || (request.resource.data.type != "adjustment" && request.resource.data.amountCents > 0))
         && request.resource.data.category is string
         && request.resource.data.description is string
         && request.resource.data.transactionDate is string
         && request.resource.data.sourceTransactionId is string
         && request.resource.data.reversalOfTransactionId is string
-        && ((request.resource.data.type == "adjustment" && request.resource.data.reversalOfTransactionId != "")
-          || (request.resource.data.type != "adjustment" && request.resource.data.reversalOfTransactionId == ""))
+        && ((request.resource.data.type != "adjustment"
+            && request.resource.data.amountCents > 0
+            && request.resource.data.reversalOfTransactionId == "")
+          || (request.resource.data.type == "adjustment"
+            && request.resource.data.amountCents != 0
+            && request.resource.data.reversalOfTransactionId != ""
+            && transactionId == "reversal-" + request.resource.data.reversalOfTransactionId
+            && exists(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId))
+            && get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.section == request.resource.data.section
+            && get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type != "adjustment"
+            && ((get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type in ["opening-float", "income", "transfer-in"]
+                && request.resource.data.amountCents == -get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.amountCents)
+              || (get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type in ["expense", "transfer-out"]
+                && request.resource.data.amountCents == get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.amountCents))))
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.keys().hasOnly(["section", "type", "amountCents", "category", "description", "transactionDate", "sourceTransactionId", "reversalOfTransactionId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /financeReconciliations/{reconciliationId} {
+      allow get, list: if canAccessFinanceSection(resource.data.section);
+      allow create: if canAccessFinanceSection(request.resource.data.section)
+        && request.resource.data.expectedBalanceCents is number
+        && request.resource.data.countedBalanceCents is number
+        && request.resource.data.countedBalanceCents >= 0
+        && request.resource.data.differenceCents is number
+        && request.resource.data.differenceCents == request.resource.data.countedBalanceCents - request.resource.data.expectedBalanceCents
+        && request.resource.data.note is string
+        && (request.resource.data.differenceCents == 0 || request.resource.data.note != "")
+        && request.resource.data.reconciledBy == request.auth.uid
+        && request.resource.data.reconciledAt == request.time
+        && request.resource.data.keys().hasOnly(["section", "expectedBalanceCents", "countedBalanceCents", "differenceCents", "note", "reconciledBy", "reconciledAt"]);
       allow update, delete: if false;
     }
 

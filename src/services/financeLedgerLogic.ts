@@ -22,6 +22,20 @@ export type FinanceReconciliation = {
   balanced: boolean;
 };
 
+export type FinanceReconciliationWrite = {
+  section: string;
+  expectedBalanceCents: number;
+  countedBalanceCents: number;
+  differenceCents: number;
+  note: string;
+};
+
+export type FinanceReconciliationRecord = FinanceReconciliationWrite & {
+  id: string;
+  reconciledBy: string;
+  reconciledAt: Date | null;
+};
+
 export const DEFAULT_FINANCE_CATEGORIES = [
   "Weekly subs",
   "Event income",
@@ -78,6 +92,26 @@ export function reconcileFinanceFloat(
     countedBalanceCents,
     differenceCents,
     balanced: differenceCents === 0
+  };
+}
+
+export function createFinanceReconciliationWrite(
+  sectionValue: string,
+  transactions: Array<Pick<FinanceTransaction, "type" | "amountCents">>,
+  countedBalanceCents: number,
+  noteValue: string
+): FinanceReconciliationWrite {
+  const section = normaliseFinanceText(sectionValue);
+  const note = normaliseFinanceText(noteValue);
+  if (!section) throw new Error("Select a section.");
+  const result = reconcileFinanceFloat(transactions, countedBalanceCents);
+  if (!result.balanced && !note) throw new Error("Add a note explaining the cash difference.");
+  return {
+    section,
+    expectedBalanceCents: result.expectedBalanceCents,
+    countedBalanceCents: result.countedBalanceCents,
+    differenceCents: result.differenceCents,
+    note
   };
 }
 
