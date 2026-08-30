@@ -1,6 +1,7 @@
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import { validateFinanceTransferInput, type FinanceTransferInput } from "./financeTransferLogic";
 import {
   calculateLedgerBalanceCents,
   createReversalInput,
@@ -48,8 +49,8 @@ export async function loadFinanceTransactions(section?: string): Promise<Finance
 export async function createFinanceTransaction(input: FinanceTransactionInput): Promise<string> {
   const uid = currentUid();
   const validated = validateFinanceTransactionInput(input);
-  if (validated.type === "adjustment") {
-    throw new Error("Use the correction workflow to reverse an existing transaction.");
+  if (["adjustment", "transfer-in", "transfer-out"].includes(validated.type)) {
+    throw new Error("Use the dedicated finance workflow for corrections and transfers.");
   }
   const result = await addDoc(collection(db, "financeTransactions"), {
     ...validated,
@@ -65,6 +66,46 @@ export async function createFinanceTransaction(input: FinanceTransactionInput): 
     section: validated.section
   });
   return result.id;
+}
+
+export async function createFinanceTransfer(input: FinanceTransferInput): Promise<string> {
+  const uid = currentUid();
+  const validated = validateFinanceTransferInput(input);
+  const transferId = doc(collection(db, "financeTransactions")).id;
+  const batch = writeBatch(db);
+  const shared = {
+    amountCents: validated.amountCents,
+    category: "Bank / transfer",
+    transactionDate: validated.transactionDate,
+    sourceTransactionId: transferId,
+    reversalOfTransactionId: "",
+    createdBy: uid,
+    createdAt: serverTimestamp()
+  };
+
+  batch.set(doc(db, "financeTransactions", `${transferId}-out`), {
+    ...shared,
+    section: validated.fromSection,
+    type: "transfer-out",
+    description: `Transfer to ${validated.toSection}: ${validated.description}`
+  });
+  batch.set(doc(db, "financeTransactions", `${transferId}-in`), {
+    ...shared,
+    section: validated.toSection,
+    type: "transfer-in",
+    description: `Transfer from ${validated.fromSection}: ${validated.description}`
+  });
+  await batch.commit();
+
+  void recordAuditEvent({
+    category: "finance",
+    action: "transfer-created",
+    targetId: transferId,
+    targetLabel: validated.description,
+    description: `Transferred ${validated.amountCents} cents from ${validated.fromSection} to ${validated.toSection}`,
+    section: validated.fromSection
+  });
+  return transferId;
 }
 
 export async function reverseFinanceTransaction(original: FinanceTransaction, transactionDate: string, description?: string): Promise<string> {
