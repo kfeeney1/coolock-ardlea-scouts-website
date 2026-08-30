@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
+import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -205,6 +206,8 @@ export default function LeaderReports() {
                             {insights.eventsWithoutAttendance > 0 && <Alert severity="warning" sx={{ mt: 2 }}>{insights.eventsWithoutAttendance} event{insights.eventsWithoutAttendance === 1 ? " has" : "s have"} no recorded attendance response in this range.</Alert>}
                             {insights.consentEventsWithoutReceived > 0 && <Alert severity="warning" sx={{ mt: 1.5 }}>{insights.consentEventsWithoutReceived} consent-required event{insights.consentEventsWithoutReceived === 1 ? " has" : "s have"} no consent marked received yet.</Alert>}
                         </Paper>
+
+                        <FinanceReportsPanel />
 
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="printable-report-summary">
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
