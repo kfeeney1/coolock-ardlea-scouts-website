@@ -29,7 +29,7 @@ const rules = [
   },
   {
     name: "focused tests",
-    pattern: /\b(?:test|describe)\.only\s*\(/g,
+    pattern: /\btest(?:\.describe)?\.only\s*\(/g,
     message: "Focused tests must not be committed."
   },
   {
@@ -63,7 +63,7 @@ for (const filename of specs) {
 }
 
 if (specs.length === 0 || testCalls === 0) {
-  failures.push("No Playwright specs/tests were discovered under e2e/." );
+  failures.push("No Playwright specs/tests were discovered under e2e/.");
 }
 
 if (failures.length > 0) {
