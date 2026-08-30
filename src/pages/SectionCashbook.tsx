@@ -184,8 +184,8 @@ export default function SectionCashbook() {
           <Typography color="text.secondary" sx={{ mt: 1 }}>Track section cash as an append-only ledger. Mistakes are corrected with linked reversal entries, never by rewriting history.</Typography>
           <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, gap: 2, alignItems: "center" }}>
             <FormControl fullWidth>
-              <InputLabel>Section</InputLabel>
-              <Select label="Section" value={section} onChange={(event) => setSection(event.target.value)}>
+              <InputLabel id="finance-section-label">Section</InputLabel>
+              <Select labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(event.target.value)}>
                 {sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
               </Select>
             </FormControl>
@@ -202,8 +202,8 @@ export default function SectionCashbook() {
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Add transaction</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
             <FormControl>
-              <InputLabel>Type</InputLabel>
-              <Select label="Type" value={type} onChange={(event) => setType(event.target.value as FinanceTransactionType)}>
+              <InputLabel id="finance-type-label">Type</InputLabel>
+              <Select labelId="finance-type-label" id="finance-type" label="Type" value={type} onChange={(event) => setType(event.target.value as FinanceTransactionType)}>
                 <MenuItem value="opening-float">Opening float</MenuItem>
                 <MenuItem value="income">Money in</MenuItem>
                 <MenuItem value="expense">Expense</MenuItem>
@@ -211,8 +211,8 @@ export default function SectionCashbook() {
             </FormControl>
             <TextField label="Amount (€)" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
             <FormControl>
-              <InputLabel>Category</InputLabel>
-              <Select label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
+              <InputLabel id="finance-category-label">Category</InputLabel>
+              <Select labelId="finance-category-label" id="finance-category" label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
                 {DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
               </Select>
             </FormControl>
