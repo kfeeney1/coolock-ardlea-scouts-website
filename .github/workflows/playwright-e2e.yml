@@ -28,6 +28,8 @@ jobs:
       FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
       FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
       E2E_BASE_URL: http://127.0.0.1:4173
       E2E_TEST_USER_PASSWORD: password1
       E2E_PARENT_EVENT_CONSENT_ENABLED: ${{ vars.E2E_PARENT_EVENT_CONSENT_ENABLED }}
@@ -75,12 +77,12 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npm install --no-save --package-lock=false firebase-admin firebase-tools@15.28.1
 
-      - name: Start Firestore and Auth emulators with branch rules
+      - name: Start Firestore, Auth and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npx firebase emulators:start --only firestore,auth --project coolock-ardlea-scouts > /tmp/firebase-emulator.log 2>&1 &
+          npx firebase emulators:start --only firestore,auth,storage --project coolock-ardlea-scouts > /tmp/firebase-emulator.log 2>&1 &
           for i in {1..45}; do
-            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null; then
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
               exit 0
             fi
             sleep 1
