@@ -19,11 +19,15 @@ test.describe("Stable loading shell", () => {
       (window as Window & { __shellObserver?: MutationObserver }).__shellObserver = observer;
     });
 
-    // The mobile Chromium project hides desktop navigation links behind the menu.
-    // Open the real mobile navigation and follow the About route through React Router
-    // so this regression test still observes the shell during an in-app lazy transition.
-    await page.getByRole("button", { name: "Open navigation menu" }).click();
-    await page.getByRole("menuitem", { name: "About", exact: true }).click();
+    // Follow the real React Router navigation at the active breakpoint. Desktop projects
+    // expose the About link directly; mobile projects expose it through the navigation menu.
+    const mobileMenuButton = page.getByRole("button", { name: "Open navigation menu" });
+    if (await mobileMenuButton.isVisible()) {
+      await mobileMenuButton.click();
+      await page.getByRole("menuitem", { name: "About", exact: true }).click();
+    } else {
+      await page.getByRole("link", { name: "About", exact: true }).first().click();
+    }
 
     await expect(page).toHaveURL(/\/about$/);
     await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
