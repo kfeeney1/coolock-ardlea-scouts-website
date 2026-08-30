@@ -45,8 +45,15 @@ export function normaliseFinanceText(value: string): string {
 }
 
 export function signedAmountCents(transaction: Pick<FinanceTransaction, "type" | "amountCents">): number {
-  if (!Number.isInteger(transaction.amountCents) || transaction.amountCents < 0) {
-    throw new Error("Finance amounts must be stored as non-negative whole cents.");
+  if (!Number.isInteger(transaction.amountCents)) {
+    throw new Error("Finance amounts must be stored as whole cents.");
+  }
+  if (transaction.type === "adjustment") {
+    if (transaction.amountCents === 0) throw new Error("Adjustments cannot be zero.");
+    return transaction.amountCents;
+  }
+  if (transaction.amountCents < 0) {
+    throw new Error("Non-adjustment finance amounts must be non-negative whole cents.");
   }
   if (POSITIVE_TYPES.has(transaction.type)) return transaction.amountCents;
   if (NEGATIVE_TYPES.has(transaction.type)) return -transaction.amountCents;
@@ -81,7 +88,12 @@ export function validateFinanceTransactionInput(input: FinanceTransactionInput):
   const transactionDate = input.transactionDate.trim();
 
   if (!section) throw new Error("Select a section.");
-  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new Error("Enter an amount greater than zero.");
+  if (!Number.isInteger(input.amountCents)) throw new Error("Enter an amount in whole cents.");
+  if (input.type === "adjustment") {
+    if (input.amountCents === 0) throw new Error("Enter a non-zero adjustment amount.");
+  } else if (input.amountCents <= 0) {
+    throw new Error("Enter an amount greater than zero.");
+  }
   if (!category) throw new Error("Select or enter a finance category.");
   if (!description) throw new Error("Enter a transaction description.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) throw new Error("Enter a valid transaction date.");
@@ -104,12 +116,10 @@ export function validateFinanceTransactionInput(input: FinanceTransactionInput):
 }
 
 export function createReversalInput(original: FinanceTransaction, transactionDate: string, description?: string): FinanceTransactionInput {
-  const oppositeType: FinanceTransactionType = POSITIVE_TYPES.has(original.type) ? "adjustment" : "adjustment";
-  const originalSigned = signedAmountCents(original);
   return validateFinanceTransactionInput({
     section: original.section,
-    type: oppositeType,
-    amountCents: -originalSigned,
+    type: "adjustment",
+    amountCents: -signedAmountCents(original),
     category: original.category,
     description: description ?? `Correction of ${original.description}`,
     transactionDate,
