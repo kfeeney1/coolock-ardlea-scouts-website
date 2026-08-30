@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calculateLedgerBalanceCents,
+  createFinanceReconciliationWrite,
   createReversalInput,
   reconcileFinanceFloat,
   validateFinanceTransactionInput,
@@ -30,6 +31,27 @@ test("reconciliation exposes rather than silently fixes float differences", () =
     differenceCents: -250,
     balanced: false
   });
+});
+
+test("reconciliation writes snapshot expected and counted cash without changing the ledger", () => {
+  const transactions = [
+    { type: "opening-float" as const, amountCents: 5000 },
+    { type: "income" as const, amountCents: 1000 },
+    { type: "expense" as const, amountCents: 750 }
+  ];
+  assert.deepEqual(createFinanceReconciliationWrite(" Cubs ", transactions, 5250, ""), {
+    section: "Cubs",
+    expectedBalanceCents: 5250,
+    countedBalanceCents: 5250,
+    differenceCents: 0,
+    note: ""
+  });
+});
+
+test("cash differences require an explanatory reconciliation note", () => {
+  const transactions = [{ type: "opening-float" as const, amountCents: 5000 }];
+  assert.throws(() => createFinanceReconciliationWrite("Cubs", transactions, 4900, ""), /note/);
+  assert.equal(createFinanceReconciliationWrite("Cubs", transactions, 4900, " Cash tin short by one euro ").note, "Cash tin short by one euro");
 });
 
 test("corrections are represented by linked adjustment transactions", () => {
