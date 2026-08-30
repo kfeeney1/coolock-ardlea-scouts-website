@@ -5,9 +5,10 @@ import { addFinanceReceipt, loadFinanceReceipts, type FinanceReceipt } from "../
 interface Props {
   transactionId: string;
   section: string;
+  refreshKey?: number;
 }
 
-export default function FinanceReceiptControl({ transactionId, section }: Props) {
+export default function FinanceReceiptControl({ transactionId, section, refreshKey = 0 }: Props) {
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +23,7 @@ export default function FinanceReceiptControl({ transactionId, section }: Props)
     }
   };
 
-  useEffect(() => { void refresh(); }, [section, transactionId]);
+  useEffect(() => { void refresh(); }, [section, transactionId, refreshKey]);
 
   const upload = async (file: File | undefined) => {
     if (!file) return;
