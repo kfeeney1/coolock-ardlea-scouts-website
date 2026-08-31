@@ -80,6 +80,7 @@ function isGalleryAccessDenied(error: unknown): boolean {
         details.includes("evaluation error")
         || details.includes("false for 'list'")
         || details.includes("Property eventId is undefined")
+        || details.includes("Null value error")
     );
 }
 
