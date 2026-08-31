@@ -67,15 +67,15 @@ service firebase.storage {
         && galleryAccess(eventId).get("memberId", "") in parentProfile().memberIds
         && section in parentProfile().linkedSections
         && firestore.exists(/databases/(default)/documents/events/$(eventId))
-        && galleryEvent(eventId).section == section
-        && galleryEvent(eventId).attendance[galleryAccess(eventId).get("memberId", "__missing__")] == "attending"
+        && galleryEvent(eventId).get("section", "") == section
+        && galleryEvent(eventId).get("attendance", {}).get(galleryAccess(eventId).get("memberId", "__missing__"), "") == "attending"
         && galleryAccess(eventId).get("consentApplicationId", "") is string
         && firestore.exists(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId)))
-        && galleryConsent(eventId).formType == "youth-activity-consent"
-        && galleryConsent(eventId).status == "active"
-        && galleryConsent(eventId).memberId == galleryAccess(eventId).get("memberId", "")
-        && galleryConsent(eventId).section == section
-        && galleryConsent(eventId).photoConsent == "Yes";
+        && galleryConsent(eventId).get("formType", "") == "youth-activity-consent"
+        && galleryConsent(eventId).get("status", "") == "active"
+        && galleryConsent(eventId).get("memberId", "") == galleryAccess(eventId).get("memberId", "")
+        && galleryConsent(eventId).get("section", "") == section
+        && galleryConsent(eventId).get("photoConsent", "") == "Yes";
     }
     function canParentReadGallery(section, eventId) {
       return isApprovedParent()
