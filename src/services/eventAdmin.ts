@@ -115,14 +115,8 @@ function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
 }
 
-async function syncPublicEvent(eventId: string, input: EventInput): Promise<void> {
-    const publicRef = doc(db, "publicEvents", eventId);
-    if (input.status !== "open") {
-        await deleteDoc(publicRef);
-        return;
-    }
-
-    await setDoc(publicRef, {
+function galleryProjection(eventId: string, input: EventInput) {
+    return {
         eventId,
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
@@ -131,8 +125,37 @@ async function syncPublicEvent(eventId: string, input: EventInput): Promise<void
         location: clean(input.location, 300),
         startDate: clean(input.startDate, 30),
         endDate: clean(input.endDate, 30),
+        status: input.status,
         updatedAt: serverTimestamp()
-    });
+    };
+}
+
+async function syncPublicEvent(eventId: string, input: EventInput): Promise<void> {
+    const publicRef = doc(db, "publicEvents", eventId);
+    if (input.status !== "open") {
+        await deleteDoc(publicRef);
+        return;
+    }
+
+    const { status: _status, ...publicProjection } = galleryProjection(eventId, input);
+    void _status;
+    await setDoc(publicRef, publicProjection);
+}
+
+async function syncParentGalleryEvent(eventId: string, input: EventInput): Promise<void> {
+    const galleryRef = doc(db, "parentGalleryEvents", eventId);
+    if (input.status === "draft") {
+        await deleteDoc(galleryRef);
+        return;
+    }
+    await setDoc(galleryRef, galleryProjection(eventId, input));
+}
+
+async function syncEventProjections(eventId: string, input: EventInput): Promise<void> {
+    await Promise.all([
+        syncPublicEvent(eventId, input),
+        syncParentGalleryEvent(eventId, input)
+    ]);
 }
 
 export async function loadEvents(): Promise<EventRecord[]> {
@@ -186,7 +209,7 @@ export async function createEvent(input: EventInput): Promise<string> {
         updatedBy: user.uid
     });
 
-    await syncPublicEvent(eventRef.id, { ...input, title });
+    await syncEventProjections(eventRef.id, { ...input, title });
     await recordAuditEvent({
         category: "event",
         action: "Event created",
@@ -238,7 +261,7 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         updatedBy: user.uid
     });
 
-    await syncPublicEvent(eventId, input);
+    await syncEventProjections(eventId, input);
     await recordAuditEvent({
         category: "event",
         action: input.status === "completed" ? "Event completed" : "Event updated",

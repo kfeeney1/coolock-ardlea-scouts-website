@@ -142,7 +142,26 @@ Before significant bulk edits, destructive migrations, cleanup tools or manual p
 
 See `docs/firestore-backup-recovery.md` for one-time bucket/IAM setup, first-run verification, retention guidance, the manual import procedure and restore-testing guidance.
 
-## 9. Secrets and configuration
+## 9. Event gallery access and lifecycle
+
+Parent gallery access has two projections with different purposes: `eventGalleryAccess/{eventId}/parents/{parentUid}` is the trusted authorization pointer used by Storage Rules, while `parentGalleryEvents/{eventId}` contains only parent-safe event metadata so Closed and Completed event galleries remain discoverable without exposing the full leader event document.
+
+The trusted commands require `FIREBASE_SERVICE_ACCOUNT_JSON`. They are dry-run by default:
+
+```bash
+npm run backfill:parent-gallery-events
+npm run audit:event-gallery-access
+```
+
+Use `EVENT_ID=<id>` to scope either command to one event. The access audit also accepts `SECTION=<section>`. Review all output before adding `APPLY=true`.
+
+For the Stage 16.5 rollout, run the parent-gallery-event backfill once after the new rules are deployed. It materializes retained event metadata only for events that already have at least one active gallery-access projection, and skips Draft/missing/incomplete events. New gallery grants and normal event updates maintain the retained projection automatically after that.
+
+The access audit checks the current event, parent, member, attendance and source photo-consent contract. In apply mode it deactivates an active projection only when those current facts no longer support access; it does not delete gallery objects. Review unexpected stale reasons before applying. Consent withdrawal is already enforced immediately by Storage Rules, so the audit is cleanup/visibility rather than the primary privacy boundary.
+
+Before running either command with `APPLY=true` against production, take and verify a fresh Firestore backup when the scope is broad or the output is unexpected. For a single reviewed access revocation, use `scripts/set-event-gallery-access.mjs` with `REVOKE=true` and dry-run it first.
+
+## 10. Secrets and configuration
 
 Frontend Firebase configuration is supplied through `VITE_FIREBASE_*` environment values. `VITE_EMAIL_API_URL` configures the email endpoint.
 
@@ -155,7 +174,7 @@ Rules:
 - rotate a secret if it is accidentally exposed;
 - when adding a required secret/variable, document its **name and purpose**, not its value.
 
-## 10. Incident checklist
+## 11. Incident checklist
 
 For a production incident:
 
@@ -170,13 +189,15 @@ For a production incident:
 9. Add an automated regression test if the incident could have been detected by CI.
 10. Document any manual data repair performed.
 
-## 11. Routine maintenance
+## 12. Routine maintenance
 
 Periodically review:
 
 - dependency/security audit results;
 - failing or flaky Playwright tests;
 - Firestore rule coverage when new collections are added;
+- stale event-gallery access projections with `npm run audit:event-gallery-access`;
+- retained gallery event metadata after lifecycle/backfill changes;
 - unused GitHub Actions secrets/variables;
 - test seed data and cleanup safeguards;
 - Firebase indexes and rules deployed versus repository state;
@@ -185,11 +206,12 @@ Periodically review:
 - backup bucket IAM/lifecycle rules;
 - whether restore has been tested recently in a suitable non-production environment.
 
-## 12. Related documentation
+## 13. Related documentation
 
 - `README.md` — project entry point and local setup
 - `docs/firestore-backup-recovery.md` — Firestore backup setup and recovery procedure
 - `docs/playwright-testing.md` — Playwright setup
 - `docs/playwright-role-testing.md` — role/permission E2E testing
+- `docs/stage-16-event-gallery.md` — event-gallery authorization, lifecycle and rollout
 - `docs/email-branding.md` — email presentation details
 - `docs/event-consent-email-testing.md` — event-consent email testing

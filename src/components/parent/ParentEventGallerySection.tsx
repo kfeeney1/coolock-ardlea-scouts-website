@@ -49,6 +49,12 @@ export default function ParentEventGallerySection({ sections }: Props) {
         let cancelled = false;
         let loaded: ParentEventGallery[] = [];
 
+        setSelectedPhoto(null);
+        setGalleries((current) => {
+            revokeParentEventGalleryUrls(current);
+            return [];
+        });
+
         void (async () => {
             setLoading(true);
             setError("");
@@ -74,10 +80,6 @@ export default function ParentEventGallerySection({ sections }: Props) {
         };
     }, [sections, retryVersion]);
 
-    useEffect(() => () => {
-        revokeParentEventGalleryUrls(galleries);
-    }, [galleries]);
-
     const visible = useMemo(() => {
         const query = search.trim().toLowerCase();
         if (!query) return galleries;
@@ -94,6 +96,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
             <Box
                 sx={{ minHeight: 120, display: "grid", placeItems: "center" }}
                 role="status"
+                aria-live="polite"
                 aria-label="Loading event galleries"
             >
                 <CircularProgress size={28} />
@@ -215,13 +218,13 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 >
                     <CloseIcon />
                 </IconButton>
-                <DialogContent sx={{ p: 1, backgroundColor: "background.default" }}>
+                <DialogContent sx={{ p: { xs: 0.5, sm: 1 }, backgroundColor: "background.default" }}>
                     {selectedPhoto && (
                         <Box
                             component="img"
                             src={selectedPhoto.objectUrl}
                             alt={selectedPhoto.fileName}
-                            sx={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }}
+                            sx={{ width: "100%", maxHeight: { xs: "72vh", sm: "80vh" }, objectFit: "contain", display: "block" }}
                         />
                     )}
                 </DialogContent>

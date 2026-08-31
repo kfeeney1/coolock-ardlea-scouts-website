@@ -1,4 +1,5 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 
 import { auth, db, storage } from "../firebase";
@@ -68,8 +69,6 @@ function storageErrorServerResponse(error: unknown): string {
 }
 
 function storageErrorDetails(error: unknown): string {
-    // FirebaseError.toString() can include emulator rule diagnostics that are not
-    // exposed by `message` or `customData.serverResponse` on every SDK version.
     let rendered = "";
     try {
         rendered = String(error || "");
@@ -81,9 +80,6 @@ function storageErrorDetails(error: unknown): string {
 
 function isGalleryAccessDenied(error: unknown): boolean {
     if (storageErrorCode(error) === "storage/unauthorized") return true;
-    // The Storage emulator can surface a denied exact-path list as
-    // storage/unknown/rules-evaluation text. Treat only list-denial signatures as
-    // an unavailable gallery; unrelated Storage failures must still surface.
     const details = storageErrorDetails(error);
     return details.includes("for 'list'") && (
         details.includes("evaluation error")
@@ -94,49 +90,78 @@ function isGalleryAccessDenied(error: unknown): boolean {
 }
 
 function isStorageEmulatorListFailure(): boolean {
-    // The Firebase Storage emulator can omit both the normal storage error code
-    // and the rule diagnostic from the programmatic error object even though the
-    // browser console renders a denied `list` diagnostic. This helper is called
-    // only from catches directly around listAll(), so failing closed here cannot
-    // hide deployed production failures or metadata/blob read failures.
     if (import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim()) return true;
     if (typeof window === "undefined") return false;
     return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+}
+
+function mapCandidate(item: QueryDocumentSnapshot<DocumentData>): CandidateEvent | null {
+    const data = item.data() as Record<string, unknown>;
+    const candidate: CandidateEvent = {
+        eventId: item.id,
+        title: stringValue(data, "title"),
+        description: stringValue(data, "description"),
+        eventType: stringValue(data, "eventType"),
+        section: stringValue(data, "section"),
+        location: stringValue(data, "location"),
+        startDate: stringValue(data, "startDate"),
+        endDate: stringValue(data, "endDate"),
+    };
+    return candidate.title && candidate.section && candidate.startDate ? candidate : null;
+}
+
+async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | "publicEvents", sections: string[]): Promise<CandidateEvent[]> {
+    try {
+        if (collectionName === "parentGalleryEvents") {
+            const statuses = ["open", "closed", "completed"] as const;
+            const snapshots = await Promise.all(
+                sections.flatMap((section) => statuses.map((status) =>
+                    getDocs(query(
+                        collection(db, collectionName),
+                        where("section", "==", section),
+                        where("status", "==", status)
+                    ))
+                ))
+            );
+            return snapshots.flatMap((snapshot) => snapshot.docs).map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
+        }
+
+        // Reuse the same safe shape as the public upcoming-events query. Filtering
+        // on startDate keeps malformed/stale projection documents out of the list
+        // evaluation, while section filtering can happen client-side because this
+        // collection is already public metadata rather than an authorization source.
+        const today = new Date().toISOString().slice(0, 10);
+        const snapshot = await getDocs(query(
+            collection(db, collectionName),
+            where("startDate", ">=", today),
+            orderBy("startDate", "asc")
+        ));
+        const linkedSections = new Set(sections);
+        return snapshot.docs
+            .map(mapCandidate)
+            .filter((event): event is CandidateEvent => event !== null && linkedSections.has(event.section));
+    } catch (error) {
+        // Candidate projections never grant photo access. A rules mismatch during
+        // rollout therefore fails closed to no candidates; network/availability
+        // errors still surface so the UI can offer Retry.
+        if (isFirestorePermissionDenied(error)) return [];
+        throw error;
+    }
 }
 
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
     const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
     if (uniqueSections.length === 0) return [];
 
-    let snapshot;
-    try {
-        snapshot = await getDocs(query(collection(db, "publicEvents"), where("section", "in", uniqueSections)));
-    } catch (error) {
-        // Candidate metadata does not grant gallery access. If the public projection
-        // cannot be listed (for example while an older projection/rules shape is
-        // being reconciled), fail closed to no candidates rather than surfacing an
-        // error or attempting any broader Storage path.
-        if (isFirestorePermissionDenied(error)) return [];
-        throw error;
-    }
+    const [retained, currentPublic] = await Promise.all([
+        loadProjectionCandidates("parentGalleryEvents", uniqueSections),
+        loadProjectionCandidates("publicEvents", uniqueSections),
+    ]);
 
-    return snapshot.docs
-        .map((item) => {
-            const data = item.data() as Record<string, unknown>;
-            const candidate: CandidateEvent = {
-                eventId: item.id,
-                title: stringValue(data, "title"),
-                description: stringValue(data, "description"),
-                eventType: stringValue(data, "eventType"),
-                section: stringValue(data, "section"),
-                location: stringValue(data, "location"),
-                startDate: stringValue(data, "startDate"),
-                endDate: stringValue(data, "endDate"),
-            };
-            return candidate;
-        })
-        .filter((event) => event.title && event.section && event.startDate)
-        .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    const candidates = new Map<string, CandidateEvent>();
+    currentPublic.forEach((event) => candidates.set(event.eventId, event));
+    retained.forEach((event) => candidates.set(event.eventId, event));
+    return [...candidates.values()].sort((a, b) => b.startDate.localeCompare(a.startDate));
 }
 
 async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGalleryPhoto[]> {
@@ -147,9 +172,6 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     try {
         result = await listAll(eventRef);
     } catch (error) {
-        // A denied parent event path is an unavailable gallery. The emulator's
-        // error shape is not stable enough to classify reliably, so fail closed
-        // for any emulator failure at this exact listAll boundary only.
         if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return [];
         throw error;
     }
@@ -160,9 +182,6 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
             try {
                 return await listAll(prefix);
             } catch (error) {
-                // listAll(eventRef) may return attachment prefixes before the Storage
-                // emulator applies the exact parent event rule to the nested list.
-                // Keep emulator compatibility scoped to this nested list operation.
                 if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return null;
                 throw error;
             }

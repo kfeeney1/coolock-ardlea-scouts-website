@@ -13,6 +13,8 @@
     "check:playwright-suite": "node scripts/verify-playwright-suite.mjs",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "audit:source": "node scripts/report-source-complexity.mjs",
+    "audit:event-gallery-access": "node scripts/audit-event-gallery-access.mjs",
+    "backfill:parent-gallery-events": "node scripts/backfill-parent-gallery-events.mjs",
     "check:source-complexity": "node scripts/report-source-complexity.mjs --check",
     "check:production-env": "node scripts/check-production-env.mjs",
     "check:hosting-config": "node scripts/check-hosting-config.mjs",
