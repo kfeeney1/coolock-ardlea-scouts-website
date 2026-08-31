@@ -50,13 +50,23 @@ function storageErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error || "");
 }
 
+function storageErrorServerResponse(error: unknown): string {
+    if (!error || typeof error !== "object" || !("customData" in error)) return "";
+    const customData = (error as { customData?: unknown }).customData;
+    if (!customData || typeof customData !== "object" || !("serverResponse" in customData)) return "";
+    const serverResponse = (customData as { serverResponse?: unknown }).serverResponse;
+    return typeof serverResponse === "string" ? serverResponse : "";
+}
+
 function isGalleryAccessDenied(error: unknown): boolean {
     if (storageErrorCode(error) === "storage/unauthorized") return true;
-    const message = storageErrorMessage(error);
-    return message.includes("for 'list'") && (
-        message.includes("evaluation error")
-        || message.includes("false for 'list'")
-        || message.includes("Property eventId is undefined")
+    // The Storage emulator can surface rules evaluation denials as storage/unknown,
+    // with the useful rules text only in customData.serverResponse.
+    const details = `${storageErrorMessage(error)}\n${storageErrorServerResponse(error)}`;
+    return details.includes("for 'list'") && (
+        details.includes("evaluation error")
+        || details.includes("false for 'list'")
+        || details.includes("Property eventId is undefined")
     );
 }
 
