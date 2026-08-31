@@ -1,9 +1,11 @@
 import {
     Alert,
     Box,
+    Button,
     CircularProgress,
     Dialog,
     DialogContent,
+    DialogTitle,
     IconButton,
     Paper,
     Stack,
@@ -40,10 +42,17 @@ export default function ParentEventGallerySection({ sections }: Props) {
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [selectedPhoto, setSelectedPhoto] = useState<ParentGalleryPhoto | null>(null);
+    const [retryVersion, setRetryVersion] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
         let loaded: ParentEventGallery[] = [];
+
+        setSelectedPhoto(null);
+        setGalleries((current) => {
+            revokeParentEventGalleryUrls(current);
+            return [];
+        });
 
         void (async () => {
             setLoading(true);
@@ -68,7 +77,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
             cancelled = true;
             revokeParentEventGalleryUrls(loaded);
         };
-    }, [sections]);
+    }, [sections, retryVersion]);
 
     const visible = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -82,9 +91,19 @@ export default function ParentEventGallerySection({ sections }: Props) {
     }, [galleries, search]);
 
     if (loading) {
-        return <Box sx={{ minHeight: 120, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>;
+        return <Box sx={{ minHeight: 120, display: "grid", placeItems: "center" }} aria-live="polite"><CircularProgress size={28} aria-label="Loading event galleries" /></Box>;
     }
-    if (error) return <Alert severity="error">{error}</Alert>;
+    if (error) {
+        return (
+            <Alert
+                severity="error"
+                action={<Button color="inherit" size="small" onClick={() => setRetryVersion((version) => version + 1)}>Retry</Button>}
+                data-testid="parent-event-gallery-error"
+            >
+                {error}
+            </Alert>
+        );
+    }
     if (sections.length === 0) return <Alert severity="info">No linked Scout section is available for this account yet.</Alert>;
     if (galleries.length === 0) {
         return (
@@ -107,7 +126,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 onChange={(event) => setSearch(event.target.value)}
                 slotProps={{ htmlInput: { "data-testid": "parent-event-gallery-search" } }}
             />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" aria-live="polite">
                 Showing {visible.length} of {galleries.length} available event galler{galleries.length === 1 ? "y" : "ies"}.
             </Typography>
             <Stack spacing={3}>
@@ -160,8 +179,17 @@ export default function ParentEventGallerySection({ sections }: Props) {
             </Stack>
             {visible.length === 0 && <Alert severity="info">No event galleries match that search.</Alert>}
 
-            <Dialog open={Boolean(selectedPhoto)} onClose={() => setSelectedPhoto(null)} maxWidth="lg" fullWidth>
-                <DialogContent sx={{ p: 1, position: "relative", backgroundColor: "background.default" }}>
+            <Dialog
+                open={Boolean(selectedPhoto)}
+                onClose={() => setSelectedPhoto(null)}
+                maxWidth="lg"
+                fullWidth
+                aria-labelledby="parent-gallery-photo-title"
+            >
+                <DialogTitle id="parent-gallery-photo-title" sx={{ pr: 7 }}>
+                    {selectedPhoto?.fileName || "Event gallery photo"}
+                </DialogTitle>
+                <DialogContent sx={{ p: { xs: 0.5, sm: 1 }, position: "relative", backgroundColor: "background.default" }}>
                     <IconButton
                         aria-label="Close photo"
                         onClick={() => setSelectedPhoto(null)}
@@ -174,7 +202,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                             component="img"
                             src={selectedPhoto.objectUrl}
                             alt={selectedPhoto.fileName}
-                            sx={{ width: "100%", maxHeight: "80vh", objectFit: "contain", display: "block" }}
+                            sx={{ width: "100%", maxHeight: { xs: "72vh", sm: "80vh" }, objectFit: "contain", display: "block" }}
                         />
                     )}
                 </DialogContent>
