@@ -75,28 +75,33 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     const files = result.prefixes.length > 0
         ? (await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)
         : result.items;
+    const photos: ParentGalleryPhoto[] = [];
 
-    const photos = await Promise.all(files.map(async (item) => {
-        const metadata = await getMetadata(item);
-        if (
-            metadata.customMetadata?.ownerType !== "event-gallery" ||
-            metadata.customMetadata?.ownerId !== event.eventId ||
-            metadata.customMetadata?.section !== event.section
-        ) return null;
+    try {
+        for (const item of files) {
+            const metadata = await getMetadata(item);
+            if (
+                metadata.customMetadata?.ownerType !== "event-gallery" ||
+                metadata.customMetadata?.ownerId !== event.eventId ||
+                metadata.customMetadata?.section !== event.section
+            ) continue;
 
-        const blob = await getBlob(item);
-        const pathParts = item.fullPath.split("/");
-        return {
-            id: pathParts.at(-2) || item.fullPath,
-            path: item.fullPath,
-            fileName: metadata.customMetadata.originalFileName || item.name,
-            contentType: metadata.contentType || blob.type,
-            size: metadata.size,
-            objectUrl: URL.createObjectURL(blob),
-        } satisfies ParentGalleryPhoto;
-    }));
-
-    return photos.filter((photo): photo is ParentGalleryPhoto => photo !== null);
+            const blob = await getBlob(item);
+            const pathParts = item.fullPath.split("/");
+            photos.push({
+                id: pathParts.at(-2) || item.fullPath,
+                path: item.fullPath,
+                fileName: metadata.customMetadata.originalFileName || item.name,
+                contentType: metadata.contentType || blob.type,
+                size: metadata.size,
+                objectUrl: URL.createObjectURL(blob),
+            });
+        }
+        return photos;
+    } catch (error) {
+        photos.forEach((photo) => URL.revokeObjectURL(photo.objectUrl));
+        throw error;
+    }
 }
 
 export async function loadParentEventGalleries(sections: string[]): Promise<ParentEventGallery[]> {
@@ -104,17 +109,21 @@ export async function loadParentEventGalleries(sections: string[]): Promise<Pare
     const candidates = await loadCandidateEvents(sections);
     const galleries: ParentEventGallery[] = [];
 
-    for (const event of candidates) {
-        try {
-            const photos = await loadAuthorizedPhotos(event);
-            if (photos.length > 0) galleries.push({ ...event, photos });
-        } catch (error) {
-            if (storageErrorCode(error) === "storage/unauthorized") continue;
-            throw error;
+    try {
+        for (const event of candidates) {
+            try {
+                const photos = await loadAuthorizedPhotos(event);
+                if (photos.length > 0) galleries.push({ ...event, photos });
+            } catch (error) {
+                if (storageErrorCode(error) === "storage/unauthorized") continue;
+                throw error;
+            }
         }
+        return galleries;
+    } catch (error) {
+        revokeParentEventGalleryUrls(galleries);
+        throw error;
     }
-
-    return galleries;
 }
 
 export function revokeParentEventGalleryUrls(galleries: ParentEventGallery[]): void {
