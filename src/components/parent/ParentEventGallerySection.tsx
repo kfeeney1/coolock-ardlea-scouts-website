@@ -13,6 +13,7 @@ import {
     Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -67,7 +68,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 setGalleries(loaded);
             } catch (loadError) {
                 console.error("Unable to load parent event galleries:", loadError);
-                if (!cancelled) setError("Unable to load event galleries right now. Please try again later.");
+                if (!cancelled) setError("Unable to load event galleries right now. Please try again.");
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -75,7 +76,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
 
         return () => {
             cancelled = true;
-            revokeParentEventGalleryUrls(loaded);
+            if (loaded.length > 0) revokeParentEventGalleryUrls(loaded);
         };
     }, [sections, retryVersion]);
 
@@ -91,13 +92,32 @@ export default function ParentEventGallerySection({ sections }: Props) {
     }, [galleries, search]);
 
     if (loading) {
-        return <Box sx={{ minHeight: 120, display: "grid", placeItems: "center" }} aria-live="polite"><CircularProgress size={28} aria-label="Loading event galleries" /></Box>;
+        return (
+            <Box
+                sx={{ minHeight: 120, display: "grid", placeItems: "center" }}
+                role="status"
+                aria-live="polite"
+                aria-label="Loading event galleries"
+            >
+                <CircularProgress size={28} />
+            </Box>
+        );
     }
     if (error) {
         return (
             <Alert
                 severity="error"
-                action={<Button color="inherit" size="small" onClick={() => setRetryVersion((version) => version + 1)}>Retry</Button>}
+                action={(
+                    <Button
+                        color="inherit"
+                        size="small"
+                        startIcon={<RefreshIcon />}
+                        onClick={() => setRetryVersion((value) => value + 1)}
+                        data-testid="parent-event-gallery-retry"
+                    >
+                        Retry
+                    </Button>
+                )}
                 data-testid="parent-event-gallery-error"
             >
                 {error}
@@ -126,7 +146,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 onChange={(event) => setSearch(event.target.value)}
                 slotProps={{ htmlInput: { "data-testid": "parent-event-gallery-search" } }}
             />
-            <Typography variant="body2" color="text.secondary" aria-live="polite">
+            <Typography variant="body2" color="text.secondary" role="status" aria-live="polite">
                 Showing {visible.length} of {galleries.length} available event galler{galleries.length === 1 ? "y" : "ies"}.
             </Typography>
             <Stack spacing={3}>
@@ -161,6 +181,8 @@ export default function ParentEventGallerySection({ sections }: Props) {
                                         borderRadius: 1,
                                         overflow: "hidden",
                                         aspectRatio: "1 / 1",
+                                        minWidth: 0,
+                                        touchAction: "manipulation",
                                         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
                                     }}
                                 >
@@ -177,26 +199,26 @@ export default function ParentEventGallerySection({ sections }: Props) {
                     </Paper>
                 ))}
             </Stack>
-            {visible.length === 0 && <Alert severity="info">No event galleries match that search.</Alert>}
+            {visible.length === 0 && <Alert severity="info" data-testid="parent-event-gallery-search-empty">No event galleries match that search.</Alert>}
 
             <Dialog
                 open={Boolean(selectedPhoto)}
                 onClose={() => setSelectedPhoto(null)}
                 maxWidth="lg"
                 fullWidth
-                aria-labelledby="parent-gallery-photo-title"
+                aria-labelledby="parent-event-gallery-photo-title"
             >
-                <DialogTitle id="parent-gallery-photo-title" sx={{ pr: 7 }}>
-                    {selectedPhoto?.fileName || "Event gallery photo"}
+                <DialogTitle id="parent-event-gallery-photo-title" sx={{ pr: 7 }}>
+                    {selectedPhoto?.fileName || "Event photo"}
                 </DialogTitle>
-                <DialogContent sx={{ p: { xs: 0.5, sm: 1 }, position: "relative", backgroundColor: "background.default" }}>
-                    <IconButton
-                        aria-label="Close photo"
-                        onClick={() => setSelectedPhoto(null)}
-                        sx={{ position: "absolute", top: 8, right: 8, zIndex: 1, backgroundColor: "background.paper" }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
+                <IconButton
+                    aria-label="Close photo"
+                    onClick={() => setSelectedPhoto(null)}
+                    sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}
+                >
+                    <CloseIcon />
+                </IconButton>
+                <DialogContent sx={{ p: { xs: 0.5, sm: 1 }, backgroundColor: "background.default" }}>
                     {selectedPhoto && (
                         <Box
                             component="img"
