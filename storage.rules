@@ -21,7 +21,8 @@ service firebase.storage {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/parentAccounts/$(request.auth.uid))
         && parentProfile().status == "approved"
-        && parentProfile().memberIds is list;
+        && parentProfile().memberIds is list
+        && parentProfile().linkedSections is list;
     }
     function isAdmin() { return isActiveLeader() && profile().role in ["admin", "super-admin"]; }
     function leadershipRole() {
@@ -42,18 +43,38 @@ service firebase.storage {
     function canAccessGallerySection(section) {
       return isActiveLeader() && (isAdmin() || hasLeadershipRole("Group Leader") || section in profile().sections);
     }
-    function galleryAccess(section, eventId) {
-      return firestore.get(/databases/(default)/documents/galleryAccess/$(request.auth.uid)/events/$(eventId)).data;
+    function galleryAccess(eventId) {
+      return firestore.get(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid)).data;
+    }
+    function galleryConsentId(eventId) {
+      return galleryAccess(eventId).consentApplicationId;
+    }
+    function galleryConsent(eventId) {
+      return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data;
+    }
+    function galleryEvent(eventId) {
+      return firestore.get(/databases/(default)/documents/events/$(eventId)).data;
     }
     function canParentReadGallery(section, eventId) {
       return isApprovedParent()
-        && firestore.exists(/databases/(default)/documents/galleryAccess/$(request.auth.uid)/events/$(eventId))
-        && galleryAccess(section, eventId).active == true
-        && galleryAccess(section, eventId).parentUid == request.auth.uid
-        && galleryAccess(section, eventId).eventId == eventId
-        && galleryAccess(section, eventId).section == section
-        && galleryAccess(section, eventId).memberIds is list
-        && galleryAccess(section, eventId).memberIds.size() > 0;
+        && firestore.exists(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid))
+        && galleryAccess(eventId).active == true
+        && galleryAccess(eventId).parentUid == request.auth.uid
+        && galleryAccess(eventId).eventId == eventId
+        && galleryAccess(eventId).section == section
+        && galleryAccess(eventId).memberId is string
+        && galleryAccess(eventId).memberId in parentProfile().memberIds
+        && section in parentProfile().linkedSections
+        && firestore.exists(/databases/(default)/documents/events/$(eventId))
+        && galleryEvent(eventId).section == section
+        && galleryEvent(eventId).attendance[galleryAccess(eventId).memberId] == "attending"
+        && galleryAccess(eventId).consentApplicationId is string
+        && firestore.exists(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId)))
+        && galleryConsent(eventId).formType == "youth-activity-consent"
+        && galleryConsent(eventId).status == "active"
+        && galleryConsent(eventId).memberId == galleryAccess(eventId).memberId
+        && galleryConsent(eventId).section == section
+        && galleryConsent(eventId).photoConsent == "Yes";
     }
     function validReceiptWrite(section) {
       return canAccessFinanceSection(section)
@@ -91,7 +112,7 @@ service firebase.storage {
     }
 
     // Leaders retain section-scoped discovery. Parents never receive section-wide
-    // discovery; they may list only an event path with an active access projection.
+    // discovery; they may list only an exact event path after all live checks pass.
     match /attachments/event-gallery/{section}/{allPaths=**} {
       allow list: if canAccessGallerySection(section);
     }
