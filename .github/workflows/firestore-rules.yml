@@ -49,8 +49,8 @@ jobs:
       - name: Run Firestore rules tests
         run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
 
-      - name: Validate Storage rules
-        run: npx firebase emulators:exec --only firestore,storage --project coolock-ardlea-scouts "echo Storage rules compiled"
+      - name: Run Storage rules tests
+        run: npx firebase emulators:exec --only firestore,storage --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/storage/*.test.mjs"
 
       - name: Authenticate to Firebase
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
