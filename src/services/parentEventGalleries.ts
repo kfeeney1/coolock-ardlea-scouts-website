@@ -83,6 +83,11 @@ function isGalleryAccessDenied(error: unknown): boolean {
     );
 }
 
+function isStorageEmulatorUnknownList(error: unknown): boolean {
+    return Boolean(import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim())
+        && storageErrorCode(error) === "storage/unknown";
+}
+
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
     const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
     if (uniqueSections.length === 0) return [];
@@ -111,7 +116,17 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     const safeSection = safeStorageSegment(event.section, "Event gallery section");
     const safeEventId = safeStorageSegment(event.eventId, "Event gallery event id");
     const eventRef = ref(storage, `attachments/event-gallery/${safeSection}/${safeEventId}`);
-    const result = await listAll(eventRef);
+    let result;
+    try {
+        result = await listAll(eventRef);
+    } catch (error) {
+        // Firebase Storage Emulator can report a rules-denied exact list as
+        // storage/unknown without exposing the rules diagnostic on the error object.
+        // Scope this compatibility path to the emulator and this initial list only;
+        // production and subsequent metadata/blob failures continue to surface.
+        if (isGalleryAccessDenied(error) || isStorageEmulatorUnknownList(error)) return [];
+        throw error;
+    }
     const files = result.prefixes.length > 0
         ? (await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)
         : result.items;
