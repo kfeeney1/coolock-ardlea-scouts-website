@@ -54,8 +54,14 @@ export default function EventListPanel({ events, visibleEvents, members, loading
         <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr" }, gap: 2 }}>
                 <TextField label="Search events" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Title, location, type..." />
-                <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={sectionFilter} onChange={(event) => onSectionFilterChange(event.target.value)}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
-                <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value as EventStatus | "all")}><MenuItem value="all">All statuses</MenuItem>{EVENT_STATUSES.map((status) => <MenuItem key={status} value={status}>{eventStatusLabel(status)}</MenuItem>)}</Select></FormControl>
+                <FormControl>
+                    <InputLabel id="event-section-filter-label">Section</InputLabel>
+                    <Select labelId="event-section-filter-label" label="Section" value={sectionFilter} onChange={(event) => onSectionFilterChange(event.target.value)}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select>
+                </FormControl>
+                <FormControl>
+                    <InputLabel id="event-status-filter-label">Status</InputLabel>
+                    <Select labelId="event-status-filter-label" label="Status" value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value as EventStatus | "all")}><MenuItem value="all">All statuses</MenuItem>{EVENT_STATUSES.map((status) => <MenuItem key={status} value={status}>{eventStatusLabel(status)}</MenuItem>)}</Select>
+                </FormControl>
             </Box>
         </Paper>
 
