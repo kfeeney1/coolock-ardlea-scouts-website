@@ -43,9 +43,16 @@ function storageErrorCode(error: unknown): string {
     return "";
 }
 
+function storageErrorMessage(error: unknown): string {
+    if (error && typeof error === "object" && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        return (error as { message: string }).message;
+    }
+    return error instanceof Error ? error.message : String(error || "");
+}
+
 function isGalleryAccessDenied(error: unknown): boolean {
     if (storageErrorCode(error) === "storage/unauthorized") return true;
-    const message = error instanceof Error ? error.message : String(error || "");
+    const message = storageErrorMessage(error);
     return message.includes("for 'list'") && (
         message.includes("evaluation error")
         || message.includes("false for 'list'")
