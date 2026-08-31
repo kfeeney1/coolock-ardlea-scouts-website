@@ -68,8 +68,6 @@ function storageErrorServerResponse(error: unknown): string {
 }
 
 function storageErrorDetails(error: unknown): string {
-    // FirebaseError.toString() can include emulator rule diagnostics that are not
-    // exposed by `message` or `customData.serverResponse` on every SDK version.
     let rendered = "";
     try {
         rendered = String(error || "");
@@ -81,9 +79,6 @@ function storageErrorDetails(error: unknown): string {
 
 function isGalleryAccessDenied(error: unknown): boolean {
     if (storageErrorCode(error) === "storage/unauthorized") return true;
-    // The Storage emulator can surface a denied exact-path list as
-    // storage/unknown/rules-evaluation text. Treat only list-denial signatures as
-    // an unavailable gallery; unrelated Storage failures must still surface.
     const details = storageErrorDetails(error);
     return details.includes("for 'list'") && (
         details.includes("evaluation error")
@@ -94,11 +89,6 @@ function isGalleryAccessDenied(error: unknown): boolean {
 }
 
 function isStorageEmulatorListFailure(): boolean {
-    // The Firebase Storage emulator can omit both the normal storage error code
-    // and the rule diagnostic from the programmatic error object even though the
-    // browser console renders a denied `list` diagnostic. This helper is called
-    // only from catches directly around listAll(), so failing closed here cannot
-    // hide deployed production failures or metadata/blob read failures.
     if (import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim()) return true;
     if (typeof window === "undefined") return false;
     return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
@@ -110,12 +100,11 @@ async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]
 
     let snapshot;
     try {
-        snapshot = await getDocs(query(collection(db, "publicEvents"), where("section", "in", uniqueSections)));
+        snapshot = await getDocs(query(collection(db, "parentGalleryEvents"), where("section", "in", uniqueSections)));
     } catch (error) {
-        // Candidate metadata does not grant gallery access. If the public projection
-        // cannot be listed (for example while an older projection/rules shape is
-        // being reconciled), fail closed to no candidates rather than surfacing an
-        // error or attempting any broader Storage path.
+        // The parent event projection contains only gallery-safe event metadata and
+        // does not grant Storage access. Permission failures therefore fail closed
+        // to no gallery candidates rather than probing any broader Storage path.
         if (isFirestorePermissionDenied(error)) return [];
         throw error;
     }
@@ -147,9 +136,6 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     try {
         result = await listAll(eventRef);
     } catch (error) {
-        // A denied parent event path is an unavailable gallery. The emulator's
-        // error shape is not stable enough to classify reliably, so fail closed
-        // for any emulator failure at this exact listAll boundary only.
         if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return [];
         throw error;
     }
@@ -160,9 +146,6 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
             try {
                 return await listAll(prefix);
             } catch (error) {
-                // listAll(eventRef) may return attachment prefixes before the Storage
-                // emulator applies the exact parent event rule to the nested list.
-                // Keep emulator compatibility scoped to this nested list operation.
                 if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return null;
                 throw error;
             }
