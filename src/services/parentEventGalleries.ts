@@ -112,6 +112,20 @@ function mapCandidate(item: QueryDocumentSnapshot<DocumentData>): CandidateEvent
 
 async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | "publicEvents", sections: string[]): Promise<CandidateEvent[]> {
     try {
+        if (collectionName === "parentGalleryEvents") {
+            const statuses = ["open", "closed", "completed"] as const;
+            const snapshots = await Promise.all(
+                sections.flatMap((section) => statuses.map((status) =>
+                    getDocs(query(
+                        collection(db, collectionName),
+                        where("section", "==", section),
+                        where("status", "==", status)
+                    ))
+                ))
+            );
+            return snapshots.flatMap((snapshot) => snapshot.docs).map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
+        }
+
         const snapshot = await getDocs(query(collection(db, collectionName), where("section", "in", sections)));
         return snapshot.docs.map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
     } catch (error) {
