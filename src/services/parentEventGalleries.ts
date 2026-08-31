@@ -47,7 +47,7 @@ function storageErrorMessage(error: unknown): string {
     if (error && typeof error === "object" && "message" in error && typeof (error as { message?: unknown }).message === "string") {
         return (error as { message: string }).message;
     }
-    return error instanceof Error ? error.message : String(error || "");
+    return error instanceof Error ? error.message : "";
 }
 
 function storageErrorServerResponse(error: unknown): string {
@@ -58,11 +58,24 @@ function storageErrorServerResponse(error: unknown): string {
     return typeof serverResponse === "string" ? serverResponse : "";
 }
 
+function storageErrorDetails(error: unknown): string {
+    // FirebaseError.toString() can include emulator rule diagnostics that are not
+    // exposed by `message` or `customData.serverResponse` on every SDK version.
+    let rendered = "";
+    try {
+        rendered = String(error || "");
+    } catch {
+        // Ignore unusual objects whose string conversion throws.
+    }
+    return `${storageErrorMessage(error)}\n${storageErrorServerResponse(error)}\n${rendered}`;
+}
+
 function isGalleryAccessDenied(error: unknown): boolean {
     if (storageErrorCode(error) === "storage/unauthorized") return true;
-    // The Storage emulator can surface rules evaluation denials as storage/unknown,
-    // with the useful rules text only in customData.serverResponse.
-    const details = `${storageErrorMessage(error)}\n${storageErrorServerResponse(error)}`;
+    // The Storage emulator can surface a denied exact-path list as
+    // storage/unknown/rules-evaluation text. Treat only list-denial signatures as
+    // an unavailable gallery; unrelated Storage failures must still surface.
+    const details = storageErrorDetails(error);
     return details.includes("for 'list'") && (
         details.includes("evaluation error")
         || details.includes("false for 'list'")
