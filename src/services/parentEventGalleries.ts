@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 
@@ -126,12 +126,25 @@ async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | 
             return snapshots.flatMap((snapshot) => snapshot.docs).map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
         }
 
-        const snapshot = await getDocs(query(collection(db, collectionName), where("section", "in", sections)));
-        return snapshot.docs.map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
+        // Reuse the same safe shape as the public upcoming-events query. Filtering
+        // on startDate keeps malformed/stale projection documents out of the list
+        // evaluation, while section filtering can happen client-side because this
+        // collection is already public metadata rather than an authorization source.
+        const today = new Date().toISOString().slice(0, 10);
+        const snapshot = await getDocs(query(
+            collection(db, collectionName),
+            where("startDate", ">=", today),
+            orderBy("startDate", "asc")
+        ));
+        const linkedSections = new Set(sections);
+        return snapshot.docs
+            .map(mapCandidate)
+            .filter((event): event is CandidateEvent => event !== null && linkedSections.has(event.section));
     } catch (error) {
-        // A staged rules rollout can briefly leave the retained parent projection
-        // unreadable while the already-public candidate projection remains valid.
-        if (isFirestorePermissionDenied(error) && collectionName === "parentGalleryEvents") return [];
+        // Candidate projections never grant photo access. A rules mismatch during
+        // rollout therefore fails closed to no candidates; network/availability
+        // errors still surface so the UI can offer Retry.
+        if (isFirestorePermissionDenied(error)) return [];
         throw error;
     }
 }
