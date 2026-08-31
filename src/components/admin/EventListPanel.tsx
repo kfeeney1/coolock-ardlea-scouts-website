@@ -20,6 +20,7 @@ type Props = {
     onEdit: (event: EventRecord) => void;
     onRoster: (event: EventRecord) => void;
     onEquipment: (event: EventRecord) => void;
+    onGallery: (event: EventRecord) => void;
     onPrint: (event: EventRecord) => void;
     onExport: (event: EventRecord) => void;
 };
@@ -31,7 +32,7 @@ function statusColor(status: EventStatus): "default" | "success" | "warning" | "
     return "default";
 }
 
-export default function EventListPanel({ events, visibleEvents, members, loading, search, sectionFilter, statusFilter, onSearchChange, onSectionFilterChange, onStatusFilterChange, onEdit, onRoster, onEquipment, onPrint, onExport }: Props) {
+export default function EventListPanel({ events, visibleEvents, members, loading, search, sectionFilter, statusFilter, onSearchChange, onSectionFilterChange, onStatusFilterChange, onEdit, onRoster, onEquipment, onGallery, onPrint, onExport }: Props) {
     const totals = {
         total: events.length,
         open: events.filter((event) => event.status === "open").length,
@@ -58,7 +59,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
             </Box>
         </Paper>
 
-        {statusFilter === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed events are retained as read-only history. Reports and CSV exports remain available.</Alert>}
+        {statusFilter === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed events are retained as read-only history. Reports, CSV exports and event galleries remain available.</Alert>}
 
         {loading ? <Box sx={{ minHeight: 300, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <Box sx={{ display: "grid", gap: 2 }}>
             {visibleEvents.length === 0 && <Alert severity="info">No events match the current filters.</Alert>}
@@ -86,6 +87,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                         <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1.25} sx={{ minWidth: { lg: 150 } }}>
                             {event.consentRequired && <Button component={Link} to={`/leader/event-consent?eventId=${encodeURIComponent(event.id)}`} variant="contained" color="warning">Manage Consent</Button>}
                             <Button component={Link} to={badgeworkHref} variant="contained" color="success" disabled={attendingMemberIds.length === 0}>Record Badgework</Button>
+                            <Button variant="outlined" color="success" onClick={() => onGallery(event)}>Gallery</Button>
                             <Button variant="outlined" color="primary" onClick={() => onEquipment(event)}>Equipment</Button>
                             <Button variant="outlined" color="secondary" onClick={() => onPrint(event)}>Report</Button><Button variant="outlined" color="secondary" onClick={() => onExport(event)}>Export CSV</Button><Button variant="outlined" color="secondary" disabled={completed} onClick={() => onEdit(event)}>Edit</Button><Button variant="contained" color={completed ? "secondary" : "success"} onClick={() => onRoster(event)}>{completed ? "View Attendance" : "Attendance"}</Button>
                         </Stack>
