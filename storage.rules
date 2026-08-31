@@ -6,6 +6,9 @@ service firebase.storage {
     function profile() {
       return firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid)).data;
     }
+    function parentProfile() {
+      return firestore.get(/databases/(default)/documents/parentAccounts/$(request.auth.uid)).data;
+    }
     function isActiveLeader() {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/adminUsers/$(request.auth.uid))
@@ -13,6 +16,13 @@ service firebase.storage {
         && profile().role in ["leader", "admin", "super-admin"]
         && profile().sections is list
         && profile().sections.size() > 0;
+    }
+    function isApprovedParent() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/parentAccounts/$(request.auth.uid))
+        && parentProfile().status == "approved"
+        && parentProfile().memberIds is list
+        && parentProfile().linkedSections is list;
     }
     function isAdmin() { return isActiveLeader() && profile().role in ["admin", "super-admin"]; }
     function leadershipRole() {
@@ -32,6 +42,39 @@ service firebase.storage {
     }
     function canAccessGallerySection(section) {
       return isActiveLeader() && (isAdmin() || hasLeadershipRole("Group Leader") || section in profile().sections);
+    }
+    function galleryAccess(eventId) {
+      return firestore.get(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid)).data;
+    }
+    function galleryConsentId(eventId) {
+      return galleryAccess(eventId).consentApplicationId;
+    }
+    function galleryConsent(eventId) {
+      return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data;
+    }
+    function galleryEvent(eventId) {
+      return firestore.get(/databases/(default)/documents/events/$(eventId)).data;
+    }
+    function canParentReadGallery(section, eventId) {
+      return isApprovedParent()
+        && firestore.exists(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid))
+        && galleryAccess(eventId).active == true
+        && galleryAccess(eventId).parentUid == request.auth.uid
+        && galleryAccess(eventId).eventId == eventId
+        && galleryAccess(eventId).section == section
+        && galleryAccess(eventId).memberId is string
+        && galleryAccess(eventId).memberId in parentProfile().memberIds
+        && section in parentProfile().linkedSections
+        && firestore.exists(/databases/(default)/documents/events/$(eventId))
+        && galleryEvent(eventId).section == section
+        && galleryEvent(eventId).attendance[galleryAccess(eventId).memberId] == "attending"
+        && galleryAccess(eventId).consentApplicationId is string
+        && firestore.exists(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId)))
+        && galleryConsent(eventId).formType == "youth-activity-consent"
+        && galleryConsent(eventId).status == "active"
+        && galleryConsent(eventId).memberId == galleryAccess(eventId).memberId
+        && galleryConsent(eventId).section == section
+        && galleryConsent(eventId).photoConsent == "Yes";
     }
     function validReceiptWrite(section) {
       return canAccessFinanceSection(section)
@@ -55,10 +98,6 @@ service firebase.storage {
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
 
-    // Listing is required so the Section Floats UI can discover which
-    // receipts belong to a transaction. Rules remain section-scoped.
-    // In rules_version = '2', the recursive wildcard also matches the
-    // section root used by listAll().
     match /attachments/finance-receipts/{section}/{allPaths=**} {
       allow list: if canAccessFinanceSection(section);
     }
@@ -72,14 +111,18 @@ service firebase.storage {
         && resource.metadata.section == section;
     }
 
-    // Stage 16 begins leader-only. Parent gallery reads remain denied until
-    // the event/member consent relationship has an explicit enforceable rule.
+    // Leaders retain section-scoped discovery. Parents never receive section-wide
+    // discovery; they may list only an exact event path after all live checks pass.
     match /attachments/event-gallery/{section}/{allPaths=**} {
       allow list: if canAccessGallerySection(section);
     }
 
+    match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} {
+      allow list: if canParentReadGallery(section, eventId);
+    }
+
     match /attachments/event-gallery/{section}/{eventId}/{attachmentId}/{fileName} {
-      allow get: if canAccessGallerySection(section);
+      allow get: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
       allow create: if validEventGalleryWrite(section, eventId);
       allow update: if false;
       allow delete: if canAccessGallerySection(section)
@@ -88,7 +131,6 @@ service firebase.storage {
         && resource.metadata.section == section;
     }
 
-    // Deny every path that has not been explicitly designed and reviewed.
     match /{allPaths=**} {
       allow read, write: if false;
     }
