@@ -30,6 +30,9 @@ service firebase.storage {
     function canAccessFinanceSection(section) {
       return isActiveLeader() && (canViewAllFinance() || section in profile().sections);
     }
+    function canAccessGallerySection(section) {
+      return isActiveLeader() && (isAdmin() || hasLeadershipRole("Group Leader") || section in profile().sections);
+    }
     function validReceiptWrite(section) {
       return canAccessFinanceSection(section)
         && request.resource != null
@@ -37,6 +40,17 @@ service firebase.storage {
         && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["image/jpeg", "image/png", "image/webp", "application/pdf"]
         && request.resource.metadata.ownerType == "finance-receipt"
+        && request.resource.metadata.section == section
+        && request.resource.metadata.uploadedBy == request.auth.uid;
+    }
+    function validEventGalleryWrite(section, eventId) {
+      return canAccessGallerySection(section)
+        && request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ["image/jpeg", "image/png", "image/webp"]
+        && request.resource.metadata.ownerType == "event-gallery"
+        && request.resource.metadata.ownerId == eventId
         && request.resource.metadata.section == section
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
@@ -49,14 +63,28 @@ service firebase.storage {
       allow list: if canAccessFinanceSection(section);
     }
 
-    // Shared attachment namespace. Finance receipts are the first owner type;
-    // event-gallery and other owner types will receive their own explicit rules.
     match /attachments/finance-receipts/{section}/{attachmentId}/{fileName} {
       allow get: if canAccessFinanceSection(section);
       allow create: if validReceiptWrite(section);
       allow update: if false;
       allow delete: if canAccessFinanceSection(section)
         && resource.metadata.ownerType == "finance-receipt"
+        && resource.metadata.section == section;
+    }
+
+    // Stage 16 begins leader-only. Parent gallery reads remain denied until
+    // the event/member consent relationship has an explicit enforceable rule.
+    match /attachments/event-gallery/{section}/{allPaths=**} {
+      allow list: if canAccessGallerySection(section);
+    }
+
+    match /attachments/event-gallery/{section}/{eventId}/{attachmentId}/{fileName} {
+      allow get: if canAccessGallerySection(section);
+      allow create: if validEventGalleryWrite(section, eventId);
+      allow update: if false;
+      allow delete: if canAccessGallerySection(section)
+        && resource.metadata.ownerType == "event-gallery"
+        && resource.metadata.ownerId == eventId
         && resource.metadata.section == section;
     }
 
