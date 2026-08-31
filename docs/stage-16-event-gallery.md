@@ -42,11 +42,22 @@ Parent gallery authorization is based on the existing explicit youth photo-conse
 
 This projection is intentionally separate from the broad parent account document. It gives Stage 16.4 a narrow parent-facing authorization contract without making photos public and without trusting gallery object metadata as an authorization source.
 
-## Planned follow-ons
+## Stage 16.4 — authenticated parent galleries
 
-### Stage 16.4 — parent gallery
+Approved parent accounts now have a read-only Event Galleries area alongside their event information.
 
-Expose only eligible event galleries in the authenticated parent portal. Parent access remains child/event scoped and must never make gallery objects public.
+- The browser uses `publicEvents` only to discover candidate event IDs and display safe event metadata for the parent's linked sections. Candidate discovery does not grant photo access.
+- Each candidate gallery is then listed at its exact Storage event path. Stage 16.3 Storage Rules remain the authorization authority; unauthorized events are omitted rather than disclosed through the UI.
+- The internal `eventGalleryAccess` projection collection remains client-denied and is not exposed to the parent application.
+- Eligible galleries render as responsive thumbnail grids with search and an accessible larger-photo dialog. Parents have no upload, replacement or delete controls.
+- Parent images are fetched as authenticated Storage blobs and rendered with short-lived browser object URLs. Stage 16.4 does not create new long-lived download-token links for the parent gallery UI.
+- Blob object URLs are revoked when galleries are replaced, fail part-way through loading, or leave the page.
+- The empty state explains that a gallery appears only when a linked child attended the event and current photo-sharing consent allows access.
+- Playwright covers the canonical approved-parent fail-closed state without adding persistent gallery data to the deterministic seed dataset.
+
+The UI therefore adds no broader read permission: public event metadata may identify a candidate, but the exact parent/event/member/consent relationship must still pass Storage Rules before any photo bytes are returned.
+
+## Planned follow-on
 
 ### Stage 16.5 — hardening
 

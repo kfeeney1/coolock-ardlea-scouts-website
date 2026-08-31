@@ -60,4 +60,12 @@ test.describe("approved parent journey", () => {
     await expect(page.getByRole("heading", { name: "Event Consent" })).toBeVisible();
     await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
   });
+
+  test("parent gallery area fails closed when no gallery access is projected", async ({ page }) => {
+    await loginParent(page);
+
+    await expect(page.getByRole("heading", { name: "Event Galleries" })).toBeVisible();
+    await expect(page.getByTestId("parent-event-gallery-empty")).toBeVisible();
+    await expect(page.getByTestId("parent-event-galleries")).toHaveCount(0);
+  });
 });

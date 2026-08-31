@@ -227,7 +227,7 @@ service cloud.firestore {
     }
 
     match /publicEvents/{eventId} {
-      allow read: if resource.data.eventId == eventId
+      allow read: if resource.data.get("eventId", "") == eventId
         && resource.data.title is string && resource.data.eventType is string
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
       allow create: if isActiveLeader()
