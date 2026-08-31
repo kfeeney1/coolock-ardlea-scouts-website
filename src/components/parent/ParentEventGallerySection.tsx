@@ -1,9 +1,11 @@
 import {
     Alert,
     Box,
+    Button,
     CircularProgress,
     Dialog,
     DialogContent,
+    DialogTitle,
     IconButton,
     Paper,
     Stack,
@@ -11,6 +13,7 @@ import {
     Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -40,6 +43,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [selectedPhoto, setSelectedPhoto] = useState<ParentGalleryPhoto | null>(null);
+    const [retryVersion, setRetryVersion] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
@@ -58,7 +62,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 setGalleries(loaded);
             } catch (loadError) {
                 console.error("Unable to load parent event galleries:", loadError);
-                if (!cancelled) setError("Unable to load event galleries right now. Please try again later.");
+                if (!cancelled) setError("Unable to load event galleries right now. Please try again.");
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -66,9 +70,13 @@ export default function ParentEventGallerySection({ sections }: Props) {
 
         return () => {
             cancelled = true;
-            revokeParentEventGalleryUrls(loaded);
+            if (loaded.length > 0) revokeParentEventGalleryUrls(loaded);
         };
-    }, [sections]);
+    }, [sections, retryVersion]);
+
+    useEffect(() => () => {
+        revokeParentEventGalleryUrls(galleries);
+    }, [galleries]);
 
     const visible = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -82,9 +90,37 @@ export default function ParentEventGallerySection({ sections }: Props) {
     }, [galleries, search]);
 
     if (loading) {
-        return <Box sx={{ minHeight: 120, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>;
+        return (
+            <Box
+                sx={{ minHeight: 120, display: "grid", placeItems: "center" }}
+                role="status"
+                aria-label="Loading event galleries"
+            >
+                <CircularProgress size={28} />
+            </Box>
+        );
     }
-    if (error) return <Alert severity="error">{error}</Alert>;
+    if (error) {
+        return (
+            <Alert
+                severity="error"
+                action={(
+                    <Button
+                        color="inherit"
+                        size="small"
+                        startIcon={<RefreshIcon />}
+                        onClick={() => setRetryVersion((value) => value + 1)}
+                        data-testid="parent-event-gallery-retry"
+                    >
+                        Retry
+                    </Button>
+                )}
+                data-testid="parent-event-gallery-error"
+            >
+                {error}
+            </Alert>
+        );
+    }
     if (sections.length === 0) return <Alert severity="info">No linked Scout section is available for this account yet.</Alert>;
     if (galleries.length === 0) {
         return (
@@ -107,7 +143,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 onChange={(event) => setSearch(event.target.value)}
                 slotProps={{ htmlInput: { "data-testid": "parent-event-gallery-search" } }}
             />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" role="status" aria-live="polite">
                 Showing {visible.length} of {galleries.length} available event galler{galleries.length === 1 ? "y" : "ies"}.
             </Typography>
             <Stack spacing={3}>
@@ -142,6 +178,8 @@ export default function ParentEventGallerySection({ sections }: Props) {
                                         borderRadius: 1,
                                         overflow: "hidden",
                                         aspectRatio: "1 / 1",
+                                        minWidth: 0,
+                                        touchAction: "manipulation",
                                         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
                                     }}
                                 >
@@ -158,17 +196,26 @@ export default function ParentEventGallerySection({ sections }: Props) {
                     </Paper>
                 ))}
             </Stack>
-            {visible.length === 0 && <Alert severity="info">No event galleries match that search.</Alert>}
+            {visible.length === 0 && <Alert severity="info" data-testid="parent-event-gallery-search-empty">No event galleries match that search.</Alert>}
 
-            <Dialog open={Boolean(selectedPhoto)} onClose={() => setSelectedPhoto(null)} maxWidth="lg" fullWidth>
-                <DialogContent sx={{ p: 1, position: "relative", backgroundColor: "background.default" }}>
-                    <IconButton
-                        aria-label="Close photo"
-                        onClick={() => setSelectedPhoto(null)}
-                        sx={{ position: "absolute", top: 8, right: 8, zIndex: 1, backgroundColor: "background.paper" }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
+            <Dialog
+                open={Boolean(selectedPhoto)}
+                onClose={() => setSelectedPhoto(null)}
+                maxWidth="lg"
+                fullWidth
+                aria-labelledby="parent-event-gallery-photo-title"
+            >
+                <DialogTitle id="parent-event-gallery-photo-title" sx={{ pr: 7 }}>
+                    {selectedPhoto?.fileName || "Event photo"}
+                </DialogTitle>
+                <IconButton
+                    aria-label="Close photo"
+                    onClick={() => setSelectedPhoto(null)}
+                    sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}
+                >
+                    <CloseIcon />
+                </IconButton>
+                <DialogContent sx={{ p: 1, backgroundColor: "background.default" }}>
                     {selectedPhoto && (
                         <Box
                             component="img"
