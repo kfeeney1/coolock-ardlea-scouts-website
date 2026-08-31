@@ -1,4 +1,5 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
+import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 
 import { auth, db, storage } from "../firebase";
@@ -94,38 +95,46 @@ function isStorageEmulatorListFailure(): boolean {
     return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
 }
 
+function mapCandidate(item: QueryDocumentSnapshot<DocumentData>): CandidateEvent | null {
+    const data = item.data() as Record<string, unknown>;
+    const candidate: CandidateEvent = {
+        eventId: item.id,
+        title: stringValue(data, "title"),
+        description: stringValue(data, "description"),
+        eventType: stringValue(data, "eventType"),
+        section: stringValue(data, "section"),
+        location: stringValue(data, "location"),
+        startDate: stringValue(data, "startDate"),
+        endDate: stringValue(data, "endDate"),
+    };
+    return candidate.title && candidate.section && candidate.startDate ? candidate : null;
+}
+
+async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | "publicEvents", sections: string[]): Promise<CandidateEvent[]> {
+    try {
+        const snapshot = await getDocs(query(collection(db, collectionName), where("section", "in", sections)));
+        return snapshot.docs.map(mapCandidate).filter((event): event is CandidateEvent => event !== null);
+    } catch (error) {
+        // A staged rules rollout can briefly leave the retained parent projection
+        // unreadable while the already-public candidate projection remains valid.
+        if (isFirestorePermissionDenied(error) && collectionName === "parentGalleryEvents") return [];
+        throw error;
+    }
+}
+
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
     const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
     if (uniqueSections.length === 0) return [];
 
-    let snapshot;
-    try {
-        snapshot = await getDocs(query(collection(db, "parentGalleryEvents"), where("section", "in", uniqueSections)));
-    } catch (error) {
-        // The parent event projection contains only gallery-safe event metadata and
-        // does not grant Storage access. Permission failures therefore fail closed
-        // to no gallery candidates rather than probing any broader Storage path.
-        if (isFirestorePermissionDenied(error)) return [];
-        throw error;
-    }
+    const [retained, currentPublic] = await Promise.all([
+        loadProjectionCandidates("parentGalleryEvents", uniqueSections),
+        loadProjectionCandidates("publicEvents", uniqueSections),
+    ]);
 
-    return snapshot.docs
-        .map((item) => {
-            const data = item.data() as Record<string, unknown>;
-            const candidate: CandidateEvent = {
-                eventId: item.id,
-                title: stringValue(data, "title"),
-                description: stringValue(data, "description"),
-                eventType: stringValue(data, "eventType"),
-                section: stringValue(data, "section"),
-                location: stringValue(data, "location"),
-                startDate: stringValue(data, "startDate"),
-                endDate: stringValue(data, "endDate"),
-            };
-            return candidate;
-        })
-        .filter((event) => event.title && event.section && event.startDate)
-        .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    const candidates = new Map<string, CandidateEvent>();
+    currentPublic.forEach((event) => candidates.set(event.eventId, event));
+    retained.forEach((event) => candidates.set(event.eventId, event));
+    return [...candidates.values()].sort((a, b) => b.startDate.localeCompare(a.startDate));
 }
 
 async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGalleryPhoto[]> {
