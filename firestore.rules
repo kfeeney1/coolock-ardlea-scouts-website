@@ -243,8 +243,11 @@ service cloud.firestore {
     }
 
     match /parentGalleryEvents/{eventId} {
-      allow get, list: if resource.data.eventId == eventId
+      allow get: if resource.data.eventId == eventId
         && resource.data.section is string
+        && resource.data.status in ["open", "closed", "completed"]
+        && isApprovedParentForSection(resource.data.section);
+      allow list: if resource.data.section is string
         && resource.data.status in ["open", "closed", "completed"]
         && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
