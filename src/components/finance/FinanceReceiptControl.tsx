@@ -8,6 +8,23 @@ interface Props {
   refreshKey?: number;
 }
 
+const RECEIPT_CHECK_TIMEOUT_MS = 8000;
+const RECEIPT_UPLOAD_TIMEOUT_MS = 15000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export default function FinanceReceiptControl({ transactionId, section, refreshKey = 0 }: Props) {
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,11 +35,15 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     setLoading(true);
     setError("");
     try {
-      const all = await loadFinanceReceipts(section);
+      const all = await withTimeout(
+        loadFinanceReceipts(section),
+        RECEIPT_CHECK_TIMEOUT_MS,
+        "Receipt check timed out."
+      );
       setReceipts(all.filter((item) => item.transactionId === transactionId));
     } catch (loadError) {
       console.error("Unable to load finance receipts:", loadError);
-      setError("Unable to check attached receipts.");
+      setError("Receipt storage is unavailable right now. You can retry the check or attach a receipt once Storage is available.");
     } finally {
       setLoading(false);
     }
@@ -35,11 +56,15 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     setUploading(true);
     setError("");
     try {
-      await addFinanceReceipt(transactionId, section, file);
+      await withTimeout(
+        addFinanceReceipt(transactionId, section, file),
+        RECEIPT_UPLOAD_TIMEOUT_MS,
+        "Receipt upload timed out."
+      );
       await refresh();
     } catch (uploadError) {
       console.error("Unable to upload finance receipt:", uploadError);
-      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload receipt.");
+      setError("Receipt upload did not complete. The Money out entry is still saved; retry when Storage is available.");
     } finally {
       setUploading(false);
     }
@@ -47,11 +72,12 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
 
   return <Stack spacing={1} sx={{ mt: 1.25, alignItems: "flex-start" }} data-testid={`finance-receipts-${transactionId}`}>
     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-      {loading ? <Chip size="small" label="Checking receipt…" variant="outlined" /> : receipts.length > 0 ? <Chip size="small" label={receipts.length === 1 ? "Receipt attached" : `${receipts.length} receipts attached`} color="success" /> : <Chip size="small" label="No receipt attached" color="warning" variant="outlined" />}
+      {loading ? <Chip size="small" label="Checking receipt…" variant="outlined" /> : receipts.length > 0 ? <Chip size="small" label={receipts.length === 1 ? "Receipt attached" : `${receipts.length} receipts attached`} color="success" /> : error ? <Chip size="small" label="Receipt status unavailable" color="error" variant="outlined" /> : <Chip size="small" label="No receipt attached" color="warning" variant="outlined" />}
       <Button component="label" size="small" variant="outlined" disabled={uploading || loading} sx={{ minHeight: 40 }}>
         {uploading ? "Uploading…" : receipts.length ? "Add another receipt" : "Attach receipt"}
         <input hidden type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void upload(file); }} />
       </Button>
+      {!loading && error && <Button size="small" variant="text" onClick={() => void refresh()} disabled={uploading}>Retry receipt check</Button>}
     </Stack>
 
     {receipts.length > 0 && <Stack spacing={1} sx={{ width: "100%" }}>
