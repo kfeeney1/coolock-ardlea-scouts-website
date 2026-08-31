@@ -46,7 +46,7 @@ This projection is intentionally separate from the broad parent account document
 
 Approved parent accounts now have a read-only Event Galleries area alongside their event information.
 
-- The browser uses `publicEvents` only to discover candidate event IDs and display safe event metadata for the parent's linked sections. Candidate discovery does not grant photo access.
+- Stage 16.4 initially used `publicEvents` to discover candidate event IDs and display safe event metadata for the parent's linked sections. Candidate discovery does not grant photo access.
 - Each candidate gallery is then listed at its exact Storage event path. Stage 16.3 Storage Rules remain the authorization authority; unauthorized events are omitted rather than disclosed through the UI.
 - The internal `eventGalleryAccess` projection collection remains client-denied and is not exposed to the parent application.
 - Eligible galleries render as responsive thumbnail grids with search and an accessible larger-photo dialog. Parents have no upload, replacement or delete controls.
@@ -55,10 +55,24 @@ Approved parent accounts now have a read-only Event Galleries area alongside the
 - The empty state explains that a gallery appears only when a linked child attended the event and current photo-sharing consent allows access.
 - Playwright covers the canonical approved-parent fail-closed state without adding persistent gallery data to the deterministic seed dataset.
 
-The UI therefore adds no broader read permission: public event metadata may identify a candidate, but the exact parent/event/member/consent relationship must still pass Storage Rules before any photo bytes are returned.
+The UI therefore adds no broader read permission: candidate metadata may identify an event, but the exact parent/event/member/consent relationship must still pass Storage Rules before any photo bytes are returned.
 
-## Planned follow-on
+## Stage 16.5 — hardening
 
-### Stage 16.5 — hardening
+Stage 16.5 closes the gallery lifecycle and operational gaps found during the Stage 16.4 rollout.
 
-Extend audit review, mobile/accessibility coverage, retry behaviour, lifecycle handling for archived events, and reporting/cleanup controls as required.
+- A dedicated `parentGalleryEvents/{eventId}` projection now retains only gallery-safe event metadata for Open, Closed and Completed events. Approved parents may read/list these records only for linked sections; draft events and leader-only event fields are never projected.
+- `publicEvents` remains a temporary candidate fallback for currently-open events during rollout, so existing Stage 16.4 data continues to fail closed rather than disappearing while retained projections are materialized.
+- Event create/update flows keep the retained parent projection synchronized. Moving an event back to Draft removes the parent projection; Closed and Completed events retain it so post-event galleries remain discoverable.
+- The trusted `set-event-gallery-access.mjs` grant path also refreshes the retained event projection. `scripts/backfill-parent-gallery-events.mjs` provides a dry-run-first migration for active pre-16.5 gallery grants.
+- Parent and leader gallery load failures now expose an explicit Retry action. Loading indicators have accessible labels/live regions, and the parent large-photo dialog has a stable accessible title and mobile-aware image height.
+- `scripts/audit-event-gallery-access.mjs` reports stale access projections and can deactivate only those that fail the current parent/member/event/consent contract. It is dry-run by default and supports event/section filters.
+- Storage emulator coverage now explicitly locks down missing and malformed access projections, including exact-path list operations, so the fail-closed behavior that surfaced during Stage 16.4 remains regression-tested below Playwright.
+- Firestore emulator coverage protects the retained metadata projection: linked approved parents can read only their sections, pending parents are denied, leaders cannot project other sections or Draft events, and extra leader-only fields are rejected.
+- Existing deterministic Playwright parent seed data is unchanged; the canonical parent journey continues to exercise an empty, fail-closed gallery state without persistent gallery photos.
+
+### Operational rollout
+
+Before relying on historical parent galleries in production, run `npm run backfill:parent-gallery-events` with the production service account and review the dry-run output. Set `APPLY=true` only after the eligible event list is correct. Routine access review uses `npm run audit:event-gallery-access`; again, review dry-run output before applying deactivations.
+
+Stage 16 is complete after Stage 16.5: secure leader upload/management, explicit consent projection, authenticated parent viewing, completed-event lifecycle, recovery/accessibility hardening, security regressions and dry-run operational controls are all covered.
