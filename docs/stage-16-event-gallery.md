@@ -29,18 +29,18 @@ Events & Activities now exposes a Gallery action directly on each event card, in
 
 ## Stage 16.3 — explicit photo consent and access projection
 
-Parent gallery authorization is now based on explicit, current photo consent rather than event attendance consent.
+Parent gallery authorization is based on the existing explicit youth photo-consent field, not on event attendance/medical consent.
 
-- The existing `youth-activity-consent` record is the consent source. `photoConsent` must be explicitly `true`, the consent record must be active, and its date range must cover the event date when dates are present.
-- A parent is eligible only through a child linked to that parent account who is attending the event and has current photo consent.
-- The rules-friendly projection path is `galleryAccess/{parentUid}/events/{eventId}`. A projection records the parent UID, event ID, section, eligible member IDs, source consent application IDs and an `active` flag.
-- Projection generation is fail-closed: no eligible child means `active: false` and an empty member list. Withdrawing photo consent therefore removes eligibility instead of preserving stale access.
-- Storage Rules never trust object metadata or a parent-provided event relationship to authorize parent reads. They require an approved parent account and a matching active Firestore projection for that exact parent, event and section.
-- Parents cannot list a whole section gallery. They can list only an explicitly authorized event path, which prevents discovery of unrelated event photos.
-- Gallery writes and deletes remain leader-only.
-- CI now executes Storage emulator authorization tests, covering grants, revocation, unauthenticated access and cross-family/cross-section isolation.
+- The source of truth is a linked `consentApplications` record with `formType: "youth-activity-consent"`, `status: "active"` and `photoConsent: "Yes"`. The trusted materializer also requires the consent date range to cover the event start date.
+- A parent is eligible only through a child linked to the approved parent account, linked to the same section, and marked `attending` for the event.
+- The rules-friendly projection path is `eventGalleryAccess/{eventId}/parents/{parentUid}`. It contains exactly one parent, event, section, member and source consent application plus an `active` flag.
+- Projection documents are not client-writable under Firestore Rules. `scripts/set-event-gallery-access.mjs` is a trusted Firebase Admin tool, dry-run by default, for granting or explicitly revoking a projection.
+- Storage Rules treat the projection as necessary but not sufficient. On every parent read/list they re-check the approved parent/member/section relationship, the event section and current attendance, and the source consent record's current `photoConsent` value.
+- This means changing `photoConsent` from `"Yes"` to `"No"` immediately denies Storage access even if a previously-created projection has not yet been rebuilt. Setting the projection `active: false` provides a second explicit revocation path.
+- Parents cannot list a whole section gallery. They can list only an authorized event path; writes, replacements and deletes remain leader-only.
+- Storage emulator tests cover eligible reads, consent withdrawal, projection revocation, unauthenticated access and cross-family/cross-section/event isolation.
 
-The projection is intentionally separate from the broad parent account document so consent withdrawal can revoke one event without changing access to unrelated children or events. Stage 16.4 consumes this contract in the parent UI.
+This projection is intentionally separate from the broad parent account document. It gives Stage 16.4 a narrow parent-facing authorization contract without making photos public and without trusting gallery object metadata as an authorization source.
 
 ## Planned follow-ons
 
