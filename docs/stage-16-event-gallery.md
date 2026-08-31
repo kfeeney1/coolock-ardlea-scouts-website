@@ -13,6 +13,20 @@ The first increment is deliberately leader-only. It establishes the storage cont
 - Gallery objects cannot be updated in place. Replacement means a new upload; deletion remains an explicit action.
 - Parent/public access is denied in Stage 16.1.
 
+## Stage 16.2 — event gallery management UI
+
+Events & Activities now exposes a Gallery action directly on each event card, including completed event history.
+
+- Leaders can select multiple photos from the device photo library.
+- Mobile devices can launch the rear-facing camera through a dedicated Take photo action.
+- The picker accepts JPEG, PNG and WebP only; the service and Storage Rules continue to enforce the 10 MB limit and metadata contract.
+- Gallery photos render as a responsive thumbnail grid with lazy-loaded images.
+- Leaders can explicitly remove mistaken photos.
+- Multi-photo uploads use independent outcomes, so successful photos remain uploaded when another file fails and the UI reports partial or complete failures.
+- Successful uploads and removals create event-category audit entries.
+- Completed events keep gallery access while the event record itself remains read-only.
+- Parent/public gallery access remains closed. The gallery dialog states this boundary explicitly so attendance consent is not mistaken for photo-sharing consent.
+
 ## Why parent access stays closed initially
 
 The existing event consent response records establish attendance/consent for an event, but they are not a photo-publication consent model. Opening Storage directly to parent accounts before a dedicated, enforceable relationship exists would make it too easy to expose a photo to the wrong household or to treat event attendance consent as photography consent.
@@ -20,10 +34,6 @@ The existing event consent response records establish attendance/consent for an 
 Stage 16 therefore keeps the fail-closed posture used by the shared attachment architecture. Parent reads should only be added after Firestore contains a small, rules-friendly gallery access projection derived from the parent's linked children, the event, and an explicit photo-sharing decision.
 
 ## Planned follow-ons
-
-### Stage 16.2 — event gallery management UI
-
-Add gallery controls to Events & Activities so permitted leaders can upload multiple photos from camera/gallery, view thumbnails, remove mistakes and see upload failures without blocking the event screen.
 
 ### Stage 16.3 — photo consent/access projection
 
@@ -35,4 +45,4 @@ Expose only eligible event galleries in the authenticated parent portal. Parent 
 
 ### Stage 16.5 — hardening
 
-Add audit events, mobile/accessibility coverage, empty/error states, upload retry behaviour, lifecycle handling for archived events, and reporting/cleanup controls as required.
+Extend audit review, mobile/accessibility coverage, retry behaviour, lifecycle handling for archived events, and reporting/cleanup controls as required.
