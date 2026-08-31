@@ -36,11 +36,20 @@ function safeStorageSegment(value: string, label: string): string {
     return safe;
 }
 
-function storageErrorCode(error: unknown): string {
+function firebaseErrorCode(error: unknown): string {
     if (error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string") {
         return (error as { code: string }).code;
     }
     return "";
+}
+
+function isFirestorePermissionDenied(error: unknown): boolean {
+    const code = firebaseErrorCode(error);
+    return code === "permission-denied" || code === "firestore/permission-denied";
+}
+
+function storageErrorCode(error: unknown): string {
+    return firebaseErrorCode(error);
 }
 
 function storageErrorMessage(error: unknown): string {
@@ -99,7 +108,18 @@ async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]
     const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
     if (uniqueSections.length === 0) return [];
 
-    const snapshot = await getDocs(query(collection(db, "publicEvents"), where("section", "in", uniqueSections)));
+    let snapshot;
+    try {
+        snapshot = await getDocs(query(collection(db, "publicEvents"), where("section", "in", uniqueSections)));
+    } catch (error) {
+        // Candidate metadata does not grant gallery access. If the public projection
+        // cannot be listed (for example while an older projection/rules shape is
+        // being reconciled), fail closed to no candidates rather than surfacing an
+        // error or attempting any broader Storage path.
+        if (isFirestorePermissionDenied(error)) return [];
+        throw error;
+    }
+
     return snapshot.docs
         .map((item) => {
             const data = item.data() as Record<string, unknown>;
