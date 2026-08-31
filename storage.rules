@@ -43,8 +43,11 @@ service firebase.storage {
     function canAccessGallerySection(section) {
       return isActiveLeader() && (isAdmin() || hasLeadershipRole("Group Leader") || section in profile().sections);
     }
+    function galleryAccessPath(eventId) {
+      return /databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid);
+    }
     function galleryAccess(eventId) {
-      return firestore.get(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid)).data;
+      return firestore.get(galleryAccessPath(eventId)).data;
     }
     function galleryConsentId(eventId) {
       return galleryAccess(eventId).consentApplicationId;
@@ -55,10 +58,8 @@ service firebase.storage {
     function galleryEvent(eventId) {
       return firestore.get(/databases/(default)/documents/events/$(eventId)).data;
     }
-    function canParentReadGallery(section, eventId) {
-      return isApprovedParent()
-        && firestore.exists(/databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid))
-        && galleryAccess(eventId).active == true
+    function canParentReadProjectedGallery(section, eventId) {
+      return galleryAccess(eventId).active == true
         && galleryAccess(eventId).parentUid == request.auth.uid
         && galleryAccess(eventId).eventId == eventId
         && galleryAccess(eventId).section == section
@@ -75,6 +76,12 @@ service firebase.storage {
         && galleryConsent(eventId).memberId == galleryAccess(eventId).memberId
         && galleryConsent(eventId).section == section
         && galleryConsent(eventId).photoConsent == "Yes";
+    }
+    function canParentReadGallery(section, eventId) {
+      return isApprovedParent()
+        && (firestore.exists(galleryAccessPath(eventId))
+          ? canParentReadProjectedGallery(section, eventId)
+          : false);
     }
     function validReceiptWrite(section) {
       return canAccessFinanceSection(section)
