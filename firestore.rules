@@ -248,7 +248,6 @@ service cloud.firestore {
         && resource.data.status in ["open", "closed", "completed"]
         && isApprovedParentForSection(resource.data.section);
       allow list: if resource.data.section is string
-        && resource.data.status in ["open", "closed", "completed"]
         && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
         && hasSection(request.resource.data.section)
