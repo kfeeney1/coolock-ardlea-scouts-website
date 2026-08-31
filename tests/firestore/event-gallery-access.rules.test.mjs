@@ -82,7 +82,11 @@ test("approved parents can read retained gallery event metadata only for linked 
 
   await assertSucceeds(getDoc(doc(db, "parentGalleryEvents/event-1")));
   await assertFails(getDoc(doc(db, "parentGalleryEvents/event-2")));
-  const snapshot = await assertSucceeds(getDocs(query(collection(db, "parentGalleryEvents"), where("section", "==", "Cubs"))));
+  const snapshot = await assertSucceeds(getDocs(query(
+    collection(db, "parentGalleryEvents"),
+    where("section", "==", "Cubs"),
+    where("status", "==", "completed")
+  )));
   if (snapshot.size !== 1) throw new Error(`Expected one Cubs gallery event projection, received ${snapshot.size}.`);
 });
 
