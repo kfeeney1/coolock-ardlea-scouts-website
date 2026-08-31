@@ -122,14 +122,30 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     } catch (error) {
         // Firebase Storage Emulator can report a rules-denied exact list as
         // storage/unknown without exposing the rules diagnostic on the error object.
-        // Scope this compatibility path to the emulator and this initial list only;
-        // production and subsequent metadata/blob failures continue to surface.
+        // Scope this compatibility path to the emulator and this list operation only;
+        // production and metadata/blob failures continue to surface.
         if (isGalleryAccessDenied(error) || isStorageEmulatorUnknownList(error)) return [];
         throw error;
     }
-    const files = result.prefixes.length > 0
-        ? (await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)
-        : result.items;
+
+    let files = result.items;
+    if (result.prefixes.length > 0) {
+        const nestedResults = await Promise.all(result.prefixes.map(async (prefix) => {
+            try {
+                return await listAll(prefix);
+            } catch (error) {
+                // listAll(eventRef) may return attachment prefixes before the Storage
+                // emulator applies the exact parent event rule to the nested list.
+                // A denied nested list is the same fail-closed outcome as a denied
+                // initial list, but keep this exception scoped to emulator list calls.
+                if (isGalleryAccessDenied(error) || isStorageEmulatorUnknownList(error)) return null;
+                throw error;
+            }
+        }));
+        if (nestedResults.some((nested) => nested === null)) return [];
+        files = nestedResults.flatMap((nested) => nested?.items || []);
+    }
+
     const photos: ParentGalleryPhoto[] = [];
 
     try {
