@@ -43,6 +43,16 @@ function storageErrorCode(error: unknown): string {
     return "";
 }
 
+function isGalleryAccessDenied(error: unknown): boolean {
+    if (storageErrorCode(error) === "storage/unauthorized") return true;
+    const message = error instanceof Error ? error.message : String(error || "");
+    return message.includes("for 'list'") && (
+        message.includes("evaluation error")
+        || message.includes("false for 'list'")
+        || message.includes("Property eventId is undefined")
+    );
+}
+
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
     const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
     if (uniqueSections.length === 0) return [];
@@ -115,7 +125,7 @@ export async function loadParentEventGalleries(sections: string[]): Promise<Pare
                 const photos = await loadAuthorizedPhotos(event);
                 if (photos.length > 0) galleries.push({ ...event, photos });
             } catch (error) {
-                if (storageErrorCode(error) === "storage/unauthorized") continue;
+                if (isGalleryAccessDenied(error)) continue;
                 throw error;
             }
         }
