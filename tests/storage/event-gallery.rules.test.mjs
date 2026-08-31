@@ -84,6 +84,29 @@ test("revoked projection immediately removes parent gallery access", async () =>
   await assertFails(getMetadata(ref(testEnv.authenticatedContext("parent-1").storage(), path)));
 });
 
+test("missing gallery access projection fails closed for exact parent list and object reads", async () => {
+  const path = await uploadGalleryPhoto("Cubs", "event-1");
+  const documents = eligibleAccessDocuments();
+  await seedDocuments(documents.slice(0, 3));
+  const storage = testEnv.authenticatedContext("parent-1").storage();
+  await assertFails(listAll(ref(storage, "attachments/event-gallery/Cubs/event-1")));
+  await assertFails(getMetadata(ref(storage, path)));
+});
+
+test("malformed gallery access projection fails closed without granting list access", async () => {
+  await uploadGalleryPhoto("Cubs", "event-1");
+  const documents = eligibleAccessDocuments();
+  documents[3][1] = {
+    active: true,
+    parentUid: "parent-1",
+    section: "Cubs",
+    memberId: "member-1",
+  };
+  await seedDocuments(documents);
+  const storage = testEnv.authenticatedContext("parent-1").storage();
+  await assertFails(listAll(ref(storage, "attachments/event-gallery/Cubs/event-1")));
+});
+
 test("projection is isolated by family, event attendance and section", async () => {
   const cubPath = await uploadGalleryPhoto("Cubs", "event-1");
   const scoutPath = await uploadGalleryPhoto("Scouts", "event-2");
