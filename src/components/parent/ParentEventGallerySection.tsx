@@ -50,7 +50,12 @@ export default function ParentEventGallerySection({ sections }: Props) {
             setError("");
             try {
                 loaded = await loadParentEventGalleries(sections);
-                if (!cancelled) setGalleries(loaded);
+                if (cancelled) {
+                    revokeParentEventGalleryUrls(loaded);
+                    loaded = [];
+                    return;
+                }
+                setGalleries(loaded);
             } catch (loadError) {
                 console.error("Unable to load parent event galleries:", loadError);
                 if (!cancelled) setError("Unable to load event galleries right now. Please try again later.");
