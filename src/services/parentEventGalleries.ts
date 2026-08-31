@@ -89,8 +89,10 @@ function isStorageEmulatorListFailure(): boolean {
     // and the rule diagnostic from the programmatic error object even though the
     // browser console renders a denied `list` diagnostic. This helper is called
     // only from catches directly around listAll(), so failing closed here cannot
-    // hide production failures or metadata/blob read failures.
-    return Boolean(import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim());
+    // hide deployed production failures or metadata/blob read failures.
+    if (import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim()) return true;
+    if (typeof window === "undefined") return false;
+    return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
 }
 
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
