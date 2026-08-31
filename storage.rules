@@ -9,8 +9,11 @@ service firebase.storage {
     function profile() {
       return firestore.get(adminProfilePath()).data;
     }
+    function parentProfilePath() {
+      return /databases/(default)/documents/parentAccounts/$(request.auth.uid);
+    }
     function parentProfile() {
-      return firestore.get(/databases/(default)/documents/parentAccounts/$(request.auth.uid)).data;
+      return firestore.get(parentProfilePath()).data;
     }
     function isActiveLeader() {
       return signedIn()
@@ -23,10 +26,11 @@ service firebase.storage {
     }
     function isApprovedParent() {
       return signedIn()
-        && firestore.exists(/databases/(default)/documents/parentAccounts/$(request.auth.uid))
-        && parentProfile().status == "approved"
-        && parentProfile().memberIds is list
-        && parentProfile().linkedSections is list;
+        && (firestore.exists(parentProfilePath())
+          ? parentProfile().get("status", "") == "approved"
+            && parentProfile().get("memberIds", []) is list
+            && parentProfile().get("linkedSections", []) is list
+          : false);
     }
     function isAdmin() {
       return isActiveLeader()
@@ -77,8 +81,8 @@ service firebase.storage {
         && galleryAccess(eventId).get("eventId", "") == eventId
         && galleryAccess(eventId).get("section", "") == section
         && galleryAccess(eventId).get("memberId", "") is string
-        && galleryAccess(eventId).get("memberId", "") in parentProfile().memberIds
-        && section in parentProfile().linkedSections
+        && galleryAccess(eventId).get("memberId", "") in parentProfile().get("memberIds", [])
+        && section in parentProfile().get("linkedSections", [])
         && firestore.exists(/databases/(default)/documents/events/$(eventId))
         && galleryEvent(eventId).get("section", "") == section
         && galleryEvent(eventId).get("attendance", {}).get(galleryAccess(eventId).get("memberId", "__missing__"), "") == "attending"
@@ -91,9 +95,9 @@ service firebase.storage {
         && galleryConsent(eventId).get("photoConsent", "") == "Yes";
     }
     function canParentReadGallery(section, eventId) {
-      return isApprovedParent()
+      return signedIn()
         && (firestore.exists(galleryAccessPath(eventId))
-          ? canParentReadProjectedGallery(section, eventId)
+          ? isApprovedParent() && canParentReadProjectedGallery(section, eventId)
           : false);
     }
     function validReceiptWrite(section) {
@@ -131,14 +135,20 @@ service firebase.storage {
         && resource.metadata.section == section;
     }
 
-    // Leaders retain section-scoped discovery. Parents never receive section-wide
-    // discovery; they may list only an exact event path after all live checks pass.
-    match /attachments/event-gallery/{section}/{allPaths=**} {
+    // Keep leader section discovery separate from exact event-path listing. A
+    // recursive section match also matches parent event paths under rules v2 and
+    // makes the emulator evaluate unrelated leader access while authorizing a
+    // parent list. Exact matches keep both authorization paths fail-closed.
+    match /attachments/event-gallery/{section} {
       allow list: if canAccessGallerySection(section);
     }
 
+    match /attachments/event-gallery/{section}/{eventId} {
+      allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
+    }
+
     match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} {
-      allow list: if canParentReadGallery(section, eventId);
+      allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
     }
 
     match /attachments/event-gallery/{section}/{eventId}/{attachmentId}/{fileName} {
