@@ -67,5 +67,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByRole("heading", { name: "Event Galleries" })).toBeVisible();
     await expect(page.getByTestId("parent-event-gallery-empty")).toBeVisible();
     await expect(page.getByTestId("parent-event-galleries")).toHaveCount(0);
+    await expect(page.getByTestId("parent-event-gallery-error")).toHaveCount(0);
+    await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
 });
