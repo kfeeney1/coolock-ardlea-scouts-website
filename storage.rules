@@ -50,7 +50,7 @@ service firebase.storage {
       return firestore.get(galleryAccessPath(eventId)).data;
     }
     function galleryConsentId(eventId) {
-      return galleryAccess(eventId).consentApplicationId;
+      return galleryAccess(eventId).get("consentApplicationId", "__missing__");
     }
     function galleryConsent(eventId) {
       return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data;
@@ -59,21 +59,21 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/events/$(eventId)).data;
     }
     function canParentReadProjectedGallery(section, eventId) {
-      return galleryAccess(eventId).active == true
-        && galleryAccess(eventId).parentUid == request.auth.uid
-        && galleryAccess(eventId).eventId == eventId
-        && galleryAccess(eventId).section == section
-        && galleryAccess(eventId).memberId is string
-        && galleryAccess(eventId).memberId in parentProfile().memberIds
+      return galleryAccess(eventId).get("active", false) == true
+        && galleryAccess(eventId).get("parentUid", "") == request.auth.uid
+        && galleryAccess(eventId).get("eventId", "") == eventId
+        && galleryAccess(eventId).get("section", "") == section
+        && galleryAccess(eventId).get("memberId", "") is string
+        && galleryAccess(eventId).get("memberId", "") in parentProfile().memberIds
         && section in parentProfile().linkedSections
         && firestore.exists(/databases/(default)/documents/events/$(eventId))
         && galleryEvent(eventId).section == section
-        && galleryEvent(eventId).attendance[galleryAccess(eventId).memberId] == "attending"
-        && galleryAccess(eventId).consentApplicationId is string
+        && galleryEvent(eventId).attendance[galleryAccess(eventId).get("memberId", "__missing__")] == "attending"
+        && galleryAccess(eventId).get("consentApplicationId", "") is string
         && firestore.exists(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId)))
         && galleryConsent(eventId).formType == "youth-activity-consent"
         && galleryConsent(eventId).status == "active"
-        && galleryConsent(eventId).memberId == galleryAccess(eventId).memberId
+        && galleryConsent(eventId).memberId == galleryAccess(eventId).get("memberId", "")
         && galleryConsent(eventId).section == section
         && galleryConsent(eventId).photoConsent == "Yes";
     }
