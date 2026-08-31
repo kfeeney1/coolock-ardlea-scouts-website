@@ -57,8 +57,16 @@ Approved parent accounts now have a read-only Event Galleries area alongside the
 
 The UI therefore adds no broader read permission: public event metadata may identify a candidate, but the exact parent/event/member/consent relationship must still pass Storage Rules before any photo bytes are returned.
 
-## Planned follow-on
+## Stage 16.5 — hardening
 
-### Stage 16.5 — hardening
+The final Stage 16 increment hardens the parent gallery experience without widening the authorization boundary.
 
-Extend audit review, mobile/accessibility coverage, retry behaviour, lifecycle handling for archived events, and reporting/cleanup controls as required.
+- Gallery loading has an explicit retry path for transient failures, while authorization denials still fail closed to the empty state.
+- Loading and result-count feedback expose accessible status semantics, and the photo viewer now has a labelled dialog title plus a keyboard-accessible close action.
+- Mobile thumbnail controls retain a compact two-column layout and use touch-safe button behaviour without adding separate mobile-only logic.
+- Object URL cleanup now runs when a loaded gallery set is replaced as well as when a load is cancelled or the component unmounts, reducing stale in-memory photo blobs during account/section changes and retries.
+- Completed and historical events continue to be eligible through their exact event path; access remains governed by the current parent/member/attendance/photo-consent checks rather than by UI state.
+- The canonical Playwright parent remains intentionally unprojected for gallery access, and the regression test now also verifies that this secure empty state is not being represented as a load error or retry condition.
+- Existing leader upload/removal audit entries remain the operational record for gallery changes; no parent-side mutation or cleanup capability is introduced.
+
+Stage 16 is complete after this hardening pass. Future gallery work should be treated as a separate feature stage so that reporting, retention-policy automation, bulk cleanup, or richer media handling can be designed with explicit product and data-retention requirements rather than being implied by parent read access.
