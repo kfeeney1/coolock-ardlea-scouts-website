@@ -3,19 +3,23 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
+    function adminProfilePath() {
+      return /databases/(default)/documents/adminUsers/$(request.auth.uid);
+    }
     function profile() {
-      return firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid)).data;
+      return firestore.get(adminProfilePath()).data;
     }
     function parentProfile() {
       return firestore.get(/databases/(default)/documents/parentAccounts/$(request.auth.uid)).data;
     }
     function isActiveLeader() {
       return signedIn()
-        && firestore.exists(/databases/(default)/documents/adminUsers/$(request.auth.uid))
-        && profile().active == true
-        && profile().role in ["leader", "admin", "super-admin"]
-        && profile().sections is list
-        && profile().sections.size() > 0;
+        && (firestore.exists(adminProfilePath())
+          ? profile().get("active", false) == true
+            && profile().get("role", "") in ["leader", "admin", "super-admin"]
+            && profile().get("sections", []) is list
+            && profile().get("sections", []).size() > 0
+          : false);
     }
     function isApprovedParent() {
       return signedIn()
@@ -24,24 +28,33 @@ service firebase.storage {
         && parentProfile().memberIds is list
         && parentProfile().linkedSections is list;
     }
-    function isAdmin() { return isActiveLeader() && profile().role in ["admin", "super-admin"]; }
-    function leadershipRole() {
-      return firestore.get(/databases/(default)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole;
+    function isAdmin() {
+      return isActiveLeader()
+        ? profile().get("role", "") in ["admin", "super-admin"]
+        : false;
+    }
+    function leadershipPath() {
+      return /databases/(default)/documents/organisationLeadership/$(request.auth.uid);
     }
     function hasLeadershipRole(role) {
       return isActiveLeader()
-        && firestore.exists(/databases/(default)/documents/organisationLeadership/$(request.auth.uid))
-        && firestore.get(/databases/(default)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && leadershipRole() == role;
+        && (firestore.exists(leadershipPath())
+          ? firestore.get(leadershipPath()).data.get("active", false) == true
+            && firestore.get(leadershipPath()).data.get("scoutingRole", "") == role
+          : false);
     }
     function canViewAllFinance() {
       return isAdmin() || hasLeadershipRole("Group Leader") || hasLeadershipRole("Group Treasurer");
     }
     function canAccessFinanceSection(section) {
-      return isActiveLeader() && (canViewAllFinance() || section in profile().sections);
+      return isActiveLeader()
+        ? canViewAllFinance() || section in profile().get("sections", [])
+        : false;
     }
     function canAccessGallerySection(section) {
-      return isActiveLeader() && (isAdmin() || hasLeadershipRole("Group Leader") || section in profile().sections);
+      return isActiveLeader()
+        ? isAdmin() || hasLeadershipRole("Group Leader") || section in profile().get("sections", [])
+        : false;
     }
     function galleryAccessPath(eventId) {
       return /databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid);
