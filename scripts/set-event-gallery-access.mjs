@@ -47,7 +47,9 @@ const parent = parentSnapshot.data();
 const member = memberSnapshot.data();
 const section = typeof event.section === "string" ? event.section.trim() : "";
 const eventDate = typeof event.startDate === "string" ? event.startDate.trim() : "";
+const eventStatus = typeof event.status === "string" ? event.status.trim() : "";
 if (!section || !eventDate) throw new Error("Event is missing section or startDate.");
+if (!["open", "closed", "completed"].includes(eventStatus)) throw new Error("Gallery access can be granted only for Open, Closed or Completed events.");
 if (parent.status !== "approved" || !Array.isArray(parent.memberIds) || !parent.memberIds.includes(memberId)) {
   throw new Error("Parent is not approved and linked to this member.");
 }
@@ -82,7 +84,27 @@ const projection = {
   active: true,
   updatedAt: FieldValue.serverTimestamp(),
 };
+const parentGalleryEventProjection = {
+  eventId,
+  title: typeof event.title === "string" ? event.title.trim().slice(0, 200) : "",
+  description: typeof event.description === "string" ? event.description.trim().slice(0, 3000) : "",
+  eventType: typeof event.eventType === "string" ? event.eventType.trim().slice(0, 80) : "",
+  section,
+  location: typeof event.location === "string" ? event.location.trim().slice(0, 300) : "",
+  startDate: eventDate,
+  endDate: typeof event.endDate === "string" ? event.endDate.trim().slice(0, 30) : eventDate,
+  status: eventStatus,
+  updatedAt: FieldValue.serverTimestamp(),
+};
+if (!parentGalleryEventProjection.title || !parentGalleryEventProjection.eventType || !parentGalleryEventProjection.endDate) {
+  throw new Error("Event is missing gallery-safe title, eventType or endDate metadata.");
+}
 
 console.log(`${apply ? "Granting" : "Would grant"} gallery access for parent ${parentUid}, member ${memberId}, event ${eventId}, consent ${consentApplicationId}.`);
-if (apply) await accessRef.set(projection);
-else console.log("Dry-run complete. Set APPLY=true to write the projection.");
+console.log(`${apply ? "Refreshing" : "Would refresh"} retained parent gallery event metadata for ${eventId} (${eventStatus}).`);
+if (apply) {
+  const batch = db.batch();
+  batch.set(accessRef, projection);
+  batch.set(db.collection("parentGalleryEvents").doc(eventId), parentGalleryEventProjection);
+  await batch.commit();
+} else console.log("Dry-run complete. Set APPLY=true to write the projection.");
