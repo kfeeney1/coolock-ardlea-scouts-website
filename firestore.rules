@@ -242,6 +242,33 @@ service cloud.firestore {
       allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
     }
 
+    match /parentGalleryEvents/{eventId} {
+      allow get, list: if resource.data.eventId == eventId
+        && resource.data.section is string
+        && resource.data.status in ["open", "closed", "completed"]
+        && isApprovedParentForSection(resource.data.section);
+      allow create: if isActiveLeader()
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.status in ["open", "closed", "completed"]
+        && request.resource.data.title is string
+        && request.resource.data.eventType is string
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.status in ["open", "closed", "completed"]
+        && request.resource.data.title is string
+        && request.resource.data.eventType is string
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
+      allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
+    }
+
     match /eventConsentLinks/{token} {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if (isActiveLeader() && hasSection(resource.data.section)) || (resource.data.active == true && isApprovedParentForSection(resource.data.section));
