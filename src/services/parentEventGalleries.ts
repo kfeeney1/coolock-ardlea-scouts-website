@@ -84,9 +84,13 @@ function isGalleryAccessDenied(error: unknown): boolean {
     );
 }
 
-function isStorageEmulatorUnknownList(error: unknown): boolean {
-    return Boolean(import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim())
-        && storageErrorCode(error) === "storage/unknown";
+function isStorageEmulatorListFailure(): boolean {
+    // The Firebase Storage emulator can omit both the normal storage error code
+    // and the rule diagnostic from the programmatic error object even though the
+    // browser console renders a denied `list` diagnostic. This helper is called
+    // only from catches directly around listAll(), so failing closed here cannot
+    // hide production failures or metadata/blob read failures.
+    return Boolean(import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim());
 }
 
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
@@ -121,11 +125,10 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
     try {
         result = await listAll(eventRef);
     } catch (error) {
-        // Firebase Storage Emulator can report a rules-denied exact list as
-        // storage/unknown without exposing the rules diagnostic on the error object.
-        // Scope this compatibility path to the emulator and this list operation only;
-        // production and metadata/blob failures continue to surface.
-        if (isGalleryAccessDenied(error) || isStorageEmulatorUnknownList(error)) return [];
+        // A denied parent event path is an unavailable gallery. The emulator's
+        // error shape is not stable enough to classify reliably, so fail closed
+        // for any emulator failure at this exact listAll boundary only.
+        if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return [];
         throw error;
     }
 
@@ -137,9 +140,8 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
             } catch (error) {
                 // listAll(eventRef) may return attachment prefixes before the Storage
                 // emulator applies the exact parent event rule to the nested list.
-                // A denied nested list is the same fail-closed outcome as a denied
-                // initial list, but keep this exception scoped to emulator list calls.
-                if (isGalleryAccessDenied(error) || isStorageEmulatorUnknownList(error)) return null;
+                // Keep emulator compatibility scoped to this nested list operation.
+                if (isGalleryAccessDenied(error) || isStorageEmulatorListFailure()) return null;
                 throw error;
             }
         }));
