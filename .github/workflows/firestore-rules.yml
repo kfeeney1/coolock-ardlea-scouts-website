@@ -51,13 +51,3 @@ jobs:
 
       - name: Run Storage rules tests
         run: npx firebase emulators:exec --only firestore,storage --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/storage/*.test.mjs"
-
-      - name: Authenticate to Firebase
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-
-      - name: Deploy Firebase rules
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npx firebase deploy --only firestore:rules,storage --project coolock-ardlea-scouts --non-interactive
