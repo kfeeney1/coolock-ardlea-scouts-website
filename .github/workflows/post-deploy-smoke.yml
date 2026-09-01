@@ -46,5 +46,6 @@ jobs:
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
           FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_STORAGE_ENABLED: ${{ vars.FIREBASE_STORAGE_ENABLED }}
           EXPECTED_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
           ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
