@@ -30,47 +30,49 @@ jobs:
       - name: Install Firebase Admin
         run: npm install --no-save --package-lock=false firebase-admin@14.3.0
 
+      - name: Prepare dry-run report
+        run: mkdir -p firestore-audit-report
+
       - name: Audit live Firestore provenance in one pass
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-live-data-provenance.mjs
+        run: set -o pipefail; node scripts/audit-live-data-provenance.mjs 2>&1 | tee firestore-audit-report/01-provenance.txt
 
-      - name: Reconcile safely migratable active leader section profiles
+      - name: Report safely migratable active leader section profiles
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-admin-user-sections.mjs
-
-      - name: Require canonical active leader section profiles
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-admin-user-sections.mjs --check
+        run: set -o pipefail; node scripts/reconcile-admin-user-sections.mjs --check 2>&1 | tee firestore-audit-report/02-leader-sections.txt
 
       - name: Audit live non-meeting Firestore compatibility
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-firestore-compatibility.mjs
+        run: set -o pipefail; node scripts/audit-firestore-compatibility.mjs 2>&1 | tee firestore-audit-report/03-compatibility.txt
 
       - name: Audit live weekly meeting compatibility
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-weekly-meeting-compatibility.mjs
-
-      - name: Reconcile safely migratable meeting records
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-meeting-records.mjs --apply
+        run: set -o pipefail; node scripts/audit-weekly-meeting-compatibility.mjs 2>&1 | tee firestore-audit-report/04-weekly-meetings.txt
 
       - name: Audit live meeting record compatibility
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/audit-meeting-record-compatibility.mjs
+        run: set -o pipefail; node scripts/audit-meeting-record-compatibility.mjs 2>&1 | tee firestore-audit-report/05-meeting-records.txt
 
       - name: Require canonical meeting record schema
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-meeting-records.mjs --check
+        run: set -o pipefail; node scripts/reconcile-meeting-records.mjs --check 2>&1 | tee firestore-audit-report/06-meeting-migrations.txt
 
       - name: Report unprovenanced leadership records
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
-        run: node scripts/reconcile-leadership-provenance.mjs --check
+        run: set -o pipefail; node scripts/reconcile-leadership-provenance.mjs --check 2>&1 | tee firestore-audit-report/07-leadership-provenance.txt
+
+      - name: Upload dry-run integrity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-integrity-dry-run-${{ github.run_id }}
+          path: firestore-audit-report
+          if-no-files-found: warn
+          retention-days: 30
