@@ -35,8 +35,10 @@ const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
 const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
 const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
 const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
+const ConsentRecordPage = lazy(() => import("./pages/ConsentRecordPage"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
+const JoinRecordPage = lazy(() => import("./pages/JoinRecordPage"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
 const MemberRecordPage = lazy(() => import("./pages/MemberRecordPage"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
@@ -88,8 +90,10 @@ export default function App() {
               <Route path="/leader/finance" element={protectedRoute(<SectionCashbook />)} />
               <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
               <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
+              <Route path="/leader/consents/:consentId" element={protectedRoute(<ConsentRecordPage />)} />
               <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
               <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
+              <Route path="/leader/join/:applicationId" element={protectedRoute(<JoinRecordPage />)} />
               <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
               <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
               <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
