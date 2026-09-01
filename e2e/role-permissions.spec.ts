@@ -88,7 +88,7 @@ test.describe("dual-role parent and leader permissions", () => {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Event Consent", exact: true })).toBeVisible();
@@ -112,16 +112,16 @@ test.describe("leader permissions", () => {
 
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Event Consent", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Parent Access" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Member History" }).click();
-    await expect(page).toHaveURL(/\/leader\/member-history$/);
-    await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
+    await page.getByRole("link", { name: "Member Management" }).click();
+    await expect(page).toHaveURL(/\/leader\/members$/);
+    await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
 
     await openLeaderMenu(page);
     await page.getByRole("link", { name: "Reports & Exports" }).click();
@@ -151,7 +151,8 @@ test.describe("multi-section leader permissions", () => {
       await expect(page.getByText(section, { exact: false }).first()).toBeVisible();
     }
     await openLeaderMenu(page);
-    await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
   });
@@ -167,7 +168,8 @@ test.describe("admin permissions", () => {
 
     await expect(page.getByText(/· admin/i).first()).toBeVisible();
     await openLeaderMenu(page);
-    await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Access" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toBeVisible();
@@ -187,7 +189,8 @@ test.describe("super-admin permissions", () => {
 
     await expect(page.getByText(/· super-admin/i).first()).toBeVisible();
     await openLeaderMenu(page);
-    await expect(page.getByRole("link", { name: "Member History" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Access" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toBeVisible();
