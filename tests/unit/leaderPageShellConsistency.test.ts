@@ -14,13 +14,20 @@ async function leaderPages() {
   return pages.filter(({ source }) => source.includes("<LeaderDashboardHeader"));
 }
 
-test("all leader pages use the same outer spacing and container width", async () => {
+test("leader page shell geometry is enforced centrally", async () => {
   const pages = await leaderPages();
   assert.ok(pages.length > 0, "Expected at least one leader page");
 
-  const inconsistent = pages
-    .filter(({ source }) => !source.includes('py: { xs: 3, md: 5 }') || !source.includes('<Container maxWidth="xl">'))
-    .map(({ file }) => file);
+  const layout = await readFile(path.join(process.cwd(), "src", "components", "Layout.tsx"), "utf8");
+  assert.match(layout, /pathname\.startsWith\("\/leader"\)/);
+  assert.match(layout, /data-leader-route=/);
+  assert.match(layout, /24px !important/);
+  assert.match(layout, /40px !important/);
+  assert.match(layout, /1536px !important/);
+});
 
-  assert.deepEqual(inconsistent, [], `Leader pages with inconsistent shell geometry: ${inconsistent.join(", ")}`);
+test("leader shell stays scoped away from login and public routes", async () => {
+  const layout = await readFile(path.join(process.cwd(), "src", "components", "Layout.tsx"), "utf8");
+  assert.match(layout, /pathname !== "\/leader\/login"/);
+  assert.ok(!layout.includes('pathname.startsWith("/parent")'), "Parent/public route spacing should not be silently coupled to the leader shell");
 });
