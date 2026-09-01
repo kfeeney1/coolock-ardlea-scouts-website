@@ -43,14 +43,26 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           node -e 'const c=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); console.log(`Firebase deploy service account: ${c.client_email}`)'
-      - name: Deploy Firebase data-plane configuration
+      - name: Deploy Firestore configuration
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           set -euo pipefail
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
           trap 'rm -f /tmp/firebase-service-account.json' EXIT
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage --project coolock-ardlea-scouts --non-interactive
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes --project coolock-ardlea-scouts --non-interactive
+      - name: Deploy Storage rules
+        if: vars.FIREBASE_STORAGE_ENABLED == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
+          trap 'rm -f /tmp/firebase-service-account.json' EXIT
+          GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json npx --yes firebase-tools@15.28.1 deploy --only storage --project coolock-ardlea-scouts --non-interactive
+      - name: Report unavailable Storage capability
+        if: vars.FIREBASE_STORAGE_ENABLED != 'true'
+        run: echo '::notice::Firebase Storage is explicitly disabled. Gallery and receipt attachments require a free-tier-compatible storage replacement before production use.'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
