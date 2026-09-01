@@ -49,7 +49,9 @@ export default function LeaderDashboardHeader() {
  const location = useLocation();
  const navigate = useNavigate();
  const { adminProfile, logout } = useAdminAuth();
+ const initialMobileGroup = navGroups.find((group) => group.items.some((item) => item.path === location.pathname))?.label ?? "Programme";
  const [menuOpen, setMenuOpen] = useState(false);
+ const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(initialMobileGroup);
  const [signingOut, setSigningOut] = useState(false);
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
  const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
@@ -81,7 +83,20 @@ export default function LeaderDashboardHeader() {
   <Button fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={() => setMenuOpen((open) => !open)} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
   <Collapse in={menuOpen} timeout="auto" unmountOnExit>
    <Box id="leader-navigation" component="nav" aria-label="Leader navigation" sx={{ mt: 1.5 }}>
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" }, gap: 1.5, alignItems: "start" }}>
+    <Box sx={{ display: { xs: "block", md: "none" } }}>
+     <Stack spacing={1}>
+      {visibleGroups.map((group) => {
+       const expanded = mobileGroupOpen === group.label;
+       const containsActive = group.items.some((item) => item.path === location.pathname);
+       const panelId = `leader-nav-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+       return <Paper key={group.label} variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+        <Button fullWidth color="secondary" aria-expanded={expanded} aria-controls={panelId} onClick={() => setMobileGroupOpen((open) => open === group.label ? null : group.label)} endIcon={<ExpandMoreIcon sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, px: 1.5, justifyContent: "space-between", fontWeight: containsActive ? 800 : 700 }}>{group.label}</Button>
+        <Collapse in={expanded} timeout="auto" unmountOnExit><Stack id={panelId} spacing={0.25} sx={{ px: 1, pb: 1 }}>{group.items.map(navButton)}</Stack></Collapse>
+       </Paper>;
+      })}
+     </Stack>
+    </Box>
+    <Box sx={{ display: { xs: "none", md: "grid" }, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" }, gap: 1.5, alignItems: "start" }}>
      {visibleGroups.map((group) => <Paper key={group.label} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
       <Typography variant="overline" color="text.secondary" sx={{ display: "block", px: 1.5, pb: 0.5, fontWeight: 800, letterSpacing: 0.8 }}>{group.label}</Typography>
       <Stack spacing={0.25}>{group.items.map(navButton)}</Stack>
