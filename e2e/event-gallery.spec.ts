@@ -20,8 +20,8 @@ test("event status tiles filter and jump to the event results", async ({ page },
     await loginAdmin(page);
     await page.goto("/leader/events");
 
-    const openTile = page.getByRole("button", { name: /Open/ }).filter({ hasText: "Open" }).first();
-    await openTile.click();
+    const statusSummary = page.getByRole("group", { name: "Event status summary" });
+    await statusSummary.getByRole("button", { name: /Open/ }).click();
 
     const results = page.getByRole("region", { name: "Event results" });
     await expect(results).toBeFocused();
@@ -35,7 +35,8 @@ test("event status tiles support keyboard activation", async ({ page }, testInfo
     await loginAdmin(page);
     await page.goto("/leader/events");
 
-    const completedTile = page.getByRole("button", { name: /Completed/ }).filter({ hasText: "Completed" }).first();
+    const statusSummary = page.getByRole("group", { name: "Event status summary" });
+    const completedTile = statusSummary.getByRole("button", { name: /Completed/ });
     await completedTile.focus();
     await page.keyboard.press("Enter");
 
