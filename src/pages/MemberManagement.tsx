@@ -33,6 +33,7 @@ import type {
     MemberRecord,
     MemberStatus
 } from "../services/memberAdmin";
+import { moveToUiTargetAfterRender } from "../services/uiTargeting";
 
 const sections = ["all", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 const memberStatuses: MemberStatus[] = ["active", "inactive", "left"];
@@ -59,14 +60,10 @@ const statusColor = (status: MemberStatus): "success" | "warning" | "default" =>
 
 const formatDate = (value: Date | null) =>
     value
-        ? new Intl.DateTimeFormat("en-IE", {
-              dateStyle: "medium",
-              timeStyle: "short"
-          }).format(value)
+        ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value)
         : "Unknown";
 
-const consentExpired = (value: string) =>
-    Boolean(value && value < new Date().toISOString().slice(0, 10));
+const consentExpired = (value: string) => Boolean(value && value < new Date().toISOString().slice(0, 10));
 
 export default function MemberManagement() {
     const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -81,7 +78,6 @@ export default function MemberManagement() {
     const [saving, setSaving] = useState(false);
     const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
     const [loadingConsents, setLoadingConsents] = useState(false);
-
     const [addOpen, setAddOpen] = useState(false);
     const [addDraft, setAddDraft] = useState<CreateMemberInput>({ ...emptyMember });
     const [creating, setCreating] = useState(false);
@@ -90,7 +86,6 @@ export default function MemberManagement() {
     const load = async () => {
         setLoading(true);
         setError("");
-
         try {
             setMembers(await loadMembers());
         } catch (loadError) {
@@ -101,51 +96,41 @@ export default function MemberManagement() {
         }
     };
 
-    useEffect(() => {
-        void load();
-    }, []);
+    useEffect(() => { void load(); }, []);
 
-    const visibleMembers = useMemo(
-        () =>
-            members.filter((member) => {
-                if (sectionFilter !== "all" && member.section !== sectionFilter) {
-                    return false;
-                }
+    const visibleMembers = useMemo(() => members.filter((member) => {
+        if (sectionFilter !== "all" && member.section !== sectionFilter) return false;
+        if (statusFilter !== "all" && member.status !== statusFilter) return false;
+        const query = search.trim().toLowerCase();
+        return !query || [
+            member.displayName,
+            member.parentName,
+            member.emailAddress,
+            member.mobileNumber,
+            member.section,
+            member.emergencyContactName,
+            member.emergencyContactPhone
+        ].join(" ").toLowerCase().includes(query);
+    }), [members, sectionFilter, statusFilter, search]);
 
-                if (statusFilter !== "all" && member.status !== statusFilter) {
-                    return false;
-                }
+    const counts = useMemo(() => ({
+        total: members.length,
+        active: members.filter((member) => member.status === "active").length,
+        inactive: members.filter((member) => member.status === "inactive").length,
+        left: members.filter((member) => member.status === "left").length
+    }), [members]);
 
-                const query = search.trim().toLowerCase();
+    const summary: Array<[string, number, MemberStatus | "all"]> = [
+        ["Total", counts.total, "all"],
+        ["Active", counts.active, "active"],
+        ["Inactive", counts.inactive, "inactive"],
+        ["Left", counts.left, "left"]
+    ];
 
-                return (
-                    !query ||
-                    [
-                        member.displayName,
-                        member.parentName,
-                        member.emailAddress,
-                        member.mobileNumber,
-                        member.section,
-                        member.emergencyContactName,
-                        member.emergencyContactPhone
-                    ]
-                        .join(" ")
-                        .toLowerCase()
-                        .includes(query)
-                );
-            }),
-        [members, sectionFilter, statusFilter, search]
-    );
-
-    const counts = useMemo(
-        () => ({
-            total: members.length,
-            active: members.filter((member) => member.status === "active").length,
-            inactive: members.filter((member) => member.status === "inactive").length,
-            left: members.filter((member) => member.status === "left").length
-        }),
-        [members]
-    );
+    const selectStatus = (status: MemberStatus | "all") => {
+        setStatusFilter(status);
+        moveToUiTargetAfterRender("member-results", { focus: true });
+    };
 
     const openMember = async (member: MemberRecord) => {
         setSelected(member);
@@ -154,7 +139,6 @@ export default function MemberManagement() {
         setError("");
         setMessage("");
         setLoadingConsents(true);
-
         try {
             setConsents(await loadMemberConsentSummaries(member));
         } catch (consentError) {
@@ -167,16 +151,10 @@ export default function MemberManagement() {
 
     const save = async () => {
         if (!selected || !draft) return;
-
-        if (!draft.displayName.trim()) {
-            setError("Member name is required.");
-            return;
-        }
-
+        if (!draft.displayName.trim()) return setError("Member name is required.");
         setSaving(true);
         setError("");
         setMessage("");
-
         try {
             await updateMember(selected.id, {
                 firstName: draft.firstName,
@@ -191,11 +169,8 @@ export default function MemberManagement() {
                 emergencyContactPhone: draft.emergencyContactPhone,
                 status: draft.status
             });
-
             const updated = { ...draft, id: selected.id };
-            setMembers((current) =>
-                current.map((member) => (member.id === selected.id ? updated : member))
-            );
+            setMembers((current) => current.map((member) => member.id === selected.id ? updated : member));
             setSelected(updated);
             setDraft(updated);
             setMessage("Member details updated.");
@@ -215,19 +190,9 @@ export default function MemberManagement() {
 
     const addMember = async () => {
         setAddError("");
-
-        if (!addDraft.displayName.trim()) {
-            setAddError("Member name is required.");
-            return;
-        }
-
-        if (!addDraft.section) {
-            setAddError("Select the member's section.");
-            return;
-        }
-
+        if (!addDraft.displayName.trim()) return setAddError("Member name is required.");
+        if (!addDraft.section) return setAddError("Select the member's section.");
         setCreating(true);
-
         try {
             await createMember(addDraft);
             setAddOpen(false);
@@ -244,160 +209,61 @@ export default function MemberManagement() {
         }
     };
 
-    const summary: Array<[string, number, MemberStatus | "all"]> = [
-        ["Total", counts.total, "all"],
-        ["Active", counts.active, "active"],
-        ["Inactive", counts.inactive, "inactive"],
-        ["Left", counts.left, "left"]
-    ];
-
-    const memberForm = (
-        value: CreateMemberInput,
-        setValue: (value: CreateMemberInput) => void
-    ) => (
-        <Box
-            sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 2
-            }}
-        >
-            <TextField
-                label="First name"
-                value={value.firstName}
-                onChange={(event) => setValue({ ...value, firstName: event.target.value })}
-            />
-            <TextField
-                label="Last name"
-                value={value.lastName}
-                onChange={(event) => setValue({ ...value, lastName: event.target.value })}
-            />
-            <TextField
-                required
-                label="Display name"
-                value={value.displayName}
-                onChange={(event) => setValue({ ...value, displayName: event.target.value })}
-                helperText="Use the name leaders normally identify the member by."
-            />
-            <TextField
-                type="date"
-                label="Date of birth"
-                value={value.dateOfBirth}
-                slotProps={{ inputLabel: { shrink: true } }}
-                onChange={(event) => setValue({ ...value, dateOfBirth: event.target.value })}
-            />
+    const memberForm = (value: CreateMemberInput, setValue: (value: CreateMemberInput) => void) => (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+            <TextField label="First name" value={value.firstName} onChange={(event) => setValue({ ...value, firstName: event.target.value })} />
+            <TextField label="Last name" value={value.lastName} onChange={(event) => setValue({ ...value, lastName: event.target.value })} />
+            <TextField required label="Display name" value={value.displayName} onChange={(event) => setValue({ ...value, displayName: event.target.value })} helperText="Use the name leaders normally identify the member by." />
+            <TextField type="date" label="Date of birth" value={value.dateOfBirth} slotProps={{ inputLabel: { shrink: true } }} onChange={(event) => setValue({ ...value, dateOfBirth: event.target.value })} />
             <FormControl required>
                 <InputLabel>Section</InputLabel>
-                <Select
-                    label="Section"
-                    value={value.section}
-                    onChange={(event) => setValue({ ...value, section: event.target.value })}
-                >
-                    {sections
-                        .filter((section) => section !== "all")
-                        .map((section) => (
-                            <MenuItem key={section} value={section}>
-                                {section}
-                            </MenuItem>
-                        ))}
+                <Select label="Section" value={value.section} onChange={(event) => setValue({ ...value, section: event.target.value })}>
+                    {sections.filter((section) => section !== "all").map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
                 </Select>
             </FormControl>
             <FormControl>
                 <InputLabel>Status</InputLabel>
-                <Select
-                    label="Status"
-                    value={value.status}
-                    onChange={(event) =>
-                        setValue({ ...value, status: event.target.value as MemberStatus })
-                    }
-                >
-                    {memberStatuses.map((status) => (
-                        <MenuItem key={status} value={status}>
-                            {statusLabel(status)}
-                        </MenuItem>
-                    ))}
+                <Select label="Status" value={value.status} onChange={(event) => setValue({ ...value, status: event.target.value as MemberStatus })}>
+                    {memberStatuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}
                 </Select>
             </FormControl>
-            <TextField
-                label="Parent / Guardian"
-                value={value.parentName}
-                onChange={(event) => setValue({ ...value, parentName: event.target.value })}
-            />
-            <TextField
-                label="Email address"
-                type="email"
-                value={value.emailAddress}
-                onChange={(event) => setValue({ ...value, emailAddress: event.target.value })}
-            />
-            <TextField
-                label="Mobile number"
-                value={value.mobileNumber}
-                onChange={(event) => setValue({ ...value, mobileNumber: event.target.value })}
-            />
-            <TextField
-                label="Emergency contact"
-                value={value.emergencyContactName}
-                onChange={(event) =>
-                    setValue({ ...value, emergencyContactName: event.target.value })
-                }
-            />
-            <TextField
-                label="Emergency contact phone"
-                value={value.emergencyContactPhone}
-                onChange={(event) =>
-                    setValue({ ...value, emergencyContactPhone: event.target.value })
-                }
-            />
+            <TextField label="Parent / Guardian" value={value.parentName} onChange={(event) => setValue({ ...value, parentName: event.target.value })} />
+            <TextField label="Email address" type="email" value={value.emailAddress} onChange={(event) => setValue({ ...value, emailAddress: event.target.value })} />
+            <TextField label="Mobile number" value={value.mobileNumber} onChange={(event) => setValue({ ...value, mobileNumber: event.target.value })} />
+            <TextField label="Emergency contact" value={value.emergencyContactName} onChange={(event) => setValue({ ...value, emergencyContactName: event.target.value })} />
+            <TextField label="Emergency contact phone" value={value.emergencyContactPhone} onChange={(event) => setValue({ ...value, emergencyContactPhone: event.target.value })} />
         </Box>
     );
 
     return (
-        <Box
-            sx={{
-                minHeight: "100vh",
-                backgroundColor: "background.default",
-                py: { xs: 4, md: 6 }
-            }}
-        >
+        <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Member Management"
                     description="Maintain member records, sections, contacts and consent indicators."
-                    actions={
-                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                            <Button variant="contained" color="secondary" onClick={openAddMember}>
-                                Add Member
-                            </Button>
-                            <Button variant="contained" color="success" onClick={() => void load()}>
-                                Refresh
-                            </Button>
-                        </Stack>
-                    }
+                    actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                        <Button variant="contained" color="secondary" onClick={openAddMember}>Add Member</Button>
+                        <Button variant="contained" color="success" onClick={() => void load()}>Refresh</Button>
+                    </Stack>}
                 />
 
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
-                        gap: 2,
-                        mb: 3
-                    }}
-                >
+                <Box role="group" aria-label="Member status summary" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
                     {summary.map(([label, value, status]) => {
                         const active = statusFilter === status;
-
                         return (
                             <Paper
                                 key={label}
                                 variant="outlined"
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => setStatusFilter(status)}
+                                aria-pressed={active}
+                                aria-controls="member-results"
+                                onClick={() => selectStatus(status)}
                                 onKeyDown={(event) => {
                                     if (event.key === "Enter" || event.key === " ") {
                                         event.preventDefault();
-                                        setStatusFilter(status);
+                                        selectStatus(status);
                                     }
                                 }}
                                 sx={{
@@ -407,281 +273,109 @@ export default function MemberManagement() {
                                     borderWidth: active ? 2 : 1,
                                     borderColor: active ? "secondary.main" : "divider",
                                     transition: "transform .15s ease, box-shadow .15s ease",
-                                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 }
+                                    "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                                    "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 }
                                 }}
                             >
-                                <Typography variant="h4" color="secondary">
-                                    {value}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {label}
-                                </Typography>
+                                <Typography variant="h4" color="secondary">{value}</Typography>
+                                <Typography variant="body2" color="text.secondary">{label}</Typography>
                             </Paper>
                         );
                     })}
                 </Box>
 
                 <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr" },
-                            gap: 2
-                        }}
-                    >
-                        <TextField
-                            label="Search members"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Member, parent, phone, email..."
-                        />
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr" }, gap: 2 }}>
+                        <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Member, parent, phone, email..." />
                         <FormControl>
-                            <InputLabel>Section</InputLabel>
-                            <Select
-                                label="Section"
-                                value={sectionFilter}
-                                onChange={(event) => setSectionFilter(event.target.value)}
-                            >
-                                {sections.map((section) => (
-                                    <MenuItem key={section} value={section}>
-                                        {section === "all" ? "All Sections" : section}
-                                    </MenuItem>
-                                ))}
+                            <InputLabel id="member-section-filter-label">Section</InputLabel>
+                            <Select labelId="member-section-filter-label" label="Section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)}>
+                                {sections.map((section) => <MenuItem key={section} value={section}>{section === "all" ? "All Sections" : section}</MenuItem>)}
                             </Select>
                         </FormControl>
                         <FormControl>
-                            <InputLabel>Status</InputLabel>
-                            <Select
-                                label="Status"
-                                value={statusFilter}
-                                onChange={(event) =>
-                                    setStatusFilter(event.target.value as MemberStatus | "all")
-                                }
-                            >
+                            <InputLabel id="member-status-filter-label">Status</InputLabel>
+                            <Select labelId="member-status-filter-label" label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as MemberStatus | "all")}>
                                 <MenuItem value="all">All Statuses</MenuItem>
-                                {memberStatuses.map((status) => (
-                                    <MenuItem key={status} value={status}>
-                                        {statusLabel(status)}
-                                    </MenuItem>
-                                ))}
+                                {memberStatuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}
                             </Select>
                         </FormControl>
                     </Box>
                 </Paper>
 
-                {error && (
-                    <Alert severity="error" sx={{ mb: 3 }}>
-                        {error}
-                    </Alert>
-                )}
+                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-                {loading ? (
-                    <Box
-                        sx={{
-                            minHeight: 300,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center"
-                        }}
-                    >
-                        <CircularProgress color="success" />
-                    </Box>
-                ) : (
-                    <Box sx={{ display: "grid", gap: 2 }}>
-                        {visibleMembers.length === 0 && (
-                            <Alert severity="info">No members match the current filters.</Alert>
-                        )}
-
-                        {visibleMembers.map((member) => (
-                            <Paper key={member.id} variant="outlined" sx={{ p: 2.5 }}>
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: { xs: "column", md: "row" },
-                                        justifyContent: "space-between",
-                                        gap: 2
-                                    }}
-                                >
-                                    <Box>
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
-                                        >
-                                            <Typography variant="h5" color="secondary">
-                                                {member.displayName}
-                                            </Typography>
-                                            <Chip
-                                                label={statusLabel(member.status)}
-                                                color={statusColor(member.status)}
-                                                size="small"
-                                            />
-                                            {member.section && (
-                                                <Chip label={member.section} variant="outlined" size="small" />
-                                            )}
-                                        </Stack>
-                                        <Typography sx={{ mt: 1 }}>
-                                            Parent / Guardian: {member.parentName || "Not provided"}
-                                        </Typography>
-                                        <Typography sx={{ mt: 0.5 }}>
-                                            Phone: {member.mobileNumber || "Not provided"}
-                                        </Typography>
+                <Box id="member-results" role="region" aria-label="Member results" tabIndex={-1}>
+                    {loading ? (
+                        <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box>
+                    ) : (
+                        <Box sx={{ display: "grid", gap: 2 }}>
+                            {visibleMembers.length === 0 && <Alert severity="info">No members match the current filters.</Alert>}
+                            {visibleMembers.map((member) => (
+                                <Paper key={member.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`member-card-${member.id}`}>
+                                    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
+                                        <Box>
+                                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
+                                                <Typography variant="h5" color="secondary">{member.displayName}</Typography>
+                                                <Chip label={statusLabel(member.status)} color={statusColor(member.status)} size="small" />
+                                                {member.section && <Chip label={member.section} variant="outlined" size="small" />}
+                                            </Stack>
+                                            <Typography sx={{ mt: 1 }}>Parent / Guardian: {member.parentName || "Not provided"}</Typography>
+                                            <Typography sx={{ mt: 0.5 }}>Phone: {member.mobileNumber || "Not provided"}</Typography>
+                                        </Box>
+                                        <Button variant="contained" color="success" onClick={() => void openMember(member)}>Manage</Button>
                                     </Box>
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        onClick={() => void openMember(member)}
-                                    >
-                                        Manage
-                                    </Button>
-                                </Box>
-                            </Paper>
-                        ))}
-                    </Box>
-                )}
-
-                <Dialog
-                    open={Boolean(selected && draft)}
-                    onClose={() => {
-                        setSelected(null);
-                        setDraft(null);
-                    }}
-                    maxWidth="lg"
-                    fullWidth
-                >
-                    {selected && draft && (
-                        <>
-                            <DialogTitle>Member — {draft.displayName}</DialogTitle>
-                            <DialogContent dividers>
-                                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
-
-                                <Typography
-                                    variant="h5"
-                                    color="secondary"
-                                    sx={{ mb: 2, fontWeight: 800 }}
-                                >
-                                    Member Details
-                                </Typography>
-
-                                {memberForm(draft, (value) => setDraft({ ...draft, ...value }))}
-
-                                <Typography
-                                    variant="h5"
-                                    color="secondary"
-                                    sx={{ mt: 4, mb: 2, fontWeight: 800 }}
-                                >
-                                    Consent Indicators
-                                </Typography>
-
-                                {loadingConsents ? (
-                                    <CircularProgress size={24} />
-                                ) : consents.length === 0 ? (
-                                    <Alert severity="info">
-                                        No matching consent records were found for this member.
-                                    </Alert>
-                                ) : (
-                                    <Stack spacing={1.5}>
-                                        {consents.map((consent) => (
-                                            <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}>
-                                                <Stack
-                                                    direction="row"
-                                                    spacing={1}
-                                                    useFlexGap
-                                                    sx={{ flexWrap: "wrap", mb: 1 }}
-                                                >
-                                                    <Chip
-                                                        size="small"
-                                                        label={
-                                                            consentExpired(consent.consentTo)
-                                                                ? "Expired"
-                                                                : "Consent found"
-                                                        }
-                                                        color={
-                                                            consentExpired(consent.consentTo)
-                                                                ? "error"
-                                                                : "success"
-                                                        }
-                                                    />
-                                                    {consent.hasMedicalAlert && (
-                                                        <Chip
-                                                            size="small"
-                                                            label="Medical alert"
-                                                            color="warning"
-                                                        />
-                                                    )}
-                                                    {consent.hasMedicationManagement && (
-                                                        <Chip
-                                                            size="small"
-                                                            label="Medication"
-                                                            color="error"
-                                                        />
-                                                    )}
-                                                </Stack>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {consent.section || "No section"} · Submitted{" "}
-                                                    {formatDate(consent.submittedAt)} · Consent to{" "}
-                                                    {consent.consentTo || "not provided"}
-                                                </Typography>
-                                            </Paper>
-                                        ))}
-                                    </Stack>
-                                )}
-                            </DialogContent>
-                            <DialogActions>
-                                <Button
-                                    onClick={() => {
-                                        setSelected(null);
-                                        setDraft(null);
-                                    }}
-                                >
-                                    Close
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    disabled={saving}
-                                    onClick={() => void save()}
-                                >
-                                    {saving ? "Saving..." : "Save Member"}
-                                </Button>
-                            </DialogActions>
-                        </>
+                                </Paper>
+                            ))}
+                        </Box>
                     )}
+                </Box>
+
+                <Dialog open={Boolean(selected && draft)} onClose={() => { setSelected(null); setDraft(null); }} maxWidth="lg" fullWidth>
+                    {selected && draft && <>
+                        <DialogTitle>Member — {draft.displayName}</DialogTitle>
+                        <DialogContent dividers>
+                            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                            {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+                            <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Member Details</Typography>
+                            {memberForm(draft, (value) => setDraft({ ...draft, ...value }))}
+                            <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent Indicators</Typography>
+                            {loadingConsents ? <CircularProgress size={24} /> : consents.length === 0 ? (
+                                <Alert severity="info">No matching consent records were found for this member.</Alert>
+                            ) : (
+                                <Stack spacing={1.5}>
+                                    {consents.map((consent) => (
+                                        <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}>
+                                            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
+                                                <Chip size="small" label={consentExpired(consent.consentTo) ? "Expired" : "Consent found"} color={consentExpired(consent.consentTo) ? "error" : "success"} />
+                                                {consent.hasMedicalAlert && <Chip size="small" label="Medical alert" color="warning" />}
+                                                {consent.hasMedicationManagement && <Chip size="small" label="Medication" color="error" />}
+                                            </Stack>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {consent.section || "No section"} · Submitted {formatDate(consent.submittedAt)} · Consent to {consent.consentTo || "not provided"}
+                                            </Typography>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            )}
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => { setSelected(null); setDraft(null); }}>Close</Button>
+                            <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>{saving ? "Saving..." : "Save Member"}</Button>
+                        </DialogActions>
+                    </>}
                 </Dialog>
 
-                <Dialog
-                    open={addOpen}
-                    onClose={() => !creating && setAddOpen(false)}
-                    maxWidth="md"
-                    fullWidth
-                >
+                <Dialog open={addOpen} onClose={() => !creating && setAddOpen(false)} maxWidth="md" fullWidth>
                     <DialogTitle>Add Existing Member</DialogTitle>
                     <DialogContent dividers>
-                        <Typography color="text.secondary" sx={{ mb: 3 }}>
-                            Add a current member directly to the member register. This does not create a Join Us enquiry.
-                        </Typography>
-
-                        {addError && (
-                            <Alert severity="error" sx={{ mb: 3 }}>
-                                {addError}
-                            </Alert>
-                        )}
-
+                        <Typography color="text.secondary" sx={{ mb: 3 }}>Add a current member directly to the member register. This does not create a Join Us enquiry.</Typography>
+                        {addError && <Alert severity="error" sx={{ mb: 3 }}>{addError}</Alert>}
                         {memberForm(addDraft, setAddDraft)}
                     </DialogContent>
                     <DialogActions>
-                        <Button disabled={creating} onClick={() => setAddOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="success"
-                            disabled={creating}
-                            onClick={() => void addMember()}
-                        >
-                            {creating ? "Adding..." : "Add Member"}
-                        </Button>
+                        <Button disabled={creating} onClick={() => setAddOpen(false)}>Cancel</Button>
+                        <Button variant="contained" color="success" disabled={creating} onClick={() => void addMember()}>{creating ? "Adding..." : "Add Member"}</Button>
                     </DialogActions>
                 </Dialog>
             </Container>
