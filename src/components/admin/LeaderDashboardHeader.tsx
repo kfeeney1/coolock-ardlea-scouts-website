@@ -1,6 +1,6 @@
 import { Box, Button, Collapse, Divider, Paper, Stack, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "./AdminAuthProvider";
 
@@ -49,9 +49,9 @@ export default function LeaderDashboardHeader() {
  const location = useLocation();
  const navigate = useNavigate();
  const { adminProfile, logout } = useAdminAuth();
- const initialMobileGroup = navGroups.find((group) => group.items.some((item) => item.path === location.pathname))?.label ?? "Programme";
+ const activeMobileGroup = navGroups.find((group) => group.items.some((item) => item.path === location.pathname))?.label ?? "Programme";
  const [menuOpen, setMenuOpen] = useState(false);
- const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(initialMobileGroup);
+ const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
  const [signingOut, setSigningOut] = useState(false);
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
  const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
@@ -61,6 +61,15 @@ export default function LeaderDashboardHeader() {
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
  const currentItem = visibleItems.find((item) => item.path === location.pathname);
+ useEffect(() => {
+  setMobileGroupOpen(activeMobileGroup);
+ }, [activeMobileGroup]);
+ const handleMenuToggle = () => {
+  setMenuOpen((open) => {
+   if (!open) setMobileGroupOpen(activeMobileGroup);
+   return !open;
+  });
+ };
  const handleSignOut = async () => {
   setSigningOut(true);
   try {
@@ -80,7 +89,7 @@ export default function LeaderDashboardHeader() {
    <Typography color="text.secondary" sx={{ mb: 1 }}>{adminProfile?.displayName} · {adminProfile?.role}{adminProfile?.role === "leader" && adminProfile.sections.length ? ` · ${adminProfile.sections.join(", ")}` : ""}</Typography>
   </Box>
   <Typography color="text.secondary" sx={{ mb: 2.5 }}>Manage the records permitted by your assigned role and sections.</Typography>
-  <Button fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={() => setMenuOpen((open) => !open)} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
+  <Button fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
   <Collapse in={menuOpen} timeout="auto" unmountOnExit>
    <Box id="leader-navigation" component="nav" aria-label="Leader navigation" sx={{ mt: 1.5 }}>
     <Box sx={{ display: { xs: "block", md: "none" } }}>
