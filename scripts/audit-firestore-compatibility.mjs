@@ -1,5 +1,6 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { FIRESTORE_ROOT_COLLECTION_SET } from "./firestore-collection-contract.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
@@ -7,12 +8,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 
-const EXPECTED_COLLECTIONS = new Set([
-  "adminUsers", "parentAccounts", "leaderRegistrationRequests", "joinApplications", "members",
-  "memberHistory", "events", "publicEvents", "eventConsentLinks", "eventConsentResponses",
-  "consentApplications", "meetingRecords", "weeklyMeetings", "organisationLeadership",
-  "publicLeadership", "publicSiteContent", "auditLog"
-]);
+const EXPECTED_COLLECTIONS = FIRESTORE_ROOT_COLLECTION_SET;
 const DEDICATED_AUDIT_COLLECTIONS = new Set(["meetingRecords", "weeklyMeetings"]);
 const SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Scouter", "All Sections"]);
 const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
