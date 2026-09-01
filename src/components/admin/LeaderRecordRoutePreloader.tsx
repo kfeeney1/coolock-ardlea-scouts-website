@@ -46,10 +46,10 @@ export default function LeaderRecordRoutePreloader() {
       };
     }
 
-    const timeoutId = window.setTimeout(preload, 0);
+    const timeoutId = globalThis.setTimeout(preload, 0);
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
+      globalThis.clearTimeout(timeoutId);
     };
   }, [pathname]);
 
