@@ -14,6 +14,15 @@ async function loginAdmin(page: Page) {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function expectBelowStickyHeader(page: Page, targetSelector: string) {
+    await expect.poll(async () => page.evaluate((selector) => {
+        const header = document.querySelector<HTMLElement>("[data-site-sticky-header]");
+        const target = document.querySelector<HTMLElement>(selector);
+        if (!header || !target) return -1;
+        return Math.round(target.getBoundingClientRect().top - header.getBoundingClientRect().bottom);
+    }, targetSelector)).toBeGreaterThanOrEqual(12);
+}
+
 test("event status tiles filter and jump to the event results", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -27,6 +36,7 @@ test("event status tiles filter and jump to the event results", async ({ page },
     await expect(results).toBeFocused();
     await expect(results).toBeInViewport();
     await expect(page.getByRole("combobox", { name: "Status" })).toHaveText(/Open/);
+    await expectBelowStickyHeader(page, "#event-results");
 });
 
 test("event status tiles support keyboard activation", async ({ page }, testInfo) => {
@@ -54,6 +64,7 @@ test("event deep links jump directly to the requested event", async ({ page }, t
     await expect(eventCard.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
     await expect(eventCard).toBeInViewport();
     await expect(page.getByLabel("Search events")).toHaveValue("TEST Beavers Open Day Trip");
+    await expectBelowStickyHeader(page, "#event-TEST_flow_event_beavers_open");
 });
 
 test("leader can open a mobile-ready gallery from an event card", async ({ page }, testInfo) => {
