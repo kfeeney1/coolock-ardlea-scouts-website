@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -79,7 +79,9 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                             <Chip label={`${summary.attending} attending`} size="small" color="success" /><Chip label={`${summary.notAttending} not attending`} size="small" variant="outlined" /><Chip label={`${summary.invited} invited`} size="small" variant="outlined" />
                             {event.consentRequired && <Chip label={`${summary.consentReceived} consent received`} size="small" color="success" variant="outlined" />}{event.consentRequired && summary.consentOutstanding > 0 && <Chip label={`${summary.consentOutstanding} consent outstanding`} size="small" color="error" />}
                         </Stack>
-                        <Typography variant="body2" color="secondary" sx={{ mt: 1.5, fontWeight: 800 }}>Open event →</Typography>
+                        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                            <Button component="span" variant="contained" color="success">Open event</Button>
+                        </Box>
                     </Paper>;
                 })}
             </Box>}
