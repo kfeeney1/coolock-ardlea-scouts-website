@@ -26,7 +26,7 @@ test("event status tiles filter and jump to the event results", async ({ page },
     const results = page.getByRole("region", { name: "Event results" });
     await expect(results).toBeFocused();
     await expect(results).toBeInViewport();
-    await expect(page.getByLabel("Status")).toHaveText(/Open/);
+    await expect(page.getByRole("combobox", { name: "Status" })).toHaveText(/Open/);
 });
 
 test("event status tiles support keyboard activation", async ({ page }, testInfo) => {
@@ -88,7 +88,7 @@ test("completed event history keeps gallery access", async ({ page }, testInfo) 
     await loginAdmin(page);
     await page.goto("/leader/events");
 
-    await page.getByLabel("Status").click();
+    await page.getByRole("combobox", { name: "Status" }).click();
     await page.getByRole("option", { name: "Completed" }).click();
     await expect(page.getByText("Completed events are retained as read-only history. Reports, CSV exports and event galleries remain available.")).toBeVisible();
 
