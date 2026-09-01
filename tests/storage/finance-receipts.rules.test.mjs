@@ -107,8 +107,9 @@ test("parents and unauthenticated users cannot access finance receipts", async (
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-1"], linkedSections: ["Cubs"] }],
   ]);
   const leaderStorage = testEnv.authenticatedContext("leader-cubs").storage();
-  const path = receiptRef(leaderStorage).fullPath;
-  await assertSucceeds(uploadBytes(ref(leaderStorage, path), new Uint8Array([1]), receiptMetadata("leader-cubs")));
+  const leaderReceipt = receiptRef(leaderStorage, "Cubs", "private-access-check");
+  const path = leaderReceipt.fullPath;
+  await assertSucceeds(uploadBytes(leaderReceipt, new Uint8Array([1]), receiptMetadata("leader-cubs")));
 
   const parentStorage = testEnv.authenticatedContext("parent-1").storage();
   const publicStorage = testEnv.unauthenticatedContext().storage();
