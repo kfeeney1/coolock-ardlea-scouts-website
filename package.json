@@ -23,10 +23,11 @@
     "check:rbac-matrix": "node scripts/check-rbac-matrix.mjs",
     "check:rbac-test-coverage": "node scripts/check-rbac-test-coverage.mjs",
     "check:workflow-permissions": "node scripts/check-workflow-permissions.mjs",
+    "check:workflow-action-pinning": "node scripts/check-workflow-action-pinning.mjs",
     "check:smoke-script": "node --check scripts/check-live-deployment.mjs",
     "check:seed-contract": "node scripts/verify-repo-seed-contract.mjs",
     "smoke:live": "node scripts/check-live-deployment.mjs",
-    "quality": "npm run lint && npm test && npm run test:email-worker && npm run audit:production && npm run check:seed-contract && npm run check:playwright-suite && npm run check:source-complexity && npm run check:hosting-config && npm run check:firebase-deploy-config && npm run check:firestore-audit-coverage && npm run check:rbac-matrix && npm run check:rbac-test-coverage && npm run check:workflow-permissions && npm run check:smoke-script && npm run build",
+    "quality": "npm run lint && npm test && npm run test:email-worker && npm run audit:production && npm run check:seed-contract && npm run check:playwright-suite && npm run check:source-complexity && npm run check:hosting-config && npm run check:firebase-deploy-config && npm run check:firestore-audit-coverage && npm run check:rbac-matrix && npm run check:rbac-test-coverage && npm run check:workflow-permissions && npm run check:workflow-action-pinning && npm run check:smoke-script && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
