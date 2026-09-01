@@ -1,5 +1,6 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { FIRESTORE_ROOT_COLLECTION_SET } from "./firestore-collection-contract.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
@@ -19,27 +20,7 @@ const KNOWN_CANONICAL_TEST_SEEDS = new Set([
   "public-site-content-v1"
 ]);
 
-const EXPECTED_COLLECTIONS = new Set([
-  "adminUsers",
-  "parentAccounts",
-  "leaderRegistrationRequests",
-  "joinApplications",
-  "members",
-  "memberHistory",
-  "memberAdventureSkillProgress",
-  "events",
-  "publicEvents",
-  "eventConsentLinks",
-  "eventConsentResponses",
-  "consentApplications",
-  "meetingRecords",
-  "weeklyMeetings",
-  "parentWeeklyMeetings",
-  "organisationLeadership",
-  "publicLeadership",
-  "publicSiteContent",
-  "auditLog"
-]);
+const EXPECTED_COLLECTIONS = FIRESTORE_ROOT_COLLECTION_SET;
 
 function text(value) {
   return typeof value === "string" ? value.trim() : "";
