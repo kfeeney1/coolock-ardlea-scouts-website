@@ -20,6 +20,8 @@ The compatibility pass also applies fixture-tested operational invariants to fin
 
 Parent-safe weekly-meeting and retained gallery projections are checked against their source records, while programme-library and session-setting documents are checked against their bounded runtime schemas. The workflow also runs the existing gallery-access projection audit in dry-run mode so stale parent/member/event/consent links appear in the same downloadable report.
 
+Adventure Skills requirements and awards are audited through their nested collection groups against the real TypeScript catalogue. The audit detects orphan member progress, non-canonical requirement IDs or metadata, broken meeting/event source links, malformed attribution/timestamps, unstable award IDs and awards recorded before all stage requirements (including shared equivalents) were complete.
+
 This checklist captures the production-hardening baseline for the Coolock Ardlea Scouts website. Stage 8 is complete; future changes should preserve these controls and extend them when new functionality introduces new risk.
 
 ## Automated gates
