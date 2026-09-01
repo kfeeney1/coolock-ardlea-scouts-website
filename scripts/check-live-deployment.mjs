@@ -2,6 +2,7 @@ const siteUrl = String(process.env.SITE_URL || "").replace(/\/$/, "");
 const emailApiUrl = String(process.env.EMAIL_API_URL || "").replace(/\/$/, "");
 const firebaseApiKey = String(process.env.FIREBASE_API_KEY || "").trim();
 const firebaseProjectId = String(process.env.FIREBASE_PROJECT_ID || "coolock-ardlea-scouts").trim();
+const firebaseStorageBucket = String(process.env.FIREBASE_STORAGE_BUCKET || "").trim();
 const expectedBuildSha = String(process.env.EXPECTED_BUILD_SHA || "").trim();
 const allowPendingDeployWarning = String(process.env.ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING || "").toLowerCase() === "true";
 
@@ -19,6 +20,10 @@ if (!firebaseApiKey) {
 }
 if (!firebaseProjectId) {
   console.error("FIREBASE_PROJECT_ID is required for the live Firestore probe.");
+  process.exit(1);
+}
+if (!firebaseStorageBucket) {
+  console.error("FIREBASE_STORAGE_BUCKET is required for the live Storage probe.");
   process.exit(1);
 }
 
@@ -223,6 +228,23 @@ if (!queryResponse.ok) {
   if (privilegedLooking.length > 0) fail(`publicLeadership query exposed ${privilegedLooking.length} admin/super-admin-shaped document ID(s).`);
   if (invalidProjection.length > 0) fail(`publicLeadership query returned ${invalidProjection.length} document(s) outside the public projection contract.`);
   if (privilegedLooking.length === 0 && invalidProjection.length === 0) pass(`Constrained anonymous publicLeadership query returned 200 with ${documents.length} valid public document(s)`);
+}
+
+console.log(`Checking Firebase Storage bucket '${firebaseStorageBucket}'.`);
+const storageUrl = new URL(`https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(firebaseStorageBucket)}/o`);
+storageUrl.searchParams.set("maxResults", "1");
+const storageResponse = await fetch(storageUrl, { cache: "no-store" });
+if (storageResponse.status === 401 || storageResponse.status === 403) {
+  pass(`Firebase Storage is reachable and rejects anonymous bucket listing (${storageResponse.status})`);
+} else if (storageResponse.ok) {
+  fail("Firebase Storage unexpectedly permits anonymous bucket listing");
+} else {
+  let detail = "";
+  try {
+    const body = await storageResponse.json();
+    detail = body?.error?.message ? `: ${body.error.message}` : "";
+  } catch {}
+  fail(`Firebase Storage availability probe returned ${storageResponse.status}${detail}`);
 }
 
 const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
