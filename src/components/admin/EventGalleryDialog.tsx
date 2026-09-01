@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { EventRecord } from "../../services/eventAdmin";
 import { deleteEventGalleryPhoto, loadEventGalleryPhotos, uploadEventGalleryPhoto } from "../../services/eventGallery";
 import type { EventGalleryPhoto } from "../../services/eventGallery";
+import { withTimeout } from "../../services/eventGalleryLoadLogic";
 import { recordAuditEvent } from "../../services/auditLog";
 
 type Props = { event: EventRecord | null; onClose: () => void };
+
+const GALLERY_LOAD_TIMEOUT_MS = 15000;
 
 export default function EventGalleryDialog({ event, onClose }: Props) {
     const [photos, setPhotos] = useState<EventGalleryPhoto[]>([]);
@@ -23,11 +26,18 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
         setLoading(true);
         setLoadFailed(false);
         setError("");
-        try { setPhotos(await loadEventGalleryPhotos(event.section, event.id)); }
+        try {
+            const loadedPhotos = await withTimeout(
+                loadEventGalleryPhotos(event.section, event.id),
+                GALLERY_LOAD_TIMEOUT_MS,
+                "Event gallery load timed out."
+            );
+            setPhotos(loadedPhotos);
+        }
         catch (loadError) {
             console.error("Unable to load event gallery:", loadError);
             setLoadFailed(true);
-            setError("Unable to load this event gallery.");
+            setError("Unable to load this event gallery. Please check your connection and try again.");
         }
         finally { setLoading(false); }
     };
@@ -76,12 +86,12 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
                 </Stack>
                 <input ref={galleryInput} hidden type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Choose gallery photos" onChange={(e) => void uploadFiles(e.target.files)} />
                 <input ref={cameraInput} hidden type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Take gallery photo" onChange={(e) => void uploadFiles(e.target.files)} />
-                {loading ? <Box sx={{ py: 6, textAlign: "center" }} aria-live="polite"><CircularProgress aria-label="Loading event gallery" /></Box> : photos.length === 0 ? <Alert severity="info">No photos have been added to this event yet.</Alert> : <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
+                {loading ? <Box sx={{ py: 6, textAlign: "center" }} role="status" aria-live="polite"><CircularProgress aria-label="Loading event gallery" /><Typography variant="body2" sx={{ mt: 1.5 }}>Loading photos…</Typography></Box> : photos.length === 0 && !loadFailed ? <Alert severity="info">No photos have been added to this event yet.</Alert> : !loadFailed ? <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
                     {photos.map((photo) => <Box key={photo.path} sx={{ position: "relative", borderRadius: 1, overflow: "hidden", border: 1, borderColor: "divider", aspectRatio: "1 / 1" }}>
                         <Box component="img" src={photo.downloadUrl} alt={photo.fileName} loading="lazy" sx={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         <IconButton aria-label={`Remove ${photo.fileName}`} size="small" onClick={() => void removePhoto(photo)} sx={{ position: "absolute", top: 6, right: 6, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper" } }}>×</IconButton>
                     </Box>)}
-                </Box>}
+                </Box> : null}
             </Stack>
         </DialogContent>
         <DialogActions><Button onClick={onClose} disabled={uploading}>Close</Button></DialogActions>
