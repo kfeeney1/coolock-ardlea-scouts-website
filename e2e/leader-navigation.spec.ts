@@ -20,11 +20,11 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await menuToggle.click();
 
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
-  await expect(navigation.getByText("Programme", { exact: true })).toBeVisible();
-  await expect(navigation.getByText("People & Parents", { exact: true })).toBeVisible();
-  await expect(navigation.getByText("Group Operations", { exact: true })).toBeVisible();
-  await expect(navigation.getByText("Insights & Records", { exact: true })).toBeVisible();
-  await expect(navigation.getByText("Administration", { exact: true })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: "Programme" })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: "People & Parents" })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: "Group Operations" })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: "Insights & Records" })).toBeVisible();
+  await expect(navigation.getByRole("button", { name: "Administration" })).toBeVisible();
   await expect(navigation.getByText("Account & Help", { exact: true })).toBeVisible();
 
   await expect(navigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
