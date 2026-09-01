@@ -63,3 +63,21 @@ test("section leader gets compact mobile disclosure without admin destinations",
   await expect(navigation.getByRole("link", { name: "View Parent Portal ↗" })).toBeVisible();
   await expect(navigation.getByRole("button", { name: "Sign Out" })).toBeVisible();
 });
+
+test("mobile menu reopens the group containing the current route", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Route-aware disclosure regression runs once on Pixel 7 Chromium.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+
+  await login(page, leaderEmail!);
+  await page.goto("/leader/members");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
+  const navigation = page.getByRole("navigation", { name: "Leader navigation" });
+  const programme = navigation.getByRole("button", { name: "Programme" });
+  const people = navigation.getByRole("button", { name: "People & Parents" });
+
+  await expect(people).toHaveAttribute("aria-expanded", "true");
+  await expect(programme).toHaveAttribute("aria-expanded", "false");
+  await expect(navigation.getByRole("link", { name: "Member Management" })).toBeVisible();
+});
