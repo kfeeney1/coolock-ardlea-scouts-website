@@ -29,6 +29,12 @@ async function openLeaderMenu(page: import("@playwright/test").Page) {
     await expect(menuButton).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await menuButton.click();
+
+    if (page.viewportSize() && page.viewportSize()!.width < 600) {
+        const peopleGroup = page.getByRole("navigation", { name: "Leader navigation" }).getByRole("button", { name: "People & Parents" });
+        await peopleGroup.click();
+    }
+
     await expect(page.getByRole("link", { name: "Parent Communications" })).toBeVisible();
 }
 
