@@ -14,23 +14,19 @@ async function loginAdmin(page: Page) {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("consent-required event links directly to parent event consent management", async ({ page }, testInfo) => {
+test("consent-required event links from its full record to parent event consent management", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
     await loginAdmin(page);
-    await page.goto("/leader/events");
+    await page.goto("/leader/events/TEST_flow_event_beavers_open");
 
-    const consentEvent = page.getByTestId("event-card-TEST_flow_event_beavers_open");
-    await expect(consentEvent.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
-    const manageConsent = consentEvent.getByRole("link", { name: "Manage Consent", exact: true });
+    const manageConsent = page.getByRole("link", { name: "Manage Consent", exact: true });
     await expect(manageConsent).toHaveAttribute("href", "/leader/event-consent?eventId=TEST_flow_event_beavers_open");
-
-    const nonConsentEvent = page.getByTestId("event-card-TEST_flow_event_scouts_closed");
-    await expect(nonConsentEvent.getByText("TEST Scouts Closed Hike", { exact: true })).toBeVisible();
-    await expect(nonConsentEvent.getByRole("link", { name: "Manage Consent", exact: true })).toHaveCount(0);
-
     await manageConsent.click();
     await expect(page).toHaveURL(/\/leader\/event-consent\?eventId=TEST_flow_event_beavers_open$/);
     await expect(page.getByRole("heading", { name: "Parent Event Consent" })).toBeVisible();
     await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+
+    await page.goto("/leader/events/TEST_flow_event_scouts_closed");
+    await expect(page.getByRole("link", { name: "Manage Consent", exact: true })).toHaveCount(0);
 });

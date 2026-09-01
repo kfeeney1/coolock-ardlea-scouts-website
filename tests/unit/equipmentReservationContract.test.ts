@@ -18,9 +18,10 @@ test("manual section holdings exclude future reservations", async () => {
   assert.match(panel, /!isEquipmentReservationLoan\(loan\)/);
 });
 
-test("events expose programme equipment planning", async () => {
-  const page = await readFile("src/pages/EventsManagement.tsx", "utf8");
+test("event records expose programme equipment planning", async () => {
+  const recordPage = await readFile("src/pages/EventRecordPage.tsx", "utf8");
   const list = await readFile("src/components/admin/EventListPanel.tsx", "utf8");
-  assert.match(page, /ProgrammeEquipmentDialog/);
-  assert.match(list, />Equipment<\/Button>/);
+  assert.match(recordPage, /ProgrammeEquipmentDialog/);
+  assert.match(recordPage, />Equipment<\/Button>/);
+  assert.doesNotMatch(list, />Equipment<\/Button>/);
 });
