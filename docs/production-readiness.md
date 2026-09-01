@@ -10,6 +10,12 @@ The separate Firebase Rules workflow is a validation gate only. It runs the Fire
 
 When Storage is enabled, the post-deployment smoke gate checks that the configured bucket is reachable and that anonymous bucket listing is denied, alongside the existing Hosting, Firestore and email Worker checks.
 
+## Stage 18.2 data-integrity audit
+
+The live Firestore audit workflow is read-only. It may identify safe migrations, stale documents and compatibility blockers, but it must not apply repairs in the same run that discovers them. Every run uploads its available findings as a 30-day `firestore-integrity-dry-run-*` artifact. Any approved migration is run separately, followed by a fresh read-only audit.
+
+`scripts/firestore-collection-contract.mjs` is the authoritative root-collection inventory shared by the compatibility and provenance audits. `npm run check:firestore-audit-coverage` compares that inventory with `firestore.rules`, requires both audits to consume it, and rejects mutating reconciliation commands in the audit workflow. This closes the gap where newer Adventure Skills, equipment, finance, programme library, parent gallery and settings collections were absent from older audit allowlists.
+
 This checklist captures the production-hardening baseline for the Coolock Ardlea Scouts website. Stage 8 is complete; future changes should preserve these controls and extend them when new functionality introduces new risk.
 
 ## Automated gates
