@@ -16,6 +16,8 @@ The live Firestore audit workflow is read-only. It may identify safe migrations,
 
 `scripts/firestore-collection-contract.mjs` is the authoritative root-collection inventory shared by the compatibility and provenance audits. `npm run check:firestore-audit-coverage` compares that inventory with `firestore.rules`, requires both audits to consume it, and rejects mutating reconciliation commands in the audit workflow. This closes the gap where newer Adventure Skills, equipment, finance, programme library, parent gallery and settings collections were absent from older audit allowlists.
 
+The compatibility pass also applies fixture-tested operational invariants to finance and equipment data. It rejects invalid whole-cent amounts and reconciliation arithmetic, unresolved transfer/reversal links, duplicate equipment options, impossible stock totals, malformed loans, unresolved incident/history item references and broken programme-equipment links. These checks report exact document paths and remain read-only.
+
 This checklist captures the production-hardening baseline for the Coolock Ardlea Scouts website. Stage 8 is complete; future changes should preserve these controls and extend them when new functionality introduces new risk.
 
 ## Automated gates

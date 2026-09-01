@@ -1,6 +1,7 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { FIRESTORE_ROOT_COLLECTION_SET } from "./firestore-collection-contract.mjs";
+import { validateOperationalIntegrity } from "./firestore-operational-integrity.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
@@ -35,11 +36,14 @@ function hasDuplicates(values) { return new Set(values).size !== values.length; 
 const errors = [];
 const warnings = [];
 const counts = new Map();
+const documentsByCollection = new Map();
 function fail(collection, id, message) { errors.push(`${collection}/${id}: ${message}`); }
 function warn(collection, id, message) { warnings.push(`${collection}/${id}: ${message}`); }
 async function docs(name) {
+  if (documentsByCollection.has(name)) return documentsByCollection.get(name);
   const snapshot = await db.collection(name).get();
   counts.set(name, snapshot.size);
+  documentsByCollection.set(name, snapshot.docs);
   return snapshot.docs;
 }
 
@@ -236,6 +240,13 @@ for (const collectionName of DEDICATED_AUDIT_COLLECTIONS) {
   counts.set(collectionName, snapshot.size);
   warn(collectionName, "*", "validated by its dedicated compatibility audit in the same workflow");
 }
+
+for (const collectionName of EXPECTED_COLLECTIONS) await docs(collectionName);
+const operationalCollections = new Map([...documentsByCollection].map(([name, documents]) => [
+  name,
+  new Map(documents.map((document) => [document.id, document.data()]))
+]));
+for (const issue of validateOperationalIntegrity(operationalCollections)) errors.push(issue);
 
 console.log("Live Firestore compatibility summary:");
 for (const [name, count] of [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))) console.log(`- ${name}: ${count}`);
