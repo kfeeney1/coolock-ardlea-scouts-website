@@ -43,15 +43,11 @@ export default function Layout() {
                     flexGrow: 1,
                     ...(isLeaderRoute ? {
                         "& > *": {
-                            pt: { xs: 3, md: 5 },
-                            pb: { xs: 3, md: 5 }
+                            pt: { xs: "24px !important", md: "40px !important" },
+                            pb: { xs: "24px !important", md: "40px !important" }
                         },
                         "& > .MuiContainer-root, & > * > .MuiContainer-root": {
                             maxWidth: "1536px !important"
-                        },
-                        "& > *": {
-                            pt: { xs: "24px !important", md: "40px !important" },
-                            pb: { xs: "24px !important", md: "40px !important" }
                         }
                     } : {})
                 }}
