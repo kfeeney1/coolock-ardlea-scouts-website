@@ -68,6 +68,11 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-leadership-provenance.mjs --check 2>&1 | tee firestore-audit-report/07-leadership-provenance.txt
 
+      - name: Audit parent event-gallery access projections
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: set -o pipefail; node scripts/audit-event-gallery-access.mjs 2>&1 | tee firestore-audit-report/08-gallery-access.txt
+
       - name: Upload dry-run integrity report
         if: always()
         uses: actions/upload-artifact@v4
