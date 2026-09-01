@@ -48,7 +48,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
     };
 
     return <>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, minmax(0, 1fr))" }, gap: 2, mb: 3 }} aria-label="Event status summary">
+        <Box role="group" aria-label="Event status summary" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
             {[["Total", totals.total, "all"], ["Open", totals.open, "open"], ["Draft", totals.draft, "draft"], ["Closed", totals.closed, "closed"], ["Completed", totals.completed, "completed"]].map(([label, value, filter]) => {
                 const active = statusFilter === filter;
                 const filterValue = filter as EventStatus | "all";
