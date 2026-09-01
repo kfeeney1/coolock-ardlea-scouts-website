@@ -44,12 +44,16 @@ const accountItems: NavItem[] = [
  { label: "View Parent Portal ↗", path: "/parent" }
 ];
 
+function matchesNavPath(pathname: string, itemPath: string) {
+ return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
+
 export default function LeaderDashboardHeader() {
  const location = useLocation();
  const navigate = useNavigate();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
  const { adminProfile, logout } = useAdminAuth();
- const activeMobileGroup = navGroups.find((group) => group.items.some((item) => item.path === location.pathname))?.label ?? "Programme";
+ const activeMobileGroup = navGroups.find((group) => group.items.some((item) => matchesNavPath(location.pathname, item.path)))?.label ?? "Programme";
  const [menuOpen, setMenuOpen] = useState(false);
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
  const [signingOut, setSigningOut] = useState(false);
@@ -60,7 +64,7 @@ export default function LeaderDashboardHeader() {
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
- const currentItem = visibleItems.find((item) => item.path === location.pathname);
+ const currentItem = visibleItems.find((item) => matchesNavPath(location.pathname, item.path));
  useEffect(() => {
   setMobileGroupOpen(activeMobileGroup);
  }, [activeMobileGroup]);
@@ -84,7 +88,7 @@ export default function LeaderDashboardHeader() {
   }
  };
  const navButton = (item: NavItem) => {
-  const active = location.pathname === item.path;
+  const active = matchesNavPath(location.pathname, item.path);
   return <Button key={item.path} component={Link} to={item.path} aria-current={active ? "page" : undefined} onClick={() => setMenuOpen(false)} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
  };
  return <Paper elevation={3} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
@@ -100,7 +104,7 @@ export default function LeaderDashboardHeader() {
      <Stack spacing={1}>
       {visibleGroups.map((group) => {
        const expanded = mobileGroupOpen === group.label;
-       const containsActive = group.items.some((item) => item.path === location.pathname);
+       const containsActive = group.items.some((item) => matchesNavPath(location.pathname, item.path));
        const slug = group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
        const buttonId = `leader-nav-${slug}-button`;
        const panelId = `leader-nav-${slug}`;
