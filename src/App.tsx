@@ -40,6 +40,7 @@ const JoinManagement = lazy(() => import("./pages/JoinManagement"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
 const MemberRecordPage = lazy(() => import("./pages/MemberRecordPage"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
+const EventRecordPage = lazy(() => import("./pages/EventRecordPage"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
@@ -93,6 +94,7 @@ export default function App() {
               <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
               <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
               <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
+              <Route path="/leader/events/:eventId" element={protectedRoute(<EventRecordPage />)} />
               <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
               <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
               <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
