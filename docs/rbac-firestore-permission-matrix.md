@@ -4,6 +4,8 @@ This document is a review contract for the current application. It does not repl
 
 Stage 18.3 adds `config/rbac-matrix.json` as the machine-readable coverage inventory for identities, routes, Firestore roots and Storage domains. `npm run check:rbac-matrix` rejects missing/stale routes or collections, leader routes without the shared authentication guard, loss of the dedicated Site Settings admin guard, and matrix entries without a corresponding Rules domain. The descriptive table below remains the human review companion; neither file grants access.
 
+`npm run check:rbac-test-coverage` also requires every Firestore and Storage domain in that inventory to remain referenced by emulator tests with both positive and negative permission assertions. This is a coverage drift guard; the Firebase Rules workflow remains responsible for executing those assertions against the emulators.
+
 ## Identity layers
 
 The application intentionally separates system access from Scout organisation responsibility.
