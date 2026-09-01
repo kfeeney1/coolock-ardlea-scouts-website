@@ -10,6 +10,7 @@ import {
     updateJoinNotes, updateJoinStatus
 } from "../services/joinAdmin";
 import type { ContactMethod, JoinApplicationRecord, JoinStatus } from "../services/joinAdmin";
+import { moveToUiTargetAfterRender } from "../services/uiTargeting";
 
 type SortOrder = "oldest" | "newest" | "name";
 const statuses: JoinStatus[] = ["new", "contacted", "waiting-list", "accepted", "closed"];
@@ -69,6 +70,15 @@ export default function JoinManagement() {
 
     const totals = useMemo(() => statuses.reduce((current, status) => ({ ...current,
         [status]: records.filter((record) => record.status === status).length }), {} as Record<JoinStatus, number>), [records]);
+    const summaryFilters: Array<[string, number, JoinStatus | "all"]> = [
+        ["Total", records.length, "all"],
+        ...statuses.map((status) => [statusLabel(status), totals[status] ?? 0, status] as [string, number, JoinStatus])
+    ];
+
+    const selectStatus = (status: JoinStatus | "all") => {
+        setStatusFilter(status);
+        moveToUiTargetAfterRender("join-results", { focus: true });
+    };
 
     const openRecord = (record: JoinApplicationRecord) => {
         setSelected(record); setNotesDraft(record.notes); setContactNote(""); setContactMethod("phone"); setError(""); setMessage("");
@@ -124,31 +134,35 @@ export default function JoinManagement() {
             <LeaderPageHeader title="Join Us Management" description="Process joining enquiries, track contacts and manage the waiting list."
                 actions={<Button variant="contained" color="success" onClick={() => void load()}>Refresh</Button>} />
 
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, gap: 2, mb: 3 }}>
-                {statuses.map((status) => { const active = statusFilter === status; return <Paper key={status} variant="outlined" role="button" tabIndex={0}
-                    onClick={() => setStatusFilter(status)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setStatusFilter(status); } }}
+            <Box role="group" aria-label="Join enquiry status summary" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(6, 1fr)" }, gap: 2, mb: 3 }}>
+                {summaryFilters.map(([label, value, status]) => { const active = statusFilter === status; return <Paper key={status} variant="outlined" role="button" tabIndex={0}
+                    aria-pressed={active} aria-controls="join-results"
+                    onClick={() => selectStatus(status)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectStatus(status); } }}
                     sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1,
                         borderColor: active ? "secondary.main" : "divider", transition: "transform .15s ease, box-shadow .15s ease",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: 3 } }}>
-                    <Typography variant="h4" color="secondary">{totals[status] ?? 0}</Typography><Typography variant="body2" color="text.secondary">{statusLabel(status)}</Typography>
+                        "&:hover": { transform: "translateY(-2px)", boxShadow: 3 },
+                        "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
+                    <Typography variant="h4" color="secondary">{value}</Typography><Typography variant="body2" color="text.secondary">{label}</Typography>
                 </Paper>; })}
             </Box>
 
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 1fr" }, gap: 2 }}>
                 <TextField label="Search enquiries" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Child, parent, email, phone..." />
-                <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}>{sections.map((section) => <MenuItem key={section} value={section}>{section === "all" ? "All Sections" : section}</MenuItem>)}</Select></FormControl>
-                <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as JoinStatus | "all")}><MenuItem value="all">All Statuses</MenuItem>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
-                <FormControl><InputLabel>Sort</InputLabel><Select label="Sort" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as SortOrder)}><MenuItem value="newest">Newest First</MenuItem><MenuItem value="oldest">Oldest First</MenuItem><MenuItem value="name">Name A-Z</MenuItem></Select></FormControl>
+                <FormControl><InputLabel id="join-section-filter-label">Section</InputLabel><Select labelId="join-section-filter-label" label="Section" value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}>{sections.map((section) => <MenuItem key={section} value={section}>{section === "all" ? "All Sections" : section}</MenuItem>)}</Select></FormControl>
+                <FormControl><InputLabel id="join-status-filter-label">Status</InputLabel><Select labelId="join-status-filter-label" label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as JoinStatus | "all")}><MenuItem value="all">All Statuses</MenuItem>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
+                <FormControl><InputLabel id="join-sort-filter-label">Sort</InputLabel><Select labelId="join-sort-filter-label" label="Sort" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as SortOrder)}><MenuItem value="newest">Newest First</MenuItem><MenuItem value="oldest">Oldest First</MenuItem><MenuItem value="name">Name A-Z</MenuItem></Select></FormControl>
             </Box></Paper>
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            {loading ? <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box> :
-                <Box sx={{ display: "grid", gap: 2 }}>{visibleRecords.length === 0 && <Alert severity="info">No enquiries match the current filters.</Alert>}
-                    {visibleRecords.map((record) => <Paper key={record.id} variant="outlined" sx={{ p: 2.5 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
-                        <Box><Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}><Typography variant="h5" color="secondary">{record.childName}</Typography><Chip label={statusLabel(record.status)} color={statusColor(record.status)} size="small" />{record.section && <Chip label={record.section} variant="outlined" size="small" />}{record.memberId && <Chip label="Member Created" color="success" variant="outlined" size="small" />}</Stack>
-                            <Typography sx={{ mt: 1 }}>Parent / Guardian: {record.parentName || "Not provided"}</Typography><Typography sx={{ mt: .5 }}>Phone: {record.mobileNumber || "Not provided"}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>Submitted {formatDate(record.submittedAt)}</Typography></Box>
-                        <Button variant="contained" color="success" onClick={() => openRecord(record)}>Manage</Button>
-                    </Box></Paper>)}</Box>}
+            <Box id="join-results" role="region" aria-label="Join enquiry results" tabIndex={-1}>
+                {loading ? <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box> :
+                    <Box sx={{ display: "grid", gap: 2 }}>{visibleRecords.length === 0 && <Alert severity="info">No enquiries match the current filters.</Alert>}
+                        {visibleRecords.map((record) => <Paper key={record.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`join-record-${record.id}`}><Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
+                            <Box><Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}><Typography variant="h5" color="secondary">{record.childName}</Typography><Chip label={statusLabel(record.status)} color={statusColor(record.status)} size="small" />{record.section && <Chip label={record.section} variant="outlined" size="small" />}{record.memberId && <Chip label="Member Created" color="success" variant="outlined" size="small" />}</Stack>
+                                <Typography sx={{ mt: 1 }}>Parent / Guardian: {record.parentName || "Not provided"}</Typography><Typography sx={{ mt: .5 }}>Phone: {record.mobileNumber || "Not provided"}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>Submitted {formatDate(record.submittedAt)}</Typography></Box>
+                            <Button variant="contained" color="success" onClick={() => openRecord(record)}>Manage</Button>
+                        </Box></Paper>)}</Box>}
+            </Box>
 
             <Dialog open={Boolean(selected)} onClose={() => setSelected(null)} maxWidth="md" fullWidth>{selected && <><DialogTitle>Manage Enquiry — {selected.childName}</DialogTitle><DialogContent dividers>
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}{message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
