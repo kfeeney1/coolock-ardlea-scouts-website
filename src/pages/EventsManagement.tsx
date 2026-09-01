@@ -18,6 +18,7 @@ import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, Eve
 import { EMPTY_EVENT, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
+import { moveToUiTargetAfterRender } from "../services/uiTargeting";
 
 export default function EventsManagement() {
     const [searchParams] = useSearchParams();
@@ -73,7 +74,11 @@ export default function EventsManagement() {
         }
     };
 
-    useEffect(() => { void load(); }, [requestedEventId]);
+    useEffect(() => {
+        void load().then(() => {
+            if (requestedEventId) moveToUiTargetAfterRender(`event-${requestedEventId}`);
+        });
+    }, [requestedEventId]);
 
     const visibleEvents = useMemo(() => filterEvents(events, search, sectionFilter, statusFilter), [events, search, sectionFilter, statusFilter]);
     const rosterMembers = useMemo(() => rosterEvent ? eventMembers(rosterEvent, members) : [], [members, rosterEvent]);

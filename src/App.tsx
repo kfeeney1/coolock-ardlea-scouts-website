@@ -6,6 +6,7 @@ import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
+import RouteScrollManager from "./components/RouteScrollManager";
 import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
 
 const Home = lazy(() => import("./pages/Home"));
@@ -55,6 +56,7 @@ export default function App() {
     <PublicSiteContentProvider>
       <AdminAuthProvider>
         <ThemeExperienceProvider>
+          <RouteScrollManager />
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />

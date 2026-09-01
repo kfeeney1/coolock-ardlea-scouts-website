@@ -14,6 +14,48 @@ async function loginAdmin(page: Page) {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+test("event status tiles filter and jump to the event results", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/events");
+
+    const statusSummary = page.getByRole("group", { name: "Event status summary" });
+    await statusSummary.getByRole("button", { name: /Open/ }).click();
+
+    const results = page.getByRole("region", { name: "Event results" });
+    await expect(results).toBeFocused();
+    await expect(results).toBeInViewport();
+    await expect(page.getByRole("combobox", { name: "Status" })).toHaveText(/Open/);
+});
+
+test("event status tiles support keyboard activation", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/events");
+
+    const statusSummary = page.getByRole("group", { name: "Event status summary" });
+    const completedTile = statusSummary.getByRole("button", { name: /Completed/ });
+    await completedTile.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByRole("region", { name: "Event results" })).toBeFocused();
+    await expect(page.getByText("Completed events are retained as read-only history. Reports, CSV exports and event galleries remain available.")).toBeVisible();
+});
+
+test("event deep links jump directly to the requested event", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/events?event=TEST_flow_event_beavers_open");
+
+    const eventCard = page.getByTestId("event-card-TEST_flow_event_beavers_open");
+    await expect(eventCard.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+    await expect(eventCard).toBeInViewport();
+    await expect(page.getByLabel("Search events")).toHaveValue("TEST Beavers Open Day Trip");
+});
+
 test("leader can open a mobile-ready gallery from an event card", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -46,7 +88,7 @@ test("completed event history keeps gallery access", async ({ page }, testInfo) 
     await loginAdmin(page);
     await page.goto("/leader/events");
 
-    await page.getByLabel("Status").click();
+    await page.getByRole("combobox", { name: "Status" }).click();
     await page.getByRole("option", { name: "Completed" }).click();
     await expect(page.getByText("Completed events are retained as read-only history. Reports, CSV exports and event galleries remain available.")).toBeVisible();
 
