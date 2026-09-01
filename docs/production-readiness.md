@@ -1,5 +1,13 @@
 # Production readiness
 
+## Stage 18.1 deployment integrity
+
+The live Hosting workflow is the single authoritative production deployment. Before Hosting is published, it deploys Firestore rules, Firestore indexes and Storage rules as one fail-closed data-plane step. A failure in any of those deployments stops the release; the site is never reported as successfully deployed while a required ruleset or index was skipped.
+
+The separate Firebase Rules workflow is a validation gate only. It runs the Firestore and Storage emulator suites, but does not race the live workflow by deploying the same rules independently. `npm run check:firebase-deploy-config` enforces this ownership and coverage contract in every quality run.
+
+The post-deployment smoke gate now checks that the configured Storage bucket is reachable and that anonymous bucket listing is denied, alongside the existing Hosting, Firestore and email Worker checks. This detects a missing/disabled Storage service as a release failure rather than leaving gallery and receipt uploads silently unavailable.
+
 This checklist captures the production-hardening baseline for the Coolock Ardlea Scouts website. Stage 8 is complete; future changes should preserve these controls and extend them when new functionality introduces new risk.
 
 ## Automated gates
