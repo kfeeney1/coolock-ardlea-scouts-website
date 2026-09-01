@@ -38,10 +38,12 @@ for (const unsafeCommand of [
   if (workflow.includes(unsafeCommand)) fail(`Read-only audit workflow contains a mutating command: ${unsafeCommand.trim()}`);
 }
 if (!failures.length) console.log("PASS: Firestore data audit workflow is read-only.");
-if (!workflow.includes("Upload dry-run integrity report") || !workflow.includes("actions/upload-artifact@v4")) {
-  fail("Read-only audit workflow must retain its downloadable dry-run report.");
+
+const uploadArtifactAction = /uses:\s*actions\/upload-artifact@[0-9a-f]{40}(?:\s*#.*)?$/im;
+if (!workflow.includes("Upload dry-run integrity report") || !uploadArtifactAction.test(workflow)) {
+  fail("Read-only audit workflow must retain its downloadable dry-run report using an immutable upload-artifact action pin.");
 } else {
-  console.log("PASS: Firestore data audit workflow publishes a downloadable dry-run report.");
+  console.log("PASS: Firestore data audit workflow publishes a downloadable dry-run report through an immutable action pin.");
 }
 
 if (failures.length) {
