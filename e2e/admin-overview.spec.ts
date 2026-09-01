@@ -74,7 +74,11 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await expect(overview.getByRole("link", { name: /^Outstanding Event Consent:/ })).toHaveAttribute("href", "/leader/event-consent");
   await expect(overview.getByRole("link", { name: /^Upcoming Events:/ })).toHaveAttribute("href", "/leader/events");
 
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
   await overview.getByRole("link", { name: /^Active Members:/ }).click();
   await expect(page).toHaveURL(/\/leader\/members$/);
   await expect(page.getByRole("heading", { name: /Member Management/i })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
