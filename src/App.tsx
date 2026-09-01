@@ -2,6 +2,7 @@ import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
+import LeaderRecordRoutePreloader from "./components/admin/LeaderRecordRoutePreloader";
 import MemberCardNavigation from "./components/admin/MemberCardNavigation";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
@@ -61,6 +62,7 @@ export default function App() {
       <AdminAuthProvider>
         <ThemeExperienceProvider>
           <RouteScrollManager />
+          <LeaderRecordRoutePreloader />
           <MemberCardNavigation />
           <Routes>
             <Route element={<Layout />}>
