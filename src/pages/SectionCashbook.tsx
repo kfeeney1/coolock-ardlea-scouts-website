@@ -185,8 +185,8 @@ export default function SectionCashbook() {
     finally { setSaving(false); }
   };
 
-  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-    <Container maxWidth="lg">
+  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
+    <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <Stack spacing={3}>
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
