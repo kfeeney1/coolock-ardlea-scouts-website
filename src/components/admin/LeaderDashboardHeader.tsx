@@ -15,7 +15,6 @@ const navGroups: NavGroup[] = [
  ] },
  { label: "People & Parents", items: [
   { label: "Member Management", path: "/leader/members" },
-  { label: "Member History", path: "/leader/member-history" },
   { label: "Join Us Management", path: "/leader/join" },
   { label: "Consent Management", path: "/leader/consents" },
   { label: "Event Consent", path: "/leader/event-consent" },

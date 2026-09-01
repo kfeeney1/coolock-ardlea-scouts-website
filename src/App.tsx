@@ -2,6 +2,7 @@ import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
+import MemberCardNavigation from "./components/admin/MemberCardNavigation";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
 import Layout from "./components/Layout";
@@ -37,7 +38,7 @@ const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
-const MemberHistory = lazy(() => import("./pages/MemberHistory"));
+const MemberRecordPage = lazy(() => import("./pages/MemberRecordPage"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
@@ -57,6 +58,7 @@ export default function App() {
       <AdminAuthProvider>
         <ThemeExperienceProvider>
           <RouteScrollManager />
+          <MemberCardNavigation />
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />
@@ -88,7 +90,8 @@ export default function App() {
               <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
               <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
               <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
-              <Route path="/leader/member-history" element={protectedRoute(<MemberHistory />)} />
+              <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
+              <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
               <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
               <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
               <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
