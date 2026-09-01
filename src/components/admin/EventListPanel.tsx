@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -47,7 +47,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                 const active = statusFilter === filterValue;
                 return <Paper key={String(label)} variant="outlined" role="button" tabIndex={0} aria-pressed={active} aria-controls="event-results"
                     onClick={() => selectStatus(filterValue)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectStatus(filterValue); } }}
-                    sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
+                    sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3 }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
                     <Typography variant="h4" color="secondary">{value}</Typography><Typography color="text.secondary">{label}</Typography>
                 </Paper>;
             })}
@@ -79,7 +79,9 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                             <Chip label={`${summary.attending} attending`} size="small" color="success" /><Chip label={`${summary.notAttending} not attending`} size="small" variant="outlined" /><Chip label={`${summary.invited} invited`} size="small" variant="outlined" />
                             {event.consentRequired && <Chip label={`${summary.consentReceived} consent received`} size="small" color="success" variant="outlined" />}{event.consentRequired && summary.consentOutstanding > 0 && <Chip label={`${summary.consentOutstanding} consent outstanding`} size="small" color="error" />}
                         </Stack>
-                        <Typography variant="body2" color="secondary" sx={{ mt: 1.5, fontWeight: 800 }}>Open event →</Typography>
+                        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                            <Button component="span" variant="contained" color="success">Open event</Button>
+                        </Box>
                     </Paper>;
                 })}
             </Box>}

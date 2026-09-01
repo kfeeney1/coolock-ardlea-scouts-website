@@ -106,7 +106,9 @@ export default function AdminOverviewPanel() {
                     <Chip size="small" color={overview.nextMeeting.programmeReady ? "success" : "warning"} label={overview.nextMeeting.programmeReady ? "Programme ready" : "Programme needed"} />
                     <Chip size="small" variant="outlined" label={overview.nextMeeting.attendanceStarted ? "Attendance started" : "Attendance not started"} />
                   </Stack>
-                  <Button component={Link} to="/leader/weekly" sx={{ alignSelf: "flex-start", px: 0 }}>Open Weekly Meetings</Button>
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 0.5 }}>
+                    <Button component={Link} to="/leader/weekly" variant="contained" color="success">Open Weekly Meetings</Button>
+                  </Box>
                 </Stack>
               ) : (
                 <Typography color="text.secondary">No upcoming open meeting in your current scope.</Typography>
@@ -128,7 +130,7 @@ export default function AdminOverviewPanel() {
                         </Stack>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{item.detail}</Typography>
                       </Box>
-                      <Button component={Link} to={item.path} size="small" sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>Open</Button>
+                      <Button component={Link} to={item.path} size="small" variant="contained" color="success" sx={{ alignSelf: { xs: "center", sm: "center" } }}>Open</Button>
                     </Box>
                   ))}
                 </Stack>
@@ -139,9 +141,11 @@ export default function AdminOverviewPanel() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2, mb: 2 }}>
             {cards.map(([label, value, path]) => (
               <Paper key={String(label)} component={Link} to={String(path)} variant="outlined" aria-label={`${label}: ${value}`} sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 1, color: "inherit", textDecoration: "none", cursor: "pointer", transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3, borderColor: "secondary.main" }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
-                <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{value}</Typography>
-                <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
-                <Typography variant="body2" color="primary" sx={{ fontWeight: 700, mt: "auto" }}>Open</Typography>
+                <Typography variant="h3" color="secondary" sx={{ fontWeight: 800, textAlign: "center" }}>{value}</Typography>
+                <Typography sx={{ fontWeight: 700, textAlign: "center" }}>{label}</Typography>
+                <Box sx={{ display: "flex", justifyContent: "center", mt: "auto", pt: 1 }}>
+                  <Button component="span" variant="contained" color="success">Open</Button>
+                </Box>
               </Paper>
             ))}
           </Box>
@@ -152,13 +156,15 @@ export default function AdminOverviewPanel() {
               {overview.membersBySection.length === 0 ? <Typography color="text.secondary">No active members found in your current scope.</Typography> : (
                 <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>{overview.membersBySection.map((item) => <Chip key={item.section} label={`${item.section}: ${item.count}`} variant="outlined" />)}</Stack>
               )}
-              <Button component={Link} to="/leader/members" sx={{ mt: 2, px: 0 }}>Manage Members</Button>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                <Button component={Link} to="/leader/members" variant="contained" color="success">Manage Members</Button>
+              </Box>
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, mb: 1.5 }}>
                 <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>Upcoming Events</Typography>
-                <Button component={Link} to="/leader/events" size="small">View All</Button>
+                <Button component={Link} to="/leader/events" size="small" variant="contained" color="success">View All</Button>
               </Box>
               {overview.upcomingEvents.length === 0 ? <Typography color="text.secondary">No upcoming open or draft events in your current scope.</Typography> : (
                 <Stack spacing={1.25}>{overview.upcomingEvents.slice(0, 5).map((event) => (
