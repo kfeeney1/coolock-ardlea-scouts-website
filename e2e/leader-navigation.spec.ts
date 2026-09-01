@@ -20,17 +20,18 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await menuToggle.click();
 
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
-  const desktopGroups = navigation.locator(".MuiTypography-overline");
+  const desktopNavigation = navigation.getByTestId("leader-navigation-desktop");
+  const desktopGroups = desktopNavigation.locator(".MuiTypography-overline");
   await expect(desktopGroups.filter({ hasText: /^Programme$/ })).toBeVisible();
   await expect(desktopGroups.filter({ hasText: /^People & Parents$/ })).toBeVisible();
   await expect(desktopGroups.filter({ hasText: /^Group Operations$/ })).toBeVisible();
   await expect(desktopGroups.filter({ hasText: /^Insights & Records$/ })).toBeVisible();
   await expect(desktopGroups.filter({ hasText: /^Administration$/ })).toBeVisible();
-  await expect(desktopGroups.filter({ hasText: /^Account & Help$/ })).toBeVisible();
+  await expect(navigation.getByText("Account & Help", { exact: true })).toBeVisible();
 
-  await expect(navigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
-  await expect(navigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance");
-  await expect(navigation.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
+  await expect(desktopNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
+  await expect(desktopNavigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance");
+  await expect(desktopNavigation.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
   await expect(navigation.getByRole("link", { name: "Info & FAQ" })).toHaveAttribute("href", "/leader/info");
 });
 
@@ -42,21 +43,24 @@ test("section leader gets compact mobile disclosure without admin destinations",
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
 
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
-  const programme = navigation.getByRole("button", { name: "Programme" });
-  const people = navigation.getByRole("button", { name: "People & Parents" });
+  const mobileNavigation = navigation.getByTestId("leader-navigation-mobile");
+  const programme = mobileNavigation.getByRole("button", { name: "Programme" });
+  const people = mobileNavigation.getByRole("button", { name: "People & Parents" });
 
   await expect(programme).toHaveAttribute("aria-expanded", "true");
   await expect(people).toHaveAttribute("aria-expanded", "false");
-  await expect(navigation.getByRole("link", { name: "Weekly Meetings" })).toBeVisible();
-  await expect(navigation.getByRole("link", { name: "Member Management" })).toHaveCount(0);
-  await expect(navigation.getByRole("button", { name: "Administration" })).toHaveCount(0);
-  await expect(navigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("region", { name: "Programme" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Weekly Meetings" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("button", { name: "Administration" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
 
   await people.click();
   await expect(people).toHaveAttribute("aria-expanded", "true");
   await expect(programme).toHaveAttribute("aria-expanded", "false");
-  await expect(navigation.getByRole("link", { name: "Member Management" })).toBeVisible();
-  await expect(navigation.getByRole("link", { name: "Weekly Meetings" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("region", { name: "People & Parents" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveCount(0);
 
   await expect(navigation.getByRole("link", { name: "My Profile" })).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Info & FAQ" })).toBeVisible();
@@ -74,10 +78,36 @@ test("mobile menu reopens the group containing the current route", async ({ page
 
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
-  const programme = navigation.getByRole("button", { name: "Programme" });
-  const people = navigation.getByRole("button", { name: "People & Parents" });
+  const mobileNavigation = navigation.getByTestId("leader-navigation-mobile");
+  const programme = mobileNavigation.getByRole("button", { name: "Programme" });
+  const people = mobileNavigation.getByRole("button", { name: "People & Parents" });
 
   await expect(people).toHaveAttribute("aria-expanded", "true");
   await expect(programme).toHaveAttribute("aria-expanded", "false");
-  await expect(navigation.getByRole("link", { name: "Member Management" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toHaveAttribute("aria-current", "page");
+});
+
+test("Leader Menu supports keyboard open and Escape focus restoration", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Keyboard navigation regression runs once on Chromium.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+
+  await login(page, leaderEmail!);
+  await page.goto("/leader/weekly");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  const menuToggle = page.getByRole("button", { name: /Leader Menu|Menu ·/ });
+  await menuToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+
+  const navigation = page.getByRole("navigation", { name: "Leader navigation" });
+  const weeklyMeetings = navigation.getByTestId("leader-navigation-desktop").getByRole("link", { name: "Weekly Meetings" });
+  await expect(weeklyMeetings).toHaveAttribute("aria-current", "page");
+  await weeklyMeetings.focus();
+  await page.keyboard.press("Escape");
+
+  await expect(navigation).toHaveCount(0);
+  await expect(menuToggle).toBeFocused();
+  await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
 });
