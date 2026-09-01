@@ -18,6 +18,8 @@ The live Firestore audit workflow is read-only. It may identify safe migrations,
 
 The compatibility pass also applies fixture-tested operational invariants to finance and equipment data. It rejects invalid whole-cent amounts and reconciliation arithmetic, unresolved transfer/reversal links, duplicate equipment options, impossible stock totals, malformed loans, unresolved incident/history item references and broken programme-equipment links. These checks report exact document paths and remain read-only.
 
+Parent-safe weekly-meeting and retained gallery projections are checked against their source records, while programme-library and session-setting documents are checked against their bounded runtime schemas. The workflow also runs the existing gallery-access projection audit in dry-run mode so stale parent/member/event/consent links appear in the same downloadable report.
+
 This checklist captures the production-hardening baseline for the Coolock Ardlea Scouts website. Stage 8 is complete; future changes should preserve these controls and extend them when new functionality introduces new risk.
 
 ## Automated gates

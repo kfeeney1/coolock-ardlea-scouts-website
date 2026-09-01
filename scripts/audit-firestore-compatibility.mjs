@@ -2,6 +2,7 @@ import { cert, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { FIRESTORE_ROOT_COLLECTION_SET } from "./firestore-collection-contract.mjs";
 import { validateOperationalIntegrity } from "./firestore-operational-integrity.mjs";
+import { validateProjectionIntegrity } from "./firestore-projection-integrity.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
@@ -247,6 +248,7 @@ const operationalCollections = new Map([...documentsByCollection].map(([name, do
   new Map(documents.map((document) => [document.id, document.data()]))
 ]));
 for (const issue of validateOperationalIntegrity(operationalCollections)) errors.push(issue);
+for (const issue of validateProjectionIntegrity(operationalCollections)) errors.push(issue);
 
 console.log("Live Firestore compatibility summary:");
 for (const [name, count] of [...counts.entries()].sort(([a], [b]) => a.localeCompare(b))) console.log(`- ${name}: ${count}`);
