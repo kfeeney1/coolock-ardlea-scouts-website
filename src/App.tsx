@@ -8,6 +8,10 @@ import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettings
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
 import RouteScrollManager from "./components/RouteScrollManager";
+import ConsentRecordPage from "./pages/ConsentRecordPage";
+import EventRecordPage from "./pages/EventRecordPage";
+import JoinRecordPage from "./pages/JoinRecordPage";
+import MemberRecordPage from "./pages/MemberRecordPage";
 import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
 
 const Home = lazy(() => import("./pages/Home"));
@@ -35,14 +39,10 @@ const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
 const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
 const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
 const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
-const ConsentRecordPage = lazy(() => import("./pages/ConsentRecordPage"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
-const JoinRecordPage = lazy(() => import("./pages/JoinRecordPage"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
-const MemberRecordPage = lazy(() => import("./pages/MemberRecordPage"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
-const EventRecordPage = lazy(() => import("./pages/EventRecordPage"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
