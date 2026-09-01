@@ -1,7 +1,7 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 
 function desktopOnly(testInfo: TestInfo) {
-  test.skip(testInfo.project.name !== "chromium", "Authenticated member-history search runs once on desktop Chromium.");
+  test.skip(testInfo.project.name !== "chromium", "Authenticated member-management search runs once on desktop Chromium.");
 }
 
 async function loginLeader(page: import("@playwright/test").Page) {
@@ -16,25 +16,29 @@ async function loginLeader(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("member history search narrows the permitted member selector", async ({ page }, testInfo) => {
+test("member management search opens the permitted member record with integrated history", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   await loginLeader(page);
 
   await page.getByRole("button", { name: /Leader Menu/ }).click();
-  await page.getByRole("link", { name: "Member History" }).click();
-  await expect(page).toHaveURL(/\/leader\/member-history$/);
-  await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
+  await page.getByRole("link", { name: "Member Management" }).click();
+  await expect(page).toHaveURL(/\/leader\/members$/);
+  await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
 
   const search = page.getByLabel("Search members");
-  const matchCount = page.getByTestId("member-history-match-count");
-  await expect(matchCount).toContainText("members shown");
-
   await search.fill("Casey OBrien Scouts 01");
-  await expect(matchCount).toHaveText(/1 of \d+ members shown/);
-  await expect(page.getByTestId("member-history-detail").getByRole("heading", { name: "Casey OBrien Scouts 01" })).toBeVisible();
 
-  await search.fill("member that does not exist");
-  await expect(page.getByText("No members match your search.")).toBeVisible();
-  await expect(matchCount).toHaveText(/0 of \d+ members shown/);
-  await expect(page.getByTestId("member-history-detail")).toHaveCount(0);
+  const memberCard = page.locator('[data-testid^="member-card-"]').filter({ hasText: "Casey OBrien Scouts 01" });
+  await expect(memberCard).toHaveCount(1);
+  await memberCard.click({ position: { x: 20, y: 20 } });
+
+  await expect(page).toHaveURL(/\/leader\/members\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: "Casey OBrien Scouts 01", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/members$/);
+  await page.getByLabel("Search members").fill("member that does not exist");
+  await expect(page.getByText("No members match the current filters.")).toBeVisible();
 });
