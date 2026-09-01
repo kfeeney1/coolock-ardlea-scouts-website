@@ -2,6 +2,8 @@
 
 This document is a review contract for the current application. It does not replace `firestore.rules`; Firestore Rules remain the authoritative enforcement boundary.
 
+Stage 18.3 adds `config/rbac-matrix.json` as the machine-readable coverage inventory for identities, routes, Firestore roots and Storage domains. `npm run check:rbac-matrix` rejects missing/stale routes or collections, leader routes without the shared authentication guard, loss of the dedicated Site Settings admin guard, and matrix entries without a corresponding Rules domain. The descriptive table below remains the human review companion; neither file grants access.
+
 ## Identity layers
 
 The application intentionally separates system access from Scout organisation responsibility.
