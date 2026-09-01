@@ -47,7 +47,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                 const active = statusFilter === filterValue;
                 return <Paper key={String(label)} variant="outlined" role="button" tabIndex={0} aria-pressed={active} aria-controls="event-results"
                     onClick={() => selectStatus(filterValue)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectStatus(filterValue); } }}
-                    sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
+                    sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3 }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
                     <Typography variant="h4" color="secondary">{value}</Typography><Typography color="text.secondary">{label}</Typography>
                 </Paper>;
             })}
