@@ -14,7 +14,7 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("clicking an event tile opens its full record and keeps actions off the list", async ({ page }, testInfo) => {
+test("clicking an event tile opens its full record with a clear list action", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -22,7 +22,7 @@ test("clicking an event tile opens its full record and keeps actions off the lis
 
   const card = page.getByTestId("event-card-TEST_flow_event_beavers_open");
   await expect(card).toHaveAttribute("href", "/leader/events/TEST_flow_event_beavers_open");
-  await expect(card.getByRole("button")).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Open event", exact: true })).toBeVisible();
   await card.click();
 
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
