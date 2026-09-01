@@ -30,7 +30,8 @@ test("member status tiles filter and jump to member results", async ({ page }, t
     await expect(inactiveTile).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("combobox", { name: "Status" })).toHaveText(/Inactive/);
 
-    const header = page.locator('[data-sticky-site-header="true"]');
+    const header = page.locator("[data-site-sticky-header]");
+    await expect(header).toBeVisible();
     const [headerBox, resultsBox] = await Promise.all([header.boundingBox(), results.boundingBox()]);
     expect(headerBox).not.toBeNull();
     expect(resultsBox).not.toBeNull();
