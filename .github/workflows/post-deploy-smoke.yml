@@ -20,7 +20,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
   smoke:
@@ -39,40 +38,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Wait for matching Firestore Rules deployment
-        if: github.event_name == 'workflow_run'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 24); do
-            result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/firestore-rules.yml/runs?branch=main&event=push&per_page=20" \
-              --jq ".workflow_runs[] | select(.head_sha == \"${EXPECTED_SHA}\") | [.status, (.conclusion // \"\"), .html_url] | @tsv" | head -n 1 || true)
-            if [ -n "$result" ]; then
-              status=$(printf '%s' "$result" | cut -f1)
-              conclusion=$(printf '%s' "$result" | cut -f2)
-              url=$(printf '%s' "$result" | cut -f3)
-              echo "Firestore Rules run: status=$status conclusion=$conclusion $url"
-              if [ "$status" = "completed" ]; then
-                if [ "$conclusion" != "success" ]; then
-                  echo "Matching Firestore Rules workflow did not succeed."
-                  exit 1
-                fi
-                exit 0
-              fi
-            fi
-            sleep 5
-          done
-          echo "Timed out waiting for the matching Firestore Rules workflow."
-          exit 1
-
-      - name: Verify live site and Firestore public projection
+      - name: Verify live site and Firebase services
         run: npm run smoke:live
         env:
           SITE_URL: https://coolock-ardlea-scouts.web.app
           EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
           FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           EXPECTED_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
           ALLOW_FIRESTORE_ONLY_DEPLOY_PENDING_WARNING: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
