@@ -1,6 +1,6 @@
 import { Box, CircularProgress } from "@mui/material";
 import { Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import Footer from "./Footer";
 import Header from "./Header";
@@ -23,6 +23,9 @@ function RouteFallback() {
 }
 
 export default function Layout() {
+    const { pathname } = useLocation();
+    const isLeaderRoute = pathname.startsWith("/leader") && pathname !== "/leader/login";
+
     return (
         <Box
             sx={{
@@ -35,8 +38,22 @@ export default function Layout() {
 
             <Box
                 component="main"
+                data-leader-route={isLeaderRoute ? "true" : undefined}
                 sx={{
-                    flexGrow: 1
+                    flexGrow: 1,
+                    ...(isLeaderRoute ? {
+                        "& > *": {
+                            pt: { xs: 3, md: 5 },
+                            pb: { xs: 3, md: 5 }
+                        },
+                        "& > .MuiContainer-root, & > * > .MuiContainer-root": {
+                            maxWidth: "1536px !important"
+                        },
+                        "& > *": {
+                            pt: { xs: "24px !important", md: "40px !important" },
+                            pb: { xs: "24px !important", md: "40px !important" }
+                        }
+                    } : {})
                 }}
             >
                 <Suspense fallback={<RouteFallback />}>
