@@ -19,11 +19,16 @@ requireContract(firebase?.firestore?.rules === "firestore.rules", "firebase.json
 requireContract(firebase?.firestore?.indexes === "firestore.indexes.json", "firebase.json declares Firestore indexes.");
 requireContract(firebase?.storage?.rules === "storage.rules", "firebase.json declares Storage rules.");
 
-const deployCommand = "deploy --only firestore:rules,firestore:indexes,storage --project coolock-ardlea-scouts --non-interactive";
-requireContract(mergeWorkflow.includes(deployCommand), "The live workflow deploys Firestore rules, indexes and Storage rules together.");
+const firestoreDeploy = "deploy --only firestore:rules,firestore:indexes --project coolock-ardlea-scouts --non-interactive";
+const storageDeploy = "deploy --only storage --project coolock-ardlea-scouts --non-interactive";
+requireContract(mergeWorkflow.includes(firestoreDeploy), "The live workflow deploys Firestore rules and indexes before Hosting.");
+requireContract(mergeWorkflow.includes(storageDeploy), "The live workflow has a strict Storage rules deployment when the capability is enabled.");
+requireContract(mergeWorkflow.includes("vars.FIREBASE_STORAGE_ENABLED == 'true'"), "Storage deployment is controlled by an explicit production capability flag.");
+requireContract(mergeWorkflow.includes("vars.FIREBASE_STORAGE_ENABLED != 'true'"), "Disabled Storage is reported explicitly rather than failing silently.");
 requireContract(!mergeWorkflow.includes("continue-on-error: true"), "The live Firebase configuration deployment fails closed.");
 requireContract(!rulesWorkflow.includes("firebase deploy"), "The rules workflow tests rules without racing the authoritative live deployment.");
 requireContract(smokeWorkflow.includes("FIREBASE_STORAGE_BUCKET:"), "The post-deploy smoke workflow supplies the Storage bucket.");
+requireContract(smokeWorkflow.includes("FIREBASE_STORAGE_ENABLED:"), "The post-deploy smoke workflow uses the Storage capability flag.");
 requireContract(smokeWorkflow.includes("Verify live site and Firebase services"), "The post-deploy gate covers the combined Firebase service check.");
 
 if (failures.length > 0) {
