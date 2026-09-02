@@ -46,7 +46,6 @@ test.describe("approved parent journey", () => {
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {
-    test.skip(process.env.E2E_PARENT_EVENT_CONSENT_ENABLED !== "true", "Enable when parent linked-section event-consent coverage is required.");
     await loginParent(page);
 
     const nextAction = page.getByTestId("parent-next-action");
