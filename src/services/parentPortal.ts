@@ -23,7 +23,7 @@ import {
     notifyParentRegistration
 } from "./emailNotifications";
 
-export type ParentAccessStatus = "pending" | "approved" | "rejected";
+export type ParentAccessStatus = "pending" | "approved" | "rejected" | "revoked";
 
 export type ParentAccount = {
     uid: string;
@@ -51,7 +51,7 @@ function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAcc
     const status = data.status as ParentAccessStatus;
     const memberIds = mapStringArray(data.memberIds);
     const linkedSections = mapStringArray(data.linkedSections);
-    if (!email || !displayName || !mobileNumber || !["pending", "approved", "rejected"].includes(status) || !memberIds || !linkedSections) return null;
+    if (!email || !displayName || !mobileNumber || !["pending", "approved", "rejected", "revoked"].includes(status) || !memberIds || !linkedSections) return null;
     return { uid, email, displayName, mobileNumber, status, memberIds, linkedSections };
 }
 
