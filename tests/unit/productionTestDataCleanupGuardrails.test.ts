@@ -10,12 +10,12 @@ const productionCredentialGuard = await readFile(
 
 test("production TEST-data cleanup is dry-run by default and requires explicit execution gates", () => {
   assert.match(purgeScript, /process\.argv\.includes\("--execute"\)/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_CONFIRM_PROJECT/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_EXPECTED_FIRESTORE_COUNT/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_EXPECTED_AUTH_COUNT/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_EXPECTED_MANIFEST_SHA256/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_BACKUP_URI/);
-  assert.match(purgeScript, /TEST_DATA_PURGE_BACKUP_VERIFIED_AT/);
+  assert.match(purgeScript, /PROD_PURGE_CONFIRM_PROJECT/);
+  assert.match(purgeScript, /PROD_PURGE_EXPECTED_FIRESTORE_COUNT/);
+  assert.match(purgeScript, /PROD_PURGE_EXPECTED_AUTH_COUNT/);
+  assert.match(purgeScript, /PROD_PURGE_EXPECTED_MANIFEST_SHA256/);
+  assert.match(purgeScript, /PROD_PURGE_BACKUP_URI/);
+  assert.match(purgeScript, /PROD_PURGE_BACKUP_VERIFIED_AT/);
   assert.match(purgeScript, /Dry run only\. No records or users were modified or deleted\./);
 });
 
