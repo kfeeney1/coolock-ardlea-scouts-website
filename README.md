@@ -20,9 +20,9 @@ React + TypeScript web application for Coolock Ardlea Scouts, including the publ
 - `e2e` — Playwright journeys and role/permission coverage
 - `tests/unit` — fast unit tests
 - `tests/firestore` — emulator-backed Firestore rules tests
-- `scripts` — test-data and operational scripts
-- `docs` — testing, email and operations documentation
-- `.github/workflows` — CI, preview, deploy, seed, backup and security-rule workflows
+- `scripts` — deterministic test fixtures, validation and guarded operational scripts
+- `docs` — testing, security, recovery and operations documentation
+- `.github/workflows` — CI, preview, deployment, audit, backup and recovery workflows
 
 ## Local development
 
@@ -67,9 +67,9 @@ Run the standard local quality gate:
 npm run quality
 ```
 
-This runs repository-wide linting, unit tests and the production build.
+This runs repository-wide linting, unit tests, policy/contract checks and the production build.
 
-Individual commands:
+Individual commands include:
 
 ```bash
 npm run lint
@@ -78,37 +78,36 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright requires the test identities/data described in:
+Playwright uses deterministic test identities and fixtures described in:
 
 - `docs/playwright-testing.md`
 - `docs/playwright-role-testing.md`
 
-Firestore security-rule tests run against the Firebase emulator and the production `firestore.rules` file. CI runs them through `.github/workflows/firestore-rules.yml`.
+Production data must never be used as the source of truth for browser-test fixtures. Firestore security-rule tests run against the Firebase Emulator Suite and the production `firestore.rules` file.
 
 ## CI and deployment
 
-Pull requests normally run:
+Pull requests normally run the repository's merge-critical quality, browser, rules and Hosting-preview checks. Merges to `main` are deployed by the Firebase Hosting merge workflow, followed by exact-release post-deploy verification.
 
-1. **Quality** — lint, unit tests and production build.
-2. **Playwright E2E** — authenticated/public browser journeys.
-3. **Firebase Hosting preview** — preview deployment after the quality gate.
-4. **Firestore Rules** — when rules, emulator config or rules tests change.
+GitHub branch protection/ruleset enforcement is a repository-setting requirement, not something application code can replace. See `docs/stage-19-launch-readiness-review.md` and `docs/operations-runbook.md` before treating a release as production-ready.
 
-Merges to `main` are deployed by the Firebase Hosting merge workflow.
+## Test data and production provenance
 
-Operational procedures, test-data seeding, recovery checks and deployment guidance are documented in `docs/operations-runbook.md`.
+Deterministic seed tooling exists to support automated testing. It is not a general production-data population mechanism, and there is no normal GitHub Actions workflow for seeding TEST fixtures into the live production database.
 
-## Test data
+Production TEST-data cleanup is deliberately separate from normal CI and remains guarded by the Stage 18.16 process. Do not weaken provenance checks, relabel TEST records as legitimate data, or add an automated production purge merely to make an audit pass. Any approved cleanup must follow the documented dry-run, exact project/count/manifest confirmation and verified-backup safeguards from a trusted local environment.
 
-The repository includes deterministic Firebase seed/cleanup scripts and a manual GitHub Actions workflow named **Seed Firebase Test Data**. Test data is marked so cleanup routines can avoid deleting ordinary records.
-
-Use seed/cleanup actions only against the intended Firebase project and review the workflow inputs before running them. See `docs/operations-runbook.md` for the procedure.
+See `docs/operations-runbook.md`, `docs/production-readiness.md` and `docs/stage-19-launch-readiness-review.md` for the current production boundary.
 
 ## Backup and recovery
 
-The **Firestore Backup** workflow performs a managed export of the production `(default)` Firestore database every Sunday and can also be run manually with an explicit production-project confirmation. It requires the `FIRESTORE_BACKUP_BUCKET` repository variable to be configured before it can succeed.
+The **Firestore Backup** workflow performs managed production exports and the backup-freshness workflow checks recency. Production restore remains a deliberate operation because imports can replace current documents.
 
-Production restore remains a deliberate manual operation because imports can overwrite current documents. Setup, first-run verification, retention guidance and the recovery procedure are documented in `docs/firestore-backup-recovery.md`.
+The repository also contains a deterministic emulator recovery drill. That drill proves the repository's export/import verification path; it does not by itself prove managed cloud-import IAM or project/location compatibility. Setup, verification and recovery guidance are in `docs/firestore-backup-recovery.md`.
+
+## Storage-backed attachments
+
+Firebase Storage-backed gallery/receipt attachments are capability-gated. Under the current production configuration Storage is not considered available, so attachment readiness must not be claimed merely because a bucket value exists in client configuration. Do not move sensitive uploads into public Hosting as a workaround.
 
 ## Email
 
@@ -117,25 +116,28 @@ Email-related implementation/testing notes are kept in:
 - `docs/email-branding.md`
 - `docs/event-consent-email-testing.md`
 
-The frontend email endpoint is configured through `VITE_EMAIL_API_URL`.
+The frontend email endpoint is configured through `VITE_EMAIL_API_URL`; provider credentials remain outside the browser.
 
 ## Security
 
-Authorization is enforced both in the UI and in `firestore.rules`. The emulator test suite verifies key boundaries including anonymous access denial, section-scoped leader access, parent/child linking, privilege escalation protection, append-only audit records and default-deny behaviour.
+Authorization is enforced in `firestore.rules`; UI checks are for usability and navigation and are not the security boundary. Emulator coverage verifies representative anonymous, section-scoped leader, parent/member, privilege-escalation, audit and default-deny rules.
 
-Changes to authentication, Firestore rules, public write flows or sensitive member/parent data should include corresponding automated coverage.
+The application handles child/member information and may contain consent, emergency-contact and medical data. Do not place sensitive values in URLs, general audit descriptions, analytics, client telemetry or unredacted logs.
 
 ## Operations
 
 Before a production-affecting change:
 
-- confirm CI is green;
+- confirm the relevant CI gates are green;
 - use the Firebase preview for UI changes;
-- verify Firestore rules tests for authorization changes;
-- understand whether the change requires seed data, indexes or rules deployment;
-- run and verify a fresh backup before significant/destructive production data changes;
+- verify Firestore Rules tests for authorization changes;
+- understand whether the change requires indexes, Rules deployment or a data compatibility audit;
+- confirm a recent verified backup before destructive/high-risk production work;
+- after deployment, require the post-deploy smoke to match the exact deployed commit;
 - follow the rollback/recovery checklist in `docs/operations-runbook.md`.
+
+Before a major launch, also complete the authenticated leader/parent and real-email smoke evidence listed in `docs/stage-19-launch-readiness-review.md`.
 
 ## Documentation
 
-Start with `docs/operations-runbook.md` for administration and recovery. Use `docs/firestore-backup-recovery.md` for Firestore backup setup and restore guidance. More focused documentation lives under `docs/` and should be updated alongside the feature or workflow it describes.
+Start with `docs/operations-runbook.md` for administration and recovery, `docs/production-readiness.md` for the production-hardening baseline, and `docs/stage-19-launch-readiness-review.md` for the current launch blockers/evidence. More focused documentation under `docs/` should be updated alongside the feature or workflow it describes.
