@@ -80,13 +80,19 @@ export default function ParentAccessManagement() {
         try {
             const linked = status === "approved" ? await linkConsentRecordsToMembers(memberIds) : 0;
             await updateParentAccess(parent.uid, status, status === "approved" ? memberIds : [], status === "approved" ? linkedSections : []);
+            const action = status === "approved" ? "Parent access approved" : status === "revoked" ? "Parent access revoked" : "Parent access rejected";
+            const description = status === "approved"
+                ? `Approved parent access and linked ${memberIds.length} member record${memberIds.length === 1 ? "" : "s"}.`
+                : status === "revoked"
+                    ? "Revoked parent access and cleared all linked member and section access."
+                    : "Rejected parent access.";
             await recordAuditEvent({
                 category: "parent-access",
-                action: status === "approved" ? "Parent access approved" : "Parent access rejected",
+                action,
                 targetId: parent.uid,
                 targetLabel: parent.displayName || parent.email,
                 section: status === "approved" ? linkedSections.join(", ") : "",
-                description: status === "approved" ? `Approved parent access and linked ${memberIds.length} member record${memberIds.length === 1 ? "" : "s"}.` : "Rejected parent access."
+                description
             });
             setMessage(`${parent.displayName || parent.email} access updated.${status === "approved" ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked to the selected member${memberIds.length === 1 ? "" : "s"}.` : ""}`);
             await load();
@@ -96,6 +102,11 @@ export default function ParentAccessManagement() {
         } finally {
             setWorkingUid("");
         }
+    };
+
+    const revoke = (parent: ParentAccount) => {
+        if (!window.confirm(`Revoke access for ${parent.displayName || parent.email}? This immediately clears all linked children and sections.`)) return;
+        void save(parent, "revoked");
     };
 
     return (
@@ -109,7 +120,7 @@ export default function ParentAccessManagement() {
                 />
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-                <Alert severity="warning" sx={{ mb: 3 }}>Only approve a parent or guardian after verifying their identity. Approval also links any existing youth consent form that exactly matches the selected member's name and date of birth.</Alert>
+                <Alert severity="warning" sx={{ mb: 3 }}>Only approve a parent or guardian after verifying their identity. Revoking an approved account immediately removes all linked member and section access without deleting the account or historical records.</Alert>
 
                 {loading ? (
                     <Box sx={{ minHeight: 300, display: "grid", placeItems: "center" }}><CircularProgress /></Box>
@@ -127,7 +138,7 @@ export default function ParentAccessManagement() {
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                                                 <Typography variant="h5" color="secondary">{parent.displayName || "Unnamed parent"}</Typography>
-                                                <Chip label={parent.status} size="small" color={parent.status === "approved" ? "success" : parent.status === "rejected" ? "error" : "warning"} />
+                                                <Chip label={parent.status} size="small" color={parent.status === "approved" ? "success" : parent.status === "pending" ? "warning" : "error"} />
                                             </Stack>
                                             <Typography sx={{ mt: 0.75 }}>{parent.email}</Typography>
                                             {parent.mobileNumber && <Typography color="text.secondary">{parent.mobileNumber}</Typography>}
@@ -144,7 +155,9 @@ export default function ParentAccessManagement() {
                                         <Stack spacing={1} sx={{ minWidth: 190 }}>
                                             <Button variant={isActive ? "contained" : "outlined"} color="secondary" aria-expanded={isActive} onClick={() => toggleParent(parent.uid)}>{isActive ? "Close Child Linking" : "Manage Linked Children"}</Button>
                                             {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>}
-                                            <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>
+                                            {parent.status === "approved"
+                                                ? <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => revoke(parent)}>Revoke Access</Button>
+                                                : <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>}
                                         </Stack>
                                     </Box>
 
