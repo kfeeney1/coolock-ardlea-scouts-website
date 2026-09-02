@@ -34,51 +34,71 @@ jobs:
         run: mkdir -p firestore-audit-report
 
       - name: Inventory live TEST-data candidates
+        id: inventory
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/inventory-live-test-data.mjs 2>&1 | tee firestore-audit-report/00-test-data-inventory.txt
 
       - name: Audit live Firestore provenance in one pass
+        id: provenance
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-live-data-provenance.mjs 2>&1 | tee firestore-audit-report/01-provenance.txt
 
       - name: Report safely migratable active leader section profiles
+        id: leader_sections
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-admin-user-sections.mjs --check 2>&1 | tee firestore-audit-report/02-leader-sections.txt
 
       - name: Audit live non-meeting Firestore compatibility
+        id: compatibility
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-firestore-compatibility.mjs 2>&1 | tee firestore-audit-report/03-compatibility.txt
 
       - name: Audit live weekly meeting compatibility
+        id: weekly_meetings
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-weekly-meeting-compatibility.mjs 2>&1 | tee firestore-audit-report/04-weekly-meetings.txt
 
       - name: Audit live meeting record compatibility
+        id: meeting_records
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-meeting-record-compatibility.mjs 2>&1 | tee firestore-audit-report/05-meeting-records.txt
 
       - name: Require canonical meeting record schema
+        id: meeting_migrations
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-meeting-records.mjs --check 2>&1 | tee firestore-audit-report/06-meeting-migrations.txt
 
       - name: Report unprovenanced leadership records
+        id: leadership_provenance
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-leadership-provenance.mjs --check 2>&1 | tee firestore-audit-report/07-leadership-provenance.txt
 
       - name: Audit parent event-gallery access projections
+        id: gallery_access
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-event-gallery-access.mjs 2>&1 | tee firestore-audit-report/08-gallery-access.txt
 
       - name: Audit Adventure Skills nested progress
+        id: adventure_skills
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node --experimental-strip-types scripts/audit-adventure-skill-integrity.mjs 2>&1 | tee firestore-audit-report/09-adventure-skills.txt
@@ -91,3 +111,30 @@ jobs:
           path: firestore-audit-report
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Fail if any audit check failed
+        if: always()
+        env:
+          INVENTORY: ${{ steps.inventory.outcome }}
+          PROVENANCE: ${{ steps.provenance.outcome }}
+          LEADER_SECTIONS: ${{ steps.leader_sections.outcome }}
+          COMPATIBILITY: ${{ steps.compatibility.outcome }}
+          WEEKLY_MEETINGS: ${{ steps.weekly_meetings.outcome }}
+          MEETING_RECORDS: ${{ steps.meeting_records.outcome }}
+          MEETING_MIGRATIONS: ${{ steps.meeting_migrations.outcome }}
+          LEADERSHIP_PROVENANCE: ${{ steps.leadership_provenance.outcome }}
+          GALLERY_ACCESS: ${{ steps.gallery_access.outcome }}
+          ADVENTURE_SKILLS: ${{ steps.adventure_skills.outcome }}
+        run: |
+          failed=0
+          for name in INVENTORY PROVENANCE LEADER_SECTIONS COMPATIBILITY WEEKLY_MEETINGS MEETING_RECORDS MEETING_MIGRATIONS LEADERSHIP_PROVENANCE GALLERY_ACCESS ADVENTURE_SKILLS; do
+            value="${!name}"
+            echo "$name=$value"
+            if [ "$value" != "success" ]; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "One or more live-data audit checks failed. Review the uploaded dry-run report artifact for the complete result set."
+            exit 1
+          fi
