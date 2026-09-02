@@ -61,3 +61,24 @@ The **Firestore Recovery Drill** workflow:
 The drill harness refuses the production project ID and any non-local Firestore host. It uses no production credentials, does not read production data, and does not upload database exports as workflow artifacts.
 
 This rehearsal proves that the repository's deterministic recovery verification path can export, restore and compare Firestore state. It deliberately does **not** claim to prove production Cloud Storage IAM, managed Firestore import permissions or cross-project/location compatibility. Those remain part of a real non-production managed-import exercise when a suitable test Firebase project is available.
+
+## Stage 19.4 — Data retention and privacy lifecycle
+
+The repository now has a machine-readable retention contract for every canonical Firestore root collection.
+
+`scripts/data-retention-contract.mjs` classifies each root collection by data sensitivity, lifecycle disposition, review trigger and rationale. The contract deliberately supports only four non-destructive dispositions: manual review before deletion, no routine deletion, source-projection lifecycle and configuration lifecycle. It contains no age-based or automatic-delete policy.
+
+Unit tests compare the retention contract with `scripts/firestore-collection-contract.mjs`, so any new root collection must receive an explicit lifecycle decision as part of the same change. The checks also reject duplicate/unknown collections, invalid classifications and projections that do not identify a canonical source.
+
+High-risk boundaries are explicit:
+
+- medical and consent data requires manual purpose/retention review before any destructive tooling;
+- member status changes and section transfers are not deletion events;
+- member lifecycle history and Adventure Skills progress remain persistent history;
+- parent/member unlinking is deferred to the explicit Stage 19.5 offboarding workflow;
+- audit, finance and equipment histories are excluded from generic age-based cleanup;
+- public and parent-safe projections follow their canonical source lifecycle.
+
+No Firestore Rules, production data, production credentials or CI mutation paths are changed by Stage 19.4. The parked production TEST-data cleanup remains separate and unchanged.
+
+Detailed policy and follow-on requirements are documented in `docs/data-retention-lifecycle.md`.
