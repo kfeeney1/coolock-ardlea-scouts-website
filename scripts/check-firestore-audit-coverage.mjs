@@ -6,6 +6,7 @@ const rules = await readFile(new URL("firestore.rules", root), "utf8");
 const compatibilityAudit = await readFile(new URL("scripts/audit-firestore-compatibility.mjs", root), "utf8");
 const provenanceAudit = await readFile(new URL("scripts/audit-live-data-provenance.mjs", root), "utf8");
 const testDataInventory = await readFile(new URL("scripts/inventory-live-test-data.mjs", root), "utf8");
+const testDataPurge = await readFile(new URL("scripts/purge-test-data.mjs", root), "utf8");
 const workflow = await readFile(new URL(".github/workflows/firestore-data-audit.yml", root), "utf8");
 
 const rulesCollections = new Set([...rules.matchAll(/^ {4}match \/([A-Za-z][A-Za-z0-9_-]*)\/\{[^/]+\}\s*\{/gm)].map((match) => match[1]));
@@ -41,10 +42,12 @@ for (const unsafeCommand of [
 }
 if (!failures.length) console.log("PASS: Firestore data audit workflow is read-only.");
 
-if (!testDataInventory.includes('from "./test-data-detection.mjs"')) {
-  fail("Live TEST-data inventory must use the shared TEST-data detector used by cleanup tooling.");
-} else {
-  console.log("PASS: Live TEST-data inventory uses the shared TEST-data detector.");
+for (const [label, source] of [["Live TEST-data inventory", testDataInventory], ["TEST-data purge", testDataPurge]]) {
+  if (!source.includes('from "./test-data-detection.mjs"')) {
+    fail(`${label} must use the shared TEST-data detector.`);
+  } else {
+    console.log(`PASS: ${label} uses the shared TEST-data detector.`);
+  }
 }
 
 if (!workflow.includes("node scripts/inventory-live-test-data.mjs") || !workflow.includes("00-test-data-inventory.txt")) {
