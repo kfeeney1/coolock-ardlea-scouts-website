@@ -12,12 +12,12 @@ const projectId = credentials.project_id;
 if (!projectId) throw new Error("Service account JSON must include project_id.");
 
 const execute = process.argv.includes("--execute");
-const confirmProject = (process.env.TEST_DATA_PURGE_CONFIRM_PROJECT || "").trim();
-const expectedFirestoreCount = Number.parseInt(process.env.TEST_DATA_PURGE_EXPECTED_FIRESTORE_COUNT || "", 10);
-const expectedAuthCount = Number.parseInt(process.env.TEST_DATA_PURGE_EXPECTED_AUTH_COUNT || "", 10);
-const expectedManifestSha256 = (process.env.TEST_DATA_PURGE_EXPECTED_MANIFEST_SHA256 || "").trim().toLowerCase();
-const backupUri = (process.env.TEST_DATA_PURGE_BACKUP_URI || "").trim();
-const backupVerifiedAt = (process.env.TEST_DATA_PURGE_BACKUP_VERIFIED_AT || "").trim();
+const confirmProject = (process.env.PROD_PURGE_CONFIRM_PROJECT || "").trim();
+const expectedFirestoreCount = Number.parseInt(process.env.PROD_PURGE_EXPECTED_FIRESTORE_COUNT || "", 10);
+const expectedAuthCount = Number.parseInt(process.env.PROD_PURGE_EXPECTED_AUTH_COUNT || "", 10);
+const expectedManifestSha256 = (process.env.PROD_PURGE_EXPECTED_MANIFEST_SHA256 || "").trim().toLowerCase();
+const backupUri = (process.env.PROD_PURGE_BACKUP_URI || "").trim();
+const backupVerifiedAt = (process.env.PROD_PURGE_BACKUP_VERIFIED_AT || "").trim();
 const MAX_BACKUP_AGE_MS = 192 * 60 * 60 * 1000;
 
 initializeApp({ credential: cert(credentials), projectId });
@@ -60,27 +60,27 @@ function manifestFor(targets) {
 function validateExecutionGates(targets, manifestSha256) {
   const problems = [];
   if (confirmProject !== projectId) {
-    problems.push(`TEST_DATA_PURGE_CONFIRM_PROJECT must exactly equal ${projectId}.`);
+    problems.push(`PROD_PURGE_CONFIRM_PROJECT must exactly equal ${projectId}.`);
   }
   if (!Number.isInteger(expectedFirestoreCount) || expectedFirestoreCount !== targets.firestore.length) {
-    problems.push(`TEST_DATA_PURGE_EXPECTED_FIRESTORE_COUNT must exactly equal ${targets.firestore.length}.`);
+    problems.push(`PROD_PURGE_EXPECTED_FIRESTORE_COUNT must exactly equal ${targets.firestore.length}.`);
   }
   if (!Number.isInteger(expectedAuthCount) || expectedAuthCount !== targets.authUsers.length) {
-    problems.push(`TEST_DATA_PURGE_EXPECTED_AUTH_COUNT must exactly equal ${targets.authUsers.length}.`);
+    problems.push(`PROD_PURGE_EXPECTED_AUTH_COUNT must exactly equal ${targets.authUsers.length}.`);
   }
   if (!/^[a-f0-9]{64}$/.test(expectedManifestSha256) || expectedManifestSha256 !== manifestSha256) {
-    problems.push(`TEST_DATA_PURGE_EXPECTED_MANIFEST_SHA256 must exactly equal ${manifestSha256}.`);
+    problems.push(`PROD_PURGE_EXPECTED_MANIFEST_SHA256 must exactly equal ${manifestSha256}.`);
   }
   if (!backupUri.startsWith("gs://") || !backupUri.includes("/firestore-backups/")) {
-    problems.push("TEST_DATA_PURGE_BACKUP_URI must identify a reviewed Firestore backup under gs://.../firestore-backups/....");
+    problems.push("PROD_PURGE_BACKUP_URI must identify a reviewed Firestore backup under gs://.../firestore-backups/....");
   }
   const verifiedAtMs = Date.parse(backupVerifiedAt);
   if (!Number.isFinite(verifiedAtMs)) {
-    problems.push("TEST_DATA_PURGE_BACKUP_VERIFIED_AT must be a valid ISO-8601 timestamp.");
+    problems.push("PROD_PURGE_BACKUP_VERIFIED_AT must be a valid ISO-8601 timestamp.");
   } else {
     const age = Date.now() - verifiedAtMs;
     if (age < 0 || age > MAX_BACKUP_AGE_MS) {
-      problems.push("TEST_DATA_PURGE_BACKUP_VERIFIED_AT must be no more than 192 hours old and not in the future.");
+      problems.push("PROD_PURGE_BACKUP_VERIFIED_AT must be no more than 192 hours old and not in the future.");
     }
   }
   if (problems.length) throw new Error(`Refusing destructive cleanup:\n- ${problems.join("\n- ")}`);
@@ -121,7 +121,7 @@ for (const uid of targets.authUsers) console.log(`- ${uid}`);
 
 if (!execute) {
   console.log("Dry run only. No records or users were modified or deleted.");
-  console.log("To execute, review this exact target set, verify a fresh backup, then rerun with --execute and every TEST_DATA_PURGE_* confirmation variable set to the values printed/reviewed above.");
+  console.log("To execute, review this exact target set, verify a fresh backup, then rerun with --execute and every PROD_PURGE_* confirmation variable set to the values printed/reviewed above.");
   process.exit(0);
 }
 
