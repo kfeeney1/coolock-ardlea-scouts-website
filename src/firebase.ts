@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { browserSessionPersistence, connectAuthEmulator, getAuth, setPersistence } from "firebase/auth";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFirestoreEmulator, getFirestore, initializeFirestore } from "firebase/firestore";
 import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
@@ -25,8 +25,15 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const firestoreEmulator = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST?.trim();
 
-export const db = getFirestore(app);
+// WebKit can reject the Firestore emulator's streaming WebChannel transport as a
+// cross-origin request even though the emulator itself is reachable. Long polling
+// avoids that browser-specific transport path while keeping production Firestore on
+// its normal transport.
+export const db = firestoreEmulator
+    ? initializeFirestore(app, { experimentalForceLongPolling: true })
+    : getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
@@ -36,7 +43,6 @@ void setPersistence(auth, browserSessionPersistence).catch((error) => {
     console.error("Unable to configure session-only authentication:", error);
 });
 
-const firestoreEmulator = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST?.trim();
 if (firestoreEmulator) {
     const [host, rawPort] = firestoreEmulator.split(":");
     const port = Number(rawPort);
