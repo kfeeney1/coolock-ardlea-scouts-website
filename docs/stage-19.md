@@ -29,3 +29,18 @@ The build already emits `dist/build-info.json`, while the existing live smoke ch
 The check is intentionally read-only and requires no Firebase Admin credential. Pull-request smoke executions validate the shape of the currently deployed evidence without claiming that production already contains the unmerged PR build.
 
 Unit tests cover valid evidence, SHA drift, malformed timestamps, future timestamps and non-CI evidence when an expected production SHA is supplied.
+
+## Stage 19.2 — Super-admin operational health
+
+The authenticated admin dashboard now includes an operational-health panel only when the canonical leader profile has system role `super-admin`.
+
+The panel is deliberately narrow and non-sensitive. It reports:
+
+- deployed release evidence from the same `/build-info.json` surface protected by Stage 19.1;
+- the fixed production Firestore project identity;
+- whether an HTTPS email-service endpoint is configured in the client build;
+- whether a Firebase Storage bucket is configured, while explicitly avoiding a claim that Storage is live merely because a bucket name exists.
+
+The panel does not read production collections, enumerate users, expose Firebase API credentials or service-account material, or introduce a privileged backend endpoint. Ordinary admins and leaders do not render the panel. Runtime Firestore authorisation remains unchanged because this UI is operational visibility only, not a new access-control boundary.
+
+Operational-health classification is unit-tested so invalid release evidence and missing capability configuration fail into warning/unavailable states rather than being presented as healthy.
