@@ -120,9 +120,31 @@ After import:
 
 A backup process is not considered fully proven until restore has been tested outside production.
 
-When a suitable non-production Firebase project is available:
+### Automated emulator rehearsal
 
-1. create a controlled export containing non-sensitive test data;
+Workflow: **Firestore Recovery Drill** (`.github/workflows/firestore-recovery-drill.yml`).
+
+The automated drill uses only the local Firestore Emulator with project ID `demo-coolock-ardlea-recovery`. It deliberately uses synthetic fixtures rather than the normal Playwright seed or any production export.
+
+The drill performs two separate emulator runs:
+
+1. seed and verify the deterministic synthetic recovery manifest;
+2. export the emulator state to a temporary runner directory;
+3. start a fresh emulator and import that export;
+4. verify the exact recovered fixture set;
+5. record the commit, fixture count, manifest SHA-256 and verification time in the Actions job summary.
+
+The harness refuses to run against `coolock-ardlea-scouts` or any non-local Firestore host. No service-account credentials are used, and the temporary database export is not uploaded as an Actions artifact.
+
+The workflow runs on relevant pull requests, can be started manually, and runs monthly so recovery behavior is rehearsed rather than only documented.
+
+This proves the repository's recovery harness and Firebase emulator export/import path. It does not prove Cloud Storage IAM, managed Firestore import permissions, billing, or project/location compatibility.
+
+### Managed non-production import rehearsal
+
+When a suitable non-production Firebase project is available, periodically extend the recovery evidence with a managed Firestore import exercise:
+
+1. create a controlled managed export containing non-sensitive test data;
 2. grant the test project access to that export as required;
 3. import the export into the test database;
 4. compare expected document counts/representative records;
@@ -139,7 +161,8 @@ Recommended operational policy:
 - use Cloud Storage lifecycle rules to enforce retention automatically;
 - periodically check that scheduled backups are still succeeding;
 - run a manual backup before significant production data changes;
-- periodically test restore into a non-production environment;
+- keep the automated emulator recovery drill green;
+- periodically test a managed restore into a non-production Firebase project when one is available;
 - review backup bucket IAM and service-account access when credentials or project ownership change.
 
 The exact retention duration should be agreed based on safeguarding/privacy obligations, recovery needs, storage cost and data-retention policy rather than being embedded in application code.
@@ -151,6 +174,6 @@ Backups contain the same sensitive data as Firestore. Treat the backup bucket as
 - do not make the bucket public;
 - grant access only to operators/service agents that require it;
 - do not download exports to unmanaged personal devices;
-- do not put backup contents in GitHub artifacts;
+- do not put production backup contents in GitHub artifacts;
 - rotate credentials if a service-account key is exposed;
 - review cross-project bucket grants carefully.
