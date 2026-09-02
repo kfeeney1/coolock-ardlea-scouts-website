@@ -18,92 +18,51 @@ The production TEST-data cleanup remains deliberately parked. It is not a Stage 
 
 The build already emits `dist/build-info.json`, while the existing live smoke checks the SPA shell build fingerprint. Stage 19.1 makes the JSON build artifact an independently verified release-evidence surface.
 
-`check-live-build-info.mjs` validates that:
+`check-live-build-info.mjs` validates that `/build-info.json` is reachable and structurally valid, rejects unexpectedly future build times, requires CI provenance for workflow-run production smoke, and requires the deployed commit to match the successful Hosting workflow commit exactly.
 
-- `/build-info.json` is reachable and valid JSON;
-- `commit`, `buildTime` and `source` are structurally valid;
-- the build time is not unexpectedly in the future;
-- a workflow-run production smoke requires `source: github-actions`;
-- the deployed commit exactly matches `github.event.workflow_run.head_sha` after a successful production Hosting deployment.
-
-The check is intentionally read-only and requires no Firebase Admin credential. Pull-request smoke executions validate the shape of the currently deployed evidence without claiming that production already contains the unmerged PR build.
-
-Unit tests cover valid evidence, SHA drift, malformed timestamps, future timestamps and non-CI evidence when an expected production SHA is supplied.
+The check is read-only and requires no Firebase Admin credential.
 
 ## Stage 19.2 — Super-admin operational health
 
-The authenticated admin dashboard now includes an operational-health panel only when the canonical leader profile has system role `super-admin`.
-
-The panel is deliberately narrow and non-sensitive. It reports:
-
-- deployed release evidence from the same `/build-info.json` surface protected by Stage 19.1;
-- the fixed production Firestore project identity;
-- whether an HTTPS email-service endpoint is configured in the client build;
-- whether a Firebase Storage bucket is configured, while explicitly avoiding a claim that Storage is live merely because a bucket name exists.
-
-The panel does not read production collections, enumerate users, expose Firebase API credentials or service-account material, or introduce a privileged backend endpoint. Ordinary admins and leaders do not render the panel. Runtime Firestore authorisation remains unchanged because this UI is operational visibility only, not a new access-control boundary.
-
-Operational-health classification is unit-tested so invalid release evidence and missing capability configuration fail into warning/unavailable states rather than being presented as healthy.
+The authenticated admin dashboard includes an operational-health panel only for the canonical `super-admin` system role. It reports non-sensitive deployed-release evidence and capability configuration without reading production collections, enumerating users or exposing credentials.
 
 ## Stage 19.3 — Recovery rehearsal evidence
 
-The repository now includes a repeatable Firestore recovery rehearsal that is isolated from production by construction.
+The Firestore Recovery Drill uses only the dedicated `demo-coolock-ardlea-recovery` project identifier and local Firestore Emulator. It seeds deterministic synthetic fixtures, exports them, imports into a fresh emulator process and verifies exact restored contents.
 
-The **Firestore Recovery Drill** workflow:
-
-- uses the dedicated `demo-coolock-ardlea-recovery` project identifier and the local Firestore Emulator only;
-- seeds a small deterministic set of synthetic member/event/parent-link fixtures;
-- exports that emulator state with the Firebase emulator export mechanism;
-- starts a fresh emulator process, imports the export and verifies the exact fixture count and contents;
-- records the commit, fixture count, deterministic manifest SHA-256 and verification timestamp in the GitHub Actions job summary;
-- runs when the drill implementation changes, can be run manually, and is rehearsed monthly.
-
-The drill harness refuses the production project ID and any non-local Firestore host. It uses no production credentials, does not read production data, and does not upload database exports as workflow artifacts.
-
-This rehearsal proves that the repository's deterministic recovery verification path can export, restore and compare Firestore state. It deliberately does **not** claim to prove production Cloud Storage IAM, managed Firestore import permissions or cross-project/location compatibility. Those remain part of a real non-production managed-import exercise when a suitable test Firebase project is available.
+This proves the repository recovery-verification path but deliberately does not claim to prove cloud IAM, managed Firestore import permissions or project/location compatibility. A real managed non-production restore remains follow-up evidence when a suitable project is available.
 
 ## Stage 19.4 — Data retention and privacy lifecycle
 
-The repository now has a machine-readable retention contract for every canonical Firestore root collection.
+`scripts/data-retention-contract.mjs` gives every canonical root collection an explicit sensitivity and non-destructive lifecycle disposition. Medical/consent data requires manual review; section transfers are not deletion events; member history, Adventure Skills, audit, finance and equipment history are excluded from generic automatic cleanup.
 
-`scripts/data-retention-contract.mjs` classifies each root collection by data sensitivity, lifecycle disposition, review trigger and rationale. The contract deliberately supports only four non-destructive dispositions: manual review before deletion, no routine deletion, source-projection lifecycle and configuration lifecycle. It contains no age-based or automatic-delete policy.
-
-Unit tests compare the retention contract with `scripts/firestore-collection-contract.mjs`, so any new root collection must receive an explicit lifecycle decision as part of the same change. The checks also reject duplicate/unknown collections, invalid classifications and projections that do not identify a canonical source.
-
-High-risk boundaries are explicit:
-
-- medical and consent data requires manual purpose/retention review before any destructive tooling;
-- member status changes and section transfers are not deletion events;
-- member lifecycle history and Adventure Skills progress remain persistent history;
-- parent/member unlinking is deferred to the explicit Stage 19.5 offboarding workflow;
-- audit, finance and equipment histories are excluded from generic age-based cleanup;
-- public and parent-safe projections follow their canonical source lifecycle.
-
-No Firestore Rules, production data, production credentials or CI mutation paths are changed by Stage 19.4. The parked production TEST-data cleanup remains separate and unchanged.
-
-Detailed policy and follow-on requirements are documented in `docs/data-retention-lifecycle.md`.
+Detailed policy is in `docs/data-retention-lifecycle.md`.
 
 ## Stage 19.5 — Export and offboarding safeguards
 
-Operational exports now have an explicit governance contract describing their permitted scope, sensitivity and privacy exclusions. Existing leader reports remain permission-scoped and audited; Stage 19.5 does not add a general database dump or a medical-data export.
+Operational exports have an explicit governance contract. Parent offboarding distinguishes rejection from revocation, clears active member/section access when revoking an approved parent, and preserves historical records. Firebase Auth users and member history are not automatically deleted.
 
-Parent offboarding now distinguishes a rejected registration request from access that was previously granted and later revoked. Revocation clears the parent account's linked member IDs and section access while preserving the account and historical records. Firebase Auth users, member history and Adventure Skills progress are not automatically deleted.
-
-Detailed boundaries are documented in `docs/export-offboarding-governance.md`.
+Detailed boundaries are in `docs/export-offboarding-governance.md`.
 
 ## Stage 19.6 — Reporting and read-budget protection
 
-`scripts/reporting-read-budget.mjs` defines regression budgets for the three highest-value operational read surfaces: the leader overview, Reports & Exports, and Section Floats reporting.
+`scripts/reporting-read-budget.mjs` protects the leader overview, Reports & Exports and Section Floats read architecture. It preserves aggregate counts, the overview cache, bounded section fan-out and reuse of already-authorized snapshots for filtering/exporting without introducing arbitrary report truncation.
 
-The contract protects the current architecture rather than inventing a fixed billed-read number:
+Detailed rationale is in `docs/reporting-read-budgets.md`.
 
-- the leader overview must retain its 90-second scope cache and Firestore aggregate queries for count-only cards;
-- new section-fanned dashboard collections require an explicit budget review;
-- Reports & Exports is limited to the existing member/event initial snapshot and event exports must reuse the cached member rows rather than re-querying Firestore;
-- Section Floats reporting remains two section-scoped query families per permitted section, with filtering and export performed over the loaded snapshot rather than causing extra Firestore reads.
+## Stage 19.7 — Launch-readiness review
 
-Unit coverage validates both the machine-readable budgets and the source-level architecture assumptions. This means a future feature that casually adds another report query, removes the overview cache, replaces aggregate counts with document scans, or re-reads members during export will fail Quality until the read cost is deliberately reviewed.
+The final review is recorded in `docs/stage-19-launch-readiness-review.md`.
 
-The budget is expressed primarily in query operations/fan-out because actual Firestore document reads depend on matching dataset size. Stage 19.6 deliberately does not add arbitrary report limits that could silently omit operational records. No production data, production credentials, telemetry or Rules changes are introduced.
+The result is deliberately split into two states:
 
-Detailed rationale and review guidance are in `docs/reporting-read-budgets.md`.
+- **Stage 19 engineering controls:** complete once the review is merged.
+- **Production launch-ready:** not yet declared, because operational/repository-setting evidence remains outstanding.
+
+The principal launch blockers are GitHub merge governance and the deliberately parked production TEST-data cleanup. GitHub currently reports `main` as unprotected with no active/evaluating repository ruleset, so merge-critical CI is not yet repository-enforced. The TEST-data cleanup must continue to use the guarded Stage 18.16 local process rather than weakening provenance or adding a CI purge.
+
+Production Storage also remains explicitly unavailable under the current no-Blaze constraint, so gallery/receipt attachment readiness must not be claimed. This is capability-gated rather than a reason to weaken file security.
+
+Before a major launch, retain green release checks, enable and verify branch protection/ruleset enforcement, complete the guarded TEST-data cleanup and production audit, require exact-commit post-deploy smoke, perform ordinary-leader and parent authenticated smoke checks, perform a real email-delivery smoke, and confirm a recent verified backup.
+
+The full scorecard, blocker rationale and release-evidence checklist are in `docs/stage-19-launch-readiness-review.md`.
