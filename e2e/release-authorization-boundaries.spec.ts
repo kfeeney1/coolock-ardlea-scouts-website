@@ -65,6 +65,6 @@ test.describe("release authorization boundaries", () => {
     const search = page.getByTestId("parent-consent-search");
     await search.fill(unlinkedParentMember);
     await expect(page.getByText(unlinkedParentMember, { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/No consent records match your search/i)).toBeVisible();
+    await expect(page.getByText("No linked children match that search.")).toBeVisible();
   });
 });
