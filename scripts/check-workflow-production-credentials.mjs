@@ -5,6 +5,14 @@ const workflowDir = new URL(".github/workflows/", root);
 const canonicalSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS";
 const legacySecret = "FIREBASE_SERVICE_ACCOUNT_JSON";
 const previewWorkflow = "firebase-hosting-pull-request.yml";
+const productionCredentialForbiddenTestScripts = [
+  "scripts/purge-test-data.mjs",
+  "scripts/seed-population-data.mjs",
+  "scripts/seed-superadmin-login.mjs",
+  "scripts/seed-flow-data.mjs",
+  "scripts/seed-public-site-content.mjs",
+  "scripts/seed-playwright-records.mjs",
+];
 const failures = [];
 
 function fail(message) {
@@ -54,6 +62,12 @@ for (const name of entries) {
 
   if (usesCanonicalSecret) {
     credentialWorkflowCount += 1;
+
+    for (const script of productionCredentialForbiddenTestScripts) {
+      if (source.includes(script)) {
+        fail(`${name} combines the production Firebase service account with TEST-data mutation script ${script}. Test fixtures must stay on emulator/non-production execution paths.`);
+      }
+    }
   }
 
   if (pullRequestTriggered && source.includes("FIREBASE_SERVICE_ACCOUNT_JSON:")) {
