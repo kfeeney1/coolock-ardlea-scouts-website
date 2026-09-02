@@ -1,0 +1,24 @@
+name: Branch Protection Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Audit main branch protection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/audit-main-branch-protection.mjs
