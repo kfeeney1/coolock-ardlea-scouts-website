@@ -82,3 +82,28 @@ High-risk boundaries are explicit:
 No Firestore Rules, production data, production credentials or CI mutation paths are changed by Stage 19.4. The parked production TEST-data cleanup remains separate and unchanged.
 
 Detailed policy and follow-on requirements are documented in `docs/data-retention-lifecycle.md`.
+
+## Stage 19.5 — Export and offboarding safeguards
+
+Operational exports now have an explicit governance contract describing their permitted scope, sensitivity and privacy exclusions. Existing leader reports remain permission-scoped and audited; Stage 19.5 does not add a general database dump or a medical-data export.
+
+Parent offboarding now distinguishes a rejected registration request from access that was previously granted and later revoked. Revocation clears the parent account's linked member IDs and section access while preserving the account and historical records. Firebase Auth users, member history and Adventure Skills progress are not automatically deleted.
+
+Detailed boundaries are documented in `docs/export-offboarding-governance.md`.
+
+## Stage 19.6 — Reporting and read-budget protection
+
+`scripts/reporting-read-budget.mjs` defines regression budgets for the three highest-value operational read surfaces: the leader overview, Reports & Exports, and Section Floats reporting.
+
+The contract protects the current architecture rather than inventing a fixed billed-read number:
+
+- the leader overview must retain its 90-second scope cache and Firestore aggregate queries for count-only cards;
+- new section-fanned dashboard collections require an explicit budget review;
+- Reports & Exports is limited to the existing member/event initial snapshot and event exports must reuse the cached member rows rather than re-querying Firestore;
+- Section Floats reporting remains two section-scoped query families per permitted section, with filtering and export performed over the loaded snapshot rather than causing extra Firestore reads.
+
+Unit coverage validates both the machine-readable budgets and the source-level architecture assumptions. This means a future feature that casually adds another report query, removes the overview cache, replaces aggregate counts with document scans, or re-reads members during export will fail Quality until the read cost is deliberately reviewed.
+
+The budget is expressed primarily in query operations/fan-out because actual Firestore document reads depend on matching dataset size. Stage 19.6 deliberately does not add arbitrary report limits that could silently omit operational records. No production data, production credentials, telemetry or Rules changes are introduced.
+
+Detailed rationale and review guidance are in `docs/reporting-read-budgets.md`.
