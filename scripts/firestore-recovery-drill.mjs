@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const RECOVERY_DRILL_PROJECT_ID = "demo-coolock-ardlea-recovery";
+const EMULATOR_OWNER_AUTHORIZATION = "Bearer owner";
 
 export const RECOVERY_DRILL_FIXTURES = [
   {
@@ -64,14 +65,19 @@ function collectionUrl(projectId, emulatorHost) {
 async function writeFixture(projectId, emulatorHost, fixture) {
   const response = await fetch(`${collectionUrl(projectId, emulatorHost)}/${encodeURIComponent(fixture.id)}`, {
     method: "PATCH",
-    headers: { "content-type": "application/json" },
+    headers: {
+      authorization: EMULATOR_OWNER_AUTHORIZATION,
+      "content-type": "application/json"
+    },
     body: JSON.stringify({ fields: fixture.fields })
   });
   if (!response.ok) throw new Error(`Unable to write recovery fixture ${fixture.id}: ${response.status}.`);
 }
 
 async function readFixtures(projectId, emulatorHost) {
-  const response = await fetch(`${collectionUrl(projectId, emulatorHost)}?pageSize=100`);
+  const response = await fetch(`${collectionUrl(projectId, emulatorHost)}?pageSize=100`, {
+    headers: { authorization: EMULATOR_OWNER_AUTHORIZATION }
+  });
   if (!response.ok) throw new Error(`Unable to read recovery fixtures: ${response.status}.`);
   const payload = await response.json();
   return (payload.documents || [])
