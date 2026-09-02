@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import { installSitewideDateFormat } from "./services/siteDateFormat";
 
 import "./index.css";
 
@@ -23,6 +24,7 @@ function clearLegacyWhosWhoCaches(): void {
   }
 }
 
+installSitewideDateFormat();
 clearLegacyWhosWhoCaches();
 
 ReactDOM
