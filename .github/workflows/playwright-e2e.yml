@@ -42,7 +42,6 @@ jobs:
       E2E_ADMIN_EMAIL: test.webadmin@example.com
       E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
       E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com
-      PLAYWRIGHT_RUNNER_VERSION: "1.62.1"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -64,7 +63,7 @@ jobs:
 
       - name: Explain Dependabot E2E policy
         if: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' }}
-        run: echo "Dependabot pull requests do not receive repository secrets. Static quality, production dependency audit, build and deterministic seed-contract checks ran above; credentialed emulator seeding and browser journeys are intentionally deferred to normal pull requests and main."
+        run: echo "Dependabot pull requests do not receive repository secrets. Static quality, production dependency audit, build and deterministic seed-contract checks ran above; emulator seeding and browser journeys are intentionally deferred to normal pull requests and main."
 
       - name: Setup Java for Firebase emulators
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
@@ -75,7 +74,7 @@ jobs:
 
       - name: Install E2E Firebase tooling
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false firebase-admin firebase-tools@15.28.1
+        run: npm install --no-save --package-lock=false firebase-admin@14.3.0 firebase-tools@15.28.1
 
       - name: Start Firestore, Auth and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
@@ -90,10 +89,39 @@ jobs:
           cat /tmp/firebase-emulator.log
           exit 1
 
+      - name: Create emulator-only Firebase Admin credential
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          node <<'NODE'
+          const { generateKeyPairSync } = require("node:crypto");
+          const { appendFileSync } = require("node:fs");
+
+          const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            publicKeyEncoding: { type: "spki", format: "pem" },
+            privateKeyEncoding: { type: "pkcs8", format: "pem" },
+          });
+
+          const credential = JSON.stringify({
+            type: "service_account",
+            project_id: "coolock-ardlea-scouts",
+            private_key_id: "emulator-only",
+            private_key: privateKey,
+            client_email: "firebase-adminsdk-emulator@coolock-ardlea-scouts.iam.gserviceaccount.com",
+            client_id: "000000000000000000000",
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-emulator%40coolock-ardlea-scouts.iam.gserviceaccount.com",
+            universe_domain: "googleapis.com",
+          });
+
+          const delimiter = `FIREBASE_EMULATOR_CREDENTIAL_${Date.now()}`;
+          appendFileSync(process.env.GITHUB_ENV, `FIREBASE_SERVICE_ACCOUNT_JSON<<${delimiter}\n${credential}\n${delimiter}\n`);
+          NODE
+
       - name: Seed canonical deterministic E2E dataset
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           node scripts/seed-population-data.mjs seed
           node scripts/seed-superadmin-login.mjs
@@ -106,8 +134,6 @@ jobs:
 
       - name: Prove canonical seed is safe when existing data remains
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: |
           echo "Re-seeding the same emulator without cleanup to prove deterministic seed idempotency."
           node scripts/seed-population-data.mjs seed
@@ -121,7 +147,7 @@ jobs:
 
       - name: Install pinned Playwright test runner
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false "@playwright/test@${PLAYWRIGHT_RUNNER_VERSION}"
+        run: npm install --no-save --package-lock=false "@playwright/test@1.62.1"
 
       - name: Report Playwright version
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}

@@ -25,5 +25,5 @@ jobs:
       - name: Rebuild parent-safe weekly meeting projections
         run: node scripts/rebuild-parent-weekly-meetings.mjs
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
           APPLY: 'true'
