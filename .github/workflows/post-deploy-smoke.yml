@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "scripts/check-live-deployment.mjs"
+      - "scripts/check-live-build-info.mjs"
       - ".github/workflows/post-deploy-smoke.yml"
       - ".github/workflows/firebase-hosting-merge.yml"
       - ".github/workflows/firestore-rules.yml"
@@ -37,6 +38,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+
+      - name: Verify deployed release evidence
+        run: node scripts/check-live-build-info.mjs
+        env:
+          SITE_URL: https://coolock-ardlea-scouts.web.app
+          EXPECTED_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Verify live site and Firebase services
         run: npm run smoke:live
