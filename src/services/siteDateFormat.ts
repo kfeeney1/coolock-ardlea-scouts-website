@@ -36,12 +36,32 @@ export function formatSiteDate(value: DateInput, timeZone?: string): string {
   return nativeFormat(formatter, date).replaceAll("/", "-");
 }
 
+function numericDateTimePart(value: string | undefined): "numeric" | "2-digit" | undefined {
+  return value === "numeric" || value === "2-digit" ? value : undefined;
+}
+
+function timeZoneNamePart(value: string | undefined): Intl.DateTimeFormatOptions["timeZoneName"] {
+  if (
+    value === "long"
+    || value === "short"
+    || value === "shortOffset"
+    || value === "longOffset"
+    || value === "shortGeneric"
+    || value === "longGeneric"
+  ) return value;
+  return undefined;
+}
+
 function timeOptionsFromResolved(options: Intl.ResolvedDateTimeFormatOptions): Intl.DateTimeFormatOptions {
   const result: Intl.DateTimeFormatOptions = {};
-  if (options.hour) result.hour = options.hour;
-  if (options.minute) result.minute = options.minute;
-  if (options.second) result.second = options.second;
-  if (options.timeZoneName) result.timeZoneName = options.timeZoneName;
+  const hour = numericDateTimePart(options.hour);
+  const minute = numericDateTimePart(options.minute);
+  const second = numericDateTimePart(options.second);
+  const timeZoneName = timeZoneNamePart(options.timeZoneName);
+  if (hour) result.hour = hour;
+  if (minute) result.minute = minute;
+  if (second) result.second = second;
+  if (timeZoneName) result.timeZoneName = timeZoneName;
   if (options.hourCycle) result.hourCycle = options.hourCycle;
   if (options.timeZone) result.timeZone = options.timeZone;
   return result;
