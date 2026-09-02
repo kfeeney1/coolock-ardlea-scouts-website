@@ -1,0 +1,99 @@
+name: Firestore Backup Freshness
+
+on:
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROJECT_ID: coolock-ardlea-scouts
+      BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+      MAX_BACKUP_AGE_HOURS: "192"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate backup configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${BACKUP_BUCKET}" ]]; then
+            echo "FIRESTORE_BACKUP_BUCKET repository variable is not configured." >&2
+            exit 1
+          fi
+          if [[ "${BACKUP_BUCKET}" != gs://* ]]; then
+            echo "FIRESTORE_BACKUP_BUCKET must be a gs:// Cloud Storage URI." >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Verify latest Firestore backup is recent
+        id: freshness
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PREFIX="${BACKUP_BUCKET%/}/firestore-backups/"
+          LATEST="$(gcloud storage ls "${PREFIX}" 2>/dev/null | sed 's:/*$::' | sort | tail -n 1)"
+          if [[ -z "${LATEST}" ]]; then
+            echo "No Firestore backup exports were found under ${PREFIX}." >&2
+            exit 1
+          fi
+
+          NAME="${LATEST##*/}"
+          if [[ ! "${NAME}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z$ ]]; then
+            echo "Latest backup path does not use the expected timestamp format: ${LATEST}" >&2
+            exit 1
+          fi
+
+          BACKUP_EPOCH="$(date -u -d "${NAME:0:10} ${NAME:11:2}:${NAME:14:2}:${NAME:17:2} UTC" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE_HOURS="$(( (NOW_EPOCH - BACKUP_EPOCH) / 3600 ))"
+
+          if (( AGE_HOURS < 0 )); then
+            echo "Latest backup timestamp is in the future: ${LATEST}" >&2
+            exit 1
+          fi
+
+          echo "Latest Firestore backup: ${LATEST}"
+          echo "Backup age: ${AGE_HOURS} hour(s); maximum allowed: ${MAX_BACKUP_AGE_HOURS}."
+          echo "latest=${LATEST}" >> "${GITHUB_OUTPUT}"
+          echo "age_hours=${AGE_HOURS}" >> "${GITHUB_OUTPUT}"
+
+          if (( AGE_HOURS > MAX_BACKUP_AGE_HOURS )); then
+            echo "Firestore backup is stale. Run the Firestore Backup workflow before a release or migration." >&2
+            exit 1
+          fi
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        env:
+          LATEST: ${{ steps.freshness.outputs.latest }}
+          AGE_HOURS: ${{ steps.freshness.outputs.age_hours }}
+        run: |
+          {
+            echo "## Firestore backup freshness"
+            echo
+            printf '%s\n' "- Project: \`${PROJECT_ID}\`"
+            printf '%s\n' "- Latest backup: \`${LATEST:-not-found}\`"
+            printf '%s\n' "- Age: \`${AGE_HOURS:-unknown} hour(s)\`"
+            printf '%s\n' "- Maximum allowed age: \`${MAX_BACKUP_AGE_HOURS} hours\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
