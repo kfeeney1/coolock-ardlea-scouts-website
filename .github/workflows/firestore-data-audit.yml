@@ -33,6 +33,11 @@ jobs:
       - name: Prepare dry-run report
         run: mkdir -p firestore-audit-report
 
+      - name: Inventory live TEST-data candidates
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: set -o pipefail; node scripts/inventory-live-test-data.mjs 2>&1 | tee firestore-audit-report/00-test-data-inventory.txt
+
       - name: Audit live Firestore provenance in one pass
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
