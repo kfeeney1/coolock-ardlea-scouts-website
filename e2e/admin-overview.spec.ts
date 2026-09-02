@@ -37,6 +37,17 @@ for (const [role, email] of [
     await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
 
+    const operationalHealth = page.getByRole("heading", { name: "Operational health" });
+    if (role === "Super Admin") {
+      await expect(operationalHealth).toBeVisible();
+      await expect(page.getByText("Deployed release")).toBeVisible();
+      await expect(page.getByText("Firestore", { exact: true })).toBeVisible();
+      await expect(page.getByText("Email service")).toBeVisible();
+      await expect(page.getByText("Attachment storage")).toBeVisible();
+    } else {
+      await expect(operationalHealth).toHaveCount(0);
+    }
+
     await overview.getByRole("button", { name: "Refresh Overview" }).click();
     await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
     await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
@@ -59,6 +70,7 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await login(page, leaderEmail!);
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operational health" })).toHaveCount(0);
 
   const overview = page.getByTestId("admin-overview");
   await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
