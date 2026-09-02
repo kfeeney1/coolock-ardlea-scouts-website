@@ -8,6 +8,33 @@ const db = getFirestore();
 const marker = { testData: true, testSeed: "full-system-flows-v1", createdBySeed: "TEST_SEED" };
 const now = Timestamp.now();
 
+const seedDate = process.env.E2E_SEED_DATE?.trim() || new Date().toISOString().slice(0, 10);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(seedDate)) throw new Error("E2E_SEED_DATE must use YYYY-MM-DD.");
+const seedDay = new Date(`${seedDate}T12:00:00.000Z`);
+if (Number.isNaN(seedDay.getTime()) || seedDay.toISOString().slice(0, 10) !== seedDate) {
+  throw new Error("E2E_SEED_DATE must be a real calendar date.");
+}
+function relativeDate(days) {
+  const value = new Date(seedDay);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+const flowDates = {
+  beaversOpen: relativeDate(14),
+  cubsDraftStart: relativeDate(35),
+  cubsDraftEnd: relativeDate(37),
+  scoutsClosed: relativeDate(-30),
+  venturesCompleted: relativeDate(-45),
+  roversOpen: relativeDate(60),
+  allSectionsOpen: relativeDate(90),
+  consentFrom: relativeDate(-10),
+  consentTo: relativeDate(330),
+  lastCheckup: relativeDate(-90),
+  groupMeeting: relativeDate(-14),
+  leaderMeeting: relativeDate(-13)
+};
+
 async function set(collection, id, data) {
   await db.collection(collection).doc(id).set({ ...data, ...marker, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 }
@@ -25,12 +52,12 @@ async function organisationLeader(uid) {
 }
 
 const events = [
-  ["TEST_flow_event_beavers_open", { title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: "2026-09-12", endDate: "2026-09-12", status: "open", consentRequired: true, attendance: { TEST_member_beaver_01: "attending", TEST_member_beaver_02: "invited" }, consent: { TEST_member_beaver_01: "received", TEST_member_beaver_02: "required" }, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
-  ["TEST_flow_event_cubs_draft", { title: "TEST Cubs Draft Camp", description: "Canonical draft camp example.", eventType: "Camp", section: "Cubs", location: "Larch Hill", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: "2026-10-02", endDate: "2026-10-04", status: "draft", consentRequired: true, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
-  ["TEST_flow_event_scouts_closed", { title: "TEST Scouts Closed Hike", description: "Canonical closed hike example.", eventType: "Hike", section: "Scouts", location: "Howth", meetingPoint: "Howth DART", returnDetails: "Howth DART", leaderNotes: "TEST DATA", startDate: "2026-08-01", endDate: "2026-08-01", status: "closed", consentRequired: false, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
-  ["TEST_flow_event_ventures_completed", { title: "TEST Ventures Completed Activity", description: "Canonical completed activity example.", eventType: "Activity", section: "Ventures", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: "2026-07-18", endDate: "2026-07-18", status: "completed", consentRequired: true, attendance: { TEST_member_venture_01: "attending" }, consent: { TEST_member_venture_01: "received" }, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
-  ["TEST_flow_event_rovers_open", { title: "TEST Rovers Open Service Project", description: "Canonical open service example.", eventType: "Service", section: "Rovers", location: "Community Centre", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: "2026-11-14", endDate: "2026-11-14", status: "open", consentRequired: false, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
-  ["TEST_flow_event_all_sections", { title: "TEST All Sections Group Day", description: "Canonical all-sections event example.", eventType: "Activity", section: "All Sections", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: "2026-12-05", endDate: "2026-12-05", status: "open", consentRequired: true, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }]
+  ["TEST_flow_event_beavers_open", { title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: flowDates.beaversOpen, endDate: flowDates.beaversOpen, status: "open", consentRequired: true, attendance: { TEST_member_beaver_01: "attending", TEST_member_beaver_02: "invited" }, consent: { TEST_member_beaver_01: "received", TEST_member_beaver_02: "required" }, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
+  ["TEST_flow_event_cubs_draft", { title: "TEST Cubs Draft Camp", description: "Canonical draft camp example.", eventType: "Camp", section: "Cubs", location: "Larch Hill", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: flowDates.cubsDraftStart, endDate: flowDates.cubsDraftEnd, status: "draft", consentRequired: true, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
+  ["TEST_flow_event_scouts_closed", { title: "TEST Scouts Closed Hike", description: "Canonical closed hike example.", eventType: "Hike", section: "Scouts", location: "Howth", meetingPoint: "Howth DART", returnDetails: "Howth DART", leaderNotes: "TEST DATA", startDate: flowDates.scoutsClosed, endDate: flowDates.scoutsClosed, status: "closed", consentRequired: false, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
+  ["TEST_flow_event_ventures_completed", { title: "TEST Ventures Completed Activity", description: "Canonical completed activity example.", eventType: "Activity", section: "Ventures", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: flowDates.venturesCompleted, endDate: flowDates.venturesCompleted, status: "completed", consentRequired: true, attendance: { TEST_member_venture_01: "attending" }, consent: { TEST_member_venture_01: "received" }, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
+  ["TEST_flow_event_rovers_open", { title: "TEST Rovers Open Service Project", description: "Canonical open service example.", eventType: "Service", section: "Rovers", location: "Community Centre", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: flowDates.roversOpen, endDate: flowDates.roversOpen, status: "open", consentRequired: false, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }],
+  ["TEST_flow_event_all_sections", { title: "TEST All Sections Group Day", description: "Canonical all-sections event example.", eventType: "Activity", section: "All Sections", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA", startDate: flowDates.allSectionsOpen, endDate: flowDates.allSectionsOpen, status: "open", consentRequired: true, attendance: {}, consent: {}, createdAt: now, createdBy: "TEST_SEED", updatedBy: "TEST_SEED" }]
 ];
 
 const joins = [
@@ -66,8 +93,8 @@ function canonicalYouthConsent(memberRecord, medical) {
     section: memberRecord.section,
     childName: memberRecord.displayName,
     childDOB: memberRecord.dateOfBirth,
-    consentFrom: "2026-08-23",
-    consentTo: "2027-07-31",
+    consentFrom: flowDates.consentFrom,
+    consentTo: flowDates.consentTo,
     photoConsent: "Yes",
     waterActivities: "Yes",
     canSwim: "Yes",
@@ -81,7 +108,7 @@ function canonicalYouthConsent(memberRecord, medical) {
     gpName: "Test GP",
     gpTel: "012345678",
     gpAddress: "Test Medical Centre",
-    lastCheckup: "2026-06-01",
+    lastCheckup: flowDates.lastCheckup,
     parent1Name: memberRecord.parentName || "Test Parent",
     parent2Name: "",
     homePhone: "",
@@ -94,7 +121,7 @@ function canonicalYouthConsent(memberRecord, medical) {
     additionalInfo: "",
     sig1Name: memberRecord.parentName || "Test Parent",
     sig2Name: "",
-    sigDate: "2026-08-23",
+    sigDate: flowDates.consentFrom,
     declarationConfirmed: true,
     medicationManagement: { enabled: medical },
     authorisedScouters: [],
@@ -169,7 +196,7 @@ async function seed() {
     medicationDetails: "",
     allergies: "",
     signature: scouter.displayName,
-    signatureDate: "2026-08-23",
+    signatureDate: flowDates.consentFrom,
     declarationConfirmed: true,
     medicationManagement: { enabled: false },
     formType: "scouter-es3-medical-advice",
@@ -179,16 +206,16 @@ async function seed() {
     submittedAt: now
   });
 
-  await set("eventConsentLinks", "TESTFLOWBEAVERSOPEN2026", { eventId: "TEST_flow_event_beavers_open", title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: "2026-09-12", endDate: "2026-09-12", consentRequired: true, active: true, createdAt: now, createdBy: "TEST_SEED" });
-  await set("eventConsentLinks", "TESTFLOWINACTIVE2026", { eventId: "TEST_flow_event_all_sections", title: "TEST All Sections Group Day", description: "Canonical all-sections event example.", eventType: "Activity", section: "All Sections", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: "2026-12-05", endDate: "2026-12-05", consentRequired: true, active: false, createdAt: now, createdBy: "TEST_SEED" });
+  await set("eventConsentLinks", "TESTFLOWBEAVERSOPEN2026", { eventId: "TEST_flow_event_beavers_open", title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: flowDates.beaversOpen, endDate: flowDates.beaversOpen, consentRequired: true, active: true, createdAt: now, createdBy: "TEST_SEED" });
+  await set("eventConsentLinks", "TESTFLOWINACTIVE2026", { eventId: "TEST_flow_event_all_sections", title: "TEST All Sections Group Day", description: "Canonical all-sections event example.", eventType: "Activity", section: "All Sections", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: flowDates.allSectionsOpen, endDate: flowDates.allSectionsOpen, consentRequired: true, active: false, createdAt: now, createdBy: "TEST_SEED" });
 
   const responseBase = { token: "TESTFLOWBEAVERSOPEN2026", eventId: "TEST_flow_event_beavers_open", dateOfBirth: beaver.dateOfBirth, parentName: beaver.parentName || "Test Parent", attendance: "attending", consentGiven: true, emergencyDetailsConfirmed: true, submittedAt: now };
   await set("eventConsentResponses", "TEST_flow_response_new", { ...responseBase, childName: beaver.displayName, medicalDetailsChanged: true, processingStatus: "new", matchedMemberId: "" });
   await set("eventConsentResponses", "TEST_flow_response_matched", { ...responseBase, childName: beaver.displayName, medicalDetailsChanged: false, processingStatus: "matched", matchedMemberId: beaver.id, processedBy: "TEST_SEED", processedAt: now });
   await set("eventConsentResponses", "TEST_flow_response_ignored", { ...responseBase, childName: "Duplicate Test", medicalDetailsChanged: false, processingStatus: "ignored", matchedMemberId: "", processedBy: "TEST_SEED", processedAt: now });
 
-  await set("meetingRecords", "TEST_flow_meeting_group", { title: "TEST Group Council Meeting", meetingType: "group", section: "Group", meetingDate: "2026-08-20", attendees: ["TEST_uid_group_leader", "TEST_uid_group_secretary"], notes: "TEST DATA", decisions: "Programme plan reviewed.", actions: "Group Leader to publish programme plan.", createdBy: "TEST_SEED", createdAt: now, updatedBy: "TEST_SEED" });
-  await set("meetingRecords", "TEST_flow_meeting_leader", { title: "TEST Cubs Leader Meeting", meetingType: "leader", section: "Cubs", meetingDate: "2026-08-21", attendees: ["TEST_uid_cub_section_leader", "TEST_uid_cub_programme_scouter"], notes: "TEST DATA", decisions: "Camp plan agreed.", actions: "Confirm camp kit list.", createdBy: "TEST_SEED", createdAt: now, updatedBy: "TEST_SEED" });
+  await set("meetingRecords", "TEST_flow_meeting_group", { title: "TEST Group Council Meeting", meetingType: "group", section: "Group", meetingDate: flowDates.groupMeeting, attendees: ["TEST_uid_group_leader", "TEST_uid_group_secretary"], notes: "TEST DATA", decisions: "Programme plan reviewed.", actions: "Group Leader to publish programme plan.", createdBy: "TEST_SEED", createdAt: now, updatedBy: "TEST_SEED" });
+  await set("meetingRecords", "TEST_flow_meeting_leader", { title: "TEST Cubs Leader Meeting", meetingType: "leader", section: "Cubs", meetingDate: flowDates.leaderMeeting, attendees: ["TEST_uid_cub_section_leader", "TEST_uid_cub_programme_scouter"], notes: "TEST DATA", decisions: "Camp plan agreed.", actions: "Confirm camp kit list.", createdBy: "TEST_SEED", createdAt: now, updatedBy: "TEST_SEED" });
 
   const history = [
     ["created", "", "Beavers", "active", "active"],
@@ -207,7 +234,7 @@ async function seed() {
   await set("parentAccounts", "TEST_flow_parent_pending", { uid: "TEST_flow_parent_pending", email: "test.parent.pending@example.com", displayName: "Test Pending Parent", mobileNumber: "0878000100", status: "pending", memberIds: [], linkedSections: [], reviewedBy: "", reviewedAt: null, createdAt: now });
   await set("parentAccounts", "TEST_flow_parent_rejected", { uid: "TEST_flow_parent_rejected", email: "test.parent.rejected@example.com", displayName: "Test Rejected Parent", mobileNumber: "0878000101", status: "rejected", memberIds: [], linkedSections: [], reviewedBy: "TEST_SEED", reviewedAt: now, createdAt: now });
 
-  console.log("Full-system canonical flow fixtures seeded.");
+  console.log(`Full-system canonical flow fixtures seeded relative to ${seedDate}.`);
 }
 
 await seed();
