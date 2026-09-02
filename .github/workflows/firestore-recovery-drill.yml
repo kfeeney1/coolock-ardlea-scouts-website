@@ -1,0 +1,100 @@
+name: Firestore Recovery Drill
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/firestore-recovery-drill.mjs"
+      - "tests/unit/firestoreRecoveryDrill.test.ts"
+      - ".github/workflows/firestore-recovery-drill.yml"
+      - "docs/firestore-backup-recovery.md"
+      - "docs/stage-19.md"
+      - "firebase.json"
+  schedule:
+    - cron: "23 4 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-recovery-drill-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RECOVERY_DRILL_PROJECT_ID: demo-coolock-ardlea-recovery
+      EXPORT_DIR: .recovery-drill/export
+      RECOVERY_DRILL_EVIDENCE_PATH: .recovery-drill/evidence.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install pinned Firebase CLI
+        run: npm install --no-save --package-lock=false firebase-tools@15.28.1
+
+      - name: Export deterministic emulator state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .recovery-drill
+          mkdir -p .recovery-drill
+          npx firebase emulators:exec \
+            --only firestore \
+            --project "${RECOVERY_DRILL_PROJECT_ID}" \
+            --export-on-exit="${EXPORT_DIR}" \
+            "node scripts/firestore-recovery-drill.mjs seed"
+
+      - name: Restore export into a fresh emulator and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "${EXPORT_DIR}/firebase-export-metadata.json"
+          npx firebase emulators:exec \
+            --only firestore \
+            --project "${RECOVERY_DRILL_PROJECT_ID}" \
+            --import="${EXPORT_DIR}" \
+            "node scripts/firestore-recovery-drill.mjs verify"
+          test -f "${RECOVERY_DRILL_EVIDENCE_PATH}"
+
+      - name: Record recovery evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Firestore recovery drill"
+            echo
+            printf '%s\n' "- Environment: \`Firestore Emulator\`"
+            printf '%s\n' "- Project: \`${RECOVERY_DRILL_PROJECT_ID}\`"
+            printf '%s\n' "- Commit: \`${GITHUB_SHA}\`"
+            if [[ -f "${RECOVERY_DRILL_EVIDENCE_PATH}" ]]; then
+              FIXTURE_COUNT="$(node -p "JSON.parse(require('fs').readFileSync(process.env.RECOVERY_DRILL_EVIDENCE_PATH, 'utf8')).fixtureCount")"
+              FIXTURE_SHA="$(node -p "JSON.parse(require('fs').readFileSync(process.env.RECOVERY_DRILL_EVIDENCE_PATH, 'utf8')).fixtureSha256")"
+              VERIFIED_AT="$(node -p "JSON.parse(require('fs').readFileSync(process.env.RECOVERY_DRILL_EVIDENCE_PATH, 'utf8')).verifiedAt")"
+              printf '%s\n' "- Result: **restored and verified**"
+              printf '%s\n' "- Synthetic fixtures: \`${FIXTURE_COUNT}\`"
+              printf '%s\n' "- Manifest SHA-256: \`${FIXTURE_SHA}\`"
+              printf '%s\n' "- Verified at: \`${VERIFIED_AT}\`"
+            else
+              printf '%s\n' "- Result: **verification evidence not produced**"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
