@@ -6,7 +6,7 @@ const rebuild = readFileSync("scripts/rebuild-public-leadership.mjs", "utf8");
 const verify = readFileSync("scripts/verify-public-leadership.mjs", "utf8");
 const reconcile = readFileSync("scripts/reconcile-leadership-provenance.mjs", "utf8");
 const deploy = readFileSync(".github/workflows/firebase-hosting-merge.yml", "utf8");
-const seedWorkflow = readFileSync(".github/workflows/firebase-seed-test-data.yml", "utf8");
+const playwright = readFileSync(".github/workflows/playwright-e2e.yml", "utf8");
 
 test("public leadership requires current canonical seed or approved registration provenance", () => {
   assert.match(rebuild, /isApprovedManualRegistration/);
@@ -22,13 +22,12 @@ test("public leadership verifier enforces the same provenance and approved secti
   assert.doesNotMatch(verify, /if \(YOUTH_SECTIONS\.has\(sectionKey\)\) return Boolean\(text\(role\)\)/);
 });
 
-test("leadership cleanup remains explicit and canonical seed restoration is manual-only", () => {
+test("leadership cleanup remains explicit and canonical seed restoration stays non-production", () => {
   assert.match(reconcile, /isApprovedManualRegistration/);
   assert.match(reconcile, /batch\.delete\(db\.collection\("organisationLeadership"\)/);
   assert.doesNotMatch(deploy, /Restore canonical comprehensive seed population/);
   assert.doesNotMatch(deploy, /Remove leadership outside canonical seed or approved registrations/);
-  assert.match(seedWorkflow, /workflow_dispatch/);
-  assert.match(seedWorkflow, /confirm:/);
-  assert.match(seedWorkflow, /Seed comprehensive population/);
-  assert.match(seedWorkflow, /Rebuild public leadership projection from seeded database records/);
+  assert.match(playwright, /Seed canonical deterministic E2E dataset/);
+  assert.match(playwright, /FIRESTORE_EMULATOR_HOST/);
+  assert.match(playwright, /FIREBASE_AUTH_EMULATOR_HOST/);
 });
