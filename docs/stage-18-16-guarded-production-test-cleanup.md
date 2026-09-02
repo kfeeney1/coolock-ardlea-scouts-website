@@ -7,12 +7,12 @@ This stage hardens the existing `scripts/purge-test-data.mjs` so it cannot delet
 A destructive run requires every one of these independent gates to match the live inventory at execution time:
 
 - `--execute` is present.
-- `TEST_DATA_PURGE_CONFIRM_PROJECT` exactly matches the service account `project_id`.
-- `TEST_DATA_PURGE_EXPECTED_FIRESTORE_COUNT` exactly matches the current candidate count.
-- `TEST_DATA_PURGE_EXPECTED_AUTH_COUNT` exactly matches the current TEST_ Auth-user count.
-- `TEST_DATA_PURGE_EXPECTED_MANIFEST_SHA256` exactly matches the current manifest digest.
-- `TEST_DATA_PURGE_BACKUP_URI` points to the reviewed `gs://.../firestore-backups/...` export.
-- `TEST_DATA_PURGE_BACKUP_VERIFIED_AT` is a valid ISO timestamp no more than 192 hours old.
+- `PROD_PURGE_CONFIRM_PROJECT` exactly matches the service account `project_id`.
+- `PROD_PURGE_EXPECTED_FIRESTORE_COUNT` exactly matches the current candidate count.
+- `PROD_PURGE_EXPECTED_AUTH_COUNT` exactly matches the current TEST_ Auth-user count.
+- `PROD_PURGE_EXPECTED_MANIFEST_SHA256` exactly matches the current manifest digest.
+- `PROD_PURGE_BACKUP_URI` points to the reviewed `gs://.../firestore-backups/...` export.
+- `PROD_PURGE_BACKUP_VERIFIED_AT` is a valid ISO timestamp no more than 192 hours old.
 
 If any target changes between review and execution, the manifest hash or counts change and the script refuses the deletion.
 
