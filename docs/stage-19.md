@@ -44,3 +44,20 @@ The panel is deliberately narrow and non-sensitive. It reports:
 The panel does not read production collections, enumerate users, expose Firebase API credentials or service-account material, or introduce a privileged backend endpoint. Ordinary admins and leaders do not render the panel. Runtime Firestore authorisation remains unchanged because this UI is operational visibility only, not a new access-control boundary.
 
 Operational-health classification is unit-tested so invalid release evidence and missing capability configuration fail into warning/unavailable states rather than being presented as healthy.
+
+## Stage 19.3 — Recovery rehearsal evidence
+
+The repository now includes a repeatable Firestore recovery rehearsal that is isolated from production by construction.
+
+The **Firestore Recovery Drill** workflow:
+
+- uses the dedicated `demo-coolock-ardlea-recovery` project identifier and the local Firestore Emulator only;
+- seeds a small deterministic set of synthetic member/event/parent-link fixtures;
+- exports that emulator state with the Firebase emulator export mechanism;
+- starts a fresh emulator process, imports the export and verifies the exact fixture count and contents;
+- records the commit, fixture count, deterministic manifest SHA-256 and verification timestamp in the GitHub Actions job summary;
+- runs when the drill implementation changes, can be run manually, and is rehearsed monthly.
+
+The drill harness refuses the production project ID and any non-local Firestore host. It uses no production credentials, does not read production data, and does not upload database exports as workflow artifacts.
+
+This rehearsal proves that the repository's deterministic recovery verification path can export, restore and compare Firestore state. It deliberately does **not** claim to prove production Cloud Storage IAM, managed Firestore import permissions or cross-project/location compatibility. Those remain part of a real non-production managed-import exercise when a suitable test Firebase project is available.
