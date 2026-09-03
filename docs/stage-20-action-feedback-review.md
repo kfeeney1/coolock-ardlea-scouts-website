@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility.
 
 ## Action feedback contract
 
@@ -31,14 +31,30 @@ This slice:
 - preserves the existing `updateParentAccess(..., "revoked")` operation, audit event, success alert, failure alert and reload behaviour;
 - extends deterministic Playwright coverage to open and cancel the in-app confirmation without mutating the seeded approved account.
 
+## Second slice — Leader Access & Organisation
+
+The Leader Access & Organisation screen already exposes one **Save Leader** action for both routine organisation-chart edits and access-affecting changes. Before this slice, deactivating an account, changing its system role or permitted sections, or changing public Who's Who visibility could be persisted with the same immediate save interaction as a title or display-order edit.
+
+This slice keeps the ordinary save path lightweight while adding explicit review when the draft differs from the last loaded record in an access-affecting field:
+
+- account activation/deactivation;
+- system role;
+- permitted account sections;
+- public Who's Who visibility, including removal caused by changing away from the Leader role.
+
+The confirmation dialog identifies the affected leader and lists the specific consequences detected before the service call runs. **Cancel** closes the dialog without persisting the draft; a later **Refresh** restores the last loaded values. Routine organisation-only edits such as scouting title, organisation section, display order and reporting line continue to use the existing direct save flow.
+
+The existing `updateLeaderAccess` service, Super Admin-only role selector restriction, super-admin account safeguards, audit event, success/error alerts and organisation/public projection sync remain authoritative. Deterministic Playwright coverage uses the existing private multi-section leader fixture, stages a deactivation, verifies the review dialog, cancels it and refreshes to prove no persisted change occurred.
+
 ## Preserved boundaries
 
-This slice does not alter:
+These slices do not alter:
 
 - Firestore, Auth or Storage Rules;
-- administrator role requirements;
+- administrator and Super Admin role requirements;
 - parent approval, rejection or child-linking semantics;
-- parent-account or member data models;
+- leader-access service validation or organisation/public projection semantics;
+- parent-account, member, leader-access or organisation data models;
 - audit event category/action/description semantics;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
@@ -46,4 +62,4 @@ This slice does not alter:
 
 ## Next review target
 
-Review **Leader Access & Organisation** next. Saving that screen can change account activation, system role, permitted sections and public organisation visibility in one operation, so Stage 20.5 should determine which high-impact changes warrant explicit confirmation and how to keep save success/failure feedback clear without changing Super Admin-only role restrictions.
+Review **Event lifecycle completion** next. Editing an event can change its status to **completed**, after which the event moves to history and the event record becomes read-only for further editing while attendance, reports, exports and gallery access remain available. Stage 20.5 should make that transition explicit before persistence without changing the existing event service or completed-event rules.
