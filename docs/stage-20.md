@@ -12,19 +12,21 @@ The parked production TEST-data cleanup, GitHub branch-protection configuration,
 2. **20.2 — Navigation and information architecture review.** Re-check public, parent and leader navigation on desktop/mobile after the large feature expansion; remove duplicate/dead routes and ensure frequent operational tasks remain easy to reach without altering permissions. **Complete.**
 3. **20.3 — Empty, loading and error-state consistency.** Standardise the most-used parent/leader screens so loading, no-data, unavailable-capability and permission-denied states are distinct, accessible and actionable. **Complete.**
 4. **20.4 — Search/filter consistency.** Review member history, attendance insights, reports, equipment and other larger datasets for consistent search/filter/reset behaviour while preserving server-side scoping and Stage 19.6 read budgets. **Complete.**
-5. **20.5 — Action confirmation and feedback.** Standardise confirmation, success, failure and destructive/revocation feedback for high-impact operational actions; avoid browser-native prompts where richer accessible confirmation is appropriate. **In progress — only the two Badgework native confirmations remain.**
-6. **20.6 — Mobile operational pass.** Re-test high-frequency leader workflows at narrow viewports, especially fixed actions, dialogs, tables/cards, long forms and expandable navigation. **After 20.5 closes.**
+5. **20.5 — Action confirmation and feedback.** Standardise confirmation, success, failure and destructive/revocation feedback for high-impact operational actions; avoid browser-native prompts where richer accessible confirmation is appropriate. **Complete.**
+6. **20.6 — Mobile operational pass.** Re-test high-frequency leader workflows at narrow viewports, especially fixed actions, dialogs, tables/cards, long forms and expandable navigation. **Next.**
 7. **20.7 — Product maturity review.** Re-run representative public, parent and leader journeys and record remaining usability/product gaps separately from launch-governance blockers.
 
 ## Current position
 
-Stages 20.1 through 20.4 are complete. The Stage 20.5 close-out audit exposed six pre-existing browser-native dialog calls that the earlier repository search had missed. The first residual-cleanup slice removes four of those six:
+Stages 20.1 through 20.5 are complete. The Stage 20.5 close-out audit exposed six pre-existing browser-native dialog calls that the earlier repository search had missed. The residual cleanup removed all six while preserving the underlying service and persistence behaviour:
 
-- event gallery photo deletion now uses an accessible in-app confirmation dialog;
-- blocked consent-record and event-report print pop-ups now surface through the existing in-page error feedback instead of `window.alert`;
-- failed clipboard copy for parent event-consent links now opens an in-app manual-copy dialog instead of `window.prompt`.
+- event gallery photo deletion uses an accessible in-app confirmation dialog;
+- blocked consent-record and event-report print pop-ups surface through in-page error feedback;
+- failed clipboard copy for parent event-consent links opens an in-app manual-copy dialog;
+- Badgework unsaved-draft context changes use an in-app discard review;
+- Badgework stage-award removal uses an in-app destructive confirmation.
 
-The source-level Quality contract is tightened with that work, leaving only the two Badgework `window.confirm` calls as the bounded audited legacy baseline. Stage 20.5 remains open until those final two interactions are migrated, after which the contract should move to a zero-native-dialog requirement and Stage 20.6 can begin.
+The source-level Quality contract now requires zero browser-native `alert`, `confirm` or `prompt` calls anywhere under `src`. Stage 20.6 is the next planned slice and should begin with narrow-viewport review of the highest-frequency leader workflows while preserving authorization, data semantics, deterministic fixtures and Stage 18/19 operational controls.
 
 ## Stage 20.1 — Operator-facing documentation truth
 
