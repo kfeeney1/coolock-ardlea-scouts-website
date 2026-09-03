@@ -84,9 +84,10 @@ export default function ConsentRecordPage() {
 
   const printRecord = () => {
     if (!record) return;
+    setError("");
     const printWindow = window.open("", "_blank", "width=1000,height=800");
     if (!printWindow) {
-      window.alert("The print window was blocked by your browser. Please allow pop-ups for this site and try again.");
+      setError("The print window was blocked by your browser. Please allow pop-ups for this site and try again.");
       return;
     }
     printWindow.document.open();
