@@ -2,7 +2,6 @@ import {
     Alert,
     Box,
     Button,
-    CircularProgress,
     Container,
     Paper,
     Stack,
@@ -10,17 +9,23 @@ import {
     Typography
 } from "@mui/material";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import {
+    OperationalErrorState,
+    OperationalLoading,
+    OperationalPermissionState
+} from "../components/admin/OperationalStates";
 import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSkillsSection";
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
 import { auth } from "../firebase";
+import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import {
     createParentAccessForCurrentUser,
     loadParentAccount,
@@ -48,6 +53,7 @@ export default function ParentPortal() {
     const [mode, setMode] = useState<"login" | "register">("login");
     const [accountReady, setAccountReady] = useState(false);
     const [account, setAccount] = useState<ParentAccount | null>(null);
+    const [accountLoadError, setAccountLoadError] = useState<unknown>(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
@@ -61,37 +67,32 @@ export default function ParentPortal() {
         (location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied
     );
 
-    useEffect(() => {
+    const loadAccount = useCallback(async () => {
         if (adminAuthLoading) return;
+        if (!user) {
+            setAccount(null);
+            setAccountLoadError(null);
+            setAccountReady(true);
+            return;
+        }
 
-        let cancelled = false;
-        const load = async () => {
-            if (!user) {
-                if (!cancelled) {
-                    setAccount(null);
-                    setAccountReady(true);
-                }
-                return;
-            }
-
-            setAccountReady(false);
-            setEmail(user.email || "");
-            try {
-                const parentAccount = await loadParentAccount(user.uid);
-                if (!cancelled) setAccount(parentAccount);
-            } catch (loadError) {
-                console.error("Unable to load parent account:", loadError);
-                if (!cancelled) setError("Unable to load your parent access record.");
-            } finally {
-                if (!cancelled) setAccountReady(true);
-            }
-        };
-
-        void load();
-        return () => {
-            cancelled = true;
-        };
+        setAccountReady(false);
+        setAccountLoadError(null);
+        setEmail(user.email || "");
+        try {
+            setAccount(await loadParentAccount(user.uid));
+        } catch (loadError) {
+            console.error("Unable to load parent account:", loadError);
+            setAccount(null);
+            setAccountLoadError(loadError);
+        } finally {
+            setAccountReady(true);
+        }
     }, [adminAuthLoading, user]);
+
+    useEffect(() => {
+        void loadAccount();
+    }, [loadAccount]);
 
     const submit = async () => {
         setWorking(true);
@@ -106,6 +107,7 @@ export default function ParentPortal() {
                 await registerParent(email, password, displayName, mobileNumber);
                 const newUser = auth.currentUser;
                 if (newUser) {
+                    setAccountLoadError(null);
                     setAccount(await loadParentAccount(newUser.uid));
                     setAccountReady(true);
                 }
@@ -164,7 +166,10 @@ export default function ParentPortal() {
         try {
             await createParentAccessForCurrentUser(displayName, mobileNumber);
             const current = auth.currentUser;
-            if (current) setAccount(await loadParentAccount(current.uid));
+            if (current) {
+                setAccountLoadError(null);
+                setAccount(await loadParentAccount(current.uid));
+            }
         } catch (setupError) {
             console.error("Unable to enable parent access:", setupError);
             setError("Unable to enable parent access for this account.");
@@ -201,9 +206,42 @@ export default function ParentPortal() {
                     {leaderHeader}
                     <Paper variant={leaderAccount ? "outlined" : "elevation"} elevation={leaderAccount ? 0 : 3} sx={{ p: { xs: 3, md: 4 }, minHeight: 240, borderRadius: 2 }}>
                         {!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Consent Portal</Typography>}
-                        <Box sx={{ minHeight: 140, display: "grid", placeItems: "center" }}>
-                            <CircularProgress color="success" size={32} />
-                        </Box>
+                        <OperationalLoading minHeight={140} label="Loading parent access" />
+                    </Paper>
+                </Container>
+            </Box>
+        );
+    }
+
+    if (user && accountLoadError) {
+        const loadMessage = firestoreFailureMessage(accountLoadError, "Unable to load your parent access record.");
+        const permissionDenied = classifyFirestoreFailure(accountLoadError) === "permission";
+        return (
+            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+                <Container maxWidth={leaderAccount ? "xl" : "sm"}>
+                    {leaderHeader}
+                    <Paper variant={leaderAccount ? "outlined" : "elevation"} elevation={leaderAccount ? 0 : 3} sx={{ p: { xs: 3, md: 4 }, borderRadius: 2 }}>
+                        {!leaderAccount && <Typography component="h1" variant="h3" color="secondary" sx={{ mb: 3 }}>Parent Consent Portal</Typography>}
+                        {permissionDenied ? (
+                            <OperationalPermissionState
+                                title="Parent access record restricted"
+                                actionLabel="Retry"
+                                onAction={() => void loadAccount()}
+                                testId="parent-account-permission"
+                            >
+                                {loadMessage}
+                            </OperationalPermissionState>
+                        ) : (
+                            <OperationalErrorState
+                                title="Parent access record could not be loaded"
+                                actionLabel="Retry"
+                                onAction={() => void loadAccount()}
+                                testId="parent-account-error"
+                            >
+                                {loadMessage}
+                            </OperationalErrorState>
+                        )}
+                        <Button variant="text" color="secondary" sx={{ mt: 2 }} onClick={() => void logoutParent()}>Sign Out</Button>
                     </Paper>
                 </Container>
             </Box>
