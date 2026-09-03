@@ -126,6 +126,15 @@ export default function EquipmentManagement() {
     return [item.name, item.category, item.location, item.notes].join(" ").toLowerCase().includes(query);
   }), [items, search, categoryFilter, locationFilter, showArchived]);
 
+  const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || showArchived);
+
+  const resetFilters = () => {
+    setSearch("");
+    setCategoryFilter("all");
+    setLocationFilter("all");
+    setShowArchived(false);
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
@@ -246,20 +255,38 @@ export default function EquipmentManagement() {
 
       <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField fullWidth label="Search equipment" value={search} onChange={(event) => setSearch(event.target.value)} />
-          <FormControl fullWidth><InputLabel>Category</InputLabel><Select label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><MenuItem value="all">All categories</MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</Select></FormControl>
-          <FormControl fullWidth><InputLabel>Location</InputLabel><Select label="Location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><MenuItem value="all">All locations</MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</Select></FormControl>
+          <TextField fullWidth label="Search equipment" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "equipment-search" } }} />
+          <FormControl fullWidth>
+            <InputLabel id="equipment-category-filter-label">Category</InputLabel>
+            <Select id="equipment-category-filter" labelId="equipment-category-filter-label" label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} data-testid="equipment-category-filter">
+              <MenuItem value="all">All categories</MenuItem>
+              {categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel id="equipment-location-filter-label">Location</InputLabel>
+            <Select id="equipment-location-filter" labelId="equipment-location-filter-label" label="Location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} data-testid="equipment-location-filter">
+              <MenuItem value="all">All locations</MenuItem>
+              {locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+            </Select>
+          </FormControl>
         </Stack>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ mt: 2, flexWrap: "wrap" }}>
           {canManage && <Button variant="contained" color="success" onClick={openCreate}>Add equipment</Button>}
           {canManage && <Button variant="outlined" onClick={() => setManageLocationsOpen(true)}>Manage locations</Button>}
           {canManage && <Button variant="outlined" onClick={() => setManageCategoriesOpen(true)}>Manage categories</Button>}
-          <Button variant="outlined" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Hide archived" : "Show archived"}</Button>
+          <Button variant="outlined" onClick={() => setShowArchived((value) => !value)} aria-pressed={showArchived} data-testid="equipment-archived-filter">{showArchived ? "Hide archived" : "Show archived"}</Button>
+          {hasActiveFilters && <Button variant="outlined" onClick={resetFilters} data-testid="equipment-reset-filters">Reset filters</Button>}
           <Button variant="outlined" onClick={() => void refresh()}>Refresh</Button>
         </Stack>
+        {!loading && (
+          <Typography sx={{ mt: 2 }} color="text.secondary" role="status" aria-live="polite" data-testid="equipment-result-count">
+            {visibleItems.length} matching equipment item{visibleItems.length === 1 ? "" : "s"}
+          </Typography>
+        )}
       </Paper>
 
-      {loading ? <Alert severity="info">Loading equipment…</Alert> : visibleItems.length === 0 ? <Alert severity="info">No equipment matches the current filters.</Alert> : (
+      {loading ? <Alert severity="info">Loading equipment…</Alert> : items.length === 0 ? <Alert severity="info">No equipment has been added yet.</Alert> : visibleItems.length === 0 ? <Alert severity="info">No equipment matches the current filters.</Alert> : (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
           {visibleItems.map((item) => {
             const available = availableEquipmentQuantity(item);
