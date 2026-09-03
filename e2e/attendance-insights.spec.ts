@@ -25,7 +25,7 @@ test("ordinary leader can compare attendance sources, filter dates and inspect h
   desktopOnly(testInfo);
   await loginLeader(page);
 
-  await page.getByRole("button", { name: /Leader Menu/ }).click();
+  await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   await page.getByRole("link", { name: "Attendance Insights" }).click();
   await expect(page).toHaveURL(/\/leader\/attendance$/);
   await expect(page.getByRole("heading", { name: "Attendance History & Insights" })).toBeVisible();

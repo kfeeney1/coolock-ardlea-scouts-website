@@ -20,7 +20,7 @@ test("member management search opens the permitted member record with integrated
   desktopOnly(testInfo);
   await loginLeader(page);
 
-  await page.getByRole("button", { name: /Leader Menu/ }).click();
+  await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   await page.getByRole("link", { name: "Member Management" }).click();
   await expect(page).toHaveURL(/\/leader\/members$/);
   await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
