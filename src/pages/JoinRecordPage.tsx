@@ -5,6 +5,10 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   InputLabel,
@@ -52,6 +56,7 @@ export default function JoinRecordPage() {
   const [contactMethod, setContactMethod] = useState<ContactMethod>("phone");
   const [contactNote, setContactNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [conversionConfirmationOpen, setConversionConfirmationOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -61,6 +66,7 @@ export default function JoinRecordPage() {
       const found = records.find((item) => item.id === applicationId) ?? null;
       setRecord(found);
       setNotesDraft(found?.notes ?? "");
+      setConversionConfirmationOpen(false);
       if (!found) setError("This joining enquiry could not be found or is outside your permitted sections.");
     } catch (loadError) {
       console.error("Unable to load joining enquiry:", loadError);
@@ -124,7 +130,8 @@ export default function JoinRecordPage() {
   };
 
   const convertToMember = async () => {
-    if (!record || !window.confirm(`Create a member record for ${record.childName}?`)) return;
+    if (!record) return;
+    setConversionConfirmationOpen(false);
     setSaving(true); setError(""); setMessage("");
     try {
       const memberId = await convertJoinApplicationToMember(record);
@@ -166,7 +173,7 @@ export default function JoinRecordPage() {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Workflow Status</Typography>
             <FormControl fullWidth><InputLabel id="join-record-status-label">Status</InputLabel><Select labelId="join-record-status-label" label="Status" value={record.status} disabled={saving} onChange={(e) => void changeStatus(e.target.value as JoinStatus)}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
-            {record.status === "accepted" && !record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => void convertToMember()}>Create Member Record</Button></Box>}
+            {record.status === "accepted" && !record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => setConversionConfirmationOpen(true)}>Create Member Record</Button></Box>}
             {record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button component={Link} to={`/leader/members/${encodeURIComponent(record.memberId)}`} variant="contained" color="success">Open Member Record</Button></Box>}
           </Paper>
 
@@ -194,5 +201,32 @@ export default function JoinRecordPage() {
         </Stack>}
       </>}
     </Container>
+
+    <Dialog
+      open={conversionConfirmationOpen && Boolean(record)}
+      onClose={() => !saving && setConversionConfirmationOpen(false)}
+      aria-labelledby="join-member-conversion-title"
+      fullWidth
+      maxWidth="sm"
+    >
+      <DialogTitle id="join-member-conversion-title">Create member record?</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography>
+            {record ? `Create a permanent member record for ${record.childName}?` : "Create this member record?"}
+          </Typography>
+          <Alert severity="info">
+            The new member will start as Active in {record?.section ?? "the selected section"} and this accepted enquiry will be linked to that member record.
+          </Alert>
+          <Typography color="text.secondary">
+            The existing conversion service will re-check that the enquiry is still Accepted and has not already been converted before creating anything.
+          </Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setConversionConfirmationOpen(false)} disabled={saving}>Cancel conversion</Button>
+        <Button variant="contained" color="success" onClick={() => void convertToMember()} disabled={saving}>Create Member Record</Button>
+      </DialogActions>
+    </Dialog>
   </Box>;
 }

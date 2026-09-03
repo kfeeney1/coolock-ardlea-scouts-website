@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry.
 
 ## Action feedback contract
 
@@ -76,6 +76,21 @@ This slice adds explicit review only when the status differs from the last saved
 - the existing `updateMember` service remains responsible for section permissions, atomic member-history writes and audit events;
 - deterministic Playwright coverage stages an existing active seeded member as **Left**, cancels the review, closes the editor and refreshes to prove the member remains Active.
 
+## Fifth slice — Join Us member conversion
+
+An accepted Join Us enquiry can be converted into a member with **Create Member Record**. The existing conversion path already re-checks the live enquiry inside a Firestore transaction, refuses conversion unless the enquiry is still **Accepted**, refuses duplicate conversion, creates the new member as **Active**, and links the new member ID back to the enquiry. Before this slice, the UI relied on browser-native `window.confirm` before invoking that service.
+
+This slice moves that action onto the same in-app review contract:
+
+- **Create Member Record** now opens an accessible **Create member record?** dialog instead of a browser-native prompt;
+- the confirmation identifies the child and explains that a persistent Active member record will be created in the enquiry's section and linked back to the accepted enquiry;
+- the confirmation states that the existing conversion service will re-check accepted status and duplicate-conversion state before creating anything;
+- **Cancel conversion** closes the dialog without calling the conversion service or persisting a member link;
+- confirming invokes the existing `convertJoinApplicationToMember` service and keeps the existing success and failure feedback;
+- workflow-status changes, notes and contact-history behaviour are unchanged;
+- the existing transaction, accepted-status requirement, duplicate-conversion guard and record-linking semantics remain authoritative;
+- deterministic Playwright coverage uses the existing `TEST_flow_join_accepted` fixture, opens and cancels the confirmation, reloads the record, and proves **Create Member Record** remains available with no member created.
+
 ## Preserved boundaries
 
 These slices do not alter:
@@ -86,7 +101,8 @@ These slices do not alter:
 - leader-access service validation or organisation/public projection semantics;
 - event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
 - member service validation, section permissions, lifecycle-history semantics or audit behaviour;
-- parent-account, member, leader-access, organisation or event data models;
+- Join Us workflow-status semantics, conversion transaction semantics, accepted-status validation, duplicate-conversion safeguards or member/enquiry linking;
+- parent-account, member, leader-access, organisation, event or Join Us data models;
 - audit event category/action/description semantics;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
@@ -94,4 +110,4 @@ These slices do not alter:
 
 ## Next review target
 
-Review **Join Us enquiry conversion to a member record** next. The accepted-enquiry workflow still uses a browser-native `window.confirm` before **Create Member Record**, even though conversion creates a persistent member record and links that new member back to the enquiry. Stage 20.5 should bring that action onto the same accessible in-app confirmation contract while preserving the existing accepted-status requirement, duplicate-conversion guard, section permissions, conversion service and audit behaviour.
+Review **Leader Registration request approval and rejection** next. The current request-review dialog explains that approval creates an active section-scoped Leader account, but its **Reject** and **Approve as Leader** actions immediately call the corresponding registration services from the same review dialog. Because approval creates operational access and rejection closes the pending request, Stage 20.5 should inspect whether these final actions need an explicit consequence-focused confirmation step while preserving the existing administrator restriction, registration service validation and audit behaviour.
