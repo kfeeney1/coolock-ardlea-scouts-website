@@ -1,4 +1,4 @@
-import { Alert, Box, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
+import { Box, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 
@@ -6,10 +6,15 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import OperationalSearchField from "../components/admin/OperationalSearchField";
 import OperationalStatusChip from "../components/admin/OperationalStatusChip";
-import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
+import {
+  OperationalEmptyState,
+  OperationalErrorState,
+  OperationalLoading,
+  OperationalPermissionState
+} from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { db } from "../firebase";
-import { firestoreFailureMessage } from "../services/firestoreErrors";
+import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import { loadMemberLifecycleHistory, type MemberLifecycleHistoryRecord } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 
@@ -43,7 +48,10 @@ export default function MemberHistory() {
   const [history, setHistory] = useState<MemberLifecycleHistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [memberLoadError, setMemberLoadError] = useState<unknown>(null);
+  const [historyLoadError, setHistoryLoadError] = useState<unknown>(null);
+  const [memberRetryVersion, setMemberRetryVersion] = useState(0);
+  const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
@@ -51,7 +59,7 @@ export default function MemberHistory() {
     let cancelled = false;
     void (async () => {
       setLoading(true);
-      setError("");
+      setMemberLoadError(null);
       try {
         const docs = isAdmin
           ? (await getDocs(collection(db, "members"))).docs
@@ -74,43 +82,40 @@ export default function MemberHistory() {
         const loaded = [...unique.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
         if (!cancelled) {
           setMembers(loaded);
-          setSelectedId((current) => current || loaded[0]?.id || "");
+          setSelectedId((current) => current && loaded.some((member) => member.id === current) ? current : loaded[0]?.id || "");
         }
       } catch (loadError) {
         console.error("Unable to load members for lifecycle history:", loadError);
-        if (!cancelled) {
-          setError(firestoreFailureMessage(loadError, "Unable to load member lifecycle history."));
-        }
+        if (!cancelled) setMemberLoadError(loadError);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [adminProfile?.sections, isAdmin]);
+  }, [adminProfile?.sections, isAdmin, memberRetryVersion]);
 
   useEffect(() => {
     let cancelled = false;
     if (!selectedId) {
       setHistory([]);
+      setHistoryLoadError(null);
       return;
     }
     void (async () => {
       setHistoryLoading(true);
-      setError("");
+      setHistoryLoadError(null);
       try {
         const loaded = await loadMemberLifecycleHistory(selectedId);
         if (!cancelled) setHistory(loaded);
       } catch (loadError) {
         console.error("Unable to load lifecycle entries:", loadError);
-        if (!cancelled) {
-          setError(firestoreFailureMessage(loadError, "Unable to load lifecycle entries for this member."));
-        }
+        if (!cancelled) setHistoryLoadError(loadError);
       } finally {
         if (!cancelled) setHistoryLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, historyRetryVersion]);
 
   const filteredMembers = useMemo(
     () => members.filter((member) => matchesSearch(member, search)),
@@ -129,6 +134,50 @@ export default function MemberHistory() {
     }
   };
 
+  const memberErrorState = memberLoadError ? (
+    classifyFirestoreFailure(memberLoadError) === "permission" ? (
+      <OperationalPermissionState
+        title="Member history access unavailable"
+        actionLabel="Retry"
+        onAction={() => setMemberRetryVersion((value) => value + 1)}
+        testId="member-history-members-permission"
+      >
+        {firestoreFailureMessage(memberLoadError, "Unable to load the member list for lifecycle history.")}
+      </OperationalPermissionState>
+    ) : (
+      <OperationalErrorState
+        title="Members could not be loaded"
+        actionLabel="Retry"
+        onAction={() => setMemberRetryVersion((value) => value + 1)}
+        testId="member-history-members-error"
+      >
+        {firestoreFailureMessage(memberLoadError, "Unable to load the member list for lifecycle history. Please try again.")}
+      </OperationalErrorState>
+    )
+  ) : null;
+
+  const historyErrorState = historyLoadError ? (
+    classifyFirestoreFailure(historyLoadError) === "permission" ? (
+      <OperationalPermissionState
+        title="Lifecycle history access unavailable"
+        actionLabel="Retry"
+        onAction={() => setHistoryRetryVersion((value) => value + 1)}
+        testId="member-history-detail-permission"
+      >
+        {firestoreFailureMessage(historyLoadError, "Unable to load lifecycle entries for this member.")}
+      </OperationalPermissionState>
+    ) : (
+      <OperationalErrorState
+        title="Lifecycle history could not be loaded"
+        actionLabel="Retry"
+        onAction={() => setHistoryRetryVersion((value) => value + 1)}
+        testId="member-history-detail-error"
+      >
+        {firestoreFailureMessage(historyLoadError, "Unable to load lifecycle entries for this member. Please try again.")}
+      </OperationalErrorState>
+    )
+  ) : null;
+
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
       <Container maxWidth="xl">
@@ -138,11 +187,11 @@ export default function MemberHistory() {
           description="Search members and review recorded section transfers and membership status changes. History is append-only and follows the member record."
         />
 
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
         <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
           {loading ? (
             <OperationalLoading minHeight={100} label="Loading members" />
+          ) : memberErrorState ? (
+            memberErrorState
           ) : members.length === 0 ? (
             <OperationalEmptyState>No member records are available in your assigned sections.</OperationalEmptyState>
           ) : (
@@ -173,7 +222,7 @@ export default function MemberHistory() {
           )}
         </Paper>
 
-        {selected && (
+        {selected && !memberLoadError && (
           <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 2 }}>
               <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>{selected.displayName}</Typography>
@@ -183,6 +232,8 @@ export default function MemberHistory() {
 
             {historyLoading ? (
               <OperationalLoading minHeight={120} label="Loading member history" />
+            ) : historyErrorState ? (
+              historyErrorState
             ) : history.length === 0 ? (
               <OperationalEmptyState>No section transfers or membership status changes have been recorded for this member yet.</OperationalEmptyState>
             ) : (

@@ -2,10 +2,8 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert,
   Box,
   Chip,
-  CircularProgress,
   FormControl,
   InputLabel,
   MenuItem,
@@ -16,29 +14,36 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  OperationalLoading,
+  OperationalPermissionState,
+  OperationalUnavailableState,
+  OperationalErrorState
+} from "../admin/OperationalStates";
 import { loadLinkedMembers, type ParentLinkedMember } from "../../services/parentConsent";
 import { loadMemberAdventureProgress, type MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { parentAdventureSkillSummaries } from "../../services/parentAdventureSkillProgressLogic.ts";
+import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
 
 export default function ParentAdventureSkillsSection({ memberIds }: { memberIds: string[] }) {
   const [members, setMembers] = useState<ParentLinkedMember[]>([]);
   const [progressByMember, setProgressByMember] = useState(new Map<string, MemberAdventureProgress>());
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadError(null);
     try {
       const linkedMembers = await loadLinkedMembers(memberIds);
       const progress = await Promise.all(linkedMembers.map((member) => loadMemberAdventureProgress(member.id)));
       setMembers(linkedMembers);
       setProgressByMember(new Map(progress.map((item) => [item.memberId, item])));
       setSelectedMemberId((current) => current && linkedMembers.some((member) => member.id === current) ? current : linkedMembers[0]?.id ?? "");
-    } catch (loadError) {
-      console.error("Unable to load parent Adventure Skills progress:", loadError);
-      setError("Unable to load Adventure Skills progress right now.");
+    } catch (error) {
+      console.error("Unable to load parent Adventure Skills progress:", error);
+      setLoadError(error);
     } finally {
       setLoading(false);
     }
@@ -50,9 +55,43 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
   const progress = selectedMember ? progressByMember.get(selectedMember.id) : undefined;
   const summaries = useMemo(() => progress ? parentAdventureSkillSummaries(progress) : [], [progress]);
 
-  if (loading) return <Box sx={{ minHeight: 180, display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
-  if (error) return <Alert severity="error">{error}</Alert>;
-  if (members.length === 0) return <Alert severity="warning">No linked child records are available for Adventure Skills progress. Please ask a leader to review Parent Access.</Alert>;
+  if (loading) {
+    return <OperationalLoading minHeight={180} label="Loading Adventure Skills progress" />;
+  }
+
+  if (loadError) {
+    const message = firestoreFailureMessage(loadError, "Unable to load Adventure Skills progress right now. Please try again.");
+    if (classifyFirestoreFailure(loadError) === "permission") {
+      return (
+        <OperationalPermissionState
+          title="Adventure Skills access unavailable"
+          actionLabel="Retry"
+          onAction={() => void load()}
+          testId="parent-adventure-skills-permission"
+        >
+          {message}
+        </OperationalPermissionState>
+      );
+    }
+    return (
+      <OperationalErrorState
+        title="Adventure Skills could not be loaded"
+        actionLabel="Retry"
+        onAction={() => void load()}
+        testId="parent-adventure-skills-error"
+      >
+        {message}
+      </OperationalErrorState>
+    );
+  }
+
+  if (members.length === 0) {
+    return (
+      <OperationalUnavailableState title="Adventure Skills not available yet" testId="parent-adventure-skills-unavailable">
+        No linked child record is available for Adventure Skills progress yet. Please ask a leader to review Parent Access.
+      </OperationalUnavailableState>
+    );
+  }
 
   return <Stack spacing={2.5}>
     <Typography color="text.secondary">Adventure Skills progress is read-only here. Expand a stage to see each competency point and whether it has been completed.</Typography>
