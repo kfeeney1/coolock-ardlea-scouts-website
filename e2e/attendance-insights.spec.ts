@@ -21,7 +21,7 @@ test("attendance insights rejects unauthenticated users", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Leader Login" })).toBeVisible();
 });
 
-test("ordinary leader can compare attendance sources, filter dates and inspect history", async ({ page }, testInfo) => {
+test("ordinary leader can compare attendance sources, preserve filters through history and reset them together", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   await loginLeader(page);
 
@@ -37,12 +37,15 @@ test("ordinary leader can compare attendance sources, filter dates and inspect h
   const seededMember = "Casey OBrien Scouts 01";
   const search = page.getByLabel("Search members");
   await search.fill(seededMember);
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Scouts" }).click();
   const cards = page.getByTestId("attendance-member-card");
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toContainText(seededMember);
   await expect(cards.first()).toContainText("Meetings");
   await expect(cards.first()).toContainText("Events");
   await expect(cards.first()).toContainText("Combined");
+  await expect(page.getByTestId("attendance-result-count")).toContainText("1");
 
   await page.getByTestId("attendance-from-date").fill("2099-01-15");
   await page.getByTestId("attendance-to-date").fill("2099-01-15");
@@ -59,6 +62,15 @@ test("ordinary leader can compare attendance sources, filter dates and inspect h
   await expect(detail.getByRole("button", { name: /Events \(/ })).toHaveAttribute("class", /MuiButton-contained/);
   await detail.getByRole("button", { name: "Back to members" }).click();
   await expect(search).toHaveValue(seededMember);
+  await expect(page.getByRole("combobox", { name: "Section" })).toContainText("Scouts");
   await expect(page.getByTestId("attendance-from-date")).toHaveValue("2099-01-15");
   await expect(page.getByTestId("attendance-to-date")).toHaveValue("2099-01-15");
+
+  await page.getByRole("button", { name: "Reset filters" }).click();
+  await expect(search).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Section" })).toContainText("All permitted sections");
+  await expect(page.getByRole("combobox", { name: "Scout period" })).toContainText("Custom / all dates");
+  await expect(page.getByTestId("attendance-from-date")).toHaveValue("");
+  await expect(page.getByTestId("attendance-to-date")).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
 });
