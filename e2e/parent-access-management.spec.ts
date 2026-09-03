@@ -17,7 +17,7 @@ async function loginAdmin(page: Page) {
 }
 
 test.describe("parent access management", () => {
-  test("admin opens a parent then searches for child members instead of rendering the full list", async ({ page }, testInfo) => {
+  test("admin opens a parent, searches for children and gets an in-app revoke confirmation", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
 
@@ -29,6 +29,15 @@ test.describe("parent access management", () => {
     if (await approvedCard.count()) {
       await expect(approvedCard.getByRole("button", { name: "Approve Access" })).toHaveCount(0);
       await expect(approvedCard.getByRole("button", { name: "Manage Linked Children" })).toBeVisible();
+
+      await approvedCard.getByRole("button", { name: "Revoke Access" }).click();
+      const revokeDialog = page.getByRole("dialog", { name: "Revoke parent access?" });
+      await expect(revokeDialog).toBeVisible();
+      await expect(revokeDialog).toContainText(/immediately clears all linked children and sections/i);
+      await expect(revokeDialog).toContainText(/account and historical records are not deleted/i);
+      await revokeDialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(revokeDialog).toHaveCount(0);
+      await expect(approvedCard.getByText("approved", { exact: true })).toBeVisible();
     }
 
     const manageButton = page.getByRole("button", { name: "Manage Linked Children" }).first();
