@@ -1,5 +1,14 @@
-import { Alert, Box, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  OperationalEmptyState,
+  OperationalErrorState,
+  OperationalLoading,
+  OperationalPermissionState,
+  OperationalUnavailableState
+} from "../admin/OperationalStates";
+import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
 import { loadParentWeeklyMeetingProgrammes } from "../../services/weeklyMeetingProgramme";
 import type { ParentWeeklyMeetingProgramme } from "../../services/weeklyMeetingProgramme";
 
@@ -13,25 +22,40 @@ const displayDate = (value: string) => {
 export default function ParentWeeklyProgramme({ sections }: Props) {
   const [meetings, setMeetings] = useState<ParentWeeklyMeetingProgramme[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+
+  const retry = useCallback(() => setRetryVersion((value) => value + 1), []);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      if (sections.length === 0) {
+        setMeetings([]);
+        setLoadError(null);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      setError("");
+      setLoadError(null);
       try {
         const records = await loadParentWeeklyMeetingProgrammes(sections);
         if (!cancelled) setMeetings(records);
-      } catch (loadError) {
-        console.error("Unable to load parent weekly programme:", loadError);
-        if (!cancelled) setError("Unable to load weekly meeting programmes right now.");
+      } catch (error) {
+        console.error("Unable to load parent weekly programme:", error);
+        if (!cancelled) setLoadError(error);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [sections]);
+  }, [sections, retryVersion]);
+
+  const failureKind = loadError ? classifyFirestoreFailure(loadError) : null;
+  const failureMessage = loadError
+    ? firestoreFailureMessage(loadError, "Unable to load weekly meeting programmes right now. Please try again.")
+    : "";
 
   return (
     <Box id="parent-weekly-programme" sx={{ mt: 3, scrollMarginTop: 24 }} data-testid="parent-weekly-programme">
@@ -40,11 +64,23 @@ export default function ParentWeeklyProgramme({ sections }: Props) {
         Parent view shows programme and planned badgework only. Attendance, completed badgework, incidents, subs and leader notes are never included here.
       </Typography>
       {loading ? (
-        <Box sx={{ minHeight: 100, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>
-      ) : error ? (
-        <Alert severity="error">{error}</Alert>
+        <OperationalLoading minHeight={100} label="Loading weekly meeting programme" />
+      ) : sections.length === 0 ? (
+        <OperationalUnavailableState title="Weekly programme unavailable">
+          A linked Scout section is needed before weekly meeting programme information can be shown. Contact the Scout Group if your child should already be linked to this account.
+        </OperationalUnavailableState>
+      ) : loadError && failureKind === "permission" ? (
+        <OperationalPermissionState title="Weekly programme access unavailable" actionLabel="Retry" onAction={retry}>
+          {failureMessage}
+        </OperationalPermissionState>
+      ) : loadError ? (
+        <OperationalErrorState title="Weekly programme could not be loaded" actionLabel="Retry" onAction={retry}>
+          {failureMessage}
+        </OperationalErrorState>
       ) : meetings.length === 0 ? (
-        <Alert severity="info">No weekly meeting programme has been published for your linked section yet.</Alert>
+        <OperationalEmptyState title="No weekly programme yet">
+          No weekly meeting programme has been published for your linked section yet.
+        </OperationalEmptyState>
       ) : (
         <Stack spacing={2}>
           {meetings.slice(0, 8).map((meeting) => (
