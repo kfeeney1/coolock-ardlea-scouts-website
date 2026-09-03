@@ -1,5 +1,5 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Alert, Box, Button, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -11,6 +11,11 @@ import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 const statuses: MemberStatus[] = ["active", "inactive", "left"];
 const statusLabel = (status: MemberStatus) => status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Left";
+const statusChangeConsequence = (status: MemberStatus) => {
+  if (status === "active") return "The member will return to active status in the member register.";
+  if (status === "inactive") return "The member will be marked inactive while their record and lifecycle history are retained.";
+  return "The member will be marked as having left while their record and lifecycle history are retained.";
+};
 const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Date unavailable";
 
 export default function MemberRecordPage() {
@@ -21,12 +26,14 @@ export default function MemberRecordPage() {
   const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [statusConfirmationOpen, setStatusConfirmationOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   const load = async () => {
     setLoading(true);
     setError("");
+    setStatusConfirmationOpen(false);
     try {
       const found = (await loadMembers()).find((item) => item.id === memberId) ?? null;
       if (!found) {
@@ -53,9 +60,15 @@ export default function MemberRecordPage() {
 
   useEffect(() => { void load(); }, [memberId]);
 
-  const save = async () => {
+  const save = async (statusConfirmed = false) => {
     if (!member || !draft) return;
     if (!draft.displayName.trim()) return setError("Member name is required.");
+    if (!statusConfirmed && draft.status !== member.status) {
+      setError("");
+      setMessage("");
+      setStatusConfirmationOpen(true);
+      return;
+    }
     setSaving(true);
     setError("");
     setMessage("");
@@ -76,6 +89,11 @@ export default function MemberRecordPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const confirmStatusChange = () => {
+    setStatusConfirmationOpen(false);
+    void save(true);
   };
 
   const field = (key: keyof MemberRecord, label: string, type = "text") => draft && (
@@ -116,6 +134,37 @@ export default function MemberRecordPage() {
           {history.length === 0 ? <Alert severity="info">No section transfers or membership status changes have been recorded yet.</Alert> : <Stack spacing={1.5}>{history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{lifecycleChangeLabel(entry.changeType)}</Typography><Typography color="text.secondary" sx={{ mt: 0.5 }}>{entry.fromSection || "No section"} / {entry.fromStatus} → {entry.toSection || "No section"} / {entry.toStatus}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{formatDate(entry.changedAt)}</Typography></Paper>)}</Stack>}
         </Paper>
       </Stack>}
+
+      <Dialog
+        open={Boolean(statusConfirmationOpen && member && draft)}
+        onClose={() => !saving && setStatusConfirmationOpen(false)}
+        aria-labelledby="member-record-status-confirmation-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        {member && draft && <>
+          <DialogTitle id="member-record-status-confirmation-title">Confirm member status change?</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2}>
+              <Typography>
+                <strong>{draft.displayName}</strong> will change from {statusLabel(member.status)} to {statusLabel(draft.status)}.
+              </Typography>
+              <Alert severity={draft.status === "active" ? "info" : "warning"}>
+                {statusChangeConsequence(draft.status)}
+              </Alert>
+              <Typography color="text.secondary">
+                Saving this status change will use the existing member lifecycle history and audit trail.
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button disabled={saving} onClick={() => setStatusConfirmationOpen(false)}>Cancel status change</Button>
+            <Button variant="contained" color={draft.status === "active" ? "success" : "warning"} disabled={saving} onClick={confirmStatusChange}>
+              {saving ? "Saving..." : "Confirm Status Change"}
+            </Button>
+          </DialogActions>
+        </>}
+      </Dialog>
     </Container>
   </Box>;
 }
