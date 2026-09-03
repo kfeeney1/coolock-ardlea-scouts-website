@@ -33,7 +33,7 @@ test.describe("leader journey", () => {
     await expect(page.getByText(/make sure an administrator has approved your leader account/i)).toBeVisible();
   });
 
-  test("administrator can discover Leader Requests and canonical pending assignment", async ({ page }, testInfo) => {
+  test("administrator can discover Leader Requests and review decisions without persisting them", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
 
@@ -48,6 +48,38 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("heading", { name: "Leader Requests" })).toBeVisible();
 
     if (seededJourneyData) {
+      await expect(page.getByText("Pending Scouter")).toBeVisible();
+      await expect(page.getByText("test_flow_leader_request_pending@example.com")).toBeVisible();
+      await expect(page.getByText(/Scouter · Beavers/)).toBeVisible();
+
+      await page.getByRole("button", { name: "Review Request" }).first().click();
+      const review = page.getByRole("dialog", { name: "Review leader request" });
+      await expect(review).toBeVisible();
+      await expect(review).toContainText("Pending Scouter");
+      await expect(review).toContainText("active Leader account for Beavers");
+
+      await review.getByRole("button", { name: "Reject", exact: true }).click();
+      const rejectConfirmation = page.getByRole("dialog", { name: "Reject leader request?" });
+      await expect(rejectConfirmation).toBeVisible();
+      await expect(rejectConfirmation).toContainText("Pending Scouter");
+      await expect(rejectConfirmation).toContainText("closed as Rejected");
+      await expect(rejectConfirmation.getByRole("button", { name: "Confirm Rejection", exact: true })).toBeVisible();
+      await rejectConfirmation.getByRole("button", { name: "Back to review", exact: true }).click();
+
+      await expect(review).toBeVisible();
+      await review.getByRole("button", { name: "Approve as Leader", exact: true }).click();
+      const approveConfirmation = page.getByRole("dialog", { name: "Approve leader access?" });
+      await expect(approveConfirmation).toBeVisible();
+      await expect(approveConfirmation).toContainText("Pending Scouter");
+      await expect(approveConfirmation).toContainText("active section-scoped Leader account");
+      await expect(approveConfirmation).toContainText("grants access to Beavers leader data and workflows");
+      await expect(approveConfirmation.getByRole("button", { name: "Confirm Approval", exact: true })).toBeVisible();
+      await approveConfirmation.getByRole("button", { name: "Back to review", exact: true }).click();
+
+      await expect(review).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(review).toBeHidden();
+      await page.reload();
       await expect(page.getByText("Pending Scouter")).toBeVisible();
       await expect(page.getByText("test_flow_leader_request_pending@example.com")).toBeVisible();
       await expect(page.getByText(/Scouter · Beavers/)).toBeVisible();

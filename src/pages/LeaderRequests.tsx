@@ -35,6 +35,8 @@ function formatDate(value: Date | null) {
     }).format(value);
 }
 
+type ReviewDecision = "approve" | "reject";
+
 export default function LeaderRequests() {
     const { user, adminProfile } = useAdminAuth();
     const [requests, setRequests] = useState<LeaderRegistrationRequest[]>([]);
@@ -44,6 +46,7 @@ export default function LeaderRequests() {
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<LeaderRegistrationRequest | null>(null);
     const [reviewNote, setReviewNote] = useState("");
+    const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const [saving, setSaving] = useState(false);
 
     const refresh = async () => {
@@ -84,8 +87,16 @@ export default function LeaderRequests() {
 
     const pendingCount = requests.filter((request) => request.status === "pending").length;
 
+    const closeReview = () => {
+        if (saving) return;
+        setDecision(null);
+        setSelected(null);
+        setReviewNote("");
+    };
+
     const finish = async (approved: boolean) => {
         if (!selected || !user) return;
+        setDecision(null);
         setSaving(true);
         setError("");
         setMessage("");
@@ -193,7 +204,7 @@ export default function LeaderRequests() {
                                             color={request.status === "approved" ? "success" : request.status === "rejected" ? "error" : "warning"}
                                         />
                                         {request.status === "pending" && (
-                                            <Button variant="contained" color="success" onClick={() => setSelected(request)}>
+                                            <Button variant="contained" color="success" onClick={() => { setDecision(null); setSelected(request); }}>
                                                 Review Request
                                             </Button>
                                         )}
@@ -204,8 +215,8 @@ export default function LeaderRequests() {
                     </Stack>
                 )}
 
-                <Dialog open={Boolean(selected)} onClose={() => !saving && setSelected(null)} fullWidth maxWidth="sm">
-                    <DialogTitle>Review leader request</DialogTitle>
+                <Dialog open={Boolean(selected && !decision)} onClose={closeReview} fullWidth maxWidth="sm" aria-labelledby="leader-request-review-title">
+                    <DialogTitle id="leader-request-review-title">Review leader request</DialogTitle>
                     <DialogContent>
                         {selected && (
                             <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
@@ -222,10 +233,62 @@ export default function LeaderRequests() {
                         />
                     </DialogContent>
                     <DialogActions>
-                        <Button color="error" onClick={() => void finish(false)} disabled={saving}>Reject</Button>
-                        <Button variant="contained" color="success" onClick={() => void finish(true)} disabled={saving}>
-                            {saving ? "Saving…" : "Approve as Leader"}
+                        <Button color="error" onClick={() => setDecision("reject")} disabled={saving}>Reject</Button>
+                        <Button variant="contained" color="success" onClick={() => setDecision("approve")} disabled={saving}>
+                            Approve as Leader
                         </Button>
+                    </DialogActions>
+                </Dialog>
+
+                <Dialog
+                    open={Boolean(selected && decision)}
+                    onClose={() => !saving && setDecision(null)}
+                    fullWidth
+                    maxWidth="sm"
+                    aria-labelledby="leader-request-decision-title"
+                >
+                    <DialogTitle id="leader-request-decision-title">
+                        {decision === "approve" ? "Approve leader access?" : "Reject leader request?"}
+                    </DialogTitle>
+                    <DialogContent>
+                        {selected && decision === "approve" && (
+                            <Stack spacing={2} sx={{ pt: 1 }}>
+                                <Typography>
+                                    Approve <strong>{selected.fullName}</strong> as a Leader for {selected.requestedSection}?
+                                </Typography>
+                                <Alert severity="warning">
+                                    This creates an active section-scoped Leader account and grants access to {selected.requestedSection} leader data and workflows.
+                                </Alert>
+                                <Typography color="text.secondary">
+                                    The existing registration service will re-check that the request is still pending before creating access. Additional sections or role changes remain controlled from Leader Access.
+                                </Typography>
+                            </Stack>
+                        )}
+                        {selected && decision === "reject" && (
+                            <Stack spacing={2} sx={{ pt: 1 }}>
+                                <Typography>
+                                    Reject the pending leader request from <strong>{selected.fullName}</strong>?
+                                </Typography>
+                                <Alert severity="warning">
+                                    The request will be closed as Rejected and no leader access will be created from this request.
+                                </Alert>
+                                <Typography color="text.secondary">
+                                    The review note will be retained with the request and the existing notification and audit flow will remain in use.
+                                </Typography>
+                            </Stack>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setDecision(null)} disabled={saving}>Back to review</Button>
+                        {decision === "approve" ? (
+                            <Button variant="contained" color="success" onClick={() => void finish(true)} disabled={saving}>
+                                {saving ? "Saving…" : "Confirm Approval"}
+                            </Button>
+                        ) : (
+                            <Button variant="contained" color="error" onClick={() => void finish(false)} disabled={saving}>
+                                {saving ? "Saving…" : "Confirm Rejection"}
+                            </Button>
+                        )}
                     </DialogActions>
                 </Dialog>
             </Container>

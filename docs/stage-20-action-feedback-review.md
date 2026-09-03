@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request.
 
 ## Action feedback contract
 
@@ -91,6 +91,20 @@ This slice moves that action onto the same in-app review contract:
 - the existing transaction, accepted-status requirement, duplicate-conversion guard and record-linking semantics remain authoritative;
 - deterministic Playwright coverage uses the existing `TEST_flow_join_accepted` fixture, opens and cancels the confirmation, reloads the record, and proves **Create Member Record** remains available with no member created.
 
+## Sixth slice — Leader Registration request decisions
+
+The Leader Requests screen already separates request review from the list, but **Approve as Leader** and **Reject** previously executed their service calls immediately from that review dialog. Approval creates active section-scoped operational access; rejection closes the pending request and retains its review record.
+
+This slice adds a consequence-focused final review for both decisions:
+
+- **Approve as Leader** now opens an accessible **Approve leader access?** confirmation before the approval service runs;
+- the confirmation identifies the applicant, names the requested section, and explains that an active section-scoped Leader account will be created with access to that section's leader data and workflows;
+- **Reject** now opens an accessible **Reject leader request?** confirmation explaining that the request will close as Rejected and no leader access will be created from it;
+- **Back to review** returns to the original review dialog with the review note intact and without persisting either decision;
+- confirmed approval and rejection continue through the existing registration services, notification flow, audit event, success/error feedback and list refresh;
+- approval's existing transactional pending-status check remains authoritative, and the administrator/Super Admin screen restriction is unchanged;
+- deterministic Playwright coverage uses the existing `TEST_flow_leader_request_pending` fixture, reviews both decision confirmations, backs out of each, reloads, and proves the request remains Pending.
+
 ## Preserved boundaries
 
 These slices do not alter:
@@ -99,15 +113,15 @@ These slices do not alter:
 - administrator and Super Admin role requirements;
 - parent approval, rejection or child-linking semantics;
 - leader-access service validation or organisation/public projection semantics;
+- Leader Registration service semantics, notification behaviour or audit event semantics;
 - event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
 - member service validation, section permissions, lifecycle-history semantics or audit behaviour;
 - Join Us workflow-status semantics, conversion transaction semantics, accepted-status validation, duplicate-conversion safeguards or member/enquiry linking;
-- parent-account, member, leader-access, organisation, event or Join Us data models;
-- audit event category/action/description semantics;
+- parent-account, member, leader-access, organisation, event, Join Us or Leader Registration data models;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
 - production data or the parked production TEST-data cleanup process.
 
 ## Next review target
 
-Review **Leader Registration request approval and rejection** next. The current request-review dialog explains that approval creates an active section-scoped Leader account, but its **Reject** and **Approve as Leader** actions immediately call the corresponding registration services from the same review dialog. Because approval creates operational access and rejection closes the pending request, Stage 20.5 should inspect whether these final actions need an explicit consequence-focused confirmation step while preserving the existing administrator restriction, registration service validation and audit behaviour.
+Review **Parent Access approval and rejection** next. Revocation already has an explicit confirmation, but pending or previously rejected parent accounts can still be approved and linked to selected child records, while non-approved accounts can be rejected, directly from the management card. Approval grants parent access to selected children and can link existing consent records; rejection closes the request. Stage 20.5 should bring those decisions onto the same consequence-focused confirmation contract while preserving identity-verification guidance, child-selection validation, consent linking, `updateParentAccess`, audit behaviour and existing permissions.
