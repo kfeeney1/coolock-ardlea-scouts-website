@@ -4,7 +4,7 @@
 
 Stage 20.4 reviews larger operational datasets so search, filter, date-range and reset behaviour is predictable without changing server-side authorization, query scope, read budgets or production data handling.
 
-The first implementation slice covers **Attendance History & Insights**. The second covers **Equipment & Stores**. Later slices should review other high-use datasets such as reports against the same interaction contract rather than forcing unrelated screens into one large change.
+The first implementation slice covers **Attendance History & Insights**. The second covers **Equipment & Stores**. The third covers **Reports & Exports**. Together they establish the shared interaction contract on the main high-use datasets identified for this stage.
 
 ## Search/filter contract
 
@@ -45,6 +45,21 @@ This slice applies the same interaction contract:
 - explicitly associates the category and location labels with their MUI selects, preserving accessible names and reliable role-based test selectors;
 - adds stable filter hooks and extends the existing deterministic equipment checkout flow to verify combined filtering and reset without adding seed records solely for this UI check.
 
+## Third slice — Reports & Exports
+
+The Reports & Exports screen already filtered its authorized event snapshot by From/To dates. It exposed a result count and a date-only clear action, but the reset behaviour and accessibility feedback did not yet match the Stage 20.4 contract.
+
+This slice standardises that date filter set:
+
+- treats From and To as one report filter set;
+- replaces the always-present disabled **Clear dates** action with **Reset filters** only while either date constraint is active;
+- reset clears both dates together and returns reporting to the already-loaded authorized event snapshot;
+- exposes the event-range result count as a polite live status;
+- adds stable hooks for both date inputs, reset and result count;
+- extends the existing deterministic Reports Playwright flow to verify filter activation and reset while preserving its CSV export coverage.
+
+No Finance Reports filter semantics are folded into this reset because that panel is a separate reporting workflow with its own controls and data semantics.
+
 ## Preserved boundaries
 
 These slices do not alter:
@@ -56,6 +71,7 @@ These slices do not alter:
 - attendance calculations or history construction;
 - equipment stock, checkout, return, incident or movement calculations;
 - Scout-period definitions;
+- report CSV contents, audit semantics or event-member loading behaviour;
 - data models, indexes or Firebase configuration;
 - deterministic seed contents or seed safety checks;
 - workflow security, provenance controls or branch-protection requirements;
@@ -63,6 +79,8 @@ These slices do not alter:
 
 The filter changes are client-side interaction changes over the same already-authorized datasets.
 
-## Next review target
+## Stage 20.4 status
 
-Review **Reports & Exports** next against the same contract. Its current From/To event date range already has a partial clear action and result count, so the review should stay focused on consistency and accessibility without broadening reporting queries, exports or Stage 19.6 read-budget behaviour.
+**Complete.** Attendance History & Insights, Equipment & Stores, and Reports & Exports now apply the shared search/filter/reset contract across the principal larger operational datasets identified for this stage.
+
+The next planned Stage 20 area is **20.5 — Action confirmation and feedback**: review high-impact operational actions for consistent confirmation, success, failure and destructive/revocation feedback without weakening permissions or replacing guarded server-side validation.
