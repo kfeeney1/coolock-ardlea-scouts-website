@@ -340,7 +340,7 @@ export default function EventConsentManagement() {
                         fullWidth
                         label="Parent consent link"
                         value={copyFallbackUrl}
-                        inputProps={{ readOnly: true }}
+                        slotProps={{ input: { readOnly: true } }}
                         onFocus={(event) => event.target.select()}
                     />
                 </DialogContent>
