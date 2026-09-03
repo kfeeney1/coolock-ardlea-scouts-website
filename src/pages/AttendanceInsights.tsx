@@ -121,7 +121,13 @@ export default function AttendanceInsights() {
           : "No sections assigned";
 
     const invalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
-    const hasActiveFilters = Boolean(search.trim() || sectionFilter !== "all" || periodFilter !== "custom" || fromDate || toDate);
+    const hasActiveFilters = Boolean(
+        search.trim()
+        || sectionFilter !== "all"
+        || periodFilter !== "custom"
+        || fromDate
+        || toDate
+    );
 
     const applyPeriod = (periodId: string) => {
         setPeriodFilter(periodId);
@@ -220,15 +226,29 @@ export default function AttendanceInsights() {
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
                                 <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
                                 <FormControl>
-                                    <InputLabel>Section</InputLabel>
-                                    <Select label="Section" value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)} data-testid="attendance-section-filter">
+                                    <InputLabel id="attendance-section-filter-label">Section</InputLabel>
+                                    <Select
+                                        id="attendance-section-filter"
+                                        labelId="attendance-section-filter-label"
+                                        label="Section"
+                                        value={sectionFilter}
+                                        onChange={(event) => setSectionFilter(event.target.value)}
+                                        data-testid="attendance-section-filter"
+                                    >
                                         <MenuItem value="all">All permitted sections</MenuItem>
                                         {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
                                     </Select>
                                 </FormControl>
                                 <FormControl>
-                                    <InputLabel>Scout period</InputLabel>
-                                    <Select label="Scout period" value={periodFilter} onChange={(event) => applyPeriod(event.target.value)} data-testid="attendance-period-filter">
+                                    <InputLabel id="attendance-period-filter-label">Scout period</InputLabel>
+                                    <Select
+                                        id="attendance-period-filter"
+                                        labelId="attendance-period-filter-label"
+                                        label="Scout period"
+                                        value={periodFilter}
+                                        onChange={(event) => applyPeriod(event.target.value)}
+                                        data-testid="attendance-period-filter"
+                                    >
                                         <MenuItem value="custom">Custom / all dates</MenuItem>
                                         {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
                                     </Select>
@@ -244,7 +264,10 @@ export default function AttendanceInsights() {
                         </Paper>
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
-                            <Paper variant="outlined" sx={{ p: 2.5 }} role="status" aria-live="polite" data-testid="attendance-result-count"><Typography variant="h4" color="secondary">{visibleInsights.length}</Typography><Typography color="text.secondary">Matching active members</Typography></Paper>
+                            <Paper variant="outlined" sx={{ p: 2.5 }} role="status" aria-live="polite" data-testid="attendance-result-count">
+                                <Typography variant="h4" color="secondary">{visibleInsights.length}</Typography>
+                                <Typography color="text.secondary">Matching active members</Typography>
+                            </Paper>
                             <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="meeting-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("meeting"))}</Typography><Typography color="text.secondary">Average meeting attendance</Typography></Paper>
                             <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="event-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("event"))}</Typography><Typography color="text.secondary">Average event attendance</Typography></Paper>
                             <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="combined-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("combined"))}</Typography><Typography color="text.secondary">Average combined attendance</Typography></Paper>
