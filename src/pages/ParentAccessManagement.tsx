@@ -28,6 +28,11 @@ import type { ParentAccount, ParentAccessStatus } from "../services/parentPortal
 import { linkConsentRecordsToMembers } from "../services/parentConsent";
 import { recordAuditEvent } from "../services/auditLog";
 
+type ParentDecision = {
+    parent: ParentAccount;
+    status: "approved" | "rejected";
+};
+
 export default function ParentAccessManagement() {
     const [parents, setParents] = useState<ParentAccount[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -36,6 +41,7 @@ export default function ParentAccessManagement() {
     const [memberSearch, setMemberSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [workingUid, setWorkingUid] = useState("");
+    const [decisionTarget, setDecisionTarget] = useState<ParentDecision | null>(null);
     const [revokeTarget, setRevokeTarget] = useState<ParentAccount | null>(null);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
@@ -110,12 +116,32 @@ export default function ParentAccessManagement() {
         }
     };
 
+    const requestDecision = (parent: ParentAccount, status: "approved" | "rejected") => {
+        if (status === "approved" && (selected[parent.uid] || []).length === 0) {
+            setError("Select at least one member before approving parent access.");
+            return;
+        }
+        setError("");
+        setMessage("");
+        setDecisionTarget({ parent, status });
+    };
+
+    const confirmDecision = () => {
+        if (!decisionTarget) return;
+        const { parent, status } = decisionTarget;
+        setDecisionTarget(null);
+        void save(parent, status);
+    };
+
     const confirmRevoke = () => {
         if (!revokeTarget) return;
         const parent = revokeTarget;
         setRevokeTarget(null);
         void save(parent, "revoked");
     };
+
+    const decisionMemberIds = decisionTarget ? selected[decisionTarget.parent.uid] || [] : [];
+    const decisionSections = [...new Set(members.filter((member) => decisionMemberIds.includes(member.id)).map((member) => member.section).filter(Boolean))];
 
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
@@ -162,10 +188,10 @@ export default function ParentAccessManagement() {
                                         </Box>
                                         <Stack spacing={1} sx={{ minWidth: 190 }}>
                                             <Button variant={isActive ? "contained" : "outlined"} color="secondary" aria-expanded={isActive} onClick={() => toggleParent(parent.uid)}>{isActive ? "Close Child Linking" : "Manage Linked Children"}</Button>
-                                            {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>}
+                                            {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => requestDecision(parent, "approved")}>Approve Access</Button>}
                                             {parent.status === "approved"
                                                 ? <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => setRevokeTarget(parent)}>Revoke Access</Button>
-                                                : <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>}
+                                                : <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => requestDecision(parent, "rejected")}>Reject Access</Button>}
                                         </Stack>
                                     </Box>
 
@@ -191,6 +217,56 @@ export default function ParentAccessManagement() {
                     </Box>
                 )}
             </Container>
+
+            <Dialog
+                open={Boolean(decisionTarget)}
+                onClose={() => !decisionTarget || workingUid !== decisionTarget.parent.uid ? setDecisionTarget(null) : undefined}
+                aria-labelledby="parent-decision-dialog-title"
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle id="parent-decision-dialog-title">
+                    {decisionTarget?.status === "approved" ? "Approve parent access?" : "Reject parent access?"}
+                </DialogTitle>
+                <DialogContent>
+                    {decisionTarget?.status === "approved" ? (
+                        <Stack spacing={2} sx={{ pt: 1 }}>
+                            <Typography>
+                                Approve <strong>{decisionTarget.parent.displayName || decisionTarget.parent.email}</strong> for {decisionMemberIds.length} selected child record{decisionMemberIds.length === 1 ? "" : "s"}{decisionSections.length > 0 ? ` across ${decisionSections.join(", ")}` : ""}?
+                            </Typography>
+                            <Alert severity="warning">
+                                Approval grants parent-portal access to the selected child records and linked sections. Existing consent records for those members will also be linked where possible.
+                            </Alert>
+                            <Typography color="text.secondary">
+                                Only continue after verifying the parent or guardian's identity and confirming the selected child records are correct.
+                            </Typography>
+                        </Stack>
+                    ) : (
+                        <Stack spacing={2} sx={{ pt: 1 }}>
+                            <Typography>
+                                Reject the access request from <strong>{decisionTarget?.parent.displayName || decisionTarget?.parent.email}</strong>?
+                            </Typography>
+                            <Alert severity="warning">
+                                The request will be marked Rejected. No child or section access will be granted, and any draft child selection on this screen will not be saved.
+                            </Alert>
+                            <Typography color="text.secondary">
+                                The parent account and review history remain available; this action does not delete the account.
+                            </Typography>
+                        </Stack>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDecisionTarget(null)} disabled={Boolean(decisionTarget && workingUid === decisionTarget.parent.uid)}>Back to review</Button>
+                    <Button
+                        variant="contained"
+                        color={decisionTarget?.status === "approved" ? "success" : "error"}
+                        onClick={confirmDecision}
+                        disabled={Boolean(decisionTarget && workingUid === decisionTarget.parent.uid)}
+                    >
+                        {decisionTarget?.status === "approved" ? "Approve Access" : "Reject Access"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog
                 open={Boolean(revokeTarget)}
