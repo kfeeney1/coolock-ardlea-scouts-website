@@ -66,12 +66,12 @@ test("member status change requires review and cancel does not persist it", asyn
     const memberName = (await card.getByRole("heading").textContent())?.trim() || "";
     await card.getByRole("button", { name: "Manage" }).click();
 
-    const editor = page.getByRole("dialog", { name: `Member — ${memberName}` });
-    await expect(editor).toBeVisible();
-    const status = editor.getByRole("combobox").filter({ hasText: "Active" });
+    await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
+    await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();
+    const status = page.getByRole("combobox").filter({ hasText: "Active" });
     await status.click();
     await page.getByRole("option", { name: "Left", exact: true }).click();
-    await editor.getByRole("button", { name: "Save Member", exact: true }).click();
+    await page.getByRole("button", { name: "Save Member", exact: true }).click();
 
     const confirmation = page.getByRole("dialog", { name: "Confirm member status change?" });
     await expect(confirmation).toBeVisible();
@@ -83,9 +83,8 @@ test("member status change requires review and cancel does not persist it", asyn
     await confirmation.getByRole("button", { name: "Cancel status change", exact: true }).click();
     await expect(confirmation).toBeHidden();
     await expect(status).toHaveText(/Left/);
-    await editor.getByRole("button", { name: "Close", exact: true }).click();
 
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
-    await expect(card).toBeVisible();
-    await expect(card).toContainText("Active");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();
+    await expect(page.getByRole("combobox").filter({ hasText: "Active" })).toBeVisible();
 });
