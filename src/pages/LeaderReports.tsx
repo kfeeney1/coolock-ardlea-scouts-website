@@ -96,6 +96,12 @@ export default function LeaderReports() {
     const activeMembers = members.filter((member) => member.status === "active").length;
     const consentEvents = filteredEvents.filter((event) => event.consentRequired).length;
     const dateRangeLabel = fromDate || toDate ? `${fromDate || "Any date"} to ${toDate || "Any date"}` : "All dates";
+    const hasActiveDateFilters = Boolean(fromDate || toDate);
+
+    const resetDateFilters = () => {
+        setFromDate("");
+        setToDate("");
+    };
 
     const auditExport = (action: string, targetId: string, targetLabel: string, description: string, section = scopeLabel) =>
         recordAuditEvent({ category: "system", action, targetId, targetLabel, description, section });
@@ -164,10 +170,10 @@ export default function LeaderReports() {
                     <Stack spacing={3}>
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="report-date-filter">
                             <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: { md: "center" } }}>
-                                <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                                <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                                <Button variant="outlined" onClick={() => { setFromDate(""); setToDate(""); }} disabled={!fromDate && !toDate}>Clear dates</Button>
-                                <Typography color="text.secondary">{filteredEvents.length} of {events.length} events in range</Typography>
+                                <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "report-from-date" } }} />
+                                <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "report-to-date" } }} />
+                                {hasActiveDateFilters && <Button variant="outlined" onClick={resetDateFilters} data-testid="report-reset-filters">Reset filters</Button>}
+                                <Typography color="text.secondary" role="status" aria-live="polite" data-testid="report-event-result-count">{filteredEvents.length} of {events.length} events in range</Typography>
                             </Stack>
                         </Paper>
 
