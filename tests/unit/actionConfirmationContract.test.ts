@@ -6,11 +6,7 @@ import test from "node:test";
 const sourceRoot = path.resolve("src");
 const browserNativeDialogPattern = /\b(?:window\.)?(?:alert|confirm|prompt)\s*\(/g;
 const allowedLegacyDialogs = new Map([
-  ["src/components/admin/EventGalleryDialog.tsx|window.confirm(", 1],
-  ["src/pages/BadgeworkTracking.tsx|window.confirm(", 2],
-  ["src/pages/ConsentRecordPage.tsx|window.alert(", 1],
-  ["src/pages/EventConsentManagement.tsx|window.prompt(", 1],
-  ["src/pages/EventRecordPage.tsx|window.alert(", 1]
+  ["src/pages/BadgeworkTracking.tsx|window.confirm(", 2]
 ]);
 
 function sourceFiles(directory: string): string[] {

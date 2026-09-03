@@ -15,6 +15,8 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
     const [photos, setPhotos] = useState<EventGalleryPhoto[]>([]);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [photoToRemove, setPhotoToRemove] = useState<EventGalleryPhoto | null>(null);
     const [error, setError] = useState("");
     const [loadFailed, setLoadFailed] = useState(false);
     const [message, setMessage] = useState("");
@@ -61,39 +63,58 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
         if (cameraInput.current) cameraInput.current.value = "";
     };
 
-    const removePhoto = async (photo: EventGalleryPhoto) => {
-        if (!event || !window.confirm(`Remove ${photo.fileName} from this gallery?`)) return;
-        setLoadFailed(false); setError(""); setMessage("");
+    const removePhoto = async () => {
+        if (!event || !photoToRemove) return;
+        const photo = photoToRemove;
+        setDeleting(true); setLoadFailed(false); setError(""); setMessage("");
         try {
             await deleteEventGalleryPhoto(photo);
             await recordAuditEvent({ category: "event", action: "gallery-photo-removed", targetId: event.id, targetLabel: event.title, section: event.section, description: `Removed event gallery photo ${photo.fileName}.` });
+            setPhotoToRemove(null);
             setMessage("Photo removed.");
             await refresh();
-        } catch (deleteError) { console.error("Unable to remove gallery photo:", deleteError); setError("Unable to remove that photo."); }
+        } catch (deleteError) {
+            console.error("Unable to remove gallery photo:", deleteError);
+            setPhotoToRemove(null);
+            setError("Unable to remove that photo.");
+        } finally { setDeleting(false); }
     };
 
-    return <Dialog open={Boolean(event)} onClose={uploading ? undefined : onClose} fullWidth maxWidth="md" aria-labelledby="leader-event-gallery-title">
-        <DialogTitle id="leader-event-gallery-title">{event ? `${event.title} · Gallery` : "Event Gallery"}</DialogTitle>
-        <DialogContent dividers>
-            <Stack spacing={2}>
-                <Alert severity="info">Leader-only gallery. Parent access remains disabled until explicit photo-sharing consent is available.</Alert>
-                {message && <Alert severity="success">{message}</Alert>}
-                {error && <Alert severity="error" action={loadFailed ? <Button color="inherit" size="small" onClick={() => void refresh()}>Retry</Button> : undefined}>{error}</Alert>}
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                    <Button variant="contained" color="success" disabled={uploading} onClick={() => galleryInput.current?.click()}>Add photos</Button>
-                    <Button variant="outlined" color="success" disabled={uploading} onClick={() => cameraInput.current?.click()}>Take photo</Button>
-                    {uploading && <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}><CircularProgress size={20} /><Typography variant="body2">Uploading…</Typography></Box>}
+    return <>
+        <Dialog open={Boolean(event)} onClose={uploading || deleting ? undefined : onClose} fullWidth maxWidth="md" aria-labelledby="leader-event-gallery-title">
+            <DialogTitle id="leader-event-gallery-title">{event ? `${event.title} · Gallery` : "Event Gallery"}</DialogTitle>
+            <DialogContent dividers>
+                <Stack spacing={2}>
+                    <Alert severity="info">Leader-only gallery. Parent access remains disabled until explicit photo-sharing consent is available.</Alert>
+                    {message && <Alert severity="success">{message}</Alert>}
+                    {error && <Alert severity="error" action={loadFailed ? <Button color="inherit" size="small" onClick={() => void refresh()}>Retry</Button> : undefined}>{error}</Alert>}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                        <Button variant="contained" color="success" disabled={uploading || deleting} onClick={() => galleryInput.current?.click()}>Add photos</Button>
+                        <Button variant="outlined" color="success" disabled={uploading || deleting} onClick={() => cameraInput.current?.click()}>Take photo</Button>
+                        {uploading && <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}><CircularProgress size={20} /><Typography variant="body2">Uploading…</Typography></Box>}
+                    </Stack>
+                    <input ref={galleryInput} hidden type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Choose gallery photos" onChange={(e) => void uploadFiles(e.target.files)} />
+                    <input ref={cameraInput} hidden type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Take gallery photo" onChange={(e) => void uploadFiles(e.target.files)} />
+                    {loading ? <Box sx={{ py: 6, textAlign: "center" }} role="status" aria-live="polite"><CircularProgress aria-label="Loading event gallery" /><Typography variant="body2" sx={{ mt: 1.5 }}>Loading photos…</Typography></Box> : photos.length === 0 && !loadFailed ? <Alert severity="info">No photos have been added to this event yet.</Alert> : !loadFailed ? <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
+                        {photos.map((photo) => <Box key={photo.path} sx={{ position: "relative", borderRadius: 1, overflow: "hidden", border: 1, borderColor: "divider", aspectRatio: "1 / 1" }}>
+                            <Box component="img" src={photo.downloadUrl} alt={photo.fileName} loading="lazy" sx={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <IconButton aria-label={`Remove ${photo.fileName}`} size="small" disabled={deleting} onClick={() => setPhotoToRemove(photo)} sx={{ position: "absolute", top: 6, right: 6, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper" } }}>×</IconButton>
+                        </Box>)}
+                    </Box> : null}
                 </Stack>
-                <input ref={galleryInput} hidden type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Choose gallery photos" onChange={(e) => void uploadFiles(e.target.files)} />
-                <input ref={cameraInput} hidden type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Take gallery photo" onChange={(e) => void uploadFiles(e.target.files)} />
-                {loading ? <Box sx={{ py: 6, textAlign: "center" }} role="status" aria-live="polite"><CircularProgress aria-label="Loading event gallery" /><Typography variant="body2" sx={{ mt: 1.5 }}>Loading photos…</Typography></Box> : photos.length === 0 && !loadFailed ? <Alert severity="info">No photos have been added to this event yet.</Alert> : !loadFailed ? <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.5 }}>
-                    {photos.map((photo) => <Box key={photo.path} sx={{ position: "relative", borderRadius: 1, overflow: "hidden", border: 1, borderColor: "divider", aspectRatio: "1 / 1" }}>
-                        <Box component="img" src={photo.downloadUrl} alt={photo.fileName} loading="lazy" sx={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        <IconButton aria-label={`Remove ${photo.fileName}`} size="small" onClick={() => void removePhoto(photo)} sx={{ position: "absolute", top: 6, right: 6, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper" } }}>×</IconButton>
-                    </Box>)}
-                </Box> : null}
-            </Stack>
-        </DialogContent>
-        <DialogActions><Button onClick={onClose} disabled={uploading}>Close</Button></DialogActions>
-    </Dialog>;
+            </DialogContent>
+            <DialogActions><Button onClick={onClose} disabled={uploading || deleting}>Close</Button></DialogActions>
+        </Dialog>
+        <Dialog open={Boolean(photoToRemove)} onClose={deleting ? undefined : () => setPhotoToRemove(null)} aria-labelledby="remove-gallery-photo-title">
+            <DialogTitle id="remove-gallery-photo-title">Remove photo?</DialogTitle>
+            <DialogContent>
+                <Typography>{photoToRemove ? `Remove ${photoToRemove.fileName} from this event gallery?` : "Remove this photo from the event gallery?"}</Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>The gallery file will be deleted. This does not change the event record or attendance history.</Typography>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setPhotoToRemove(null)} disabled={deleting}>Cancel</Button>
+                <Button color="error" variant="contained" onClick={() => void removePhoto()} disabled={deleting}>{deleting ? "Removing…" : "Remove Photo"}</Button>
+            </DialogActions>
+        </Dialog>
+    </>;
 }

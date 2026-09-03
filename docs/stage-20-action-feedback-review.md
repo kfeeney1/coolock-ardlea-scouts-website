@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request. The seventh covers **Parent Access approval and rejection**, where approval grants selected-child access and can link existing consent records while rejection closes the access request without granting access.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request. The seventh covers **Parent Access approval and rejection**, where approval grants selected-child access and can link existing consent records while rejection closes the access request without granting access. The close-out audit then identified six legacy browser-native dialog calls that had not been captured by the earlier source search; the eighth slice removes four of those six outside Badgework.
 
 ## Action feedback contract
 
@@ -120,17 +120,27 @@ This slice brings both decisions onto the same review contract:
 - the existing revoke confirmation is unchanged;
 - deterministic Playwright coverage uses the existing `TEST_flow_parent_pending` fixture, stages a Beavers child selection, backs out of both approval and rejection, reloads, and proves the account remains Pending with zero linked children.
 
-## Stage 20.5 close-out audit
+## Eighth slice — Residual native feedback outside Badgework
 
-The close-out review finds the Stage 20.5 objective complete for the current application surface.
+The source-level close-out contract introduced after the seventh slice exposed six remaining browser-native calls. Four were outside Badgework and did not require any service or data-semantics change.
 
-The audit re-checked the principal high-impact write categories covered by the stage: account/access revocation, access-affecting leader changes, event completion, member lifecycle status changes, Join Us member conversion, Leader Registration approval/rejection, and Parent Access approval/rejection. Those decisions now provide consequence-focused in-app review where an accidental click would materially alter access, lifecycle state or persistent record relationships, while ordinary edits remain lightweight.
+This slice removes those four:
 
-A repository-wide source search found no remaining browser-native `window.confirm`, `window.prompt` or `window.alert` usage. To make that a maintained product contract rather than a one-time observation, `tests/unit/actionConfirmationContract.test.ts` now recursively scans application TypeScript/TSX source and fails the normal unit/quality gate if browser-native `alert`, `confirm` or `prompt` calls are introduced. Future high-impact actions should use accessible application UI with service-layer validation remaining authoritative.
+- event gallery photo deletion replaces `window.confirm` with an accessible **Remove photo?** dialog that names the file, explains that the gallery file is deleted without changing the event record or attendance history, and keeps **Cancel** as a no-write path;
+- blocked print windows on full consent records and event reports now use the pages' existing error alerts rather than `window.alert`;
+- parent event-consent clipboard failure now opens an accessible **Copy parent consent link** dialog containing the exact read-only URL for manual copying instead of using `window.prompt`;
+- existing gallery deletion, audit, print/export and public-link service semantics are unchanged;
+- deterministic Playwright coverage verifies that a blocked event-report pop-up produces in-page error feedback without a browser-native alert.
 
-No additional high-impact omission was identified that warrants extending Stage 20.5 before the planned mobile pass. This is not a claim that every write requires confirmation: routine saves, low-risk edits and reversible selection changes should not gain redundant friction solely for consistency.
+The regression baseline now contains only the two existing Badgework `window.confirm` calls. Any new native alert, confirm or prompt elsewhere continues to fail Quality.
 
-**Stage 20.5 is complete.** The next planned work is **Stage 20.6 — Mobile operational pass**, beginning with narrow-viewport review of high-frequency leader workflows, fixed/sticky actions, dialogs, cards/tables, long forms and expandable navigation.
+## Stage 20.5 close-out status
+
+Stage 20.5 is **not yet complete**. The principal high-impact access, lifecycle and conversion decisions use consequence-focused in-app review, and this slice removes four of the six residual native calls discovered by the close-out audit. Two legacy confirmations remain in `BadgeworkTracking.tsx`: discarding unsaved competency changes when changing workflow context, and removing an awarded stage badge.
+
+Those two interactions are the final bounded Stage 20.5 debt. They should be migrated to accessible in-app confirmation while preserving unsaved draft behaviour, award eligibility rules, Adventure Skills persistence, provenance and source-link semantics. Once they are removed, `tests/unit/actionConfirmationContract.test.ts` should move from a legacy baseline to a strict zero-native-dialog contract.
+
+This remains deliberately narrower than requiring a confirmation for every write. Routine saves, low-risk edits and reversible selection changes should remain lightweight.
 
 ## Preserved boundaries
 
@@ -145,11 +155,12 @@ These slices and the close-out contract do not alter:
 - event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
 - member service validation, section permissions, lifecycle-history semantics or audit behaviour;
 - Join Us workflow-status semantics, conversion transaction semantics, accepted-status validation, duplicate-conversion safeguards or member/enquiry linking;
+- event gallery, consent printing, event reporting or event-consent link service semantics;
 - parent-account, member, leader-access, organisation, event, Join Us or Leader Registration data models;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
 - production data or the parked production TEST-data cleanup process.
 
-## Next stage
+## Next review target
 
-Begin **Stage 20.6 — Mobile operational pass**. Review high-frequency leader journeys at narrow viewports first, prioritising controls that can become obscured or cumbersome on phones: fixed/sticky save actions, multi-step dialogs, wide tabular/card content, long edit forms and the expandable leader navigation. Preserve existing authorization, service behaviour, deterministic fixtures and Stage 18/19 operational controls while making mobile-only layout/interaction improvements.
+Replace the two remaining Badgework browser-native confirmations with accessible in-app review and then tighten the source contract to require zero browser-native `alert`, `confirm` or `prompt` calls. Only after that final Stage 20.5 close-out should **Stage 20.6 — Mobile operational pass** begin.
