@@ -4,7 +4,7 @@
 
 Stage 20.3 standardises the operational-state contract used by high-frequency parent and leader surfaces without changing routing, RBAC, Firestore rules, data shape, seed behaviour or production cleanup controls.
 
-The first implementation slice covered the shared `OperationalStates` primitives, the parent Weekly Meeting Programme and the leader Programme Library. The second slice extended the same contract to parent Adventure Skills and leader Member History, including independent retryable read states where a screen performs more than one query. The third slice applies the contract to the parent Events flow, covering both upcoming Event Consent and Event Galleries.
+The first implementation slice covered the shared `OperationalStates` primitives, the parent Weekly Meeting Programme and the leader Programme Library. The second slice extended the same contract to parent Adventure Skills and leader Member History, including independent retryable read states where a screen performs more than one query. The third slice applied the contract to the parent Events flow, covering both upcoming Event Consent and Event Galleries. The fourth slice extends the contract across leader Member Management and the parent consent/medical-form surface.
 
 ## State contract
 
@@ -61,11 +61,31 @@ Mutation success/error feedback remains separate from read/load state so a faile
 - Uses the same empty-state treatment when a non-empty set has no search matches, with result counts exposed as polite status updates.
 - Keeps the gallery privacy notice as informational guidance rather than treating it as an operational state.
 
+### Leader Member Management
+
+- Replaces the anonymous member-register and consent-indicator spinners with labelled shared loading states.
+- Keeps the member-register read failure separate from member edit/create mutation feedback.
+- Separates consent-indicator read failures from member-save errors so a failed secondary query no longer implies that the member record itself failed to load or save.
+- Distinguishes explicit Firestore permission failures from other member and consent-indicator read failures and provides scoped Retry actions for each read.
+- Distinguishes a genuinely empty accessible member register from a non-empty register whose current search/status/section filters have no matches.
+- Keeps successful zero consent matches as an empty state rather than a read failure.
+
+### Parent Consent and Medical Forms
+
+- Replaces the anonymous spinner and generic error alert with shared labelled loading, permission and error states.
+- Provides Retry for failed consent/member reads without changing the underlying parent-scoped Firestore queries.
+- Treats an approved account with no linked member record as an unavailable prerequisite and directs the parent back to Parent Access review.
+- Treats linked children whose youth consent records have not yet been associated as an unavailable linking prerequisite rather than a generic empty-data result.
+- Keeps a successful search with no matching linked child as a true empty state and exposes result counts as polite status updates.
+- Leaves individual form update feedback inside `ParentConsentEditor` as mutation feedback rather than mixing it into page-load state.
+
 ## Preserved boundaries
 
 This stage does not alter Firestore/Auth/Storage rules, role visibility, queries, indexes, Firebase configuration, dependencies, workflow security, deterministic seed behaviour or production data. The parked production TEST-data cleanup remains unchanged and must continue to use the guarded Stage 18 process when resumed.
 
 The Event Gallery implementation also preserves the existing security model: candidate projection permission mismatches and gallery-list authorization failures continue to fail closed inside the service, and the UI does not infer that denied photos exist.
+
+The Member Management and Parent Consent changes only classify and render failures returned by the existing service calls. They do not broaden the accessible member or consent datasets, bypass leader section scoping, or change parent consent-link matching.
 
 ## Follow-up
 
