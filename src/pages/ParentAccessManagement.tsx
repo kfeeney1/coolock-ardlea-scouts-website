@@ -8,6 +8,11 @@ import {
     Chip,
     CircularProgress,
     Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     FormControlLabel,
     Paper,
     Stack,
@@ -31,6 +36,7 @@ export default function ParentAccessManagement() {
     const [memberSearch, setMemberSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [workingUid, setWorkingUid] = useState("");
+    const [revokeTarget, setRevokeTarget] = useState<ParentAccount | null>(null);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
@@ -104,8 +110,10 @@ export default function ParentAccessManagement() {
         }
     };
 
-    const revoke = (parent: ParentAccount) => {
-        if (!window.confirm(`Revoke access for ${parent.displayName || parent.email}? This immediately clears all linked children and sections.`)) return;
+    const confirmRevoke = () => {
+        if (!revokeTarget) return;
+        const parent = revokeTarget;
+        setRevokeTarget(null);
         void save(parent, "revoked");
     };
 
@@ -156,7 +164,7 @@ export default function ParentAccessManagement() {
                                             <Button variant={isActive ? "contained" : "outlined"} color="secondary" aria-expanded={isActive} onClick={() => toggleParent(parent.uid)}>{isActive ? "Close Child Linking" : "Manage Linked Children"}</Button>
                                             {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => void save(parent, "approved")}>Approve Access</Button>}
                                             {parent.status === "approved"
-                                                ? <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => revoke(parent)}>Revoke Access</Button>
+                                                ? <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => setRevokeTarget(parent)}>Revoke Access</Button>
                                                 : <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => void save(parent, "rejected")}>Reject Access</Button>}
                                         </Stack>
                                     </Box>
@@ -183,6 +191,24 @@ export default function ParentAccessManagement() {
                     </Box>
                 )}
             </Container>
+
+            <Dialog
+                open={Boolean(revokeTarget)}
+                onClose={() => setRevokeTarget(null)}
+                aria-labelledby="parent-revoke-dialog-title"
+                aria-describedby="parent-revoke-dialog-description"
+            >
+                <DialogTitle id="parent-revoke-dialog-title">Revoke parent access?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="parent-revoke-dialog-description">
+                        Revoke access for {revokeTarget?.displayName || revokeTarget?.email}? This immediately clears all linked children and sections. The account and historical records are not deleted.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRevokeTarget(null)}>Cancel</Button>
+                    <Button color="error" variant="contained" onClick={confirmRevoke}>Revoke Access</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }
