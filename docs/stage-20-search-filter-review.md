@@ -4,7 +4,7 @@
 
 Stage 20.4 reviews larger operational datasets so search, filter, date-range and reset behaviour is predictable without changing server-side authorization, query scope, read budgets or production data handling.
 
-The first implementation slice covers **Attendance History & Insights**. Later slices should review other high-use datasets such as reports and equipment against the same interaction contract rather than forcing unrelated screens into one large change.
+The first implementation slice covers **Attendance History & Insights**. The second covers **Equipment & Stores**. Later slices should review other high-use datasets such as reports against the same interaction contract rather than forcing unrelated screens into one large change.
 
 ## Search/filter contract
 
@@ -31,23 +31,38 @@ This slice makes those controls operate as one consistent filter set:
 - gives the section selector a stable test hook alongside the existing search, period and date hooks;
 - extends deterministic Playwright coverage to verify section/search/date filters survive the member-history round trip and are then reset together.
 
+## Second slice — Equipment & Stores
+
+The Equipment catalogue already supported free-text search, category filtering, storage-location filtering and an archived-item visibility toggle. Those controls affected one client-side result set but had no single way to return the catalogue to its neutral state.
+
+This slice applies the same interaction contract:
+
+- treats search, category, location and archived visibility as one filter set;
+- adds **Reset filters** whenever any of those constraints is active;
+- reset clears search, returns category and location to their **All** values, and hides archived items again;
+- exposes the matching-equipment count through a polite live status;
+- distinguishes an empty catalogue from a populated catalogue with no matches;
+- explicitly associates the category and location labels with their MUI selects, preserving accessible names and reliable role-based test selectors;
+- adds stable filter hooks and extends the existing deterministic equipment checkout flow to verify combined filtering and reset without adding seed records solely for this UI check.
+
 ## Preserved boundaries
 
-This slice does not alter:
+These slices do not alter:
 
 - Firestore, Auth or Storage Rules;
 - leader/admin role visibility or section scope;
-- reporting, event or Weekly Meeting queries;
+- reporting, event, Weekly Meeting or equipment queries;
 - Stage 19.6 reporting read-budget behaviour;
 - attendance calculations or history construction;
+- equipment stock, checkout, return, incident or movement calculations;
 - Scout-period definitions;
 - data models, indexes or Firebase configuration;
 - deterministic seed contents or seed safety checks;
 - workflow security, provenance controls or branch-protection requirements;
 - production data or the parked production TEST-data cleanup process.
 
-The filter changes are client-side interaction changes over the same already-authorized dataset.
+The filter changes are client-side interaction changes over the same already-authorized datasets.
 
-## Next review targets
+## Next review target
 
-After this slice, review the remaining larger datasets for the same contract, prioritising screens where search/filter controls are frequently combined or where reset behaviour is currently partial or inconsistent. Equipment and Reports are the planned next candidates, subject to live-code review before implementation.
+Review **Reports & Exports** next against the same contract. Its current From/To event date range already has a partial clear action and result count, so the review should stay focused on consistency and accessibility without broadening reporting queries, exports or Stage 19.6 read-budget behaviour.
