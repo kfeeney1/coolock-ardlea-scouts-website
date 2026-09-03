@@ -64,6 +64,12 @@ const statusLabel = (status: MemberStatus) =>
 const statusColor = (status: MemberStatus): "success" | "warning" | "default" =>
     status === "active" ? "success" : status === "inactive" ? "warning" : "default";
 
+const statusChangeConsequence = (status: MemberStatus) => {
+    if (status === "active") return "The member will return to active status in the member register.";
+    if (status === "inactive") return "The member will be marked inactive while their record and lifecycle history are retained.";
+    return "The member will be marked as having left while their record and lifecycle history are retained.";
+};
+
 const formatDate = (value: Date | null) =>
     value
         ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value)
@@ -83,6 +89,7 @@ export default function MemberManagement() {
     const [selected, setSelected] = useState<MemberRecord | null>(null);
     const [draft, setDraft] = useState<MemberRecord | null>(null);
     const [saving, setSaving] = useState(false);
+    const [statusConfirmationOpen, setStatusConfirmationOpen] = useState(false);
     const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
     const [loadingConsents, setLoadingConsents] = useState(false);
     const [consentLoadError, setConsentLoadError] = useState<unknown>(null);
@@ -153,7 +160,14 @@ export default function MemberManagement() {
         }
     };
 
+    const closeMember = () => {
+        setStatusConfirmationOpen(false);
+        setSelected(null);
+        setDraft(null);
+    };
+
     const openMember = async (member: MemberRecord) => {
+        setStatusConfirmationOpen(false);
         setSelected(member);
         setDraft({ ...member });
         setConsents([]);
@@ -162,9 +176,15 @@ export default function MemberManagement() {
         await loadMemberConsents(member);
     };
 
-    const save = async () => {
+    const save = async (statusConfirmed = false) => {
         if (!selected || !draft) return;
         if (!draft.displayName.trim()) return setSaveError("Member name is required.");
+        if (!statusConfirmed && draft.status !== selected.status) {
+            setSaveError("");
+            setMessage("");
+            setStatusConfirmationOpen(true);
+            return;
+        }
         setSaving(true);
         setSaveError("");
         setMessage("");
@@ -193,6 +213,11 @@ export default function MemberManagement() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const confirmStatusChange = () => {
+        setStatusConfirmationOpen(false);
+        void save(true);
     };
 
     const openAddMember = () => {
@@ -442,7 +467,7 @@ export default function MemberManagement() {
                     {renderMemberResults()}
                 </Box>
 
-                <Dialog open={Boolean(selected && draft)} onClose={() => { setSelected(null); setDraft(null); }} maxWidth="lg" fullWidth>
+                <Dialog open={Boolean(selected && draft)} onClose={closeMember} maxWidth="lg" fullWidth>
                     {selected && draft && <>
                         <DialogTitle>Member — {draft.displayName}</DialogTitle>
                         <DialogContent dividers>
@@ -454,8 +479,39 @@ export default function MemberManagement() {
                             {renderConsentIndicators()}
                         </DialogContent>
                         <DialogActions>
-                            <Button onClick={() => { setSelected(null); setDraft(null); }}>Close</Button>
+                            <Button onClick={closeMember}>Close</Button>
                             <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>{saving ? "Saving..." : "Save Member"}</Button>
+                        </DialogActions>
+                    </>}
+                </Dialog>
+
+                <Dialog
+                    open={Boolean(statusConfirmationOpen && selected && draft)}
+                    onClose={() => !saving && setStatusConfirmationOpen(false)}
+                    aria-labelledby="member-status-confirmation-title"
+                    maxWidth="sm"
+                    fullWidth
+                >
+                    {selected && draft && <>
+                        <DialogTitle id="member-status-confirmation-title">Confirm member status change?</DialogTitle>
+                        <DialogContent dividers>
+                            <Stack spacing={2}>
+                                <Typography>
+                                    <strong>{draft.displayName}</strong> will change from {statusLabel(selected.status)} to {statusLabel(draft.status)}.
+                                </Typography>
+                                <Alert severity={draft.status === "active" ? "info" : "warning"}>
+                                    {statusChangeConsequence(draft.status)}
+                                </Alert>
+                                <Typography color="text.secondary">
+                                    Saving this status change will use the existing member lifecycle history and audit trail.
+                                </Typography>
+                            </Stack>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button disabled={saving} onClick={() => setStatusConfirmationOpen(false)}>Cancel status change</Button>
+                            <Button variant="contained" color={draft.status === "active" ? "success" : "warning"} disabled={saving} onClick={confirmStatusChange}>
+                                {saving ? "Saving..." : "Confirm Status Change"}
+                            </Button>
                         </DialogActions>
                     </>}
                 </Dialog>
