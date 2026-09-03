@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request. The seventh covers **Parent Access approval and rejection**, where approval grants selected-child access and can link existing consent records while rejection closes the access request without granting access.
 
 ## Action feedback contract
 
@@ -105,13 +105,29 @@ This slice adds a consequence-focused final review for both decisions:
 - approval's existing transactional pending-status check remains authoritative, and the administrator/Super Admin screen restriction is unchanged;
 - deterministic Playwright coverage uses the existing `TEST_flow_leader_request_pending` fixture, reviews both decision confirmations, backs out of each, reloads, and proves the request remains Pending.
 
+## Seventh slice — Parent Access approval and rejection
+
+Parent Access already had an in-app confirmation for revocation, but **Approve Access** and **Reject Access** still executed the shared save path directly from each account card. Approval is high-impact because it grants parent-portal access to selected child records and linked sections and can associate existing consent records with those members. Rejection marks the request Rejected without granting access.
+
+This slice brings both decisions onto the same review contract:
+
+- **Approve Access** retains the existing requirement that at least one child is selected before a confirmation can open;
+- the accessible **Approve parent access?** confirmation identifies the parent, reports the selected child count and affected sections, explains the resulting parent-portal access, and states that matching consent records may be linked;
+- the confirmation repeats the existing identity-verification requirement before access is granted;
+- **Reject Access** opens an accessible **Reject parent access?** confirmation explaining that the request will be marked Rejected, no child or section access will be granted, and unsaved child selection is not persisted;
+- **Back to review** closes either confirmation without calling the save path, leaving the current on-screen child selection available for correction;
+- confirmed approval and rejection still use the existing `linkConsentRecordsToMembers`, `updateParentAccess`, audit event, notifications, success/error feedback and reload behaviour;
+- the existing revoke confirmation is unchanged;
+- deterministic Playwright coverage uses the existing `TEST_flow_parent_pending` fixture, stages a Beavers child selection, backs out of both approval and rejection, reloads, and proves the account remains Pending with zero linked children.
+
 ## Preserved boundaries
 
 These slices do not alter:
 
 - Firestore, Auth or Storage Rules;
 - administrator and Super Admin role requirements;
-- parent approval, rejection or child-linking semantics;
+- parent approval, rejection, revocation or child-linking service semantics;
+- parent identity-verification guidance or the approval child-selection requirement;
 - leader-access service validation or organisation/public projection semantics;
 - Leader Registration service semantics, notification behaviour or audit event semantics;
 - event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
@@ -124,4 +140,4 @@ These slices do not alter:
 
 ## Next review target
 
-Review **Parent Access approval and rejection** next. Revocation already has an explicit confirmation, but pending or previously rejected parent accounts can still be approved and linked to selected child records, while non-approved accounts can be rejected, directly from the management card. Approval grants parent access to selected children and can link existing consent records; rejection closes the request. Stage 20.5 should bring those decisions onto the same consequence-focused confirmation contract while preserving identity-verification guidance, child-selection validation, consent linking, `updateParentAccess`, audit behaviour and existing permissions.
+Perform a **Stage 20.5 close-out audit** before moving to Stage 20.6. The current source search no longer finds browser-native `window.confirm` or `window.prompt` calls, and the principal access, lifecycle, conversion and destructive decisions reviewed in this stage now use consequence-focused in-app confirmation. The close-out should inspect the remaining high-impact write actions for any material omission, record the Stage 20.5 completion boundary, and then begin the planned **Stage 20.6 mobile operational pass** without broadening permissions, data semantics or CI/security scope.
