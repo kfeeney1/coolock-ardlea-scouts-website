@@ -120,9 +120,21 @@ This slice brings both decisions onto the same review contract:
 - the existing revoke confirmation is unchanged;
 - deterministic Playwright coverage uses the existing `TEST_flow_parent_pending` fixture, stages a Beavers child selection, backs out of both approval and rejection, reloads, and proves the account remains Pending with zero linked children.
 
+## Stage 20.5 close-out audit
+
+The close-out review finds the Stage 20.5 objective complete for the current application surface.
+
+The audit re-checked the principal high-impact write categories covered by the stage: account/access revocation, access-affecting leader changes, event completion, member lifecycle status changes, Join Us member conversion, Leader Registration approval/rejection, and Parent Access approval/rejection. Those decisions now provide consequence-focused in-app review where an accidental click would materially alter access, lifecycle state or persistent record relationships, while ordinary edits remain lightweight.
+
+A repository-wide source search found no remaining browser-native `window.confirm`, `window.prompt` or `window.alert` usage. To make that a maintained product contract rather than a one-time observation, `tests/unit/actionConfirmationContract.test.ts` now recursively scans application TypeScript/TSX source and fails the normal unit/quality gate if browser-native `alert`, `confirm` or `prompt` calls are introduced. Future high-impact actions should use accessible application UI with service-layer validation remaining authoritative.
+
+No additional high-impact omission was identified that warrants extending Stage 20.5 before the planned mobile pass. This is not a claim that every write requires confirmation: routine saves, low-risk edits and reversible selection changes should not gain redundant friction solely for consistency.
+
+**Stage 20.5 is complete.** The next planned work is **Stage 20.6 — Mobile operational pass**, beginning with narrow-viewport review of high-frequency leader workflows, fixed/sticky actions, dialogs, cards/tables, long forms and expandable navigation.
+
 ## Preserved boundaries
 
-These slices do not alter:
+These slices and the close-out contract do not alter:
 
 - Firestore, Auth or Storage Rules;
 - administrator and Super Admin role requirements;
@@ -138,6 +150,6 @@ These slices do not alter:
 - workflow security, provenance controls or branch-protection requirements;
 - production data or the parked production TEST-data cleanup process.
 
-## Next review target
+## Next stage
 
-Perform a **Stage 20.5 close-out audit** before moving to Stage 20.6. The current source search no longer finds browser-native `window.confirm` or `window.prompt` calls, and the principal access, lifecycle, conversion and destructive decisions reviewed in this stage now use consequence-focused in-app confirmation. The close-out should inspect the remaining high-impact write actions for any material omission, record the Stage 20.5 completion boundary, and then begin the planned **Stage 20.6 mobile operational pass** without broadening permissions, data semantics or CI/security scope.
+Begin **Stage 20.6 — Mobile operational pass**. Review high-frequency leader journeys at narrow viewports first, prioritising controls that can become obscured or cumbersome on phones: fixed/sticky save actions, multi-step dialogs, wide tabular/card content, long edit forms and the expandable leader navigation. Preserve existing authorization, service behaviour, deterministic fixtures and Stage 18/19 operational controls while making mobile-only layout/interaction improvements.
