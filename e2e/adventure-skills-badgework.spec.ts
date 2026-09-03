@@ -70,6 +70,25 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByRole("link", { name: "Back to Weekly Meeting" })).toBeVisible();
   });
 
+  test("unsaved badgework context changes use in-app confirmation and cancel keeps the draft", async ({ page }) => {
+    await loginLeader(page, adminEmail!);
+    await page.goto("/leader/badgework");
+    await selectMember(page, firstMemberName);
+    await page.getByRole("button", { name: "Select 1 member and continue" }).click();
+    await page.getByRole("button", { name: "Mark full stage complete" }).click();
+    await expect(page.getByText(/unsaved badgework changes/i)).toBeVisible();
+
+    await page.getByRole("button", { name: "Change members" }).click();
+    const discardDialog = page.getByRole("dialog", { name: "Discard unsaved badgework changes?" });
+    await expect(discardDialog).toBeVisible();
+    await expect(discardDialog).toContainText("without writing them to any member record");
+    await discardDialog.getByRole("button", { name: "Keep editing" }).click();
+
+    await expect(discardDialog).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
+    await expect(page.getByText(/unsaved badgework changes/i)).toBeVisible();
+  });
+
   test("saved badgework and award are visible read-only to the linked parent", async ({ page }) => {
     test.skip(!parentEmail, "Configure canonical E2E parent credentials.");
 
@@ -101,6 +120,14 @@ test.describe("Adventure Skills badgework", () => {
       await awardPanel.getByRole("button", { name: "Award badge" }).click();
       await expect(page.getByText(/Stage 1 Camping awarded to 1 selected child/i)).toBeVisible();
     }
+    await expect(awardPanel.getByText("Awarded", { exact: true })).toBeVisible();
+
+    await awardPanel.getByRole("button", { name: "Remove award" }).click();
+    const removalDialog = page.getByRole("dialog", { name: "Remove stage award?" });
+    await expect(removalDialog).toBeVisible();
+    await expect(removalDialog).toContainText("Saved competency progress will remain unchanged");
+    await removalDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(removalDialog).toHaveCount(0);
     await expect(awardPanel.getByText("Awarded", { exact: true })).toBeVisible();
 
     await signOutLeader(page);
