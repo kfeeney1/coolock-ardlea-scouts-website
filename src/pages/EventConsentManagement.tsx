@@ -6,7 +6,13 @@ import {
     Box,
     Button,
     CircularProgress,
-    Container
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    TextField,
+    Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
@@ -46,6 +52,7 @@ export default function EventConsentManagement() {
     const [workingNotification, setWorkingNotification] = useState("");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [copyFallbackUrl, setCopyFallbackUrl] = useState("");
 
     const load = async () => {
         setLoading(true);
@@ -116,11 +123,13 @@ export default function EventConsentManagement() {
 
     const copyLink = async (link: PublicEventLink) => {
         const url = `${window.location.origin}/event-consent/${link.token}`;
+        setError("");
+        setMessage("");
         try {
             await navigator.clipboard.writeText(url);
             setMessage("Parent consent link copied to clipboard.");
         } catch {
-            window.prompt("Copy this parent consent link:", url);
+            setCopyFallbackUrl(url);
         }
     };
 
@@ -271,56 +280,72 @@ export default function EventConsentManagement() {
     };
 
     return (
-        <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-            <Container maxWidth="xl">
-                <LeaderDashboardHeader />
-                <LeaderPageHeader
-                    title="Parent Event Consent"
-                    description="Create parent-facing event links, send event notices and reminders, review responses and sync them into the event roster."
-                    actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>}
-                />
+        <>
+            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+                <Container maxWidth="xl">
+                    <LeaderDashboardHeader />
+                    <LeaderPageHeader
+                        title="Parent Event Consent"
+                        description="Create parent-facing event links, send event notices and reminders, review responses and sync them into the event roster."
+                        actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>}
+                    />
 
-                {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
-                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-                <Alert severity="info" sx={{ mb: 3 }}>
-                    Event emails are sent only to parent email addresses already stored on member records for sections you can access. In current email test mode, messages are redirected to the configured test mailbox.
-                </Alert>
+                    {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
+                    {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+                    <Alert severity="info" sx={{ mb: 3 }}>
+                        Event emails are sent only to parent email addresses already stored on member records for sections you can access. In current email test mode, messages are redirected to the configured test mailbox.
+                    </Alert>
 
-                {loading ? (
-                    <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <CircularProgress color="success" />
-                    </Box>
-                ) : (
-                    <Box sx={{ display: "grid", gap: 2 }}>
-                        {consentEvents.length === 0 && (
-                            <Alert severity="info">No events currently require consent. Enable “Consent required” on an event first.</Alert>
-                        )}
+                    {loading ? (
+                        <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <CircularProgress color="success" />
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: "grid", gap: 2 }}>
+                            {consentEvents.length === 0 && (
+                                <Alert severity="info">No events currently require consent. Enable “Consent required” on an event first.</Alert>
+                            )}
 
-                        {consentEvents.map((event) => (
-                            <EventConsentEventPanel
-                                key={event.id}
-                                event={event}
-                                members={members}
-                                link={linkFor(event.id)}
-                                responses={responses[event.id] || []}
-                                selectedMembers={selectedMembers}
-                                workingEventId={workingEventId}
-                                workingResponseId={workingResponseId}
-                                workingNotification={workingNotification}
-                                onSelectedMemberChange={(responseId, memberId) =>
-                                    setSelectedMembers((current) => ({ ...current, [responseId]: memberId }))
-                                }
-                                onCreateOrRefreshLink={(item) => void createOrRefreshLink(item)}
-                                onCopyLink={(item) => void copyLink(item)}
-                                onSendNotification={(item, kind) => void sendNotification(item, kind)}
-                                onSyncResponses={(item) => void syncResponses(item)}
-                                onManualMatch={(item, response) => void manualMatch(item, response)}
-                                onIgnoreResponse={(response) => void ignoreResponse(response)}
-                            />
-                        ))}
-                    </Box>
-                )}
-            </Container>
-        </Box>
+                            {consentEvents.map((event) => (
+                                <EventConsentEventPanel
+                                    key={event.id}
+                                    event={event}
+                                    members={members}
+                                    link={linkFor(event.id)}
+                                    responses={responses[event.id] || []}
+                                    selectedMembers={selectedMembers}
+                                    workingEventId={workingEventId}
+                                    workingResponseId={workingResponseId}
+                                    workingNotification={workingNotification}
+                                    onSelectedMemberChange={(responseId, memberId) =>
+                                        setSelectedMembers((current) => ({ ...current, [responseId]: memberId }))
+                                    }
+                                    onCreateOrRefreshLink={(item) => void createOrRefreshLink(item)}
+                                    onCopyLink={(item) => void copyLink(item)}
+                                    onSendNotification={(item, kind) => void sendNotification(item, kind)}
+                                    onSyncResponses={(item) => void syncResponses(item)}
+                                    onManualMatch={(item, response) => void manualMatch(item, response)}
+                                    onIgnoreResponse={(response) => void ignoreResponse(response)}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </Container>
+            </Box>
+            <Dialog open={Boolean(copyFallbackUrl)} onClose={() => setCopyFallbackUrl("")} fullWidth maxWidth="sm" aria-labelledby="copy-consent-link-title">
+                <DialogTitle id="copy-consent-link-title">Copy parent consent link</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ mb: 2 }}>Your browser could not copy the link automatically. Select the link below and copy it manually.</Typography>
+                    <TextField
+                        fullWidth
+                        label="Parent consent link"
+                        value={copyFallbackUrl}
+                        inputProps={{ readOnly: true }}
+                        onFocus={(event) => event.target.select()}
+                    />
+                </DialogContent>
+                <DialogActions><Button onClick={() => setCopyFallbackUrl("")}>Close</Button></DialogActions>
+            </Dialog>
+        </>
     );
 }
