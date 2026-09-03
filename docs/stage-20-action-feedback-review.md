@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history.
 
 ## Action feedback contract
 
@@ -46,6 +46,20 @@ The confirmation dialog identifies the affected leader and lists the specific co
 
 The existing `updateLeaderAccess` service, Super Admin-only role selector restriction, super-admin account safeguards, audit event, success/error alerts and organisation/public projection sync remain authoritative. Deterministic Playwright coverage uses the existing private multi-section leader fixture, stages a deactivation, verifies the review dialog, cancels it and refreshes to prove no persisted change occurred.
 
+## Third slice — Event lifecycle completion
+
+An existing event can move through its lifecycle to **Completed** from the event editor. Completion is materially different from an ordinary event edit: after the service accepts the transition, the event moves into history and its event details, roster changes and equipment changes become read-only while attendance viewing, reports, exports and gallery access remain available.
+
+The editor already showed an inline warning when **Completed** was selected, but **Save Event** immediately called the existing update path. This slice adds a final review step before that service call:
+
+- selecting **Completed** and pressing **Save Event** changes the existing editor into an accessible **Complete this event?** confirmation step;
+- the confirmation names the event and explains that it will move into read-only history;
+- **Cancel completion** returns to the editable draft without persisting anything;
+- **Complete Event** invokes the existing save callback and therefore the existing `updateEvent` service;
+- ordinary event edits and event creation keep their existing direct-save behaviour;
+- existing lifecycle-transition validation, attendance/consent close-out checks, projection updates, audit event and success/error feedback remain authoritative;
+- deterministic Playwright coverage stages completion of the existing open Beavers event fixture, cancels it, closes the editor and refreshes to prove the event remains Open and editable.
+
 ## Preserved boundaries
 
 These slices do not alter:
@@ -54,7 +68,8 @@ These slices do not alter:
 - administrator and Super Admin role requirements;
 - parent approval, rejection or child-linking semantics;
 - leader-access service validation or organisation/public projection semantics;
-- parent-account, member, leader-access or organisation data models;
+- event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
+- parent-account, member, leader-access, organisation or event data models;
 - audit event category/action/description semantics;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
@@ -62,4 +77,4 @@ These slices do not alter:
 
 ## Next review target
 
-Review **Event lifecycle completion** next. Editing an event can change its status to **completed**, after which the event moves to history and the event record becomes read-only for further editing while attendance, reports, exports and gallery access remain available. Stage 20.5 should make that transition explicit before persistence without changing the existing event service or completed-event rules.
+Review **Member Management status transitions** next. The member editor can currently change a member between **Active**, **Inactive** and **Left** within the same general save action as ordinary contact/detail edits. Stage 20.5 should determine which transitions warrant explicit review and what consequences should be explained, while preserving the existing member service, section permissions, history and audit behaviour.
