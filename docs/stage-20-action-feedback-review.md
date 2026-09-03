@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request. The seventh covers **Parent Access approval and rejection**, where approval grants selected-child access and can link existing consent records while rejection closes the access request without granting access. The close-out audit then identified six legacy browser-native dialog calls that had not been captured by the earlier source search; the eighth slice removes four of those six outside Badgework.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state. The fifth covers **Join Us enquiry conversion**, where an accepted enquiry creates a persistent active member record and links that record back to the enquiry. The sixth covers **Leader Registration request decisions**, where approval creates section-scoped operational access and rejection closes the pending request. The seventh covers **Parent Access approval and rejection**, where approval grants selected-child access and can link existing consent records while rejection closes the access request without granting access. The close-out audit then identified six legacy browser-native dialog calls that had not been captured by the earlier source search; the eighth slice removes four of those six outside Badgework, and the ninth removes the final two Badgework confirmations.
 
 ## Action feedback contract
 
@@ -132,15 +132,27 @@ This slice removes those four:
 - existing gallery deletion, audit, print/export and public-link service semantics are unchanged;
 - deterministic Playwright coverage verifies that a blocked event-report pop-up produces in-page error feedback without a browser-native alert.
 
-The regression baseline now contains only the two existing Badgework `window.confirm` calls. Any new native alert, confirm or prompt elsewhere continues to fail Quality.
+## Ninth slice — Badgework native confirmations and close-out
+
+The final two native calls were both in `BadgeworkTracking.tsx`. One guarded loss of unsaved competency draft changes when switching skill, stage or member-selection context. The other guarded removal of an existing stage award.
+
+This slice replaces both with accessible application dialogs:
+
+- changing skill, stage or members with unsaved draft changes opens **Discard unsaved badgework changes?** and explains that the draft will be discarded without writing to any member record;
+- **Keep editing** closes that review and preserves the current draft and workflow context;
+- **Discard and continue** clears only the unsaved draft and then performs the requested context change;
+- stage-award removal opens **Remove stage award?**, identifies the stage and skill, and explicitly states that saved competency progress remains unchanged;
+- **Cancel** leaves the awarded state untouched, while **Remove award** continues through the existing `setStageAwardForMembers` service path;
+- the browser `beforeunload` safeguard for genuinely leaving the page with unsaved changes remains in place and is not treated as application-owned native dialog usage;
+- deterministic Playwright coverage verifies both confirmation cancel paths without mutating the seeded award or draft state.
+
+The source regression contract now requires zero browser-native `alert`, `confirm` or `prompt` calls under `src`.
 
 ## Stage 20.5 close-out status
 
-Stage 20.5 is **not yet complete**. The principal high-impact access, lifecycle and conversion decisions use consequence-focused in-app review, and this slice removes four of the six residual native calls discovered by the close-out audit. Two legacy confirmations remain in `BadgeworkTracking.tsx`: discarding unsaved competency changes when changing workflow context, and removing an awarded stage badge.
+Stage 20.5 is **complete**. The principal high-impact access, lifecycle, conversion, destructive and draft-loss actions reviewed by the stage now use consequence-focused in-app confirmation where appropriate, while routine saves, low-risk edits and reversible selection changes remain lightweight.
 
-Those two interactions are the final bounded Stage 20.5 debt. They should be migrated to accessible in-app confirmation while preserving unsaved draft behaviour, award eligibility rules, Adventure Skills persistence, provenance and source-link semantics. Once they are removed, `tests/unit/actionConfirmationContract.test.ts` should move from a legacy baseline to a strict zero-native-dialog contract.
-
-This remains deliberately narrower than requiring a confirmation for every write. Routine saves, low-risk edits and reversible selection changes should remain lightweight.
+The close-out audit proved useful by finding six browser-native calls missed by the earlier source review. All six have now been migrated, and `tests/unit/actionConfirmationContract.test.ts` enforces a strict zero-native-dialog contract so future `alert`, `confirm` or `prompt` usage cannot silently re-enter application source.
 
 ## Preserved boundaries
 
@@ -156,11 +168,12 @@ These slices and the close-out contract do not alter:
 - member service validation, section permissions, lifecycle-history semantics or audit behaviour;
 - Join Us workflow-status semantics, conversion transaction semantics, accepted-status validation, duplicate-conversion safeguards or member/enquiry linking;
 - event gallery, consent printing, event reporting or event-consent link service semantics;
+- Adventure Skills requirement persistence, stage-award semantics, provenance or source-link behaviour;
 - parent-account, member, leader-access, organisation, event, Join Us or Leader Registration data models;
 - deterministic seed contents;
 - workflow security, provenance controls or branch-protection requirements;
 - production data or the parked production TEST-data cleanup process.
 
-## Next review target
+## Next stage
 
-Replace the two remaining Badgework browser-native confirmations with accessible in-app review and then tighten the source contract to require zero browser-native `alert`, `confirm` or `prompt` calls. Only after that final Stage 20.5 close-out should **Stage 20.6 — Mobile operational pass** begin.
+Begin **Stage 20.6 — Mobile operational pass**. Review high-frequency leader journeys at narrow viewports first, prioritising fixed/sticky actions, multi-step dialogs, wide card/table content, long forms and expandable leader navigation. Preserve existing authorization, service behaviour, deterministic fixtures and Stage 18/19 operational controls while making mobile-only layout and interaction improvements.
