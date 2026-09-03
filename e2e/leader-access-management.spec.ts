@@ -29,7 +29,7 @@ test.describe("leader access management", () => {
     const card = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
     await expect(card).toContainText("Test Multi Section Leader");
 
-    const active = card.getByRole("checkbox", { name: "Active" });
+    const active = card.getByRole("switch", { name: "Active" });
     await expect(active).toBeChecked();
     await active.click();
     await expect(active).not.toBeChecked();
