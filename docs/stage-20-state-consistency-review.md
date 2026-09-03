@@ -4,7 +4,7 @@
 
 Stage 20.3 standardises the operational-state contract used by high-frequency parent and leader surfaces without changing routing, RBAC, Firestore rules, data shape, seed behaviour or production cleanup controls.
 
-The first implementation slice covered the shared `OperationalStates` primitives, the parent Weekly Meeting Programme and the leader Programme Library. The second slice extended the same contract to parent Adventure Skills and leader Member History, including independent retryable read states where a screen performs more than one query. The third slice applied the contract to the parent Events flow, covering both upcoming Event Consent and Event Galleries. The fourth slice extends the contract across leader Member Management and the parent consent/medical-form surface.
+The first implementation slice covered the shared `OperationalStates` primitives, the parent Weekly Meeting Programme and the leader Programme Library. The second slice extended the same contract to parent Adventure Skills and leader Member History, including independent retryable read states where a screen performs more than one query. The third slice applied the contract to the parent Events flow, covering both upcoming Event Consent and Event Galleries. The fourth slice extended the contract across leader Member Management and the parent consent/medical-form surface. The final slice closes the parent entry-point gap by applying the same contract to the Parent Portal account read and Things to do summary.
 
 ## State contract
 
@@ -79,6 +79,16 @@ Mutation success/error feedback remains separate from read/load state so a faile
 - Keeps a successful search with no matching linked child as a true empty state and exposes result counts as polite status updates.
 - Leaves individual form update feedback inside `ParentConsentEditor` as mutation feedback rather than mixing it into page-load state.
 
+### Parent Portal and Things to do
+
+- Replaces the Parent Portal's anonymous account-loading spinner with a labelled shared loading state.
+- Keeps parent-account read failures separate from sign-in, registration, password-reset and account-setup mutation feedback.
+- Prevents a failed parent-account read from falling through to the existing-account setup form as though no parent record existed.
+- Distinguishes explicit Firestore permission failures from other parent-account read failures and provides Retry without changing authentication or account-creation behaviour.
+- Replaces the Things to do summary's anonymous spinner and generic error alert with shared labelled loading, permission and error states plus Retry.
+- Treats an approved account with neither member nor section links as an unavailable prerequisite rather than presenting zero task counts as if linkage were complete.
+- Keeps a successful zero-attention summary as a positive operational result rather than an empty or error state.
+
 ## Preserved boundaries
 
 This stage does not alter Firestore/Auth/Storage rules, role visibility, queries, indexes, Firebase configuration, dependencies, workflow security, deterministic seed behaviour or production data. The parked production TEST-data cleanup remains unchanged and must continue to use the guarded Stage 18 process when resumed.
@@ -87,6 +97,10 @@ The Event Gallery implementation also preserves the existing security model: can
 
 The Member Management and Parent Consent changes only classify and render failures returned by the existing service calls. They do not broaden the accessible member or consent datasets, bypass leader section scoping, or change parent consent-link matching.
 
-## Follow-up
+The Parent Portal and Things to do changes likewise retain the existing account, event, member and consent service calls. They do not change account-status transitions, parent linking, authentication, query scope or the data used to calculate task counts.
 
-The shared primitives should continue to be adopted by the remaining high-use leader and parent screens as Stage 20 continues. Screens should not collapse permission-denied, unavailable-prerequisite and successful-empty results into a single generic `No data` message. Where one screen performs multiple independent reads, errors and retry actions should remain scoped to the read that failed rather than replacing otherwise valid content.
+## Completion and follow-up
+
+Stage 20.3 is complete for the representative high-frequency parent and leader journeys reviewed in this stage. The shared primitives remain the preferred contract for future screens, but further adoption should happen alongside the relevant feature work rather than extending Stage 20.3 indefinitely.
+
+Stage 20.4 should now review search/filter/reset behaviour across larger leader datasets such as Attendance History & Insights, reports and equipment. That work must preserve server-side role/section scoping and the Stage 19 reporting read-budget boundaries while making client-side filter behaviour consistent and discoverable.
