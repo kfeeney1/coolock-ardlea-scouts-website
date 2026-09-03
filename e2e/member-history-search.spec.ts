@@ -40,5 +40,7 @@ test("member management search opens the permitted member record with integrated
   await page.goBack();
   await expect(page).toHaveURL(/\/leader\/members$/);
   await page.getByLabel("Search members").fill("member that does not exist");
-  await expect(page.getByText("No members match the current filters.")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "No matching members" })).toContainText(
+    "No members match the current search and filters."
+  );
 });
