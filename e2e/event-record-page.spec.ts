@@ -50,7 +50,7 @@ test("event completion requires explicit confirmation and cancel does not persis
   await page.getByRole("button", { name: "Edit Event", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "Edit Event" });
   await expect(editor).toBeVisible();
-  await editor.getByLabel("Status").click();
+  await editor.getByRole("combobox").filter({ hasText: "Open" }).click();
   await page.getByRole("option", { name: "Completed", exact: true }).click();
   await editor.getByRole("button", { name: "Save Event", exact: true }).click();
 
