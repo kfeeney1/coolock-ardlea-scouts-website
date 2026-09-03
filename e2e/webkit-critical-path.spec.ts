@@ -25,6 +25,7 @@ test.describe("WebKit critical path", () => {
     const menuButton = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
     await expect(menuButton).toBeVisible();
     await menuButton.click();
+    await page.getByRole("navigation", { name: "Leader navigation" }).getByRole("button", { name: "Programme" }).click();
 
     const weeklyMeetingsLink = page.getByRole("link", { name: "Weekly Meetings", exact: true });
     await expect(weeklyMeetingsLink).toBeVisible();

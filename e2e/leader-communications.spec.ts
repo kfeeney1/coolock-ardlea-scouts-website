@@ -25,7 +25,7 @@ async function loginLeader(page: import("@playwright/test").Page, account: Crede
 }
 
 async function openLeaderMenu(page: import("@playwright/test").Page) {
-    const menuButton = page.getByRole("button", { name: /Leader Menu/ });
+    const menuButton = page.getByRole("button", { name: /Leader Menu|Menu ·/ });
     await expect(menuButton).toBeVisible();
     await expect(page.getByRole("link", { name: "Parent Communications" })).toHaveCount(0);
     await menuButton.click();

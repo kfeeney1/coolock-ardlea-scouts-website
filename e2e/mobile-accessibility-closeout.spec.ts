@@ -94,6 +94,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     const menuButton = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
     await expect(menuButton).toBeVisible();
     await menuButton.click();
+    await page.getByRole("navigation", { name: "Leader navigation" }).getByRole("button", { name: "Programme" }).click();
     await expect(page.getByRole("link", { name: "Weekly Meetings", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Events & Activities", exact: true })).toBeVisible();
 

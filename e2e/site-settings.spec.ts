@@ -38,6 +38,6 @@ test("ordinary leader cannot access site settings", async ({ page }, testInfo) =
   await page.goto("/leader/settings");
   await expect(page).toHaveURL(/\/leader$/);
 
-  await page.getByRole("button", { name: /Leader Menu/ }).click();
+  await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
 });

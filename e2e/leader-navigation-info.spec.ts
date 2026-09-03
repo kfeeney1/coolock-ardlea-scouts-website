@@ -14,9 +14,14 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
 
   await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
   const menu = page.locator("#leader-navigation");
-  const menuButtons = menu.getByRole("link");
-  await expect(menuButtons.nth(0)).toHaveText("Weekly Meetings");
-  await expect(menuButtons.nth(1)).toHaveText("Events & Activities");
+  await expect(menu.getByRole("link", { name: "Dashboard", exact: true })).toHaveAttribute("href", "/leader");
+
+  const mobile = (page.viewportSize()?.width ?? 0) < 900;
+  const groupedNavigation = menu.getByTestId(mobile ? "leader-navigation-mobile" : "leader-navigation-desktop");
+  if (mobile) await groupedNavigation.getByRole("button", { name: "Programme" }).click();
+  const programmeLinks = groupedNavigation.getByRole("link");
+  await expect(programmeLinks.nth(0)).toHaveText("Weekly Meetings");
+  await expect(programmeLinks.nth(1)).toHaveText("Events & Activities");
   await expect(menu.getByRole("link", { name: "Weekly Tracker" })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "Organisational Chart" })).toHaveCount(0);
 

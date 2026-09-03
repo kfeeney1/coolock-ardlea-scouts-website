@@ -47,8 +47,12 @@ test("section leader gets compact mobile disclosure without admin destinations",
   const programme = mobileNavigation.getByRole("button", { name: "Programme" });
   const people = mobileNavigation.getByRole("button", { name: "People & Parents" });
 
-  await expect(programme).toHaveAttribute("aria-expanded", "true");
+  await expect(programme).toHaveAttribute("aria-expanded", "false");
   await expect(people).toHaveAttribute("aria-expanded", "false");
+  await expect(mobileNavigation.getByRole("region", { name: "Programme" })).toHaveCount(0);
+
+  await programme.click();
+  await expect(programme).toHaveAttribute("aria-expanded", "true");
   await expect(mobileNavigation.getByRole("region", { name: "Programme" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Weekly Meetings" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toHaveCount(0);
