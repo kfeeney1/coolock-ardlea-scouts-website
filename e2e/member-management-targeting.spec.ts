@@ -53,3 +53,39 @@ test("member status tiles support keyboard activation", async ({ page }, testInf
     await expect(totalTile).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("combobox", { name: "Status" })).toHaveText(/All Statuses/);
 });
+
+test("member status change requires review and cancel does not persist it", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/members");
+
+    const card = page.getByTestId("member-card-TEST_member_beaver_01");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("Active");
+    const memberName = (await card.getByRole("heading").textContent())?.trim() || "";
+    await card.getByRole("button", { name: "Manage" }).click();
+
+    const editor = page.getByRole("dialog", { name: `Member — ${memberName}` });
+    await expect(editor).toBeVisible();
+    const status = editor.getByRole("combobox").filter({ hasText: "Active" });
+    await status.click();
+    await page.getByRole("option", { name: "Left", exact: true }).click();
+    await editor.getByRole("button", { name: "Save Member", exact: true }).click();
+
+    const confirmation = page.getByRole("dialog", { name: "Confirm member status change?" });
+    await expect(confirmation).toBeVisible();
+    await expect(confirmation).toContainText(memberName);
+    await expect(confirmation).toContainText("Active to Left");
+    await expect(confirmation).toContainText("record and lifecycle history are retained");
+    await expect(confirmation.getByRole("button", { name: "Confirm Status Change", exact: true })).toBeVisible();
+
+    await confirmation.getByRole("button", { name: "Cancel status change", exact: true }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(status).toHaveText(/Left/);
+    await editor.getByRole("button", { name: "Close", exact: true }).click();
+
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("Active");
+});
