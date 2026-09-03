@@ -82,7 +82,7 @@ test("member status change requires review and cancel does not persist it", asyn
 
     await confirmation.getByRole("button", { name: "Cancel status change", exact: true }).click();
     await expect(confirmation).toBeHidden();
-    await expect(status).toHaveText(/Left/);
+    await expect(page.getByRole("combobox").filter({ hasText: "Left" })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();
