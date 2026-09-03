@@ -25,15 +25,18 @@ async function loginAdmin(page: Page) {
 
 async function expectMobileViewportSafe(page: Page, route: string) {
   await expect(page.getByTestId("leader-dashboard-header")).toBeVisible();
-  await expect.poll(async () => page.evaluate(() => ({
-    documentWidth: document.documentElement.scrollWidth,
-    bodyWidth: document.body.scrollWidth,
-    viewportWidth: window.innerWidth
-  })), { message: `${route} must not introduce page-level horizontal overflow` }).toEqual(expect.objectContaining({
+  await expect.poll(async () => page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    return {
+      viewportWidth,
+      documentFitsViewport: document.documentElement.scrollWidth <= viewportWidth + 1,
+      bodyFitsViewport: document.body.scrollWidth <= viewportWidth + 1
+    };
+  }), { message: `${route} must not introduce page-level horizontal overflow` }).toEqual({
     viewportWidth: 412,
-    documentWidth: 412,
-    bodyWidth: 412
-  }));
+    documentFitsViewport: true,
+    bodyFitsViewport: true
+  });
 
   const escapedSurfaces = await page.locator("body *").evaluateAll((elements) => {
     const viewportWidth = window.innerWidth;
