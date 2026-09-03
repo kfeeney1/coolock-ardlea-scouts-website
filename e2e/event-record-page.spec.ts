@@ -68,3 +68,17 @@ test("event completion requires explicit confirmation and cancel does not persis
   await expect(record.getByText("Open", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit Event", exact: true })).toBeEnabled();
 });
+
+test("blocked event report pop-ups use in-page error feedback", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/TEST_flow_event_beavers_open");
+
+  await page.evaluate(() => {
+    window.open = () => null;
+  });
+  await page.getByRole("button", { name: "Report", exact: true }).click();
+
+  await expect(page.getByRole("alert").filter({ hasText: "Please allow pop-ups for this site to print the event report." })).toBeVisible();
+});
