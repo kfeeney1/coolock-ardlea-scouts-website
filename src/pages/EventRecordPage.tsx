@@ -141,8 +141,12 @@ export default function EventRecordPage() {
 
     const printRoster = () => {
         if (!event) return;
+        setError("");
         const printWindow = window.open("", "_blank", "width=1200,height=850");
-        if (!printWindow) return window.alert("Please allow pop-ups for this site to print the event report.");
+        if (!printWindow) {
+            setError("Please allow pop-ups for this site to print the event report.");
+            return;
+        }
         printWindow.document.write(eventRosterPrintHtml(event, members));
         printWindow.document.close();
     };
