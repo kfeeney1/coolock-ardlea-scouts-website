@@ -1,11 +1,16 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import {
+    OperationalEmptyState,
+    OperationalErrorState,
+    OperationalLoading,
+    OperationalPermissionState
+} from "../components/admin/OperationalStates";
+import {
     Alert,
     Box,
     Button,
     Chip,
-    CircularProgress,
     Container,
     Dialog,
     DialogActions,
@@ -20,7 +25,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     createMember,
     loadMemberConsentSummaries,
@@ -33,6 +38,7 @@ import type {
     MemberRecord,
     MemberStatus
 } from "../services/memberAdmin";
+import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import { moveToUiTargetAfterRender } from "../services/uiTargeting";
 
 const sections = ["all", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
@@ -68,7 +74,8 @@ const consentExpired = (value: string) => Boolean(value && value < new Date().to
 export default function MemberManagement() {
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [memberLoadError, setMemberLoadError] = useState<unknown>(null);
+    const [saveError, setSaveError] = useState("");
     const [message, setMessage] = useState("");
     const [search, setSearch] = useState("");
     const [sectionFilter, setSectionFilter] = useState("all");
@@ -78,25 +85,26 @@ export default function MemberManagement() {
     const [saving, setSaving] = useState(false);
     const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
     const [loadingConsents, setLoadingConsents] = useState(false);
+    const [consentLoadError, setConsentLoadError] = useState<unknown>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [addDraft, setAddDraft] = useState<CreateMemberInput>({ ...emptyMember });
     const [creating, setCreating] = useState(false);
     const [addError, setAddError] = useState("");
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
-        setError("");
+        setMemberLoadError(null);
         try {
             setMembers(await loadMembers());
         } catch (loadError) {
             console.error("Unable to load members:", loadError);
-            setError("Unable to load member records.");
+            setMemberLoadError(loadError);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    useEffect(() => { void load(); }, []);
+    useEffect(() => { void load(); }, [load]);
 
     const visibleMembers = useMemo(() => members.filter((member) => {
         if (sectionFilter !== "all" && member.section !== sectionFilter) return false;
@@ -132,28 +140,33 @@ export default function MemberManagement() {
         moveToUiTargetAfterRender("member-results", { focus: true });
     };
 
-    const openMember = async (member: MemberRecord) => {
-        setSelected(member);
-        setDraft({ ...member });
-        setConsents([]);
-        setError("");
-        setMessage("");
+    const loadMemberConsents = async (member: MemberRecord) => {
         setLoadingConsents(true);
+        setConsentLoadError(null);
         try {
             setConsents(await loadMemberConsentSummaries(member));
         } catch (consentError) {
             console.error("Unable to load linked consents:", consentError);
-            setError("Member loaded, but linked consent records could not be checked.");
+            setConsentLoadError(consentError);
         } finally {
             setLoadingConsents(false);
         }
     };
 
+    const openMember = async (member: MemberRecord) => {
+        setSelected(member);
+        setDraft({ ...member });
+        setConsents([]);
+        setSaveError("");
+        setMessage("");
+        await loadMemberConsents(member);
+    };
+
     const save = async () => {
         if (!selected || !draft) return;
-        if (!draft.displayName.trim()) return setError("Member name is required.");
+        if (!draft.displayName.trim()) return setSaveError("Member name is required.");
         setSaving(true);
-        setError("");
+        setSaveError("");
         setMessage("");
         try {
             await updateMember(selected.id, {
@@ -174,9 +187,9 @@ export default function MemberManagement() {
             setSelected(updated);
             setDraft(updated);
             setMessage("Member details updated.");
-        } catch (saveError) {
-            console.error("Unable to save member:", saveError);
-            setError("Unable to update the member record.");
+        } catch (error) {
+            console.error("Unable to save member:", error);
+            setSaveError("Unable to update the member record.");
         } finally {
             setSaving(false);
         }
@@ -234,6 +247,128 @@ export default function MemberManagement() {
             <TextField label="Emergency contact phone" value={value.emergencyContactPhone} onChange={(event) => setValue({ ...value, emergencyContactPhone: event.target.value })} />
         </Box>
     );
+
+    const renderMemberResults = () => {
+        if (loading) {
+            return <OperationalLoading minHeight={300} label="Loading member records" />;
+        }
+        if (memberLoadError) {
+            const failureMessage = firestoreFailureMessage(memberLoadError, "Unable to load member records.");
+            if (classifyFirestoreFailure(memberLoadError) === "permission") {
+                return (
+                    <OperationalPermissionState
+                        title="Member records access restricted"
+                        actionLabel="Retry"
+                        onAction={() => void load()}
+                        testId="member-management-permission"
+                    >
+                        {failureMessage}
+                    </OperationalPermissionState>
+                );
+            }
+            return (
+                <OperationalErrorState
+                    title="Member records could not be loaded"
+                    actionLabel="Retry"
+                    onAction={() => void load()}
+                    testId="member-management-error"
+                >
+                    {failureMessage}
+                </OperationalErrorState>
+            );
+        }
+        if (members.length === 0) {
+            return (
+                <OperationalEmptyState title="No member records">
+                    No member records are available for your assigned sections.
+                </OperationalEmptyState>
+            );
+        }
+        if (visibleMembers.length === 0) {
+            return (
+                <OperationalEmptyState title="No matching members">
+                    No members match the current search and filters.
+                </OperationalEmptyState>
+            );
+        }
+        return (
+            <Box sx={{ display: "grid", gap: 2 }}>
+                {visibleMembers.map((member) => (
+                    <Paper key={member.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`member-card-${member.id}`}>
+                        <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
+                            <Box>
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
+                                    <Typography variant="h5" color="secondary">{member.displayName}</Typography>
+                                    <Chip label={statusLabel(member.status)} color={statusColor(member.status)} size="small" />
+                                    {member.section && <Chip label={member.section} variant="outlined" size="small" />}
+                                </Stack>
+                                <Typography sx={{ mt: 1 }}>Parent / Guardian: {member.parentName || "Not provided"}</Typography>
+                                <Typography sx={{ mt: 0.5 }}>Phone: {member.mobileNumber || "Not provided"}</Typography>
+                            </Box>
+                            <Button variant="contained" color="success" onClick={() => void openMember(member)}>Manage</Button>
+                        </Box>
+                    </Paper>
+                ))}
+            </Box>
+        );
+    };
+
+    const renderConsentIndicators = () => {
+        if (loadingConsents) {
+            return <OperationalLoading minHeight={120} label="Loading consent indicators" />;
+        }
+        if (consentLoadError) {
+            const failureMessage = firestoreFailureMessage(
+                consentLoadError,
+                "Member loaded, but linked consent records could not be checked."
+            );
+            if (classifyFirestoreFailure(consentLoadError) === "permission") {
+                return (
+                    <OperationalPermissionState
+                        title="Consent indicators access restricted"
+                        actionLabel="Retry"
+                        onAction={() => selected && void loadMemberConsents(selected)}
+                        testId="member-consent-permission"
+                    >
+                        {failureMessage}
+                    </OperationalPermissionState>
+                );
+            }
+            return (
+                <OperationalErrorState
+                    title="Consent indicators could not be loaded"
+                    actionLabel="Retry"
+                    onAction={() => selected && void loadMemberConsents(selected)}
+                    testId="member-consent-error"
+                >
+                    {failureMessage}
+                </OperationalErrorState>
+            );
+        }
+        if (consents.length === 0) {
+            return (
+                <OperationalEmptyState title="No matching consent records">
+                    No matching consent records were found for this member.
+                </OperationalEmptyState>
+            );
+        }
+        return (
+            <Stack spacing={1.5}>
+                {consents.map((consent) => (
+                    <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}>
+                        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
+                            <Chip size="small" label={consentExpired(consent.consentTo) ? "Expired" : "Consent found"} color={consentExpired(consent.consentTo) ? "error" : "success"} />
+                            {consent.hasMedicalAlert && <Chip size="small" label="Medical alert" color="warning" />}
+                            {consent.hasMedicationManagement && <Chip size="small" label="Medication" color="error" />}
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                            {consent.section || "No section"} · Submitted {formatDate(consent.submittedAt)} · Consent to {consent.consentTo || "not provided"}
+                        </Typography>
+                    </Paper>
+                ))}
+            </Stack>
+        );
+    };
 
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
@@ -303,61 +438,20 @@ export default function MemberManagement() {
                     </Box>
                 </Paper>
 
-                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
                 <Box id="member-results" role="region" aria-label="Member results" tabIndex={-1}>
-                    {loading ? (
-                        <Box sx={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box>
-                    ) : (
-                        <Box sx={{ display: "grid", gap: 2 }}>
-                            {visibleMembers.length === 0 && <Alert severity="info">No members match the current filters.</Alert>}
-                            {visibleMembers.map((member) => (
-                                <Paper key={member.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`member-card-${member.id}`}>
-                                    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
-                                        <Box>
-                                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
-                                                <Typography variant="h5" color="secondary">{member.displayName}</Typography>
-                                                <Chip label={statusLabel(member.status)} color={statusColor(member.status)} size="small" />
-                                                {member.section && <Chip label={member.section} variant="outlined" size="small" />}
-                                            </Stack>
-                                            <Typography sx={{ mt: 1 }}>Parent / Guardian: {member.parentName || "Not provided"}</Typography>
-                                            <Typography sx={{ mt: 0.5 }}>Phone: {member.mobileNumber || "Not provided"}</Typography>
-                                        </Box>
-                                        <Button variant="contained" color="success" onClick={() => void openMember(member)}>Manage</Button>
-                                    </Box>
-                                </Paper>
-                            ))}
-                        </Box>
-                    )}
+                    {renderMemberResults()}
                 </Box>
 
                 <Dialog open={Boolean(selected && draft)} onClose={() => { setSelected(null); setDraft(null); }} maxWidth="lg" fullWidth>
                     {selected && draft && <>
                         <DialogTitle>Member — {draft.displayName}</DialogTitle>
                         <DialogContent dividers>
-                            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                            {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
                             {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                             <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Member Details</Typography>
                             {memberForm(draft, (value) => setDraft({ ...draft, ...value }))}
                             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent Indicators</Typography>
-                            {loadingConsents ? <CircularProgress size={24} /> : consents.length === 0 ? (
-                                <Alert severity="info">No matching consent records were found for this member.</Alert>
-                            ) : (
-                                <Stack spacing={1.5}>
-                                    {consents.map((consent) => (
-                                        <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}>
-                                            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
-                                                <Chip size="small" label={consentExpired(consent.consentTo) ? "Expired" : "Consent found"} color={consentExpired(consent.consentTo) ? "error" : "success"} />
-                                                {consent.hasMedicalAlert && <Chip size="small" label="Medical alert" color="warning" />}
-                                                {consent.hasMedicationManagement && <Chip size="small" label="Medication" color="error" />}
-                                            </Stack>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {consent.section || "No section"} · Submitted {formatDate(consent.submittedAt)} · Consent to {consent.consentTo || "not provided"}
-                                            </Typography>
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            )}
+                            {renderConsentIndicators()}
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => { setSelected(null); setDraft(null); }}>Close</Button>
