@@ -1,8 +1,6 @@
 import {
     Alert,
     Box,
-    Button,
-    CircularProgress,
     Dialog,
     DialogContent,
     DialogTitle,
@@ -13,9 +11,16 @@ import {
     Typography
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+    OperationalEmptyState,
+    OperationalErrorState,
+    OperationalLoading,
+    OperationalPermissionState,
+    OperationalUnavailableState
+} from "../admin/OperationalStates";
+import { classifyFirestoreFailure } from "../../services/firestoreErrors";
 import {
     loadParentEventGalleries,
     revokeParentEventGalleryUrls
@@ -37,10 +42,21 @@ function formatDate(value: string): string {
         : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
 }
 
+function errorCode(error: unknown): string {
+    if (!error || typeof error !== "object" || !("code" in error)) return "";
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : "";
+}
+
+function isPermissionFailure(error: unknown): boolean {
+    return classifyFirestoreFailure(error) === "permission" || errorCode(error) === "storage/unauthorized";
+}
+
 export default function ParentEventGallerySection({ sections }: Props) {
     const [galleries, setGalleries] = useState<ParentEventGallery[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [permissionDenied, setPermissionDenied] = useState(false);
     const [search, setSearch] = useState("");
     const [selectedPhoto, setSelectedPhoto] = useState<ParentGalleryPhoto | null>(null);
     const [retryVersion, setRetryVersion] = useState(0);
@@ -58,6 +74,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
         void (async () => {
             setLoading(true);
             setError("");
+            setPermissionDenied(false);
             try {
                 loaded = await loadParentEventGalleries(sections);
                 if (cancelled) {
@@ -68,7 +85,13 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 setGalleries(loaded);
             } catch (loadError) {
                 console.error("Unable to load parent event galleries:", loadError);
-                if (!cancelled) setError("Unable to load event galleries right now. Please try again.");
+                if (!cancelled) {
+                    const denied = isPermissionFailure(loadError);
+                    setPermissionDenied(denied);
+                    setError(denied
+                        ? "Your signed-in account does not currently have permission to load these event gallery photos."
+                        : "Unable to load event galleries right now. Please try again.");
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -91,45 +114,47 @@ export default function ParentEventGallerySection({ sections }: Props) {
         );
     }, [galleries, search]);
 
+    const retry = () => setRetryVersion((value) => value + 1);
+
     if (loading) {
+        return <OperationalLoading minHeight={120} label="Loading event galleries" />;
+    }
+    if (error && permissionDenied) {
         return (
-            <Box
-                sx={{ minHeight: 120, display: "grid", placeItems: "center" }}
-                role="status"
-                aria-live="polite"
-                aria-label="Loading event galleries"
+            <OperationalPermissionState
+                title="Event gallery access restricted"
+                actionLabel="Retry"
+                onAction={retry}
+                testId="parent-event-gallery-error"
             >
-                <CircularProgress size={28} />
-            </Box>
+                {error}
+            </OperationalPermissionState>
         );
     }
     if (error) {
         return (
-            <Alert
-                severity="error"
-                action={(
-                    <Button
-                        color="inherit"
-                        size="small"
-                        startIcon={<RefreshIcon />}
-                        onClick={() => setRetryVersion((value) => value + 1)}
-                        data-testid="parent-event-gallery-retry"
-                    >
-                        Retry
-                    </Button>
-                )}
-                data-testid="parent-event-gallery-error"
+            <OperationalErrorState
+                title="Unable to load event galleries"
+                actionLabel="Retry"
+                onAction={retry}
+                testId="parent-event-gallery-error"
             >
                 {error}
-            </Alert>
+            </OperationalErrorState>
         );
     }
-    if (sections.length === 0) return <Alert severity="info">No linked Scout section is available for this account yet.</Alert>;
+    if (sections.length === 0) {
+        return (
+            <OperationalUnavailableState title="Event galleries unavailable">
+                No linked Scout section is available for this account yet.
+            </OperationalUnavailableState>
+        );
+    }
     if (galleries.length === 0) {
         return (
-            <Alert severity="info" data-testid="parent-event-gallery-empty">
+            <OperationalEmptyState title="No event galleries available" testId="parent-event-gallery-empty">
                 There are no event galleries available for your account. Galleries only appear when an eligible linked child attended the event and current photo-sharing consent allows access.
-            </Alert>
+            </OperationalEmptyState>
         );
     }
 
@@ -199,7 +224,11 @@ export default function ParentEventGallerySection({ sections }: Props) {
                     </Paper>
                 ))}
             </Stack>
-            {visible.length === 0 && <Alert severity="info" data-testid="parent-event-gallery-search-empty">No event galleries match that search.</Alert>}
+            {visible.length === 0 && (
+                <OperationalEmptyState testId="parent-event-gallery-search-empty">
+                    No event galleries match that search.
+                </OperationalEmptyState>
+            )}
 
             <Dialog
                 open={Boolean(selectedPhoto)}
