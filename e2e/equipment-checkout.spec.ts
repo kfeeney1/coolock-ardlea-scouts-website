@@ -20,7 +20,7 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Equipment checkout runs once on desktop Chromium.");
 }
 
-test("admin can add stock, check it out to a section and return it", async ({ page }, testInfo) => {
+test("admin can add stock, check it out to a section, return it and reset catalogue filters", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
@@ -66,6 +66,25 @@ test("admin can add stock, check it out to a section and return it", async ({ pa
   await expect(page.getByText("No equipment is currently checked out.")).toBeVisible();
   const returnedCard = page.getByText("TEST Checkout Tent", { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
+
+  const search = page.getByLabel("Search equipment");
+  const category = page.getByRole("combobox", { name: "Category" });
+  const location = page.getByRole("combobox", { name: "Location" });
+  await search.fill("TEST Checkout Tent");
+  await category.click();
+  await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await location.click();
+  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  await page.getByRole("button", { name: "Show archived" }).click();
+  await expect(page.getByTestId("equipment-result-count")).toContainText("1 matching equipment item");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Reset filters" }).click();
+  await expect(search).toHaveValue("");
+  await expect(category).toContainText("All categories");
+  await expect(location).toContainText("All locations");
+  await expect(page.getByRole("button", { name: "Show archived" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
 });
 
 test("missing checkout equipment can be investigated and resolved back into stock", async ({ page }, testInfo) => {
