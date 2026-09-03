@@ -4,7 +4,7 @@
 
 Stage 20.5 reviews high-impact operational actions so confirmation, success and failure feedback is predictable and accessible without changing authorization, data semantics, audit requirements or server-side validation.
 
-The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history.
+The first implementation slice covers **Parent Access revocation** because revoking an approved account immediately removes all linked member and section access. The second covers **Leader Access & Organisation** where one save can alter account activation, system role, permitted sections or public organisation visibility. The third covers **Event lifecycle completion**, where completing an event moves it into read-only history. The fourth covers **Member Management status transitions**, where changing Active, Inactive or Left status creates a lifecycle-history event and changes the member's operational state.
 
 ## Action feedback contract
 
@@ -60,6 +60,22 @@ The editor already showed an inline warning when **Completed** was selected, but
 - existing lifecycle-transition validation, attendance/consent close-out checks, projection updates, audit event and success/error feedback remain authoritative;
 - deterministic Playwright coverage stages completion of the existing open Beavers event fixture, cancels it, closes the editor and refreshes to prove the event remains Open and editable.
 
+## Fourth slice — Member status transitions
+
+The Member Management editor uses the same **Save Member** action for ordinary contact/detail edits, section changes and transitions between **Active**, **Inactive** and **Left**. The existing member service already treats a status transition as lifecycle history and audits it, but before this slice the UI persisted that operational-state change immediately with the rest of the draft.
+
+This slice adds explicit review only when the status differs from the last saved member record:
+
+- **Active**, **Inactive** and **Left** transitions all require a labelled **Confirm member status change?** review before `updateMember` is called;
+- the confirmation identifies the member, shows the previous and proposed status, and explains the consequence of the target state;
+- moving to **Inactive** or **Left** explicitly explains that the member record and lifecycle history are retained;
+- returning to **Active** explains that the member returns to active status in the register;
+- **Cancel status change** returns to the editable draft without persisting it, so the leader can revise or abandon the change;
+- ordinary contact/detail edits and section-only changes keep the existing direct-save path;
+- member creation keeps its existing flow and does not add a redundant status confirmation;
+- the existing `updateMember` service remains responsible for section permissions, atomic member-history writes and audit events;
+- deterministic Playwright coverage stages an existing active seeded member as **Left**, cancels the review, closes the editor and refreshes to prove the member remains Active.
+
 ## Preserved boundaries
 
 These slices do not alter:
@@ -69,6 +85,7 @@ These slices do not alter:
 - parent approval, rejection or child-linking semantics;
 - leader-access service validation or organisation/public projection semantics;
 - event lifecycle transition rules, close-out validation, event projections or completed-event read-only rules;
+- member service validation, section permissions, lifecycle-history semantics or audit behaviour;
 - parent-account, member, leader-access, organisation or event data models;
 - audit event category/action/description semantics;
 - deterministic seed contents;
@@ -77,4 +94,4 @@ These slices do not alter:
 
 ## Next review target
 
-Review **Member Management status transitions** next. The member editor can currently change a member between **Active**, **Inactive** and **Left** within the same general save action as ordinary contact/detail edits. Stage 20.5 should determine which transitions warrant explicit review and what consequences should be explained, while preserving the existing member service, section permissions, history and audit behaviour.
+Review **Join Us enquiry conversion to a member record** next. The accepted-enquiry workflow still uses a browser-native `window.confirm` before **Create Member Record**, even though conversion creates a persistent member record and links that new member back to the enquiry. Stage 20.5 should bring that action onto the same accessible in-app confirmation contract while preserving the existing accepted-status requirement, duplicate-conversion guard, section permissions, conversion service and audit behaviour.
