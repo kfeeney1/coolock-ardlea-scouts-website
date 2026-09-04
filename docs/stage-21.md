@@ -35,6 +35,8 @@ The third focused slice locks the single-Dashboard navigation contract after the
 
 The first parent self-service slice keeps **Things to do** current after an inline consent or medical update. The confirmed stale-state hand-off came from the form list and task summary owning separate snapshots; a successful parent save now refreshes both without reloading the whole portal. The existing approved-parent journey performs the save against the freshly seeded emulator data and verifies the attention count changes. No later test depends on that mutated count, and each workflow recreates the canonical dataset before Playwright starts.
 
+The second slice removes a confirmed parent navigation dead end. Event consent opened from the Parent Portal now carries a non-sensitive route-state marker and exposes a mobile-safe **Back to Parent Portal** action on the token form. Publicly opened consent links remain unchanged, no parent or event data is added to the URL or route state, and the existing approved-parent journey verifies the return to the still-authenticated portal without submitting another consent response.
+
 ## Non-goals
 
 Stage 21 does not:

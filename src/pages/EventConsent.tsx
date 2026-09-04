@@ -16,7 +16,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import {
     loadPublicEventLink,
@@ -26,6 +26,10 @@ import type { PublicEventLink } from "../services/eventConsent";
 
 export default function EventConsent() {
     const { token = "" } = useParams();
+    const location = useLocation();
+    const fromParentPortal = Boolean(
+        (location.state as { fromParentPortal?: boolean } | null)?.fromParentPortal
+    );
     const [event, setEvent] = useState<PublicEventLink | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -132,9 +136,20 @@ export default function EventConsent() {
         <Box sx={{ minHeight: "70vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="md">
                 <Paper elevation={3} sx={{ p: { xs: 2.5, md: 4 }, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
-                    <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
-                        Event Consent
-                    </Typography>
+                    <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+                    >
+                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
+                            Event Consent
+                        </Typography>
+                        {fromParentPortal && (
+                            <Button component={Link} to="/parent" variant="outlined" color="secondary">
+                                Back to Parent Portal
+                            </Button>
+                        )}
+                    </Stack>
 
                     {error && <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>}
 
