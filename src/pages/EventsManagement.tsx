@@ -8,7 +8,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
 import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
-import { EMPTY_EVENT, filterEvents } from "../services/eventManagementLogic";
+import { EMPTY_EVENT, filterEvents, isDuplicateEventIdentity } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -61,6 +61,7 @@ export default function EventsManagement() {
         if (!draft.title.trim()) return setError("Event title is required.");
         if (!draft.startDate) return setError("Start date is required.");
         if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
+        if (isDuplicateEventIdentity(draft, events)) return setError("An event with this title, start date and section already exists. Open the existing event instead.");
         setSaving(true);
         setError("");
         try {
