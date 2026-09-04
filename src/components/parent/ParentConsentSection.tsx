@@ -12,14 +12,14 @@ import { classifyFirestoreFailure, firestoreFailureMessage } from "../../service
 import { loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
 import type { ParentConsentRecord, ParentLinkedMember } from "../../services/parentConsent";
 
-type Props = { memberIds: string[]; };
+type Props = { memberIds: string[]; onSaved?: () => Promise<void> | void; };
 
 function formatDate(date: Date | null): string {
   if (!date) return "Not updated yet";
   return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-export default function ParentConsentSection({ memberIds }: Props) {
+export default function ParentConsentSection({ memberIds, onSaved }: Props) {
   const [records, setRecords] = useState<ParentConsentRecord[]>([]);
   const [members, setMembers] = useState<ParentLinkedMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,11 @@ export default function ParentConsentSection({ memberIds }: Props) {
   }, [memberIds]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const handleSaved = async () => {
+    await load();
+    await onSaved?.();
+  };
 
   const recordsByMember = useMemo(() => {
     const grouped = new Map<string, ParentConsentRecord[]>();
@@ -163,7 +168,7 @@ export default function ParentConsentSection({ memberIds }: Props) {
                           ? `This form was last updated by a parent on ${formatDate(record.parentUpdatedAt || record.updatedAt)}.`
                           : "This linked form has not yet been updated through the Parent Portal."}
                       </Alert>
-                      <ParentConsentEditor consent={record} onSaved={load} />
+                      <ParentConsentEditor consent={record} onSaved={handleSaved} />
                     </Box>
                   ))}
                 </Stack>

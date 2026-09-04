@@ -24,6 +24,7 @@ import { classifyFirestoreFailure, firestoreFailureMessage } from "../../service
 type Props = {
     memberIds: string[];
     sections: string[];
+    refreshVersion?: number;
 };
 
 const emptySummary: ParentTaskSummary = {
@@ -45,7 +46,7 @@ function eventDate(startDate: string, endDate: string): string {
     return startDate;
 }
 
-export default function ParentThingsToDo({ memberIds, sections }: Props) {
+export default function ParentThingsToDo({ memberIds, sections, refreshVersion = 0 }: Props) {
     const [summary, setSummary] = useState<ParentTaskSummary>(emptySummary);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<unknown>(null);
@@ -69,8 +70,9 @@ export default function ParentThingsToDo({ memberIds, sections }: Props) {
     }, [memberIds, sections]);
 
     useEffect(() => {
+        if (refreshVersion < 0) return;
         void load();
-    }, [load]);
+    }, [load, refreshVersion]);
 
     const taskState = () => {
         if (memberIds.length === 0 && sections.length === 0) {
@@ -161,7 +163,7 @@ export default function ParentThingsToDo({ memberIds, sections }: Props) {
                     </Paper>
 
                     <Paper variant="outlined" sx={{ p: 2.25 }}>
-                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{summary.medicalAttentionCount}</Typography>
+                        <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }} data-testid="parent-medical-attention-count">{summary.medicalAttentionCount}</Typography>
                         <Typography sx={{ fontWeight: 700 }}>Medical & consent</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Linked child record{summary.medicalAttentionCount === 1 ? "" : "s"} missing a parent-reviewed consent update.</Typography>
                         <Button onClick={() => scrollTo("parent-medical-consent")} sx={{ mt: 1.5, px: 0 }}>Review forms</Button>

@@ -19,14 +19,16 @@ test.describe("approved parent journey", () => {
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
   });
 
-  test("parent sees searchable consent tiles and can open a linked consent form", async ({ page }) => {
+  test("parent sees searchable consent tiles and refreshes tasks after saving a linked consent form", async ({ page, request }) => {
     await loginParent(page);
 
     const summary = page.getByTestId("parent-things-to-do");
+    const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
     await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
+    await expect(medicalAttentionCount).toHaveText("2");
 
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
     await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
@@ -42,7 +44,17 @@ test.describe("approved parent journey", () => {
       .getByTestId("parent-consent-tile-TEST_member_beaver_01")
       .getByRole("button", { name: "Review Consent" })
       .click();
-    await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
+    const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
+    await expect(save).toBeVisible();
+    try {
+      await save.click();
+      await expect(medicalAttentionCount).toHaveText("1");
+    } finally {
+      const restored = await request.patch("http://127.0.0.1:8080/v1/projects/coolock-ardlea-scouts/databases/(default)/documents/consentApplications/TEST_flow_consent_youth_medication?updateMask.fieldPaths=updatedByParent", {
+        data: { fields: { updatedByParent: { booleanValue: false } } }
+      });
+      expect(restored.ok()).toBeTruthy();
+    }
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {

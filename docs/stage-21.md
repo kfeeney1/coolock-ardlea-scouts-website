@@ -31,6 +31,10 @@ The second focused slice makes closed meetings findable as history grows. Leader
 
 The third focused slice locks the single-Dashboard navigation contract after the duplicate action fixed in PR #333. Existing desktop and Pixel 7 navigation scenarios now require exactly one Dashboard destination in the expanded menu and prove that it returns from a leader feature page to `/leader`. This adds no navigation element, route or end-to-end test declaration.
 
+## Stage 21.3 progress
+
+The first parent self-service slice keeps **Things to do** current after an inline consent or medical update. The confirmed stale-state hand-off came from the form list and task summary owning separate snapshots; a successful parent save now refreshes both without reloading the whole portal. The existing approved-parent journey performs the save against emulator data, verifies the attention count changes, and restores the review flag in `finally` so retries and later tests remain deterministic.
+
 ## Non-goals
 
 Stage 21 does not:
