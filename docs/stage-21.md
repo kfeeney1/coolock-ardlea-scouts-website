@@ -11,7 +11,7 @@ The parked production TEST-data cleanup, branch-protection configuration, unavai
 1. **21.1 — Field-use backlog and friction baseline.** Review the current product surface and recent issue history for repeated operator/parent friction, duplicate effort, awkward hand-offs and missing shortcuts. Produce a prioritised backlog with clear evidence and avoid speculative feature expansion. **Complete — baseline recorded in `docs/stage-21-field-use-baseline.md`.**
 2. **21.2 — Leader workflow efficiency.** Reduce unnecessary navigation, repeated data entry and high-frequency interaction cost in Weekly Meetings, Events, Member Management, Badgework, Equipment and Section Floats while preserving permissions and auditability.
 3. **21.3 — Parent self-service refinement.** Improve the clarity and directness of consent, event, badge-progress and member-information journeys without exposing additional data or weakening approval/linking boundaries. **Complete — the two reproduced parent hand-offs are addressed; additional parent changes remain evidence-led.**
-4. **21.4 — Operational data-quality guardrails.** Add low-friction validation and consistency protections where real use can create ambiguous, incomplete or duplicate operational records; do not substitute production data for deterministic fixtures.
+4. **21.4 — Operational data-quality guardrails.** Add low-friction validation and consistency protections where real use can create ambiguous, incomplete or duplicate operational records; do not substitute production data for deterministic fixtures. **Complete at the current evidence boundary after four focused operational guards.**
 5. **21.5 — Communications and reporting usefulness.** Review common leader communications, WhatsApp/share flows and reports for actionability, duplication and export usefulness while preserving read-budget and authorization boundaries.
 6. **21.6 — Cross-role regression and adoption review.** Re-run representative public, parent and leader journeys, retain Pixel 7 coverage and record remaining adoption issues separately from governance dependencies.
 
@@ -56,6 +56,14 @@ Manual member creation and editing now use the same canonical required-field con
 The fourth operational data-quality slice makes the **Section Floats** lifecycle explicit at the write boundary. A positive ledger balance is no longer treated as the only evidence that a float is open: the ledger must contain an unreversed opening record that has not subsequently been explicitly closed. This prevents a top-up or money-out entry from creating an implicit float before it has been opened, while a second opening is rejected when a live float already exists.
 
 A float that has been fully spent down to €0.00 is treated as exhausted/closed, matching the existing UI's ability to start a new float at zero balance. Corrections to opening or closure entries are honoured when deriving lifecycle state. The guard reuses the section transactions already loaded by the existing balance check, so it adds no Firestore query. Ledger write shape, immutable correction model, reconciliation, receipts, RBAC, audit behavior, deterministic fixtures and read-budget boundaries are unchanged.
+
+Stage 21.4 is complete at the current evidence boundary. The four promoted defects covered duplicate equipment, duplicate events, incomplete member records and ambiguous section-float lifecycle state. No additional operational guard is promoted without comparable field or repository evidence.
+
+## Stage 21.5 progress
+
+The first communications/reporting usefulness slice aligns event-related CSV exports with the established sitewide `dd-mm-yyyy` date contract. Event attendance/consent rosters, event overviews, attendance trends and outstanding-consent exports previously wrote their canonical `yyyy-mm-dd` storage value directly into user-facing CSV files.
+
+Those exports now format dates through the shared site-date formatter while preserving ISO dates internally for filtering and storage. The change is presentation-only: report scope, Firestore reads, authorization, audit events, CSV spreadsheet-injection protection and sensitive-field exclusions are unchanged. The Stage 21.1 recipient-search candidate remains a discovery item until real section-scale evidence supports changing the communications recipient workflow.
 
 ## Non-goals
 
