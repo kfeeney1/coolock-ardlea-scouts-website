@@ -52,7 +52,7 @@ jobs:
           cache: npm
 
       - name: Install app dependencies
-        run: npm ci
+        run: npm ci --no-audit
 
       # Quality runs as its own required workflow. E2E only needs the exact build
       # it will serve, avoiding a second network-backed npm audit in this job.
