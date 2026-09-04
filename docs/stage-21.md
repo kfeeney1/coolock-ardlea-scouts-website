@@ -45,6 +45,10 @@ The first operational data-quality slice prevents ambiguous duplicate records in
 
 The guard uses the equipment snapshot already loaded for the page, so it adds no Firestore query or repeated read. Equipment write shape, RBAC, audit events, movement/history semantics, deterministic fixtures and existing category/location duplicate protections are unchanged.
 
+The second operational data-quality slice protects **Events & Activities** from ambiguous duplicate event records. Event identity uses a whitespace-normalised, case-insensitive title together with the exact start date and section. Creating a second event with the same identity is rejected, and editing an event cannot rename or move it onto another existing event's identity while the current record remains excluded from its own check.
+
+The event guard reuses the event snapshots already loaded by the list and record pages, so it adds no Firestore query. Events on different dates or in different sections remain valid even when their titles match. Event write shape, attendance/consent data, RBAC, audit behavior, deterministic fixtures and existing lifecycle semantics are unchanged.
+
 ## Non-goals
 
 Stage 21 does not:
