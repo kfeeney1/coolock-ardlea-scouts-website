@@ -2,9 +2,9 @@
 
 Stage 19 completed the engineering-control baseline for release evidence, operational health, recovery rehearsal, retention/privacy lifecycle, export/offboarding safeguards, reporting read budgets and launch-readiness review.
 
-Stage 20 moves the project back toward day-to-day product maturity. It must preserve the Stage 18/19 security, provenance, deterministic-test, recovery and read-budget boundaries rather than treating them as temporary hardening work.
+Stage 20 moved the project back toward day-to-day product maturity while preserving the Stage 18/19 security, provenance, deterministic-test, recovery and read-budget boundaries.
 
-The parked production TEST-data cleanup, GitHub branch-protection configuration, unavailable production Storage capability and future managed non-production restore exercise remain explicit operational dependencies. Stage 20 must not hide or weaken those gaps.
+The parked production TEST-data cleanup, GitHub branch-protection configuration, unavailable production Storage capability and future managed non-production restore exercise remain explicit operational dependencies. Stage 20 did not hide or weaken those gaps.
 
 ## Planned sequence
 
@@ -14,36 +14,25 @@ The parked production TEST-data cleanup, GitHub branch-protection configuration,
 4. **20.4 — Search/filter consistency.** Review member history, attendance insights, reports, equipment and other larger datasets for consistent search/filter/reset behaviour while preserving server-side scoping and Stage 19.6 read budgets. **Complete.**
 5. **20.5 — Action confirmation and feedback.** Standardise confirmation, success, failure and destructive/revocation feedback for high-impact operational actions; avoid browser-native prompts where richer accessible confirmation is appropriate. **Complete.**
 6. **20.6 — Mobile operational pass.** Re-test high-frequency leader workflows at narrow viewports, especially fixed actions, dialogs, tables/cards, long forms and expandable navigation. **Complete.**
-7. **20.7 — Product maturity review.** Re-run representative public, parent and leader journeys and record remaining usability/product gaps separately from launch-governance blockers. **In progress — cross-role closeout review.**
+7. **20.7 — Product maturity review.** Re-run representative public, parent and leader journeys and record remaining usability/product gaps separately from launch-governance blockers. **Complete.**
 
-## Current position
+## Closeout
 
-Stages 20.1 through 20.6 are complete. Stage 20.7 now performs the cross-role product-maturity closeout using the existing deterministic public, parent and leader journey suites rather than introducing a duplicate end-to-end layer. The review is recorded in `docs/stage-20-product-maturity-review.md`.
+Stage 20 is complete. The Stage 20.7 pull request passed the existing Quality, Playwright E2E and Firebase Hosting preview workflows without weakening Stage 18/19 controls or Stage 20 regressions.
 
-Stage 20.6 established a Pixel 7 regression baseline over Weekly Meetings, Events & Activities, Badgework, Member Management, Equipment & Stores, Section Floats, Meeting Records, Attendance Insights and Reports & Exports, plus expanded mobile Leader navigation. It then standardised narrow-screen dialog action bars and made consent-record medication-management detail readable without horizontal scrolling. The mobile regressions remain active Stage 20 contracts.
+The closeout review is recorded in `docs/stage-20-product-maturity-review.md`. It found no new P0/P1 product-maturity defect in the representative public, approved-parent and leader journeys covered by the deterministic suite.
 
-Stage 20.5 closed with all six residual browser-native dialog calls removed while preserving the underlying service and persistence behaviour:
+Stage 20.6 remains an active regression contract: Pixel 7 coverage protects Weekly Meetings, Events & Activities, Badgework, Member Management, Equipment & Stores, Section Floats, Meeting Records, Attendance Insights and Reports & Exports, expanded mobile Leader navigation, narrow-screen dialog actions and consent-record medication-management detail.
 
-- event gallery photo deletion uses an accessible in-app confirmation dialog;
-- blocked consent-record and event-report print pop-ups surface through in-page error feedback;
-- failed clipboard copy for parent event-consent links opens an in-app manual-copy dialog;
-- Badgework unsaved-draft context changes use an in-app discard review;
-- Badgework stage-award removal uses an in-app destructive confirmation.
+Stage 20.5 also leaves a permanent source-level Quality contract requiring zero browser-native `alert`, `confirm` or `prompt` calls under `src`.
 
-The source-level Quality contract requires zero browser-native `alert`, `confirm` or `prompt` calls anywhere under `src`. Stage 20.7 must continue to preserve authorization, data semantics, deterministic fixtures and Stage 18/19 operational controls. Any CI-discovered product defect should be fixed rather than weakening the regression or reclassifying a known governance dependency as product work.
+## Carried operational dependencies
 
-## Stage 20.1 — Operator-facing documentation truth
+These remain explicit and are not reclassified as Stage 20 product defects:
 
-The root README had drifted behind the production-safety model. In particular, it still described a manual **Seed Firebase Test Data** GitHub Actions workflow even though live TEST-data seeding/purging automation was removed during Stage 18 hardening.
+- production TEST-data cleanup must use the guarded local dry-run/manifest/backup process;
+- GitHub branch protection/ruleset enforcement remains a repository-setting dependency;
+- production Storage-backed attachments remain capability-gated while Storage is unavailable;
+- a real managed non-production restore exercise remains future operational evidence beyond the emulator recovery drill.
 
-Stage 20.1 updates the repository entry point so operators are told that:
-
-- deterministic seed tooling exists for automated tests, not routine production population;
-- production data must never become the source of Playwright fixtures;
-- production TEST-data cleanup is a separate guarded local operation with exact project/count/manifest and verified-backup safeguards;
-- branch protection/ruleset enforcement is a repository-setting requirement;
-- post-deploy evidence must match the exact deployed commit;
-- Storage-backed attachments remain capability-gated and must not be described as production-ready while Storage is unavailable;
-- the emulator recovery drill is useful evidence but is not a substitute for a real managed non-production cloud restore exercise.
-
-This stage changes documentation only. It does not reintroduce a live seed workflow, alter Rules/RBAC, access production data, or change the parked cleanup process.
+Future product refinements begin in Stage 21 and must preserve all Stage 18–20 security, provenance, authorization, deterministic-test, recovery, read-budget and mobile-regression boundaries.
