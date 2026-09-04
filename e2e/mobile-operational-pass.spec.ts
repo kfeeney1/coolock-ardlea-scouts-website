@@ -3,16 +3,10 @@ import { expect, test, type Page } from "@playwright/test";
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
-const operationalRoutes = [
-  "/leader/weekly",
-  "/leader/events",
-  "/leader/badgework",
-  "/leader/members",
-  "/leader/equipment",
-  "/leader/finance",
-  "/leader/meetings",
-  "/leader/attendance",
-  "/leader/reports"
+const operationalRouteGroups = [
+  ["programme", ["/leader/weekly", "/leader/events", "/leader/badgework"]],
+  ["people and equipment", ["/leader/members", "/leader/equipment", "/leader/finance"]],
+  ["records and reporting", ["/leader/meetings", "/leader/attendance", "/leader/reports"]]
 ] as const;
 
 async function loginAdmin(page: Page) {
@@ -67,14 +61,18 @@ test.describe("Stage 20.6 mobile operational pass", () => {
     test.skip(!adminEmail || !password, "Configure canonical E2E admin credentials.");
   });
 
-  test("high-frequency leader workflows remain viewport-safe on Pixel 7", async ({ page }) => {
-    await loginAdmin(page);
+  for (const [area, routes] of operationalRouteGroups) {
+    test(`${area} workflows remain viewport-safe on Pixel 7`, async ({ page }) => {
+      await loginAdmin(page);
 
-    for (const route of operationalRoutes) {
-      await page.goto(route);
-      await expectMobileViewportSafe(page, route);
-    }
-  });
+      for (const route of routes) {
+        await test.step(route, async () => {
+          await page.goto(route);
+          await expectMobileViewportSafe(page, route);
+        });
+      }
+    });
+  }
 
   test("expanded leader navigation remains viewport-safe on a feature page", async ({ page }) => {
     await loginAdmin(page);
