@@ -1,4 +1,4 @@
-import { formatSiteDate } from "./siteDateFormat";
+import { formatSiteDate } from "./siteDateFormat.ts";
 
 export type MemberReportRow = {
     id: string;
