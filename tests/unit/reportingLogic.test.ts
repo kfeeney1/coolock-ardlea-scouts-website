@@ -95,10 +95,12 @@ test("membershipSummaryCsv groups status totals by section and adds an overall r
     assert.doesNotMatch(csv, /Email|Mobile|Parent|Medical/i);
 });
 
-test("eventRosterCsv contains only operational attendance and consent fields", () => {
-    const csv = eventRosterCsv(event, [eventMembers[0]]);
+test("eventRosterCsv keeps consent status operationally consistent with attendance", () => {
+    const csv = eventRosterCsv(event, eventMembers);
     assert.match(csv, /Attendance.*Consent/);
-    assert.match(csv, /Weekend Camp.*02-10-2026.*Attending.*Received/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Alex Example.*Attending.*Received/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Jamie Example.*Not attending.*Not required/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Taylor Example.*Invited.*Outstanding/);
     assert.doesNotMatch(csv, /2026-10-02/);
     assert.doesNotMatch(csv, /Phone|Emergency|Medical|Parent/i);
 });

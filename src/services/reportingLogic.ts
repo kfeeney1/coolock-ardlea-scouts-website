@@ -142,8 +142,9 @@ function attendanceLabel(value: string): string {
     return "Invited";
 }
 
-function consentLabel(value: string, required: boolean): string {
+function consentLabel(value: string, required: boolean, attendance: string): string {
     if (value === "received") return "Received";
+    if (attendance === "not-attending") return "Not required";
     if (value === "required" || required) return "Outstanding";
     return "Not required";
 }
@@ -154,7 +155,10 @@ function reportDate(value: string): string {
 
 export function eventRosterCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members.map((member) => [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), consentLabel(event.consent[member.id] || "", event.consentRequired)].map(csvCell).join(","));
+    const body = members.map((member) => {
+        const attendance = event.attendance[member.id] || "invited";
+        return [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(attendance), consentLabel(event.consent[member.id] || "", event.consentRequired, attendance)].map(csvCell).join(",");
+    });
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
