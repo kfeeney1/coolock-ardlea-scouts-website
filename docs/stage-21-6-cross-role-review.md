@@ -30,6 +30,12 @@ Representative leader coverage should include dashboard navigation, Weekly Meeti
 
 Retain the existing mobile operational baseline, including Pixel 7 coverage. Stage 21.6 should strengthen an existing representative journey when a concrete mobile regression gap is found rather than add duplicate end-to-end declarations for every feature.
 
+## Review progress
+
+The first cross-role review pass found the existing suite already covers the representative public pages, authenticated parent task/consent journey, leader operational surfaces and the Pixel 7 route-level mobile baseline. One narrow contract from the Stage 21.6 matrix was not asserted end to end: after a parent-originated event-consent visit returns to the Parent Portal, reopening the same public consent URL directly must not retain the parent-only **Back to Parent Portal** action.
+
+The existing approved-parent journey now captures the public consent URL, proves the parent-originated route exposes and successfully uses **Back to Parent Portal**, then opens that same URL directly and proves the return action is absent. This strengthens the existing journey without adding another Playwright declaration or changing event/parent data, route URLs, authentication, Firestore reads or fixtures.
+
 ## Adoption review questions
 
 For each role, record only evidence-backed friction:
