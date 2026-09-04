@@ -2,14 +2,30 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_FINANCE_CATEGORIES,
+  FLOAT_CLOSE_CATEGORY,
   assertNonNegativeFinanceBalance,
   calculateLedgerBalanceCents,
   createFinanceReconciliationWrite,
   createReversalInput,
+  financeFloatIsOpen,
   reconcileFinanceFloat,
   validateFinanceTransactionInput,
   type FinanceTransaction
 } from "../../src/services/financeLedgerLogic.ts";
+
+const transaction = (overrides: Partial<FinanceTransaction> = {}): FinanceTransaction => ({
+  id: "txn-1",
+  section: "Cubs",
+  type: "opening-float",
+  amountCents: 5000,
+  category: "Opening float",
+  description: "Open float",
+  transactionDate: "2026-08-30",
+  sourceTransactionId: "",
+  reversalOfTransactionId: "",
+  createdBy: "leader-1",
+  ...overrides
+});
 
 test("calculates a section float from immutable ledger entries", () => {
   assert.equal(calculateLedgerBalanceCents([
@@ -25,6 +41,26 @@ test("section float movements cannot take the balance below zero", () => {
   assert.equal(assertNonNegativeFinanceBalance(5000, -1750), 3250);
   assert.equal(assertNonNegativeFinanceBalance(0, 2500), 2500);
   assert.throws(() => assertNonNegativeFinanceBalance(1000, -1001), /below €0\.00/);
+});
+
+test("float lifecycle remains open at zero balance until an explicit closure", () => {
+  const opened = transaction();
+  const spentToZero = transaction({ id: "txn-2", type: "expense", amountCents: 5000, category: "Equipment", description: "Tent" });
+  assert.equal(calculateLedgerBalanceCents([opened, spentToZero]), 0);
+  assert.equal(financeFloatIsOpen([opened, spentToZero]), true);
+
+  const closed = transaction({ id: "txn-3", type: "expense", amountCents: 1, category: FLOAT_CLOSE_CATEGORY, description: "Close float", transactionDate: "2026-08-31" });
+  assert.equal(financeFloatIsOpen([opened, closed]), false);
+});
+
+test("float lifecycle honours corrections to opening and closure records", () => {
+  const opened = transaction();
+  const reversedOpening = transaction({ id: "reversal-txn-1", type: "adjustment", amountCents: -5000, category: "Opening float", description: "Correction", reversalOfTransactionId: "txn-1" });
+  assert.equal(financeFloatIsOpen([opened, reversedOpening]), false);
+
+  const closed = transaction({ id: "txn-2", type: "expense", amountCents: 5000, category: FLOAT_CLOSE_CATEGORY, description: "Close float", transactionDate: "2026-08-31" });
+  const reversedClose = transaction({ id: "reversal-txn-2", type: "adjustment", amountCents: 5000, category: FLOAT_CLOSE_CATEGORY, description: "Correction", transactionDate: "2026-09-01", reversalOfTransactionId: "txn-2" });
+  assert.equal(financeFloatIsOpen([opened, closed, reversedClose]), true);
 });
 
 test("default finance categories contain outgoing purposes only", () => {
