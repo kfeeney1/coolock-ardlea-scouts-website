@@ -49,6 +49,10 @@ The second operational data-quality slice protects **Events & Activities** from 
 
 The event guard reuses the event snapshots already loaded by the list and record pages, so it adds no Firestore query. Events on different dates or in different sections remain valid even when their titles match. Event write shape, attendance/consent data, RBAC, audit behavior, deterministic fixtures and existing lifecycle semantics are unchanged.
 
+The third operational data-quality slice closes a canonical-schema mismatch in **Member Management**. The member loader only exposes records with first name, last name, display name, date of birth and section, while the manual create/update service previously allowed those identity fields to be blank. That could produce a member record which was successfully written but then disappeared from the management list on refresh.
+
+Manual member creation and editing now use the same canonical required-field contract as the loader before any write. Invalid updates are rejected before the existing record lookup, so the guard adds no Firestore read and can avoid one on an invalid edit. Member write shape, lifecycle history, consent matching, RBAC, audit behavior, deterministic fixtures and existing status/section semantics are unchanged.
+
 ## Non-goals
 
 Stage 21 does not:

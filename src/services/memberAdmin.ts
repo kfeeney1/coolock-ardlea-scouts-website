@@ -17,6 +17,7 @@ import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import {
+  canonicalMemberFieldError,
   detectMemberLifecycleChange,
   lifecycleChangeLabel,
   type MemberLifecycleChangeType
@@ -165,9 +166,11 @@ export async function loadMembers(): Promise<MemberRecord[]> {
 export async function createMember(input: CreateMemberInput): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
-  const displayName = clean(input.displayName, 200);
-  if (!displayName) throw new Error("Member name is required.");
 
+  const canonicalError = canonicalMemberFieldError(input);
+  if (canonicalError) throw new Error(canonicalError);
+
+  const displayName = clean(input.displayName, 200);
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
     lastName: clean(input.lastName, 100),
@@ -206,6 +209,9 @@ export async function updateMember(
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
+
+  const canonicalError = canonicalMemberFieldError(updates);
+  if (canonicalError) throw new Error(canonicalError);
 
   const memberRef = doc(db, "members", memberId);
   const currentSnapshot = await getDoc(memberRef);
