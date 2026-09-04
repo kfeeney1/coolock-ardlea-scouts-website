@@ -53,6 +53,10 @@ The third operational data-quality slice closes a canonical-schema mismatch in *
 
 Manual member creation and editing now use the same canonical required-field contract as the loader before any write. Invalid updates are rejected before the existing record lookup, so the guard adds no Firestore read and can avoid one on an invalid edit. Member write shape, lifecycle history, consent matching, RBAC, audit behavior, deterministic fixtures and existing status/section semantics are unchanged.
 
+The fourth operational data-quality slice makes the **Section Floats** lifecycle explicit at the write boundary. A positive ledger balance is no longer treated as the only evidence that a float is open: the ledger must contain an unreversed opening record that has not subsequently been explicitly closed. This prevents a top-up or money-out entry from creating an implicit float before it has been opened, while a second opening is rejected when a live float already exists.
+
+A float that has been fully spent down to €0.00 is treated as exhausted/closed, matching the existing UI's ability to start a new float at zero balance. Corrections to opening or closure entries are honoured when deriving lifecycle state. The guard reuses the section transactions already loaded by the existing balance check, so it adds no Firestore query. Ledger write shape, immutable correction model, reconciliation, receipts, RBAC, audit behavior, deterministic fixtures and read-budget boundaries are unchanged.
+
 ## Non-goals
 
 Stage 21 does not:
