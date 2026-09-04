@@ -34,7 +34,8 @@ const event = {
 
 const eventMembers = [
     { id: "member1", displayName: "Alex Example", section: "Cubs" },
-    { id: "member2", displayName: "Jamie Example", section: "Cubs" }
+    { id: "member2", displayName: "Jamie Example", section: "Cubs" },
+    { id: "member4", displayName: "Taylor Example", section: "Cubs" }
 ];
 
 test("buildReportingInsights summarises recorded responses without treating missing attendance as absent", () => {
@@ -118,11 +119,11 @@ test("attendanceTrendCsv calculates rate from recorded responses only", () => {
     assert.doesNotMatch(csv, /2026-10-02/);
 });
 
-test("outstandingConsentCsv contains only members without received consent", () => {
+test("outstandingConsentCsv excludes received consent and members who are not attending", () => {
     const csv = outstandingConsentCsv(event, eventMembers);
     assert.doesNotMatch(csv, /Alex Example/);
-    assert.match(csv, /Jamie Example/);
-    assert.match(csv, /Weekend Camp.*02-10-2026.*Jamie Example.*Not attending.*Outstanding/);
+    assert.doesNotMatch(csv, /Jamie Example/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Taylor Example.*Invited.*Outstanding/);
     assert.doesNotMatch(csv, /2026-10-02/);
 });
 
