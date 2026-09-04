@@ -7,11 +7,6 @@ import {
   Container,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
   Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -19,40 +14,10 @@ import { Link, useParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import { loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
-import { consentRecordPrintHtml, displayValue, formatDate, formatDateOnly, formatFieldName, objectField } from "../services/consentManagementLogic";
-
-function MedicationPanel({ value }: { value: Record<string, unknown> }) {
-  const rows = [
-    ["Member", objectField(value, "memberName")],
-    ["Date of Birth", formatDateOnly(objectField(value, "dateOfBirth"))],
-    ["Address", objectField(value, "address")],
-    ["Medicine", objectField(value, "medicineName")],
-    ["Dosage", objectField(value, "dosage")],
-    ["Frequency", objectField(value, "frequency")],
-    ["Method", objectField(value, "method")],
-    ["Quantity Supplied", objectField(value, "quantitySupplied")],
-    ["Self Administration", objectField(value, "selfAdmin")],
-    ["Authorised From", formatDateOnly(objectField(value, "authFrom"))],
-    ["Authorised Until", formatDateOnly(objectField(value, "authTo"))],
-    ["Doctor", objectField(value, "doctorName")],
-    ["Doctor Telephone", objectField(value, "doctorTel")],
-    ["Pharmacy", objectField(value, "pharmacyName")],
-    ["Pharmacy Telephone", objectField(value, "pharmacyTel")],
-    ["Scouter 1", objectField(value, "scouter1")],
-    ["Scouter 2", objectField(value, "scouter2")],
-    ["Additional Information", objectField(value, "otherInfo")],
-    ["Signed By", objectField(value, "signature")],
-    ["Signature Date", formatDateOnly(objectField(value, "signatureDate"))]
-  ];
-  return <Paper variant="outlined" sx={{ gridColumn: { xs: "1", md: "1 / -1" }, overflow: "hidden", borderWidth: 2, borderColor: "error.light" }}>
-    <Box sx={{ px: 3, py: 2, borderBottom: "1px solid", borderColor: "error.light" }}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography variant="h5" color="error.main" sx={{ fontWeight: 800 }}>Medication Management</Typography><Chip label="SIF 20/10" color="error" size="small" /></Stack>
-    </Box>
-    <TableContainer><Table size="small"><TableBody>{rows.map(([label, text]) => <TableRow key={label}><TableCell sx={{ width: "38%", fontWeight: 700, color: "secondary.main", verticalAlign: "top" }}>{label}</TableCell><TableCell>{text || "Not provided"}</TableCell></TableRow>)}</TableBody></Table></TableContainer>
-  </Paper>;
-}
+import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName } from "../services/consentManagementLogic";
 
 export default function ConsentRecordPage() {
   const { consentId } = useParams();
@@ -122,7 +87,7 @@ export default function ConsentRecordPage() {
           {record.type === "youth" && !record.memberId && <Alert severity="warning">This youth consent record is not linked to a member ID. Re-save the parent’s approved Parent Access links to match it before Parent Portal editing can be used.</Alert>}
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             {Object.entries(record.data).filter(([key]) => key !== "submittedAt" && key !== "authorisedScouters").map(([key, value]) => {
-              if (key === "medicationManagement" && value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).enabled === true) return <MedicationPanel key={key} value={value as Record<string, unknown>} />;
+              if (key === "medicationManagement" && value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).enabled === true) return <MedicationManagementPanel key={key} value={value as Record<string, unknown>} />;
               const text = displayValue(value);
               if (!text) return null;
               return <Paper key={key} variant="outlined" sx={{ p: 2.5, gridColumn: typeof value === "object" && value !== null ? { md: "1 / -1" } : undefined }}>
