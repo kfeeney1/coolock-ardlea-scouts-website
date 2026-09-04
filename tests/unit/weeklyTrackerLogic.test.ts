@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, newWeeklyEntry, totalProgrammeDuration, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
@@ -23,3 +23,11 @@ test("newWeeklyEntry starts with neutral defaults", () => { assert.deepEqual(new
 test("new meetings default to two activities and one badgework row with mirrored planning fields", () => { const activities=defaultActivityPlans(); const badgework=defaultBadgeworkPlans(); assert.equal(activities.length,2); assert.equal(badgework.length,1); assert.notEqual(activities[0].id,activities[1].id); assert.deepEqual({leader:badgework[0].leader,equipment:badgework[0].equipment,durationMinutes:badgework[0].durationMinutes},{leader:"",equipment:"",durationMinutes:0}); });
 test("totalProgrammeDuration combines activity and badgework durations", () => { const activities=defaultActivityPlans(); const badgework=defaultBadgeworkPlans(); activities[0].durationMinutes=45; activities[1].durationMinutes=20; badgework[0].durationMinutes=30; assert.equal(totalProgrammeDuration(activities,badgework),95); });
 test("weeklyMeetingHasChanges detects edits against the saved meeting snapshot", () => { const saved=record("week-1","2026-08-01",records[0].entries); assert.equal(weeklyMeetingHasChanges(saved,{...saved}),false); assert.equal(weeklyMeetingHasChanges({...saved,notes:"Updated notes"},saved),true); assert.equal(weeklyMeetingHasChanges(null,saved),false); });
+test("filterWeeklyMeetingHistory combines section, date and programme search filters", () => {
+  const cubs = { ...record("cubs-history", "2026-08-08", []), theme: "Navigation night", location: "Scout Den" };
+  const scouts = { ...record("scouts-history", "2026-08-15", []), section: "Scouts", location: "School Hall", activities: [{ id: "a1", activity: "Pioneering relay", leader: "Pat Leader", notes: "", equipment: "Rope", durationMinutes: 30 }] };
+  const history = [cubs, scouts];
+  assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "pioneering", section: "Scouts", fromDate: "2026-08-10", toDate: "2026-08-20" }), [scouts]);
+  assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "scout den", section: "all", fromDate: "", toDate: "" }), [cubs]);
+  assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "", section: "all", fromDate: "", toDate: "" }), history);
+});
