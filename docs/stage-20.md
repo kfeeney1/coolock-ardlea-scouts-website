@@ -20,7 +20,7 @@ The parked production TEST-data cleanup, GitHub branch-protection configuration,
 
 Stages 20.1 through 20.5 are complete. Stage 20.6 now begins with a Pixel 7 regression baseline over the highest-frequency leader workflows. The first slice covers Weekly Meetings, Events & Activities, Badgework, Member Management, Equipment & Stores, Section Floats, Meeting Records, Attendance Insights and Reports & Exports, plus expanded mobile Leader navigation.
 
-The baseline fails when a covered page introduces document/body horizontal overflow or when a visible fixed/sticky operational surface escapes the phone viewport. This deliberately starts as an audit/regression slice: any concrete defect exposed by CI should be fixed on the same branch with a matching regression instead of weakening the assertions.
+The baseline fails when a covered page introduces document/body horizontal overflow or when a visible fixed/sticky operational surface escapes the phone viewport. The next mobile slice standardises dialog action bars across both supported themes: below the small breakpoint, actions stack at full width with the primary action above the safe return/cancel action. This keeps long confirmation labels inside the phone viewport without changing their underlying permissions or behaviour, and is covered against the parent-access confirmation flow on the Pixel 7 project.
 
 Stage 20.5 closed with all six residual browser-native dialog calls removed while preserving the underlying service and persistence behaviour:
 
