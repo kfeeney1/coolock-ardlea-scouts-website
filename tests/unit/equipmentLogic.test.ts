@@ -4,6 +4,7 @@ import {
   canDeleteEquipmentOption,
   canManageEquipment,
   equipmentLabelKey,
+  isDuplicateEquipmentItemName,
   isDuplicateEquipmentLabel,
   isQuartermasterRole,
   normaliseEquipmentLabel
@@ -31,6 +32,24 @@ test("equipment labels are trimmed and normalised", () => {
 test("equipment option duplicate checks are case insensitive", () => {
   assert.equal(isDuplicateEquipmentLabel(" main store ", ["Main Store", "Trailer"]), true);
   assert.equal(isDuplicateEquipmentLabel("Boat Shed", ["Main Store", "Trailer"]), false);
+});
+
+test("equipment item duplicate checks ignore case and whitespace", () => {
+  const items = [
+    { id: "item-1", name: "Patrol Tent" },
+    { id: "item-2", name: "Gas Stove" }
+  ];
+  assert.equal(isDuplicateEquipmentItemName("  patrol   tent ", items), true);
+  assert.equal(isDuplicateEquipmentItemName("Dining Shelter", items), false);
+});
+
+test("equipment item duplicate checks allow an item to keep its own name", () => {
+  const items = [
+    { id: "item-1", name: "Patrol Tent" },
+    { id: "item-2", name: "Gas Stove" }
+  ];
+  assert.equal(isDuplicateEquipmentItemName("Patrol Tent", items, "item-1"), false);
+  assert.equal(isDuplicateEquipmentItemName("Gas Stove", items, "item-1"), true);
 });
 
 test("quartermaster appointment variants are recognised", () => {

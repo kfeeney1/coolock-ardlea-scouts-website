@@ -44,6 +44,7 @@ import {
   canDeleteEquipmentOption,
   canManageEquipment,
   DEFAULT_EQUIPMENT_CATEGORIES,
+  isDuplicateEquipmentItemName,
   isDuplicateEquipmentLabel,
   normaliseEquipmentLabel
 } from "../services/equipmentLogic";
@@ -162,6 +163,9 @@ export default function EquipmentManagement() {
     setError("");
     const name = normaliseEquipmentLabel(form.name);
     if (!name) return setError("Enter an equipment name.");
+    if (isDuplicateEquipmentItemName(name, items, editing?.id)) {
+      return setError("An equipment item with that name already exists. Edit or restore the existing record instead.");
+    }
     if (!Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
     const committedQuantity = editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0;
     if (editing && form.totalQuantity < committedQuantity) return setError(`At least ${committedQuantity} are currently checked out or unavailable. Resolve stock before reducing the total below that number.`);
