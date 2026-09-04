@@ -78,6 +78,25 @@ export function calculateLedgerBalanceCents(transactions: Array<Pick<FinanceTran
   return transactions.reduce((total, transaction) => total + signedAmountCents(transaction), 0);
 }
 
+export function financeFloatIsOpen(transactions: FinanceTransaction[]): boolean {
+  if (calculateLedgerBalanceCents(transactions) <= 0) return false;
+  const reversedIds = new Set(
+    transactions
+      .filter((transaction) => transaction.type === "adjustment")
+      .map((transaction) => transaction.reversalOfTransactionId.trim())
+      .filter(Boolean)
+  );
+  const lifecycle = transactions
+    .filter((transaction) => transaction.type !== "adjustment" && !reversedIds.has(transaction.id))
+    .filter((transaction) => transaction.type === "opening-float" || (transaction.type === "expense" && transaction.category === FLOAT_CLOSE_CATEGORY))
+    .sort((a, b) => a.transactionDate.localeCompare(b.transactionDate) || (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0) || a.id.localeCompare(b.id));
+
+  return lifecycle.reduce(
+    (open, transaction) => transaction.type === "opening-float" ? true : transaction.category === FLOAT_CLOSE_CATEGORY ? false : open,
+    false
+  );
+}
+
 export function assertNonNegativeFinanceBalance(currentBalanceCents: number, movementCents: number): number {
   if (!Number.isInteger(currentBalanceCents) || currentBalanceCents < 0) {
     throw new Error("The current float balance is invalid and must be reconciled before adding another transaction.");
