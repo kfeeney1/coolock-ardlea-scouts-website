@@ -75,7 +75,7 @@ jobs:
 
       - name: Install E2E Firebase tooling
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false --include=optional firebase-admin@14.3.0 firebase-tools@15.28.1
+        run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
 
       - name: Start Firestore, Auth and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
@@ -148,7 +148,7 @@ jobs:
 
       - name: Install pinned Playwright test runner
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false --include=optional "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
+        run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
 
       - name: Report Playwright version
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
