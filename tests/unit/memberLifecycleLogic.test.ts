@@ -1,7 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { detectMemberLifecycleChange } from "../../src/services/memberLifecycleLogic.ts";
+import {
+  canonicalMemberFieldError,
+  detectMemberLifecycleChange
+} from "../../src/services/memberLifecycleLogic.ts";
+
+const canonicalMember = {
+  firstName: "Sam",
+  lastName: "Scout",
+  displayName: "Sam Scout",
+  dateOfBirth: "2015-04-12",
+  section: "Cubs"
+};
+
+test("canonicalMemberFieldError accepts the fields required by the member loader", () => {
+  assert.equal(canonicalMemberFieldError(canonicalMember), null);
+});
+
+test("canonicalMemberFieldError rejects a missing canonical field", () => {
+  assert.equal(
+    canonicalMemberFieldError({ ...canonicalMember, dateOfBirth: "  " }),
+    "Member date of birth is required."
+  );
+});
+
+test("canonicalMemberFieldError reports every missing canonical field", () => {
+  assert.equal(
+    canonicalMemberFieldError({
+      ...canonicalMember,
+      firstName: "",
+      lastName: " ",
+      section: ""
+    }),
+    "Member first name, last name and section are required."
+  );
+});
 
 test("detectMemberLifecycleChange treats a new member as created", () => {
   assert.equal(detectMemberLifecycleChange(null, { section: "Cubs", status: "active" }), "created");
