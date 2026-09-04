@@ -27,6 +27,8 @@ The first focused slice protects unsaved Weekly Meeting edits. Returning to the 
 
 The slice preserves Weekly Meeting permissions, persistence, audit events and copy reset semantics. It extends the existing lifecycle regression rather than adding a duplicate end-to-end journey, and adds unit coverage for the saved-snapshot comparison.
 
+The second focused slice makes closed meetings findable as history grows. Leaders can search programme details and narrow results by section or date range, see a live result count, reset filters and distinguish a genuine empty history from a no-match result. The controls reuse the established operational filter pattern, remain role-neutral and do not change meeting reads, permissions, persistence or audit behavior.
+
 ## Non-goals
 
 Stage 21 does not:

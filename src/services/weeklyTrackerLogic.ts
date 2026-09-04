@@ -12,6 +12,34 @@ export type WeeklyMemberSummary = {
   badges: string[];
 };
 
+export type WeeklyMeetingHistoryFilters = {
+  search: string;
+  section: string;
+  fromDate: string;
+  toDate: string;
+};
+
+export function filterWeeklyMeetingHistory(records: WeeklyMeetingRecord[], filters: WeeklyMeetingHistoryFilters): WeeklyMeetingRecord[] {
+  const search = filters.search.trim().toLocaleLowerCase();
+  return records.filter((record) => {
+    if (filters.section && filters.section !== "all" && record.section !== filters.section) return false;
+    if (filters.fromDate && record.meetingDate < filters.fromDate) return false;
+    if (filters.toDate && record.meetingDate > filters.toDate) return false;
+    if (!search) return true;
+    const searchable = [
+      record.section,
+      record.meetingDate,
+      record.location,
+      record.theme,
+      record.programmeNotes,
+      record.notes,
+      ...record.activities.flatMap((activity) => [activity.activity, activity.leader, activity.equipment]),
+      ...record.badgeworkPlan.flatMap((badgework) => [badgework.badge, badgework.leader, badgework.equipment])
+    ].join(" ").toLocaleLowerCase();
+    return searchable.includes(search);
+  });
+}
+
 export function buildWeeklyMemberSummaries(records: WeeklyMeetingRecord[]): WeeklyMemberSummary[] {
   const summaries = new Map<string, WeeklyMemberSummary>();
   for (const record of records) {
