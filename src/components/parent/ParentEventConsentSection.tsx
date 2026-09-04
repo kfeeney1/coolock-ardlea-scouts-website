@@ -138,7 +138,14 @@ export default function ParentEventConsentSection({ sections }: Props) {
               {event.description && <Typography sx={{ mt: 1 }}>{event.description}</Typography>}
               {event.meetingPoint && <Typography variant="body2" sx={{ mt: 1 }}><strong>Meeting:</strong> {event.meetingPoint}</Typography>}
               {event.returnDetails && <Typography variant="body2"><strong>Return:</strong> {event.returnDetails}</Typography>}
-              <Button component={Link} to={`/event-consent/${event.token}`} variant="contained" color="success" sx={{ mt: 2 }}>
+              <Button
+                component={Link}
+                to={`/event-consent/${event.token}`}
+                state={{ fromParentPortal: true }}
+                variant="contained"
+                color="success"
+                sx={{ mt: 2 }}
+              >
                 Complete Event Consent
               </Button>
             </Paper>

@@ -63,6 +63,8 @@ test.describe("approved parent journey", () => {
     await page.getByRole("link", { name: "Complete Event Consent" }).click();
     await expect(page.getByRole("heading", { name: "Event Consent" })).toBeVisible();
     await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Back to Parent Portal" }).click();
+    await expect(page.getByRole("heading", { name: "Things to do" })).toBeVisible();
   });
 
   test("parent gallery area fails closed when no gallery access is projected", async ({ page }) => {
