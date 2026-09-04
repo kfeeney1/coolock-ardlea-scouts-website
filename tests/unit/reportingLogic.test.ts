@@ -105,6 +105,15 @@ test("eventRosterCsv keeps consent status operationally consistent with attendan
     assert.doesNotMatch(csv, /Phone|Emergency|Medical|Parent/i);
 });
 
+test("eventRosterCsv treats event-level consent requirement as authoritative", () => {
+    const csv = eventRosterCsv(
+        { ...event, consentRequired: false, attendance: {}, consent: { member4: "required" } },
+        [eventMembers[2]]
+    );
+    assert.match(csv, /Taylor Example.*Invited.*Not required/);
+    assert.doesNotMatch(csv, /Taylor Example.*Outstanding/);
+});
+
 test("eventOverviewCsv summarises event attendance and received consent counts", () => {
     const csv = eventOverviewCsv([event]);
     assert.match(csv, /Status.*Consent required.*Attending.*Not attending.*Consent received/);
