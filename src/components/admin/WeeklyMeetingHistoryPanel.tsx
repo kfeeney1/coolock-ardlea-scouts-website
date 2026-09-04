@@ -41,7 +41,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
             value={search}
             onChange={setSearch}
             placeholder="Section, theme, location or programme"
-            testId="meeting-history-search"
+            testId="weekly-history-search"
           />
         </Box>
         <TextField select label="Meeting history section" value={section} onChange={(event) => setSection(event.target.value)} sx={{ minWidth: { md: 190 } }}>
@@ -50,12 +50,12 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
         </TextField>
         <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
         <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        {filtersActive && <Button variant="outlined" onClick={resetFilters} data-testid="meeting-history-reset">Reset filters</Button>}
+        {filtersActive && <Button variant="outlined" onClick={resetFilters} data-testid="weekly-history-reset">Reset filters</Button>}
       </OperationalFilterBar>
-      <Typography role="status" data-testid="meeting-history-result-count" color="text.secondary" sx={{ mb: 1.5 }}>
+      <Typography role="status" data-testid="weekly-history-result-count" color="text.secondary" sx={{ mb: 1.5 }}>
         Showing {filteredRecords.length} of {records.length} closed meetings
       </Typography>
-      {!filteredRecords.length ? <Alert severity="info" data-testid="meeting-history-no-results">No closed meetings match these filters.</Alert> : <Stack spacing={1}>
+      {!filteredRecords.length ? <Alert severity="info" data-testid="weekly-history-no-results">No closed meetings match these filters.</Alert> : <Stack spacing={1}>
         {filteredRecords.map((record) => {
           const present = record.entries.filter((entry) => entry.attendance === "present").length;
           return <Paper key={record.id} variant="outlined" sx={{ p: 1.5, minWidth: 0 }} data-testid={`meeting-history-${record.id}`}>
