@@ -62,6 +62,7 @@ export default function ParentPortal() {
     const [resettingPassword, setResettingPassword] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [taskSummaryVersion, setTaskSummaryVersion] = useState(0);
     const location = useLocation();
     const leaderAccessDenied = Boolean(
         (location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied
@@ -300,7 +301,7 @@ export default function ParentPortal() {
                                     Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.
                                 </Alert>
 
-                                <ParentThingsToDo memberIds={account.memberIds} sections={account.linkedSections} />
+                                <ParentThingsToDo memberIds={account.memberIds} sections={account.linkedSections} refreshVersion={taskSummaryVersion} />
 
                                 <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}>
                                     <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography>
@@ -314,7 +315,7 @@ export default function ParentPortal() {
 
                                 <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}>
                                     <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography>
-                                    <ParentConsentSection memberIds={account.memberIds} />
+                                    <ParentConsentSection memberIds={account.memberIds} onSaved={() => setTaskSummaryVersion((version) => version + 1)} />
                                 </Box>
                             </>
                         )}
