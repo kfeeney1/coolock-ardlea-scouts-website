@@ -179,7 +179,9 @@ export function attendanceTrendCsv(events: EventReportRecord[]): string {
 
 export function outstandingConsentCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members.filter((member) => event.consentRequired && event.consent[member.id] !== "received").map((member) => [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), "Outstanding"].map(csvCell).join(","));
+    const body = members
+        .filter((member) => event.consentRequired && event.attendance[member.id] !== "not-attending" && event.consent[member.id] !== "received")
+        .map((member) => [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), "Outstanding"].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
