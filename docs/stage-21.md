@@ -12,8 +12,8 @@ The parked production TEST-data cleanup, branch-protection configuration, unavai
 2. **21.2 — Leader workflow efficiency.** Reduce unnecessary navigation, repeated data entry and high-frequency interaction cost in Weekly Meetings, Events, Member Management, Badgework, Equipment and Section Floats while preserving permissions and auditability.
 3. **21.3 — Parent self-service refinement.** Improve the clarity and directness of consent, event, badge-progress and member-information journeys without exposing additional data or weakening approval/linking boundaries. **Complete — the two reproduced parent hand-offs are addressed; additional parent changes remain evidence-led.**
 4. **21.4 — Operational data-quality guardrails.** Add low-friction validation and consistency protections where real use can create ambiguous, incomplete or duplicate operational records; do not substitute production data for deterministic fixtures. **Complete at the current evidence boundary after four focused operational guards.**
-5. **21.5 — Communications and reporting usefulness.** Review common leader communications, WhatsApp/share flows and reports for actionability, duplication and export usefulness while preserving read-budget and authorization boundaries.
-6. **21.6 — Cross-role regression and adoption review.** Re-run representative public, parent and leader journeys, retain Pixel 7 coverage and record remaining adoption issues separately from governance dependencies.
+5. **21.5 — Communications and reporting usefulness.** Review common leader communications, WhatsApp/share flows and reports for actionability, duplication and export usefulness while preserving read-budget and authorization boundaries. **Complete at the current evidence boundary after four focused reporting fixes.**
+6. **21.6 — Cross-role regression and adoption review.** Re-run representative public, parent and leader journeys, retain Pixel 7 coverage and record remaining adoption issues separately from governance dependencies. **In progress — review baseline recorded in `docs/stage-21-6-cross-role-review.md`.**
 
 ## Starting position
 
@@ -68,6 +68,18 @@ Those exports now format dates through the shared site-date formatter while pres
 The second communications/reporting usefulness slice makes the **Outstanding Consent** export actionable rather than merely incomplete-consent based. The report previously included a member whenever consent had not been received, even when that member's attendance had already been recorded as **Not attending**. That disagreed with the operational event workflow, where non-attendees no longer need outstanding consent action.
 
 The export now excludes members explicitly marked **Not attending** while retaining invited or attending members whose consent is still outstanding. This reuses the already-loaded event/member snapshot and changes no Firestore reads, event attendance or consent state, authorization, audit events, CSV privacy protections or deterministic fixtures.
+
+The third reporting slice aligns the general attendance/consent roster with that same operational rule. Explicit non-attendees now show consent as **Not required**, while already-received consent remains **Received** and invited or attending members still needing consent remain **Outstanding**.
+
+The fourth reporting slice makes the event-level consent requirement authoritative. A stale member-level `required` marker can no longer make the roster report **Outstanding** after the event itself has been changed so consent is not required. Existing received consent remains visible as **Received**.
+
+Stage 21.5 is complete at the current evidence boundary. Its four promoted issues were concrete reporting inconsistencies with focused regression coverage. Communications recipient-name search remains discovery-only because the repository still does not establish the field scale or frequency needed to justify that workflow change.
+
+## Stage 21.6 progress
+
+The cross-role regression and adoption review baseline is recorded in `docs/stage-21-6-cross-role-review.md`. The review keeps representative public, approved-parent and leader journeys in scope, retains the existing Pixel 7 mobile baseline and separates product adoption findings from the parked production TEST-data cleanup, branch-protection configuration, unavailable production Storage capability and future managed non-production restore exercise.
+
+Stage 21.6 should strengthen existing regressions only when a concrete gap is reproduced. It should not add duplicate end-to-end declarations or promote discovery-only observations into product defects without evidence.
 
 ## Non-goals
 
