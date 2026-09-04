@@ -68,3 +68,8 @@ export function defaultBadgeworkPlans(): WeeklyBadgeworkPlan[] {
 export function totalProgrammeDuration(activities: WeeklyActivityPlan[], badgework: WeeklyBadgeworkPlan[]): number {
   return [...activities, ...badgework].reduce((total, item) => total + Math.max(0, Number(item.durationMinutes) || 0), 0);
 }
+
+export function weeklyMeetingHasChanges(current: WeeklyMeetingRecord | null, saved: WeeklyMeetingRecord | null): boolean {
+  if (!current || !saved || current.id !== saved.id) return false;
+  return JSON.stringify(current) !== JSON.stringify(saved);
+}

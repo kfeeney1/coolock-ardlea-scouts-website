@@ -21,6 +21,12 @@ Stage 21.1 is complete. Its repository- and issue-backed review identifies two c
 
 A candidate should enter the Stage 21 backlog only when it has a clear user task, affected role, current friction, expected improvement and regression boundary. High-frequency or high-risk operational tasks take priority over cosmetic changes.
 
+## Stage 21.2 progress
+
+The first focused slice protects unsaved Weekly Meeting edits. Returning to the meeting list or starting a copy now uses an accessible in-app discard review when the current meeting differs from its last saved snapshot. Keeping the draft leaves the editor and its changes intact; successful persistence resets the comparison snapshot. Browser reload/close also receives the standard unsaved-change warning.
+
+The slice preserves Weekly Meeting permissions, persistence, audit events and copy reset semantics. It extends the existing lifecycle regression rather than adding a duplicate end-to-end journey, and adds unit coverage for the saved-snapshot comparison.
+
 ## Non-goals
 
 Stage 21 does not:
