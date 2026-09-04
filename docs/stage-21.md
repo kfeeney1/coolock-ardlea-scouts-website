@@ -29,6 +29,8 @@ The slice preserves Weekly Meeting permissions, persistence, audit events and co
 
 The second focused slice makes closed meetings findable as history grows. Leaders can search programme details and narrow results by section or date range, see a live result count, reset filters and distinguish a genuine empty history from a no-match result. The controls reuse the established operational filter pattern, remain role-neutral and do not change meeting reads, permissions, persistence or audit behavior.
 
+The third focused slice locks the single-Dashboard navigation contract after the duplicate action fixed in PR #333. Existing desktop and Pixel 7 navigation scenarios now require exactly one Dashboard destination in the expanded menu and prove that it returns from a leader feature page to `/leader`. This adds no navigation element, route or end-to-end test declaration.
+
 ## Non-goals
 
 Stage 21 does not:

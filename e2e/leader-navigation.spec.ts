@@ -16,6 +16,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
   await login(page, "test.webadmin@example.com");
+  await page.goto("/leader/weekly");
   const menuToggle = page.getByRole("button", { name: /Leader Menu|Menu ·/ });
   await menuToggle.click();
 
@@ -33,6 +34,10 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await expect(desktopNavigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance");
   await expect(desktopNavigation.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
   await expect(navigation.getByRole("link", { name: "Info & FAQ" })).toHaveAttribute("href", "/leader/info");
+  const dashboard = navigation.getByRole("link", { name: "Dashboard", exact: true });
+  await expect(dashboard).toHaveCount(1);
+  await dashboard.click();
+  await expect(page).toHaveURL(/\/leader$/);
 });
 
 test("section leader gets compact mobile disclosure without admin destinations", async ({ page }, testInfo: TestInfo) => {
@@ -46,6 +51,7 @@ test("section leader gets compact mobile disclosure without admin destinations",
   const mobileNavigation = navigation.getByTestId("leader-navigation-mobile");
   const programme = mobileNavigation.getByRole("button", { name: "Programme" });
   const people = mobileNavigation.getByRole("button", { name: "People & Parents" });
+  await expect(navigation.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(1);
 
   await expect(programme).toHaveAttribute("aria-expanded", "false");
   await expect(people).toHaveAttribute("aria-expanded", "false");
@@ -90,6 +96,10 @@ test("mobile menu reopens the group containing the current route", async ({ page
   await expect(programme).toHaveAttribute("aria-expanded", "false");
   await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toHaveAttribute("aria-current", "page");
+  const dashboard = navigation.getByRole("link", { name: "Dashboard", exact: true });
+  await expect(dashboard).toHaveCount(1);
+  await dashboard.click();
+  await expect(page).toHaveURL(/\/leader$/);
 });
 
 test("Leader Menu supports keyboard open and Escape focus restoration", async ({ page }, testInfo: TestInfo) => {
