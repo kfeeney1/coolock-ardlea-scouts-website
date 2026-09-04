@@ -19,7 +19,7 @@ test.describe("approved parent journey", () => {
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
   });
 
-  test("parent sees searchable consent tiles and refreshes tasks after saving a linked consent form", async ({ page, request }) => {
+  test("parent sees searchable consent tiles and refreshes tasks after saving a linked consent form", async ({ page }) => {
     await loginParent(page);
 
     const summary = page.getByTestId("parent-things-to-do");
@@ -46,15 +46,8 @@ test.describe("approved parent journey", () => {
       .click();
     const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
     await expect(save).toBeVisible();
-    try {
-      await save.click();
-      await expect(medicalAttentionCount).toHaveText("1");
-    } finally {
-      const restored = await request.patch("http://127.0.0.1:8080/v1/projects/coolock-ardlea-scouts/databases/(default)/documents/consentApplications/TEST_flow_consent_youth_medication?updateMask.fieldPaths=updatedByParent", {
-        data: { fields: { updatedByParent: { booleanValue: false } } }
-      });
-      expect(restored.ok()).toBeTruthy();
-    }
+    await save.click();
+    await expect(medicalAttentionCount).toHaveText("1");
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {

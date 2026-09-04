@@ -33,7 +33,7 @@ The third focused slice locks the single-Dashboard navigation contract after the
 
 ## Stage 21.3 progress
 
-The first parent self-service slice keeps **Things to do** current after an inline consent or medical update. The confirmed stale-state hand-off came from the form list and task summary owning separate snapshots; a successful parent save now refreshes both without reloading the whole portal. The existing approved-parent journey performs the save against emulator data, verifies the attention count changes, and restores the review flag in `finally` so retries and later tests remain deterministic.
+The first parent self-service slice keeps **Things to do** current after an inline consent or medical update. The confirmed stale-state hand-off came from the form list and task summary owning separate snapshots; a successful parent save now refreshes both without reloading the whole portal. The existing approved-parent journey performs the save against the freshly seeded emulator data and verifies the attention count changes. No later test depends on that mutated count, and each workflow recreates the canonical dataset before Playwright starts.
 
 ## Non-goals
 
