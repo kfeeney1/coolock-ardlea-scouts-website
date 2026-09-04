@@ -10,7 +10,7 @@ The parked production TEST-data cleanup, branch-protection configuration, unavai
 
 1. **21.1 — Field-use backlog and friction baseline.** Review the current product surface and recent issue history for repeated operator/parent friction, duplicate effort, awkward hand-offs and missing shortcuts. Produce a prioritised backlog with clear evidence and avoid speculative feature expansion. **Complete — baseline recorded in `docs/stage-21-field-use-baseline.md`.**
 2. **21.2 — Leader workflow efficiency.** Reduce unnecessary navigation, repeated data entry and high-frequency interaction cost in Weekly Meetings, Events, Member Management, Badgework, Equipment and Section Floats while preserving permissions and auditability.
-3. **21.3 — Parent self-service refinement.** Improve the clarity and directness of consent, event, badge-progress and member-information journeys without exposing additional data or weakening approval/linking boundaries.
+3. **21.3 — Parent self-service refinement.** Improve the clarity and directness of consent, event, badge-progress and member-information journeys without exposing additional data or weakening approval/linking boundaries. **Complete — the two reproduced parent hand-offs are addressed; additional parent changes remain evidence-led.**
 4. **21.4 — Operational data-quality guardrails.** Add low-friction validation and consistency protections where real use can create ambiguous, incomplete or duplicate operational records; do not substitute production data for deterministic fixtures.
 5. **21.5 — Communications and reporting usefulness.** Review common leader communications, WhatsApp/share flows and reports for actionability, duplication and export usefulness while preserving read-budget and authorization boundaries.
 6. **21.6 — Cross-role regression and adoption review.** Re-run representative public, parent and leader journeys, retain Pixel 7 coverage and record remaining adoption issues separately from governance dependencies.
@@ -36,6 +36,14 @@ The third focused slice locks the single-Dashboard navigation contract after the
 The first parent self-service slice keeps **Things to do** current after an inline consent or medical update. The confirmed stale-state hand-off came from the form list and task summary owning separate snapshots; a successful parent save now refreshes both without reloading the whole portal. The existing approved-parent journey performs the save against the freshly seeded emulator data and verifies the attention count changes. No later test depends on that mutated count, and each workflow recreates the canonical dataset before Playwright starts.
 
 The second slice removes a confirmed parent navigation dead end. Event consent opened from the Parent Portal now carries a non-sensitive route-state marker and exposes a mobile-safe **Back to Parent Portal** action on the token form. Publicly opened consent links remain unchanged, no parent or event data is added to the URL or route state, and the existing approved-parent journey verifies the return to the still-authenticated portal without submitting another consent response.
+
+Stage 21.3 is complete at the current evidence boundary. The remaining parent badge-progress and member-information surfaces already expose their intended read-only/direct paths, and no additional parent change is promoted without reproduced field friction.
+
+## Stage 21.4 progress
+
+The first operational data-quality slice prevents ambiguous duplicate records in **Equipment & Stores**. Equipment names are compared using the existing case-insensitive, whitespace-normalised label contract before save. Creating a duplicate, or renaming one item to another item's name, is rejected; editing an item without changing its own name remains valid. Archived items are included in the comparison so historical stock is restored or edited rather than silently recreated under the same name.
+
+The guard uses the equipment snapshot already loaded for the page, so it adds no Firestore query or repeated read. Equipment write shape, RBAC, audit events, movement/history semantics, deterministic fixtures and existing category/location duplicate protections are unchanged.
 
 ## Non-goals
 
