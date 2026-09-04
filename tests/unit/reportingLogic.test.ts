@@ -97,29 +97,33 @@ test("membershipSummaryCsv groups status totals by section and adds an overall r
 test("eventRosterCsv contains only operational attendance and consent fields", () => {
     const csv = eventRosterCsv(event, [eventMembers[0]]);
     assert.match(csv, /Attendance.*Consent/);
-    assert.match(csv, /Attending.*Received/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Attending.*Received/);
+    assert.doesNotMatch(csv, /2026-10-02/);
     assert.doesNotMatch(csv, /Phone|Emergency|Medical|Parent/i);
 });
 
 test("eventOverviewCsv summarises event attendance and received consent counts", () => {
     const csv = eventOverviewCsv([event]);
     assert.match(csv, /Status.*Consent required.*Attending.*Not attending.*Consent received/);
-    assert.match(csv, /Weekend Camp.*open.*Yes.*1.*1.*1/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*open.*Yes.*1.*1.*1/);
+    assert.doesNotMatch(csv, /2026-10-02/);
     assert.doesNotMatch(csv, /Member|Phone|Medical/i);
 });
 
 test("attendanceTrendCsv calculates rate from recorded responses only", () => {
     const csv = attendanceTrendCsv([event, { ...event, id: "event-2", title: "No Responses", attendance: {} }]);
     assert.match(csv, /Recorded responses.*Attending.*Not attending.*Attendance rate/);
-    assert.match(csv, /Weekend Camp.*2.*1.*1.*50%/);
-    assert.match(csv, /No Responses.*0.*0.*0/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*2.*1.*1.*50%/);
+    assert.match(csv, /No Responses.*02-10-2026.*0.*0.*0/);
+    assert.doesNotMatch(csv, /2026-10-02/);
 });
 
 test("outstandingConsentCsv contains only members without received consent", () => {
     const csv = outstandingConsentCsv(event, eventMembers);
     assert.doesNotMatch(csv, /Alex Example/);
     assert.match(csv, /Jamie Example/);
-    assert.match(csv, /Not attending.*Outstanding/);
+    assert.match(csv, /Weekend Camp.*02-10-2026.*Jamie Example.*Not attending.*Outstanding/);
+    assert.doesNotMatch(csv, /2026-10-02/);
 });
 
 test("slug creates safe report filenames", () => {
