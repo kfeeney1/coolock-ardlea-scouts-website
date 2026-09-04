@@ -13,14 +13,14 @@ The parked production TEST-data cleanup, GitHub branch-protection configuration,
 3. **20.3 — Empty, loading and error-state consistency.** Standardise the most-used parent/leader screens so loading, no-data, unavailable-capability and permission-denied states are distinct, accessible and actionable. **Complete.**
 4. **20.4 — Search/filter consistency.** Review member history, attendance insights, reports, equipment and other larger datasets for consistent search/filter/reset behaviour while preserving server-side scoping and Stage 19.6 read budgets. **Complete.**
 5. **20.5 — Action confirmation and feedback.** Standardise confirmation, success, failure and destructive/revocation feedback for high-impact operational actions; avoid browser-native prompts where richer accessible confirmation is appropriate. **Complete.**
-6. **20.6 — Mobile operational pass.** Re-test high-frequency leader workflows at narrow viewports, especially fixed actions, dialogs, tables/cards, long forms and expandable navigation. **In progress — mobile regression baseline first.**
-7. **20.7 — Product maturity review.** Re-run representative public, parent and leader journeys and record remaining usability/product gaps separately from launch-governance blockers.
+6. **20.6 — Mobile operational pass.** Re-test high-frequency leader workflows at narrow viewports, especially fixed actions, dialogs, tables/cards, long forms and expandable navigation. **Complete.**
+7. **20.7 — Product maturity review.** Re-run representative public, parent and leader journeys and record remaining usability/product gaps separately from launch-governance blockers. **In progress — cross-role closeout review.**
 
 ## Current position
 
-Stages 20.1 through 20.5 are complete. Stage 20.6 now begins with a Pixel 7 regression baseline over the highest-frequency leader workflows. The first slice covers Weekly Meetings, Events & Activities, Badgework, Member Management, Equipment & Stores, Section Floats, Meeting Records, Attendance Insights and Reports & Exports, plus expanded mobile Leader navigation.
+Stages 20.1 through 20.6 are complete. Stage 20.7 now performs the cross-role product-maturity closeout using the existing deterministic public, parent and leader journey suites rather than introducing a duplicate end-to-end layer. The review is recorded in `docs/stage-20-product-maturity-review.md`.
 
-The baseline fails when a covered page introduces document/body horizontal overflow or when a visible fixed/sticky operational surface escapes the phone viewport. The next mobile slices standardise dialog action bars across both supported themes and make the consent record's medication-management detail readable without horizontal scrolling. Below the small breakpoint, dialog actions stack at full width with the primary action above the safe return/cancel action, while medication labels and values stack into full-width rows. Both contracts have focused Pixel 7 coverage and do not change their underlying permissions, data or behaviour.
+Stage 20.6 established a Pixel 7 regression baseline over Weekly Meetings, Events & Activities, Badgework, Member Management, Equipment & Stores, Section Floats, Meeting Records, Attendance Insights and Reports & Exports, plus expanded mobile Leader navigation. It then standardised narrow-screen dialog action bars and made consent-record medication-management detail readable without horizontal scrolling. The mobile regressions remain active Stage 20 contracts.
 
 Stage 20.5 closed with all six residual browser-native dialog calls removed while preserving the underlying service and persistence behaviour:
 
@@ -30,7 +30,7 @@ Stage 20.5 closed with all six residual browser-native dialog calls removed whil
 - Badgework unsaved-draft context changes use an in-app discard review;
 - Badgework stage-award removal uses an in-app destructive confirmation.
 
-The source-level Quality contract requires zero browser-native `alert`, `confirm` or `prompt` calls anywhere under `src`. Stage 20.6 must continue to preserve authorization, data semantics, deterministic fixtures and Stage 18/19 operational controls while mobile defects are identified and corrected.
+The source-level Quality contract requires zero browser-native `alert`, `confirm` or `prompt` calls anywhere under `src`. Stage 20.7 must continue to preserve authorization, data semantics, deterministic fixtures and Stage 18/19 operational controls. Any CI-discovered product defect should be fixed rather than weakening the regression or reclassifying a known governance dependency as product work.
 
 ## Stage 20.1 — Operator-facing documentation truth
 
