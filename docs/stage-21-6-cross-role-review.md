@@ -36,6 +36,10 @@ The first cross-role review pass found the existing suite already covers the rep
 
 The existing approved-parent journey now captures the public consent URL, proves the parent-originated route exposes and successfully uses **Back to Parent Portal**, then opens that same URL directly and proves the return action is absent. This strengthens the existing journey without adding another Playwright declaration or changing event/parent data, route URLs, authentication, Firestore reads or fixtures.
 
+The final Stage 21.6 branch passed Quality, Playwright E2E and the Firebase Hosting PR preview before merge. No new P0/P1 adoption defect was reproduced during the cross-role review, the Pixel 7 operational baseline remains part of the regression suite, and the remaining discovery/operational items are recorded separately from product defects.
+
+Stage 21.6 is therefore complete at the current evidence boundary. The overall Stage 21 closeout is recorded in `docs/stage-21-closeout.md`.
+
 ## Adoption review questions
 
 For each role, record only evidence-backed friction:
@@ -62,3 +66,5 @@ They should be recorded separately from adoption findings so they do not distort
 ## Exit criteria
 
 Stage 21.6 can close when representative public, parent and leader regressions are green, Pixel 7 coverage is retained, any newly reproduced P0/P1 adoption defect is fixed or explicitly parked with evidence, and remaining observations are separated from governance/operational dependencies.
+
+**Status: complete at the current evidence boundary.**
