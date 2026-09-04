@@ -148,12 +148,13 @@ export function validateFinanceTransactionInput(input: FinanceTransactionInput):
   const category = normaliseFinanceText(input.category);
   const description = normaliseFinanceText(input.description);
   const transactionDate = input.transactionDate.trim();
+  const zeroBalanceClosure = input.type === "expense" && category === FLOAT_CLOSE_CATEGORY && input.amountCents === 0;
 
   if (!section) throw new Error("Select a section.");
   if (!Number.isInteger(input.amountCents)) throw new Error("Enter an amount in whole cents.");
   if (input.type === "adjustment") {
     if (input.amountCents === 0) throw new Error("Enter a non-zero adjustment amount.");
-  } else if (input.amountCents <= 0) {
+  } else if (input.amountCents <= 0 && !zeroBalanceClosure) {
     throw new Error("Enter an amount greater than zero.");
   }
   if (!category) throw new Error("Select or enter a finance category.");
