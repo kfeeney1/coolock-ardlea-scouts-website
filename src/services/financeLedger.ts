@@ -6,6 +6,7 @@ import {
   assertNonNegativeFinanceBalance,
   calculateLedgerBalanceCents,
   createReversalInput,
+  financeFloatIsOpen,
   signedAmountCents,
   validateFinanceTransactionInput,
   type FinanceTransaction,
@@ -66,8 +67,12 @@ export async function createFinanceTransaction(input: FinanceTransactionInput): 
 
   const currentTransactions = await loadFinanceTransactions(validated.section);
   const currentBalanceCents = calculateLedgerBalanceCents(currentTransactions);
-  if (validated.type === "opening-float" && currentBalanceCents > 0) {
+  const floatIsOpen = financeFloatIsOpen(currentTransactions);
+  if (validated.type === "opening-float" && floatIsOpen) {
     throw new Error("Close the current section float before opening another one.");
+  }
+  if (validated.type !== "opening-float" && !floatIsOpen) {
+    throw new Error("Open the section float before recording money in or out.");
   }
   assertNonNegativeFinanceBalance(currentBalanceCents, signedAmountCents(validated));
 
