@@ -144,9 +144,8 @@ function attendanceLabel(value: string): string {
 
 function consentLabel(value: string, required: boolean, attendance: string): string {
     if (value === "received") return "Received";
-    if (attendance === "not-attending") return "Not required";
-    if (value === "required" || required) return "Outstanding";
-    return "Not required";
+    if (!required || attendance === "not-attending") return "Not required";
+    return "Outstanding";
 }
 
 function reportDate(value: string): string {
