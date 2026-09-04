@@ -1,3 +1,5 @@
+import { formatSiteDate } from "./siteDateFormat";
+
 export type MemberReportRow = {
     id: string;
     displayName: string;
@@ -146,15 +148,19 @@ function consentLabel(value: string, required: boolean): string {
     return "Not required";
 }
 
+function reportDate(value: string): string {
+    return value ? formatSiteDate(value) : "";
+}
+
 export function eventRosterCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members.map((member) => [event.title, event.startDate, member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), consentLabel(event.consent[member.id] || "", event.consentRequired)].map(csvCell).join(","));
+    const body = members.map((member) => [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), consentLabel(event.consent[member.id] || "", event.consentRequired)].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
 export function eventOverviewCsv(events: EventReportRecord[]): string {
     const header = ["Event", "Date", "Section", "Status", "Consent required", "Attending", "Not attending", "Consent received"];
-    const body = events.map((event) => [event.title, event.startDate, event.section, event.status, event.consentRequired ? "Yes" : "No", Object.values(event.attendance).filter((value) => value === "attending").length, Object.values(event.attendance).filter((value) => value === "not-attending").length, Object.values(event.consent).filter((value) => value === "received").length].map(csvCell).join(","));
+    const body = events.map((event) => [event.title, reportDate(event.startDate), event.section, event.status, event.consentRequired ? "Yes" : "No", Object.values(event.attendance).filter((value) => value === "attending").length, Object.values(event.attendance).filter((value) => value === "not-attending").length, Object.values(event.consent).filter((value) => value === "received").length].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
@@ -166,14 +172,14 @@ export function attendanceTrendCsv(events: EventReportRecord[]): string {
         const notAttending = values.filter((value) => value === "not-attending").length;
         const recorded = attending + notAttending;
         const rate = recorded === 0 ? "" : `${Math.round((attending / recorded) * 100)}%`;
-        return [event.title, event.startDate, event.section, recorded, attending, notAttending, rate].map(csvCell).join(",");
+        return [event.title, reportDate(event.startDate), event.section, recorded, attending, notAttending, rate].map(csvCell).join(",");
     });
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
 export function outstandingConsentCsv(event: EventReportRecord, members: EventReportMember[]): string {
     const header = ["Event", "Date", "Member", "Section", "Attendance", "Consent"];
-    const body = members.filter((member) => event.consentRequired && event.consent[member.id] !== "received").map((member) => [event.title, event.startDate, member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), "Outstanding"].map(csvCell).join(","));
+    const body = members.filter((member) => event.consentRequired && event.consent[member.id] !== "received").map((member) => [event.title, reportDate(event.startDate), member.displayName, member.section, attendanceLabel(event.attendance[member.id] || "invited"), "Outstanding"].map(csvCell).join(","));
     return [header.map(csvCell).join(","), ...body].join("\r\n");
 }
 
