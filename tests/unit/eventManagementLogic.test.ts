@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents } from "../../src/services/eventManagementLogic.ts";
+import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle } from "../../src/services/eventManagementLogic.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -49,6 +49,19 @@ test("eventInput strips roster data and keeps editable fields", () => {
     assert.equal(draft.consentRequired, true);
     assert.equal("attendance" in draft, false);
     assert.equal("consent" in draft, false);
+});
+
+test("event identity duplicate checks normalize title and preserve date and section scope", () => {
+    assert.equal(normaliseEventTitle("  CUB   Camp "), "cub camp");
+    assert.equal(isDuplicateEventIdentity({ title: " cub camp ", startDate: "2026-10-02", section: "Cubs" }, [event]), true);
+    assert.equal(isDuplicateEventIdentity({ title: "Cub Camp", startDate: "2026-10-03", section: "Cubs" }, [event]), false);
+    assert.equal(isDuplicateEventIdentity({ title: "Cub Camp", startDate: "2026-10-02", section: "Scouts" }, [event]), false);
+});
+
+test("event identity duplicate checks exclude the record being edited", () => {
+    const another = { ...event, id: "event-2" };
+    assert.equal(isDuplicateEventIdentity(eventInput(event), [event], "event-1"), false);
+    assert.equal(isDuplicateEventIdentity(eventInput(event), [event, another], "event-1"), true);
 });
 
 test("event roster exports preserve operational fields and escape print HTML", () => {

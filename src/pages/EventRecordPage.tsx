@@ -15,7 +15,7 @@ import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { loadEvents, updateEvent, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord } from "../services/eventAdmin";
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
+import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel, isDuplicateEventIdentity } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -30,6 +30,7 @@ export default function EventRecordPage() {
     const { eventId = "" } = useParams();
     const navigate = useNavigate();
     const [event, setEvent] = useState<EventRecord | null>(null);
+    const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>([]);
     const [equipmentLoans, setEquipmentLoans] = useState<EquipmentLoan[]>([]);
@@ -55,6 +56,7 @@ export default function EventRecordPage() {
             ]);
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
             setEvent(requested);
+            setEvents(loadedEvents);
             setMembers(loadedMembers);
             setEquipmentItems(loadedItems);
             setEquipmentLoans(loadedLoans);
@@ -92,6 +94,7 @@ export default function EventRecordPage() {
         if (!draft.title.trim()) return setError("Event title is required.");
         if (!draft.startDate) return setError("Start date is required.");
         if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
+        if (isDuplicateEventIdentity(draft, events, event.id)) return setError("Another event with this title, start date and section already exists. Update the existing event instead.");
         setSaving(true);
         setError("");
         try {

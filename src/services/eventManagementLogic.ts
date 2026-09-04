@@ -36,6 +36,23 @@ export function consentLabel(status: EventConsentStatus): string {
     return "Not required";
 }
 
+export function normaliseEventTitle(value: string): string {
+    return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IE");
+}
+
+export function isDuplicateEventIdentity(
+    draft: Pick<EventInput, "title" | "startDate" | "section">,
+    events: EventRecord[],
+    excludeEventId?: string
+): boolean {
+    const titleKey = normaliseEventTitle(draft.title);
+    if (!titleKey || !draft.startDate || !draft.section) return false;
+    return events.some((event) => event.id !== excludeEventId
+        && normaliseEventTitle(event.title) === titleKey
+        && event.startDate === draft.startDate
+        && event.section === draft.section);
+}
+
 export function eventInput(record: EventRecord): EventInput {
     return {
         title: record.title,
