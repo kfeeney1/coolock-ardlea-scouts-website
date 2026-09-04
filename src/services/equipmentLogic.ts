@@ -30,6 +30,15 @@ export function isDuplicateEquipmentLabel(value: string, existing: string[]): bo
   return Boolean(key) && existing.some((item) => equipmentLabelKey(item) === key);
 }
 
+export function isDuplicateEquipmentItemName(
+  value: string,
+  items: Array<{ id: string; name: string }>,
+  currentItemId?: string
+): boolean {
+  const key = equipmentLabelKey(value);
+  return Boolean(key) && items.some((item) => item.id !== currentItemId && equipmentLabelKey(item.name) === key);
+}
+
 export function isQuartermasterRole(role: string): boolean {
   const key = role
     .toLowerCase()
