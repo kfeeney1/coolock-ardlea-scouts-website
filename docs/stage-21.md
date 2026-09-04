@@ -65,6 +65,10 @@ The first communications/reporting usefulness slice aligns event-related CSV exp
 
 Those exports now format dates through the shared site-date formatter while preserving ISO dates internally for filtering and storage. The change is presentation-only: report scope, Firestore reads, authorization, audit events, CSV spreadsheet-injection protection and sensitive-field exclusions are unchanged. The Stage 21.1 recipient-search candidate remains a discovery item until real section-scale evidence supports changing the communications recipient workflow.
 
+The second communications/reporting usefulness slice makes the **Outstanding Consent** export actionable rather than merely incomplete-consent based. The report previously included a member whenever consent had not been received, even when that member's attendance had already been recorded as **Not attending**. That disagreed with the operational event workflow, where non-attendees no longer need outstanding consent action.
+
+The export now excludes members explicitly marked **Not attending** while retaining invited or attending members whose consent is still outstanding. This reuses the already-loaded event/member snapshot and changes no Firestore reads, event attendance or consent state, authorization, audit events, CSV privacy protections or deterministic fixtures.
+
 ## Non-goals
 
 Stage 21 does not:
