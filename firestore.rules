@@ -66,6 +66,23 @@ service cloud.firestore {
         && parentProfile().linkedSections is list
         && section in parentProfile().linkedSections;
     }
+    function isCanonicalAdventureSkillStage(skillId, stage) {
+      return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
+        && stage is number
+        && stage >= 1
+        && ((skillId == "swimming" && stage <= 6) || (skillId != "swimming" && stage <= 9));
+    }
+    function isCanonicalAdventureSkillAwardId(awardId, skillId, stage) {
+      return (stage == 1 && awardId == skillId + "-stage-1")
+        || (stage == 2 && awardId == skillId + "-stage-2")
+        || (stage == 3 && awardId == skillId + "-stage-3")
+        || (stage == 4 && awardId == skillId + "-stage-4")
+        || (stage == 5 && awardId == skillId + "-stage-5")
+        || (stage == 6 && awardId == skillId + "-stage-6")
+        || (stage == 7 && awardId == skillId + "-stage-7")
+        || (stage == 8 && awardId == skillId + "-stage-8")
+        || (stage == 9 && awardId == skillId + "-stage-9");
+    }
 
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
@@ -180,10 +197,8 @@ service cloud.firestore {
           && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
           && request.resource.data.awardId == awardId
           && request.resource.data.memberId == memberId
-          && request.resource.data.skillId is string
-          && request.resource.data.stage is number
-          && request.resource.data.stage >= 1
-          && request.resource.data.stage <= 9
+          && isCanonicalAdventureSkillStage(request.resource.data.skillId, request.resource.data.stage)
+          && isCanonicalAdventureSkillAwardId(awardId, request.resource.data.skillId, request.resource.data.stage)
           && request.resource.data.awardedAt == request.time
           && request.resource.data.awardedBy == request.auth.uid
           && request.resource.data.keys().hasOnly(["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
