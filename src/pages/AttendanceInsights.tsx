@@ -24,6 +24,7 @@ import type { AttendanceInsightMember, AttendanceHistoryRow } from "../services/
 import { loadAttendanceInsightMembers, loadEventReportRecords } from "../services/reporting";
 import type { EventReportRecord } from "../services/reportingLogic";
 import { buildScoutPeriods, findScoutPeriod } from "../services/scoutPeriods";
+import { sortScoutSections } from "../services/sectionOrder.ts";
 import { loadWeeklyAccess, loadWeeklyMeetings } from "../services/weeklyTracker";
 import type { WeeklyMeetingRecord } from "../services/weeklyTracker";
 
@@ -97,7 +98,7 @@ export default function AttendanceInsights() {
         [members, events, meetings, dateRange]
     );
     const availableSections = useMemo(
-        () => [...new Set(insights.map((item) => item.section).filter(Boolean))].sort(),
+        () => sortScoutSections(insights.map((item) => item.section).filter(Boolean)),
         [insights]
     );
     const normalizedSearch = search.trim().toLocaleLowerCase();
