@@ -209,3 +209,38 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByRole("checkbox")).toHaveCount(0);
   });
 });
+
+test.describe("Adventure Skills mobile badgework", () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile exception editing runs once on mobile Chromium.");
+    test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+    test.skip(!seededJourneyData, "Run against the canonical deterministic E2E seed.");
+  });
+
+  test("shows competency statements beside per-child exception controls", async ({ page }) => {
+    await loginLeader(page, adminEmail!);
+    await page.goto("/leader/badgework");
+    await openRecordBadgework(page);
+    await selectMember(page, firstMemberName);
+    await selectMember(page, secondMemberName);
+    await page.getByRole("button", { name: "Select 2 members and continue" }).click();
+
+    const mobileExceptions = page.getByTestId("badgework-mobile-competency-exceptions");
+    await expect(mobileExceptions).toBeVisible();
+    await expect(page.getByTestId("badgework-desktop-competency-matrix")).toBeHidden();
+
+    const firstCompetency = mobileExceptions.locator('[data-testid^="badgework-mobile-competency-"]').first();
+    await expect(firstCompetency.getByText("Competency 1", { exact: true })).toBeVisible();
+    await expect(firstCompetency.getByText(firstMemberName, { exact: true })).toBeVisible();
+    await expect(firstCompetency.getByText(secondMemberName, { exact: true })).toBeVisible();
+
+    const firstChildCheckbox = firstCompetency.getByRole("checkbox", { name: new RegExp(`^${firstMemberName} · competency 1 ·`) });
+    await firstChildCheckbox.click();
+    await expect(firstCompetency.getByText("Unsaved change", { exact: true })).toBeVisible();
+    await expect(firstChildCheckbox).toHaveAccessibleName(/unsaved change$/);
+    await expect(page.getByText(/unsaved badgework changes/i)).toBeVisible();
+
+    const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+    expect(fitsViewport).toBe(true);
+  });
+});
