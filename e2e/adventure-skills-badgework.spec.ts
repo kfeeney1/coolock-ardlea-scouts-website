@@ -45,6 +45,10 @@ async function selectMember(page: Page, name: string) {
   await label.getByRole("checkbox").check();
 }
 
+async function openRecordBadgework(page: Page) {
+  await page.getByRole("button", { name: "Record badgework", exact: true }).first().click();
+}
+
 test.describe("Adventure Skills badgework", () => {
   test.beforeEach(({}, testInfo) => {
     desktopOnly(testInfo);
@@ -56,6 +60,11 @@ test.describe("Adventure Skills badgework", () => {
     await loginLeader(page, adminEmail!);
     await page.goto("/leader/badgework");
     await expect(page.getByRole("heading", { name: "Adventure Skills Badgework" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Badgework Overview" })).toBeVisible();
+    const overviewMember = page.getByTestId(`badgework-overview-member-${firstMemberId}`);
+    await expect(overviewMember).toBeVisible();
+    await expect(overviewMember.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping`) })).toBeVisible();
+    await openRecordBadgework(page);
 
     await selectMember(page, firstMemberName);
     await selectMember(page, secondMemberName);
@@ -73,6 +82,7 @@ test.describe("Adventure Skills badgework", () => {
   test("unsaved badgework context changes use in-app confirmation and cancel keeps the draft", async ({ page }) => {
     await loginLeader(page, adminEmail!);
     await page.goto("/leader/badgework");
+    await openRecordBadgework(page);
     await selectMember(page, firstMemberName);
     await page.getByRole("button", { name: "Select 1 member and continue" }).click();
     await page.getByRole("button", { name: "Mark full stage complete" }).click();
@@ -94,6 +104,7 @@ test.describe("Adventure Skills badgework", () => {
 
     await loginLeader(page, adminEmail!);
     await page.goto("/leader/badgework");
+    await openRecordBadgework(page);
     await selectMember(page, firstMemberName);
     await page.getByRole("button", { name: "Select 1 member and continue" }).click();
     await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
