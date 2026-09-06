@@ -20,7 +20,7 @@ export default function BadgeworkSkillGrid({ memberName, onOpenStage, summaries 
       alignItems: "stretch"
     }}
   >
-    {summaries.map((summary, index) => {
+    {summaries.map((summary) => {
       const levelLabel = highestAwardedLevelLabel(summary.highestAwardedStage);
       const isSwimming = summary.skillId === "swimming";
       return <Button
@@ -47,7 +47,7 @@ export default function BadgeworkSkillGrid({ memberName, onOpenStage, summaries 
           "&:hover": { borderColor: "secondary.main", backgroundColor: "action.hover" }
         }}
       >
-        <AdventureSkillBadgeIcon skillId={summary.skillId} size={index < 9 ? 52 : 52} />
+        <AdventureSkillBadgeIcon skillId={summary.skillId} size={52} />
         <Typography
           component="span"
           sx={{
