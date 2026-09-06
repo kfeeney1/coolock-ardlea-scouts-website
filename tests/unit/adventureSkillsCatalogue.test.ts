@@ -46,6 +46,7 @@ test("explicit Buddy System equivalence links the matching handbook competencies
         buddyRequirements.map((requirement) => requirement.id).sort(),
         [
             "camping-stage-1-requirement-06",
+            "emergencies-stage-1-requirement-04",
             "hillwalking-stage-1-requirement-09",
             "paddling-stage-1-requirement-06",
             "rowing-stage-1-requirement-02",
