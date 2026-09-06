@@ -3,15 +3,17 @@ import { useState } from "react";
 
 import BadgeworkAwaitingAwardQueue from "./BadgeworkAwaitingAwardQueue.tsx";
 import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
+import BadgeworkSkillGrid from "./BadgeworkSkillGrid.tsx";
 import { useAdminAuth } from "./AdminAuthProvider.tsx";
 import { adventureSkills } from "../../data/adventureSkills/index.ts";
 import { recordAuditEvent } from "../../services/auditLog.ts";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import { setStageAwardForMembers, type MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
-import { adventureSkillOverview, type AdventureStageOverviewStatus } from "../../services/adventureSkillOverviewLogic.ts";
+import { adventureSkillOverview } from "../../services/adventureSkillOverviewLogic.ts";
 import { badgeworkProgressFilterCounts, matchesBadgeworkProgressFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
 import { badgeworkAwardCandidates, groupAwardCandidates, type BadgeworkAwardCandidate } from "../../services/adventureSkillAwardQueueLogic.ts";
 import { adventureSkillProgressCsv, badgeworkExportFilename } from "../../services/adventureSkillProgressCsv.ts";
+import { adventureSkillColour } from "../../services/adventureSkillPresentation.ts";
 import { assertOperationalExportAllowed } from "../../services/exportGovernance.ts";
 
 type Props = {
@@ -30,28 +32,9 @@ type Props = {
   sections: string[];
 };
 
-const ADVENTURE_SKILL_COLOURS: Record<string, string> = {
-  camping: "#00A36C",
-  backwoods: "#FF7A1A",
-  pioneering: "#5B9D3B",
-  emergencies: "#FF7A45",
-  hillwalking: "#005C5F",
-  "air-activities": "#0D8DC9",
-  paddling: "#226EB5",
-  rowing: "#06346F",
-  sailing: "#0B6FB8",
-  swimming: "#08A9C5"
-};
-
-const statusLabel = (status: AdventureStageOverviewStatus) => status === "requirements-complete" ? "Awaiting award" : status === "in-progress" ? "In progress" : status === "awarded" ? "Awarded" : "Not started";
-
-function skillColour(skillId: string): string {
-  return ADVENTURE_SKILL_COLOURS[skillId] ?? "#6B7280";
-}
-
 function skillOption(skillId: string, name: string) {
   return <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
-    <Box aria-hidden="true" sx={{ width: 18, height: 18, borderRadius: .75, flex: "0 0 auto", backgroundColor: skillColour(skillId), border: "1px solid", borderColor: "rgba(0,0,0,.16)" }} />
+    <Box aria-hidden="true" sx={{ width: 18, height: 18, borderRadius: .75, flex: "0 0 auto", backgroundColor: adventureSkillColour(skillId), border: "1px solid", borderColor: "rgba(0,0,0,.16)" }} />
     <Typography component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>{name}</Typography>
   </Stack>;
 }
@@ -142,24 +125,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
             <Button size="small" variant="outlined" onClick={() => setSelectedMemberId(member.id)}>View child progress</Button>
           </Stack>
         </Stack>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))", lg: "repeat(5,minmax(0,1fr))" }, gap: 1 }}>
-          {summaries.map((summary) => {
-            const activeStage = summary.stages.find((item) => item.stage === summary.nextStage)!;
-            const detail = summary.status === "awarded"
-              ? `Stage ${summary.highestAwardedStage} awarded`
-              : summary.status === "requirements-complete"
-                ? `Stage ${activeStage.stage} awaiting award`
-                : summary.status === "in-progress"
-                  ? `Stage ${activeStage.stage} · ${activeStage.completedRequirements}/${activeStage.totalRequirements}`
-                  : summary.highestAwardedStage > 0
-                    ? `Stage ${summary.highestAwardedStage} awarded · Stage ${activeStage.stage} next`
-                    : "Not started";
-            return <Button key={summary.skillId} variant="outlined" color={summary.status === "requirements-complete" ? "warning" : summary.status === "awarded" ? "success" : summary.status === "in-progress" ? "info" : "inherit"} onClick={() => onOpenMemberSkill(member.id, summary.skillId, summary.nextStage)} sx={{ display: "block", textAlign: "left", p: 1.25, minWidth: 0, textTransform: "none" }} aria-label={`${member.displayName} · ${summary.skillName} · ${statusLabel(summary.status)}`}>
-              <Typography sx={{ fontWeight: 800, fontSize: ".86rem", overflow: "hidden", textOverflow: "ellipsis" }}>{summary.skillName}</Typography>
-              <Typography variant="caption" sx={{ display: "block" }}>{detail}</Typography>
-            </Button>;
-          })}
-        </Box>
+        <BadgeworkSkillGrid memberName={member.displayName} summaries={summaries} onOpenStage={(nextSkillId, nextStage) => onOpenMemberSkill(member.id, nextSkillId, nextStage)} />
       </Paper>;
       })}
       {filteredMembers.length === 0 && <Alert severity="info">No children match the current badgework filters.</Alert>}
