@@ -13,8 +13,11 @@ test("normalizeLeaderRole rejects unknown or missing values", () => {
     assert.throws(() => normalizeLeaderRole(undefined), /unsupported role/);
 });
 
-test("normalizeLeaderSections keeps valid canonical multi-section assignments", () => {
-    assert.deepEqual(normalizeLeaderSections({ sections: ["Beavers", "Cubs", 123, ""] }), ["Beavers", "Cubs"]);
+test("normalizeLeaderSections keeps valid canonical multi-section assignments in Scout order", () => {
+    assert.deepEqual(
+        normalizeLeaderSections({ sections: ["Rovers", "Cubs", 123, "Beavers", "Ventures", "Scouts", ""] }),
+        ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
+    );
 });
 
 test("normalizeLeaderSections rejects legacy singular section data", () => {
