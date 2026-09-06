@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import logo from "../assets/logo.png";
+import { useBackDismiss } from "../hooks/useBackDismiss";
 import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "./PublicSiteContentProvider";
 
@@ -20,6 +21,7 @@ export default function Header() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const content = usePublicSiteContent();
     const menuItems = content.navigation;
+    useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
 
     return <AppBar data-site-sticky-header position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
         <Toolbar sx={{ minHeight: { xs: 72, md: 82 } }}>
