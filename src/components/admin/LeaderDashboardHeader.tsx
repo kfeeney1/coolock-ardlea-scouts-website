@@ -2,6 +2,7 @@ import { Box, Button, Collapse, Divider, Paper, Stack, Typography } from "@mui/m
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; };
@@ -71,10 +72,11 @@ export default function LeaderDashboardHeader() {
  useEffect(() => { setMobileGroupOpen(activeMobileGroup); }, [activeMobileGroup]);
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
+ useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
  const handleSignOut = async () => { setSigningOut(true); try { await logout(); navigate("/leader/login", { replace: true }); } finally { setSigningOut(false); } };
  const navButton = (item: NavItem) => {
   const active = matchesNavPath(location.pathname, item.path);
-  return <Button key={item.path} component={Link} to={item.path} aria-current={active ? "page" : undefined} onClick={() => setMenuOpen(false)} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
+  return <Button key={item.path} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
  };
  return <Paper data-testid="leader-dashboard-header" elevation={3} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: { xs: "calc(100vw - 32px)", md: "calc(100vw - 48px)" }, maxWidth: 1536, position: "relative", left: "50%", transform: "translateX(-50%)", boxSizing: "border-box" }}>
   <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 0.75 }}>Leader Dashboard</Typography><Typography color="text.secondary" sx={{ mb: 1 }}>{adminProfile?.displayName} · {adminProfile?.role}{adminProfile?.role === "leader" && adminProfile.sections.length ? ` · ${adminProfile.sections.join(", ")}` : ""}</Typography></Box>
