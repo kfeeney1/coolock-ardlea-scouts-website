@@ -18,3 +18,17 @@ export function adventureSkillColour(skillId: string): string {
 export function highestAwardedLevelLabel(highestAwardedStage: number): string {
   return highestAwardedStage > 0 ? `Level ${highestAwardedStage}` : "Not started";
 }
+
+type SkillStageProgress = {
+  stage: number;
+  status: "not-started" | "in-progress" | "requirements-complete" | "awarded";
+};
+
+export function badgeworkSkillLevelLabel(
+  highestAwardedStage: number,
+  stages: readonly SkillStageProgress[]
+): string {
+  const earliestStartedStage = stages.find((stage) => stage.status === "in-progress");
+  if (earliestStartedStage) return `Level ${earliestStartedStage.stage} started`;
+  return highestAwardedLevelLabel(highestAwardedStage);
+}
