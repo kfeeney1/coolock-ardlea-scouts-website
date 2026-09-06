@@ -1,3 +1,5 @@
+import { sortScoutSections } from "./sectionOrder.ts";
+
 export type NormalizedLeaderRole = "leader" | "admin" | "super-admin";
 
 export type LeaderAccessSource = {
@@ -13,10 +15,8 @@ export function normalizeLeaderRole(value: unknown): NormalizedLeaderRole {
 export function normalizeLeaderSections(data: LeaderAccessSource): string[] {
     if (!Array.isArray(data.sections)) return [];
 
-    return [...new Set(
+    return sortScoutSections(
         data.sections
             .filter((value): value is string => typeof value === "string")
-            .map((value) => value.trim())
-            .filter(Boolean)
-    )];
+    );
 }
