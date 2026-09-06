@@ -2,7 +2,7 @@ import { Box, Button, Typography } from "@mui/material";
 
 import AdventureSkillBadgeIcon from "./AdventureSkillBadgeIcon.tsx";
 import type { AdventureSkillOverview } from "../../services/adventureSkillOverviewLogic.ts";
-import { highestAwardedLevelLabel } from "../../services/adventureSkillPresentation.ts";
+import { badgeworkSkillLevelLabel } from "../../services/adventureSkillPresentation.ts";
 
 type Props = {
   memberName: string;
@@ -21,7 +21,7 @@ export default function BadgeworkSkillGrid({ memberName, onOpenStage, summaries 
     }}
   >
     {summaries.map((summary) => {
-      const levelLabel = highestAwardedLevelLabel(summary.highestAwardedStage);
+      const levelLabel = badgeworkSkillLevelLabel(summary.highestAwardedStage, summary.stages);
       const isSwimming = summary.skillId === "swimming";
       return <Button
         key={summary.skillId}
