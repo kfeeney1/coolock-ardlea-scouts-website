@@ -15,6 +15,7 @@ test("shared Buddy System completion propagates to every explicitly equivalent r
     targets.map((target) => target.requirementId).sort(),
     [
       "camping-stage-1-requirement-06",
+      "emergencies-stage-1-requirement-04",
       "hillwalking-stage-1-requirement-09",
       "paddling-stage-1-requirement-06",
       "rowing-stage-1-requirement-02",
