@@ -31,6 +31,7 @@ import {
 import type { CommunicationRecipient, CommunicationTemplate } from "../services/communicationLogic";
 import { loadCommunicationRecipients } from "../services/communications";
 import { sendLeaderCommunication } from "../services/emailNotifications";
+import { sortScoutSections } from "../services/sectionOrder.ts";
 
 type CommunicationStep = "message" | "recipients";
 
@@ -71,7 +72,7 @@ export default function LeaderCommunications() {
     }, [scope]);
 
     const availableSections = useMemo(
-        () => [...new Set(recipients.filter((item) => item.status === "active").map((item) => item.section).filter(Boolean))].sort(),
+        () => sortScoutSections(recipients.filter((item) => item.status === "active").map((item) => item.section).filter(Boolean)),
         [recipients]
     );
     const visibleRecipients = useMemo(
