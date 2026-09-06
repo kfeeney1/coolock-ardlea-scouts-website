@@ -71,6 +71,7 @@ test.describe("Adventure Skills badgework", () => {
     await expect(campingProgress.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping · Stage 1`) })).toBeVisible();
     await campingProgress.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping · Stage 1`) }).click();
     await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Stage 1 ·/ })).toHaveAttribute("aria-current", "step");
     await page.getByRole("button", { name: "Change members" }).click();
 
     await selectMember(page, firstMemberName);
@@ -95,8 +96,14 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Mark full stage complete" }).click();
     await expect(page.getByText(/unsaved badgework changes/i)).toBeVisible();
 
+    await page.getByRole("button", { name: /Stage 2 ·/ }).click();
+    let discardDialog = page.getByRole("dialog", { name: "Discard unsaved badgework changes?" });
+    await expect(discardDialog).toBeVisible();
+    await discardDialog.getByRole("button", { name: "Keep editing" }).click();
+    await expect(page.getByRole("button", { name: /Stage 1 ·/ })).toHaveAttribute("aria-current", "step");
+
     await page.getByRole("button", { name: "Change members" }).click();
-    const discardDialog = page.getByRole("dialog", { name: "Discard unsaved badgework changes?" });
+    discardDialog = page.getByRole("dialog", { name: "Discard unsaved badgework changes?" });
     await expect(discardDialog).toBeVisible();
     await expect(discardDialog).toContainText("without writing them to any member record");
     await discardDialog.getByRole("button", { name: "Keep editing" }).click();
