@@ -105,6 +105,13 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByText(/Recording badgework from Weekly Meeting/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Select 2 members and continue" })).toBeEnabled();
     await expect(page.getByRole("link", { name: "Back to Weekly Meeting" })).toBeVisible();
+    await page.getByRole("button", { name: "Select 2 members and continue" }).click();
+    await expect(page.getByText("Group competency changes", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Review individual progress and exceptions/ })).toBeVisible();
+    const sourceSavePanel = page.getByTestId("badgework-save-panel");
+    await expect(sourceSavePanel.getByRole("button", { name: "Save and return to Weekly Meeting" })).toBeDisabled();
+    await page.getByRole("button", { name: "Mark full stage complete" }).click();
+    await expect(sourceSavePanel.getByRole("button", { name: "Save and return to Weekly Meeting" })).toBeEnabled();
   });
 
   test("unsaved badgework context changes use in-app confirmation and cancel keeps the draft", async ({ page }) => {

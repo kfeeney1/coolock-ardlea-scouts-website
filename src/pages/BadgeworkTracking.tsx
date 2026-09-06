@@ -4,13 +4,15 @@ import BadgeworkOverview from "../components/admin/BadgeworkOverview.tsx";
 import BadgeworkModeNavigation from "../components/admin/BadgeworkModeNavigation.tsx";
 import BadgeworkStageNavigation from "../components/admin/BadgeworkStageNavigation.tsx";
 import BadgeworkSelectedMemberStageSummary from "../components/admin/BadgeworkSelectedMemberStageSummary.tsx";
+import BadgeworkGroupCompetencyControls from "../components/admin/BadgeworkGroupCompetencyControls.tsx";
+import BadgeworkSavePanel from "../components/admin/BadgeworkSavePanel.tsx";
 import {
-  Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
   Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { loadMembers, type MemberRecord } from "../services/memberAdmin";
@@ -20,10 +22,10 @@ import {
   setStageAwardForMembers,
   type MemberAdventureProgress
 } from "../services/adventureSkillProgress.ts";
-import { completeStageDraft, draftSelectionState, setDraftRequirement } from "../services/adventureSkillDraftLogic.ts";
-import { requirementSelectionState, selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
-import { membersWithIncompleteStage, requirementProvenance, stageAwardSelectionState } from "../services/adventureSkillAwardLogic.ts";
-import { badgeworkSourceContextFromParams, sourceBacklink, sourceLabel } from "../services/adventureSkillSourceContext.ts";
+import { completeStageDraft, setDraftRequirement } from "../services/adventureSkillDraftLogic.ts";
+import { selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
+import { membersWithIncompleteStage, stageAwardSelectionState } from "../services/adventureSkillAwardLogic.ts";
+import { badgeworkSourceContextFromParams, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 import {
   clearMemberRequirementDraftForRequirement,
   memberRequirementCompletion,
@@ -35,9 +37,9 @@ import { sectionFilterOptions } from "../services/sectionOrder.ts";
 type BadgeworkStep = "members" | "badgework";
 type BadgeworkMode = "overview" | "record";
 type DiscardAction = { kind: "skill"; skillId: string } | { kind: "stage"; stage: number } | { kind: "members" } | { kind: "overview" };
-const displayDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(value) : "Date pending";
 
 export default function BadgeworkTracking() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -76,7 +78,6 @@ export default function BadgeworkTracking() {
   const awardState = skill && stage ? stageAwardSelectionState(selectedIds, progressByMemberId, skill.id, stage.stage) : "none";
   const incompleteMemberIds = skill && stage ? membersWithIncompleteStage(selectedIds, progressByMemberId, skill.id, stage.stage) : selectedIds;
   const canAward = selectedIds.length > 0 && incompleteMemberIds.length === 0 && !hasUnsavedChanges;
-  const singleProgress = selectedIds.length === 1 ? progressByMemberId.get(selectedIds[0]) : undefined;
 
   const refreshProgress = async (memberIds: readonly string[]) => {
     if (memberIds.length === 0) return;
@@ -206,7 +207,7 @@ export default function BadgeworkTracking() {
     setDraft((current) => completeStageDraft(current, requirementIds));
   };
 
-  const saveChanges = async () => {
+  const saveChanges = async (returnToSource = false) => {
     if (!selectedIds.length || !hasUnsavedChanges) return;
     setSaving(true); setError(""); setMessage("");
     try {
@@ -218,6 +219,7 @@ export default function BadgeworkTracking() {
       setDraft(new Map());
       setMemberDraft(new Map());
       setMessage(`${changeCount} badgework ${changeCount === 1 ? "change" : "changes"} saved for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
+      if (returnToSource && sourceContext) navigate(sourceContext.returnTo);
     } catch (saveError) {
       console.error("Unable to save badgework changes:", saveError);
       setError("Unable to save badgework changes. Your unsaved selections are still shown; please try again.");
@@ -240,6 +242,11 @@ export default function BadgeworkTracking() {
 
   const allVisibleSelected = visibleMembers.length > 0 && visibleMembers.every((member) => selectedIds.includes(member.id));
   const someVisibleSelected = visibleMembers.some((member) => selectedIds.includes(member.id)) && !allVisibleSelected;
+  const selectedStageSummary = skill && stage && selectedMembers.length > 0
+    ? <BadgeworkSelectedMemberStageSummary disabled={saving} groupDraft={draft} memberDraft={memberDraft} members={selectedMembers} onMemberRequirementChange={updateMemberRequirementDraft} progressByMemberId={progressByMemberId} skill={skill} stage={stage} />
+    : null;
+  const groupCompetencyControls = <BadgeworkGroupCompetencyControls disabled={saving} draft={draft} onRequirementChange={updateRequirementDraft} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} stage={stage} unsavedChangeCount={unsavedChangeCount} />;
+  const savePanel = <BadgeworkSavePanel disabled={saving} onDiscard={discardDraft} onSave={() => void saveChanges()} onSaveAndReturn={sourceContext ? () => void saveChanges(true) : undefined} returnLabel={sourceContext ? sourceLabel(sourceContext.sourceType) : undefined} saving={saving} unsavedChangeCount={unsavedChangeCount} />;
 
   return <>
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
@@ -280,7 +287,10 @@ export default function BadgeworkTracking() {
             <Button variant="outlined" color="success" disabled={saving} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
           </Box>
           {skill && <Box sx={{ mb: 3 }}><BadgeworkStageNavigation currentStage={stage?.stage ?? 1} disabled={saving} onChange={changeStage} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} skill={skill} /></Box>}
-          {skill && stage && selectedMembers.length > 0 && <BadgeworkSelectedMemberStageSummary disabled={saving} groupDraft={draft} memberDraft={memberDraft} members={selectedMembers} onMemberRequirementChange={updateMemberRequirementDraft} progressByMemberId={progressByMemberId} skill={skill} stage={stage} />}
+          {!sourceContext && selectedStageSummary}
+          {sourceContext && groupCompetencyControls}
+          {sourceContext && selectedMembers.length > 1 && <Accordion disableGutters sx={{ mt: 2, mb: 2 }} data-testid="badgework-meeting-exceptions"><AccordionSummary expandIcon={<Typography component="span" aria-hidden="true">⌄</Typography>}><Box><Typography sx={{ fontWeight: 800 }}>Review individual progress and exceptions</Typography><Typography variant="body2" color="text.secondary">Open this only when selected children completed different competency points.</Typography></Box></AccordionSummary><AccordionDetails>{selectedStageSummary}</AccordionDetails></Accordion>}
+          {sourceContext && selectedMembers.length === 1 && <Box sx={{ mt: 2 }}>{selectedStageSummary}</Box>}
 
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="badge-award-panel">
             <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
@@ -291,24 +301,8 @@ export default function BadgeworkTracking() {
             {!hasUnsavedChanges && incompleteMemberIds.length > 0 && <Alert severity="info" sx={{ mt: 1.5 }}>The badge can be awarded once all competency points are saved as complete for every selected child.</Alert>}
           </Paper>
 
-          {hasUnsavedChanges && <Alert severity="warning" sx={{ mb: 2 }}>You have {unsavedChangeCount} unsaved badgework {unsavedChangeCount === 1 ? "change" : "changes"}. Review the individual and group competency changes, then save.</Alert>}
-          <Typography sx={{ fontWeight: 800, mb: 1 }}>Group competency changes</Typography>
-          <Stack spacing={1.25}>{stage?.requirements.map((requirement) => {
-            const persistedState = requirementSelectionState(selectedIds, progressByMemberId, requirement.id);
-            const state = draftSelectionState(draft, requirement.id, persistedState);
-            const changed = draft.has(requirement.id);
-            const provenance = selectedIds.length === 1 ? requirementProvenance(singleProgress, requirement.id) : null;
-            return <Paper key={requirement.id} variant="outlined" sx={{ p: 1.5 }}><FormControlLabel disabled={saving} sx={{ m: 0, width: "100%", alignItems: "flex-start" }} control={<Checkbox checked={state === "all"} indeterminate={state === "some"} onChange={(_, checked) => updateRequirementDraft(requirement.id, checked)} />} label={<Box sx={{ pt: .6 }}>
-              <Typography>{requirement.statement}</Typography>
-              {changed && <Typography variant="caption" color="warning.dark" sx={{ display: "block", fontWeight: 700 }}>Unsaved group change</Typography>}
-              {requirement.sharedCompetencyKey && <Typography variant="caption" color="success.dark" sx={{ display: "block", fontWeight: 700 }}>Shared competency · saving this also updates equivalent badgework.</Typography>}
-              {state === "some" && <Typography variant="caption" color="warning.dark" sx={{ display: "block" }}>Completed by some selected children. Tick to complete for all selected children.</Typography>}
-              {provenance && !changed && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: .5 }} data-testid={`provenance-${requirement.id}`}>Completed {displayDate(provenance.completedAt)} · {sourceLabel(provenance.sourceType)}{provenance.sourceId && provenance.sourceType !== "manual" && provenance.sourceType !== "migration" ? <> · <a href={sourceBacklink(provenance.sourceType, provenance.sourceId)}>View source</a></> : null}</Typography>}
-            </Box>} /></Paper>;
-          })}</Stack>
-          {selectedIds.length > 1 && <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>Completion source details are shown when one child is selected, so provenance is never attributed ambiguously across a group.</Typography>}
-
-          <Paper variant="outlined" sx={{ mt: 3, p: 2 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}><Box><Typography sx={{ fontWeight: 800 }}>{hasUnsavedChanges ? `${unsavedChangeCount} unsaved ${unsavedChangeCount === 1 ? "change" : "changes"}` : "No unsaved changes"}</Typography><Typography variant="body2" color="text.secondary">Nothing is written to the member records until you save.</Typography></Box><Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1}><Button disabled={saving || !hasUnsavedChanges} onClick={discardDraft}>Discard</Button><Button variant="contained" color="success" disabled={saving || !hasUnsavedChanges} onClick={() => void saveChanges()}>{saving ? "Saving…" : "Save changes"}</Button></Stack></Stack></Paper>
+          {!sourceContext && groupCompetencyControls}
+          {savePanel}
         </Paper>}
       </>}
     </Container></Box>
