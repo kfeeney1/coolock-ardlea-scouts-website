@@ -3,6 +3,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import BadgeworkOverview from "../components/admin/BadgeworkOverview.tsx";
 import BadgeworkModeNavigation from "../components/admin/BadgeworkModeNavigation.tsx";
 import BadgeworkStageNavigation from "../components/admin/BadgeworkStageNavigation.tsx";
+import BadgeworkSelectedMemberStageSummary from "../components/admin/BadgeworkSelectedMemberStageSummary.tsx";
 import {
   Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
@@ -251,6 +252,7 @@ export default function BadgeworkTracking() {
             <Button variant="outlined" color="success" disabled={saving} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
           </Box>
           {skill && <Box sx={{ mb: 3 }}><BadgeworkStageNavigation currentStage={stage?.stage ?? 1} disabled={saving} onChange={changeStage} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} skill={skill} /></Box>}
+          {skill && stage && selectedMembers.length > 0 && <BadgeworkSelectedMemberStageSummary members={selectedMembers} progressByMemberId={progressByMemberId} skill={skill} stage={stage} />}
 
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="badge-award-panel">
             <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
