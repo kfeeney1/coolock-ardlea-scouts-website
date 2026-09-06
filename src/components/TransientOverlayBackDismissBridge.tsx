@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
@@ -20,10 +20,18 @@ function dismissSurface(surface: HTMLElement | undefined) {
   }));
 }
 
+function locationStateFromHistoryState(historyState: unknown): unknown {
+  if (!historyState || typeof historyState !== "object" || Array.isArray(historyState)) return historyState;
+  return (historyState as { usr?: unknown }).usr ?? historyState;
+}
+
 /**
  * Mirrors the visible MUI dialog/select stack into same-route browser history.
  * A hardware/browser Back POP therefore closes only the most recently opened
  * transient surface. Normal UI closes consume their matching history entry.
+ *
+ * POP dismissal is handled directly from the browser popstate event so the user does
+ * not have to wait for a React Router render/effect round-trip before the overlay closes.
  */
 export default function TransientOverlayBackDismissBridge() {
   const location = useLocation();
@@ -36,7 +44,7 @@ export default function TransientOverlayBackDismissBridge() {
     [location.state]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const refresh = () => setSurfaces(visibleSurfaces());
     refresh();
     const observer = new MutationObserver(refresh);
@@ -49,7 +57,27 @@ export default function TransientOverlayBackDismissBridge() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const markerCount = backDismissStack(locationStateFromHistoryState(event.state))
+        .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
+      const priorMarkerCount = previousMarkerCount.current;
+      if (markerCount >= priorMarkerCount) return;
+
+      previousMarkerCount.current = markerCount;
+      if (consumingClose.current) {
+        consumingClose.current = false;
+        return;
+      }
+
+      dismissSurface(visibleSurfaces().at(-1));
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useLayoutEffect(() => {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
 
@@ -57,9 +85,7 @@ export default function TransientOverlayBackDismissBridge() {
       previousMarkerCount.current = markerCount;
       if (consumingClose.current) {
         consumingClose.current = false;
-        return;
       }
-      dismissSurface(surfaces.at(-1));
       return;
     }
 
