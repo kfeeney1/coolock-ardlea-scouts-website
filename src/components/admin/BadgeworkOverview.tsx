@@ -30,7 +30,31 @@ type Props = {
   sections: string[];
 };
 
+const ADVENTURE_SKILL_COLOURS: Record<string, string> = {
+  camping: "#00A36C",
+  backwoods: "#FF7A1A",
+  pioneering: "#5B9D3B",
+  emergencies: "#FF7A45",
+  hillwalking: "#005C5F",
+  "air-activities": "#0D8DC9",
+  paddling: "#226EB5",
+  rowing: "#06346F",
+  sailing: "#0B6FB8",
+  swimming: "#08A9C5"
+};
+
 const statusLabel = (status: AdventureStageOverviewStatus) => status === "requirements-complete" ? "Awaiting award" : status === "in-progress" ? "In progress" : status === "awarded" ? "Awarded" : "Not started";
+
+function skillColour(skillId: string): string {
+  return ADVENTURE_SKILL_COLOURS[skillId] ?? "#6B7280";
+}
+
+function skillOption(skillId: string, name: string) {
+  return <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
+    <Box aria-hidden="true" sx={{ width: 18, height: 18, borderRadius: .75, flex: "0 0 auto", backgroundColor: skillColour(skillId), border: "1px solid", borderColor: "rgba(0,0,0,.16)" }} />
+    <Typography component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>{name}</Typography>
+  </Stack>;
+}
 
 function downloadCsv(filename: string, csv: string) {
   const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
@@ -63,7 +87,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr repeat(3, 1fr)" }, gap: 2 }}>
         <TextField label="Search children" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Name or section" />
         <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={section} onChange={(event) => onSectionChange(event.target.value)}>{sections.map((item) => <MenuItem key={item} value={item}>{item === "all" ? "All sections" : item}</MenuItem>)}</Select></FormControl>
-        <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skill.name}</MenuItem>)}</Select></FormControl>
+        <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)} renderValue={(value) => value === "all" ? "All skills" : (() => { const selectedSkill = adventureSkills.find((skill) => skill.id === value); return selectedSkill ? skillOption(selectedSkill.id, selectedSkill.name) : "All skills"; })()}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skillOption(skill.id, skill.name)}</MenuItem>)}</Select></FormControl>
         <FormControl><InputLabel id="badgework-progress-filter-label">Progress</InputLabel><Select id="badgework-progress-filter" labelId="badgework-progress-filter-label" label="Progress" value={progressFilter} onChange={(event) => setProgressFilter(event.target.value as BadgeworkProgressFilter)}><MenuItem value="all">All progress</MenuItem><MenuItem value="not-started">Not started</MenuItem><MenuItem value="in-progress">In progress</MenuItem><MenuItem value="awaiting-award">Awaiting award</MenuItem><MenuItem value="awarded">Awarded</MenuItem></Select></FormControl>
       </Box>
     </Paper>
