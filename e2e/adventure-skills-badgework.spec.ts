@@ -69,6 +69,15 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByRole("button", { name: /Not started · \d+/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Started · \d+/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Awarded · \d+/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Level matrix" })).toBeDisabled();
+    await page.getByRole("combobox", { name: "Adventure Skill" }).click();
+    await page.getByRole("option", { name: "Camping" }).click();
+    await page.getByRole("button", { name: "Level matrix" }).click();
+    const levelMatrix = page.getByTestId("badgework-level-matrix");
+    await expect(levelMatrix).toBeVisible();
+    await expect(levelMatrix.getByRole("columnheader", { name: "Level 1" })).toBeVisible();
+    await expect(levelMatrix.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping · Level 1`) })).toBeVisible();
+    await page.getByRole("button", { name: "Child cards" }).click();
     await page.getByRole("button", { name: /Awaiting award · \d+/ }).click();
     await page.getByRole("button", { name: /All shown · \d+/ }).click();
     await expect(page.getByRole("button", { name: "Export filtered CSV" })).toBeEnabled();
