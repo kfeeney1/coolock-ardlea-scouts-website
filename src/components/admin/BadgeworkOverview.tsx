@@ -10,7 +10,7 @@ import { recordAuditEvent } from "../../services/auditLog.ts";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import { setStageAwardForMembers, type MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { adventureSkillOverview } from "../../services/adventureSkillOverviewLogic.ts";
-import { badgeworkProgressFilterCounts, matchesBadgeworkProgressFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
+import { badgeworkProgressFilterCounts, matchesBadgeworkLevelFilter, matchesBadgeworkLevelNumber, matchesBadgeworkProgressFilter, type BadgeworkLevelFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
 import { badgeworkAwardCandidates, groupAwardCandidates, type BadgeworkAwardCandidate } from "../../services/adventureSkillAwardQueueLogic.ts";
 import { adventureSkillProgressCsv, badgeworkExportFilename } from "../../services/adventureSkillProgressCsv.ts";
 import { adventureSkillColour } from "../../services/adventureSkillPresentation.ts";
@@ -55,7 +55,8 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
   const { adminProfile } = useAdminAuth();
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [skillFilter, setSkillFilter] = useState("all");
-  const [progressFilter, setProgressFilter] = useState<BadgeworkProgressFilter>("all");
+  const [levelFilter, setLevelFilter] = useState<BadgeworkLevelFilter>("all");
+  const [attentionFilter, setAttentionFilter] = useState<BadgeworkProgressFilter>("all");
   const [awarding, setAwarding] = useState(false);
   const [awardMessage, setAwardMessage] = useState("");
   const [awardError, setAwardError] = useState("");
@@ -71,7 +72,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
         <TextField label="Search children" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Name or section" />
         <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={section} onChange={(event) => onSectionChange(event.target.value)}>{sections.map((item) => <MenuItem key={item} value={item}>{item === "all" ? "All sections" : item}</MenuItem>)}</Select></FormControl>
         <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)} renderValue={(value) => value === "all" ? "All skills" : (() => { const selectedSkill = adventureSkills.find((skill) => skill.id === value); return selectedSkill ? skillOption(selectedSkill.id, selectedSkill.name) : "All skills"; })()}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skillOption(skill.id, skill.name)}</MenuItem>)}</Select></FormControl>
-        <FormControl><InputLabel id="badgework-progress-filter-label">Progress</InputLabel><Select id="badgework-progress-filter" labelId="badgework-progress-filter-label" label="Progress" value={progressFilter} onChange={(event) => setProgressFilter(event.target.value as BadgeworkProgressFilter)}><MenuItem value="all">All progress</MenuItem><MenuItem value="not-started">Not started</MenuItem><MenuItem value="in-progress">In progress</MenuItem><MenuItem value="awaiting-award">Awaiting award</MenuItem><MenuItem value="awarded">Awarded</MenuItem></Select></FormControl>
+        <FormControl><InputLabel id="badgework-level-filter-label">Level Achieved</InputLabel><Select id="badgework-level-filter" labelId="badgework-level-filter-label" label="Level Achieved" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as BadgeworkLevelFilter)}><MenuItem value="all">All levels</MenuItem><MenuItem value="1">Level 1</MenuItem><MenuItem value="2">Level 2</MenuItem><MenuItem value="3">Level 3</MenuItem><MenuItem value="4">Level 4</MenuItem><MenuItem value="5">Level 5</MenuItem><MenuItem value="6-plus">Level 6+</MenuItem></Select></FormControl>
       </Box>
     </Paper>
 
@@ -80,9 +81,10 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
     {loading && <Paper variant="outlined" sx={{ minHeight: 220, display: "grid", placeItems: "center" }}><Stack spacing={1.5} sx={{ alignItems: "center" }}><CircularProgress /><Typography color="text.secondary">Loading Badgework Overview…</Typography></Stack></Paper>}
     {error && <Alert severity="error" action={<Button color="inherit" onClick={onRetry}>Retry</Button>}>{error}</Alert>}
     {!loading && !error && loaded && (() => {
-      const counts = badgeworkProgressFilterCounts(members.map((member) => member.id), progressByMemberId, skillFilter);
-      const filteredMembers = members.filter((member) => matchesBadgeworkProgressFilter(progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] }, skillFilter, progressFilter));
-      const queueCandidates = badgeworkAwardCandidates(filteredMembers, progressByMemberId).filter((candidate) => skillFilter === "all" || candidate.skillId === skillFilter);
+      const levelFilteredMembers = members.filter((member) => matchesBadgeworkLevelFilter(progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] }, skillFilter, levelFilter));
+      const counts = badgeworkProgressFilterCounts(levelFilteredMembers.map((member) => member.id), progressByMemberId, skillFilter);
+      const filteredMembers = levelFilteredMembers.filter((member) => matchesBadgeworkProgressFilter(progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] }, skillFilter, attentionFilter));
+      const queueCandidates = badgeworkAwardCandidates(filteredMembers, progressByMemberId).filter((candidate) => (skillFilter === "all" || candidate.skillId === skillFilter) && matchesBadgeworkLevelNumber(candidate.stage, levelFilter));
       const exportProgress = () => {
         const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
         assertOperationalExportAllowed("badgework-progress", { isAdmin, sections: adminProfile?.sections ?? [] });
@@ -105,12 +107,12 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       return <>
       <Paper variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
         <Typography variant="body2" sx={{ fontWeight: 800, mr: .5 }}>Quick filters</Typography>
-        <Button size="small" variant={progressFilter === "all" ? "contained" : "outlined"} onClick={() => setProgressFilter("all")}>All shown · {counts.all}</Button>
-        <Button size="small" color="warning" variant={progressFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setProgressFilter("awaiting-award")}>Awaiting award · {counts["awaiting-award"]}</Button>
-        <Button size="small" color="info" variant={progressFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setProgressFilter("in-progress")}>In progress · {counts["in-progress"]}</Button>
+        <Button size="small" variant={attentionFilter === "all" ? "contained" : "outlined"} onClick={() => setAttentionFilter("all")}>All shown · {counts.all}</Button>
+        <Button size="small" color="warning" variant={attentionFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awaiting-award")}>Awaiting award · {counts["awaiting-award"]}</Button>
+        <Button size="small" color="info" variant={attentionFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setAttentionFilter("in-progress")}>In progress · {counts["in-progress"]}</Button>
         <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
       </Stack></Paper>
-      {progressFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
+      {attentionFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
       {filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
       const summaries = adventureSkillOverview(progress);
