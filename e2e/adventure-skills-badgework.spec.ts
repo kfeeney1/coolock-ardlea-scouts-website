@@ -64,6 +64,11 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByRole("button", { name: /Awaiting award · \d+/ })).toBeVisible();
     const levelFilter = page.getByRole("combobox", { name: "Level Achieved" });
     await expect(levelFilter).toHaveText(/All levels/);
+    const exactLevelFilter = page.getByRole("combobox", { name: "Level to inspect" });
+    await expect(exactLevelFilter).toHaveText(/Any level/);
+    await expect(page.getByRole("button", { name: /Not started · \d+/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Started · \d+/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Awarded · \d+/ })).toBeVisible();
     await page.getByRole("button", { name: /Awaiting award · \d+/ }).click();
     await page.getByRole("button", { name: /All shown · \d+/ }).click();
     await expect(page.getByRole("button", { name: "Export filtered CSV" })).toBeEnabled();
