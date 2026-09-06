@@ -9,7 +9,7 @@ import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettings
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
 import RouteScrollManager from "./components/RouteScrollManager";
-import SelectBackDismissBridge from "./components/SelectBackDismissBridge";
+import TransientOverlayBackDismissBridge from "./components/TransientOverlayBackDismissBridge";
 import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
 
 const Home = lazy(() => import("./pages/Home"));
@@ -63,7 +63,7 @@ export default function App() {
       <AdminAuthProvider>
         <ThemeExperienceProvider>
           <RouteScrollManager />
-          <SelectBackDismissBridge />
+          <TransientOverlayBackDismissBridge />
           <LeaderRecordRoutePreloader />
           <MemberCardNavigation />
           <Routes>
