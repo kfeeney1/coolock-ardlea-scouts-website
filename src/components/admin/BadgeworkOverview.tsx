@@ -2,6 +2,7 @@ import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem
 import { useState } from "react";
 
 import BadgeworkAwaitingAwardQueue from "./BadgeworkAwaitingAwardQueue.tsx";
+import BadgeworkLevelMatrix from "./BadgeworkLevelMatrix.tsx";
 import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
 import BadgeworkSkillGrid from "./BadgeworkSkillGrid.tsx";
 import { useAdminAuth } from "./AdminAuthProvider.tsx";
@@ -31,6 +32,7 @@ type Props = {
   section: string;
   sections: string[];
 };
+type BadgeworkOverviewView = "cards" | "matrix";
 
 function skillOption(skillId: string, name: string) {
   return <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
@@ -58,9 +60,11 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
   const [levelFilter, setLevelFilter] = useState<BadgeworkLevelFilter>("all");
   const [exactLevelFilter, setExactLevelFilter] = useState<BadgeworkExactLevelFilter>("all");
   const [attentionFilter, setAttentionFilter] = useState<BadgeworkProgressFilter>("all");
+  const [view, setView] = useState<BadgeworkOverviewView>("cards");
   const [awarding, setAwarding] = useState(false);
   const [awardMessage, setAwardMessage] = useState("");
   const [awardError, setAwardError] = useState("");
+  const selectedSkill = adventureSkills.find((skill) => skill.id === skillFilter);
   const selectedMember = members.find((member) => member.id === selectedMemberId);
   if (selectedMember) {
     return <BadgeworkMemberProgress member={selectedMember} onBack={() => setSelectedMemberId("")} onOpenStage={onOpenMemberSkill} progress={progressByMemberId.get(selectedMember.id) ?? { memberId: selectedMember.id, requirements: [], awards: [] }} />;
@@ -72,7 +76,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "2fr repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
         <TextField label="Search children" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Name or section" />
         <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={section} onChange={(event) => onSectionChange(event.target.value)}>{sections.map((item) => <MenuItem key={item} value={item}>{item === "all" ? "All sections" : item}</MenuItem>)}</Select></FormControl>
-        <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)} renderValue={(value) => value === "all" ? "All skills" : (() => { const selectedSkill = adventureSkills.find((skill) => skill.id === value); return selectedSkill ? skillOption(selectedSkill.id, selectedSkill.name) : "All skills"; })()}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skillOption(skill.id, skill.name)}</MenuItem>)}</Select></FormControl>
+        <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => { setSkillFilter(event.target.value); if (event.target.value === "all") setView("cards"); }} renderValue={(value) => value === "all" ? "All skills" : (() => { const selectedSkillOption = adventureSkills.find((skill) => skill.id === value); return selectedSkillOption ? skillOption(selectedSkillOption.id, selectedSkillOption.name) : "All skills"; })()}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skillOption(skill.id, skill.name)}</MenuItem>)}</Select></FormControl>
         <FormControl><InputLabel id="badgework-level-filter-label">Level Achieved</InputLabel><Select id="badgework-level-filter" labelId="badgework-level-filter-label" label="Level Achieved" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as BadgeworkLevelFilter)}><MenuItem value="all">All levels</MenuItem><MenuItem value="1">Level 1</MenuItem><MenuItem value="2">Level 2</MenuItem><MenuItem value="3">Level 3</MenuItem><MenuItem value="4">Level 4</MenuItem><MenuItem value="5">Level 5</MenuItem><MenuItem value="6-plus">Level 6+</MenuItem></Select></FormControl>
         <FormControl><InputLabel id="badgework-exact-level-filter-label">Level to inspect</InputLabel><Select id="badgework-exact-level-filter" labelId="badgework-exact-level-filter-label" label="Level to inspect" value={exactLevelFilter} onChange={(event) => setExactLevelFilter(event.target.value as BadgeworkExactLevelFilter)}><MenuItem value="all">Any level</MenuItem>{[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => <MenuItem key={level} value={String(level)}>Level {level}</MenuItem>)}</Select></FormControl>
       </Box>
@@ -116,8 +120,18 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
         <Button size="small" color="success" variant={attentionFilter === "awarded" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awarded")}>Awarded · {counts.awarded}</Button>
         <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
       </Stack></Paper>
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
+          <Box><Typography variant="body2" sx={{ fontWeight: 800 }}>Overview layout</Typography><Typography variant="caption" color="text.secondary">Choose one Adventure Skill to compare its levels across all shown children.</Typography></Box>
+          <Stack direction="row" spacing={1}>
+            <Button size="small" variant={view === "cards" ? "contained" : "outlined"} onClick={() => setView("cards")}>Child cards</Button>
+            <Button size="small" variant={view === "matrix" ? "contained" : "outlined"} disabled={!selectedSkill} onClick={() => setView("matrix")}>Level matrix</Button>
+          </Stack>
+        </Stack>
+      </Paper>
       {attentionFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
-      {filteredMembers.map((member) => {
+      {view === "matrix" && selectedSkill && filteredMembers.length > 0 && <BadgeworkLevelMatrix members={filteredMembers} onOpenStage={onOpenMemberSkill} progressByMemberId={progressByMemberId} skill={selectedSkill} />}
+      {view === "cards" && filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
       const summaries = adventureSkillOverview(progress);
       const awaitingAward = summaries.filter((summary) => summary.status === "requirements-complete").length;
