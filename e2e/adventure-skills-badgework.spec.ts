@@ -61,6 +61,12 @@ test.describe("Adventure Skills badgework", () => {
     await page.goto("/leader/badgework");
     await expect(page.getByRole("heading", { name: "Adventure Skills Badgework" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Badgework Overview" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Awaiting award · \d+/ })).toBeVisible();
+    const progressFilter = page.getByRole("combobox", { name: "Progress" });
+    await progressFilter.click();
+    await page.getByRole("option", { name: "Awaiting award" }).click();
+    await expect(progressFilter).toHaveText(/Awaiting award/);
+    await page.getByRole("button", { name: /All shown · \d+/ }).click();
     const overviewMember = page.getByTestId(`badgework-overview-member-${firstMemberId}`);
     await expect(overviewMember).toBeVisible();
     await expect(overviewMember.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping`) })).toBeVisible();
