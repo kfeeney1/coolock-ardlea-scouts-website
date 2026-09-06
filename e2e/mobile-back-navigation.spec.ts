@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const BACK_RESPONSE_TIMEOUT_MS = 1000;
 
 function mobileOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Back navigation runs on the Pixel 7 project only.");
@@ -14,7 +15,7 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("mobile Back dismisses the public menu before leaving the current screen", async ({ page }, testInfo) => {
+test("mobile Back dismisses the public menu promptly before leaving the current screen", async ({ page }, testInfo) => {
   mobileOnly(testInfo);
   await page.goto("/");
 
@@ -23,7 +24,7 @@ test("mobile Back dismisses the public menu before leaving the current screen", 
 
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(page.getByRole("menu")).toBeHidden({ timeout: BACK_RESPONSE_TIMEOUT_MS });
 
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.getByRole("menuitem", { name: "About", exact: true }).click();
@@ -33,7 +34,7 @@ test("mobile Back dismisses the public menu before leaving the current screen", 
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("mobile Back closes a select, then its dialog, then returns to the previously seen record list", async ({ page }, testInfo) => {
+test("mobile Back promptly closes a select, then its dialog, then returns to the previously seen record list", async ({ page }, testInfo) => {
   mobileOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -51,12 +52,12 @@ test("mobile Back closes a select, then its dialog, then returns to the previous
   await editor.getByRole("combobox").first().click();
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(page.getByRole("listbox")).toBeHidden({ timeout: BACK_RESPONSE_TIMEOUT_MS });
   await expect(editor).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
 
   await page.goBack();
-  await expect(editor).toBeHidden();
+  await expect(editor).toBeHidden({ timeout: BACK_RESPONSE_TIMEOUT_MS });
   await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
 

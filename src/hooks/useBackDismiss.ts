@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
@@ -12,6 +12,9 @@ import {
  * entry on the current route. Browser/system Back therefore dismisses the most recently
  * opened UI before it can leave the screen. Closing through the UI consumes that same
  * history entry so the route history remains clean.
+ *
+ * This is intentionally a layout effect: the history marker must be armed before the
+ * newly opened surface is painted so a fast hardware Back press cannot beat the marker.
  */
 export function useBackDismiss(open: boolean, onDismiss: () => void, name: string) {
   const location = useLocation();
@@ -22,7 +25,7 @@ export function useBackDismiss(open: boolean, onDismiss: () => void, name: strin
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const marker = markerRef.current;
     const state = location.state;
     const markerPresent = hasBackDismissMarker(state, marker);
