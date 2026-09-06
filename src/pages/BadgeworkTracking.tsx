@@ -1,5 +1,7 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import BadgeworkOverview from "../components/admin/BadgeworkOverview.tsx";
+import BadgeworkModeNavigation from "../components/admin/BadgeworkModeNavigation.tsx";
 import {
   Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
@@ -22,7 +24,8 @@ import { membersWithIncompleteStage, requirementProvenance, stageAwardSelectionS
 import { badgeworkSourceContextFromParams, sourceBacklink, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 
 type BadgeworkStep = "members" | "badgework";
-type DiscardAction = { kind: "skill"; skillId: string } | { kind: "stage"; stage: number } | { kind: "members" };
+type BadgeworkMode = "overview" | "record";
+type DiscardAction = { kind: "skill"; skillId: string } | { kind: "stage"; stage: number } | { kind: "members" } | { kind: "overview" };
 const displayDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(value) : "Date pending";
 
 export default function BadgeworkTracking() {
@@ -31,6 +34,7 @@ export default function BadgeworkTracking() {
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sourceSelectionApplied, setSourceSelectionApplied] = useState(false);
+  const [mode, setMode] = useState<BadgeworkMode>(sourceContext ? "record" : "overview");
   const [workflowStep, setWorkflowStep] = useState<BadgeworkStep>("members");
   const [skillId, setSkillId] = useState(adventureSkills[0]?.id ?? "");
   const [stageNumber, setStageNumber] = useState(1);
@@ -39,6 +43,9 @@ export default function BadgeworkTracking() {
   const [progressByMemberId, setProgressByMemberId] = useState(new Map<string, MemberAdventureProgress>());
   const [draft, setDraft] = useState(new Map<string, boolean>());
   const [loading, setLoading] = useState(true);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewLoaded, setOverviewLoaded] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -91,6 +98,26 @@ export default function BadgeworkTracking() {
   }, [workflowStep, selectedIds.join("|")]);
 
   useEffect(() => {
+    if (mode !== "overview" || overviewLoaded || overviewLoading || overviewError || activeMembers.length === 0) return;
+    setOverviewLoading(true);
+    setOverviewError("");
+    void Promise.all(activeMembers.map((member) => loadMemberAdventureProgress(member.id)))
+      .then((loaded) => {
+        setProgressByMemberId((current) => {
+          const next = new Map(current);
+          for (const progress of loaded) next.set(progress.memberId, progress);
+          return next;
+        });
+        setOverviewLoaded(true);
+      })
+      .catch((loadError) => {
+        console.error("Unable to load badgework overview:", loadError);
+        setOverviewError("Unable to load the Badgework Overview. Please try again.");
+      })
+      .finally(() => setOverviewLoading(false));
+  }, [activeMembers, mode, overviewError, overviewLoaded, overviewLoading]);
+
+  useEffect(() => {
     if (!hasUnsavedChanges) return;
     const warnBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warnBeforeUnload);
@@ -106,8 +133,12 @@ export default function BadgeworkTracking() {
       setStageNumber(nextSkill?.stages[0]?.stage ?? 1);
     } else if (action.kind === "stage") {
       setStageNumber(action.stage);
-    } else {
+    } else if (action.kind === "members") {
       setWorkflowStep("members");
+    } else {
+      setMode("overview");
+      setWorkflowStep("members");
+      setSelectedIds([]);
     }
   };
   const requestDiscardAction = (action: DiscardAction) => {
@@ -130,6 +161,20 @@ export default function BadgeworkTracking() {
   const clearSelection = () => { setSelectedIds([]); setMessage(""); };
   const continueToBadgework = () => { if (selectedIds.length) { setError(""); setMessage(""); setWorkflowStep("badgework"); } };
   const changeMembers = () => requestDiscardAction({ kind: "members" });
+  const openRecordMode = () => { setMode("record"); setWorkflowStep("members"); setMessage(""); setError(""); };
+  const openOverviewMode = () => {
+    if (hasUnsavedChanges) { setPendingDiscard({ kind: "overview" }); return; }
+    setMode("overview"); setWorkflowStep("members"); setSelectedIds([]); setMessage(""); setError("");
+  };
+  const openMemberSkill = (memberId: string, nextSkillId: string, nextStage: number) => {
+    setSelectedIds([memberId]);
+    setSkillId(nextSkillId);
+    setStageNumber(nextStage);
+    setMode("record");
+    setWorkflowStep("badgework");
+    setMessage("");
+    setError("");
+  };
   const progressSource = sourceContext ? { type: sourceContext.sourceType, id: sourceContext.sourceId } : { type: "manual" as const };
   const updateRequirementDraft = (requirementId: string, completed: boolean) => { setError(""); setMessage(""); setDraft((current) => setDraftRequirement(current, requirementId, completed)); };
   const completeStageInDraft = () => { if (stage && selectedIds.length) { setError(""); setMessage(""); setDraft((current) => completeStageDraft(current, stage.requirements.map((requirement) => requirement.id))); } };
@@ -170,16 +215,15 @@ export default function BadgeworkTracking() {
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Adventure Skills Badgework" description="Choose the children first, then record and save their Adventure Skills competency changes." />
-      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }} useFlexGap>
-        <Chip color={workflowStep === "members" ? "secondary" : "success"} label="1. Select members" />
-        <Chip color={workflowStep === "badgework" ? "secondary" : "default"} label="2. Badgework & save" />
-      </Stack>
+      <BadgeworkModeNavigation mode={mode} step={workflowStep} onOverview={openOverviewMode} onRecord={openRecordMode} />
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>Recording badgework from {sourceLabel(sourceContext.sourceType)}. The attending children have been preselected; confirm the members before continuing.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
       {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
-        {workflowStep === "members" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
+        {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
+
+        {mode === "record" && workflowStep === "members" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: .75 }}>Select members</Typography>
           <Typography color="text.secondary" sx={{ mb: 2.5 }}>Choose the child or children whose badgework you want to update, then continue to the competency screen.</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2, mb: 2 }}>
@@ -198,7 +242,7 @@ export default function BadgeworkTracking() {
           <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}><Button variant="contained" color="success" size="large" disabled={!selectedIds.length} onClick={continueToBadgework}>Select {selectedIds.length || ""} {selectedIds.length === 1 ? "member" : "members"} and continue</Button></Box>
         </Paper>}
 
-        {workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
+        {mode === "record" && workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2.5 }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Record badgework</Typography><Typography color="text.secondary">Changes below are drafts until you select Save changes.</Typography></Box><Button variant="outlined" onClick={changeMembers}>Change members</Button></Stack>
           <Paper variant="outlined" sx={{ p: 1.5, mb: 3 }}><Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography sx={{ fontWeight: 800 }}>{selectedIds.length} selected:</Typography>{selectedMembers.map((member) => <Chip key={member.id} size="small" label={`${member.displayName} · ${member.section}`} />)}</Stack></Paper>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr auto" }, gap: 2, alignItems: "center", mb: 3 }}>
