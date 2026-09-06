@@ -30,6 +30,7 @@ import {
   memberRequirementDraftChanges,
   setMemberRequirementDraft
 } from "../services/adventureSkillMemberDraftLogic.ts";
+import { sectionFilterOptions } from "../services/sectionOrder.ts";
 
 type BadgeworkStep = "members" | "badgework";
 type BadgeworkMode = "overview" | "record";
@@ -66,7 +67,7 @@ export default function BadgeworkTracking() {
   const unsavedChangeCount = draft.size + memberDraft.size;
   const hasUnsavedChanges = unsavedChangeCount > 0;
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
-  const sections = useMemo(() => ["all", ...new Set(activeMembers.map((member) => member.section).filter(Boolean))], [activeMembers]);
+  const sections = useMemo(() => sectionFilterOptions(activeMembers.map((member) => member.section)), [activeMembers]);
   const visibleMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
     return activeMembers.filter((member) => (section === "all" || member.section === section) && (!query || `${member.displayName} ${member.section}`.toLowerCase().includes(query)));
