@@ -64,7 +64,14 @@ test.describe("Adventure Skills badgework", () => {
     const overviewMember = page.getByTestId(`badgework-overview-member-${firstMemberId}`);
     await expect(overviewMember).toBeVisible();
     await expect(overviewMember.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping`) })).toBeVisible();
-    await openRecordBadgework(page);
+    await overviewMember.getByRole("button", { name: "View child progress" }).click();
+    const memberProgress = page.getByTestId(`badgework-member-progress-${firstMemberId}`);
+    await expect(memberProgress).toBeVisible();
+    const campingProgress = memberProgress.getByTestId("badgework-member-skill-camping");
+    await expect(campingProgress.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping · Stage 1`) })).toBeVisible();
+    await campingProgress.getByRole("button", { name: new RegExp(`${firstMemberName} · Camping · Stage 1`) }).click();
+    await expect(page.getByRole("heading", { name: "Record badgework" })).toBeVisible();
+    await page.getByRole("button", { name: "Change members" }).click();
 
     await selectMember(page, firstMemberName);
     await selectMember(page, secondMemberName);
