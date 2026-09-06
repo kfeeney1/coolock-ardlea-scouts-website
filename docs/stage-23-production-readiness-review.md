@@ -16,6 +16,7 @@ The repository has a strong automated baseline:
 - Deterministic Firebase-emulator Playwright seeding.
 - Quality checks for lint, unit tests, email-worker tests, seed contract, Playwright suite shape, source complexity, hosting/deploy configuration, Firestore audit coverage, RBAC matrix/test coverage, workflow permissions/action pinning/production credentials and production build.
 - Existing accessibility, finance, equipment, attendance, events, parent and Badgework E2E coverage.
+- Existing read-only operational-integrity checks for finance and equipment relationships, alongside Adventure Skills and projection integrity checks.
 - Site-wide Back regressions including a tightened one-press mobile dismissal contract from #384.
 
 ## Severity outcome
@@ -33,8 +34,8 @@ None identified after #384. The reported sticky/mobile Back defect was treated a
 The following work is valuable before calling the current product surface fully hardened.
 
 1. **Parent experience coherence** — The `/parent` route now contains Adventure Skills, events/event consent and medical/consent workflows, but several labels still describe it as a "Parent Consent Portal". Multi-child and task-oriented use should be reviewed as one coherent parent experience.
-2. **Cross-feature mobile operational regression coverage** — Individual features are well tested, but recent mobile work has concentrated on navigation/Back semantics. Add one Pixel-sized journey that traverses the high-frequency leader surfaces and asserts no overflow/sticky-action regressions.
-3. **Cross-collection data-integrity audit** — The repo has several domain-specific audit scripts, but there is no single read-only audit for relationship integrity across members, parent links, events/consents, attendance and operational records.
+2. **Cross-feature mobile operational regression coverage** — Individual features are well tested, but recent mobile work has concentrated on navigation/Back semantics. Extend the existing mobile operational coverage with a Pixel-sized journey across the newer/high-frequency leader surfaces and assert no overflow/sticky-action regressions.
+3. **Broader relationship-integrity coverage** — The existing `firestore-operational-integrity` audit already validates finance and equipment relationships. Extend that read-only integrity layer to cover the cross-feature relationships that are not currently represented there, especially members/parent links, events/consents and attendance/meeting references.
 4. **Operational-health depth** — The existing super-admin health panel reports build/configuration capability. It should also expose safe read-only data-integrity status so deployment health and data health are not conflated.
 5. **Accessibility after overlay/navigation changes** — Existing accessibility coverage predates the full Back/overlay stack. Add focus-restoration, dialog/listbox and touch-target contracts around the newest interaction patterns.
 6. **Performance/read-efficiency revalidation** — Feature growth since the existing Firestore read-budget work warrants a fresh review of broad listeners, duplicate loads, lazy-route boundaries and large-page read patterns.
@@ -44,8 +45,8 @@ The following work is valuable before calling the current product surface fully 
 ## Planned PR sequence
 
 - **#386** Parent experience coherence and regression coverage.
-- **#387** Cross-feature leader mobile operational regression expansion.
-- **#388** Read-only cross-collection data-integrity audit.
+- **#387** Extend cross-feature leader mobile operational regression coverage.
+- **#388** Broaden the existing read-only operational-integrity audit across parent/member/event/attendance relationships.
 - **#389** Extend the existing super-admin operational-health panel with data-health status.
 - **#390** Accessibility and focus-management hardening.
 - **#391** Performance and Firestore read-efficiency revalidation.
