@@ -51,7 +51,7 @@ export default function BadgeworkAwaitingAwardQueue({ candidates, awarding, onAw
         const key = candidateKey(candidate);
         return <Paper key={key} variant="outlined" sx={{ p: 1.25 }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
-            <FormControlLabel sx={{ m: 0, minWidth: 0 }} control={<Checkbox checked={selectedKeys.has(key)} disabled={awarding} onChange={() => toggleCandidate(candidate)} inputProps={{ "aria-label": `Select ${candidate.memberName} ${candidate.skillName} Stage ${candidate.stage} for award` }} />} label={<Box><Typography sx={{ fontWeight: 800 }}>{candidate.memberName}</Typography><Typography variant="body2" color="text.secondary">{candidate.section} · {candidate.skillName} · Stage {candidate.stage}</Typography></Box>} />
+            <FormControlLabel sx={{ m: 0, minWidth: 0 }} control={<Checkbox checked={selectedKeys.has(key)} disabled={awarding} onChange={() => toggleCandidate(candidate)} slotProps={{ input: { "aria-label": `Select ${candidate.memberName} ${candidate.skillName} Stage ${candidate.stage} for award` } }} />} label={<Box><Typography sx={{ fontWeight: 800 }}>{candidate.memberName}</Typography><Typography variant="body2" color="text.secondary">{candidate.section} · {candidate.skillName} · Stage {candidate.stage}</Typography></Box>} />
             <Button size="small" variant="outlined" disabled={awarding} onClick={() => onOpenStage(candidate.memberId, candidate.skillId, candidate.stage)}>Review stage</Button>
           </Stack>
         </Paper>;
