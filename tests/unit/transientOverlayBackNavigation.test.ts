@@ -17,6 +17,19 @@ test("transient overlay Back bridge covers dialogs and select listboxes", async 
   assert.match(source, /key:\s*"Escape"/);
 });
 
+test("transient overlay Back dismisses directly from popstate instead of waiting for router effects", async () => {
+  const source = await readFile("src/components/TransientOverlayBackDismissBridge.tsx", "utf8");
+  assert.match(source, /addEventListener\("popstate", handlePopState\)/);
+  assert.match(source, /dismissSurface\(visibleSurfaces\(\)\.at\(-1\)\)/);
+  assert.match(source, /useLayoutEffect/);
+});
+
+test("explicit Back dismiss hooks arm before paint", async () => {
+  const source = await readFile("src/hooks/useBackDismiss.ts", "utf8");
+  assert.match(source, /useLayoutEffect/);
+  assert.doesNotMatch(source, /\buseEffect\b/);
+});
+
 test("leader navigation participates in Back history without a competing close click", async () => {
   const source = await readFile("src/components/admin/LeaderDashboardHeader.tsx", "utf8");
   assert.match(source, /useBackDismiss\(menuOpen, closeMenuAndRestoreFocus, "leader-navigation"\)/);
