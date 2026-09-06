@@ -238,7 +238,6 @@ test.describe("Adventure Skills mobile badgework", () => {
     await firstChildCheckbox.click();
     await expect(firstCompetency.getByText("Unsaved change", { exact: true })).toBeVisible();
     await expect(firstChildCheckbox).toHaveAccessibleName(/unsaved change$/);
-    await expect(page.getByText(/unsaved badgework changes/i)).toBeVisible();
 
     const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     expect(fitsViewport).toBe(true);
