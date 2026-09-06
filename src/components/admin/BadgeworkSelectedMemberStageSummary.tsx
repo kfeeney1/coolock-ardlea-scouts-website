@@ -1,5 +1,6 @@
 import { Box, Chip, LinearProgress, Paper, Stack, Typography } from "@mui/material";
 
+import BadgeworkCompetencyChildMatrix from "./BadgeworkCompetencyChildMatrix.tsx";
 import type { AdventureSkill, AdventureSkillStage } from "../../data/adventureSkills/index.ts";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import type { MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
@@ -41,5 +42,6 @@ export default function BadgeworkSelectedMemberStageSummary({ members, progressB
         </Paper>;
       })}
     </Box>
+    <BadgeworkCompetencyChildMatrix members={members} progressByMemberId={progressByMemberId} stage={stage} />
   </Paper>;
 }
