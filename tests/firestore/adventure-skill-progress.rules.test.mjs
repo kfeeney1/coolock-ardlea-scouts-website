@@ -31,11 +31,11 @@ const requirement = (uid, memberId = "member-1") => ({
   sourceId: "",
 });
 
-const award = (uid, memberId = "member-1", awardId = "camping-stage-1") => ({
+const award = (uid, memberId = "member-1", awardId = "camping-stage-1", skillId = "camping", stage = 1) => ({
   awardId,
   memberId,
-  skillId: "camping",
-  stage: 1,
+  skillId,
+  stage,
   awardedAt: serverTimestamp(),
   awardedBy: uid,
 });
@@ -84,6 +84,31 @@ test("awards are separately protected and attributed", async () => {
   await assertSucceeds(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers")));
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/wrong-id"), award("leader-beavers")));
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers", "member-1", "wrong-id")));
+});
+
+test("award writes accept only canonical Adventure Skill stage identities", async () => {
+  await seed([
+    ["adminUsers/leader-beavers", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["members/member-1", { section: "Beavers", status: "active" }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-beavers").firestore();
+
+  await assertSucceeds(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-1/awards/swimming-stage-6"),
+    award("leader-beavers", "member-1", "swimming-stage-6", "swimming", 6),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-1/awards/swimming-stage-7"),
+    award("leader-beavers", "member-1", "swimming-stage-7", "swimming", 7),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-1/awards/unknown-stage-1"),
+    award("leader-beavers", "member-1", "unknown-stage-1", "unknown", 1),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-2"),
+    award("leader-beavers", "member-1", "camping-stage-2", "camping", 1),
+  ));
 });
 
 test("requirement writes reject forged attribution and unsupported source types", async () => {
