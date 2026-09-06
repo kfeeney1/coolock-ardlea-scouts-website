@@ -10,7 +10,7 @@ import type { MemberRecord } from "../../services/memberAdmin.ts";
 import { setStageAwardForMembers, type MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { adventureSkillOverview, type AdventureStageOverviewStatus } from "../../services/adventureSkillOverviewLogic.ts";
 import { badgeworkProgressFilterCounts, matchesBadgeworkProgressFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
-import { badgeworkAwardCandidates, groupAwardCandidates } from "../../services/adventureSkillAwardQueueLogic.ts";
+import { badgeworkAwardCandidates, groupAwardCandidates, type BadgeworkAwardCandidate } from "../../services/adventureSkillAwardQueueLogic.ts";
 import { adventureSkillProgressCsv, badgeworkExportFilename } from "../../services/adventureSkillProgressCsv.ts";
 import { assertOperationalExportAllowed } from "../../services/exportGovernance.ts";
 
@@ -82,16 +82,16 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
         downloadCsv(badgeworkExportFilename(skillFilter), adventureSkillProgressCsv(filteredMembers, progressByMemberId, skillFilter));
         void recordAuditEvent({ category: "member", action: "badgework-progress-exported", targetId: skillFilter, targetLabel: "Badgework progress", description: `Exported filtered badgework progress for ${filteredMembers.length} children.`, section: section === "all" ? "All permitted sections" : section });
       };
-      const awardAllReady = async () => {
-        if (queueCandidates.length === 0) return;
+      const awardSelectedReady = async (selectedCandidates: readonly BadgeworkAwardCandidate[]) => {
+        if (selectedCandidates.length === 0) return;
         setAwarding(true); setAwardError(""); setAwardMessage("");
         try {
-          await Promise.all(groupAwardCandidates(queueCandidates).map((group) => setStageAwardForMembers(group.memberIds, group.skillId, group.stage, true)));
-          setAwardMessage(`${queueCandidates.length} ready badge ${queueCandidates.length === 1 ? "award was" : "awards were"} recorded.`);
+          await Promise.all(groupAwardCandidates(selectedCandidates).map((group) => setStageAwardForMembers(group.memberIds, group.skillId, group.stage, true)));
+          setAwardMessage(`${selectedCandidates.length} ready badge ${selectedCandidates.length === 1 ? "award was" : "awards were"} recorded.`);
           onRetry();
         } catch (queueError) {
-          console.error("Unable to award ready badgework:", queueError);
-          setAwardError("Unable to award all ready badgework. No competency progress was changed; review the remaining queue and try again.");
+          console.error("Unable to award selected badgework:", queueError);
+          setAwardError("Unable to award the selected ready badgework. No competency progress was changed; review the remaining queue and try again.");
           throw queueError;
         } finally { setAwarding(false); }
       };
@@ -103,7 +103,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
         <Button size="small" color="info" variant={progressFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setProgressFilter("in-progress")}>In progress · {counts["in-progress"]}</Button>
         <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
       </Stack></Paper>
-      {progressFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardAll={awardAllReady} onOpenStage={onOpenMemberSkill} />}
+      {progressFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
       {filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
       const summaries = adventureSkillOverview(progress);
