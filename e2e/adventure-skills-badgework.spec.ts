@@ -100,6 +100,10 @@ test.describe("Adventure Skills badgework", () => {
     await page.getByRole("button", { name: "Select 2 members and continue" }).click();
     await expect(page.getByText("2 selected:")).toBeVisible();
     await expect(page.getByText(/Completion source details are shown when one child is selected/i)).toBeVisible();
+    const outstandingOnly = page.getByRole("button", { name: /Outstanding only · \d+/ });
+    await expect(outstandingOnly).toHaveAttribute("aria-pressed", "false");
+    await outstandingOnly.click();
+    await expect(page.getByRole("button", { name: /Show all · \d+/ })).toHaveAttribute("aria-pressed", "true");
 
     await page.goto(`/leader/badgework?sourceType=weeklyMeeting&sourceId=TEST_e2e_weekly_scout&memberIds=${firstMemberId},${secondMemberId}&returnTo=/leader/weekly`);
     await expect(page.getByText(/Recording badgework from Weekly Meeting/i)).toBeVisible();
