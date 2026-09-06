@@ -30,7 +30,7 @@ export default function BadgeworkAwaitingAwardQueue({ candidates, awarding, onAw
     <Dialog open={confirmOpen} onClose={awarding ? undefined : () => setConfirmOpen(false)} fullWidth maxWidth="sm" aria-labelledby="award-ready-badges-title">
       <DialogTitle id="award-ready-badges-title">Award all ready badges shown?</DialogTitle>
       <DialogContent><Typography>This will create {candidates.length} stage award {candidates.length === 1 ? "record" : "records"}. Competency progress will not be changed. Only stages already saved as fully complete are included.</Typography></DialogContent>
-      <DialogActions><Button disabled={awarding} onClick={() => setConfirmOpen(false)}>Cancel</Button><Button color="warning" variant="contained" disabled={awarding} onClick={() => { void onAwardAll().then(() => setConfirmOpen(false)); }}>{awarding ? "Awarding…" : "Award all ready"}</Button></DialogActions>
+      <DialogActions><Button disabled={awarding} onClick={() => setConfirmOpen(false)}>Cancel</Button><Button color="warning" variant="contained" disabled={awarding} onClick={() => { void onAwardAll().then(() => setConfirmOpen(false)).catch(() => undefined); }}>{awarding ? "Awarding…" : "Award all ready"}</Button></DialogActions>
     </Dialog>
   </Paper>;
 }
