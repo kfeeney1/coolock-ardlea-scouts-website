@@ -8,6 +8,7 @@ import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
+import RecordBackNavigationBridge from "./components/RecordBackNavigationBridge";
 import RouteScrollManager from "./components/RouteScrollManager";
 import TransientOverlayBackDismissBridge from "./components/TransientOverlayBackDismissBridge";
 import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
@@ -64,6 +65,7 @@ export default function App() {
         <ThemeExperienceProvider>
           <RouteScrollManager />
           <TransientOverlayBackDismissBridge />
+          <RecordBackNavigationBridge />
           <LeaderRecordRoutePreloader />
           <MemberCardNavigation />
           <Routes>
