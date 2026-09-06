@@ -36,6 +36,22 @@ test("overview attention filters distinguish operational progress states and sel
   assert.equal(matchesBadgeworkProgressFilter(complete, "swimming", "awaiting-award"), false);
 });
 
+test("overview attention filters can target one exact level", () => {
+  const levelOnePartial = progress("level-one-partial", stageRequirementIds(1).slice(0, 1));
+  const levelTwoPartial = progress("level-two-partial", stageRequirementIds(2).slice(0, 1));
+  const levelTwoAwaiting = progress("level-two-awaiting", stageRequirementIds(2));
+  const levelTwoAwarded = progress("level-two-awarded", [], [2]);
+  const untouched = progress("untouched");
+
+  assert.equal(matchesBadgeworkProgressFilter(levelOnePartial, "camping", "in-progress", "1"), true);
+  assert.equal(matchesBadgeworkProgressFilter(levelOnePartial, "camping", "in-progress", "2"), false);
+  assert.equal(matchesBadgeworkProgressFilter(levelTwoPartial, "camping", "in-progress", "2"), true);
+  assert.equal(matchesBadgeworkProgressFilter(levelTwoAwaiting, "camping", "awaiting-award", "2"), true);
+  assert.equal(matchesBadgeworkProgressFilter(levelTwoAwarded, "camping", "awarded", "2"), true);
+  assert.equal(matchesBadgeworkProgressFilter(untouched, "camping", "not-started", "2"), true);
+  assert.equal(matchesBadgeworkProgressFilter(untouched, "swimming", "not-started", "7"), false);
+});
+
 test("level-achieved filter includes both awaiting-award and awarded stages", () => {
   const levelTwoAwaiting = progress("level-two-awaiting", stageRequirementIds(2));
   const levelTwoAwarded = progress("level-two-awarded", [], [2]);
@@ -71,4 +87,21 @@ test("overview attention counts can be scoped to members returned by the level f
   const counts = badgeworkProgressFilterCounts(levelOneMemberIds, map, "camping");
 
   assert.deepEqual(counts, { all: 2, "awaiting-award": 1, "in-progress": 0, awarded: 1, "not-started": 0 });
+});
+
+test("overview attention counts respect the exact level being inspected", () => {
+  const map = new Map<string, MemberAdventureProgress>([
+    ["level-one-started", progress("level-one-started", stageRequirementIds(1).slice(0, 1))],
+    ["level-two-started", progress("level-two-started", stageRequirementIds(2).slice(0, 1))],
+    ["level-two-awaiting", progress("level-two-awaiting", stageRequirementIds(2))],
+    ["level-two-awarded", progress("level-two-awarded", [], [2])]
+  ]);
+
+  assert.deepEqual(badgeworkProgressFilterCounts([...map.keys()], map, "camping", "2"), {
+    all: 4,
+    "awaiting-award": 1,
+    "in-progress": 1,
+    awarded: 1,
+    "not-started": 1
+  });
 });
