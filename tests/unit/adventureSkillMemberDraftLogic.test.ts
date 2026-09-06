@@ -4,10 +4,13 @@ import assert from "node:assert/strict";
 import { memberRequirementCompletion } from "../../src/services/adventureSkillMemberDraftLogic.ts";
 import type { MemberAdventureProgress } from "../../src/services/adventureSkillProgress.ts";
 
+const completedRequirementId = "camping-stage-1-requirement-01";
+const missingRequirementId = "camping-stage-1-requirement-02";
+
 const progress: MemberAdventureProgress = {
   memberId: "member-1",
   requirements: [{
-    requirementId: "camping-stage-1-1",
+    requirementId: completedRequirementId,
     skillId: "camping",
     stage: 1,
     sharedCompetencyKey: "",
@@ -20,13 +23,13 @@ const progress: MemberAdventureProgress = {
 };
 
 test("memberRequirementCompletion reports saved completion for the child", () => {
-  assert.equal(memberRequirementCompletion(progress, "camping-stage-1-1"), true);
+  assert.equal(memberRequirementCompletion(progress, completedRequirementId), true);
 });
 
 test("memberRequirementCompletion reports missing competency for the child", () => {
-  assert.equal(memberRequirementCompletion(progress, "camping-stage-1-2"), false);
+  assert.equal(memberRequirementCompletion(progress, missingRequirementId), false);
 });
 
 test("memberRequirementCompletion handles unloaded progress safely", () => {
-  assert.equal(memberRequirementCompletion(undefined, "camping-stage-1-1"), false);
+  assert.equal(memberRequirementCompletion(undefined, completedRequirementId), false);
 });
