@@ -1,5 +1,7 @@
 import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Chip } from "@mui/material";
+import { useState } from "react";
 
+import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import type { MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { adventureSkillOverview, type AdventureStageOverviewStatus } from "../../services/adventureSkillOverviewLogic.ts";
@@ -23,6 +25,12 @@ type Props = {
 const statusLabel = (status: AdventureStageOverviewStatus) => status === "requirements-complete" ? "Awaiting award" : status === "in-progress" ? "In progress" : status === "awarded" ? "Awarded" : "Not started";
 
 export default function BadgeworkOverview({ activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const selectedMember = members.find((member) => member.id === selectedMemberId);
+  if (selectedMember) {
+    return <BadgeworkMemberProgress member={selectedMember} onBack={() => setSelectedMemberId("")} onOpenStage={onOpenMemberSkill} progress={progressByMemberId.get(selectedMember.id) ?? { memberId: selectedMember.id, requirements: [], awards: [] }} />;
+  }
+
   return <Stack spacing={2} data-testid="badgework-overview">
     <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
       <Box sx={{ mb: 2.5 }}><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Badgework Overview</Typography><Typography color="text.secondary">Scan each child’s Adventure Skills progress, then open the exact skill and stage that needs attention.</Typography></Box>
@@ -42,9 +50,10 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       return <Paper key={member.id} variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }} data-testid={`badgework-overview-member-${member.id}`}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 1.5 }}>
           <Box><Typography variant="h6" sx={{ fontWeight: 800 }}>{member.displayName}</Typography><Typography variant="body2" color="text.secondary">{member.section}</Typography></Box>
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
             {inProgress > 0 && <Chip size="small" color="info" label={`${inProgress} in progress`} />}
             {awaitingAward > 0 && <Chip size="small" color="warning" label={`${awaitingAward} awaiting award`} />}
+            <Button size="small" variant="outlined" onClick={() => setSelectedMemberId(member.id)}>View child progress</Button>
           </Stack>
         </Stack>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2,minmax(0,1fr))", lg: "repeat(5,minmax(0,1fr))" }, gap: 1 }}>
