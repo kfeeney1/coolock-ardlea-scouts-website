@@ -30,5 +30,9 @@ export function badgeworkSkillLevelLabel(
 ): string {
   const earliestStartedStage = stages.find((stage) => stage.status === "in-progress");
   if (earliestStartedStage) return `Level ${earliestStartedStage.stage} started`;
+
+  const earliestAwaitingAwardStage = stages.find((stage) => stage.status === "requirements-complete");
+  if (earliestAwaitingAwardStage) return `Level ${earliestAwaitingAwardStage.stage} awaiting award`;
+
   return highestAwardedLevelLabel(highestAwardedStage);
 }

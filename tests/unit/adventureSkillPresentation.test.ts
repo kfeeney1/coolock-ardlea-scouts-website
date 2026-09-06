@@ -50,7 +50,32 @@ test("badge tiles show the earliest incomplete level that has progress", () => {
   ]), "Level 2 started");
 });
 
-test("badge tiles fall back to highest awarded level when no level is partially complete", () => {
+test("badge tiles show the earliest level awaiting award when no level is partially complete", () => {
+  assert.equal(badgeworkSkillLevelLabel(0, [
+    { stage: 1, status: "requirements-complete" },
+    { stage: 2, status: "not-started" }
+  ]), "Level 1 awaiting award");
+
+  assert.equal(badgeworkSkillLevelLabel(1, [
+    { stage: 1, status: "awarded" },
+    { stage: 2, status: "requirements-complete" },
+    { stage: 3, status: "not-started" }
+  ]), "Level 2 awaiting award");
+
+  assert.equal(badgeworkSkillLevelLabel(0, [
+    { stage: 1, status: "requirements-complete" },
+    { stage: 2, status: "requirements-complete" }
+  ]), "Level 1 awaiting award");
+});
+
+test("badge tiles keep a started level ahead of a lower level awaiting award", () => {
+  assert.equal(badgeworkSkillLevelLabel(0, [
+    { stage: 1, status: "requirements-complete" },
+    { stage: 2, status: "in-progress" }
+  ]), "Level 2 started");
+});
+
+test("badge tiles fall back to highest awarded level when no level is started or awaiting award", () => {
   assert.equal(badgeworkSkillLevelLabel(2, [
     { stage: 1, status: "awarded" },
     { stage: 2, status: "awarded" },
