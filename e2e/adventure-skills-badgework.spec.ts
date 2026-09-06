@@ -62,10 +62,9 @@ test.describe("Adventure Skills badgework", () => {
     await expect(page.getByRole("heading", { name: "Adventure Skills Badgework" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Badgework Overview" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Awaiting award · \d+/ })).toBeVisible();
-    const progressFilter = page.getByRole("combobox", { name: "Progress" });
-    await progressFilter.click();
-    await page.getByRole("option", { name: "Awaiting award" }).click();
-    await expect(progressFilter).toHaveText(/Awaiting award/);
+    const levelFilter = page.getByRole("combobox", { name: "Level Achieved" });
+    await expect(levelFilter).toHaveText(/All levels/);
+    await page.getByRole("button", { name: /Awaiting award · \d+/ }).click();
     await page.getByRole("button", { name: /All shown · \d+/ }).click();
     await expect(page.getByRole("button", { name: "Export filtered CSV" })).toBeEnabled();
     const overviewMember = page.getByTestId(`badgework-overview-member-${firstMemberId}`);

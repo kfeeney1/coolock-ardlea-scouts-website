@@ -2,6 +2,7 @@ import { adventureSkillOverview } from "./adventureSkillOverviewLogic.ts";
 import type { MemberAdventureProgress } from "./adventureSkillProgress.ts";
 
 export type BadgeworkProgressFilter = "all" | "awaiting-award" | "in-progress" | "awarded" | "not-started";
+export type BadgeworkLevelFilter = "all" | "1" | "2" | "3" | "4" | "5" | "6-plus";
 
 export function matchesBadgeworkProgressFilter(
   progress: MemberAdventureProgress,
@@ -13,6 +14,25 @@ export function matchesBadgeworkProgressFilter(
   if (filter === "not-started") return skills.every((skill) => skill.stages.every((stage) => stage.status === "not-started"));
   const targetStatus = filter === "awaiting-award" ? "requirements-complete" : filter;
   return skills.some((skill) => skill.stages.some((stage) => stage.status === targetStatus));
+}
+
+export function matchesBadgeworkLevelNumber(stage: number, filter: BadgeworkLevelFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "6-plus") return stage >= 6;
+  return stage === Number(filter);
+}
+
+export function matchesBadgeworkLevelFilter(
+  progress: MemberAdventureProgress,
+  skillId: string,
+  filter: BadgeworkLevelFilter
+): boolean {
+  if (filter === "all") return true;
+  const skills = adventureSkillOverview(progress).filter((skill) => skillId === "all" || skill.skillId === skillId);
+  return skills.some((skill) => skill.stages.some((stage) =>
+    matchesBadgeworkLevelNumber(stage.stage, filter)
+    && (stage.status === "requirements-complete" || stage.status === "awarded")
+  ));
 }
 
 export function badgeworkProgressFilterCounts(
