@@ -2,6 +2,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import BadgeworkOverview from "../components/admin/BadgeworkOverview.tsx";
 import BadgeworkModeNavigation from "../components/admin/BadgeworkModeNavigation.tsx";
+import BadgeworkStageNavigation from "../components/admin/BadgeworkStageNavigation.tsx";
 import {
   Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
@@ -245,11 +246,11 @@ export default function BadgeworkTracking() {
         {mode === "record" && workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2.5 }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Record badgework</Typography><Typography color="text.secondary">Changes below are drafts until you select Save changes.</Typography></Box><Button variant="outlined" onClick={changeMembers}>Change members</Button></Stack>
           <Paper variant="outlined" sx={{ p: 1.5, mb: 3 }}><Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography sx={{ fontWeight: 800 }}>{selectedIds.length} selected:</Typography>{selectedMembers.map((member) => <Chip key={member.id} size="small" label={`${member.displayName} · ${member.section}`} />)}</Stack></Paper>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr auto" }, gap: 2, alignItems: "center", mb: 3 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 1fr) auto" }, gap: 2, alignItems: "center", mb: 2 }}>
             <FormControl fullWidth><InputLabel>Adventure Skill</InputLabel><Select label="Adventure Skill" value={skill?.id ?? ""} onChange={(event) => changeSkill(event.target.value)}>{adventureSkills.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</Select></FormControl>
-            <FormControl fullWidth><InputLabel>Stage</InputLabel><Select label="Stage" value={stage?.stage ?? 1} onChange={(event) => changeStage(Number(event.target.value))}>{skill?.stages.map((item) => <MenuItem key={item.stage} value={item.stage}>Stage {item.stage}</MenuItem>)}</Select></FormControl>
             <Button variant="outlined" color="success" disabled={saving} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
           </Box>
+          {skill && <Box sx={{ mb: 3 }}><BadgeworkStageNavigation currentStage={stage?.stage ?? 1} disabled={saving} onChange={changeStage} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} skill={skill} /></Box>}
 
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="badge-award-panel">
             <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
