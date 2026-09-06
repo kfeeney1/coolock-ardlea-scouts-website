@@ -13,7 +13,8 @@ const kinds: OperationalExportKind[] = [
   "event-overview",
   "attendance-trends",
   "event-roster",
-  "outstanding-consent"
+  "outstanding-consent",
+  "badgework-progress"
 ];
 
 test("all approved leader report exports have governance policy", () => {
@@ -39,4 +40,7 @@ test("admin exports retain privacy exclusions", () => {
   const aggregatePolicy = assertOperationalExportAllowed("membership-summary", { isAdmin: true, sections: [] });
   assert.ok(aggregatePolicy.excludedData.includes("member-name"));
   assert.ok(aggregatePolicy.excludedData.includes("medical"));
+
+  const badgeworkPolicy = assertOperationalExportAllowed("badgework-progress", { isAdmin: true, sections: [] });
+  assert.deepEqual(badgeworkPolicy.excludedData, ["contact", "parent", "date-of-birth", "medical", "emergency-contact"]);
 });
