@@ -4,7 +4,8 @@ export type OperationalExportKind =
   | "event-overview"
   | "attendance-trends"
   | "event-roster"
-  | "outstanding-consent";
+  | "outstanding-consent"
+  | "badgework-progress";
 
 export type ExportSensitivity = "aggregate" | "operational" | "contact";
 
@@ -51,6 +52,12 @@ export const OPERATIONAL_EXPORT_POLICIES: Readonly<Record<OperationalExportKind,
     sensitivity: "operational",
     requiresSectionScope: true,
     excludedData: ["contact", "date-of-birth", "medical", "emergency-contact"]
+  },
+  "badgework-progress": {
+    kind: "badgework-progress",
+    sensitivity: "operational",
+    requiresSectionScope: true,
+    excludedData: ["contact", "parent", "date-of-birth", "medical", "emergency-contact"]
   }
 });
 

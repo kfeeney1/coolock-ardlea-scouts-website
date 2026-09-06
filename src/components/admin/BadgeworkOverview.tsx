@@ -2,11 +2,15 @@ import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem
 import { useState } from "react";
 
 import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
+import { useAdminAuth } from "./AdminAuthProvider.tsx";
 import { adventureSkills } from "../../data/adventureSkills/index.ts";
+import { recordAuditEvent } from "../../services/auditLog.ts";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import type { MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { adventureSkillOverview, type AdventureStageOverviewStatus } from "../../services/adventureSkillOverviewLogic.ts";
 import { badgeworkProgressFilterCounts, matchesBadgeworkProgressFilter, type BadgeworkProgressFilter } from "../../services/adventureSkillOverviewFilterLogic.ts";
+import { adventureSkillProgressCsv, badgeworkExportFilename } from "../../services/adventureSkillProgressCsv.ts";
+import { assertOperationalExportAllowed } from "../../services/exportGovernance.ts";
 
 type Props = {
   activeMemberCount: number;
@@ -26,7 +30,20 @@ type Props = {
 
 const statusLabel = (status: AdventureStageOverviewStatus) => status === "requirements-complete" ? "Awaiting award" : status === "in-progress" ? "In progress" : status === "awarded" ? "Awarded" : "Not started";
 
+function downloadCsv(filename: string, csv: string) {
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function BadgeworkOverview({ activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
+  const { adminProfile } = useAdminAuth();
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [skillFilter, setSkillFilter] = useState("all");
   const [progressFilter, setProgressFilter] = useState<BadgeworkProgressFilter>("all");
@@ -51,12 +68,19 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
     {!loading && !error && loaded && (() => {
       const counts = badgeworkProgressFilterCounts(members.map((member) => member.id), progressByMemberId, skillFilter);
       const filteredMembers = members.filter((member) => matchesBadgeworkProgressFilter(progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] }, skillFilter, progressFilter));
+      const exportProgress = () => {
+        const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+        assertOperationalExportAllowed("badgework-progress", { isAdmin, sections: adminProfile?.sections ?? [] });
+        downloadCsv(badgeworkExportFilename(skillFilter), adventureSkillProgressCsv(filteredMembers, progressByMemberId, skillFilter));
+        void recordAuditEvent({ category: "member", action: "badgework-progress-exported", targetId: skillFilter, targetLabel: "Badgework progress", description: `Exported filtered badgework progress for ${filteredMembers.length} children.`, section: section === "all" ? "All permitted sections" : section });
+      };
       return <>
       <Paper variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
         <Typography variant="body2" sx={{ fontWeight: 800, mr: .5 }}>Quick filters</Typography>
         <Button size="small" variant={progressFilter === "all" ? "contained" : "outlined"} onClick={() => setProgressFilter("all")}>All shown · {counts.all}</Button>
         <Button size="small" color="warning" variant={progressFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setProgressFilter("awaiting-award")}>Awaiting award · {counts["awaiting-award"]}</Button>
         <Button size="small" color="info" variant={progressFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setProgressFilter("in-progress")}>In progress · {counts["in-progress"]}</Button>
+        <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
       </Stack></Paper>
       {filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
