@@ -65,13 +65,13 @@ test.describe("approved parent journey", () => {
     expect(consentHref).toBeTruthy();
     await consentLink.click();
     await expect(page.getByRole("heading", { name: "Event Consent" })).toBeVisible();
-    await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Back to Parent Portal" }).click();
     await expect(page.getByRole("heading", { name: "Things to do" })).toBeVisible();
 
     await page.goto(consentHref!);
     await expect(page.getByRole("heading", { name: "Event Consent" })).toBeVisible();
-    await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Back to Parent Portal" })).toHaveCount(0);
   });
 
