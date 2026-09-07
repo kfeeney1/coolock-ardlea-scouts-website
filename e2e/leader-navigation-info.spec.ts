@@ -12,7 +12,8 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
-  await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
+  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
+  await menuButton.click();
   const menu = page.locator("#leader-navigation");
   await expect(menu.getByRole("link", { name: "Dashboard", exact: true })).toHaveAttribute("href", "/leader");
 
@@ -25,6 +26,12 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
   await expect(menu.getByRole("link", { name: "Weekly Tracker" })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "Organisational Chart" })).toHaveCount(0);
 
+  await menu.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+
+  await menuButton.click();
+  await expect(menu.getByRole("link", { name: "Info & FAQ" })).toBeVisible();
   await menu.getByRole("link", { name: "Info & FAQ" }).click();
   await expect(page).toHaveURL(/\/leader\/info$/);
   await expect(page.getByRole("heading", { name: "Organisational Chart", exact: true })).toBeVisible();
