@@ -29,8 +29,9 @@ test("back-dismiss marker insertion is idempotent and ignores malformed state", 
   assert.deepEqual(backDismissStack(state), ["menu"]);
 });
 
-test("public mobile navigation participates in Back history", async () => {
+test("public mobile navigation participates in Back history and waits until its marker is armed", async () => {
   const source = await readFile("src/components/Header.tsx", "utf8");
-  assert.match(source, /useBackDismiss\(Boolean\(anchorEl\)/);
+  assert.match(source, /const menuHistoryReady = useBackDismiss\(Boolean\(anchorEl\)/);
   assert.match(source, /public-mobile-navigation/);
+  assert.match(source, /open=\{Boolean\(anchorEl\) && menuHistoryReady\}/);
 });
