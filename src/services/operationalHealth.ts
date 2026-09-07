@@ -1,7 +1,7 @@
 export type OperationalHealthStatus = "healthy" | "warning" | "unavailable";
 
 export type OperationalHealthItem = {
-    id: "release" | "firestore" | "email" | "storage";
+    id: "release" | "firestore" | "email" | "storage" | "data-integrity";
     label: string;
     status: OperationalHealthStatus;
     detail: string;
@@ -12,6 +12,31 @@ export type BuildInfoPayload = {
     buildTime?: unknown;
     source?: unknown;
 };
+
+export type OperationalDataHealth = {
+    item: OperationalHealthItem;
+    findingCount: number;
+    affectedCollections: string[];
+};
+
+export function summariseOperationalDataHealth(findings: readonly string[], checkedCollectionCount = 16): OperationalDataHealth {
+    const affectedCollections = [...new Set(findings.map((finding) => finding.split("/", 1)[0]).filter(Boolean))].sort();
+    if (findings.length === 0) return {
+        item: { id: "data-integrity", label: "Operational data integrity", status: "healthy", detail: `No relationship findings across ${checkedCollectionCount} checked collections.` },
+        findingCount: 0,
+        affectedCollections
+    };
+    return {
+        item: {
+            id: "data-integrity",
+            label: "Operational data integrity",
+            status: "warning",
+            detail: `${findings.length} relationship ${findings.length === 1 ? "finding" : "findings"} across: ${affectedCollections.join(", ")}. Review the linked operational areas and the downloadable Firestore audit report.`
+        },
+        findingCount: findings.length,
+        affectedCollections
+    };
+}
 
 const FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
 
@@ -77,6 +102,12 @@ export async function loadOperationalHealth(): Promise<OperationalHealthItem[]> 
         ...configuredCapabilityHealth({
             emailApiUrl: String(import.meta.env.VITE_EMAIL_API_URL || "").trim(),
             storageBucket: String(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "").trim()
-        })
+        }),
+        {
+            id: "data-integrity",
+            label: "Operational data integrity",
+            status: "unavailable",
+            detail: "Not checked in this session. Run the read-only data check when operational assurance is needed."
+        }
     ];
 }
