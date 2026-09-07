@@ -23,6 +23,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import type { SystemRole } from "../components/admin/AdminAuthProvider";
+import { SectionOptionLabel, SectionSelect, SectionToggleButton } from "../components/SectionIdentityControls";
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
 import { recordAuditEvent } from "../services/auditLog";
@@ -133,13 +134,13 @@ export default function LeaderAccessManagement() {
           <Select size="small" value={record.role} disabled={adminProfile.role !== "super-admin" || record.role === "super-admin"} onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })} sx={{ minWidth: 180 }}><MenuItem value="leader">Leader</MenuItem><MenuItem value="admin">Admin</MenuItem>{record.role === "super-admin" && <MenuItem value="super-admin">Super Admin</MenuItem>}</Select>
           <FormControlLabel control={<Switch checked={record.active} disabled={record.role === "super-admin"} onChange={(e) => patch(record.uid, { active: e.target.checked })} />} label="Active" />
         </Box>
-        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <Button key={section} variant={record.sections.includes(section) ? "contained" : "outlined"} color="secondary" size="small" onClick={() => toggleSection(record, section)}>{section}</Button>)}</Box></Box>}
+        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box></Box>}
         <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <TextField label="Scouting role / title" value={record.scoutingRole} onChange={(e) => patch(record.uid, { scoutingRole: e.target.value })} placeholder="e.g. Cub Section Leader" />
-          <TextField select label="Organisation section" value={record.organisationSection} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })}>{sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</TextField>
+          <SectionSelect id={`organisation-section-${record.uid}`} label="Organisation section" value={record.organisationSection} options={sections} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })} />
           <TextField label="Display order" type="number" value={record.organisationOrder} onChange={(e) => patch(record.uid, { organisationOrder: Number(e.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, max: 999 } }} />
-          <TextField select label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}>{leader.displayName} · {leader.scoutingRole || "Leader"}</MenuItem>)}</TextField>
+          <TextField select label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}><SectionOptionLabel section={leader.organisationSection} label={<>{leader.displayName} · {leader.scoutingRole || "Leader"}</>} /></MenuItem>)}</TextField>
         </Box>
         <FormControlLabel
           sx={{ alignItems: "flex-start", mt: 2 }}
