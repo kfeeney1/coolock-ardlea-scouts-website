@@ -1,4 +1,4 @@
-import { SCOUT_SECTION_ORDER } from "../services/sectionOrder";
+import { SCOUT_SECTION_ORDER } from "../services/sectionOrder.ts";
 
 export type ScoutSectionName = (typeof SCOUT_SECTION_ORDER)[number];
 
