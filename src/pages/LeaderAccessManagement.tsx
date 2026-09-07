@@ -23,7 +23,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import type { SystemRole } from "../components/admin/AdminAuthProvider";
-import { SectionOptionLabel, SectionSelect, SectionToggleButton } from "../components/SectionIdentityControls";
+import { SectionIdentityChip, SectionOptionLabel, SectionSelect, SectionToggleButton, sectionCardSx } from "../components/SectionIdentityControls";
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
 import { recordAuditEvent } from "../services/auditLog";
@@ -125,10 +125,10 @@ export default function LeaderAccessManagement() {
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
     <Stack spacing={2}>
-      {records.map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+      {records.map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between" }}>
           <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography color="text.secondary">{record.email}</Typography></Box>
-          <Chip label={record.role} />
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><SectionIdentityChip section={record.organisationSection} /><Chip label={record.role} /></Stack>
         </Box>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, flexWrap: "wrap", mt: 2 }}>
           <Select size="small" value={record.role} disabled={adminProfile.role !== "super-admin" || record.role === "super-admin"} onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })} sx={{ minWidth: 180 }}><MenuItem value="leader">Leader</MenuItem><MenuItem value="admin">Admin</MenuItem>{record.role === "super-admin" && <MenuItem value="super-admin">Super Admin</MenuItem>}</Select>

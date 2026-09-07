@@ -6,6 +6,7 @@ import BadgeworkLevelMatrix from "./BadgeworkLevelMatrix.tsx";
 import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
 import BadgeworkSkillGrid from "./BadgeworkSkillGrid.tsx";
 import { useAdminAuth } from "./AdminAuthProvider.tsx";
+import { SectionIdentityChip, sectionCardSx } from "../SectionIdentityControls.tsx";
 import { adventureSkills } from "../../data/adventureSkills/index.ts";
 import { recordAuditEvent } from "../../services/auditLog.ts";
 import type { MemberRecord } from "../../services/memberAdmin.ts";
@@ -148,9 +149,9 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       const visibleSummaries = skillFilter === "all" ? summaries : summaries.filter((summary) => summary.skillId === skillFilter);
       const awaitingAward = summaries.filter((summary) => summary.status === "requirements-complete").length;
       const inProgress = summaries.filter((summary) => summary.status === "in-progress").length;
-      return <Paper key={member.id} variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }} data-testid={`badgework-overview-member-${member.id}`}>
+      return <Paper key={member.id} variant="outlined" sx={[{ p: { xs: 1.5, sm: 2 } }, sectionCardSx(member.section)]} data-testid={`badgework-overview-member-${member.id}`} data-section={member.section}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 1.5 }}>
-          <Box><Typography variant="h6" sx={{ fontWeight: 800 }}>{member.displayName}</Typography><Typography variant="body2" color="text.secondary">{member.section}</Typography></Box>
+          <Box><Typography variant="h6" sx={{ fontWeight: 800 }}>{member.displayName}</Typography><Box sx={{ mt: .5 }}><SectionIdentityChip section={member.section} /></Box></Box>
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
             {inProgress > 0 && <Chip size="small" color="info" label={`${inProgress} in progress`} />}
             {awaitingAward > 0 && <Chip size="small" color="warning" label={`${awaitingAward} awaiting award`} />}

@@ -1,4 +1,4 @@
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
+import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { ReactNode } from "react";
 
@@ -28,6 +28,16 @@ function optionSx(section: string | null | undefined): SxProps<Theme> {
   };
 }
 
+export function sectionCardSx(section: string | null | undefined) {
+  const tokens = sectionVisualTokens(section);
+  return {
+    borderLeftWidth: 4,
+    borderLeftStyle: "solid",
+    borderLeftColor: tokens.accent,
+    "&:focus-visible": { outline: `3px solid ${tokens.focusRing}`, outlineOffset: 2 }
+  };
+}
+
 export function SectionOptionLabel({ section, label }: { section: string | null | undefined; label?: ReactNode }) {
   const tokens = sectionVisualTokens(section);
   return (
@@ -40,6 +50,24 @@ export function SectionOptionLabel({ section, label }: { section: string | null 
       />
       <Box component="span" sx={{ minWidth: 0 }}>{label ?? section ?? "All sections"}</Box>
     </Box>
+  );
+}
+
+export function SectionIdentityChip({ section, size = "small", ...props }: { section: string | null | undefined; size?: ChipProps["size"] } & Omit<ChipProps, "label" | "size" | "color">) {
+  const tokens = sectionVisualTokens(section);
+  const label = section?.trim() || "No section";
+  return (
+    <Chip
+      {...props}
+      size={size}
+      variant="outlined"
+      label={<SectionOptionLabel section={section} label={label} />}
+      data-section={tokens.section ?? "other"}
+      sx={[
+        { borderColor: tokens.border, backgroundColor: tokens.subtleBackground, color: tokens.foreground, fontWeight: 700 },
+        ...(Array.isArray(props.sx) ? props.sx : props.sx ? [props.sx] : [])
+      ]}
+    />
   );
 }
 
