@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 
 import { BUILD_NUMBER } from "../buildInfo";
+import { SITE_IDENTITY } from "../content/siteIdentity";
 import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "./PublicSiteContentProvider";
 
@@ -24,6 +25,7 @@ export default function Footer() {
                 maxWidth="lg"
                 sx={{
                     py: 3,
+                    px: { xs: 2, sm: 3 },
                     textAlign: "center"
                 }}
             >
@@ -34,6 +36,17 @@ export default function Footer() {
                 >
                     © {new Date().getFullYear()}{" "}
                     {content.group.name}
+                </Typography>
+
+                <Typography
+                    variant="body2"
+                    sx={{
+                        mt: 0.75,
+                        lineHeight: 1.5,
+                        color: "secondary.contrastText"
+                    }}
+                >
+                    Registered Charity Number (RCN): {SITE_IDENTITY.registeredCharityNumber}
                 </Typography>
 
                 <Typography

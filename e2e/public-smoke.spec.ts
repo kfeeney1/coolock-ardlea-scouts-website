@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const publicRoutes = ["/", "/about", "/activities", "/join", "/contact"];
+const registeredCharityText = "Registered Charity Number (RCN): 20207037";
 
 test.describe("public website", () => {
   for (const route of publicRoutes) {
@@ -9,6 +10,7 @@ test.describe("public website", () => {
       expect(response?.ok()).toBeTruthy();
       await expect(page.locator("body")).not.toBeEmpty();
       await expect(page.locator("body")).toBeVisible();
+      await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
     });
   }
 });
