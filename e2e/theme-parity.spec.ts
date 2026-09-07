@@ -51,9 +51,19 @@ test.describe("Modern Scout theme parity", () => {
     await expect(mobileNavigation).toBeVisible();
     await expect(menu.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
 
-    await mobileNavigation.getByRole("button", { name: "Account & Help" }).click();
+    const administrationButton = mobileNavigation.getByRole("button", { name: "Administration" });
+    await expect(administrationButton).toBeVisible();
+    await administrationButton.click();
+    await expect(menu.getByRole("link", { name: "Leader Requests" })).toHaveAttribute("href", "/leader/requests");
+    await expect(menu.getByRole("link", { name: "Parent Access" })).toHaveAttribute("href", "/leader/parent-access");
+    await expect(menu.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
+    await expect(menu.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/leader/settings");
+
+    await expect(menu.getByText("Account & Help", { exact: true })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "My Profile" })).toHaveAttribute("href", "/leader/profile");
     const infoLink = menu.getByRole("link", { name: "Info & FAQ" });
-    await expect(infoLink).toBeVisible();
+    await expect(infoLink).toHaveAttribute("href", "/leader/info");
+    await expect(menu.getByRole("link", { name: /View Parent Portal/ })).toHaveAttribute("href", "/parent");
     await infoLink.click();
 
     await expect(page).toHaveURL(/\/leader\/info$/);
