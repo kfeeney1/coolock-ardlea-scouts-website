@@ -87,7 +87,7 @@ Production data must never be used as the source of truth for browser-test fixtu
 
 ## CI and deployment
 
-Pull requests normally run the repository's merge-critical quality, browser, rules and Hosting-preview checks. Merges to `main` are deployed by the Firebase Hosting merge workflow, followed by exact-release post-deploy verification.
+Pull requests normally run the repository's merge-critical quality, browser, rules and Hosting-preview checks. The active `main` ruleset requires pull requests and enforces the stable GitHub Actions job contexts `quality` and `e2e`; both must pass against the latest `main` before a normal merge. Merges to `main` are deployed by the Firebase Hosting merge workflow, followed by exact-release post-deploy verification.
 
 GitHub branch protection/ruleset enforcement is a repository-setting requirement, not something application code can replace. See `docs/stage-19-launch-readiness-review.md` and `docs/operations-runbook.md` before treating a release as production-ready.
 

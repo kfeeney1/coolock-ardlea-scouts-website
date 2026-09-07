@@ -42,7 +42,7 @@ The current Quality contract covers lint, unit tests, email-worker tests, determ
 
 Playwright E2E remains a separate full-browser Firebase-emulator workflow using deterministic seed data. Stage 23 implementation PRs were held until both Quality and Playwright were green; failures were investigated and fixed rather than bypassed.
 
-The active `main` GitHub ruleset requires pull requests and the `quality` status check. It does **not** currently make Playwright a GitHub-enforced required status check. This is a governance hardening residual rather than a demonstrated runtime blocker because the project merge discipline currently treats Playwright as mandatory and every Stage 23 implementation PR was held for it. A future repository-ruleset change should make the technical enforcement match the documented merge policy.
+The active `main` GitHub ruleset requires pull requests and the `quality` status check. At the time of this review it did **not** make Playwright a GitHub-enforced required status check. SW-25 subsequently closed that governance residual by adding the stable `e2e` GitHub Actions job context to the required checks while retaining `quality`, strict latest-branch checking and the existing no-bypass policy.
 
 ## Security and data controls
 
@@ -65,7 +65,7 @@ None identified from the current repository, CI, security/RBAC, operational-cont
 
 ### Residual P2 / deliberately deferred work
 
-1. **Playwright ruleset enforcement** — align the active GitHub `main` ruleset with the documented merge policy by requiring the Playwright E2E check in addition to `quality` when repository settings are next updated.
+1. **Playwright ruleset enforcement — completed by SW-25** — the active GitHub `main` ruleset now requires the Playwright `e2e` check in addition to `quality`, and the repository audit fails if either context drifts out of enforcement.
 2. **Production domain cut-over** — remains parked until the production domain is ready.
 3. **Production email rollout** — remains parked with the domain because sender identity, production links and DNS authentication are coupled to it.
 4. **Production TEST-data deletion** — remains parked. Stage 23.8 revalidated the guarded process only; no production deletion occurred.
