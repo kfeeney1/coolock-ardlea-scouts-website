@@ -365,9 +365,10 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId} {
-      allow read: if isActiveLeader()
+      allow read: if isSuperAdmin()
+        || (isActiveLeader()
         && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary());
+        && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary()));
       allow create: if isActiveLeader()
         && request.resource.data.section is string
         && (hasSection(request.resource.data.section) || isGroupLeader())
