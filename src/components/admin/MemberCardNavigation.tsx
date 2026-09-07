@@ -1,5 +1,29 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { sectionVisualTokens } from "../../theme/sectionColours";
+
+const memberSections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"] as const;
+
+function applySectionIdentity(card: HTMLElement) {
+  const chipLabels = Array.from(card.querySelectorAll<HTMLElement>(".MuiChip-label"));
+  const sectionLabel = chipLabels.find((label) => memberSections.includes(label.textContent?.trim() as typeof memberSections[number]));
+  const section = sectionLabel?.textContent?.trim();
+  if (!section) return;
+
+  const tokens = sectionVisualTokens(section);
+  card.dataset.section = tokens.section ?? section;
+  card.style.borderLeftWidth = "4px";
+  card.style.borderLeftStyle = "solid";
+  card.style.borderLeftColor = tokens.accent;
+
+  const sectionChip = sectionLabel.closest<HTMLElement>(".MuiChip-root");
+  if (sectionChip) {
+    sectionChip.dataset.sectionIdentity = tokens.section ?? section;
+    sectionChip.style.borderColor = tokens.border;
+    sectionChip.style.backgroundColor = tokens.subtleBackground;
+    sectionChip.style.color = tokens.foreground;
+  }
+}
 
 export default function MemberCardNavigation() {
   const location = useLocation();
@@ -36,6 +60,7 @@ export default function MemberCardNavigation() {
         card.setAttribute("role", "link");
         card.setAttribute("aria-label", `Open member record ${card.textContent?.trim().split("Parent / Guardian:")[0]?.trim() || ""}`.trim());
         card.style.cursor = "pointer";
+        applySectionIdentity(card);
       });
     };
 
