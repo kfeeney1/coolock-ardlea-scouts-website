@@ -1,6 +1,6 @@
 # Development and readiness report
 
-**Evidence baseline:** `main` at `8fca06f4cb403a7147e510dd9ebf9c5482ab3301` on 7 September 2026, reviewed together with the live Jira backlog and recent merged pull requests.
+**Evidence baseline:** `main` at `bebfa24026fc4ea62641b12fd3e3608f9e768e9e` on 7 September 2026, reviewed together with the live Jira backlog, current CI/test architecture and recent merged pull requests. SW-27 theme verification is incorporated by the change that updates this report.
 
 This report describes the current product and operational position. It deliberately avoids treating historical numbered development stages as the source of truth.
 
@@ -24,6 +24,12 @@ The repository has strong safeguards around authorization, deterministic test da
 - Public/parent-safe projections are used where a restricted operational record should not be exposed directly.
 
 There is no general-purpose application server between the browser and Firestore. Client services organise domain access but are not an authorization boundary.
+
+### Theme architecture
+
+The Leader Portal supports `default` and `modern` Scout themes through one shared application. Theme selection is presentation-only: routes, components, services, permissions, section scope and Firestore behaviour remain shared. Missing or unsupported preferences fall back safely to `default`.
+
+Modern Scout remains supported and useful as an alternate visual experience. It is verified through the current emulator-backed Playwright fixture path on desktop and mobile. A historical production TEST account is not required to keep or prove this capability, and production must not be seeded/reset merely to recreate one.
 
 ## Delivered functionality
 
@@ -73,17 +79,7 @@ The system separates platform roles from Scouting organisational roles.
 
 Platform identities include public, parent, leader, admin and super-admin. Operational Scout roles such as Group Leader, Group Secretary and Group Quartermaster / Bo’sun can provide domain-specific responsibility without replacing the platform-role model.
 
-Authorization is layered around:
-
-- authenticated identity;
-- active canonical leader profile where required;
-- platform role;
-- authorised sections;
-- organisational role where a domain needs it;
-- explicit parent/member linkage;
-- route/UI visibility for usability.
-
-UI hiding is not treated as authorization. Firestore and Storage Rules remain authoritative for direct client-accessible data.
+Authorization is layered around authenticated identity, active canonical leader profile where required, platform role, authorised sections, organisational role where a domain needs it and explicit parent/member linkage. Route/UI visibility exists for usability; UI hiding is not treated as authorization. Firestore and Storage Rules remain authoritative for direct client-accessible data.
 
 ## Firebase boundaries
 
@@ -122,7 +118,7 @@ Automated browser tests do not use production data as their fixture source.
 
 The current E2E suite covers representative public, parent and leader journeys plus focused operational areas including navigation, accessibility/mobile behaviour, members, meetings, attendance, events/consent, Adventure Skills, equipment, finance, reports and galleries.
 
-The CI workflow seeds canonical emulator-only identities and records, verifies seed idempotency, builds the same application that is served to the browser tests, and runs Chromium plus selected WebKit coverage. Alternate styling must remain presentation-only and is expected to exercise the same route/RBAC contracts.
+The CI workflow seeds canonical emulator-only identities and records, verifies seed idempotency, builds the same application that is served to the browser tests, and runs Chromium plus selected WebKit coverage. The Modern Scout fixture is part of that emulator-only seed contract and has focused desktop/mobile parity coverage; the broad default-theme journeys remain the functional baseline to avoid duplicating every E2E scenario solely for styling.
 
 ## CI and merge controls
 
@@ -136,6 +132,7 @@ Additional workflows cover Firestore Rules, Hosting previews/deployments, post-d
 
 - Deterministic test data is explicitly marked and designed for emulator/test use.
 - There is no normal CI workflow that seeds or purges production TEST data.
+- Modern Scout verification uses the emulator-backed fixture path rather than a production theme TEST account.
 - Production TEST-data deletion is guarded by project, dry-run, manifest/count, confirmation and backup requirements.
 - Live schema/provenance audits fail closed on ambiguous records rather than silently relabelling data.
 - Scheduled Firestore backups and documented recovery procedures exist.
@@ -157,6 +154,8 @@ The following should be treated separately from the shipped application code:
 - server-authoritative Adventure Skills award-completion enforcement remains deferred;
 - newly raised product/backlog work is not implied complete by this report.
 
+The Modern Scout theme itself does **not** require separate production infrastructure or a historical TEST user. It uses the same production application and authorization/data boundaries when deliberately selected for a legitimate profile.
+
 ## Current known/deferred items
 
 At the evidence baseline, Jira still tracks the following material unfinished or deferred work:
@@ -166,7 +165,6 @@ At the evidence baseline, Jira still tracks the following material unfinished or
 - **SW-15** — broader receipt/file/image storage completion (deferred; do not interpret this as saying existing finance receipt and event gallery code is absent).
 - **SW-23** — guarded production TEST-data cleanup (deferred/manual mutation boundary).
 - **SW-24** — server-authoritative Adventure Skills award-completion enforcement (deferred).
-- **SW-27** — Modern Scout theme provisioning/relevance verification (the next Work Block E item at this report baseline).
 - **SW-28** — background page-jump menu defect.
 - **SW-29** — charity-number footer change.
 - **SW-30** — populate equipment from supplied spreadsheet (deferred).
@@ -181,9 +179,9 @@ The live Jira backlog should be rechecked before a future release decision becau
 3. **Authorization drift:** new routes or data collections must be reflected in the RBAC matrix, Rules and representative security tests.
 4. **Adventure Skills award integrity:** SW-24 remains the explicit hardening item for a server-authoritative award-completion boundary.
 5. **Growing operational breadth:** new imports/data-population work should preserve provenance, validation and repeatability rather than become ad-hoc production scripts.
-6. **Mobile/regression risk:** the portal is feature-rich and must retain focused mobile/Back/navigation Playwright coverage as workflows change.
+6. **Mobile/regression risk:** the portal is feature-rich and must retain focused mobile/Back/navigation and alternate-theme parity coverage as workflows change.
 7. **Documentation drift:** product help should describe current user workflows; implementation/security details should stay in engineering documentation and be updated with code changes.
 
 ## Readiness conclusion
 
-The repository has a mature production baseline and substantial delivered operational functionality, with strong CI, emulator-backed security tests, deterministic Playwright fixtures and guarded production operations. It should not be described as “finished” solely because earlier development stages are complete. Release/readiness decisions must include the live Jira backlog and the state of external production dependencies, especially domain, email, Storage provisioning and any approved production-data mutation.
+The repository has a mature production baseline and substantial delivered operational functionality, with strong CI, emulator-backed security tests, deterministic Playwright fixtures, verified shared theme architecture and guarded production operations. It should not be described as “finished” solely because earlier development stages are complete. Release/readiness decisions must include the live Jira backlog and the state of external production dependencies, especially domain, email, Storage provisioning and any approved production-data mutation.
