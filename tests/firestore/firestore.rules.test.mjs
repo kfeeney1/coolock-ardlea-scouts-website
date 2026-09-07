@@ -132,17 +132,24 @@ test("admins cannot promote themselves to super-admin", async () => {
   await assertFails(updateDoc(doc(db, "adminUsers/admin-1"), { role: "super-admin" }));
 });
 
-test("only super-admins can read malformed weekly meetings for integrity diagnosis", async () => {
+test("only super-admins can scan malformed section-scoped records for integrity diagnosis", async () => {
   await seedDocuments([
     ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
     ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
     ["weeklyMeetings/malformed", { meetingDate: "2026-09-07", entries: [], injuries: [] }],
+    ["members/malformed", { displayName: "Missing section" }],
+    ["events/malformed", { title: "Missing section" }],
+    ["eventConsentLinks/malformed", { active: false }],
+    ["financeTransactions/malformed", { description: "Missing section" }],
+    ["financeReconciliations/malformed", { note: "Missing section" }],
   ]);
   const adminDb = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
   const superAdminDb = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
 
-  await assertFails(getDocs(collection(adminDb, "weeklyMeetings")));
-  await assertSucceeds(getDocs(collection(superAdminDb, "weeklyMeetings")));
+  for (const collectionName of ["weeklyMeetings", "members", "events", "eventConsentLinks", "financeTransactions", "financeReconciliations"]) {
+    await assertFails(getDocs(collection(adminDb, collectionName)));
+    await assertSucceeds(getDocs(collection(superAdminDb, collectionName)));
+  }
 });
 
 test("leaders can append valid audit entries but cannot edit them", async () => {
