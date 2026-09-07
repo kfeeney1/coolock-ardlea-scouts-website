@@ -16,6 +16,14 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function viewportState(page: Page) {
+  return page.evaluate(() => ({
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    clientWidth: document.documentElement.clientWidth
+  }));
+}
+
 test.describe("leader access management", () => {
   test("admin reviews section-aware controls and cancels an account deactivation before any persisted change", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
@@ -34,6 +42,14 @@ test.describe("leader access management", () => {
     await expect(cubsSection).toHaveAttribute("data-section", "Cubs");
     await expect(cubsSection).toHaveAttribute("aria-pressed", /true|false/);
     await expect(cubsSection.getByTestId("section-swatch-cubs")).toBeVisible();
+
+    const organisationSection = card.getByRole("combobox", { name: "Organisation section" });
+    const beforeSelect = await viewportState(page);
+    await organisationSection.click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await expect.poll(() => viewportState(page)).toEqual(beforeSelect);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
 
     const active = card.getByRole("switch", { name: "Active" });
     await expect(active).toBeChecked();

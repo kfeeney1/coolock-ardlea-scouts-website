@@ -29,6 +29,10 @@ const responsiveDialogActions = {
   }
 } as const;
 
+const stableTransientPopovers = {
+  defaultProps: { disableScrollLock: true }
+} as const;
+
 export const defaultTheme = createTheme({
   palette: {
     primary: { main: brandColours.coral, contrastText: brandColours.white },
@@ -46,6 +50,7 @@ export const defaultTheme = createTheme({
   components: {
     MuiButton: { styleOverrides: { root: { borderRadius: "999px", textTransform: "none", paddingLeft: "24px", paddingRight: "24px" } } },
     MuiDialogActions: responsiveDialogActions,
+    MuiPopover: stableTransientPopovers,
     MuiPaper: { styleOverrides: { rounded: { borderRadius: "18px" } } },
     MuiCard: { styleOverrides: { root: { borderRadius: "18px" } } }
   }
@@ -73,6 +78,7 @@ export const modernTheme = createTheme({
     MuiAppBar: { styleOverrides: { root: { boxShadow: "0 1px 0 rgba(23,32,51,0.08)", backgroundImage: "none" } } },
     MuiButton: { styleOverrides: { root: { borderRadius: "12px", textTransform: "none", minHeight: "42px", paddingLeft: "20px", paddingRight: "20px", boxShadow: "none" } } },
     MuiDialogActions: responsiveDialogActions,
+    MuiPopover: stableTransientPopovers,
     MuiPaper: { styleOverrides: { rounded: { borderRadius: "20px" }, root: { backgroundImage: "none" } } },
     MuiCard: { styleOverrides: { root: { borderRadius: "20px", border: "1px solid #E3E8F2", boxShadow: "0 8px 30px rgba(23,32,51,0.06)" } } },
     MuiTextField: { defaultProps: { variant: "outlined" } },
