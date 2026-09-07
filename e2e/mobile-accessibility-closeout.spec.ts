@@ -4,6 +4,7 @@ const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const leaderPassword = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const parentPassword = process.env.E2E_TEST_USER_PASSWORD;
+const registeredCharityText = "Registered Charity Number (RCN): 20207037";
 
 function mobileOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "mobile-chromium", "Stage 10 mobile close-out runs on the Pixel 7 project.");
@@ -66,6 +67,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     mobileOnly(testInfo);
     for (const route of ["/", "/about", "/join", "/contact", "/parent", "/leader/login"]) {
       await page.goto(route);
+      await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
       await expectNoHorizontalPageOverflow(page);
       await expectMobileAccessibilityBaseline(page);
     }
@@ -75,6 +77,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     mobileOnly(testInfo);
     test.skip(!parentEmail || !parentPassword, "Canonical parent E2E credentials are required.");
     await loginParent(page);
+    await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
     await expectNoHorizontalPageOverflow(page);
     await expectMobileAccessibilityBaseline(page);
 
@@ -89,6 +92,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     mobileOnly(testInfo);
     test.skip(!leaderEmail || !leaderPassword, "Leader E2E credentials are required.");
     await loginLeader(page);
+    await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
     await expectNoHorizontalPageOverflow(page);
 
     const menuButton = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
@@ -109,6 +113,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     for (const { route, heading } of corePages) {
       await page.goto(route);
       await expect(page.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+      await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
       await expectNoHorizontalPageOverflow(page);
       await expectMobileAccessibilityBaseline(page);
     }
