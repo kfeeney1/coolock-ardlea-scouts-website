@@ -26,6 +26,14 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
   await expect(menu.getByRole("link", { name: "Weekly Tracker" })).toHaveCount(0);
   await expect(menu.getByRole("link", { name: "Organisational Chart" })).toHaveCount(0);
 
+  const undersizedTargets = await menu.locator("a:visible, button:visible").evaluateAll((controls) => controls
+    .map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { label: (control.textContent || "").trim(), width: rect.width, height: rect.height };
+    })
+    .filter(({ width, height }) => width < 44 || height < 44));
+  expect(undersizedTargets, "Leader navigation controls must retain 44px minimum touch targets.").toEqual([]);
+
   await menu.press("Escape");
   await expect(menu).toHaveCount(0);
   await expect(menuButton).toBeFocused();
