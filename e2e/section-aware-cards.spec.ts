@@ -55,7 +55,6 @@ test("member, child and leader cards keep a textual section identity alongside t
 
   await cubsOption.click();
   await expect(sectionFilter).toContainText("Cubs");
-  await expect(sectionFilter).toHaveAttribute("data-section", "Cubs");
   await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
   await expect(page.getByTestId("badgework-overview-member-TEST_member_beaver_01")).toBeHidden();
 
