@@ -31,3 +31,10 @@ test("app installs record Back interception after overlay handling", async () =>
   assert.match(bridge, /navigate\(-1\)/);
   assert.match(bridge, /addEventListener\("click", handleClick, true\)/);
 });
+
+test("record Back interception requires a previous route observed by the current app instance", async () => {
+  const bridge = await readFile("src/components/RecordBackNavigationBridge.tsx", "utf8");
+  assert.match(bridge, /previousPathRef\s*=\s*useRef<string \| null>\(null\)/);
+  assert.match(bridge, /previousPathRef\.current\s*=\s*currentPathRef\.current/);
+  assert.match(bridge, /!hasInAppPreviousScreen\(window\.history\.state\)\s*\|\|\s*!previousPathRef\.current/);
+});
