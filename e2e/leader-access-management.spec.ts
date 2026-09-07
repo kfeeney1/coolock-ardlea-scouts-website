@@ -17,7 +17,7 @@ async function loginAdmin(page: Page) {
 }
 
 test.describe("leader access management", () => {
-  test("admin reviews and cancels an account deactivation before any persisted change", async ({ page }, testInfo) => {
+  test("admin reviews section-aware controls and cancels an account deactivation before any persisted change", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
     test.skip(!seededJourneyData, "Canonical leader journey seed data is required.");
@@ -28,6 +28,12 @@ test.describe("leader access management", () => {
 
     const card = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
     await expect(card).toContainText("Test Multi Section Leader");
+
+    const cubsSection = card.getByRole("button", { name: "Cubs", exact: true });
+    await expect(cubsSection).toBeVisible();
+    await expect(cubsSection).toHaveAttribute("data-section", "Cubs");
+    await expect(cubsSection).toHaveAttribute("aria-pressed", /true|false/);
+    await expect(cubsSection.getByTestId("section-swatch-cubs")).toBeVisible();
 
     const active = card.getByRole("switch", { name: "Active" });
     await expect(active).toBeChecked();
