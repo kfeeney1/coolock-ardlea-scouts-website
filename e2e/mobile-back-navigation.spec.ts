@@ -61,7 +61,25 @@ test("mobile Back promptly closes a select, then its dialog, then returns to the
   await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
 
-  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
+  await page.goBack();
   await expect(page).toHaveURL(/\/leader\/events$/);
   await expect(card).toBeVisible();
+});
+
+test("mobile application Back ignores stale history indexes after direct record entry", async ({ page }, testInfo) => {
+  mobileOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+
+  await page.goto("/leader/events/TEST_flow_event_beavers_open");
+  await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
+
+  await page.evaluate(() => {
+    const state = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+    window.history.replaceState({ ...state, idx: 3 }, "", window.location.href);
+  });
+
+  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events$/);
+  await expect(page.getByTestId("event-card-TEST_flow_event_beavers_open")).toBeVisible();
 });
