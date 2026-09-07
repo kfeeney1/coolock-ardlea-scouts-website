@@ -37,6 +37,14 @@ test("member, child and leader cards keep a textual section identity alongside t
   await expect(childCard.getByTestId("section-swatch-beavers")).toBeVisible();
   await expect(childCard).toContainText("Beavers");
 
+  const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
+  await expect(sectionFilter).toContainText("All sections");
+  await sectionFilter.click();
+  await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await expect(sectionFilter).toContainText("Cubs");
+  await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
+  await expect(page.getByTestId("badgework-overview-member-TEST_member_beaver_01")).toBeHidden();
+
   await page.goto("/leader/access");
   const leaderCard = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
   await expect(leaderCard).toBeVisible();
