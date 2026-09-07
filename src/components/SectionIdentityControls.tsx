@@ -19,11 +19,15 @@ function optionSx(section: string | null | undefined): SxProps<Theme> {
   const tokens = sectionVisualTokens(section);
   return {
     gap: 1,
+    backgroundColor: tokens.subtleBackground,
+    color: tokens.foreground,
+    "&:hover": { backgroundColor: tokens.hoverBackground },
     "&.Mui-selected": {
       backgroundColor: tokens.selectedBackground,
       color: tokens.foreground,
       "&:hover": { backgroundColor: tokens.hoverBackground }
     },
+    "&.Mui-disabled": { backgroundColor: tokens.disabledBackground, color: tokens.disabledForeground },
     "&:focus-visible": { outline: `3px solid ${tokens.focusRing}`, outlineOffset: -3 }
   };
 }
