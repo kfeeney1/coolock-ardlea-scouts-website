@@ -44,6 +44,13 @@ for (const [role, email] of [
       await expect(page.getByText("Firestore", { exact: true })).toBeVisible();
       await expect(page.getByText("Email service")).toBeVisible();
       await expect(page.getByText("Attachment storage")).toBeVisible();
+      await expect(page.getByText("Operational data integrity")).toBeVisible();
+      const runDataCheck = page.getByRole("button", { name: "Run data check" });
+      await expect(runDataCheck).toBeVisible();
+      await runDataCheck.click();
+      const dataHealth = page.getByTestId("operational-health-data-integrity");
+      await expect(dataHealth.getByText("Healthy", { exact: true })).toBeVisible();
+      await expect(dataHealth).toContainText("No relationship findings");
     } else {
       await expect(operationalHealth).toHaveCount(0);
     }
