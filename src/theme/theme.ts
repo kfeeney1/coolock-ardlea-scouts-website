@@ -85,4 +85,13 @@ export function themeForName(name: ThemeName): Theme {
   return name === "modern" ? modernTheme : defaultTheme;
 }
 
+export {
+  NEUTRAL_SECTION_VISUAL_TOKENS,
+  SECTION_VISUAL_TOKENS,
+  resolveScoutSectionName,
+  sectionVisualTokens,
+  type ScoutSectionName,
+  type SectionVisualTokens
+} from "./sectionColours";
+
 export default defaultTheme;
