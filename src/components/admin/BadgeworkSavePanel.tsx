@@ -12,7 +12,7 @@ type Props = {
 
 export default function BadgeworkSavePanel({ disabled, onDiscard, onSave, onSaveAndReturn, returnLabel, saving, unsavedChangeCount }: Props) {
   const hasChanges = unsavedChangeCount > 0;
-  return <Paper variant="outlined" sx={{ mt: 3, p: 2, position: { xs: "sticky", sm: "static" }, bottom: { xs: 8, sm: "auto" }, zIndex: 3, boxShadow: { xs: 4, sm: 0 } }} data-testid="badgework-save-panel">
+  return <Paper variant="outlined" sx={{ mt: 3, p: 2 }} data-testid="badgework-save-panel">
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
       <Box><Typography sx={{ fontWeight: 800 }}>{hasChanges ? `${unsavedChangeCount} unsaved ${unsavedChangeCount === 1 ? "change" : "changes"}` : "No unsaved changes"}</Typography><Typography variant="body2" color="text.secondary">Nothing is written to the member records until you save.</Typography></Box>
       <Stack direction={{ xs: "column-reverse", sm: "row" }} spacing={1}>
