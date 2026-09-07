@@ -44,15 +44,16 @@ The following work is valuable before calling the current product surface fully 
 
 ## Planned PR sequence
 
-- **#386** Parent experience coherence and regression coverage.
-- **#387** Extend cross-feature leader mobile operational regression coverage.
-- **#388** Broaden the existing read-only operational-integrity audit across parent/member/event/attendance relationships.
-- **#389** Extend the existing super-admin operational-health panel with data-health status.
-- **#390** Accessibility and focus-management hardening.
-- **#391** Performance and Firestore read-efficiency revalidation.
-- **#392** Guarded production TEST-data cleanup readiness revalidation; no deletion.
-- **#393** Stage 23 closeout and integrated regression/readiness review.
-- After #393: update FAQ/info content to reflect the finished product surface and add a full development/readiness report.
+- **#386** Parent experience coherence and regression coverage — complete.
+- **#387** was allocated to Dependabot and merged after rebasing onto #386.
+- **Next development PR** Extend cross-feature leader mobile operational regression coverage.
+- Then broaden the existing read-only operational-integrity audit across parent/member/event/attendance relationships.
+- Extend the existing super-admin operational-health panel with data-health status.
+- Complete accessibility and focus-management hardening.
+- Revalidate performance and Firestore read efficiency.
+- Revalidate guarded production TEST-data cleanup readiness; no deletion.
+- Close Stage 23 with an integrated regression/readiness review.
+- After closeout: update FAQ/info content to reflect the finished product surface and add a full development/readiness report.
 
 ## Explicitly parked / excluded
 
@@ -60,7 +61,7 @@ The following work is valuable before calling the current product surface fully 
 - Production email rollout: parked with the domain because sender identity, production links and DNS authentication are coupled to it.
 - Historical Badgework import: not required; removed from the roadmap.
 - Server-authoritative Adventure Skills award-completion enforcement: deferred design decision, not silently implemented in this stage.
-- Production TEST-data deletion: parked; #392 may only revalidate the guarded process.
+- Production TEST-data deletion: parked; the cleanup-readiness PR may only revalidate the guarded process.
 
 ## Merge rule
 
