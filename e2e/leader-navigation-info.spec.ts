@@ -34,7 +34,10 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
     .filter(({ width, height }) => width < 44 || height < 44));
   expect(undersizedTargets, "Leader navigation controls must retain 44px minimum touch targets.").toEqual([]);
 
-  await menu.press("Escape");
+  const infoLink = menu.getByRole("link", { name: "Info & FAQ" });
+  await infoLink.focus();
+  await expect(infoLink).toBeFocused();
+  await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
   await expect(menuButton).toBeFocused();
 
