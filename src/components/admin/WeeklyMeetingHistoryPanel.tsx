@@ -1,7 +1,8 @@
-import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { WeeklyMeetingRecord } from "../../services/weeklyTracker";
 import { filterWeeklyMeetingHistory } from "../../services/weeklyTrackerLogic";
+import { SectionIdentityChip, SectionSelect, sectionCardSx } from "../SectionIdentityControls";
 import OperationalFilterBar from "./OperationalFilterBar";
 import OperationalSearchField from "./OperationalSearchField";
 
@@ -44,10 +45,18 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
             testId="weekly-history-search"
           />
         </Box>
-        <TextField select label="Meeting history section" value={section} onChange={(event) => setSection(event.target.value)} sx={{ minWidth: { md: 190 } }}>
-          <MenuItem value="all">All sections</MenuItem>
-          {sections.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
-        </TextField>
+        <Box sx={{ minWidth: { md: 190 } }}>
+          <SectionSelect
+            id="weekly-history-section"
+            label="Meeting history section"
+            value={section}
+            options={sections}
+            allValue="all"
+            allLabel="All sections"
+            onChange={(event) => setSection(event.target.value)}
+            fullWidth
+          />
+        </Box>
         <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
         <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
         {filtersActive && <Button variant="outlined" onClick={resetFilters} data-testid="weekly-history-reset">Reset filters</Button>}
@@ -58,10 +67,11 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
       {!filteredRecords.length ? <Alert severity="info" data-testid="weekly-history-no-results">No closed meetings match these filters.</Alert> : <Stack spacing={1}>
         {filteredRecords.map((record) => {
           const present = record.entries.filter((entry) => entry.attendance === "present").length;
-          return <Paper key={record.id} variant="outlined" sx={{ p: 1.5, minWidth: 0 }} data-testid={`meeting-history-${record.id}`}>
+          return <Paper key={record.id} variant="outlined" sx={[{ p: 1.5, minWidth: 0 }, sectionCardSx(record.section)]} data-testid={`meeting-history-${record.id}`} data-section={record.section}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
               <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{ fontWeight: 800 }}>{displayDate(record.meetingDate)} · {record.section}</Typography>
+                <Box sx={{ mt: .5, mb: .5 }}><SectionIdentityChip section={record.section} /></Box>
                 <Typography color="text.secondary">{present}/{record.entries.length} Present · Closed · {record.activities.length} activities · {record.badgeworkPlan.length} badgework</Typography>
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
