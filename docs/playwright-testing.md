@@ -47,6 +47,8 @@ For normal same-repository PRs and `main`, the E2E workflow:
 
 Dependabot PRs do not receive repository secrets, so they run the static quality/seed-contract protections but intentionally skip credentialed emulator/browser journeys.
 
+The active GitHub `main` ruleset requires the stable `e2e` job context, in addition to `quality`. The `e2e` job itself is therefore unconditional for pull requests: same-repository changes run the complete emulator-backed browser suite, while Dependabot completes the same required job after its permitted static checks and explicit secret-boundary step. Do not move the job-level condition onto individual path filters or rename the job without updating and verifying the ruleset, because a missing required context would prevent merging.
+
 ## Run locally
 
 Install the application and a Playwright runner without changing the lockfile:

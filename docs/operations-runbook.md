@@ -14,11 +14,11 @@ For normal changes:
 
 1. Create a branch from current `main`.
 2. Open a pull request.
-3. Confirm the **Quality** workflow passes.
+3. Confirm the required **Quality** check (`quality`) passes.
 4. Confirm the Firebase Hosting preview is successful and manually inspect it when the change affects UI or routing.
-5. Confirm **Playwright E2E** passes for application changes.
+5. Confirm the required **Playwright E2E** check (`e2e`) passes. GitHub enforces this check for every normal pull request; Dependabot uses the workflow's explicit reduced, secret-safe path while retaining the same required job context.
 6. When Firestore rules or rule tests change, confirm **Firestore Rules** passes.
-7. Merge only after the relevant checks are green.
+7. Merge only after the required `quality` and `e2e` checks, plus all other relevant checks, are green. The active ruleset requires the branch to be current with `main` and has no configured bypass actors.
 
 The Firebase Hosting PR workflow builds a preview. A merge to `main` triggers the production Firebase Hosting deployment workflow.
 
