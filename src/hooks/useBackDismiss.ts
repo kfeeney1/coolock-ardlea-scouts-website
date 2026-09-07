@@ -15,6 +15,8 @@ import {
  *
  * This is intentionally a layout effect: the history marker must be armed before the
  * newly opened surface is painted so a fast hardware Back press cannot beat the marker.
+ * The router update is flushed synchronously for the same reason: an immediately activated
+ * control inside a newly opened surface must not race a still-pending marker navigation.
  */
 export function useBackDismiss(open: boolean, onDismiss: () => void, name: string) {
   const location = useLocation();
@@ -40,7 +42,8 @@ export function useBackDismiss(open: boolean, onDismiss: () => void, name: strin
       if (!armedRef.current && !markerPresent) {
         armedRef.current = true;
         navigate(`${location.pathname}${location.search}${location.hash}`, {
-          state: withBackDismissMarker(state, marker)
+          state: withBackDismissMarker(state, marker),
+          flushSync: true
         });
         return;
       }
