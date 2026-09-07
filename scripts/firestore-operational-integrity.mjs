@@ -1,23 +1,93 @@
 const FINANCE_TYPES = new Set(["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]);
 const ITEM_CONDITIONS = new Set(["good", "needs-attention", "repair", "missing", "lost", "retired"]);
 const HISTORY_TYPES = new Set(["item-created", "item-updated", "item-archived", "item-restored", "equipment-checked-out", "equipment-returned", "incident-reported", "incident-investigating", "incident-resolved", "stock-moved", "stock-moved-out", "stock-moved-in"]);
+const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
 
 const text = (value) => typeof value === "string" ? value.trim() : "";
 const whole = (value) => typeof value === "number" && Number.isInteger(value);
 const positiveWhole = (value) => whole(value) && value > 0;
 const nonNegativeWhole = (value) => whole(value) && value >= 0;
 const dateOnly = (value) => /^\d{4}-\d{2}-\d{2}$/.test(text(value));
+const objectMap = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
 
 export function validateOperationalIntegrity(collections) {
   const errors = [];
   const fail = (collection, id, message) => errors.push(`${collection}/${id}: ${message}`);
   const records = (name) => collections.get(name) || new Map();
   const finance = records("financeTransactions");
+  const members = records("members");
+  const events = records("events");
+  const links = records("eventConsentLinks");
   const items = records("equipmentItems");
   const categories = records("equipmentCategories");
   const locations = records("equipmentLocations");
   const categoryNames = new Set([...categories.values()].map((item) => text(item.name)).filter(Boolean));
   const locationNames = new Set([...locations.values()].map((item) => text(item.name)).filter(Boolean));
+
+  for (const [id, data] of members) {
+    if (!YOUTH_SECTIONS.has(text(data.section))) fail("members", id, `section ${JSON.stringify(data.section)} is not a current youth section`);
+  }
+
+  for (const [id, data] of records("parentAccounts")) {
+    const memberIds = Array.isArray(data.memberIds) ? data.memberIds.map(text).filter(Boolean) : [];
+    const linkedSections = Array.isArray(data.linkedSections) ? data.linkedSections.map(text).filter(Boolean) : [];
+    for (const memberId of memberIds) {
+      const member = members.get(memberId);
+      if (!member) fail("parentAccounts", id, `memberIds references missing member ${memberId}`);
+      else if (!linkedSections.includes(text(member.section))) fail("parentAccounts", id, `linkedSections omits ${text(member.section)} for member ${memberId}`);
+    }
+  }
+
+  const validateMemberMap = (collection, id, field, value) => {
+    for (const memberId of Object.keys(objectMap(value))) {
+      if (!members.has(memberId)) fail(collection, id, `${field} references missing member ${memberId}`);
+    }
+  };
+
+  for (const [id, data] of records("weeklyMeetings")) {
+    const seenEntries = new Set();
+    for (const [index, entry] of (Array.isArray(data.entries) ? data.entries : []).entries()) {
+      const memberId = text(entry?.memberId);
+      if (!memberId || !members.has(memberId)) fail("weeklyMeetings", id, `entry ${index} references missing member ${memberId || "(blank)"}`);
+      if (memberId && seenEntries.has(memberId)) fail("weeklyMeetings", id, `entries contains duplicate member ${memberId}`);
+      seenEntries.add(memberId);
+    }
+    for (const [index, injury] of (Array.isArray(data.injuries) ? data.injuries : []).entries()) {
+      const memberId = text(injury?.memberId);
+      if (!memberId || !members.has(memberId)) fail("weeklyMeetings", id, `injury ${index} references missing member ${memberId || "(blank)"}`);
+      else if (!seenEntries.has(memberId)) fail("weeklyMeetings", id, `injury ${index} references member ${memberId} outside the meeting roster`);
+    }
+  }
+
+  for (const [id, data] of events) {
+    validateMemberMap("events", id, "attendance", data.attendance);
+    validateMemberMap("events", id, "consent", data.consent);
+    const attendanceIds = new Set(Object.keys(objectMap(data.attendance)));
+    for (const memberId of Object.keys(objectMap(data.consent))) {
+      if (!attendanceIds.has(memberId)) fail("events", id, `consent references member ${memberId} outside the event attendance roster`);
+    }
+  }
+
+  for (const [id, data] of links) {
+    const eventId = text(data.eventId);
+    if (!eventId || !events.has(eventId)) fail("eventConsentLinks", id, `eventId references missing event ${eventId || "(blank)"}`);
+  }
+
+  for (const [id, data] of records("eventConsentResponses")) {
+    const eventId = text(data.eventId);
+    const token = text(data.token);
+    const memberId = text(data.matchedMemberId);
+    if (!eventId || !events.has(eventId)) fail("eventConsentResponses", id, `eventId references missing event ${eventId || "(blank)"}`);
+    if (!token || !links.has(token)) fail("eventConsentResponses", id, `token references missing consent link ${token || "(blank)"}`);
+    else if (text(links.get(token).eventId) !== eventId) fail("eventConsentResponses", id, "eventId differs from its consent link");
+    if (memberId && !members.has(memberId)) fail("eventConsentResponses", id, `matchedMemberId references missing member ${memberId}`);
+    if (data.processingStatus === "matched" && !memberId) fail("eventConsentResponses", id, "matched response has no matchedMemberId");
+  }
+
+  for (const [id, data] of records("consentApplications")) {
+    const memberId = text(data.memberId);
+    if (memberId && !members.has(memberId)) fail("consentApplications", id, `memberId references missing member ${memberId}`);
+  }
 
   for (const optionCollection of ["equipmentCategories", "equipmentLocations"]) {
     const seen = new Set();
@@ -115,4 +185,3 @@ export function validateOperationalIntegrity(collections) {
 
   return errors.sort();
 }
-
