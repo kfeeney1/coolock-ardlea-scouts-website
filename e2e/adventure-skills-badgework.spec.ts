@@ -257,6 +257,11 @@ test.describe("Adventure Skills mobile badgework", () => {
     await expect(firstCompetency.getByText("Unsaved change", { exact: true })).toBeVisible();
     await expect(firstChildCheckbox).toHaveAccessibleName(/unsaved change$/);
 
+    const savePanel = page.getByTestId("badgework-save-panel");
+    await expect(savePanel).toHaveCSS("position", "static");
+    await savePanel.scrollIntoViewIfNeeded();
+    await expect(savePanel.getByRole("button", { name: "Save changes" })).toBeVisible();
+
     const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     expect(fitsViewport).toBe(true);
   });
