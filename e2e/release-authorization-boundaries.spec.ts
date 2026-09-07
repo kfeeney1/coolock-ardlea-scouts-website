@@ -32,7 +32,7 @@ async function loginParent(page: Page, account: Credentials) {
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByText("Parent Consent Portal").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Parent Portal", exact: true }).first()).toBeVisible();
 }
 
 test.describe("release authorization boundaries", () => {
