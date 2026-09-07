@@ -15,12 +15,22 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function viewportState(page: Page) {
+  return page.evaluate(() => ({
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    clientWidth: document.documentElement.clientWidth
+  }));
+}
+
 test("mobile Back dismisses the public menu promptly before leaving the current screen", async ({ page }, testInfo) => {
   mobileOnly(testInfo);
   await page.goto("/");
 
+  const beforeMenu = await viewportState(page);
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
+  await expect.poll(() => viewportState(page)).toEqual(beforeMenu);
 
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
