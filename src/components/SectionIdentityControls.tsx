@@ -28,7 +28,7 @@ function optionSx(section: string | null | undefined): SxProps<Theme> {
   };
 }
 
-export function sectionCardSx(section: string | null | undefined): SxProps<Theme> {
+export function sectionCardSx(section: string | null | undefined) {
   const tokens = sectionVisualTokens(section);
   return {
     borderLeftWidth: 4,
