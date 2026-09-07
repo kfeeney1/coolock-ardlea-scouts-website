@@ -7,7 +7,9 @@ const memberSections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Grou
 function applySectionIdentity(card: HTMLElement) {
   const chipLabels = Array.from(card.querySelectorAll<HTMLElement>(".MuiChip-label"));
   const sectionLabel = chipLabels.find((label) => memberSections.includes(label.textContent?.trim() as typeof memberSections[number]));
-  const section = sectionLabel?.textContent?.trim();
+  if (!sectionLabel) return;
+
+  const section = sectionLabel.textContent?.trim();
   if (!section) return;
 
   const tokens = sectionVisualTokens(section);
