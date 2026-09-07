@@ -18,6 +18,7 @@ MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 NS = {"m": MAIN_NS, "r": REL_NS}
+EXPLICIT_CUB_TRANSFER_NOTES = {"subs recorded in cubs sheet", "see cubs"}
 
 
 def column_of(cell_ref: str) -> str:
@@ -32,7 +33,6 @@ def load_sheet(path: Path, sheet_name: str):
             root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
             for item in root.findall("m:si", NS):
                 shared.append("".join(node.text or "" for node in item.iter(f"{{{MAIN_NS}}}t")))
-
         workbook = ET.fromstring(archive.read("xl/workbook.xml"))
         rel_root = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
         rels = {node.attrib["Id"]: node.attrib["Target"] for node in rel_root.findall(f"{{{PKG_REL_NS}}}Relationship")}
@@ -86,6 +86,11 @@ def iso_date(value) -> str:
     return ""
 
 
+def has_explicit_cub_transfer(values) -> bool:
+    notes = {value.strip().lower() for value in values.values() if isinstance(value, str)}
+    return bool(notes & EXPLICIT_CUB_TRANSFER_NOTES)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xlsx", action="append", required=True, help="Source workbook path; repeat for each section")
@@ -96,8 +101,7 @@ def main() -> None:
     if len(args.xlsx) != len(args.mapping):
         raise SystemExit("Each --xlsx requires one --mapping.")
 
-    records = []
-    rejected = []
+    records, rejected, excluded = [], [], []
     for workbook_path, mapping in zip(args.xlsx, args.mapping):
         parts = mapping.split("|")
         if len(parts) != 4:
@@ -112,21 +116,19 @@ def main() -> None:
             dob = iso_date(values.get(dob_col))
             if not isinstance(name, str) or not name.strip():
                 continue
-            if not dob:
-                rejected.append({"sourceRef": f"{section}:row-{row_number}", "reason": "missing-or-invalid-dob"})
+            source_ref = f"{section}:row-{row_number}"
+            if section == "Beavers" and has_explicit_cub_transfer(values):
+                excluded.append({"sourceRef": source_ref, "reason": "explicitly-recorded-in-cubs"})
                 continue
-            records.append({
-                "displayName": re.sub(r"\s+", " ", name.strip()),
-                "dateOfBirth": dob,
-                "section": section,
-                "importBatch": args.batch,
-                "sourceRef": f"{section}:row-{row_number}"
-            })
+            if not dob:
+                rejected.append({"sourceRef": source_ref, "reason": "missing-or-invalid-dob"})
+                continue
+            records.append({"displayName": re.sub(r"\s+", " ", name.strip()), "dateOfBirth": dob, "section": section, "importBatch": args.batch, "sourceRef": source_ref})
 
-    output = {"version": 1, "batch": args.batch, "records": records, "preparationRejected": rejected}
+    output = {"version": 1, "batch": args.batch, "records": records, "preparationRejected": rejected, "preparationExcluded": excluded}
     Path(args.output).write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     counts = {section: sum(1 for row in records if row["section"] == section) for section in ("Beavers", "Cubs", "Scouts")}
-    print(json.dumps({"recordsBySection": counts, "preparationRejected": len(rejected)}, separators=(",", ":")))
+    print(json.dumps({"recordsBySection": counts, "preparationRejected": len(rejected), "preparationExcluded": len(excluded)}, separators=(",", ":")))
     print("Private manifest written. Do not commit, attach to Jira, or upload as a CI artifact.")
 
 
