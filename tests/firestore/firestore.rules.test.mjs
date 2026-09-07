@@ -132,6 +132,26 @@ test("admins cannot promote themselves to super-admin", async () => {
   await assertFails(updateDoc(doc(db, "adminUsers/admin-1"), { role: "super-admin" }));
 });
 
+test("super-admins can scan malformed section-scoped records while ordinary leaders cannot", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["weeklyMeetings/malformed", { meetingDate: "2026-09-07", entries: [], injuries: [] }],
+    ["members/malformed", { displayName: "Missing section" }],
+    ["events/malformed", { title: "Missing section" }],
+    ["eventConsentLinks/malformed", { active: false }],
+    ["financeTransactions/malformed", { description: "Missing section" }],
+    ["financeReconciliations/malformed", { note: "Missing section" }],
+  ]);
+  const leaderDb = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
+  const superAdminDb = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
+
+  for (const collectionName of ["weeklyMeetings", "members", "events", "eventConsentLinks", "financeTransactions", "financeReconciliations"]) {
+    await assertFails(getDocs(collection(leaderDb, collectionName)));
+    await assertSucceeds(getDocs(collection(superAdminDb, collectionName)));
+  }
+});
+
 test("leaders can append valid audit entries but cannot edit them", async () => {
   await seedDocuments([["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }]]);
   const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();

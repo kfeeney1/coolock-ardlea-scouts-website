@@ -44,6 +44,17 @@ for (const [role, email] of [
       await expect(page.getByText("Firestore", { exact: true })).toBeVisible();
       await expect(page.getByText("Email service")).toBeVisible();
       await expect(page.getByText("Attachment storage")).toBeVisible();
+      await expect(page.getByText("Operational data integrity")).toBeVisible();
+      const runDataCheck = page.getByRole("button", { name: "Run data check" });
+      await expect(runDataCheck).toBeVisible();
+      await runDataCheck.click();
+      const dataHealth = page.getByTestId("operational-health-data-integrity");
+      await expect(dataHealth.getByText("Check", { exact: true })).toBeVisible();
+      await expect(dataHealth).toContainText("7 relationship findings");
+      await expect(dataHealth).toContainText("consentApplications");
+      await expect(dataHealth).toContainText("equipmentItems");
+      await expect(dataHealth.getByRole("link", { name: "Consent records" })).toHaveAttribute("href", "/leader/consents");
+      await expect(dataHealth.getByRole("link", { name: "Equipment" })).toHaveAttribute("href", "/leader/equipment");
     } else {
       await expect(operationalHealth).toHaveCount(0);
     }

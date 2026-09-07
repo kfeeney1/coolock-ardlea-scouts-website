@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildReleaseHealth, configuredCapabilityHealth } from "../../src/services/operationalHealth.ts";
+import { buildReleaseHealth, configuredCapabilityHealth, summariseOperationalDataHealth } from "../../src/services/operationalHealth.ts";
 
 test("release health accepts valid GitHub deployment evidence without exposing payload data", () => {
     const result = buildReleaseHealth({
@@ -31,4 +31,20 @@ test("capability health reports only non-sensitive configuration state", () => {
 
     const missing = configuredCapabilityHealth({ emailApiUrl: "", storageBucket: "" });
     assert.deepEqual(missing.map((item) => item.status), ["healthy", "unavailable", "unavailable"]);
+});
+
+test("data health summarises findings without exposing record contents", () => {
+    const healthy = summariseOperationalDataHealth([]);
+    assert.equal(healthy.item.status, "healthy");
+    assert.equal(healthy.findingCount, 0);
+
+    const warning = summariseOperationalDataHealth([
+        "members/member-secret: unsupported section Hidden",
+        "parentAccounts/parent-secret: references missing member member-secret",
+        "members/second-secret: unsupported section Hidden"
+    ]);
+    assert.equal(warning.item.status, "warning");
+    assert.equal(warning.findingCount, 3);
+    assert.deepEqual(warning.affectedCollections, ["members", "parentAccounts"]);
+    assert.doesNotMatch(warning.item.detail, /member-secret|parent-secret|second-secret/);
 });
