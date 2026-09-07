@@ -145,6 +145,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
       {view === "cards" && filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
       const summaries = adventureSkillOverview(progress);
+      const visibleSummaries = skillFilter === "all" ? summaries : summaries.filter((summary) => summary.skillId === skillFilter);
       const awaitingAward = summaries.filter((summary) => summary.status === "requirements-complete").length;
       const inProgress = summaries.filter((summary) => summary.status === "in-progress").length;
       return <Paper key={member.id} variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }} data-testid={`badgework-overview-member-${member.id}`}>
@@ -156,7 +157,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
             <Button size="small" variant="outlined" onClick={() => setSelectedMemberId(member.id)}>View child progress</Button>
           </Stack>
         </Stack>
-        <BadgeworkSkillGrid memberName={member.displayName} summaries={summaries} onOpenStage={(nextSkillId, nextStage) => onOpenMemberSkill(member.id, nextSkillId, nextStage)} />
+        <BadgeworkSkillGrid memberName={member.displayName} summaries={visibleSummaries} onOpenStage={(nextSkillId, nextStage) => onOpenMemberSkill(member.id, nextSkillId, nextStage)} />
       </Paper>;
       })}
       {filteredMembers.length === 0 && <Alert severity="info">No children match the current badgework filters.</Alert>}
