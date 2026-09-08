@@ -206,7 +206,7 @@ async function seed() {
     submittedAt: now
   });
 
-  await set("eventConsentLinks", "TESTFLOWBEAVERSOPEN2026", { eventId: "TEST_flow_event_beavers_open", title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: flowDates.beaversOpen, endDate: flowDates.beaversOpen, consentRequired: true, active: true, createdAt: now, createdBy: "TEST_SEED" });
+  await set("eventConsentLinks", "TESTFLOWBEAVERSOPEN2026", { eventId: "TEST_flow_event_beavers_open", title: "TEST Beavers Open Day Trip", description: "Canonical open day-trip example.", eventType: "Day Trip", section: "Beavers", location: "Dublin Zoo", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: flowDates.beaversOpen, endDate: "", consentRequired: true, active: true, createdAt: now, createdBy: "TEST_SEED" });
   await set("eventConsentLinks", "TESTFLOWINACTIVE2026", { eventId: "TEST_flow_event_all_sections", title: "TEST All Sections Group Day", description: "Canonical all-sections event example.", eventType: "Activity", section: "All Sections", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", startDate: flowDates.allSectionsOpen, endDate: flowDates.allSectionsOpen, consentRequired: true, active: false, createdAt: now, createdBy: "TEST_SEED" });
 
   const responseBase = { token: "TESTFLOWBEAVERSOPEN2026", eventId: "TEST_flow_event_beavers_open", dateOfBirth: beaver.dateOfBirth, parentName: beaver.parentName || "Test Parent", attendance: "attending", consentGiven: true, emergencyDetailsConfirmed: true, submittedAt: now };
