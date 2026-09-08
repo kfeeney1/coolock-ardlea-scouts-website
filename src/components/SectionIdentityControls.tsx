@@ -107,6 +107,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const labelId = `${id}-label`;
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
 
   const handleOpen = (event: SyntheticEvent) => {
@@ -121,11 +122,13 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     setMenuPlacement({
       anchorVertical: openAbove ? "top" : "bottom",
       transformVertical: openAbove ? "bottom" : "top",
-      maxHeight: Math.min(320, availableSpace)
+      maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
+    setMenuOpen(true);
   };
 
-  const restoreTriggerFocusWithoutScrolling = () => {
+  const handleClose = () => {
+    setMenuOpen(false);
     requestAnimationFrame(() => {
       document.getElementById(id)?.focus({ preventScroll: true });
     });
@@ -139,15 +142,16 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         labelId={labelId}
         label={label}
         value={value}
+        open={menuOpen}
         onChange={onChange}
         onOpen={handleOpen}
+        onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
           anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           disableAutoFocusItem: true,
           disableRestoreFocus: true,
-          onClose: restoreTriggerFocusWithoutScrolling,
           slotProps: {
             paper: {
               sx: {
