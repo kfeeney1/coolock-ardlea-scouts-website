@@ -1,4 +1,5 @@
-import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
+import { Box, Button, Chip, FormControl, InputLabel, MenuItem, type ButtonProps, type ChipProps } from "@mui/material";
+import Select, { type SelectChangeEvent, type SelectProps } from "@mui/material/Select";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
