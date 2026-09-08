@@ -1,7 +1,7 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, type ButtonProps, type ChipProps } from "@mui/material";
 import Select, { type SelectChangeEvent, type SelectProps } from "@mui/material/Select";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -109,8 +109,10 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
+  const [menuOpen, setMenuOpen] = useState(false);
   const controlRef = useRef<HTMLDivElement | null>(null);
   const openScroll = useRef({ x: 0, y: 0 });
+  const closeFromScroll = useRef(false);
 
   const getTrigger = () => controlRef.current?.querySelector<HTMLElement>('[role="combobox"]') ?? document.getElementById(id);
 
@@ -131,6 +133,8 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
       transformVertical: openAbove ? "bottom" : "top",
       maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
+    closeFromScroll.current = false;
+    setMenuOpen(true);
   };
 
   const captureOpen = () => {
@@ -138,9 +142,32 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   };
 
   const handleClose = () => {
-    getTrigger()?.focus({ preventScroll: true });
-    window.scrollTo(openScroll.current.x, openScroll.current.y);
+    setMenuOpen(false);
+    if (!closeFromScroll.current) {
+      getTrigger()?.focus({ preventScroll: true });
+      window.scrollTo(openScroll.current.x, openScroll.current.y);
+    }
   };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const dismissDetachedMenu = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest('[role="listbox"]')) return;
+      if ((event.target === document || event.target === document.documentElement)
+        && window.scrollX === openScroll.current.x && window.scrollY === openScroll.current.y) return;
+      closeFromScroll.current = true;
+      setMenuOpen(false);
+    };
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => window.addEventListener("scroll", dismissDetachedMenu, true));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      window.removeEventListener("scroll", dismissDetachedMenu, true);
+    };
+  }, [menuOpen]);
 
   return (
     <FormControl ref={controlRef} size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
@@ -150,6 +177,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         labelId={labelId}
         label={label}
         value={value}
+        open={menuOpen}
         onChange={onChange}
         onMouseDownCapture={captureOpen}
         onKeyDownCapture={captureOpen}
