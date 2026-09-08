@@ -15,6 +15,19 @@ test.describe("public website", () => {
   }
 });
 
+test("activities show only published current and upcoming records", async ({ page }) => {
+  await page.goto("/activities");
+
+  await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
+  await expect(page.getByText("Dublin Zoo")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "TEST Rovers Open Service Project" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "TEST All Sections Group Day" })).toBeVisible();
+
+  await expect(page.getByText("TEST Cubs Draft Camp")).toHaveCount(0);
+  await expect(page.getByText("TEST Scouts Closed Hike")).toHaveCount(0);
+  await expect(page.getByText("TEST Ventures Completed Activity")).toHaveCount(0);
+});
+
 test("leader pages require leader login", async ({ page }) => {
   await page.goto("/leader/events");
   await expect(page.getByRole("heading", { name: "Leader Login" })).toBeVisible();
