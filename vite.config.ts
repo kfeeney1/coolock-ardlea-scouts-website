@@ -1,5 +1,46 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+
+function stableSelectImports(): Plugin {
+    return {
+        name: "stable-select-imports",
+        enforce: "pre",
+        transform(code, id) {
+            if (!/[\\/]src[\\/].*\\.(?:ts|tsx)$/.test(id) || !code.includes("@mui/material")) return null;
+
+            let replacedSelect = false;
+            const transformed = code.replace(
+                /import\s*\{([\s\S]*?)\}\s*from\s*["']@mui\/material["'];?/g,
+                (fullImport, specifierBlock: string) => {
+                    let removedFromThisImport = false;
+                    const remaining = specifierBlock
+                        .split(",")
+                        .map((specifier) => specifier.trim())
+                        .filter(Boolean)
+                        .filter((specifier) => {
+                            if (specifier === "Select") {
+                                removedFromThisImport = true;
+                                replacedSelect = true;
+                                return false;
+                            }
+                            return true;
+                        });
+
+                    if (!removedFromThisImport) return fullImport;
+                    return remaining.length > 0
+                        ? `import { ${remaining.join(", ")} } from "@mui/material";`
+                        : "";
+                }
+            );
+
+            if (!replacedSelect) return null;
+            return {
+                code: `import Select from "/src/components/StableSelect.tsx";\n${transformed}`,
+                map: null
+            };
+        }
+    };
+}
 
 function createBuildNumber(): string {
     const now = new Date();
@@ -17,7 +58,7 @@ function createBuildNumber(): string {
 const buildNumber = createBuildNumber();
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [stableSelectImports(), react()],
 
     define: {
         __BUILD_NUMBER__: JSON.stringify(buildNumber)
