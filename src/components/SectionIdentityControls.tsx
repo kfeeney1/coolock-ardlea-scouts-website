@@ -92,15 +92,13 @@ type SectionSelectProps = {
 };
 
 type MenuPlacement = {
-  top: number;
-  left: number;
+  anchorVertical: "top" | "bottom";
   transformVertical: "top" | "bottom";
   maxHeight: number;
 };
 
 const DEFAULT_MENU_PLACEMENT: MenuPlacement = {
-  top: 0,
-  left: 0,
+  anchorVertical: "bottom",
   transformVertical: "top",
   maxHeight: 320
 };
@@ -111,10 +109,11 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
+  const controlRef = useRef<HTMLDivElement | null>(null);
   const openScrollPosition = useRef({ x: 0, y: 0 });
   const restoreViewport = useRef(false);
 
-  const getTrigger = () => document.getElementById(id);
+  const getTrigger = () => controlRef.current?.querySelector<HTMLElement>('[role="combobox"]') ?? document.getElementById(id);
   const restoreViewportPosition = () => {
     if (!restoreViewport.current) return;
     const scrollPosition = openScrollPosition.current;
@@ -145,8 +144,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
     restoreViewport.current = false;
     setMenuPlacement({
-      top: openAbove ? rect.top : rect.bottom,
-      left: rect.left,
+      anchorVertical: openAbove ? "top" : "bottom",
       transformVertical: openAbove ? "bottom" : "top",
       maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
@@ -164,7 +162,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   };
 
   return (
-    <FormControl size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
+    <FormControl ref={controlRef} size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
       <InputLabel id={labelId}>{label}</InputLabel>
       <Select
         id={id}
@@ -177,8 +175,8 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
-          anchorReference: "anchorPosition",
-          anchorPosition: { top: menuPlacement.top, left: menuPlacement.left },
+          anchorEl: getTrigger,
+          anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           marginThreshold: 0,
           disableAutoFocusItem: true,
