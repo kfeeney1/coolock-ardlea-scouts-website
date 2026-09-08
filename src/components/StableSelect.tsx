@@ -1,5 +1,5 @@
 import Select, { type SelectProps } from "@mui/material/Select";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 type Placement = {
   top: number;
@@ -22,9 +22,10 @@ const DEFAULT_PLACEMENT: Placement = {
 };
 
 /**
- * Site-wide MUI Select wrapper that leaves MUI's native open/close lifecycle
- * intact while keeping transient menus anchored to the visible trigger and
- * preventing focus restoration from moving the underlying page.
+ * Site-wide MUI Select wrapper that keeps the native Select API while making
+ * the menu lifecycle explicit. Capturing the viewport before opening and
+ * restoring it through the menu exit prevents MUI focus/transition work from
+ * moving the underlying page.
  */
 export default function StableSelect<Value = unknown>(props: SelectProps<Value>) {
   const {
@@ -33,11 +34,16 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     onClose,
     onMouseDownCapture,
     onKeyDownCapture,
+    open: controlledOpen,
     ...selectProps
   } = props;
   const rootRef = useRef<HTMLElement | null>(null);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
   const openSnapshot = useRef<OpenSnapshot | null>(null);
+  const restoreAfterClose = useRef(false);
+  const isControlled = controlledOpen !== undefined;
+  const menuOpen = isControlled ? controlledOpen : internalOpen;
 
   const getTrigger = () => {
     const root = rootRef.current;
@@ -57,7 +63,7 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     const openAbove = spaceAbove > spaceBelow;
     const availableSpace = openAbove ? spaceAbove : spaceBelow;
 
-    openSnapshot.current = {
+    const snapshot: OpenSnapshot = {
       scrollX: window.scrollX,
       scrollY: window.scrollY,
       placement: {
@@ -67,6 +73,8 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
         maxHeight: Math.max(Math.min(320, availableSpace), 48)
       }
     };
+    openSnapshot.current = snapshot;
+    setPlacement(snapshot.placement);
   };
 
   const restoreViewport = () => {
@@ -74,6 +82,19 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     if (!snapshot) return;
     window.scrollTo(snapshot.scrollX, snapshot.scrollY);
   };
+
+  const restoreViewportAndFocus = () => {
+    restoreViewport();
+    getTrigger()?.focus({ preventScroll: true });
+    restoreViewport();
+  };
+
+  useLayoutEffect(() => {
+    if (menuOpen || !restoreAfterClose.current) return;
+    restoreViewportAndFocus();
+    const frame = requestAnimationFrame(restoreViewportAndFocus);
+    return () => cancelAnimationFrame(frame);
+  }, [menuOpen]);
 
   const handleMouseDownCapture: NonNullable<SelectProps<Value>["onMouseDownCapture"]> = (event) => {
     snapshotOpenState();
@@ -87,12 +108,10 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
 
   const handleOpen: NonNullable<SelectProps<Value>["onOpen"]> = (event) => {
     if (!openSnapshot.current) snapshotOpenState();
-    const snapshot = openSnapshot.current;
-    if (snapshot) {
-      setPlacement(snapshot.placement);
-      restoreViewport();
-      requestAnimationFrame(restoreViewport);
-    }
+    restoreAfterClose.current = false;
+    if (!isControlled) setInternalOpen(true);
+    restoreViewport();
+    requestAnimationFrame(restoreViewport);
     onOpen?.(event);
   };
 
@@ -100,27 +119,25 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     onClose?.(event);
     if (event.defaultPrevented) return;
 
-    const trigger = getTrigger();
-    const restore = () => {
-      restoreViewport();
-      trigger?.focus({ preventScroll: true });
-      restoreViewport();
-    };
-    requestAnimationFrame(() => {
-      restore();
-      requestAnimationFrame(() => {
-        restore();
-        openSnapshot.current = null;
-      });
-    });
+    restoreAfterClose.current = true;
+    if (!isControlled) setInternalOpen(false);
+  };
+
+  const handleMenuExited = () => {
+    if (!restoreAfterClose.current) return;
+    restoreViewportAndFocus();
+    restoreAfterClose.current = false;
+    openSnapshot.current = null;
   };
 
   const externalPaperSlot = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
+  const externalTransitionSlot = typeof MenuProps?.slotProps?.transition === "function" ? undefined : MenuProps?.slotProps?.transition;
 
   return (
     <Select
       {...selectProps}
       ref={(node) => { rootRef.current = node as HTMLElement | null; }}
+      open={menuOpen}
       onMouseDownCapture={handleMouseDownCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onOpen={handleOpen}
@@ -148,6 +165,13 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
                     : []
               )
             ]
+          },
+          transition: {
+            ...externalTransitionSlot,
+            onExited: (...args) => {
+              externalTransitionSlot?.onExited?.(...args);
+              handleMenuExited();
+            }
           }
         }
       }}
