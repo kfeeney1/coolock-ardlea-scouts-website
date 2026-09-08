@@ -1,6 +1,6 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -92,13 +92,15 @@ type SectionSelectProps = {
 };
 
 type MenuPlacement = {
-  anchorVertical: "top" | "bottom";
+  top: number;
+  left: number;
   transformVertical: "top" | "bottom";
   maxHeight: number;
 };
 
 const DEFAULT_MENU_PLACEMENT: MenuPlacement = {
-  anchorVertical: "bottom",
+  top: 0,
+  left: 0,
   transformVertical: "top",
   maxHeight: 320
 };
@@ -110,8 +112,28 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
   const openScrollPosition = useRef({ x: 0, y: 0 });
+  const restoreViewport = useRef(false);
 
   const getTrigger = () => document.getElementById(id);
+
+  useLayoutEffect(() => {
+    if (menuOpen || !restoreViewport.current) return;
+
+    const scrollPosition = openScrollPosition.current;
+    const restore = () => {
+      window.scrollTo(scrollPosition.x, scrollPosition.y);
+      getTrigger()?.focus({ preventScroll: true });
+      window.scrollTo(scrollPosition.x, scrollPosition.y);
+    };
+
+    restore();
+    const frame = requestAnimationFrame(() => {
+      restore();
+      restoreViewport.current = false;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [menuOpen, value]);
 
   const handleOpen = () => {
     const trigger = getTrigger();
@@ -125,8 +147,10 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
 
     openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
+    restoreViewport.current = false;
     setMenuPlacement({
-      anchorVertical: openAbove ? "top" : "bottom",
+      top: openAbove ? rect.top : rect.bottom,
+      left: rect.left,
       transformVertical: openAbove ? "bottom" : "top",
       maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
@@ -134,13 +158,8 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   };
 
   const handleClose = () => {
-    const scrollPosition = openScrollPosition.current;
+    restoreViewport.current = true;
     setMenuOpen(false);
-    requestAnimationFrame(() => {
-      window.scrollTo(scrollPosition.x, scrollPosition.y);
-      getTrigger()?.focus({ preventScroll: true });
-      window.scrollTo(scrollPosition.x, scrollPosition.y);
-    });
   };
 
   return (
@@ -157,9 +176,10 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
-          anchorEl: getTrigger,
-          anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
+          anchorReference: "anchorPosition",
+          anchorPosition: { top: menuPlacement.top, left: menuPlacement.left },
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
+          marginThreshold: 0,
           disableAutoFocusItem: true,
           disableRestoreFocus: true,
           slotProps: {
