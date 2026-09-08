@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -59,6 +59,23 @@ test("public event projections expose only canonical documents and remain sectio
   await assertFails(setDoc(doc(testEnv.authenticatedContext("leader-scouts").firestore(), "publicEvents/event-3"), {
     ...canonical, eventId: "event-3", updatedAt: serverTimestamp(),
   }));
+});
+
+test("public can list only schema-limited event projections", async () => {
+  const canonical = {
+    eventId: "event-1", title: "Camp", description: "", eventType: "camp", section: "Cubs",
+    location: "Den", startDate: "2026-09-10", endDate: "", updatedAt: new Date(),
+  };
+  await seed([["publicEvents/event-1", canonical]]);
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  await assertSucceeds(getDocs(query(
+    collection(publicDb, "publicEvents"),
+    where("startDate", ">=", "2026-09-08"),
+    orderBy("startDate", "asc"),
+  )));
+
+  await seed([["publicEvents/unsafe", { ...canonical, eventId: "unsafe", leaderNotes: "private" }]]);
+  await assertFails(getDocs(collection(publicDb, "publicEvents")));
 });
 
 test("event consent links are public only while active and responses bind to that link", async () => {
