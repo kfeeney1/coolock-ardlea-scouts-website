@@ -28,15 +28,6 @@ async function viewportState(page: Page) {
   }));
 }
 
-async function viewportMatchesNaturalClamp(page: Page, previous: Awaited<ReturnType<typeof viewportState>>) {
-  return page.evaluate((before) => {
-    const maxScrollY = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
-    return window.scrollX === before.scrollX
-      && window.scrollY === Math.min(before.scrollY, maxScrollY)
-      && document.documentElement.clientWidth === before.clientWidth;
-  }, previous);
-}
-
 async function assertSectionDropdownBehaviour(page: Page) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
@@ -88,7 +79,7 @@ async function assertSectionDropdownBehaviour(page: Page) {
   await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
   await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
-  await expect.poll(() => viewportMatchesNaturalClamp(page, beforeOpen)).toBe(true);
+  await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 }
 
 test("member, child and leader cards keep a textual section identity alongside the section accent", async ({ page }, testInfo) => {
