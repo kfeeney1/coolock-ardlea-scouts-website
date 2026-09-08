@@ -1,5 +1,6 @@
 import { createTheme } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
+import StableSelect from "../components/StableSelect";
 import type { ThemeName } from "./themePreferences";
 
 export const brandColours = {
@@ -33,6 +34,10 @@ const stableTransientPopovers = {
   defaultProps: { disableScrollLock: true }
 } as const;
 
+const stableTextFieldSelect = {
+  defaultProps: { slots: { select: StableSelect } }
+} as const;
+
 export const defaultTheme = createTheme({
   palette: {
     primary: { main: brandColours.coral, contrastText: brandColours.white },
@@ -51,6 +56,7 @@ export const defaultTheme = createTheme({
     MuiButton: { styleOverrides: { root: { borderRadius: "999px", textTransform: "none", paddingLeft: "24px", paddingRight: "24px" } } },
     MuiDialogActions: responsiveDialogActions,
     MuiPopover: stableTransientPopovers,
+    MuiTextField: stableTextFieldSelect,
     MuiPaper: { styleOverrides: { rounded: { borderRadius: "18px" } } },
     MuiCard: { styleOverrides: { root: { borderRadius: "18px" } } }
   }
@@ -81,7 +87,7 @@ export const modernTheme = createTheme({
     MuiPopover: stableTransientPopovers,
     MuiPaper: { styleOverrides: { rounded: { borderRadius: "20px" }, root: { backgroundImage: "none" } } },
     MuiCard: { styleOverrides: { root: { borderRadius: "20px", border: "1px solid #E3E8F2", boxShadow: "0 8px 30px rgba(23,32,51,0.06)" } } },
-    MuiTextField: { defaultProps: { variant: "outlined" } },
+    MuiTextField: { defaultProps: { variant: "outlined", slots: { select: StableSelect } } },
     MuiOutlinedInput: { styleOverrides: { root: { borderRadius: "12px" } } },
     MuiChip: { styleOverrides: { root: { borderRadius: "10px", fontWeight: 650 } } }
   }
