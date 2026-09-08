@@ -158,8 +158,15 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
       closeFromScroll.current = true;
       setMenuOpen(false);
     };
-    window.addEventListener("scroll", dismissDetachedMenu, true);
-    return () => window.removeEventListener("scroll", dismissDetachedMenu, true);
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => window.addEventListener("scroll", dismissDetachedMenu, true));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      window.removeEventListener("scroll", dismissDetachedMenu, true);
+    };
   }, [menuOpen]);
 
   return (
