@@ -31,6 +31,7 @@ async function viewportState(page: Page) {
 async function assertSectionDropdownBehaviour(page: Page) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
+  await sectionFilter.scrollIntoViewIfNeeded();
   const sectionTrigger = await sectionFilter.elementHandle();
   expect(sectionTrigger).not.toBeNull();
   const beforeOpen = await viewportState(page);
