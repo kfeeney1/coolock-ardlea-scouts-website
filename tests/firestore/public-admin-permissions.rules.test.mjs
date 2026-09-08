@@ -61,12 +61,15 @@ test("public event projections expose only canonical documents and remain sectio
   }));
 });
 
-test("public can list only schema-limited event projections", async () => {
+test("public can list projections while authorized writes reject private fields", async () => {
   const canonical = {
     eventId: "event-1", title: "Camp", description: "", eventType: "camp", section: "Cubs",
     location: "Den", startDate: "2026-09-10", endDate: "", updatedAt: new Date(),
   };
-  await seed([["publicEvents/event-1", canonical]]);
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["publicEvents/event-1", canonical],
+  ]);
   const publicDb = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(getDocs(query(
     collection(publicDb, "publicEvents"),
@@ -74,8 +77,10 @@ test("public can list only schema-limited event projections", async () => {
     orderBy("startDate", "asc"),
   )));
 
-  await seed([["publicEvents/unsafe", { ...canonical, eventId: "unsafe", leaderNotes: "private" }]]);
-  await assertFails(getDocs(collection(publicDb, "publicEvents")));
+  const leaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
+  await assertFails(setDoc(doc(leaderDb, "publicEvents/unsafe"), {
+    ...canonical, eventId: "unsafe", leaderNotes: "private", updatedAt: serverTimestamp(),
+  }));
 });
 
 test("event consent links are public only while active and responses bind to that link", async () => {
