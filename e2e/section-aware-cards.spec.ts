@@ -31,7 +31,12 @@ async function assertSectionDropdownBehaviour(page: Page) {
   await expect(listbox).toBeVisible();
   const menuBox = await listbox.boundingBox();
   expect(menuBox).not.toBeNull();
-  expect(menuBox!.y).toBeGreaterThanOrEqual(triggerBox!.y + triggerBox!.height - 2);
+  const verticalGap = Math.max(
+    triggerBox!.y - (menuBox!.y + menuBox!.height),
+    menuBox!.y - (triggerBox!.y + triggerBox!.height),
+    0
+  );
+  expect(verticalGap).toBeLessThanOrEqual(2);
   expect(menuBox!.x).toBeLessThan(triggerBox!.x + triggerBox!.width);
   expect(menuBox!.x + menuBox!.width).toBeGreaterThan(triggerBox!.x);
 
@@ -93,6 +98,6 @@ test("section dropdown stays attached and restrained on mobile", async ({ page }
 
   await loginAdmin(page);
   await page.goto("/leader/badgework");
-  await expect(page.getByRole("heading", { name: /Badgework/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Adventure Skills Badgework", exact: true })).toBeVisible();
   await assertSectionDropdownBehaviour(page);
 });
