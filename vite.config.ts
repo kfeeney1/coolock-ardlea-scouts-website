@@ -1,3 +1,5 @@
+import { fileURLToPath, URL } from "node:url";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -18,6 +20,15 @@ const buildNumber = createBuildNumber();
 
 export default defineConfig({
     plugins: [react()],
+
+    resolve: {
+        alias: [
+            {
+                find: /^@mui\/material$/,
+                replacement: fileURLToPath(new URL("./src/mui-material.ts", import.meta.url))
+            }
+        ]
+    },
 
     define: {
         __BUILD_NUMBER__: JSON.stringify(buildNumber)
