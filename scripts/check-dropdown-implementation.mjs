@@ -61,7 +61,7 @@ if (!/find:\s*\/\^@mui\\\/material\$\//.test(viteConfig) || !/src\/mui-material\
 }
 
 const tsConfig = await readFile(path.join(root, "tsconfig.app.json"), "utf8");
-if (!/"@mui\/material"\s*:\s*\[\s*"src\/mui-material\.ts"\s*\]/.test(tsConfig)) {
+if (!/"@mui\/material"\s*:\s*\[\s*"\.\/src\/mui-material\.ts"\s*\]/.test(tsConfig)) {
   violations.push("tsconfig.app.json: @mui/material typecheck path is not routed through the app proxy");
 }
 
