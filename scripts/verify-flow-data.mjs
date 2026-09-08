@@ -77,6 +77,7 @@ requireFields("events", events, ["title", "description", "eventType", "section",
 const eventById = new Map(events.map((doc) => [doc.id, doc]));
 const expectedEventDates = {
   TEST_flow_event_beavers_open: [relativeDate(14), relativeDate(14)],
+  TEST_flow_event_public_single_day: [relativeDate(21), ""],
   TEST_flow_event_cubs_draft: [relativeDate(35), relativeDate(37)],
   TEST_flow_event_scouts_closed: [relativeDate(-30), relativeDate(-30)],
   TEST_flow_event_ventures_completed: [relativeDate(-45), relativeDate(-45)],

@@ -244,17 +244,27 @@ service cloud.firestore {
     }
 
     match /publicEvents/{eventId} {
-      allow read: if resource.data.get("eventId", "") == eventId
+      function isSafePublicEvent() {
+        return resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt", "testData", "testSeed", "createdBySeed"])
         && resource.data.title is string && resource.data.eventType is string
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
+      }
+      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent();
+      // Firestore list rules cannot validate each returned document after a query.
+      // Safety is enforced at this dedicated projection's create/update boundary.
+      allow list: if true;
       allow create: if isActiveLeader()
         && hasSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
+        && request.resource.data.title is string && request.resource.data.eventType is string
+        && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
       allow update: if isActiveLeader()
         && hasSection(resource.data.section)
         && hasSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
+        && request.resource.data.title is string && request.resource.data.eventType is string
+        && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
       allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
     }

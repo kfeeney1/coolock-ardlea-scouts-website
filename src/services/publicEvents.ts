@@ -25,7 +25,9 @@ function mapPublicEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PublicEv
     const section = stringValue(data, "section");
     const startDate = stringValue(data, "startDate");
     const endDate = stringValue(data, "endDate");
-    if (!title || !eventType || !section || !startDate || !endDate) return null;
+    // A blank end date is the canonical representation of a single-day event.
+    // Only the start date is required for a public event to be renderable.
+    if (!title || !eventType || !section || !startDate) return null;
 
     return {
         id: snapshot.id,
@@ -41,11 +43,14 @@ function mapPublicEvent(snapshot: QueryDocumentSnapshot<DocumentData>): PublicEv
 
 export async function loadUpcomingPublicEvents(): Promise<PublicEvent[]> {
     const today = new Date().toISOString().slice(0, 10);
-    const snapshot = await getDocs(
-        query(collection(db, "publicEvents"), where("startDate", ">=", today), orderBy("startDate", "asc"))
-    );
+    const [upcoming, inProgress] = await Promise.all([
+        getDocs(query(collection(db, "publicEvents"), where("startDate", ">=", today), orderBy("startDate", "asc"))),
+        getDocs(query(collection(db, "publicEvents"), where("endDate", ">=", today), orderBy("endDate", "asc")))
+    ]);
 
-    return snapshot.docs
+    return [...new Map([...upcoming.docs, ...inProgress.docs].map((snapshot) => [snapshot.id, snapshot])).values()]
         .map(mapPublicEvent)
-        .filter((event): event is PublicEvent => event !== null);
+        .filter((event): event is PublicEvent => event !== null)
+        .filter((event) => (event.endDate || event.startDate) >= today)
+        .sort((left, right) => left.startDate.localeCompare(right.startDate));
 }
