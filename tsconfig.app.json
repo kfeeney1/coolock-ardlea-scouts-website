@@ -7,9 +7,8 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "@mui/material": ["src/mui-material.ts"]
+      "@mui/material": ["./src/mui-material.ts"]
     },
 
     /* Bundler mode */
