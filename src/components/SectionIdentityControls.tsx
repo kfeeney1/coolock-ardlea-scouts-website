@@ -19,15 +19,15 @@ function optionSx(section: string | null | undefined): SxProps<Theme> {
   const tokens = sectionVisualTokens(section);
   return {
     gap: 1,
-    backgroundColor: tokens.subtleBackground,
-    color: tokens.foreground,
-    "&:hover": { backgroundColor: tokens.hoverBackground },
+    backgroundColor: "transparent",
+    color: "text.primary",
+    "&:hover": { backgroundColor: "action.hover" },
     "&.Mui-selected": {
-      backgroundColor: tokens.selectedBackground,
-      color: tokens.foreground,
-      "&:hover": { backgroundColor: tokens.hoverBackground }
+      backgroundColor: "action.selected",
+      color: "text.primary",
+      "&:hover": { backgroundColor: "action.hover" }
     },
-    "&.Mui-disabled": { backgroundColor: tokens.disabledBackground, color: tokens.disabledForeground },
+    "&.Mui-disabled": { backgroundColor: "action.disabledBackground", color: "text.disabled" },
     "&:focus-visible": { outline: `3px solid ${tokens.focusRing}`, outlineOffset: -3 }
   };
 }
@@ -105,6 +105,17 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         value={value}
         onChange={onChange}
         data-section={selectedTokens.section ?? "all"}
+        MenuProps={{
+          anchorOrigin: { vertical: "bottom", horizontal: "left" },
+          transformOrigin: { vertical: "top", horizontal: "left" },
+          slotProps: {
+            paper: {
+              sx: {
+                maxHeight: "min(320px, calc(100vh - 32px))"
+              }
+            }
+          }
+        }}
         renderValue={(selected) => (
           <SectionOptionLabel
             section={selected === allValue ? null : selected}
