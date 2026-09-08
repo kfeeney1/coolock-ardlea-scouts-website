@@ -4,8 +4,12 @@ import process from "node:process";
 
 const root = process.cwd();
 const srcRoot = path.join(root, "src");
-const allowedDirectSelects = new Set([
-  "src/components/SectionIdentityControls.tsx"
+const allowedSelectPrimitiveImports = new Set([
+  "src/components/SectionIdentityControls.tsx",
+  "src/components/StableSelect.tsx"
+]);
+const allowedTextFieldPrimitiveImports = new Set([
+  "src/components/StableTextField.tsx"
 ]);
 
 async function collect(directory) {
@@ -19,55 +23,52 @@ async function collect(directory) {
   return files;
 }
 
-const directSelectFiles = [];
-const selectLikeFiles = [];
+const violations = [];
+let selectMarkupCount = 0;
+let textFieldSelectCount = 0;
 for (const filename of await collect(srcRoot)) {
   const source = await readFile(filename, "utf8");
   const relative = path.relative(root, filename).replaceAll(path.sep, "/");
-  const directSelect = /<Select(?:\s|>)/.test(source);
-  const textFieldSelect = /<TextField\b[^>]*\bselect(?:\s|=|>)/s.test(source);
-  const autocomplete = /<Autocomplete(?:\s|>)/.test(source);
-  const nativeSelect = /<select(?:\s|>)/.test(source);
 
-  if (directSelect && !allowedDirectSelects.has(relative)) {
-    const traits = [
-      /\bmultiple(?:\s|=|>)/.test(source) ? "multiple" : null,
-      /\bMenuProps\s*=/.test(source) ? "custom MenuProps" : null,
-      /\bopen\s*=/.test(source) ? "controlled open candidate" : null,
-      /\bonOpen\s*=/.test(source) ? "custom onOpen" : null,
-      /\bonClose\s*=/.test(source) ? "custom onClose" : null,
-      /\brenderValue\s*=/.test(source) ? "renderValue" : null,
-      /\bnative\s*=/.test(source) ? "native mode" : null
-    ].filter(Boolean);
-    directSelectFiles.push({ relative, traits });
+  if (/<Select(?:\s|>)/.test(source)) selectMarkupCount += 1;
+  if (/<TextField\b[^>]*\bselect(?:\s|=|>)/s.test(source)) textFieldSelectCount += 1;
+
+  if (/from\s+["']@mui\/material\/Select(?:\.js)?["']/.test(source) && !allowedSelectPrimitiveImports.has(relative)) {
+    violations.push(`${relative}: bypasses StableSelect via a direct @mui/material/Select import`);
   }
-
-  if (textFieldSelect || autocomplete || nativeSelect) {
-    selectLikeFiles.push({
-      relative,
-      kinds: [
-        textFieldSelect ? "TextField select" : null,
-        autocomplete ? "Autocomplete" : null,
-        nativeSelect ? "native select" : null
-      ].filter(Boolean)
-    });
+  if (/from\s+["']@mui\/material\/TextField(?:\.js)?["']/.test(source) && !allowedTextFieldPrimitiveImports.has(relative)) {
+    violations.push(`${relative}: bypasses StableTextField via a direct @mui/material/TextField import`);
+  }
+  if (/<select(?:\s|>)/.test(source)) {
+    violations.push(`${relative}: native <select> requires explicit stable-dropdown review`);
+  }
+  if (/<Autocomplete(?:\s|>)/.test(source)) {
+    violations.push(`${relative}: Autocomplete requires explicit popup-geometry review`);
   }
 }
 
-directSelectFiles.sort((a, b) => a.relative.localeCompare(b.relative));
-selectLikeFiles.sort((a, b) => a.relative.localeCompare(b.relative));
-if (directSelectFiles.length > 0 || selectLikeFiles.length > 0) {
-  if (directSelectFiles.length > 0) {
-    console.error("Direct MUI Select inventory (migrate these to the shared stable dropdown implementation):");
-    for (const entry of directSelectFiles) {
-      console.error(`- ${entry.relative}${entry.traits.length ? ` [${entry.traits.join(", ")}]` : ""}`);
-    }
-  }
-  if (selectLikeFiles.length > 0) {
-    console.error("Other select-like controls requiring explicit audit:");
-    for (const entry of selectLikeFiles) console.error(`- ${entry.relative} [${entry.kinds.join(", ")}]`);
-  }
+const proxy = await readFile(path.join(srcRoot, "mui-material.ts"), "utf8");
+if (!/export \{ default as Select \} from ["']\.\/components\/StableSelect["']/.test(proxy)) {
+  violations.push("src/mui-material.ts: Select is not routed through StableSelect");
+}
+if (!/export \{ default as TextField \} from ["']\.\/components\/StableTextField["']/.test(proxy)) {
+  violations.push("src/mui-material.ts: TextField is not routed through StableTextField");
+}
+
+const viteConfig = await readFile(path.join(root, "vite.config.ts"), "utf8");
+if (!/find:\s*\/\^@mui\\\/material\$\//.test(viteConfig) || !/src\/mui-material\.ts/.test(viteConfig)) {
+  violations.push("vite.config.ts: exact @mui/material runtime alias is missing");
+}
+
+const tsConfig = await readFile(path.join(root, "tsconfig.app.json"), "utf8");
+if (!/"@mui\/material"\s*:\s*\[\s*"src\/mui-material\.ts"\s*\]/.test(tsConfig)) {
+  violations.push("tsconfig.app.json: @mui/material typecheck path is not routed through the app proxy");
+}
+
+if (violations.length > 0) {
+  console.error("Dropdown implementation contract failed:");
+  for (const violation of violations.sort()) console.error(`- ${violation}`);
   process.exit(1);
 }
 
-console.log("Dropdown implementation contract OK: no unapproved direct or unaudited select-like controls remain.");
+console.log(`Dropdown implementation contract OK: ${selectMarkupCount} Select source files and ${textFieldSelectCount} TextField-select source files route through the stable app boundary.`);
