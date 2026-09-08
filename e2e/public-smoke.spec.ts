@@ -18,8 +18,8 @@ test.describe("public website", () => {
 test("activities show only published current and upcoming records", async ({ page }) => {
   await page.goto("/activities");
 
-  await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
-  await expect(page.getByText("Dublin Zoo")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "TEST Public Single Day Activity" })).toBeVisible();
+  await expect(page.getByText("Canonical public single-day example with no separate end date.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "TEST Rovers Open Service Project" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "TEST All Sections Group Day" })).toBeVisible();
 
