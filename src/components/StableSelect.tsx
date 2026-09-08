@@ -8,6 +8,12 @@ type Placement = {
   maxHeight: number;
 };
 
+type OpenSnapshot = {
+  placement: Placement;
+  scrollX: number;
+  scrollY: number;
+};
+
 const DEFAULT_PLACEMENT: Placement = {
   top: 0,
   left: 0,
@@ -21,10 +27,17 @@ const DEFAULT_PLACEMENT: Placement = {
  * preventing focus restoration from moving the underlying page.
  */
 export default function StableSelect<Value = unknown>(props: SelectProps<Value>) {
-  const { MenuProps, onOpen, onClose, ...selectProps } = props;
+  const {
+    MenuProps,
+    onOpen,
+    onClose,
+    onMouseDownCapture,
+    onKeyDownCapture,
+    ...selectProps
+  } = props;
   const rootRef = useRef<HTMLElement | null>(null);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
-  const openScrollPosition = useRef({ x: 0, y: 0 });
+  const openSnapshot = useRef<OpenSnapshot | null>(null);
 
   const getTrigger = () => {
     const root = rootRef.current;
@@ -33,32 +46,53 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     return root.querySelector<HTMLElement>('[role="combobox"]');
   };
 
-  const restoreViewport = () => {
-    const { x, y } = openScrollPosition.current;
-    window.scrollTo(x, y);
-  };
+  const snapshotOpenState = () => {
+    const trigger = getTrigger();
+    if (!trigger) return;
 
-  const handleOpen: NonNullable<SelectProps<Value>["onOpen"]> = (event) => {
-    const trigger = getTrigger() ?? (event.currentTarget as HTMLElement | null);
-    if (trigger) {
-      const rect = trigger.getBoundingClientRect();
-      const viewportMargin = 16;
-      const spaceBelow = Math.max(window.innerHeight - rect.bottom - viewportMargin, 0);
-      const spaceAbove = Math.max(rect.top - viewportMargin, 0);
-      const openAbove = spaceAbove > spaceBelow;
-      const availableSpace = openAbove ? spaceAbove : spaceBelow;
+    const rect = trigger.getBoundingClientRect();
+    const viewportMargin = 16;
+    const spaceBelow = Math.max(window.innerHeight - rect.bottom - viewportMargin, 0);
+    const spaceAbove = Math.max(rect.top - viewportMargin, 0);
+    const openAbove = spaceAbove > spaceBelow;
+    const availableSpace = openAbove ? spaceAbove : spaceBelow;
 
-      openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
-      setPlacement({
+    openSnapshot.current = {
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      placement: {
         top: openAbove ? rect.top : rect.bottom,
         left: rect.left,
         transformVertical: openAbove ? "bottom" : "top",
         maxHeight: Math.max(Math.min(320, availableSpace), 48)
-      });
+      }
+    };
+  };
 
+  const restoreViewport = () => {
+    const snapshot = openSnapshot.current;
+    if (!snapshot) return;
+    window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+  };
+
+  const handleMouseDownCapture: NonNullable<SelectProps<Value>["onMouseDownCapture"]> = (event) => {
+    snapshotOpenState();
+    onMouseDownCapture?.(event);
+  };
+
+  const handleKeyDownCapture: NonNullable<SelectProps<Value>["onKeyDownCapture"]> = (event) => {
+    snapshotOpenState();
+    onKeyDownCapture?.(event);
+  };
+
+  const handleOpen: NonNullable<SelectProps<Value>["onOpen"]> = (event) => {
+    if (!openSnapshot.current) snapshotOpenState();
+    const snapshot = openSnapshot.current;
+    if (snapshot) {
+      setPlacement(snapshot.placement);
+      restoreViewport();
       requestAnimationFrame(restoreViewport);
     }
-
     onOpen?.(event);
   };
 
@@ -74,7 +108,10 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     };
     requestAnimationFrame(() => {
       restore();
-      requestAnimationFrame(restore);
+      requestAnimationFrame(() => {
+        restore();
+        openSnapshot.current = null;
+      });
     });
   };
 
@@ -84,6 +121,8 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     <Select
       {...selectProps}
       ref={(node) => { rootRef.current = node as HTMLElement | null; }}
+      onMouseDownCapture={handleMouseDownCapture}
+      onKeyDownCapture={handleKeyDownCapture}
       onOpen={handleOpen}
       onClose={handleClose}
       MenuProps={{
