@@ -1,6 +1,6 @@
 # SW-31 — Controlled member import
 
-Production member spreadsheets are private operational inputs. They must never be committed to Git, copied into test fixtures, attached to PR descriptions, or printed into CI logs.
+Production member spreadsheets and reviewed member manifests are private operational inputs. They must never be committed to Git, copied into test fixtures, attached to PR descriptions, or printed into CI logs.
 
 ## Current spreadsheet mapping
 
@@ -20,9 +20,9 @@ The spreadsheets do not provide canonical guardian/contact/emergency-contact fie
 
 ## Private preparation
 
-Run `scripts/prepare-member-import.py` locally against the private workbooks. The generated JSON contains personal data and must remain in a private administrator workspace.
+Run `scripts/prepare-member-import.py` locally against the private workbooks when spreadsheets are the reviewed source. A manually reviewed authoritative list may instead be converted to the same private manifest contract outside the repository. The generated JSON contains personal data and must remain in a private administrator workspace.
 
-Example mapping arguments:
+Example spreadsheet mapping arguments:
 
 ```text
 --mapping "Beavers|Beavers Subs 2526|A|C"
@@ -34,7 +34,19 @@ The preparation step prints aggregate counts only. Invalid DOB rows are rejected
 
 ## Production dry-run
 
-`scripts/import-members.mjs` requires a production service account even in dry-run mode because it must verify the target project and compare the private manifest with authoritative Firestore members.
+`scripts/import-members.mjs` compares the private manifest with authoritative Firestore members before any mutation. It supports two authentication paths:
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON` for the existing trusted admin path; or
+- Google Application Default Credentials for local **dry-run only**. Configure ADC with `gcloud auth application-default login` and set `PROD_MEMBER_IMPORT_CONFIRM_PROJECT` to the exact reviewed Firebase project ID.
+
+The ADC path requests only `displayName`, `dateOfBirth`, and `section` from the `members` collection, does not log document contents, and never supports `--execute` or `--rollback`. Production mutation continues to require the trusted service-account path and all mutation gates below.
+
+Example Windows Command Prompt dry-run setup:
+
+```text
+set PROD_MEMBER_IMPORT_CONFIRM_PROJECT=coolock-ardlea-scouts
+node scripts/import-members.mjs --manifest=C:\Users\user\scout-private-import\member-import-private-reviewed.json
+```
 
 Duplicate detection uses normalized full display name plus exact ISO date of birth. It is intentionally conservative:
 
@@ -44,7 +56,7 @@ Duplicate detection uses normalized full display name plus exact ISO date of bir
 - repeated source identity in more than one section is a conflict;
 - no fuzzy/name-only match causes an overwrite.
 
-New IDs are deterministic hashes of normalized identity plus section. Spreadsheet row numbers never become permanent IDs. Proposed records carry `source: spreadsheet-import`, a non-personal `importBatch`, and a source-row reference for controlled provenance/rollback. They are not marked as TEST data and therefore do not enter the TEST-data purge detector.
+New IDs are deterministic hashes of normalized identity plus section. Spreadsheet row numbers never become permanent IDs. Proposed records carry `source: spreadsheet-import`, a non-personal `importBatch`, and a source reference for controlled provenance/rollback. They are not marked as TEST data and therefore do not enter the TEST-data purge detector.
 
 ## Mutation gates
 
