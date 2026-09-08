@@ -38,7 +38,7 @@ export const DEFAULT_PUBLIC_SITE_CONTENT: PublicSiteContent = {
   },
   contact: {
     title: "Contact Us",
-    body: "Contact details will be added soon."
+    body: "For general enquiries, please email the Scout Group."
   },
   sections: [
     { value: "Beavers", label: "Beavers", ages: "Ages 6–9", icon: "🦫", youth: true },
