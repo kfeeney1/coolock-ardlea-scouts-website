@@ -44,6 +44,7 @@ test.describe("leader access management", () => {
     await expect(cubsSection.getByTestId("section-swatch-cubs")).toBeVisible();
 
     const organisationSection = card.getByRole("combobox", { name: "Organisation section" });
+    await organisationSection.scrollIntoViewIfNeeded();
     const beforeSelect = await viewportState(page);
     await organisationSection.click();
     await expect(page.getByRole("listbox")).toBeVisible();

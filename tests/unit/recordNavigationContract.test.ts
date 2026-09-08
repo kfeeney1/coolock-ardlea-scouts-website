@@ -18,3 +18,10 @@ test("route scrolling restores list position when closing a record", async () =>
   assert.match(source, /navigationType === "POP" \|\| returningToRecordList/);
   assert.match(source, /scrollRestoration = "manual"/);
 });
+
+test("route scrolling ignores state-only overlay history markers", async () => {
+  const source = await readFile("src/components/RouteScrollManager.tsx", "utf8");
+  assert.match(source, /previousRoute\.current === route/);
+  assert.match(source, /if \(previousRoute\.current === route\) return/);
+  assert.match(source, /const route = `\$\{key\}\$\{hash\}`/);
+});

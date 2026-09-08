@@ -25,10 +25,18 @@ export default function RouteScrollManager() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const previousPathname = useRef(location.pathname);
+  const previousRoute = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     const { pathname, search, hash } = location;
     const key = routeKey(pathname, search);
+    const route = `${key}${hash}`;
+
+    // Dialog and listbox Back markers update only location.state. They are not
+    // route navigations and must never reset the page behind the overlay.
+    if (previousRoute.current === route) return;
+    previousRoute.current = route;
+
     const previous = previousPathname.current;
     const returningToRecordList = recordParent(previous) === pathname;
 
