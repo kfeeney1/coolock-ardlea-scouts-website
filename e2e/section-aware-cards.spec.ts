@@ -8,6 +8,10 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Section-aware card identity runs once on desktop Chromium.");
 }
 
+function mobileOnly(testInfo: TestInfo) {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile dropdown regression runs once on Pixel 7 Chromium.");
+}
+
 async function loginAdmin(page: Page) {
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill(adminEmail!);
@@ -16,27 +20,7 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("member, child and leader cards keep a textual section identity alongside the section accent", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
-  test.skip(!seededJourneyData, "Run against the canonical deterministic E2E seed.");
-
-  await loginAdmin(page);
-
-  await page.goto("/leader/members");
-  const memberCard = page.getByTestId("member-card-TEST_member_beaver_01");
-  await expect(memberCard).toBeVisible();
-  await expect(memberCard).toHaveAttribute("data-section", "Beavers");
-  await expect(memberCard.locator('[data-section-identity="Beavers"]')).toContainText("Beavers");
-  await expect(memberCard.getByText("Active", { exact: true })).toBeVisible();
-
-  await page.goto("/leader/badgework");
-  const childCard = page.getByTestId("badgework-overview-member-TEST_member_beaver_01");
-  await expect(childCard).toBeVisible();
-  await expect(childCard).toHaveAttribute("data-section", "Beavers");
-  await expect(childCard.getByTestId("section-swatch-beavers")).toBeVisible();
-  await expect(childCard).toContainText("Beavers");
-
+async function assertSectionDropdownBehaviour(page: Page) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
   const triggerBox = await sectionFilter.boundingBox();
@@ -67,6 +51,30 @@ test("member, child and leader cards keep a textual section identity alongside t
   await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
   await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
+}
+
+test("member, child and leader cards keep a textual section identity alongside the section accent", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+  test.skip(!seededJourneyData, "Run against the canonical deterministic E2E seed.");
+
+  await loginAdmin(page);
+
+  await page.goto("/leader/members");
+  const memberCard = page.getByTestId("member-card-TEST_member_beaver_01");
+  await expect(memberCard).toBeVisible();
+  await expect(memberCard).toHaveAttribute("data-section", "Beavers");
+  await expect(memberCard.locator('[data-section-identity="Beavers"]')).toContainText("Beavers");
+  await expect(memberCard.getByText("Active", { exact: true })).toBeVisible();
+
+  await page.goto("/leader/badgework");
+  const childCard = page.getByTestId("badgework-overview-member-TEST_member_beaver_01");
+  await expect(childCard).toBeVisible();
+  await expect(childCard).toHaveAttribute("data-section", "Beavers");
+  await expect(childCard.getByTestId("section-swatch-beavers")).toBeVisible();
+  await expect(childCard).toContainText("Beavers");
+
+  await assertSectionDropdownBehaviour(page);
   await expect(page.getByTestId("badgework-overview-member-TEST_member_beaver_01")).toBeHidden();
 
   await page.goto("/leader/access");
@@ -76,4 +84,15 @@ test("member, child and leader cards keep a textual section identity alongside t
   expect(leaderSection).toBeTruthy();
   await expect(leaderCard.getByText(leaderSection!, { exact: true }).first()).toBeVisible();
   await expect(leaderCard.getByText("leader", { exact: true })).toBeVisible();
+});
+
+test("section dropdown stays attached and restrained on mobile", async ({ page }, testInfo) => {
+  mobileOnly(testInfo);
+  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+  test.skip(!seededJourneyData, "Run against the canonical deterministic E2E seed.");
+
+  await loginAdmin(page);
+  await page.goto("/leader/badgework");
+  await expect(page.getByRole("heading", { name: /Badgework/i })).toBeVisible();
+  await assertSectionDropdownBehaviour(page);
 });
