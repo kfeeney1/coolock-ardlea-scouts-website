@@ -28,10 +28,14 @@ async function viewportState(page: Page) {
   }));
 }
 
-async function assertSectionDropdownBehaviour(page: Page) {
+async function assertSectionDropdownBehaviour(page: Page, alignTriggerAtBottom = false) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
-  await sectionFilter.scrollIntoViewIfNeeded();
+  if (alignTriggerAtBottom) {
+    await sectionFilter.evaluate((element) => element.scrollIntoView({ block: "end", inline: "nearest" }));
+  } else {
+    await sectionFilter.scrollIntoViewIfNeeded();
+  }
   const sectionTrigger = await sectionFilter.elementHandle();
   expect(sectionTrigger).not.toBeNull();
   const beforeOpen = await viewportState(page);
@@ -123,5 +127,5 @@ test("section dropdown stays attached and restrained on mobile", async ({ page }
   await loginAdmin(page);
   await page.goto("/leader/badgework");
   await expect(page.getByRole("heading", { name: "Adventure Skills Badgework", exact: true })).toBeVisible();
-  await assertSectionDropdownBehaviour(page);
+  await assertSectionDropdownBehaviour(page, true);
 });
