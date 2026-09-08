@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { aggregatePlan, planMemberImport } from "./member-import-core.mjs";
@@ -9,28 +10,98 @@ if (!manifestArg) throw new Error("Usage: node scripts/import-members.mjs --mani
 if (execute && rollback) throw new Error("Choose either --execute or --rollback, not both.");
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required for project verification and Firestore comparison.");
-const credentials = JSON.parse(rawCredentials);
-const projectId = credentials.project_id;
-if (!projectId) throw new Error("Service account project_id is required.");
+const confirmedProject = process.env.PROD_MEMBER_IMPORT_CONFIRM_PROJECT;
+let projectId;
+let db = null;
+let authMode;
+
+async function readMembersWithServiceAccount(credentials) {
+  const { cert, initializeApp } = await import("firebase-admin/app");
+  const { getFirestore } = await import("firebase-admin/firestore");
+  initializeApp({ credential: cert(credentials) });
+  db = getFirestore();
+  const snapshot = await db.collection("members").get();
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+function firestoreString(fields, fieldName) {
+  const value = fields?.[fieldName];
+  return value && Object.hasOwn(value, "stringValue") ? value.stringValue : undefined;
+}
+
+async function readMembersWithApplicationDefaultCredentials(targetProjectId) {
+  let accessToken;
+  try {
+    accessToken = execFileSync("gcloud", ["auth", "application-default", "print-access-token"], {
+      encoding: "utf8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    }).trim();
+  } catch {
+    throw new Error("ADC dry-run requires Google Cloud CLI and `gcloud auth application-default login`.");
+  }
+  if (!accessToken) throw new Error("ADC access token was empty.");
+
+  const members = [];
+  let pageToken = "";
+  do {
+    const url = new URL(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(targetProjectId)}/databases/(default)/documents/members`);
+    url.searchParams.set("pageSize", "300");
+    url.searchParams.append("mask.fieldPaths", "displayName");
+    url.searchParams.append("mask.fieldPaths", "dateOfBirth");
+    url.searchParams.append("mask.fieldPaths", "section");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok) throw new Error(`Firestore ADC comparison failed with HTTP ${response.status}; no response body was logged to protect member data.`);
+    const payload = await response.json();
+    for (const document of payload.documents || []) {
+      members.push({
+        id: decodeURIComponent(document.name.split("/").at(-1)),
+        displayName: firestoreString(document.fields, "displayName"),
+        dateOfBirth: firestoreString(document.fields, "dateOfBirth"),
+        section: firestoreString(document.fields, "section")
+      });
+    }
+    pageToken = payload.nextPageToken || "";
+  } while (pageToken);
+
+  return members;
+}
+
+function countConflictReasons(conflicts) {
+  return conflicts.reduce((counts, item) => {
+    counts[item.reason] = (counts[item.reason] || 0) + 1;
+    return counts;
+  }, {});
+}
 
 const manifest = JSON.parse(await readFile(manifestArg.slice("--manifest=".length), "utf8"));
 if (manifest?.version !== 1 || !Array.isArray(manifest.records)) throw new Error("Unsupported private member-import manifest.");
 if ((manifest.preparationRejected || []).length > 0) throw new Error("Manifest preparation has rejected rows; resolve them before production comparison.");
 
-const { cert, initializeApp } = await import("firebase-admin/app");
-const { FieldValue, getFirestore } = await import("firebase-admin/firestore");
-initializeApp({ credential: cert(credentials) });
-const db = getFirestore();
-const snapshot = await db.collection("members").get();
-const existing = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+let existing;
+if (rawCredentials) {
+  const credentials = JSON.parse(rawCredentials);
+  projectId = credentials.project_id;
+  if (!projectId) throw new Error("Service account project_id is required.");
+  existing = await readMembersWithServiceAccount(credentials);
+  authMode = "service-account";
+} else {
+  if (execute || rollback) throw new Error("Production mutation still requires FIREBASE_SERVICE_ACCOUNT_JSON; ADC is dry-run only.");
+  if (!confirmedProject) throw new Error("ADC dry-run requires PROD_MEMBER_IMPORT_CONFIRM_PROJECT to explicitly select the Firestore project.");
+  projectId = confirmedProject;
+  existing = await readMembersWithApplicationDefaultCredentials(projectId);
+  authMode = "application-default";
+}
+
 const plan = planMemberImport(manifest.records, existing);
 const aggregate = aggregatePlan(plan);
 const reviewedPayload = JSON.stringify({ batch: manifest.batch || "", creates: plan.creates.map((item) => ({ id: item.id, section: item.section, importBatch: item.importBatch })), matches: plan.matches, conflicts: plan.conflicts, rejected: plan.rejected });
 const digest = createHash("sha256").update(reviewedPayload).digest("hex");
 
-console.log(JSON.stringify({ mode: rollback ? "rollback-dry-run" : execute ? "execute" : "dry-run", projectId, batch: manifest.batch || "", ...aggregate, sourceExcluded: (manifest.preparationExcluded || []).length, manifestSha256: digest }, null, 2));
-if (plan.conflicts.length) console.log(`Conflict reasons: ${JSON.stringify(Object.groupBy(plan.conflicts, (item) => item.reason), (_key, value) => value.length)}`);
+console.log(JSON.stringify({ mode: rollback ? "rollback-dry-run" : execute ? "execute" : "dry-run", authMode, projectId, batch: manifest.batch || "", ...aggregate, sourceExcluded: (manifest.preparationExcluded || []).length, manifestSha256: digest }, null, 2));
+if (plan.conflicts.length) console.log(`Conflict reasons: ${JSON.stringify(countConflictReasons(plan.conflicts))}`);
 if (plan.rejected.length) console.log(`Rejected rows: ${plan.rejected.length}. Source references are intentionally omitted from logs.`);
 
 if (!execute && !rollback) process.exit(0);
@@ -67,6 +138,7 @@ if (rollback) {
   process.exit(0);
 }
 
+const { FieldValue } = await import("firebase-admin/firestore");
 for (const item of plan.creates) {
   const ref = db.collection("members").doc(item.id);
   const current = await ref.get();
