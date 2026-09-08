@@ -31,6 +31,8 @@ async function viewportState(page: Page) {
 async function assertSectionDropdownBehaviour(page: Page) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
+  const sectionTrigger = await sectionFilter.elementHandle();
+  expect(sectionTrigger).not.toBeNull();
   const beforeOpen = await viewportState(page);
   await sectionFilter.click();
 
@@ -39,7 +41,7 @@ async function assertSectionDropdownBehaviour(page: Page) {
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 
   const [triggerBox, menuBox] = await Promise.all([
-    sectionFilter.boundingBox(),
+    sectionTrigger!.boundingBox(),
     listbox.boundingBox()
   ]);
   expect(triggerBox).not.toBeNull();
