@@ -1,6 +1,6 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useState, type ReactNode, type SyntheticEvent } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -109,9 +109,14 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
+  const openScrollPosition = useRef({ x: 0, y: 0 });
 
-  const handleOpen = (event: SyntheticEvent) => {
-    const trigger = event.currentTarget as HTMLElement;
+  const getTrigger = () => document.getElementById(id);
+
+  const handleOpen = () => {
+    const trigger = getTrigger();
+    if (!trigger) return;
+
     const rect = trigger.getBoundingClientRect();
     const viewportMargin = 16;
     const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
@@ -119,6 +124,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     const openAbove = spaceAbove > spaceBelow;
     const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
 
+    openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
     setMenuPlacement({
       anchorVertical: openAbove ? "top" : "bottom",
       transformVertical: openAbove ? "bottom" : "top",
@@ -128,9 +134,12 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   };
 
   const handleClose = () => {
+    const scrollPosition = openScrollPosition.current;
     setMenuOpen(false);
     requestAnimationFrame(() => {
-      document.getElementById(id)?.focus({ preventScroll: true });
+      window.scrollTo(scrollPosition.x, scrollPosition.y);
+      getTrigger()?.focus({ preventScroll: true });
+      window.scrollTo(scrollPosition.x, scrollPosition.y);
     });
   };
 
@@ -148,6 +157,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
+          anchorEl: getTrigger,
           anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           disableAutoFocusItem: true,
