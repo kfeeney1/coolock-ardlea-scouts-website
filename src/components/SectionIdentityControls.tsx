@@ -1,6 +1,6 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -91,10 +91,46 @@ type SectionSelectProps = {
   sx?: SxProps<Theme>;
 };
 
+type MenuPlacement = {
+  anchorVertical: "top" | "bottom";
+  transformVertical: "top" | "bottom";
+  maxHeight: number;
+};
+
+const DEFAULT_MENU_PLACEMENT: MenuPlacement = {
+  anchorVertical: "bottom",
+  transformVertical: "top",
+  maxHeight: 320
+};
+
 export function SectionSelect({ id, label, value, options, onChange, allValue, allLabel = "All sections", size, disabled, fullWidth, sx }: SectionSelectProps) {
   const labelId = `${id}-label`;
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
+  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
+
+  const handleOpen = (event: SyntheticEvent) => {
+    const trigger = event.currentTarget as HTMLElement;
+    const rect = trigger.getBoundingClientRect();
+    const viewportMargin = 16;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
+    const spaceAbove = rect.top - viewportMargin;
+    const openAbove = spaceAbove > spaceBelow;
+    const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
+
+    setMenuPlacement({
+      anchorVertical: openAbove ? "top" : "bottom",
+      transformVertical: openAbove ? "bottom" : "top",
+      maxHeight: Math.min(320, availableSpace)
+    });
+  };
+
+  const restoreTriggerFocusWithoutScrolling = () => {
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.focus({ preventScroll: true });
+    });
+  };
+
   return (
     <FormControl size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
       <InputLabel id={labelId}>{label}</InputLabel>
@@ -104,15 +140,18 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         label={label}
         value={value}
         onChange={onChange}
+        onOpen={handleOpen}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
-          anchorOrigin: { vertical: "bottom", horizontal: "left" },
-          transformOrigin: { vertical: "top", horizontal: "left" },
+          anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
+          transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           disableAutoFocusItem: true,
+          disableRestoreFocus: true,
+          onClose: restoreTriggerFocusWithoutScrolling,
           slotProps: {
             paper: {
               sx: {
-                maxHeight: "min(320px, calc(100vh - 32px))"
+                maxHeight: `${menuPlacement.maxHeight}px`
               }
             }
           }
