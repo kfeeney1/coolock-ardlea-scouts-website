@@ -110,6 +110,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
   const controlRef = useRef<HTMLDivElement | null>(null);
+  const openScroll = useRef({ x: 0, y: 0 });
 
   const getTrigger = () => controlRef.current?.querySelector<HTMLElement>('[role="combobox"]') ?? document.getElementById(id);
 
@@ -124,11 +125,21 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     const openAbove = spaceAbove > spaceBelow;
     const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
 
+    window.scrollTo(openScroll.current.x, openScroll.current.y);
     setMenuPlacement({
       anchorVertical: openAbove ? "top" : "bottom",
       transformVertical: openAbove ? "bottom" : "top",
       maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
+  };
+
+  const captureOpen = () => {
+    openScroll.current = { x: window.scrollX, y: window.scrollY };
+  };
+
+  const handleClose = () => {
+    getTrigger()?.focus({ preventScroll: true });
+    window.scrollTo(openScroll.current.x, openScroll.current.y);
   };
 
   return (
@@ -140,7 +151,10 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         label={label}
         value={value}
         onChange={onChange}
+        onMouseDownCapture={captureOpen}
+        onKeyDownCapture={captureOpen}
         onOpen={handleOpen}
+        onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
           anchorEl: getTrigger,
@@ -148,6 +162,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           marginThreshold: 0,
           disableScrollLock: true,
+          disableRestoreFocus: true,
           slotProps: {
             paper: {
               sx: {
