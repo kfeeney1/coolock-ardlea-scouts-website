@@ -10,6 +10,7 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
 ) {
   const { MenuProps, onOpen, onMouseDownCapture, onKeyDownCapture, ...selectProps } = props;
   const rootRef = useRef<HTMLElement | null>(null);
+  const openScroll = useRef({ x: 0, y: 0 });
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
   const getTrigger = () => {
     const root = rootRef.current;
@@ -30,6 +31,11 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       maxHeight: Math.max(Math.min(320, openAbove ? above : below), 48)
     });
   };
+  const captureOpen = () => {
+    openScroll.current = { x: window.scrollX, y: window.scrollY };
+    measurePlacement();
+  };
+  const preserveViewport = () => window.scrollTo(openScroll.current.x, openScroll.current.y);
   const paper = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
   return <Select
     {...selectProps}
@@ -38,9 +44,16 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       if (typeof forwardedRef === "function") forwardedRef(node);
       else if (forwardedRef) forwardedRef.current = node;
     }}
-    onMouseDownCapture={(event) => { measurePlacement(); onMouseDownCapture?.(event); }}
-    onKeyDownCapture={(event) => { measurePlacement(); onKeyDownCapture?.(event); }}
-    onOpen={(event) => { measurePlacement(); onOpen?.(event); }}
+    onMouseDownCapture={(event) => { captureOpen(); onMouseDownCapture?.(event); }}
+    onKeyDownCapture={(event) => { captureOpen(); onKeyDownCapture?.(event); }}
+    onOpen={(event) => { preserveViewport(); onOpen?.(event); }}
+    onClose={(event) => {
+      props.onClose?.(event);
+      if (!event.defaultPrevented) {
+        getTrigger()?.focus({ preventScroll: true });
+        preserveViewport();
+      }
+    }}
     MenuProps={{
       ...MenuProps,
       anchorEl: getTrigger,
@@ -48,6 +61,7 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       transformOrigin: { vertical: placement.transformVertical, horizontal: "left" },
       marginThreshold: 0,
       disableScrollLock: true,
+      disableRestoreFocus: true,
       slotProps: {
         ...MenuProps?.slotProps,
         paper: {
