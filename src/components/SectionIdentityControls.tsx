@@ -1,6 +1,6 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, type ButtonProps, type ChipProps, type SelectChangeEvent, type SelectProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -19,15 +19,15 @@ function optionSx(section: string | null | undefined): SxProps<Theme> {
   const tokens = sectionVisualTokens(section);
   return {
     gap: 1,
-    backgroundColor: tokens.subtleBackground,
-    color: tokens.foreground,
-    "&:hover": { backgroundColor: tokens.hoverBackground },
+    backgroundColor: "transparent",
+    color: "text.primary",
+    "&:hover": { backgroundColor: "action.hover" },
     "&.Mui-selected": {
-      backgroundColor: tokens.selectedBackground,
-      color: tokens.foreground,
-      "&:hover": { backgroundColor: tokens.hoverBackground }
+      backgroundColor: "action.selected",
+      color: "text.primary",
+      "&:hover": { backgroundColor: "action.hover" }
     },
-    "&.Mui-disabled": { backgroundColor: tokens.disabledBackground, color: tokens.disabledForeground },
+    "&.Mui-disabled": { backgroundColor: "action.disabledBackground", color: "text.disabled" },
     "&:focus-visible": { outline: `3px solid ${tokens.focusRing}`, outlineOffset: -3 }
   };
 }
@@ -91,10 +91,78 @@ type SectionSelectProps = {
   sx?: SxProps<Theme>;
 };
 
+type MenuPlacement = {
+  top: number;
+  left: number;
+  transformVertical: "top" | "bottom";
+  maxHeight: number;
+};
+
+const DEFAULT_MENU_PLACEMENT: MenuPlacement = {
+  top: 0,
+  left: 0,
+  transformVertical: "top",
+  maxHeight: 320
+};
+
 export function SectionSelect({ id, label, value, options, onChange, allValue, allLabel = "All sections", size, disabled, fullWidth, sx }: SectionSelectProps) {
   const labelId = `${id}-label`;
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
+  const openScrollPosition = useRef({ x: 0, y: 0 });
+  const restoreViewport = useRef(false);
+
+  const getTrigger = () => document.getElementById(id);
+  const restoreViewportPosition = () => {
+    if (!restoreViewport.current) return;
+    const scrollPosition = openScrollPosition.current;
+    window.scrollTo(scrollPosition.x, scrollPosition.y);
+    getTrigger()?.focus({ preventScroll: true });
+    window.scrollTo(scrollPosition.x, scrollPosition.y);
+  };
+
+  useLayoutEffect(() => {
+    if (menuOpen || !restoreViewport.current) return;
+
+    restoreViewportPosition();
+    const frame = requestAnimationFrame(restoreViewportPosition);
+    return () => cancelAnimationFrame(frame);
+  }, [menuOpen, value]);
+
+  const handleOpen = () => {
+    const trigger = getTrigger();
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const viewportMargin = 16;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
+    const spaceAbove = rect.top - viewportMargin;
+    const openAbove = spaceAbove > spaceBelow;
+    const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
+
+    openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
+    restoreViewport.current = false;
+    setMenuPlacement({
+      top: openAbove ? rect.top : rect.bottom,
+      left: rect.left,
+      transformVertical: openAbove ? "bottom" : "top",
+      maxHeight: Math.max(Math.min(320, availableSpace), 48)
+    });
+    setMenuOpen(true);
+  };
+
+  const handleClose = () => {
+    restoreViewport.current = true;
+    setMenuOpen(false);
+  };
+
+  const handleMenuExited = () => {
+    restoreViewportPosition();
+    restoreViewport.current = false;
+  };
+
   return (
     <FormControl size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
       <InputLabel id={labelId}>{label}</InputLabel>
@@ -103,8 +171,29 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         labelId={labelId}
         label={label}
         value={value}
+        open={menuOpen}
         onChange={onChange}
+        onOpen={handleOpen}
+        onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
+        MenuProps={{
+          anchorReference: "anchorPosition",
+          anchorPosition: { top: menuPlacement.top, left: menuPlacement.left },
+          transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
+          marginThreshold: 0,
+          disableAutoFocusItem: true,
+          disableRestoreFocus: true,
+          slotProps: {
+            paper: {
+              sx: {
+                maxHeight: `${menuPlacement.maxHeight}px`
+              }
+            },
+            transition: {
+              onExited: handleMenuExited
+            }
+          }
+        }}
         renderValue={(selected) => (
           <SectionOptionLabel
             section={selected === allValue ? null : selected}
