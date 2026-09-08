@@ -115,23 +115,19 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const restoreViewport = useRef(false);
 
   const getTrigger = () => document.getElementById(id);
+  const restoreViewportPosition = () => {
+    if (!restoreViewport.current) return;
+    const scrollPosition = openScrollPosition.current;
+    window.scrollTo(scrollPosition.x, scrollPosition.y);
+    getTrigger()?.focus({ preventScroll: true });
+    window.scrollTo(scrollPosition.x, scrollPosition.y);
+  };
 
   useLayoutEffect(() => {
     if (menuOpen || !restoreViewport.current) return;
 
-    const scrollPosition = openScrollPosition.current;
-    const restore = () => {
-      window.scrollTo(scrollPosition.x, scrollPosition.y);
-      getTrigger()?.focus({ preventScroll: true });
-      window.scrollTo(scrollPosition.x, scrollPosition.y);
-    };
-
-    restore();
-    const frame = requestAnimationFrame(() => {
-      restore();
-      restoreViewport.current = false;
-    });
-
+    restoreViewportPosition();
+    const frame = requestAnimationFrame(restoreViewportPosition);
     return () => cancelAnimationFrame(frame);
   }, [menuOpen, value]);
 
@@ -162,6 +158,11 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     setMenuOpen(false);
   };
 
+  const handleMenuExited = () => {
+    restoreViewportPosition();
+    restoreViewport.current = false;
+  };
+
   return (
     <FormControl size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
       <InputLabel id={labelId}>{label}</InputLabel>
@@ -187,6 +188,9 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
               sx: {
                 maxHeight: `${menuPlacement.maxHeight}px`
               }
+            },
+            transition: {
+              onExited: handleMenuExited
             }
           }
         }}
