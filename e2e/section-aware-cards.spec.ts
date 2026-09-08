@@ -39,7 +39,17 @@ test("member, child and leader cards keep a textual section identity alongside t
 
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
+  const triggerBox = await sectionFilter.boundingBox();
+  expect(triggerBox).not.toBeNull();
   await sectionFilter.click();
+
+  const listbox = page.getByRole("listbox");
+  await expect(listbox).toBeVisible();
+  const menuBox = await listbox.boundingBox();
+  expect(menuBox).not.toBeNull();
+  expect(menuBox!.y).toBeGreaterThanOrEqual(triggerBox!.y + triggerBox!.height - 2);
+  expect(menuBox!.x).toBeLessThan(triggerBox!.x + triggerBox!.width);
+  expect(menuBox!.x + menuBox!.width).toBeGreaterThan(triggerBox!.x);
 
   const cubsOption = page.getByRole("option", { name: "Cubs", exact: true });
   const scoutsOption = page.getByRole("option", { name: "Scouts", exact: true });
@@ -51,9 +61,10 @@ test("member, child and leader cards keep a textual section identity alongside t
     cubsOption.evaluate((element) => getComputedStyle(element).backgroundColor),
     scoutsOption.evaluate((element) => getComputedStyle(element).backgroundColor)
   ]);
-  expect(cubsBackground).not.toBe(scoutsBackground);
+  expect(cubsBackground).toBe(scoutsBackground);
 
   await cubsOption.click();
+  await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
   await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
   await expect(page.getByTestId("badgework-overview-member-TEST_member_beaver_01")).toBeHidden();
