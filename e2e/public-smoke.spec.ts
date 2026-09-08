@@ -28,6 +28,15 @@ test("activities show only published current and upcoming records", async ({ pag
   await expect(page.getByText("TEST Ventures Completed Activity")).toHaveCount(0);
 });
 
+test("contact page provides the public email link", async ({ page }) => {
+  await page.goto("/contact");
+
+  const email = page.getByRole("link", { name: "80th160thcoolockardlea@gmail.com" });
+  await expect(email).toBeVisible();
+  await expect(email).toHaveAttribute("href", "mailto:80th160thcoolockardlea@gmail.com");
+  await expect(email).toBeInViewport();
+});
+
 test("leader pages require leader login", async ({ page }) => {
   await page.goto("/leader/events");
   await expect(page.getByRole("heading", { name: "Leader Login" })).toBeVisible();
