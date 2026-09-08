@@ -20,16 +20,29 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function viewportState(page: Page) {
+  return page.evaluate(() => ({
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    clientWidth: document.documentElement.clientWidth
+  }));
+}
+
 async function assertSectionDropdownBehaviour(page: Page) {
   const sectionFilter = page.getByRole("combobox", { name: "Section", exact: true });
   await expect(sectionFilter).toContainText("All sections");
-  const triggerBox = await sectionFilter.boundingBox();
-  expect(triggerBox).not.toBeNull();
+  const beforeOpen = await viewportState(page);
   await sectionFilter.click();
 
   const listbox = page.getByRole("listbox");
   await expect(listbox).toBeVisible();
-  const menuBox = await listbox.boundingBox();
+  await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
+
+  const [triggerBox, menuBox] = await Promise.all([
+    sectionFilter.boundingBox(),
+    listbox.boundingBox()
+  ]);
+  expect(triggerBox).not.toBeNull();
   expect(menuBox).not.toBeNull();
   const verticalGap = Math.max(
     triggerBox!.y - (menuBox!.y + menuBox!.height),
@@ -52,10 +65,18 @@ async function assertSectionDropdownBehaviour(page: Page) {
   ]);
   expect(cubsBackground).toBe(scoutsBackground);
 
-  await cubsOption.click();
+  await page.keyboard.press("Escape");
+  await expect(listbox).toBeHidden();
+  await expect(sectionFilter).toBeFocused();
+  await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
+
+  await sectionFilter.click();
+  await expect(listbox).toBeVisible();
+  await page.getByRole("option", { name: "Cubs", exact: true }).click();
   await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
   await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
+  await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 }
 
 test("member, child and leader cards keep a textual section identity alongside the section accent", async ({ page }, testInfo) => {
