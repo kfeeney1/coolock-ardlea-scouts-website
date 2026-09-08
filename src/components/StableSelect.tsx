@@ -44,6 +44,8 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
     if (!menuOpen) return;
     const dismissDetachedMenu = (event: Event) => {
       if (event.target instanceof Element && event.target.closest('[role="listbox"]')) return;
+      if ((event.target === document || event.target === document.documentElement)
+        && window.scrollX === openScroll.current.x && window.scrollY === openScroll.current.y) return;
       closeFromScroll.current = true;
       setMenuOpen(false);
     };
