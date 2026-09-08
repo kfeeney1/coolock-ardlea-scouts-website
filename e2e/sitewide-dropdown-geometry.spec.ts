@@ -30,7 +30,7 @@ async function placeTriggerAtViewportEdge(trigger: Locator) {
   await expect(trigger).toBeInViewport();
 }
 
-async function expectAttachedDropdown(page: Page, trigger: Locator) {
+async function expectAttachedDropdown(page: Page, trigger: Locator, verifyScrollDismiss = false) {
   await expect(trigger).toBeVisible();
   await placeTriggerAtViewportEdge(trigger);
   const triggerHandle = await trigger.elementHandle();
@@ -58,6 +58,20 @@ async function expectAttachedDropdown(page: Page, trigger: Locator) {
   expect(menuBox!.x).toBeLessThan(triggerBox!.x + triggerBox!.width);
   expect(menuBox!.x + menuBox!.width).toBeGreaterThan(triggerBox!.x);
 
+  if (verifyScrollDismiss) {
+    const beforeScroll = await viewportState(page);
+    const scrollDelta = await page.evaluate(() => {
+      const remainingBelow = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+      const delta = remainingBelow >= 80 ? Math.min(160, remainingBelow) : -Math.min(160, window.scrollY);
+      window.scrollBy({ top: delta, behavior: "instant" });
+      return delta;
+    });
+    expect(scrollDelta).not.toBe(0);
+    await expect(listbox).toBeHidden();
+    await expect.poll(async () => (await viewportState(page)).scrollY).toBe(beforeScroll.scrollY + scrollDelta);
+    return;
+  }
+
   await page.keyboard.press("Escape");
   await expect(listbox).toBeHidden();
   await expect(trigger).toBeFocused();
@@ -78,5 +92,5 @@ test("representative site-wide dropdowns stay attached at viewport edges", async
 
   await page.goto("/leader/badgework");
   await expect(page.getByRole("heading", { name: "Adventure Skills Badgework", exact: true })).toBeVisible();
-  await expectAttachedDropdown(page, page.getByRole("combobox", { name: "Section", exact: true }));
+  await expectAttachedDropdown(page, page.getByRole("combobox", { name: "Section", exact: true }), true);
 });
