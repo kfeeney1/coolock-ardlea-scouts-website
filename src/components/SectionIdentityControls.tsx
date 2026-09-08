@@ -1,7 +1,7 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, type ButtonProps, type ChipProps } from "@mui/material";
 import Select, { type SelectChangeEvent, type SelectProps } from "@mui/material/Select";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
 
@@ -108,28 +108,10 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
   const labelId = `${id}-label`;
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
   const controlRef = useRef<HTMLDivElement | null>(null);
-  const openScrollPosition = useRef({ x: 0, y: 0 });
-  const restoreViewport = useRef(false);
 
   const getTrigger = () => controlRef.current?.querySelector<HTMLElement>('[role="combobox"]') ?? document.getElementById(id);
-  const restoreViewportPosition = () => {
-    if (!restoreViewport.current) return;
-    const scrollPosition = openScrollPosition.current;
-    window.scrollTo(scrollPosition.x, scrollPosition.y);
-    getTrigger()?.focus({ preventScroll: true });
-    window.scrollTo(scrollPosition.x, scrollPosition.y);
-  };
-
-  useLayoutEffect(() => {
-    if (menuOpen || !restoreViewport.current) return;
-
-    restoreViewportPosition();
-    const frame = requestAnimationFrame(restoreViewportPosition);
-    return () => cancelAnimationFrame(frame);
-  }, [menuOpen, value]);
 
   const handleOpen = () => {
     const trigger = getTrigger();
@@ -142,24 +124,11 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
     const openAbove = spaceAbove > spaceBelow;
     const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
 
-    openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
-    restoreViewport.current = false;
     setMenuPlacement({
       anchorVertical: openAbove ? "top" : "bottom",
       transformVertical: openAbove ? "bottom" : "top",
       maxHeight: Math.max(Math.min(320, availableSpace), 48)
     });
-    setMenuOpen(true);
-  };
-
-  const handleClose = () => {
-    restoreViewport.current = true;
-    setMenuOpen(false);
-  };
-
-  const handleMenuExited = () => {
-    restoreViewportPosition();
-    restoreViewport.current = false;
   };
 
   return (
@@ -170,26 +139,20 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         labelId={labelId}
         label={label}
         value={value}
-        open={menuOpen}
         onChange={onChange}
         onOpen={handleOpen}
-        onClose={handleClose}
         data-section={selectedTokens.section ?? "all"}
         MenuProps={{
           anchorEl: getTrigger,
           anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
           transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
           marginThreshold: 0,
-          disableAutoFocusItem: true,
-          disableRestoreFocus: true,
+          disableScrollLock: true,
           slotProps: {
             paper: {
               sx: {
                 maxHeight: `${menuPlacement.maxHeight}px`
               }
-            },
-            transition: {
-              onExited: handleMenuExited
             }
           }
         }}
