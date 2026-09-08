@@ -1,4 +1,4 @@
-import { Select, type SelectProps } from "@mui/material";
+import Select, { type SelectProps } from "@mui/material/Select";
 import { useLayoutEffect, useRef, useState } from "react";
 
 type Placement = {
