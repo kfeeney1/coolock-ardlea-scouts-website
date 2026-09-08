@@ -108,6 +108,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
         MenuProps={{
           anchorOrigin: { vertical: "bottom", horizontal: "left" },
           transformOrigin: { vertical: "top", horizontal: "left" },
+          disableAutoFocusItem: true,
           slotProps: {
             paper: {
               sx: {
