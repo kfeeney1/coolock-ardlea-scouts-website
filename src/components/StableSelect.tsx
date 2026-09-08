@@ -1,31 +1,30 @@
 import Select, { type SelectProps } from "@mui/material/Select";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 type Placement = {
-  anchorVertical: "top" | "bottom";
+  top: number;
+  left: number;
   transformVertical: "top" | "bottom";
   maxHeight: number;
 };
 
 const DEFAULT_PLACEMENT: Placement = {
-  anchorVertical: "bottom",
+  top: 0,
+  left: 0,
   transformVertical: "top",
   maxHeight: 320
 };
 
 /**
- * Site-wide MUI Select wrapper that keeps the popup attached to the visible
- * combobox at viewport edges without letting menu teardown move the page.
+ * Site-wide MUI Select wrapper that leaves MUI's native open/close lifecycle
+ * intact while keeping transient menus anchored to the visible trigger and
+ * preventing focus restoration from moving the underlying page.
  */
 export default function StableSelect<Value = unknown>(props: SelectProps<Value>) {
-  const { MenuProps, onOpen, onClose, open: controlledOpen, ...selectProps } = props;
+  const { MenuProps, onOpen, onClose, ...selectProps } = props;
   const rootRef = useRef<HTMLElement | null>(null);
-  const [internalOpen, setInternalOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
   const openScrollPosition = useRef({ x: 0, y: 0 });
-  const restoreViewport = useRef(false);
-  const isControlled = controlledOpen !== undefined;
-  const menuOpen = isControlled ? controlledOpen : internalOpen;
 
   const getTrigger = () => {
     const root = rootRef.current;
@@ -34,75 +33,68 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
     return root.querySelector<HTMLElement>('[role="combobox"]');
   };
 
-  const restoreViewportPosition = () => {
-    if (!restoreViewport.current) return;
-    const scrollPosition = openScrollPosition.current;
-    window.scrollTo(scrollPosition.x, scrollPosition.y);
-    getTrigger()?.focus({ preventScroll: true });
-    window.scrollTo(scrollPosition.x, scrollPosition.y);
+  const restoreViewport = () => {
+    const { x, y } = openScrollPosition.current;
+    window.scrollTo(x, y);
   };
 
-  useLayoutEffect(() => {
-    if (menuOpen || !restoreViewport.current) return;
-    restoreViewportPosition();
-    const frame = requestAnimationFrame(restoreViewportPosition);
-    return () => cancelAnimationFrame(frame);
-  }, [menuOpen, selectProps.value]);
-
   const handleOpen: NonNullable<SelectProps<Value>["onOpen"]> = (event) => {
+    const trigger = getTrigger() ?? (event.currentTarget as HTMLElement | null);
+    if (trigger) {
+      const rect = trigger.getBoundingClientRect();
+      const viewportMargin = 16;
+      const spaceBelow = Math.max(window.innerHeight - rect.bottom - viewportMargin, 0);
+      const spaceAbove = Math.max(rect.top - viewportMargin, 0);
+      const openAbove = spaceAbove > spaceBelow;
+      const availableSpace = openAbove ? spaceAbove : spaceBelow;
+
+      openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
+      setPlacement({
+        top: openAbove ? rect.top : rect.bottom,
+        left: rect.left,
+        transformVertical: openAbove ? "bottom" : "top",
+        maxHeight: Math.max(Math.min(320, availableSpace), 48)
+      });
+
+      requestAnimationFrame(restoreViewport);
+    }
+
     onOpen?.(event);
-    if (event.defaultPrevented) return;
-
-    const trigger = getTrigger();
-    if (!trigger) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const viewportMargin = 16;
-    const spaceBelow = Math.max(window.innerHeight - rect.bottom - viewportMargin, 0);
-    const spaceAbove = Math.max(rect.top - viewportMargin, 0);
-    const openAbove = spaceAbove > spaceBelow;
-    const availableSpace = openAbove ? spaceAbove : spaceBelow;
-
-    openScrollPosition.current = { x: window.scrollX, y: window.scrollY };
-    restoreViewport.current = false;
-    setPlacement({
-      anchorVertical: openAbove ? "top" : "bottom",
-      transformVertical: openAbove ? "bottom" : "top",
-      maxHeight: Math.max(Math.min(320, availableSpace), 48)
-    });
-    if (!isControlled) setInternalOpen(true);
   };
 
   const handleClose: NonNullable<SelectProps<Value>["onClose"]> = (event) => {
     onClose?.(event);
     if (event.defaultPrevented) return;
-    restoreViewport.current = true;
-    if (!isControlled) setInternalOpen(false);
-  };
 
-  const handleMenuExited = () => {
-    restoreViewportPosition();
-    restoreViewport.current = false;
+    const trigger = getTrigger();
+    const restore = () => {
+      restoreViewport();
+      trigger?.focus({ preventScroll: true });
+      restoreViewport();
+    };
+    requestAnimationFrame(() => {
+      restore();
+      requestAnimationFrame(restore);
+    });
   };
 
   const externalPaperSlot = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
-  const externalTransitionSlot = typeof MenuProps?.slotProps?.transition === "function" ? undefined : MenuProps?.slotProps?.transition;
 
   return (
     <Select
       {...selectProps}
       ref={(node) => { rootRef.current = node as HTMLElement | null; }}
-      open={menuOpen}
       onOpen={handleOpen}
       onClose={handleClose}
       MenuProps={{
         ...MenuProps,
-        anchorEl: getTrigger,
-        anchorOrigin: { vertical: placement.anchorVertical, horizontal: "left" },
+        anchorReference: "anchorPosition",
+        anchorPosition: { top: placement.top, left: placement.left },
         transformOrigin: { vertical: placement.transformVertical, horizontal: "left" },
         marginThreshold: 0,
         disableScrollLock: true,
         disableRestoreFocus: true,
+        disableAutoFocusItem: true,
         slotProps: {
           ...MenuProps?.slotProps,
           paper: {
@@ -117,13 +109,6 @@ export default function StableSelect<Value = unknown>(props: SelectProps<Value>)
                     : []
               )
             ]
-          },
-          transition: {
-            ...externalTransitionSlot,
-            onExited: (...args) => {
-              externalTransitionSlot?.onExited?.(...args);
-              handleMenuExited();
-            }
           }
         }
       }}
