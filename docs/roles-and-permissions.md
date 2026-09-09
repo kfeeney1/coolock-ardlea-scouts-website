@@ -31,11 +31,17 @@ Deputy Group Leader is intentionally not granted Group Leader parity in SW-48. S
 
 ## Effective appointment permissions currently enforced
 
-- **Group Leader**: group member read, group weekly/meeting access where encoded, group badgework write, group finance/subs, equipment and audit access.
-- **Group Secretary**: group member/badgework/meeting read and audit access where encoded.
+- **Group Leader**: group member read; group-wide weekly-meeting and parent-facing weekly programme management; protected group/leader-meeting reads; group programme-library management; group badgework write; group finance/subs; equipment management; group-wide event-gallery media access; and audit access. The appointment does **not** make group event records or consent/medical records group-wide, and group meeting-record creation remains Admin-only.
+- **Group Secretary**: group member, badgework and meeting read access plus audit access where encoded; it does not inherit the Group Leader write bundle.
 - **Group Treasurer**: group member read required by the present finance model plus group finance/subs authority.
 - **Group Quartermaster / Bo'sun**: equipment management.
 - **Section Leader**, **Assistant Section Leader**, **Programme Scouter**, **Scouter**, **Group Chairperson** and **Group Youth Champion** currently add no group-wide authorization beyond the person's system role and assigned sections. The current Rules do not contain a separate Section Leader-only closed-meeting amendment permission.
+
+Ordinary active leaders can read the group equipment register and equipment history, and can operate equipment loans for their assigned sections. Those read/loan capabilities come from the system Leader role, not from a Scouting appointment.
+
+## Authentication and claims
+
+Firebase Authentication establishes identity, but system role and section authorization are read from the current `adminUsers` document and appointment authorization is read from `organisationLeadership`. The application does not currently use custom role claims as its RBAC source. Firestore Rules do use the authenticated token email when validating attributed audit-log writes.
 
 ## Enforcement points
 
