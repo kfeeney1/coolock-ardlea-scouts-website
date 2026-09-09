@@ -39,16 +39,28 @@ def number(value):
   except (ValueError,TypeError): return None
 
 def main():
-  parser=argparse.ArgumentParser(); parser.add_argument("--xlsx",required=True); parser.add_argument("--batch",required=True); parser.add_argument("--output",required=True); args=parser.parse_args()
-  records=[]; rejected=[]
+  parser=argparse.ArgumentParser(); parser.add_argument("--xlsx",required=True); parser.add_argument("--batch",required=True); parser.add_argument("--output",required=True); parser.add_argument("--overrides",help="Reviewed source-row corrections JSON"); args=parser.parse_args()
+  overrides={}
+  if args.overrides:
+    override_payload=json.loads(Path(args.overrides).read_text(encoding="utf-8"))
+    if override_payload.get("version") != 1 or not isinstance(override_payload.get("reviewedOverrides"),dict): raise SystemExit("Unsupported equipment override file.")
+    overrides=override_payload["reviewedOverrides"]
+  records=[]; rejected=[]; applied=[]
   for sheet,rows in workbook_rows(Path(args.xlsx)):
     for row,values in rows:
       if row < 3 or not values.get("C"): continue
-      qty=number(values.get("B")); source=f"{sheet}:row-{row}"
+      source=f"{sheet}:row-{row}"; override=overrides.get(source,{})
+      unknown=set(override)-{"quantity","description"}
+      if unknown: raise SystemExit(f"Unsupported override fields for {source}: {sorted(unknown)}")
+      qty=number(override.get("quantity",values.get("B")))
       if qty is None: rejected.append({"sourceRef":source,"reason":"quantity-is-not-a-single-whole-number","sourceValue":str(values.get("B") or "")}); continue
       replacement=number(values.get("E")); replacement_note="" if replacement is not None else str(values.get("E") or "").strip()
-      records.append({"name":re.sub(r"\s+"," ",str(values["C"]).strip()),"category":re.sub(r"\s+"," ",str(values.get("D") or "").strip()),"trackingMode":"quantity","totalQuantity":qty,"location":"Hall" if sheet.casefold()=="hall" else "Location not recorded","condition":"not-recorded","notes":"","replacementValue":replacement,"purchaseDate":date_value(values.get("A")),"disposalDate":date_value(values.get("F")),"replacementValueNote":replacement_note,"assetRegisterSection":sheet,"source":"spreadsheet-import","importBatch":args.batch,"importSourceRef":source})
-  result={"version":1,"batch":args.batch,"records":records,"preparationRejected":rejected}
+      description=override.get("description",values["C"])
+      if override: applied.append({"sourceRef":source,"fields":sorted(override)})
+      records.append({"name":re.sub(r"\s+"," ",str(description).strip()),"category":re.sub(r"\s+"," ",str(values.get("D") or "").strip()),"trackingMode":"quantity","totalQuantity":qty,"location":"Hall" if sheet.casefold()=="hall" else "Location not recorded","condition":"not-recorded","notes":"","replacementValue":replacement,"purchaseDate":date_value(values.get("A")),"disposalDate":date_value(values.get("F")),"replacementValueNote":replacement_note,"assetRegisterSection":sheet,"source":"spreadsheet-import","importBatch":args.batch,"importSourceRef":source})
+  unused=sorted(set(overrides)-{item["sourceRef"] for item in applied})
+  if unused: raise SystemExit(f"Overrides did not match populated workbook rows: {unused}")
+  result={"version":1,"batch":args.batch,"records":records,"preparationRejected":rejected,"reviewedOverridesApplied":applied}
   Path(args.output).write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
-  print(json.dumps({"records":len(records),"rejected":len(rejected),"rejectedReasons":sorted({r["reason"] for r in rejected})}))
+  print(json.dumps({"records":len(records),"rejected":len(rejected),"reviewedOverridesApplied":len(applied),"rejectedReasons":sorted({r["reason"] for r in rejected})}))
 if __name__=="__main__": main()

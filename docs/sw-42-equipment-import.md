@@ -23,24 +23,24 @@ The current schema also requires fields absent from the workbook:
 - `notes`, checked-out/unavailable quantities and archive state: no workbook equivalents. New imports start with blank notes, zero operational allocations and active state because the controlled import creates catalogue rows, not loans or incidents.
 - provenance: `source=spreadsheet-import`, a reviewed batch, and worksheet/row source reference are stored on every record.
 
-## Rejected source values
+## Reviewed source corrections
 
-The attachment contains 136 populated asset rows. Preparation accepts 133 and rejects three ambiguous Quantity values:
+The attachment contains 136 populated asset rows. The owner supplied these explicit corrections after reviewing the three ambiguous rows:
 
-| Source | Value | Reason |
+| Source | Original value | Reviewed import value |
 | --- | --- | --- |
-| Hall row 6 | `20+` | No exact whole quantity. |
-| Hall row 41 | `3 x 2` | Could mean a count, dimensions or grouped units. |
-| Hall row 42 | `1x4` | Could mean a count, dimensions or grouped units. |
+| Hall row 6 | Quantity `20+` | Quantity `20`; description remains `Spars`. |
+| Hall row 41 | Quantity `3 x 2`, description `Soft` | Quantity `1`; description `3x2 size sofa`. |
+| Hall row 42 | Quantity `1x4`, description `Sofa` | Quantity `1`; description `4x1 size sofa`. |
 
-The guarded import refuses to mutate while any rejected row remains. Correct these cells in a reviewed copy of the workbook before execution; do not add assumed quantities to the manifest.
+The corrections live in `config/sw-42-equipment-source-overrides.json` and are passed explicitly to the preparer. The resulting manifest contains all 136 rows, records which overrides were applied, and has no rejected source rows. Unknown or unmatched override entries fail preparation.
 
 ## Guarded workflow
 
 Prepare a private manifest:
 
 ```bash
-python scripts/prepare-equipment-import.py --xlsx /private/Coolok.xlsx --batch sw-42-coolok-2025-2026 --output /private/sw-42-equipment.json
+python scripts/prepare-equipment-import.py --xlsx /private/Coolok.xlsx --overrides config/sw-42-equipment-source-overrides.json --batch sw-42-coolok-2025-2026 --output /private/sw-42-equipment.json
 ```
 
 Run a dry run with a narrowly scoped service account. Review aggregate counts, conflicts and the digest. Execution or rollback additionally requires `PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT`, `PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT`, and `PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256` to match that reviewed dry run, plus a recent reviewed backup in `PROD_EQUIPMENT_IMPORT_BACKUP_URI` and `PROD_EQUIPMENT_IMPORT_BACKUP_VERIFIED_AT`.
