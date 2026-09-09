@@ -1,3 +1,5 @@
+import { isGroupLeadershipAppointment } from "./scoutingAppointments";
+
 export type PermissionScope = "own" | "linked-members" | "assigned-section" | "group-wide" | "system";
 export type PermissionArea =
   | "Members"
@@ -40,6 +42,7 @@ export const SYSTEM_ACCESS_ROLES = ["Parent / Guardian", "Leader", "Admin", "Sup
 
 export const CURRENT_SCOUTING_APPOINTMENTS = [
   "Group Leader",
+  "Deputy Group Leader",
   "Group Secretary",
   "Group Treasurer",
   "Group Quartermaster / Bo'sun",
@@ -90,6 +93,7 @@ const grantMatches = (grant: PermissionGrant, role: string, scoutingRole: string
   if (grant === role) return true;
   if (grant === "admin" && role === "super-admin") return true;
   if (grant === "leader" && ["leader", "admin", "super-admin"].includes(role)) return true;
+  if (grant === "Group Leader" && isGroupLeadershipAppointment(scoutingRole)) return true;
   return grant === scoutingRole;
 };
 
