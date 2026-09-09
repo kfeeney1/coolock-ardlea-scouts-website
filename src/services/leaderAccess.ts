@@ -11,7 +11,6 @@ import {
 } from "../security/leaderDelegationPolicy.ts";
 import { normalizeScoutingAppointment } from "../security/scoutingAppointments.ts";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
-import { loadInternalOrganisation } from "./organisationChart";
 import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
 
 export type LeaderAccessRecord = {
@@ -41,12 +40,12 @@ function sameStrings(left: string[], right: string[]): boolean {
 }
 
 export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
-  const [snapshot, organisation] = await Promise.all([
+  const [accessSnapshot, organisationSnapshot] = await Promise.all([
     getDocs(collection(db, "adminUsers")),
-    loadInternalOrganisation().catch(() => [])
+    getDocs(collection(db, "organisationLeadership"))
   ]);
-  const byUid = new Map(organisation.map((item) => [item.uid, item]));
-  return snapshot.docs.map((item) => {
+  const byUid = new Map(organisationSnapshot.docs.map((item) => [item.id, item.data()]));
+  return accessSnapshot.docs.map((item) => {
     const data = item.data();
     const role: SystemRole = normalizeLeaderRole(data.role);
     const sections = normalizeLeaderSections(data);
@@ -58,13 +57,13 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
       role,
       active: data.active === true,
       sections,
-      scoutingRole: org?.scoutingRole || "",
-      organisationSection: org?.organisationSection || sections[0] || "Group",
-      organisationOrder: org?.organisationOrder ?? 999,
-      reportsToUid: org?.reportsToUid || "",
+      scoutingRole: typeof org?.scoutingRole === "string" ? org.scoutingRole : "",
+      organisationSection: typeof org?.organisationSection === "string" ? org.organisationSection : sections[0] || "Group",
+      organisationOrder: typeof org?.organisationOrder === "number" ? org.organisationOrder : 999,
+      reportsToUid: typeof org?.reportsToUid === "string" ? org.reportsToUid : "",
       showPublicly: role === "leader" && org?.showPublicly === true,
       accessVersion: timestampVersion(data.updatedAt),
-      organisationVersion: 0
+      organisationVersion: timestampVersion(org?.updatedAt)
     };
   });
 }
@@ -83,11 +82,12 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const publicRef = doc(db, "publicLeadership", record.uid);
     const auditRef = doc(collection(db, "auditLog"));
 
-    const [actorAccessSnap, actorOrgSnap, targetAccessSnap, targetOrgSnap] = await Promise.all([
+    const [actorAccessSnap, actorOrgSnap, targetAccessSnap, targetOrgSnap, publicSnap] = await Promise.all([
       transaction.get(actorAccessRef),
       transaction.get(actorOrgRef),
       transaction.get(targetAccessRef),
-      transaction.get(targetOrgRef)
+      transaction.get(targetOrgRef),
+      transaction.get(publicRef)
     ]);
     if (!actorAccessSnap.exists() || !targetAccessSnap.exists()) throw new Error("Leader access record no longer exists.");
 
@@ -107,7 +107,8 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       scoutingAppointment: currentOrg?.scoutingRole ?? ""
     };
 
-    if (timestampVersion(currentAccess.updatedAt) !== record.accessVersion) {
+    if (timestampVersion(currentAccess.updatedAt) !== record.accessVersion
+      || timestampVersion(currentOrg?.updatedAt) !== record.organisationVersion) {
       throw new Error("This leader changed since you opened the page. Refresh before saving.");
     }
 
@@ -145,7 +146,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
 
     if (!record.active) {
       if (targetOrgSnap.exists()) transaction.delete(targetOrgRef);
-      transaction.delete(publicRef);
+      if (adminActor && publicSnap.exists()) transaction.delete(publicRef);
     } else {
       const safeAppointment = canonicalAppointment || "Scouter";
       const safeOrg = {
@@ -159,15 +160,26 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         updatedAt: serverTimestamp()
       };
       transaction.set(targetOrgRef, safeOrg);
-      if (record.role === "leader" && safeOrg.showPublicly && isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
-        transaction.set(publicRef, {
-          ...safeOrg,
-          showPublicly: true,
-          publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
-          sourceAccessRole: "leader"
+
+      if (adminActor) {
+        if (record.role === "leader" && safeOrg.showPublicly && isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
+          transaction.set(publicRef, {
+            ...safeOrg,
+            showPublicly: true,
+            publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
+            sourceAccessRole: "leader"
+          });
+        } else if (publicSnap.exists()) {
+          transaction.delete(publicRef);
+        }
+      } else if (publicSnap.exists()) {
+        if (!isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
+          throw new Error("An Administrator must change the appointment of a publicly listed leader when the new appointment is not public-listing compatible.");
+        }
+        transaction.update(publicRef, {
+          scoutingRole: safeAppointment,
+          updatedAt: serverTimestamp()
         });
-      } else {
-        transaction.delete(publicRef);
       }
     }
 
