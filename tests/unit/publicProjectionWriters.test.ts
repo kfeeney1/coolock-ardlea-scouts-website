@@ -37,17 +37,24 @@ function writesPublicLeadership(source: string): boolean {
 
   for (const ref of publicRefs) {
     const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`\\b(?:setDoc|updateDoc|batch\\.set|transaction\\.set)\\(\\s*${escaped}\\s*,`).test(source)) return true;
+    if (new RegExp(`\\b(?:setDoc|updateDoc|batch\\.set|transaction\\.(?:set|update))\\(\\s*${escaped}\\s*,`).test(source)) return true;
   }
 
-  if (/\b(?:setDoc|updateDoc|batch\.set|transaction\.set)\(\s*doc\([^)]*["']publicLeadership["'][^)]*\)\s*,/.test(source)) return true;
+  if (/\b(?:setDoc|updateDoc|batch\.set|transaction\.(?:set|update))\(\s*doc\([^)]*["']publicLeadership["'][^)]*\)\s*,/.test(source)) return true;
   return false;
 }
 
-function firestoreWriteObjects(source: string): string[] {
+function adminUsersWriteObjects(source: string): string[] {
   const writes: string[] = [];
-  const pattern = /(?:setDoc|updateDoc|addDoc|batch\.set|transaction\.set)\([^,]+,\s*\{([\s\S]*?)\}\s*(?:,\s*\{[^}]*\})?\s*\)/g;
-  for (const match of source.matchAll(pattern)) writes.push(match[1]);
+  const refs = new Set<string>();
+  for (const match of source.matchAll(/\b(?:const|let|var)\s+(\w+)\s*=\s*doc\([^;\n]*["']adminUsers["'][^;\n]*\)/g)) {
+    refs.add(match[1]);
+  }
+  for (const ref of refs) {
+    const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`(?:setDoc|updateDoc|batch\\.set|transaction\\.(?:set|update))\\(\\s*${escaped}\\s*,\\s*\\{([\\s\\S]*?)\\}\\s*(?:,\\s*\\{[^}]*\\})?\\s*\\)`, "g");
+    for (const match of source.matchAll(pattern)) writes.push(match[1]);
+  }
   return writes;
 }
 
@@ -68,6 +75,7 @@ describe("leadership data writers", () => {
       [
         "scripts/rebuild-public-leadership.mjs",
         "scripts/seed-population-data.mjs",
+        "src/services/leaderAccess.ts",
         "src/services/organisationChart.ts"
       ],
       `Unexpected publicLeadership writer set: ${writers.join(", ")}`
@@ -78,8 +86,8 @@ describe("leadership data writers", () => {
     for (const file of CANONICAL_SECTION_WRITER_FILES) {
       const source = await readFile(file, "utf8");
       assert.match(source, /\bsections\s*:/, `${file} does not write canonical sections[]`);
-      for (const writeObject of firestoreWriteObjects(source)) {
-        assert.doesNotMatch(writeObject, /\bsection\s*:/, `${file} still persists legacy singular section`);
+      for (const writeObject of adminUsersWriteObjects(source)) {
+        assert.doesNotMatch(writeObject, /\bsection\s*:/, `${file} still persists legacy singular section to adminUsers`);
       }
     }
 
