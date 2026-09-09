@@ -61,23 +61,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          checks="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100")"
-          node -e '
-            const payload = JSON.parse(process.env.CHECKS);
-            const required = ["build", "Playwright E2E"];
-            const runs = payload.check_runs || [];
-            for (const name of required) {
-              const matching = runs.filter((run) => run.name === name);
-              if (!matching.length || !matching.some((run) => run.status === "completed" && run.conclusion === "success")) {
-                console.error(`Required successful check missing for ${name}`);
-                process.exit(1);
-              }
-            }
-          ' 
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ inputs.commit_sha }}
-          CHECKS: ${{ steps.checks.outputs.payload }}
+          for required_check in 'build' 'Playwright E2E'; do
+            conclusions="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" --jq ".check_runs[] | select(.name == \"${required_check}\") | .conclusion")"
+            if ! grep -qx 'success' <<< "$conclusions"; then
+              echo "::error::Required successful check missing for ${required_check} on ${TARGET_SHA}."
+              exit 1
+            fi
+          done
       - name: Install dependencies
         run: npm ci
       - name: Re-run release security and Rules checks
