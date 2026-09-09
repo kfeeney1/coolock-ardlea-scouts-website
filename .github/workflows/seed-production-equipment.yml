@@ -1,0 +1,82 @@
+name: Seed production equipment
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Choose a non-writing dry run, seed, or provenance-checked rollback"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - seed
+          - rollback
+      confirmation:
+        description: "For seed type SEED EQUIPMENT; for rollback type ROLLBACK EQUIPMENT"
+        required: false
+        type: string
+      expected_create_count:
+        description: "For seed, copy creates from a separate dry-run workflow"
+        required: false
+        type: string
+      expected_manifest_sha256:
+        description: "For seed, copy manifestSha256 from a separate dry-run workflow"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-equipment-seed
+  cancel-in-progress: false
+
+jobs:
+  equipment:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate requested action
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXPECTED_CREATE_COUNT: ${{ inputs.expected_create_count }}
+          EXPECTED_SHA256: ${{ inputs.expected_manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          if [[ "$ACTION" == "seed" && ( "$CONFIRMATION" != "SEED EQUIPMENT" || ! "$EXPECTED_CREATE_COUNT" =~ ^[0-9]+$ || ! "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ) ]]; then
+            echo "::error::Seed requires exact confirmation plus count and SHA-256 copied from a separate dry run."
+            exit 1
+          fi
+          if [[ "$ACTION" == "rollback" && "$CONFIRMATION" != "ROLLBACK EQUIPMENT" ]]; then
+            echo "::error::Rollback requires the exact confirmation ROLLBACK EQUIPMENT."
+            exit 1
+          fi
+      - name: Dry run
+        if: ${{ inputs.action == 'dry-run' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+        run: npm run seed:equipment
+      - name: Seed reviewed equipment
+        if: ${{ inputs.action == 'seed' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
+          PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT: ${{ inputs.expected_create_count }}
+          PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
+        run: npm run seed:equipment -- --execute
+      - name: Roll back reviewed equipment seed
+        if: ${{ inputs.action == 'rollback' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
+        run: npm run seed:equipment -- --rollback
