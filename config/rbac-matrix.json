@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 1,
   "identities": ["public", "parent", "leader", "admin", "super-admin"],
   "scoutRoles": ["Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter", "Group Chairperson", "Group Youth Champion"],
   "routes": {
