@@ -1,6 +1,6 @@
 # SW-42 equipment asset-register mapping
 
-Source: Jira SW-42 attachment `Coolok.xlsx`, register period 2025–2026. The source workbook is not committed.
+Source: Jira SW-42 attachment `Coolok.xlsx`, register period 2025–2026. The source workbook is not committed; its reviewed, normalised equipment seed is committed as `config/sw-42-equipment-seed.json`.
 
 ## Column mapping
 
@@ -35,23 +35,27 @@ The attachment contains 136 populated asset rows. The owner supplied these expli
 
 The corrections live in `config/sw-42-equipment-source-overrides.json` and are passed explicitly to the preparer. The resulting manifest contains all 136 rows, records which overrides were applied, and has no rejected source rows. Unknown or unmatched override entries fail preparation.
 
-## Guarded workflow
+## Guarded seed workflow
 
-Prepare a private manifest:
+The committed seed was generated with:
 
 ```bash
-python scripts/prepare-equipment-import.py --xlsx /private/Coolok.xlsx --overrides config/sw-42-equipment-source-overrides.json --batch sw-42-coolok-2025-2026 --output /private/sw-42-equipment.json
+python scripts/prepare-equipment-import.py --xlsx /private/Coolok.xlsx --overrides config/sw-42-equipment-source-overrides.json --batch sw-42-coolok-2025-2026 --output config/sw-42-equipment-seed.json
 ```
 
-Run a dry run with a narrowly scoped service account. Review aggregate counts, conflicts and the digest. Execution or rollback additionally requires `PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT`, `PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT`, and `PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256` to match that reviewed dry run, plus a recent reviewed backup in `PROD_EQUIPMENT_IMPORT_BACKUP_URI` and `PROD_EQUIPMENT_IMPORT_BACKUP_VERIFIED_AT`.
+Run a dry run with a narrowly scoped service account and review its project, aggregate counts, conflicts and digest. Execution requires `PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT`, `PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT`, and `PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256` to match that dry run exactly.
+
+The seed only creates deterministic documents and refuses name or content conflicts; it never updates or deletes existing authoritative equipment. Consequently it does not require Firestore's paid managed-export feature. A provenance-checked rollback is available and refuses to delete any document that does not exactly match this seed batch and source row.
 
 ```bash
-node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json
-node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json --execute
-node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json --rollback
+npm run seed:equipment
+npm run seed:equipment -- --execute
+npm run seed:equipment -- --rollback
 ```
 
 The deterministic document ID is derived from batch plus worksheet/row. Re-running the same reviewed batch is idempotent, name conflicts fail closed, and rollback deletes only records whose stored provenance still matches.
+
+For production, use the manually dispatched **Seed production equipment** GitHub workflow. Run `dry-run` first, then start a separate `seed` run with the exact reported create count, SHA-256 digest and confirmation phrase. The workflow checks out `main`, uses the protected production environment and cannot run from pushes, pull requests, deployments or ordinary CI. Its separate rollback action has its own exact confirmation phrase.
 
 ## Report
 

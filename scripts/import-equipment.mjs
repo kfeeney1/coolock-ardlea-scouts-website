@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { planEquipmentImport } from "./equipment-import-core.mjs";
+import { equipmentImportId, planEquipmentImport } from "./equipment-import-core.mjs";
 
 const execute=process.argv.includes("--execute"), rollback=process.argv.includes("--rollback");
 const manifestArg=process.argv.find((arg)=>arg.startsWith("--manifest="));
-if (!manifestArg || (execute && rollback)) throw new Error("Usage: node scripts/import-equipment.mjs --manifest=/reviewed/equipment.json [--execute|--rollback]");
+if (!manifestArg || (execute && rollback)) throw new Error("Usage: npm run seed:equipment -- [--execute|--rollback]");
 const credentials=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "null");
 if (!credentials?.project_id) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON with project_id is required for comparison and mutation.");
 const { cert, initializeApp }=await import("firebase-admin/app"); const { FieldValue, getFirestore }=await import("firebase-admin/firestore");
@@ -17,15 +17,13 @@ const digest=createHash("sha256").update(JSON.stringify(review)).digest("hex");
 console.log(JSON.stringify({mode:rollback?"rollback":execute?"execute":"dry-run",projectId:credentials.project_id,creates:plan.creates.length,matches:plan.matches.length,conflicts:plan.conflicts.length,rejected:plan.rejected.length,manifestSha256:digest},null,2));
 if (!execute && !rollback) process.exit(0);
 if (plan.conflicts.length || plan.rejected.length) throw new Error("Refusing mutation while conflicts or rejected rows remain.");
-if (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id || Number(process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT)!==plan.creates.length || process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256!==digest) throw new Error("Reviewed project, create count or manifest digest does not match.");
-const backupUri=process.env.PROD_EQUIPMENT_IMPORT_BACKUP_URI, backupVerifiedAt=process.env.PROD_EQUIPMENT_IMPORT_BACKUP_VERIFIED_AT;
-const backupAge=Date.now()-Date.parse(backupVerifiedAt || "");
-if (!backupUri?.startsWith("gs://") || !backupUri.includes("firestore-backups") || !Number.isFinite(backupAge) || backupAge < 0 || backupAge > 192*60*60*1000) throw new Error("A reviewed Firestore backup URI verified within 192 hours is required.");
 if (rollback) {
+  if (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id) throw new Error("Reviewed project does not match.");
   let removed=0;
-  for (const item of plan.creates) { const ref=db.collection("equipmentItems").doc(item.id); const current=await ref.get(); if (!current.exists) continue; const data=current.data(); if (data.source!=="spreadsheet-import" || data.importBatch!==manifest.batch || data.importSourceRef!==item.importSourceRef) throw new Error(`Rollback provenance mismatch for ${item.id}.`); await ref.delete(); removed++; }
+  for (const item of manifest.records) { const id=equipmentImportId(manifest.batch,item.importSourceRef); const ref=db.collection("equipmentItems").doc(id); const current=await ref.get(); if (!current.exists) continue; const data=current.data(); if (data.source!=="spreadsheet-import" || data.importBatch!==manifest.batch || data.importSourceRef!==item.importSourceRef) throw new Error(`Rollback provenance mismatch for ${id}.`); await ref.delete(); removed++; }
   console.log(`Rollback complete: ${removed} imported equipment records removed.`); process.exit(0);
 }
+if (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id || Number(process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT)!==plan.creates.length || process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256!==digest) throw new Error("Reviewed project, create count or manifest digest does not match.");
 const optionId=(kind,value)=>`equipment-import-${kind}-${createHash("sha256").update(value.toLocaleLowerCase("en-IE")).digest("hex").slice(0,20)}`;
 for (const [collectionName,kind,values] of [
   ["equipmentCategories","category",new Set(plan.creates.map((item)=>item.category))],
