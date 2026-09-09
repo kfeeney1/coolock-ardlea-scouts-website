@@ -62,6 +62,7 @@ test("quartermaster appointment variants are recognised", () => {
 test("equipment management is restricted to the expected roles", () => {
   assert.equal(canManageEquipment(profile({ scoutingRole: "Group Quartermaster / Bo'sun" })), true);
   assert.equal(canManageEquipment(profile({ scoutingRole: "Group Leader" })), true);
+  assert.equal(canManageEquipment(profile({ scoutingRole: "Deputy Group Leader" })), true);
   assert.equal(canManageEquipment(profile({ role: "admin" })), true);
   assert.equal(canManageEquipment(profile()), false);
   assert.equal(canManageEquipment(null), false);
