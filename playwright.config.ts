@@ -21,7 +21,9 @@ export default defineConfig({
     ? [["github"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : "list",
   use: {
-    baseURL: process.env.E2E_BASE_URL || "https://coolock-ardlea-scouts.web.app",
+    // Fail away from production by default. Any non-local target must be supplied
+    // explicitly by the dedicated TEST or manual PRODUCTION smoke workflow.
+    baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure"
