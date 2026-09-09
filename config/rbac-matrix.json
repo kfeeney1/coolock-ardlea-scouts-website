@@ -1,7 +1,7 @@
 {
   "version": 1,
   "identities": ["public", "parent", "leader", "admin", "super-admin"],
-  "scoutRoles": ["Group Leader", "Group Secretary", "Group Quartermaster / Bo'sun"],
+  "scoutRoles": ["Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun"],
   "routes": {
     "/": "public",
     "/about": "public",
@@ -28,6 +28,7 @@
     "/leader/badgework": "leader",
     "/leader/equipment": "leader",
     "/leader/finance": "leader",
+    "/leader/subs": "leader",
     "/leader/organisation": "leader",
     "/leader/consents": "leader",
     "/leader/consents/:consentId": "leader",
@@ -75,6 +76,9 @@
     "publicLeadership": "public-read-admin-projection",
     "publicSiteContent": "public-read-admin-write",
     "siteSettings": "signed-in-read-admin-write",
+    "subsAssignments": "finance-period-assignment",
+    "subsPayments": "finance-section-ledger",
+    "subsRatePolicies": "group-finance-policy",
     "weeklyMeetings": "leader-section-and-group-role"
   },
   "storage": {

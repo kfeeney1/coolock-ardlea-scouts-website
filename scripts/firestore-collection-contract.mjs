@@ -30,6 +30,9 @@ export const FIRESTORE_ROOT_COLLECTIONS = Object.freeze([
   "publicLeadership",
   "publicSiteContent",
   "siteSettings",
+  "subsAssignments",
+  "subsPayments",
+  "subsRatePolicies",
   "weeklyMeetings"
 ]);
 

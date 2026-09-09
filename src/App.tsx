@@ -45,6 +45,7 @@ const JoinManagement = lazy(() => import("./pages/JoinManagement"));
 const JoinRecordPage = lazy(() => import("./pages/JoinRecordPage"));
 const MemberManagement = lazy(() => import("./pages/MemberManagement"));
 const MemberRecordPage = lazy(() => import("./pages/MemberRecordPage"));
+const SubsManagement = lazy(() => import("./pages/SubsManagement"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
 const EventRecordPage = lazy(() => import("./pages/EventRecordPage"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
@@ -104,6 +105,7 @@ export default function App() {
               <Route path="/leader/join/:applicationId" element={protectedRoute(<JoinRecordPage />)} />
               <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
               <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
+              <Route path="/leader/subs" element={protectedRoute(<SubsManagement />)} />
               <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
               <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
               <Route path="/leader/events/:eventId" element={protectedRoute(<EventRecordPage />)} />

@@ -26,6 +26,7 @@ const navGroups: NavGroup[] = [
  { label: "Group Operations", items: [
   { label: "Equipment & Stores", path: "/leader/equipment" },
   { label: "Section Floats", path: "/leader/finance" },
+  { label: "Scout Subs", path: "/leader/subs" },
   { label: "Meeting Records", path: "/leader/meetings" }
  ] },
  { label: "Insights & Records", items: [

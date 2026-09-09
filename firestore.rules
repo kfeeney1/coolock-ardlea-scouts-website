@@ -45,6 +45,7 @@ service cloud.firestore {
     }
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
     function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
+    function canManageSubsPolicy() { return isGroupLeader() || isGroupTreasurer(); }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
@@ -512,6 +513,77 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.keys().hasOnly(["section", "type", "amountCents", "category", "description", "transactionDate", "sourceTransactionId", "reversalOfTransactionId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsRatePolicies/{policyId} {
+      allow get, list: if isActiveLeader();
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.period is string
+        && request.resource.data.effectiveFrom is string
+        && request.resource.data.standardCents is number && request.resource.data.standardCents >= 0
+        && request.resource.data.leaderChildCents is number && request.resource.data.leaderChildCents >= 0
+        && request.resource.data.siblingCents is number && request.resource.data.siblingCents >= 0
+        && request.resource.data.version is number && request.resource.data.version >= 1
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["period", "effectiveFrom", "standardCents", "leaderChildCents", "siblingCents", "version", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsAssignments/{assignmentId} {
+      allow get, list: if isActiveLeader()
+        && resource.data.section is string
+        && (canViewAllFinance() || hasSection(resource.data.section));
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && request.resource.data.memberName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
+        && request.resource.data.section == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.section
+        && request.resource.data.period is string
+        && request.resource.data.category in ["standard", "leader-child", "sibling"]
+        && request.resource.data.amountDueCents is number && request.resource.data.amountDueCents >= 0
+        && request.resource.data.policyId is string
+        && exists(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId))
+        && request.resource.data.policyVersion == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.version
+        && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
+        && ((request.resource.data.category == "standard" && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.standardCents)
+          || (request.resource.data.category == "leader-child" && request.resource.data.leaderChild == true && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.leaderChildCents)
+          || (request.resource.data.category == "sibling" && request.resource.data.sibling == true && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.siblingCents))
+        && request.resource.data.sibling is bool && request.resource.data.leaderChild is bool
+        && request.resource.data.classifiedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "classifiedBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsPayments/{paymentId} {
+      allow get, list: if isActiveLeader()
+        && resource.data.section is string
+        && (canViewAllFinance() || hasSection(resource.data.section));
+      allow create: if canAccessFinanceSection(request.resource.data.section)
+        && request.resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && request.resource.data.memberName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
+        && request.resource.data.section == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.section
+        && request.resource.data.period is string
+        && request.resource.data.method in ["bank", "cash", "revolut", "other"]
+        && request.resource.data.paymentDate is string
+        && request.resource.data.note is string
+        && request.resource.data.recordedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && ((request.resource.data.amountCents is number && request.resource.data.amountCents > 0 && request.resource.data.reversalOfPaymentId == "")
+          || (request.resource.data.amountCents is number && request.resource.data.amountCents < 0
+            && request.resource.data.reversalOfPaymentId is string
+            && paymentId == "reversal-" + request.resource.data.reversalOfPaymentId
+            && exists(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId))
+            && get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.reversalOfPaymentId == ""
+            && request.resource.data.amountCents == -get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.amountCents
+            && request.resource.data.memberId == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.memberId
+            && request.resource.data.section == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.section
+            && request.resource.data.period == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.period
+            && request.resource.data.method == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.method))
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "amountCents", "method", "paymentDate", "reversalOfPaymentId", "note", "recordedBy", "createdAt"]);
       allow update, delete: if false;
     }
 

@@ -125,4 +125,15 @@ for (const [id, name] of [["TEST_equipment_location_main", "Main Equipment Store
   await db.collection("equipmentLocations").doc(id).set({ name, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
 }
 
-console.log(`Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows, parent-safe programme projections and ${equipmentSeedItems.length} allocation-free equipment items.`);
+await db.collection("subsRatePolicies").doc("TEST_2099-v1").set({ period: "2099 Scout Year", effectiveFrom: "2099-01-01", standardCents: 10000, leaderChildCents: 7000, siblingCents: 8500, version: 1, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+const subsFixtures = [
+  ["TEST_member_scout_01", scoutMember.displayName, "Scouts", "standard", 10000, false, false],
+  ["TEST_member_cub_01", (await requireDoc("members", "TEST_member_cub_01")).displayName, "Cubs", "sibling", 8500, true, false],
+  ["TEST_member_beaver_01", (await requireDoc("members", "TEST_member_beaver_01")).displayName, "Beavers", "leader-child", 7000, false, true]
+];
+for (const [memberId, memberName, section, category, amountDueCents, sibling, leaderChild] of subsFixtures) {
+  await db.collection("subsAssignments").doc(`${memberId}--2099-scout-year`).set({ memberId, memberName, section, period: "2099 Scout Year", category, amountDueCents, policyId: "TEST_2099-v1", policyVersion: 1, sibling, leaderChild, classifiedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+}
+await db.collection("subsPayments").doc("TEST_scout_partial").set({ memberId: "TEST_member_scout_01", memberName: scoutMember.displayName, section: "Scouts", period: "2099 Scout Year", amountCents: 4000, method: "cash", paymentDate: "2099-01-10", reversalOfPaymentId: "", note: "Deterministic partial payment", recordedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+
+console.log(`Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows, parent-safe programme projections, Scout subs and ${equipmentSeedItems.length} allocation-free equipment items.`);
