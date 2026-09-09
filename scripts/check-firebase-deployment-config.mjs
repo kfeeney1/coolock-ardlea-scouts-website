@@ -28,6 +28,11 @@ function triggerBlock(workflow) {
   return start >= 0 && end > start ? workflow.slice(start, end) : "";
 }
 
+function exactProjectReference(workflow, projectId) {
+  const escaped = projectId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:FIREBASE_PROJECT_ID|projectId):\\s*${escaped}(?:\\s|$)`, "m").test(workflow);
+}
+
 requireContract(firebase?.firestore?.rules === "firestore.rules", "firebase.json declares Firestore rules.");
 requireContract(firebase?.firestore?.indexes === "firestore.indexes.json", "firebase.json declares Firestore indexes.");
 requireContract(firebase?.storage?.rules === "storage.rules", "firebase.json declares Storage rules.");
@@ -43,6 +48,8 @@ for (const forbidden of ["push:", "pull_request:", "schedule:", "release:", "wor
 }
 requireContract(productionWorkflow.includes("environment: production"), "Production deploy targets the protected production GitHub environment.");
 requireContract(productionWorkflow.includes("FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION"), "Production uses a production-scoped credential name.");
+requireContract(exactProjectReference(productionWorkflow, PROD), "Production workflow explicitly targets the production Firebase project.");
+requireContract(!exactProjectReference(productionWorkflow, TEST), "Production workflow does not target the TEST Firebase project.");
 requireContract(productionWorkflow.includes("git merge-base --is-ancestor"), "Production verifies the requested SHA is contained in current main.");
 requireContract(productionWorkflow.includes("production_project_id"), "Production requires exact project-ID confirmation.");
 requireContract(productionWorkflow.includes("tests/firestore/*.test.mjs"), "Production reruns Firestore Rules tests on emulators before deployment.");
@@ -60,21 +67,22 @@ requireContract(productionSmokeWorkflow.includes("environment: production"), "St
 
 requireContract(testWorkflow.includes("push:\n    branches:\n      - main"), "TEST deploys from main only.");
 requireContract(testWorkflow.includes("environment: test"), "TEST deployment uses the test GitHub environment.");
-requireContract(testWorkflow.includes(`FIREBASE_PROJECT_ID: ${TEST}`), "TEST deployment explicitly targets the TEST Firebase project.");
-requireContract(!testWorkflow.includes(PROD), "TEST deployment workflow contains no production project ID.");
+requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment explicitly targets the TEST Firebase project.");
+requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage,hosting"), "TEST deploys reviewed Rules, indexes, Storage rules and Hosting together.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
 
 requireContract(previewWorkflow.includes("environment: test"), "PR previews use the test GitHub environment.");
-requireContract(previewWorkflow.includes(`projectId: ${TEST}`), "PR previews target the TEST Firebase project.");
-requireContract(!previewWorkflow.includes(PROD), "PR preview workflow contains no production project ID.");
+requireContract(exactProjectReference(previewWorkflow, TEST), "PR previews target the TEST Firebase project.");
+requireContract(!exactProjectReference(previewWorkflow, PROD), "PR preview workflow contains no exact production project target.");
 requireContract(!previewWorkflow.includes("COOLOCK_ARDLEA_SCOUTS_PRODUCTION"), "PR previews cannot reference production credentials.");
 
-requireContract(playwrightWorkflow.includes(`VITE_FIREBASE_PROJECT_ID: ${LOCAL}`), "Normal Playwright CI uses an emulator-only Firebase project ID.");
+requireContract(exactProjectReference(playwrightWorkflow, LOCAL), "Normal Playwright CI uses an emulator-only Firebase project ID.");
 requireContract(!playwrightWorkflow.includes("secrets.VITE_FIREBASE_"), "Normal Playwright CI receives no Firebase repository secrets.");
 requireContract(!playwrightWorkflow.includes("secrets.VITE_EMAIL_API_URL"), "Normal Playwright CI receives no production email endpoint secret.");
-requireContract(!playwrightWorkflow.includes(PROD), "Normal Playwright CI contains no production Firebase project ID.");
+requireContract(!exactProjectReference(playwrightWorkflow, PROD), "Normal Playwright CI contains no exact production Firebase target.");
+requireContract(!exactProjectReference(playwrightWorkflow, TEST), "Normal Playwright CI contains no TEST Firebase target; it remains emulator-only.");
 
 if (failures.length > 0) {
   console.error(`\nFirebase deployment configuration check failed with ${failures.length} issue(s).`);
