@@ -8,7 +8,7 @@ const legacySecrets = [
   "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS",
   "FIREBASE_SERVICE_ACCOUNT_JSON",
 ];
-const productionWorkflow = "firebase-hosting-merge.yml";
+const productionDeployWorkflow = "firebase-hosting-merge.yml";
 const forbiddenWorkflowScripts = ["scripts/purge-test-data.mjs"];
 const failures = [];
 
@@ -17,8 +17,18 @@ function fail(message) {
   console.error(`FAIL: ${message}`);
 }
 
+function triggerBlock(source) {
+  const start = source.indexOf("on:\n");
+  const end = source.indexOf("\npermissions:", start);
+  return start >= 0 && end > start ? source.slice(start, end) : "";
+}
+
 function hasPullRequestTrigger(source) {
   return /^on:\s*pull_request\b/m.test(source) || /^\s{2}pull_request:\s*$/m.test(source);
+}
+
+function hasPushTrigger(source) {
+  return /^on:\s*push\b/m.test(source) || /^\s{2}push:\s*$/m.test(source);
 }
 
 function escapeRegex(value) {
@@ -61,6 +71,7 @@ for (const name of entries) {
   const usesProductionSecret = referencesSecret(source, productionSecret);
   const usesTestSecret = referencesSecret(source, testSecret);
   const pullRequestTriggered = hasPullRequestTrigger(source);
+  const pushTriggered = hasPushTrigger(source);
 
   for (const forbiddenScript of forbiddenWorkflowScripts) {
     if (source.includes(forbiddenScript)) {
@@ -76,18 +87,31 @@ for (const name of entries) {
 
   if (usesProductionSecret) {
     productionCredentialWorkflowCount += 1;
-    if (name !== productionWorkflow) {
-      fail(`${name} references the production Firebase credential outside the manual production workflow.`);
+    if (!source.includes("environment: production")) {
+      fail(`${name} uses the production Firebase credential without the protected production environment.`);
     }
-    if (pullRequestTriggered) {
-      fail(`${name} exposes the production Firebase credential to a pull_request trigger.`);
+    if (pullRequestTriggered || pushTriggered) {
+      fail(`${name} exposes the production Firebase credential to pull_request/push automation.`);
     }
   }
 
-  if (usesTestSecret) testCredentialWorkflowCount += 1;
+  if (usesTestSecret) {
+    testCredentialWorkflowCount += 1;
+    if (source.includes("environment: production")) {
+      fail(`${name} mixes the TEST Firebase credential with the production GitHub environment.`);
+    }
+  }
 
   if (pullRequestTriggered && source.includes("FIREBASE_SERVICE_ACCOUNT_JSON:") && !usesTestSecret) {
     fail(`${name} places a Firebase credential in a PR job without proving it is the TEST credential.`);
+  }
+
+  if (name === productionDeployWorkflow) {
+    const triggers = triggerBlock(source);
+    if (!triggers.includes("workflow_dispatch:")) fail("Production deploy workflow must use workflow_dispatch.");
+    for (const forbidden of ["push:", "pull_request:", "schedule:", "release:", "workflow_run:"]) {
+      if (triggers.includes(forbidden)) fail(`Production deploy workflow must not contain ${forbidden}`);
+    }
   }
 
   for (const spec of explicitInstallSpecs(source)) {
@@ -96,8 +120,8 @@ for (const name of entries) {
   }
 }
 
-if (productionCredentialWorkflowCount !== 1) {
-  fail(`Expected exactly one production credential workflow; found ${productionCredentialWorkflowCount}.`);
+if (productionCredentialWorkflowCount < 1) {
+  fail("Expected at least one protected production Firebase credential workflow.");
 }
 if (testCredentialWorkflowCount < 2) {
   fail("Expected TEST credentials to be scoped to both TEST deployment and TEST PR preview workflows.");
