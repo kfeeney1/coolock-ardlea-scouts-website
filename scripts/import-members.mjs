@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { gcloudExecutable } from "./member-import-auth.mjs";
 import { aggregatePlan, planMemberImport } from "./member-import-core.mjs";
 
 const execute = process.argv.includes("--execute");
@@ -32,7 +33,7 @@ function firestoreString(fields, fieldName) {
 async function readMembersWithApplicationDefaultCredentials(targetProjectId) {
   let accessToken;
   try {
-    accessToken = execFileSync("gcloud", ["auth", "application-default", "print-access-token"], {
+    accessToken = execFileSync(gcloudExecutable(), ["auth", "application-default", "print-access-token"], {
       encoding: "utf8",
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"]

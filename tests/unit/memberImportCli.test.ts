@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { gcloudExecutable } from "../../scripts/member-import-auth.mjs";
 
 function privateManifestPath(): { dir: string; manifest: string } {
   const dir = mkdtempSync(join(tmpdir(), "member-import-cli-"));
@@ -58,4 +59,10 @@ test("ADC credentials can never be used for execute mode", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("gcloud launcher uses the Windows command shim on win32", () => {
+  assert.equal(gcloudExecutable("win32"), "gcloud.cmd");
+  assert.equal(gcloudExecutable("linux"), "gcloud");
+  assert.equal(gcloudExecutable("darwin"), "gcloud");
 });
