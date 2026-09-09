@@ -86,7 +86,8 @@ export default function LeaderAccessManagement() {
   if (!actor || !canOpenLeaderAccess(actor)) {
     return <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}><Alert severity="error">Group Leadership or Administrator access is required.</Alert></Container>;
   }
-  const isAdminActor = adminProfile.role === "admin" || adminProfile.role === "super-admin";
+  const isAdminActor = actor.systemRole === "admin" || actor.systemRole === "super-admin";
+  const actorEmail = user?.email || adminProfile?.email || "";
 
   const save = async (record: LeaderAccessRecord) => {
     if (!user) return;
@@ -94,7 +95,7 @@ export default function LeaderAccessManagement() {
     try {
       setError("");
       setMessage("");
-      await updateLeaderAccess(record, user.uid, user.email || adminProfile.email || "");
+      await updateLeaderAccess(record, user.uid, actorEmail);
       setMessage(`${record.displayName} updated.`);
       await refresh();
     } catch (e) {
