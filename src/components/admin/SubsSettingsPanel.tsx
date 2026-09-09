@@ -51,9 +51,9 @@ export default function SubsSettingsPanel() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [period, setPeriod] = useState(AGREED_SUBS_2026_27.period);
-  const [periodStart, setPeriodStart] = useState(AGREED_SUBS_2026_27.periodStart);
-  const [periodEnd, setPeriodEnd] = useState(AGREED_SUBS_2026_27.periodEnd);
+  const [period, setPeriod] = useState<string>(AGREED_SUBS_2026_27.period);
+  const [periodStart, setPeriodStart] = useState<string>(AGREED_SUBS_2026_27.periodStart);
+  const [periodEnd, setPeriodEnd] = useState<string>(AGREED_SUBS_2026_27.periodEnd);
   const [version, setVersion] = useState("1");
   const [standardRates, setStandardRates] = useState(AGREED_SUBS_2026_27.standardFamilyRatesCents.map(euroValue));
   const [leaderRates, setLeaderRates] = useState(AGREED_SUBS_2026_27.leaderFamilyRatesCents.map(euroValue));
@@ -154,6 +154,10 @@ export default function SubsSettingsPanel() {
   const assign = async () => {
     if (!selectedMember || !selectedPolicy || !preview) {
       setError("Select a member, family classification and valid child position.");
+      return;
+    }
+    if (existingAssignment) {
+      setError("This member already has an immutable classification for this Scout year.");
       return;
     }
     setSaving(true);
@@ -257,10 +261,10 @@ export default function SubsSettingsPanel() {
             )}
             {existingAssignment && (
               <Alert severity="warning" sx={{ mt: 2 }}>
-                This member already has a {existingAssignment.period} assignment of {formatEuro(existingAssignment.amountDueCents)}. Saving again replaces that period assignment; recorded payments remain append-only and unchanged.
+                This member already has an immutable {existingAssignment.period} classification of {formatEuro(existingAssignment.amountDueCents)}. Existing classifications are not overwritten; any future correction must preserve an auditable history.
               </Alert>
             )}
-            <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving || !selectedMember || !selectedPolicy || !preview} onClick={() => void assign()}>
+            <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving || !selectedMember || !selectedPolicy || !preview || Boolean(existingAssignment)} onClick={() => void assign()}>
               {saving ? "Saving…" : "Save classification"}
             </Button>
           </>
