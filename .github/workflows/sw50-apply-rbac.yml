@@ -1,0 +1,28 @@
+name: SW50 Apply RBAC Patch
+on:
+  push:
+    branches: [sw-50-leader-access-role-management]
+    paths:
+      - scripts/sw50-apply-rbac.mjs
+      - .github/workflows/sw50-apply-rbac.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sw-50-leader-access-role-management
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sw50-apply-rbac.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules src/pages/LeaderAccessManagement.tsx src/components/admin/LeaderDashboardHeader.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "SW-50 enforce delegated role management boundaries"
+          git push
