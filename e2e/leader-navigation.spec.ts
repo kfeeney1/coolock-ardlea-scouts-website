@@ -32,6 +32,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
 
   await expect(desktopNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
   await expect(desktopNavigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance");
+  await expect(desktopNavigation.getByRole("link", { name: "Roles & Permissions" })).toHaveAttribute("href", "/leader/roles");
   await expect(desktopNavigation.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
   await expect(navigation.getByRole("link", { name: "Info & FAQ" })).toHaveAttribute("href", "/leader/info");
   const dashboard = navigation.getByRole("link", { name: "Dashboard", exact: true });
@@ -40,7 +41,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await expect(page).toHaveURL(/\/leader$/);
 });
 
-test("section leader gets compact mobile disclosure without admin destinations", async ({ page }, testInfo: TestInfo) => {
+test("section leader gets compact mobile disclosure without privileged admin destinations", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile disclosure regression runs once on Pixel 7 Chromium.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
@@ -51,10 +52,12 @@ test("section leader gets compact mobile disclosure without admin destinations",
   const mobileNavigation = navigation.getByTestId("leader-navigation-mobile");
   const programme = mobileNavigation.getByRole("button", { name: "Programme" });
   const people = mobileNavigation.getByRole("button", { name: "People & Parents" });
+  const administration = mobileNavigation.getByRole("button", { name: "Administration" });
   await expect(navigation.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(1);
 
   await expect(programme).toHaveAttribute("aria-expanded", "false");
   await expect(people).toHaveAttribute("aria-expanded", "false");
+  await expect(administration).toHaveAttribute("aria-expanded", "false");
   await expect(mobileNavigation.getByRole("region", { name: "Programme" })).toHaveCount(0);
 
   await programme.click();
@@ -62,12 +65,21 @@ test("section leader gets compact mobile disclosure without admin destinations",
   await expect(mobileNavigation.getByRole("region", { name: "Programme" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Weekly Meetings" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toHaveCount(0);
-  await expect(mobileNavigation.getByRole("button", { name: "Administration" })).toHaveCount(0);
   await expect(mobileNavigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+
+  await administration.click();
+  await expect(administration).toHaveAttribute("aria-expanded", "true");
+  await expect(programme).toHaveAttribute("aria-expanded", "false");
+  await expect(mobileNavigation.getByRole("region", { name: "Administration" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Roles & Permissions" })).toBeVisible();
+  await expect(mobileNavigation.getByRole("link", { name: "Leader Requests" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("link", { name: "Parent Access" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+  await expect(mobileNavigation.getByRole("link", { name: "Settings" })).toHaveCount(0);
 
   await people.click();
   await expect(people).toHaveAttribute("aria-expanded", "true");
-  await expect(programme).toHaveAttribute("aria-expanded", "false");
+  await expect(administration).toHaveAttribute("aria-expanded", "false");
   await expect(mobileNavigation.getByRole("region", { name: "People & Parents" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Member Management" })).toBeVisible();
   await expect(mobileNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveCount(0);

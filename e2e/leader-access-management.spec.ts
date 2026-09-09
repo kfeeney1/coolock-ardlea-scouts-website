@@ -51,6 +51,9 @@ test.describe("leader access management", () => {
     await expect.poll(() => viewportState(page)).toEqual(beforeSelect);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("listbox")).toBeHidden();
+    // MUI keeps the closing Menu/Backdrop mounted briefly after the listbox is hidden.
+    // Wait for that transition to finish so it cannot intercept the following switch click.
+    await expect(page.locator('[role="presentation"].MuiMenu-root')).toHaveCount(0);
 
     const active = card.getByRole("switch", { name: "Active" });
     await expect(active).toBeChecked();

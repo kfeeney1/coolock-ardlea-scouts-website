@@ -1,7 +1,7 @@
 {
   "version": 1,
   "identities": ["public", "parent", "leader", "admin", "super-admin"],
-  "scoutRoles": ["Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun"],
+  "scoutRoles": ["Group Leader", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter", "Group Chairperson", "Group Youth Champion"],
   "routes": {
     "/": "public",
     "/about": "public",
@@ -17,6 +17,7 @@
     "/leader": "leader",
     "/leader/requests": "admin",
     "/leader/access": "admin",
+    "/leader/roles": "leader-read-only-permission-catalogue",
     "/leader/activity": "group-audit-role",
     "/leader/profile": "leader",
     "/leader/profile/consent": "leader",

@@ -154,9 +154,35 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright --version
 
+      # GitHub's ubuntu runner currently preconfigures the Google Chrome apt
+      # source. Playwright does not require that repository for its bundled
+      # Chromium/WebKit dependencies, and a stale Chrome repository index can
+      # otherwise break `apt update` before browser installation begins.
+      - name: Isolate Playwright dependencies from unrelated Chrome apt source
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          for source in /etc/apt/sources.list.d/*; do
+            [ -f "$source" ] || continue
+            if grep -q "dl.google.com/linux/chrome-stable" "$source"; then
+              echo "Removing unrelated Chrome apt source from ephemeral runner: $source"
+              sudo rm -f "$source"
+            fi
+          done
+
       - name: Install Chromium and WebKit
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npx --no-install playwright install --with-deps chromium webkit
+        run: |
+          for attempt in 1 2 3; do
+            if npx --no-install playwright install --with-deps chromium webkit; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Playwright browser install attempt $attempt failed; retrying after 10 seconds."
+              sleep 10
+            fi
+          done
+          echo "::error::Playwright browser installation failed after three attempts."
+          exit 1
 
       - name: Start tested build
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}

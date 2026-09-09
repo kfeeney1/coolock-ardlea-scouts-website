@@ -35,6 +35,7 @@ const navGroups: NavGroup[] = [
   { label: "Activity Log", path: "/leader/activity", activityLogOnly: true }
  ] },
  { label: "Administration", items: [
+  { label: "Roles & Permissions", path: "/leader/roles" },
   { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
   { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
   { label: "Leader Access", path: "/leader/access", adminOnly: true },
