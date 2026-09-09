@@ -7,6 +7,7 @@ const protectedLeaderRoutes = [
   "/leader/requests",
   "/leader/access",
   "/leader/profile",
+  "/leader/profile/consent",
   "/leader/reports",
   "/leader/consents",
   "/leader/info",
@@ -132,6 +133,43 @@ test.describe("leader permissions", () => {
 
     await page.goto("/leader/access");
     await expect(page.getByText("Administrator access is required.")).toBeVisible();
+  });
+
+  test("ordinary leader opens their Scouter form from My Profile with keyboard access", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "webkit-critical", "Scouter profile coverage runs on desktop and mobile Chromium.");
+    test.skip(!account, "Configure the seeded E2E test password to run this check.");
+    await loginLeader(page, account!);
+    await page.goto("/leader/profile");
+    const tile = page.getByTestId("scouter-consent-tile");
+    await expect(tile).toContainText("Status: Available");
+    const openForm = tile.getByRole("link", { name: "Open My Form" });
+    await openForm.focus();
+    await expect(openForm).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/leader\/profile\/consent$/);
+    await expect(page.getByRole("heading", { name: "Scouter Medical Advice Form" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back to My Profile" }).first()).toBeVisible();
+
+    await page.getByLabel("Applicant name").fill("Test Scouts Scouter");
+    await page.getByLabel("Date of birth").fill("1985-01-01");
+    await page.getByLabel("Address").fill("Test Scout Hall, Dublin");
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByLabel("Name").fill("Test Next of Kin");
+    await page.getByLabel("Mobile").fill("0871234567");
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    for (const condition of ["Epilepsy", "Diabetes", "Asthma", "Heart Disease", "High Blood Pressure", "Skin Allergies", "Hearing Difficulties"]) {
+      await page.getByText(condition, { exact: true }).locator("..").getByLabel("No").check();
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByText("Are you currently taking any medication?", { exact: true }).locator("..").getByLabel("No").check();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    await page.getByLabel("Signature (full name)").fill("Test Scouts Scouter");
+    await page.getByLabel(/I confirm that the information provided is accurate/).check();
+    await page.getByRole("button", { name: "Submit Scouter Form" }).click();
+    await expect(page.getByText(/submitted successfully/i)).toBeVisible();
   });
 });
 

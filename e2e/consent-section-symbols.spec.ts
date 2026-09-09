@@ -18,7 +18,8 @@ test.describe("public consent section chooser", () => {
       await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toBeVisible();
     }
 
-    await expect(page.getByRole("button", { name: /Open Scouter.*consent form/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Open Scouter.*consent form/i })).toHaveCount(0);
+    await expect(page.getByText(/Scouters can complete their confidential ES3 form from My Profile/i)).toBeVisible();
   });
 
   test("section choices remain keyboard operable on a phone viewport", async ({ page }) => {

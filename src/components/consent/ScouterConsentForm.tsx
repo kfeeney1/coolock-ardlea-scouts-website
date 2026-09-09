@@ -118,10 +118,12 @@ function createInitialData(): ScouterConsentData {
 
 type Props = {
     onChangeSection: () => void;
+    backLabel?: string;
 };
 
 export default function ScouterConsentForm({
-    onChangeSection
+    onChangeSection,
+    backLabel = "Change Section"
 }: Props) {
     const [activeStep, setActiveStep] = useState(0);
     const [formData, setFormData] =
@@ -452,7 +454,7 @@ export default function ScouterConsentForm({
                         color="secondary"
                         onClick={onChangeSection}
                     >
-                        Change Section
+                        {backLabel}
                     </Button>
                 </Box>
             </Paper>
@@ -513,7 +515,7 @@ export default function ScouterConsentForm({
                     }}
                     variant="outlined"
                 >
-                    Change Section
+                    {backLabel}
                 </Button>
             </Box>
 

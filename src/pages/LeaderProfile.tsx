@@ -1,5 +1,6 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import HealthAndSafetyOutlinedIcon from "@mui/icons-material/HealthAndSafetyOutlined";
 
 import {
     Alert,
@@ -16,6 +17,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     changeLeaderPassword,
@@ -197,6 +199,18 @@ export default function LeaderProfile() {
                         <Button variant="contained" color="secondary" disabled={changingPassword} onClick={() => void changePassword()}>
                             {changingPassword ? "Changing..." : "Change Password"}
                         </Button>
+                    </Box>
+                </Paper>
+
+                <Paper data-testid="scouter-consent-tile" component="section" variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 3, borderWidth: 2, borderColor: "secondary.main", backgroundColor: "background.paper" }}>
+                    <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2.5, alignItems: { sm: "center" } }}>
+                        <HealthAndSafetyOutlinedIcon aria-hidden="true" color="secondary" sx={{ fontSize: 48, flexShrink: 0 }} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>My Scouter Consent & Medical Form</Typography>
+                            <Typography color="text.secondary" sx={{ mt: 0.5 }}>Complete the confidential ES3 18+ Medical Advice Form using the existing secure consent workflow.</Typography>
+                            <Typography data-testid="scouter-consent-status" sx={{ mt: 1, fontWeight: 700 }}>Status: Available</Typography>
+                        </Box>
+                        <Button component={Link} to="/leader/profile/consent" variant="contained" color="secondary" sx={{ minHeight: 44, flexShrink: 0, alignSelf: { xs: "stretch", sm: "center" } }}>Open My Form</Button>
                     </Box>
                 </Paper>
             </Container>

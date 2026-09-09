@@ -9,7 +9,6 @@ import {
 import { useState } from "react";
 
 import YouthConsentForm from "../components/consent/YouthConsentForm";
-import ScouterConsentForm from "../components/consent/ScouterConsentForm";
 import { brandColours } from "../theme/theme";
 import { sectionVisualTokens } from "../theme/sectionColours";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
@@ -50,18 +49,8 @@ function SectionSymbol({ section }: { section: ScoutSection }) {
 
 export default function ConsentForm() {
     const content = usePublicSiteContent();
-    const sectionOptions = content.sections;
+    const sectionOptions = content.sections.filter((option) => option.youth);
     const [section, setSection] = useState<ScoutSection | null>(null);
-
-    if (section === "Scouter") {
-        return (
-            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
-                <Container maxWidth="md">
-                    <ScouterConsentForm onChangeSection={() => setSection(null)} />
-                </Container>
-            </Box>
-        );
-    }
 
     if (section) {
         return (
@@ -93,8 +82,11 @@ export default function ConsentForm() {
                         <Typography variant="h4" color="secondary" sx={{ textAlign: "center" }}>
                             {content.consent.chooserTitle}
                         </Typography>
-                        <Typography sx={{ mt: 1.5, mb: 4, textAlign: "center", color: "text.secondary" }}>
+                        <Typography sx={{ mt: 1.5, mb: 1, textAlign: "center", color: "text.secondary" }}>
                             {content.consent.chooserIntro}
+                        </Typography>
+                        <Typography sx={{ mb: 4, textAlign: "center", color: "text.secondary" }}>
+                            Scouters can complete their confidential ES3 form from My Profile after signing in.
                         </Typography>
                         <Alert severity="info" sx={{ mb: 4 }}>{content.consent.medicationNotice}</Alert>
 
