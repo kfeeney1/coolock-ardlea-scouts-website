@@ -14,11 +14,11 @@ System access roles and Scouting appointments are intentionally separate.
 
 Appointments do not grant Admin or Super Admin.
 
-## Current appointment catalogue
+## Current appointment catalogue and normalization
 
-Current data and UI support Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion, Section Leader, Assistant Section Leader, Programme Scouter and Scouter. Historical Quartermaster/Bo'sun spellings are accepted by existing Rules for equipment access; new canonicalisation work must write only `Group Quartermaster / Bo'sun`.
+The canonical appointment catalogue is Group Leader, Deputy Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion, Section Leader, Assistant Section Leader, Programme Scouter and Scouter.
 
-Deputy Group Leader is intentionally not granted Group Leader parity in SW-48. SW-49 introduces the canonical appointment and a shared Group Leader organisational permission bundle so that the change can be tested as a separate authorization slice.
+`src/security/scoutingAppointments.ts` is the application-side normalization contract. Legacy Deputy spellings `Deputy-Group-Leader`, `Deputy GroupLead` and `DGL` are recognized for compatibility, and existing Quartermaster/Bo'sun variants remain recognized. New application writes must use canonical values, particularly `Deputy Group Leader` and `Group Quartermaster / Bo'sun`; compatibility aliases exist to avoid silently removing access from historical records, not as new write formats.
 
 ## Protected delegation boundaries
 
@@ -31,13 +31,15 @@ Deputy Group Leader is intentionally not granted Group Leader parity in SW-48. S
 
 ## Effective appointment permissions currently enforced
 
-- **Group Leader**: group member read; group-wide weekly-meeting and parent-facing weekly programme management; protected group/leader-meeting reads; group programme-library management; group badgework write; group finance/subs; equipment management; group-wide event-gallery media access; and audit access. The appointment does **not** make group event records or consent/medical records group-wide, and group meeting-record creation remains Admin-only.
-- **Group Secretary**: group member, badgework and meeting read access plus audit access where encoded; it does not inherit the Group Leader write bundle.
+- **Group Leader and Deputy Group Leader** share one Group Leadership operational bundle: group member read; group-wide weekly-meeting and parent-facing weekly programme management; protected group/leader-meeting reads; group programme-library management; group badgework write; group finance/subs; equipment management; group-wide event-gallery media access; activity/audit-log read; and the role-appropriate Settings/subs surface. Both remain `leader` system accounts. Neither appointment grants Admin/Super Admin, leader-account approval, parent-account approval, Admin promotion, protected Super Admin mutation, or creation of Group Council/Group Leaders formal meeting records. Group event records and consent/medical records also remain subject to their existing section/workflow boundaries rather than becoming group-wide merely because of the appointment.
+- **Group Secretary**: group member, badgework and meeting read access plus audit access where encoded; it does not inherit the Group Leadership write bundle.
 - **Group Treasurer**: group member read required by the present finance model plus group finance/subs authority.
 - **Group Quartermaster / Bo'sun**: equipment management.
-- **Section Leader**, **Assistant Section Leader**, **Programme Scouter**, **Scouter**, **Group Chairperson** and **Group Youth Champion** currently add no group-wide authorization beyond the person's system role and assigned sections. The current Rules do not contain a separate Section Leader-only closed-meeting amendment permission.
+- **Section Leader**, **Assistant Section Leader**, **Programme Scouter**, **Scouter**, **Group Chairperson** and **Group Youth Champion** currently add no group-wide authorization beyond the person's system role and assigned sections. Section Leader retains its specifically implemented closed-weekly-meeting operational edit capability.
 
 Ordinary active leaders can read the group equipment register and equipment history, and can operate equipment loans for their assigned sections. Those read/loan capabilities come from the system Leader role, not from a Scouting appointment.
+
+Equipment incident notifications use the same operational appointment intent: active Group Leader, Deputy Group Leader and Quartermaster/Bo'sun recipients are eligible for urgent equipment alerts. DGL parity is therefore not limited to UI visibility or Firestore reads.
 
 ## Authentication and claims
 
@@ -47,15 +49,15 @@ Firebase Authentication establishes identity, but system role and section author
 
 Authoritative enforcement is split across:
 
-1. `firestore.rules` for Firestore reads/writes and protected role invariants.
-2. `storage.rules` for protected receipt/gallery objects.
+1. `firestore.rules` for Firestore reads/writes and protected role invariants. The existing `isGroupLeader()` Rules predicate is now the compatibility-aware Group Leadership predicate and covers canonical Group Leader and Deputy Group Leader plus guarded historical DGL aliases.
+2. `storage.rules` for protected receipt/gallery objects, using the equivalent Group Leadership predicate.
 3. `AdminAuthProvider` for approved active Leader-system profiles and section loading.
 4. route/page guards for navigation and direct-route UX. These are not a substitute for Rules.
-5. domain services that shape data before it reaches Rules.
-6. `config/rbac-matrix.json`, permission-registry tests, Firebase emulator tests and Playwright role tests as executable contracts.
+5. domain services and the email worker where appointment-aware operational behaviour is required.
+6. `config/rbac-matrix.json`, permission-registry tests, Firebase emulator tests, Storage emulator tests and Playwright role tests as executable contracts.
 
-## SW-48 architecture decision
+## SW-48 / SW-49 architecture decisions
 
-The Roles page is intentionally read-only. All entries state a stable permission ID, area, description, scope, default grants, enforcement location and protected status. The page also calculates the signed-in Leader's effective entries from the same registry. Editable permission toggles are deferred because current client-configured state could not safely become authoritative in Firebase Rules.
+The Roles page remains intentionally read-only. All entries state a stable permission ID, area, description, scope, default grants, enforcement location and protected status. The page calculates the signed-in Leader's effective entries from the same registry. Editable permission toggles are not exposed because current client-configured state could not safely become authoritative in Firebase Rules.
 
-SW-49 and SW-50 must extend this registry and the server-enforced rules together; UI-only permission changes are prohibited.
+SW-49 implements Deputy Group Leader through inheritance of the existing Group Leader operational permission bundle rather than duplicated feature checks. SW-50 may expose safe appointment and section delegation, but it must preserve the system-role boundary: Group Leadership may not grant Admin/Super Admin, alter protected Super Admin accounts, bypass account approval or self-assign authority beyond its delegation ceiling.
