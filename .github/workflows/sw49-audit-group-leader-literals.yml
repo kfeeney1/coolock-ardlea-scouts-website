@@ -18,4 +18,4 @@ jobs:
       - name: Find Group Leader branches
         run: |
           echo '===== Literal Group Leader occurrences ====='
-          rg -n 'Group Leader|isGroupLeader|scoutingRole' src firestore.rules storage.rules scripts tests e2e config docs || true
+          grep -RInE 'Group Leader|isGroupLeader|scoutingRole' src firestore.rules storage.rules scripts tests e2e config docs || true
