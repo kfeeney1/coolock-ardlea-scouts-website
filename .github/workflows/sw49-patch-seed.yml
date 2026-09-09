@@ -1,0 +1,33 @@
+name: SW-49 Deputy seed patch
+
+on:
+  push:
+    branches: [sw-49-deputy-group-leader-parity]
+    paths:
+      - scripts/sw49-patch-seed.mjs
+      - .github/workflows/sw49-patch-seed.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: sw-49-deputy-group-leader-parity
+      - name: Patch deterministic seed
+        run: node scripts/sw49-patch-seed.mjs
+      - name: Commit guarded seed change
+        run: |
+          if git diff --quiet -- scripts/seed-population-data.mjs; then
+            echo "No seed patch required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/seed-population-data.mjs
+          git commit -m "SW-49 seed Deputy Group Leader fixture"
+          git push origin HEAD:sw-49-deputy-group-leader-parity
