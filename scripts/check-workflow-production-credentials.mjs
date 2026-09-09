@@ -20,6 +20,14 @@ function hasPullRequestTrigger(source) {
   return /^on:\s*pull_request\b/m.test(source) || /^\s{2}pull_request:\s*$/m.test(source);
 }
 
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function referencesSecret(source, secretName) {
+  return new RegExp(`secrets\\.${escapeRegex(secretName)}(?![A-Z0-9_])`).test(source);
+}
+
 function packageSpecIsPinned(spec) {
   if (spec.startsWith("@")) {
     return /^@[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+@\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(spec);
@@ -49,12 +57,12 @@ let pinnedInstallCount = 0;
 
 for (const name of entries) {
   const source = await readFile(new URL(name, workflowDir), "utf8");
-  const usesProductionSecret = source.includes(`secrets.${productionSecret}`);
-  const usesTestSecret = source.includes(`secrets.${testSecret}`);
+  const usesProductionSecret = referencesSecret(source, productionSecret);
+  const usesTestSecret = referencesSecret(source, testSecret);
   const pullRequestTriggered = hasPullRequestTrigger(source);
 
   for (const legacySecret of legacySecrets) {
-    if (source.includes(`secrets.${legacySecret}`)) {
+    if (referencesSecret(source, legacySecret)) {
       fail(`${name} uses legacy unscoped Firebase credential ${legacySecret}.`);
     }
   }
