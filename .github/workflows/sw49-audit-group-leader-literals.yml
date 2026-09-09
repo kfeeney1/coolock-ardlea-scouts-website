@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Find Group Leader branches
+      - name: Find remaining Group Leader branches
         run: |
-          echo '===== Literal Group Leader occurrences ====='
+          echo '===== Remaining literal Group Leader occurrences after SW-49 parity fixes ====='
           grep -RInE 'Group Leader|isGroupLeader|scoutingRole' src firestore.rules storage.rules scripts tests e2e config docs || true
