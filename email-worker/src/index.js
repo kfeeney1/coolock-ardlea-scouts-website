@@ -225,7 +225,7 @@ async function handleEventConsentProcessed(request, env, body) {
   return json(request, env, 200, { ok: true });
 }
 
-const EQUIPMENT_NOTIFICATION_ROLES = new Set(["Group Leader", "Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"]);
+const EQUIPMENT_NOTIFICATION_ROLES = new Set(["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"]);
 const EQUIPMENT_URGENT_TYPES = new Set(["damaged", "lost", "missing"]);
 
 async function equipmentIncidentRecipients(env, leader) {
@@ -259,7 +259,7 @@ async function handleEquipmentIncident(request, env, body) {
   const type = fieldString(incident, "type");
   if (!EQUIPMENT_URGENT_TYPES.has(type)) return json(request, env, 409, { ok: false, error: "This equipment issue does not require an urgent email notification." });
   const recipients = await equipmentIncidentRecipients(env, leader);
-  if (!recipients.length) return json(request, env, 503, { ok: false, error: "No active Quartermaster or Group Leader email recipients were found." });
+  if (!recipients.length) return json(request, env, 503, { ok: false, error: "No active Quartermaster or Group Leadership email recipients were found." });
 
   const labels = { damaged: "Broken / damaged", lost: "Lost", missing: "Missing" };
   const issueLabel = labels[type] || "Equipment issue";
@@ -271,7 +271,7 @@ async function handleEquipmentIncident(request, env, body) {
   const bodyHtml = `<table role="presentation" style="font-size:15px;line-height:1.6;border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0;font-weight:700">Issue</td><td>${escapeHtml(issueLabel)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Equipment</td><td>${escapeHtml(`${quantity} × ${itemName}`)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Section</td><td>${escapeHtml(section)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Storage location</td><td>${escapeHtml(location)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Details</td><td>${escapeHtml(description)}</td></tr></table>`;
   await sendEmail(env, recipients, `Equipment issue – ${issueLabel} – ${quantity} × ${itemName}`, brandedEmail({
     heading: `${issueLabel} equipment reported`,
-    intro: "An equipment issue has been reported and needs review by the Quartermaster / Bo'sun and Group Leader.",
+    intro: "An equipment issue has been reported and needs review by the Quartermaster / Bo'sun and Group Leadership.",
     bodyHtml,
     actionLabel: "Review Equipment & Stores",
     actionUrl: `${env.SITE_URL}/leader/equipment`
