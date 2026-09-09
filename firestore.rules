@@ -558,6 +558,22 @@ service cloud.firestore {
     }
 
     match /subsPayments/{paymentId} {
+      function isExactSubsReversal() {
+        let originalId = request.resource.data.reversalOfPaymentId;
+        let originalPath = /databases/$(database)/documents/subsPayments/$(originalId);
+        let original = get(originalPath).data;
+        return originalId is string
+          && originalId != ""
+          && paymentId == "reversal-" + originalId
+          && exists(originalPath)
+          && original.reversalOfPaymentId == ""
+          && request.resource.data.amountCents == -original.amountCents
+          && request.resource.data.memberId == original.memberId
+          && request.resource.data.memberName == original.memberName
+          && request.resource.data.section == original.section
+          && request.resource.data.period == original.period
+          && request.resource.data.method == original.method;
+      }
       allow get, list: if isActiveLeader()
         && resource.data.section is string
         && (canViewAllFinance() || hasSection(resource.data.section));
@@ -574,15 +590,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && ((request.resource.data.amountCents is number && request.resource.data.amountCents > 0 && request.resource.data.reversalOfPaymentId == "")
           || (request.resource.data.amountCents is number && request.resource.data.amountCents < 0
-            && request.resource.data.reversalOfPaymentId is string
-            && paymentId == "reversal-" + request.resource.data.reversalOfPaymentId
-            && exists(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId))
-            && get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.reversalOfPaymentId == ""
-            && request.resource.data.amountCents == -get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.amountCents
-            && request.resource.data.memberId == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.memberId
-            && request.resource.data.section == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.section
-            && request.resource.data.period == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.period
-            && request.resource.data.method == get(/databases/$(database)/documents/subsPayments/$(request.resource.data.reversalOfPaymentId)).data.method))
+            && isExactSubsReversal()))
         && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "amountCents", "method", "paymentDate", "reversalOfPaymentId", "note", "recordedBy", "createdAt"]);
       allow update, delete: if false;
     }
