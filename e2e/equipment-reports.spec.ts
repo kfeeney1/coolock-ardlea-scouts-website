@@ -35,6 +35,12 @@ test("equipment manager can export the full inventory and a filtered report", as
   await page.getByTestId("export-all-equipment-csv").click();
   const allDownload = await allDownloadPromise;
   expect(allDownload.suggestedFilename()).toMatch(/^all-equipment-\d{4}-\d{2}-\d{2}\.csv$/);
+  const allContent = await allDownload.createReadStream().then(async (stream) => {
+    let value = "";
+    for await (const chunk of stream) value += chunk.toString();
+    return value;
+  });
+  expect(allContent).toContain("TEST Patrol Tents");
 
   await reports.getByLabel("Report").click();
   await page.getByRole("option", { name: "Current Section Holdings" }).click();
@@ -42,4 +48,28 @@ test("equipment manager can export the full inventory and a filtered report", as
   await page.getByTestId("export-selected-equipment-report").click();
   const selectedDownload = await selectedDownloadPromise;
   expect(selectedDownload.suggestedFilename()).toMatch(/^current-section-holdings-\d{4}-\d{2}-\d{2}\.csv$/);
+
+  const registerDownloadPromise = page.waitForEvent("download");
+  await page.getByTestId("export-equipment-asset-register").click();
+  const registerDownload = await registerDownloadPromise;
+  expect(registerDownload.suggestedFilename()).toMatch(/^equipment-asset-register-\d{4}-\d{2}-\d{2}\.csv$/);
+  const registerContent = await registerDownload.createReadStream().then(async (stream) => {
+    let value = "";
+    for await (const chunk of stream) value += chunk.toString();
+    return value;
+  });
+  expect(registerContent).toContain('"Date Purchased","Quantity","Description"');
+  expect(registerContent).toContain('"8","TEST Patrol Tents"');
+});
+
+test("ordinary leaders cannot access equipment reports", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  const email = process.env.E2E_MULTI_SECTION_LEADER_EMAIL?.trim();
+  const password = process.env.E2E_TEST_USER_PASSWORD;
+  test.skip(!email || !password, "Configure the seeded ordinary leader account to run this check.");
+  await loginLeader(page, { email: email!, password: password! });
+  await page.goto("/leader/equipment");
+  await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+  await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
+  await expect(page.getByTestId("export-equipment-asset-register")).toHaveCount(0);
 });

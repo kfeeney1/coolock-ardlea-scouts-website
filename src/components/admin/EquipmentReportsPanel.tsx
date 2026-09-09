@@ -8,6 +8,7 @@ import {
   equipmentByCategoryCsv,
   equipmentByLocationCsv,
   equipmentInventoryCsv,
+  equipmentAssetRegisterCsv,
   equipmentUsageCsv,
   lossDamageHistoryCsv,
   missingLostEquipmentCsv,
@@ -94,6 +95,7 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
         <Typography color="text.secondary">Export stock, holdings, overdue items, maintenance, incidents, usage and replacement-value reports as CSV.</Typography>
       </Box>
       {canManage && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentInventoryCsv(items))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
+      {canManage && <Button variant="outlined" onClick={() => downloadCsv(`equipment-asset-register-${today}.csv`, equipmentAssetRegisterCsv(items))} data-testid="export-equipment-asset-register">Export asset register</Button>}
     </Stack>
 
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3,minmax(0,1fr))" }, gap: 1.5 }}>

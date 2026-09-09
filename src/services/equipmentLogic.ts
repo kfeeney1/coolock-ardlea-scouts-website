@@ -15,7 +15,7 @@ export const DEFAULT_EQUIPMENT_CATEGORIES = [
 ] as const;
 
 export type EquipmentTrackingMode = "quantity" | "individual";
-export type EquipmentCondition = "good" | "needs-attention" | "repair" | "missing" | "lost" | "retired";
+export type EquipmentCondition = "not-recorded" | "good" | "needs-attention" | "repair" | "missing" | "lost" | "retired";
 
 export function normaliseEquipmentLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ");

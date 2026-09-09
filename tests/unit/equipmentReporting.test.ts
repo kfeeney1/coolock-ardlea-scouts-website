@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   currentSectionHoldingsCsv,
+  equipmentAssetRegisterCsv,
   equipmentInventoryCsv,
   equipmentUsageCsv,
   overdueEquipmentCsv,
@@ -67,5 +68,16 @@ describe("equipment reports", () => {
     const report = equipmentInventoryCsv(items, { category: "Camping", location: "Main Store" });
     assert.match(report, /Patrol Tent/);
     assert.doesNotMatch(report, /"Rope"/);
+  });
+
+  it("reproduces the supplied asset-register columns from current data", () => {
+    const report = equipmentAssetRegisterCsv([{ ...items[0], purchaseDate: "2026-07-22", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment" }]);
+    const [header, row] = report.split("\r\n");
+    assert.equal(header, '"Date Purchased","Quantity","Description","Category Fixture & Fittings Equipment Other","Replacement Value","Date Sold or Disposed of","Total Replacement Value","Register Section"');
+    assert.equal(row, '"2026-07-22","10","Patrol Tent","Camping","120.00","","1200.00","Equipment"');
+  });
+
+  it("keeps the asset-register header in an empty equipment state", () => {
+    assert.equal(equipmentAssetRegisterCsv([]).split("\r\n").length, 1);
   });
 });

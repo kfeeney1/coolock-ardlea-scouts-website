@@ -92,7 +92,7 @@ await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST S
 // Keep these fixtures allocation-free so checkout/return tests remain isolated and can assert
 // an empty holdings state after their own transient loans are returned.
 const equipmentSeedItems = [
-  { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220 },
+  { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220, purchaseDate: "2098-07-22", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment", source: "spreadsheet-import", importBatch: "TEST_sw42", importSourceRef: "Equipment:row-3" },
   { id: "TEST_equipment_stoves", name: "TEST Camping Stoves", category: "Cooking", trackingMode: "individual", totalQuantity: 4, location: "Main Equipment Store", condition: "good", notes: "Portable gas stoves for section cooking activities.", replacementValue: 85 },
   { id: "TEST_equipment_ropes", name: "TEST Pioneering Ropes", category: "Pioneering", trackingMode: "quantity", totalQuantity: 12, location: "Equipment Trailer", condition: "good", notes: "Mixed ropes for pioneering and knot-work sessions.", replacementValue: 35 },
   { id: "TEST_equipment_compasses", name: "TEST Compasses", category: "Navigation", trackingMode: "individual", totalQuantity: 10, location: "Leader Store", condition: "good", notes: "Baseplate compasses for hillwalking and navigation skills.", replacementValue: 25 },
@@ -111,6 +111,7 @@ for (const item of equipmentSeedItems) {
     condition: item.condition,
     notes: item.notes,
     replacementValue: item.replacementValue,
+    ...(item.purchaseDate ? { purchaseDate: item.purchaseDate, disposalDate: item.disposalDate, replacementValueNote: item.replacementValueNote, assetRegisterSection: item.assetRegisterSection, source: item.source, importBatch: item.importBatch, importSourceRef: item.importSourceRef } : {}),
     archived: false,
     createdBy: "TEST_SEED",
     createdAt: FieldValue.serverTimestamp(),

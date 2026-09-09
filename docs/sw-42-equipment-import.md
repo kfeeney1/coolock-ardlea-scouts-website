@@ -1,0 +1,58 @@
+# SW-42 equipment asset-register mapping
+
+Source: Jira SW-42 attachment `Coolok.xlsx`, register period 2025–2026. The source workbook is not committed.
+
+## Column mapping
+
+| Workbook column | Site field | Treatment |
+| --- | --- | --- |
+| Date Purchased | `purchaseDate` | Excel dates become ISO `YYYY-MM-DD`; `N/A` remains an empty date and exports as `N/A`. |
+| Quantity | `totalQuantity` | Only a single non-negative whole number is accepted. |
+| Description | `name` | Leading/trailing and repeated whitespace is normalised; spelling is preserved. |
+| Category Fixture & Fittings Equipment Other | `category` | The workbook value is preserved (`Equipment` or `Fixture & Fittings`). |
+| Replacement Value | `replacementValue`, `replacementValueNote` | Numeric values are stored as per-item euro values because the workbook multiplies Quantity × Replacement Value. Text such as `TBC on next purchase` is preserved in the note field, not converted to zero. |
+| Date Sold or Disposed of | `disposalDate` | Excel dates become ISO dates; blank remains blank. |
+| Unlabelled calculated column G | generated report value | The site calculates Quantity × Replacement Value. The source total cell is circular (`G2 = G201`, `G201 = SUM(G3:G200)`) and is not imported. |
+| Worksheet name | `assetRegisterSection` | Preserves whether the row came from Equipment or Hall. |
+
+The current schema also requires fields absent from the workbook:
+
+- `trackingMode`: explicitly mapped to `quantity` because every workbook row is an aggregate quantity line, not an individually identified asset.
+- `condition`: stored as `not-recorded`; the importer does not claim the assets are in good condition.
+- `location`: Hall rows map to `Hall`; the general Equipment worksheet maps to the explicit sentinel `Location not recorded`.
+- `notes`, checked-out/unavailable quantities and archive state: no workbook equivalents. New imports start with blank notes, zero operational allocations and active state because the controlled import creates catalogue rows, not loans or incidents.
+- provenance: `source=spreadsheet-import`, a reviewed batch, and worksheet/row source reference are stored on every record.
+
+## Rejected source values
+
+The attachment contains 136 populated asset rows. Preparation accepts 133 and rejects three ambiguous Quantity values:
+
+| Source | Value | Reason |
+| --- | --- | --- |
+| Hall row 6 | `20+` | No exact whole quantity. |
+| Hall row 41 | `3 x 2` | Could mean a count, dimensions or grouped units. |
+| Hall row 42 | `1x4` | Could mean a count, dimensions or grouped units. |
+
+The guarded import refuses to mutate while any rejected row remains. Correct these cells in a reviewed copy of the workbook before execution; do not add assumed quantities to the manifest.
+
+## Guarded workflow
+
+Prepare a private manifest:
+
+```bash
+python scripts/prepare-equipment-import.py --xlsx /private/Coolok.xlsx --batch sw-42-coolok-2025-2026 --output /private/sw-42-equipment.json
+```
+
+Run a dry run with a narrowly scoped service account. Review aggregate counts, conflicts and the digest. Execution or rollback additionally requires `PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT`, `PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT`, and `PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256` to match that reviewed dry run, plus a recent reviewed backup in `PROD_EQUIPMENT_IMPORT_BACKUP_URI` and `PROD_EQUIPMENT_IMPORT_BACKUP_VERIFIED_AT`.
+
+```bash
+node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json
+node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json --execute
+node scripts/import-equipment.mjs --manifest=/private/sw-42-equipment.json --rollback
+```
+
+The deterministic document ID is derived from batch plus worksheet/row. Re-running the same reviewed batch is idempotent, name conflicts fail closed, and rollback deletes only records whose stored provenance still matches.
+
+## Report
+
+Authorised administrators, Group Leaders and Quartermaster / Bo'sun roles see **Export asset register** on Equipment & Stores. It produces current authoritative equipment data using the source register's meaningful columns, plus a final Register Section column so the two original worksheets remain distinguishable. Ordinary leaders can still use their established catalogue and checkout permissions but cannot see equipment report controls.
