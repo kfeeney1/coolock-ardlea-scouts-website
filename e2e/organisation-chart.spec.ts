@@ -39,7 +39,7 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
 
   await expect(page.getByTestId("whos-who-leader-group-TEST_uid_group_leader")).toHaveCount(0);
   await expect(page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader")).toHaveCount(0);
-  await expect(page.getByTestId("whos-who-leader-scouts-TEST_uid_scouts_programme_scouter")).toHaveCount(0);
+  await expect(page.getByTestId("whos-who-leader-scouts-TEST_uid_scout_programme_scouter")).toHaveCount(0);
 
   await groupToggle.focus();
   await expect(groupToggle).toBeFocused();
@@ -65,7 +65,6 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
 
   await beaversToggle.click();
   await expect(beaversToggle).toHaveAttribute("aria-expanded", "true");
-  const beaversSection = page.getByTestId("whos-who-section-beavers");
   const beaverLeader = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
   await expect(beaverLeader).toBeVisible();
   await expect(beaverLeader).toHaveAttribute("data-section", "Beavers");
@@ -79,7 +78,7 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
 
   await scoutsToggle.click();
   await expect(scoutsToggle).toHaveAttribute("aria-expanded", "true");
-  const scoutsLeader = page.getByTestId("whos-who-leader-scouts-TEST_uid_scouts_programme_scouter");
+  const scoutsLeader = page.getByTestId("whos-who-leader-scouts-TEST_uid_scout_programme_scouter");
   await expect(scoutsLeader).toBeVisible();
   await expect(scoutsLeader).toHaveAttribute("data-section", "Scouts");
   await expect(scoutsLeader.getByRole("heading", { name: "Scouts Programme Scouter", exact: true })).toBeVisible();
