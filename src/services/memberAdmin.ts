@@ -142,14 +142,20 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
 
-  const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+  const [profileSnapshot, organisationSnapshot] = await Promise.all([
+    getDoc(doc(db, "adminUsers", user.uid)),
+    getDoc(doc(db, "organisationLeadership", user.uid))
+  ]);
   if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
     throw new Error("Active leader profile is required.");
   }
 
   const profile = profileSnapshot.data();
+  const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
   const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-  const docs = isAdmin
+  const isGroupFinanceOfficer = organisation?.active === true
+    && (organisation.scoutingRole === "Group Leader" || organisation.scoutingRole === "Group Treasurer");
+  const docs = isAdmin || isGroupFinanceOfficer
     ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
     : (await Promise.all(
         normalizeLeaderSections(profile).map((section) =>

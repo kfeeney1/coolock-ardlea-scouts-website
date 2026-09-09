@@ -21,7 +21,7 @@ test("admin can open and save site inactivity settings", async ({ page }, testIn
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/settings");
 
-  await expect(page.getByRole("heading", { name: "Site Settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByLabel("Parent account inactivity timeout")).toHaveValue("20");
   await expect(page.getByLabel("Leader desktop inactivity timeout")).toHaveValue("20");
   await expect(page.getByLabel("Leader phone inactivity timeout")).toHaveValue("90");

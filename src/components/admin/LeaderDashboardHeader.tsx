@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { useAdminAuth } from "./AdminAuthProvider";
 
-type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; };
+type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; };
 type NavGroup = { label: string; items: NavItem[]; };
 
 const dashboardItem: NavItem = { label: "Dashboard", path: "/leader" };
@@ -38,7 +38,7 @@ const navGroups: NavGroup[] = [
   { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
   { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
   { label: "Leader Access", path: "/leader/access", adminOnly: true },
-  { label: "Settings", path: "/leader/settings", adminOnly: true }
+  { label: "Settings", path: "/leader/settings", settingsOnly: true }
  ] }
 ];
 
@@ -65,7 +65,8 @@ export default function LeaderDashboardHeader() {
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
  const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
  const canViewActivityLog = isAdmin || isGroupOfficer;
- const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.activityLogOnly || canViewActivityLog);
+ const canViewSettings = isAdmin || adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Treasurer";
+ const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [dashboardItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];

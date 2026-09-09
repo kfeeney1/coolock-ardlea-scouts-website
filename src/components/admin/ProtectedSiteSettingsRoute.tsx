@@ -7,7 +7,10 @@ type Props = { children: ReactNode };
 
 export default function ProtectedSiteSettingsRoute({ children }: Props) {
     const { adminProfile } = useAdminAuth();
-    const canManageSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+    const canManageSettings = adminProfile?.role === "admin"
+        || adminProfile?.role === "super-admin"
+        || adminProfile?.scoutingRole === "Group Treasurer"
+        || adminProfile?.scoutingRole === "Group Leader";
 
     if (!canManageSettings) return <Navigate to="/leader" replace />;
     return <>{children}</>;
