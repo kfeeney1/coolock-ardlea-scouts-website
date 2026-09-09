@@ -28,11 +28,12 @@ const sections = [
 
 const groupRoles = [
   { key: "group_leader", displayName: "Declan O'Connor", scoutingRole: "Group Leader", order: 1 },
-  { key: "group_chairperson", displayName: "Sarah Byrne", scoutingRole: "Group Chairperson", order: 2 },
-  { key: "group_secretary", displayName: "Emma Doyle", scoutingRole: "Group Secretary", order: 3 },
-  { key: "group_treasurer", displayName: "Paul Kelly", scoutingRole: "Group Treasurer", order: 4 },
-  { key: "group_quartermaster", displayName: "Laura Murphy", scoutingRole: "Group Quartermaster / Bo'sun", order: 5 },
-  { key: "group_youth_champion", displayName: "Aoife Ryan", scoutingRole: "Group Youth Champion", order: 6 }
+  { key: "deputy_group_leader", displayName: "Niamh Brennan", scoutingRole: "Deputy Group Leader", order: 2 },
+  { key: "group_chairperson", displayName: "Sarah Byrne", scoutingRole: "Group Chairperson", order: 3 },
+  { key: "group_secretary", displayName: "Emma Doyle", scoutingRole: "Group Secretary", order: 4 },
+  { key: "group_treasurer", displayName: "Paul Kelly", scoutingRole: "Group Treasurer", order: 5 },
+  { key: "group_quartermaster", displayName: "Laura Murphy", scoutingRole: "Group Quartermaster / Bo'sun", order: 6 },
+  { key: "group_youth_champion", displayName: "Aoife Ryan", scoutingRole: "Group Youth Champion", order: 7 }
 ];
 
 const sectionRoleTemplates = [
