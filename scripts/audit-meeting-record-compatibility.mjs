@@ -9,7 +9,7 @@ const db = getFirestore();
 
 const VALID_TYPES = new Set(["group", "leader"]);
 const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Group Leaders"]);
-const FULL_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
+const FULL_HISTORY_ROLES = new Set(["Group Leader", "Deputy Group Leader", "Group Secretary"]);
 
 function text(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -85,4 +85,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log("Meeting record data and Group Leader/Group Secretary identities are compatible with the current application contract.");
+console.log("Meeting record data and Group Leader/Deputy Group Leader/Group Secretary identities are compatible with the current application contract.");
