@@ -1,15 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-const youthSections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
+const youthSections = [
+  { value: "Beavers", label: "Beavers" },
+  { value: "Cubs", label: "Cubs" },
+  { value: "Scouts", label: "Scouts" },
+  { value: "Ventures", label: "Ventures" },
+  { value: "Rovers", label: "Rover Scouts" }
+] as const;
 
 test.describe("public consent section chooser", () => {
   test("uses the supplied ONE Programme symbols without replacing accessible labels", async ({ page }) => {
     await page.goto("/activities/consent");
 
     for (const section of youthSections) {
-      const button = page.getByRole("button", { name: `Open ${section} consent form` });
+      const button = page.getByRole("button", { name: `Open ${section.label} consent form` });
       await expect(button).toBeVisible();
-      await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toBeVisible();
+      await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toBeVisible();
     }
 
     await expect(page.getByRole("button", { name: /Open Scouter.*consent form/i })).toBeVisible();
