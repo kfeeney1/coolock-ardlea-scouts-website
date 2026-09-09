@@ -2,17 +2,13 @@ import { readdir, readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const workflowDir = new URL(".github/workflows/", root);
-const canonicalSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS";
-const legacySecret = "FIREBASE_SERVICE_ACCOUNT_JSON";
-const previewWorkflow = "firebase-hosting-pull-request.yml";
-const productionCredentialForbiddenTestScripts = [
-  "scripts/purge-test-data.mjs",
-  "scripts/seed-population-data.mjs",
-  "scripts/seed-superadmin-login.mjs",
-  "scripts/seed-flow-data.mjs",
-  "scripts/seed-public-site-content.mjs",
-  "scripts/seed-playwright-records.mjs",
+const productionSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION";
+const testSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST";
+const legacySecrets = [
+  "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS",
+  "FIREBASE_SERVICE_ACCOUNT_JSON",
 ];
+const productionWorkflow = "firebase-hosting-merge.yml";
 const failures = [];
 
 function fail(message) {
@@ -47,57 +43,49 @@ function explicitInstallSpecs(source) {
 }
 
 const entries = (await readdir(workflowDir)).filter((name) => name.endsWith(".yml") || name.endsWith(".yaml")).sort();
-let credentialWorkflowCount = 0;
+let productionCredentialWorkflowCount = 0;
+let testCredentialWorkflowCount = 0;
 let pinnedInstallCount = 0;
 
 for (const name of entries) {
   const source = await readFile(new URL(name, workflowDir), "utf8");
-  const usesCanonicalSecret = source.includes(`secrets.${canonicalSecret}`);
-  const usesLegacySecret = source.includes(`secrets.${legacySecret}`);
+  const usesProductionSecret = source.includes(`secrets.${productionSecret}`);
+  const usesTestSecret = source.includes(`secrets.${testSecret}`);
   const pullRequestTriggered = hasPullRequestTrigger(source);
 
-  if (usesLegacySecret) {
-    fail(`${name} uses the legacy Firebase service-account secret name; use ${canonicalSecret}.`);
-  }
-
-  if (usesCanonicalSecret) {
-    credentialWorkflowCount += 1;
-
-    for (const script of productionCredentialForbiddenTestScripts) {
-      if (source.includes(script)) {
-        fail(`${name} combines the production Firebase service account with TEST-data mutation script ${script}. Test fixtures must stay on emulator/non-production execution paths.`);
-      }
+  for (const legacySecret of legacySecrets) {
+    if (source.includes(`secrets.${legacySecret}`)) {
+      fail(`${name} uses legacy unscoped Firebase credential ${legacySecret}.`);
     }
   }
 
-  if (pullRequestTriggered && source.includes("FIREBASE_SERVICE_ACCOUNT_JSON:")) {
-    fail(`${name} exposes a production Firebase service account to repository code on a pull_request trigger.`);
+  if (usesProductionSecret) {
+    productionCredentialWorkflowCount += 1;
+    if (name !== productionWorkflow) {
+      fail(`${name} references the production Firebase credential outside the manual production workflow.`);
+    }
+    if (pullRequestTriggered) {
+      fail(`${name} exposes the production Firebase credential to a pull_request trigger.`);
+    }
   }
 
-  if (pullRequestTriggered && usesCanonicalSecret) {
-    if (name !== previewWorkflow) {
-      fail(`${name} is pull_request-triggered while using the production Firebase service account.`);
-    } else {
-      if (!source.includes("github.event.pull_request.head.repo.full_name == github.repository")) {
-        fail(`${name} must retain its same-repository PR guard before using preview credentials.`);
-      }
-      if (!source.includes(`firebaseServiceAccount: \${{ secrets.${canonicalSecret} }}`)) {
-        fail(`${name} may use the production service account only through the pinned Firebase Hosting preview action input.`);
-      }
-    }
+  if (usesTestSecret) testCredentialWorkflowCount += 1;
+
+  if (pullRequestTriggered && source.includes("FIREBASE_SERVICE_ACCOUNT_JSON:") && !usesTestSecret) {
+    fail(`${name} places a Firebase credential in a PR job without proving it is the TEST credential.`);
   }
 
   for (const spec of explicitInstallSpecs(source)) {
-    if (!packageSpecIsPinned(spec)) {
-      fail(`${name} installs an unpinned transient npm package: ${spec}`);
-    } else {
-      pinnedInstallCount += 1;
-    }
+    if (!packageSpecIsPinned(spec)) fail(`${name} installs an unpinned transient npm package: ${spec}`);
+    else pinnedInstallCount += 1;
   }
 }
 
-if (credentialWorkflowCount === 0) {
-  fail("No production Firebase credential workflows were found; the guard would no longer protect a meaningful surface.");
+if (productionCredentialWorkflowCount !== 1) {
+  fail(`Expected exactly one production credential workflow; found ${productionCredentialWorkflowCount}.`);
+}
+if (testCredentialWorkflowCount < 2) {
+  fail("Expected TEST credentials to be scoped to both TEST deployment and TEST PR preview workflows.");
 }
 
 if (failures.length) {
@@ -105,5 +93,5 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Workflow production-credential contract passed across ${entries.length} workflows.`);
-console.log(`Protected ${credentialWorkflowCount} credential-bearing workflow(s) and verified ${pinnedInstallCount} transient npm package install(s).`);
+console.log(`Workflow credential-separation contract passed across ${entries.length} workflows.`);
+console.log(`Protected ${productionCredentialWorkflowCount} production and ${testCredentialWorkflowCount} TEST credential workflow(s); verified ${pinnedInstallCount} transient npm package install(s).`);
