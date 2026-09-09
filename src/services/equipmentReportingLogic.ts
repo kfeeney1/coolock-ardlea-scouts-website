@@ -10,6 +10,10 @@ export type EquipmentReportItem = {
   condition: string;
   notes: string;
   replacementValue: number | null;
+  purchaseDate?: string;
+  disposalDate?: string;
+  replacementValueNote?: string;
+  assetRegisterSection?: string;
   archived: boolean;
 };
 
@@ -111,6 +115,23 @@ export function equipmentInventoryCsv(items: EquipmentReportItem[], filters: Equ
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
     .map((item) => [item.name, item.category, item.location, item.trackingMode, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity, money(item.replacementValue), item.replacementValue === null ? "" : money(item.replacementValue * item.totalQuantity), item.archived ? "Yes" : "No", item.notes]);
   return csv(["Equipment", "Category", "Location", "Tracking", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable", "Replacement value each (€)", "Total replacement value (€)", "Archived", "Notes"], body);
+}
+
+export function equipmentAssetRegisterCsv(items: EquipmentReportItem[]): string {
+  const body = items
+    .filter((item) => !item.archived || Boolean(item.disposalDate))
+    .sort((a, b) => (a.assetRegisterSection || "Equipment").localeCompare(b.assetRegisterSection || "Equipment") || a.name.localeCompare(b.name))
+    .map((item) => [
+      item.purchaseDate || "N/A",
+      item.totalQuantity,
+      item.name,
+      item.category,
+      item.replacementValue === null ? (item.replacementValueNote || "") : money(item.replacementValue),
+      item.disposalDate || "",
+      item.replacementValue === null ? "" : money(item.replacementValue * item.totalQuantity),
+      item.assetRegisterSection || "Equipment"
+    ]);
+  return csv(["Date Purchased", "Quantity", "Description", "Category Fixture & Fittings Equipment Other", "Replacement Value", "Date Sold or Disposed of", "Total Replacement Value", "Register Section"], body);
 }
 
 export function equipmentByLocationCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): string {

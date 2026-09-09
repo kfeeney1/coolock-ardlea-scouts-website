@@ -542,7 +542,7 @@ service cloud.firestore {
         && request.resource.data.checkedOutQuantity == 0
         && request.resource.data.unavailableQuantity == 0
         && request.resource.data.location is string
-        && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
+        && request.resource.data.condition in ["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"]
         && request.resource.data.notes is string
         && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
         && request.resource.data.archived is bool
@@ -550,7 +550,14 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+        && (!request.resource.data.keys().hasAny(["purchaseDate"]) || request.resource.data.purchaseDate is string)
+        && (!request.resource.data.keys().hasAny(["disposalDate"]) || request.resource.data.disposalDate is string)
+        && (!request.resource.data.keys().hasAny(["replacementValueNote"]) || request.resource.data.replacementValueNote is string)
+        && (!request.resource.data.keys().hasAny(["assetRegisterSection"]) || request.resource.data.assetRegisterSection is string)
+        && (!request.resource.data.keys().hasAny(["source"]) || request.resource.data.source is string)
+        && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch is string)
+        && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef is string)
+        && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       allow update: if (canManageEquipment()
           && request.resource.data.name is string
           && request.resource.data.category is string
@@ -566,7 +573,7 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
             || request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity)
           && request.resource.data.location is string
-          && request.resource.data.condition in ["good", "needs-attention", "repair", "missing", "lost", "retired"]
+          && request.resource.data.condition in ["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"]
           && request.resource.data.notes is string
           && (request.resource.data.replacementValue == null || request.resource.data.replacementValue is number)
           && request.resource.data.archived is bool
@@ -574,7 +581,14 @@ service cloud.firestore {
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.updatedBy == request.auth.uid
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
+          && (!request.resource.data.keys().hasAny(["purchaseDate"]) || request.resource.data.purchaseDate is string)
+          && (!request.resource.data.keys().hasAny(["disposalDate"]) || request.resource.data.disposalDate is string)
+          && (!request.resource.data.keys().hasAny(["replacementValueNote"]) || request.resource.data.replacementValueNote is string)
+          && (!request.resource.data.keys().hasAny(["assetRegisterSection"]) || request.resource.data.assetRegisterSection is string)
+          && (!request.resource.data.keys().hasAny(["source"]) || request.resource.data.source == resource.data.source)
+          && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch == resource.data.importBatch)
+          && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef == resource.data.importSourceRef)
+          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
         || (isActiveLeader()
           && request.resource.data.checkedOutQuantity is number
           && request.resource.data.checkedOutQuantity >= 0

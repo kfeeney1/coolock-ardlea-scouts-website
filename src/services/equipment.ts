@@ -27,6 +27,13 @@ export type EquipmentItem = {
   condition: EquipmentCondition;
   notes: string;
   replacementValue: number | null;
+  purchaseDate: string;
+  disposalDate: string;
+  replacementValueNote: string;
+  assetRegisterSection: string;
+  source: string;
+  importBatch: string;
+  importSourceRef: string;
   archived: boolean;
   createdBy: string;
   updatedBy: string;
@@ -37,7 +44,7 @@ export type EquipmentOption = {
   name: string;
 };
 
-export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived" | "checkedOutQuantity" | "unavailableQuantity">;
+export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updatedBy" | "archived" | "checkedOutQuantity" | "unavailableQuantity" | "purchaseDate" | "disposalDate" | "replacementValueNote" | "assetRegisterSection" | "source" | "importBatch" | "importSourceRef">;
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
@@ -57,7 +64,7 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
     : 0;
   if (checkedOutQuantity + unavailableQuantity > data.totalQuantity) return null;
   const condition = data.condition;
-  if (!["good", "needs-attention", "repair", "missing", "lost", "retired"].includes(String(condition))) return null;
+  if (!["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"].includes(String(condition))) return null;
   return {
     id,
     name: data.name,
@@ -70,6 +77,13 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
     condition: condition as EquipmentCondition,
     notes: typeof data.notes === "string" ? data.notes : "",
     replacementValue: typeof data.replacementValue === "number" ? data.replacementValue : null,
+    purchaseDate: typeof data.purchaseDate === "string" ? data.purchaseDate : "",
+    disposalDate: typeof data.disposalDate === "string" ? data.disposalDate : "",
+    replacementValueNote: typeof data.replacementValueNote === "string" ? data.replacementValueNote : "",
+    assetRegisterSection: typeof data.assetRegisterSection === "string" ? data.assetRegisterSection : "Equipment",
+    source: typeof data.source === "string" ? data.source : "",
+    importBatch: typeof data.importBatch === "string" ? data.importBatch : "",
+    importSourceRef: typeof data.importSourceRef === "string" ? data.importSourceRef : "",
     archived: data.archived === true,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : ""

@@ -17,6 +17,12 @@ test.describe("Equipment & Stores leader navigation", () => {
     await page.goto("/leader/equipment");
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+    const assetRegister = page.getByTestId("export-equipment-asset-register");
+    await expect(assetRegister).toBeVisible();
+    const assetRegisterBox = await assetRegister.boundingBox();
+    expect(assetRegisterBox).not.toBeNull();
+    expect(assetRegisterBox!.x).toBeGreaterThanOrEqual(0);
+    expect(assetRegisterBox!.x + assetRegisterBox!.width).toBeLessThanOrEqual(412);
 
     const menu = page.getByRole("button", { name: /Menu · Equipment & Stores|Open Leader Menu/i });
     await expect(menu).toBeVisible();

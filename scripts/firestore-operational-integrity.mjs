@@ -1,5 +1,5 @@
 const FINANCE_TYPES = new Set(["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]);
-const ITEM_CONDITIONS = new Set(["good", "needs-attention", "repair", "missing", "lost", "retired"]);
+const ITEM_CONDITIONS = new Set(["not-recorded", "good", "needs-attention", "repair", "missing", "lost", "retired"]);
 const HISTORY_TYPES = new Set(["item-created", "item-updated", "item-archived", "item-restored", "equipment-checked-out", "equipment-returned", "incident-reported", "incident-investigating", "incident-resolved", "stock-moved", "stock-moved-out", "stock-moved-in"]);
 const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
 

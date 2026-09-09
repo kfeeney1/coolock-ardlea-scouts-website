@@ -98,3 +98,14 @@ test("equipment options are readable by leaders but managed only by equipment ro
   await assertFails(deleteDoc(doc(leaderDb, "equipmentCategories/tents")));
   await assertSucceeds(deleteDoc(doc(qmDb, "equipmentCategories/tents")));
 });
+
+test("only equipment managers can create provenance-backed imported items", async () => {
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/qm", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/qm", { active: true, scoutingRole: "Group Quartermaster / Bo'sun" }],
+  ]);
+  const payload = { name: "Imported tent", category: "Equipment", trackingMode: "quantity", totalQuantity: 4, checkedOutQuantity: 0, unavailableQuantity: 0, location: "Location not recorded", condition: "not-recorded", notes: "", replacementValue: 0, purchaseDate: "", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment", source: "spreadsheet-import", importBatch: "sw-42", importSourceRef: "Equipment:row-3", archived: false, createdBy: "qm", createdAt: serverTimestamp(), updatedBy: "qm", updatedAt: serverTimestamp() };
+  await assertFails(setDoc(doc(testEnv.authenticatedContext("leader-cubs").firestore(), "equipmentItems/imported"), { ...payload, createdBy: "leader-cubs", updatedBy: "leader-cubs" }));
+  await assertSucceeds(setDoc(doc(testEnv.authenticatedContext("qm").firestore(), "equipmentItems/imported"), payload));
+});
