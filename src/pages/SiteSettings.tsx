@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import SubsSettingsPanel from "../components/admin/SubsSettingsPanel";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     loadSessionSettings,
@@ -24,14 +25,19 @@ function minutesValue(value: string): number {
 }
 
 export default function SiteSettings() {
-    const { refreshSessionSettings } = useAdminAuth();
+    const { adminProfile, refreshSessionSettings } = useAdminAuth();
+    const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(canManageSiteSettings);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
     useEffect(() => {
+        if (!canManageSiteSettings) {
+            setLoading(false);
+            return;
+        }
         let cancelled = false;
         const load = async () => {
             setLoading(true);
@@ -50,7 +56,7 @@ export default function SiteSettings() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [canManageSiteSettings]);
 
     const changeMinutes = (key: keyof SessionSettings, value: string) => {
         setSettings((current) => current ? { ...current, [key]: minutesValue(value) } : current);
@@ -80,55 +86,59 @@ export default function SiteSettings() {
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
-                    title="Site Settings"
-                    description="Manage site-wide operational settings. This page is available only to admins and super-admins and is intended to grow as additional configurable settings are introduced."
+                    title="Settings"
+                    description="Manage the settings available to your role. Subs rates and member classifications are available to the Treasurer, Group Leader and admins; platform settings remain admin-only."
                 />
 
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-                <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760 }}>
-                    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Session inactivity</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 0.75, mb: 3 }}>
-                        Signed-in users are automatically logged out when they have not interacted with the site for the configured period. Parent-only accounts use one limit on every device; leader accounts can use different desktop and phone limits.
-                    </Typography>
+                {canManageSiteSettings && (
+                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760 }}>
+                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Session inactivity</Typography>
+                        <Typography color="text.secondary" sx={{ mt: 0.75, mb: 3 }}>
+                            Signed-in users are automatically logged out when they have not interacted with the site for the configured period. Parent-only accounts use one limit on every device; leader accounts can use different desktop and phone limits.
+                        </Typography>
 
-                    {loading || !settings ? (
-                        <Typography color="text.secondary">Loading settings…</Typography>
-                    ) : (
-                        <Stack spacing={2.25}>
-                            <TextField
-                                label="Parent account inactivity timeout"
-                                type="number"
-                                value={Number.isFinite(settings.parentInactivityMinutes) ? settings.parentInactivityMinutes : ""}
-                                onChange={(event) => changeMinutes("parentInactivityMinutes", event.target.value)}
-                                helperText="Minutes on all devices. Default: 20."
-                                slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
-                            />
-                            <TextField
-                                label="Leader desktop inactivity timeout"
-                                type="number"
-                                value={Number.isFinite(settings.leaderDesktopInactivityMinutes) ? settings.leaderDesktopInactivityMinutes : ""}
-                                onChange={(event) => changeMinutes("leaderDesktopInactivityMinutes", event.target.value)}
-                                helperText="Minutes on desktop/PC sessions. Default: 20."
-                                slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
-                            />
-                            <TextField
-                                label="Leader phone inactivity timeout"
-                                type="number"
-                                value={Number.isFinite(settings.leaderPhoneInactivityMinutes) ? settings.leaderPhoneInactivityMinutes : ""}
-                                onChange={(event) => changeMinutes("leaderPhoneInactivityMinutes", event.target.value)}
-                                helperText="Minutes on phone sessions. Default: 90."
-                                slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
-                            />
-                            <Box>
-                                <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>
-                                    {saving ? "Saving…" : "Save Settings"}
-                                </Button>
-                            </Box>
-                        </Stack>
-                    )}
-                </Paper>
+                        {loading || !settings ? (
+                            <Typography color="text.secondary">Loading settings…</Typography>
+                        ) : (
+                            <Stack spacing={2.25}>
+                                <TextField
+                                    label="Parent account inactivity timeout"
+                                    type="number"
+                                    value={Number.isFinite(settings.parentInactivityMinutes) ? settings.parentInactivityMinutes : ""}
+                                    onChange={(event) => changeMinutes("parentInactivityMinutes", event.target.value)}
+                                    helperText="Minutes on all devices. Default: 20."
+                                    slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
+                                />
+                                <TextField
+                                    label="Leader desktop inactivity timeout"
+                                    type="number"
+                                    value={Number.isFinite(settings.leaderDesktopInactivityMinutes) ? settings.leaderDesktopInactivityMinutes : ""}
+                                    onChange={(event) => changeMinutes("leaderDesktopInactivityMinutes", event.target.value)}
+                                    helperText="Minutes on desktop/PC sessions. Default: 20."
+                                    slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
+                                />
+                                <TextField
+                                    label="Leader phone inactivity timeout"
+                                    type="number"
+                                    value={Number.isFinite(settings.leaderPhoneInactivityMinutes) ? settings.leaderPhoneInactivityMinutes : ""}
+                                    onChange={(event) => changeMinutes("leaderPhoneInactivityMinutes", event.target.value)}
+                                    helperText="Minutes on phone sessions. Default: 90."
+                                    slotProps={{ htmlInput: { min: 5, max: 240, step: 1 } }}
+                                />
+                                <Box>
+                                    <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>
+                                        {saving ? "Saving…" : "Save Settings"}
+                                    </Button>
+                                </Box>
+                            </Stack>
+                        )}
+                    </Paper>
+                )}
+
+                <SubsSettingsPanel />
             </Container>
         </Box>
     );
