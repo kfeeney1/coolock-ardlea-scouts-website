@@ -21,7 +21,7 @@ test("legacy Who's Who URL redirects to About", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 });
 
-test("rebuilt public Who's Who renders canonical section and Group leaders and excludes website admins", async ({ page }) => {
+test("rebuilt public Who's Who renders section-aware public leader tiles and excludes website admins", async ({ page }) => {
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Who’s Who" })).toBeVisible();
@@ -35,10 +35,42 @@ test("rebuilt public Who's Who renders canonical section and Group leaders and e
   await expect(page.getByRole("heading", { name: "Scouts Programme Scouter", exact: true })).toBeVisible();
   await expect(page.getByText("Programme Scouter", { exact: true }).first()).toBeVisible();
 
-  for (const forbiddenName of ["Test Website Administrator", "Test Website Super Admin"]) {
+  const beaversSection = page.getByTestId("whos-who-section-beavers");
+  const beaverLeader = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
+  await expect(beaversSection.getByRole("heading", { name: "Beavers", exact: true })).toBeVisible();
+  await expect(beaverLeader).toBeVisible();
+  await expect(beaverLeader).toHaveAttribute("data-section", "Beavers");
+  await expect(beaverLeader.getByTestId("section-swatch-beavers")).toBeVisible();
+  await expect(beaverLeader.getByText("Beavers", { exact: true })).toBeVisible();
+
+  const groupLeader = page.getByTestId("whos-who-leader-group-TEST_uid_group_leader");
+  await expect(groupLeader).toHaveAttribute("data-section", "Group");
+  await expect(groupLeader.getByText("Group", { exact: true })).toBeVisible();
+
+  for (const forbiddenName of ["Test Website Administrator", "Test Website Super Admin", "Test Multi Section Leader"]) {
     await expect(page.getByRole("heading", { name: forbiddenName, exact: true })).toHaveCount(0);
   }
   await expect(page.getByText("Group Council Administrator", { exact: true })).toHaveCount(0);
+});
+
+test("public Who's Who tiles remain readable without horizontal overflow from phone to desktop", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  await page.goto("/about");
+  const leaderTile = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 820, height: 1000 },
+    { width: 1280, height: 900 }
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(leaderTile).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    const box = await leaderTile.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(viewport.width);
+  }
 });
 
 test("organisation chart rejects unauthenticated leader access", async ({ page }) => {
