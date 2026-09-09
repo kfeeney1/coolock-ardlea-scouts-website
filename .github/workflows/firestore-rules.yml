@@ -20,6 +20,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+
 jobs:
   rules:
     runs-on: ubuntu-latest
@@ -47,7 +50,7 @@ jobs:
         run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
 
       - name: Run Firestore rules tests
-        run: npx firebase emulators:exec --only firestore --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
+        run: npx firebase emulators:exec --only firestore --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
 
       - name: Run Storage rules tests
-        run: npx firebase emulators:exec --only firestore,storage --project coolock-ardlea-scouts "node --test --test-concurrency=1 tests/storage/*.test.mjs"
+        run: npx firebase emulators:exec --only firestore,storage --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/storage/*.test.mjs"
