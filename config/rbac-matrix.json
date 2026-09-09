@@ -19,6 +19,7 @@
     "/leader/access": "admin",
     "/leader/activity": "group-audit-role",
     "/leader/profile": "leader",
+    "/leader/profile/consent": "leader",
     "/leader/reports": "leader",
     "/leader/attendance": "leader",
     "/leader/communications": "leader",
@@ -81,4 +82,3 @@
     "attachments/event-gallery": "parent-projected-or-leader-section"
   }
 }
-
