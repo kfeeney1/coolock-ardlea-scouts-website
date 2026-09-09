@@ -14,6 +14,7 @@ import {
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import {
@@ -154,7 +155,7 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
   const isAdmin = profile.role === "admin" || profile.role === "super-admin";
   const isGroupFinanceOfficer = organisation?.active === true
-    && (organisation.scoutingRole === "Group Leader" || organisation.scoutingRole === "Group Treasurer");
+    && (isGroupLeadershipAppointment(organisation.scoutingRole) || organisation.scoutingRole === "Group Treasurer");
   const docs = isAdmin || isGroupFinanceOfficer
     ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
     : (await Promise.all(

@@ -25,6 +25,7 @@ for (const [role, email] of [
   ["Admin", "test.webadmin@example.com"],
   ["Super Admin", "superadmin@example.com"],
   ["Group Leader", "test.group.leader@example.com"],
+  ["Deputy Group Leader", "test.deputy.group.leader@example.com"],
   ["Group Secretary", "test.group.secretary@example.com"]
 ] as const) {
   test(`${role} can open the read-only Activity Log`, async ({ page }, testInfo) => {

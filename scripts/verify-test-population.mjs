@@ -21,8 +21,8 @@ const SECTIONS = [
   { section: "Ventures", key: "venture" },
   { section: "Rovers", key: "rover" }
 ];
-const GROUP_ROLE_KEYS = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
-const GROUP_ROLES = new Set(["Group Leader", "Group Chairperson", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Youth Champion"]);
+const GROUP_ROLE_KEYS = ["group_leader", "deputy_group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
+const GROUP_ROLES = new Set(["Group Leader", "Deputy Group Leader", "Group Chairperson", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Youth Champion"]);
 const SECTION_ROLE_KEYS = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const SECTION_ROLES = new Set(["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]);
 
@@ -48,7 +48,7 @@ for (const doc of members) {
 }
 
 const adminUsers = await seededDocs("adminUsers");
-if (adminUsers.length !== 30) fail(`expected 30 leader/admin profiles, found ${adminUsers.length}`);
+if (adminUsers.length !== 31) fail(`expected 31 leader/admin profiles, found ${adminUsers.length}`);
 for (const doc of adminUsers) {
   const data = doc.data();
   if (!(data.role === "leader" || data.role === "admin" || data.role === "super-admin")) fail(`adminUsers/${doc.id} has invalid role`);
@@ -58,9 +58,9 @@ for (const doc of adminUsers) {
 }
 
 const organisation = await seededDocs("organisationLeadership");
-if (organisation.length !== 30) fail(`expected 30 organisation records, found ${organisation.length}`);
+if (organisation.length !== 31) fail(`expected 31 organisation records, found ${organisation.length}`);
 const publicLeadership = await seededDocs("publicLeadership");
-if (publicLeadership.length !== 26) fail(`expected 26 public leadership records, found ${publicLeadership.length}`);
+if (publicLeadership.length !== 27) fail(`expected 27 public leadership records, found ${publicLeadership.length}`);
 for (const doc of publicLeadership) {
   const data = doc.data();
   if (data.publicProjectionVersion !== 2 || data.sourceAccessRole !== "leader") fail(`publicLeadership/${doc.id} is not current projection v2`);
@@ -68,7 +68,7 @@ for (const doc of publicLeadership) {
 }
 
 const publicGroup = publicLeadership.filter((doc) => doc.data().organisationSection === "Group");
-if (publicGroup.length !== 6) fail(`expected 6 public Group executive records, found ${publicGroup.length}`);
+if (publicGroup.length !== 7) fail(`expected 7 public Group executive records, found ${publicGroup.length}`);
 for (const role of GROUP_ROLES) if (!publicGroup.some((doc) => doc.data().scoutingRole === role)) fail(`Group Who's Who is missing ${role}`);
 for (const doc of publicGroup) if (!GROUP_ROLES.has(doc.data().scoutingRole)) fail(`unexpected public Group role ${doc.data().scoutingRole}`);
 
@@ -113,7 +113,7 @@ const expectedAuthUids = new Set([
   SUPER_ADMIN_UID,
   MODERN_SUPER_ADMIN_UID
 ]);
-if (expectedAuthUids.size !== 40) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 40`);
+if (expectedAuthUids.size !== 41) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 41`);
 
 const missingAuthUids = [];
 for (const uid of expectedAuthUids) {
@@ -124,7 +124,7 @@ if (missingAuthUids.length) fail(`missing comprehensive Auth users: ${missingAut
 
 console.log("Minimal canonical TEST population verified successfully.");
 console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
-console.log("- Who's Who: exactly six Group roles + four approved section roles per youth section");
+console.log("- Who's Who: exactly seven Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
-console.log("- Leader/admin profiles: 26 public leaders + 1 private multi-section leader + 3 private website admins");
-console.log("- Firebase Auth: all 40 canonical identities present");
+console.log("- Leader/admin profiles: 27 public leaders + 1 private multi-section leader + 3 private website admins");
+console.log("- Firebase Auth: all 41 canonical identities present");

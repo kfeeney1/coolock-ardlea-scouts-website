@@ -11,6 +11,7 @@ const CANONICAL_TEST_SEEDS = new Set(["comprehensive-population-v3", "full-syste
 
 const GROUP_ROLES = new Set([
   "group leader",
+  "deputy group leader",
   "group chairperson",
   "group secretary",
   "group treasurer",

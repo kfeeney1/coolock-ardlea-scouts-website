@@ -3,6 +3,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
+import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; };
@@ -64,9 +65,10 @@ export default function LeaderDashboardHeader() {
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
  const [signingOut, setSigningOut] = useState(false);
  const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
- const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
+ const isGroupLeadership = isGroupLeadershipAppointment(adminProfile?.scoutingRole);
+ const isGroupOfficer = isGroupLeadership || adminProfile?.scoutingRole === "Group Secretary";
  const canViewActivityLog = isAdmin || isGroupOfficer;
- const canViewSettings = isAdmin || adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Treasurer";
+ const canViewSettings = isAdmin || isGroupLeadership || adminProfile?.scoutingRole === "Group Treasurer";
  const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);

@@ -15,6 +15,7 @@ const leader = {
   scoutingRole: "Section Leader"
 };
 const quartermaster = { role: "leader", sections: ["Group"], scoutingRole: "Group Quartermaster / Bo'sun" };
+const deputyGroupLeader = { role: "leader", sections: ["Group"], scoutingRole: "Deputy Group Leader" };
 const item = {
   name: "4-person Tent",
   totalQuantity: 12,
@@ -33,10 +34,12 @@ test("ordinary leaders can use equipment only for assigned sections", () => {
   assert.deepEqual(checkoutSectionOptions(leader), ["Scouts"]);
 });
 
-test("quartermaster can issue equipment across the group", () => {
-  assert.equal(canUseEquipmentForSection(quartermaster, "Cubs"), true);
-  assert.ok(checkoutSectionOptions(quartermaster).includes("Cubs"));
-  assert.ok(checkoutSectionOptions(quartermaster).includes("Group"));
+test("equipment managers and Deputy Group Leader can issue equipment across the group", () => {
+  for (const profile of [quartermaster, deputyGroupLeader]) {
+    assert.equal(canUseEquipmentForSection(profile, "Cubs"), true);
+    assert.ok(checkoutSectionOptions(profile).includes("Cubs"));
+    assert.ok(checkoutSectionOptions(profile).includes("Group"));
+  }
 });
 
 test("checkout validation prevents over-allocation and archived stock", () => {

@@ -4,7 +4,7 @@ import type { Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { notifyLeaderAccessStatus, notifyLeaderRegistration } from "./emailNotifications";
 
-export type RequestedLeaderRole = "Scouter" | "Section Leader" | "Group Leader" | "Other";
+export type RequestedLeaderRole = "Scouter" | "Section Leader" | "Group Leader" | "Deputy Group Leader" | "Other";
 export type RequestedSection = "Beavers" | "Cubs" | "Scouts" | "Ventures" | "Rovers" | "Group" | "Other";
 export type LeaderRegistrationInput = { fullName: string; email: string; password: string; mobileNumber: string; requestedRole: RequestedLeaderRole | ""; requestedSection: RequestedSection | ""; reason: string; privacyConfirmed: boolean; };
 export type LeaderRegistrationRequest = { uid: string; fullName: string; email: string; mobileNumber: string; requestedRole: string; requestedSection: string; reason: string; status: "pending" | "approved" | "rejected"; submittedAt: Date | null; reviewedAt: Date | null; reviewedBy: string; reviewNote: string; };

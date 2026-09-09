@@ -1,6 +1,7 @@
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
 import type { WeeklyMeetingStatus } from "./weeklyTracker";
 
-const PAST_MEETING_EDITOR_ROLES = new Set(["Section Leader", "Group Leader"]);
+const PAST_MEETING_EDITOR_ROLES = new Set(["Section Leader"]);
 
 export type WeeklyMeetingEditMode = {
   canEditOperationalFields: boolean;
@@ -8,7 +9,7 @@ export type WeeklyMeetingEditMode = {
 };
 
 export function canEditPastWeeklyMeeting(scoutingRole: string, isAdmin: boolean): boolean {
-  return isAdmin || PAST_MEETING_EDITOR_ROLES.has(scoutingRole);
+  return isAdmin || PAST_MEETING_EDITOR_ROLES.has(scoutingRole) || isGroupLeadershipAppointment(scoutingRole);
 }
 
 export function weeklyMeetingEditMode(

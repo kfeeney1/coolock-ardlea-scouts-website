@@ -87,7 +87,7 @@ export default function SiteSettings() {
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Settings"
-                    description="Manage the settings available to your role. Subs rates and member classifications are available to the Treasurer, Group Leader and admins; platform settings remain admin-only."
+                    description="Manage the settings available to your role. Subs rates and member classifications are available to the Treasurer, Group Leader, Deputy Group Leader and admins; platform settings remain admin-only."
                 />
 
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}

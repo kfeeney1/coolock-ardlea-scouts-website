@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { loadMembers, type MemberRecord } from "../../services/memberAdmin";
 import {
   assignSubsFamilyRate,
@@ -41,7 +42,7 @@ export default function SubsSettingsPanel() {
   const canManage = adminProfile?.role === "admin"
     || adminProfile?.role === "super-admin"
     || adminProfile?.scoutingRole === "Group Treasurer"
-    || adminProfile?.scoutingRole === "Group Leader";
+    || isGroupLeadershipAppointment(adminProfile?.scoutingRole);
 
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
@@ -137,7 +138,6 @@ export default function SubsSettingsPanel() {
         version: Number(version),
         standardFamilyRatesCents,
         leaderFamilyRatesCents,
-        // Retained for backwards compatibility with pre-family SW-47 records.
         standardCents: standardFamilyRatesCents[0],
         leaderChildCents: leaderFamilyRatesCents[0],
         siblingCents: standardSecondIncrement
@@ -180,7 +180,7 @@ export default function SubsSettingsPanel() {
     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
       <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rates &amp; classification</Typography>
       <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-        Configure Scout-year family rates and explicitly classify each child. Access is restricted to the Treasurer, Group Leader and admins.
+        Configure Scout-year family rates and explicitly classify each child. Access is restricted to the Treasurer, Group Leader, Deputy Group Leader and admins.
       </Typography>
 
       {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}

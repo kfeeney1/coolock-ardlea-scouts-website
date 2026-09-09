@@ -2,6 +2,7 @@ export const PUBLIC_PROJECTION_VERSION = 2;
 
 const GROUP_ROLES = new Set([
   "group leader",
+  "deputy group leader",
   "group chairperson",
   "group secretary",
   "group treasurer",

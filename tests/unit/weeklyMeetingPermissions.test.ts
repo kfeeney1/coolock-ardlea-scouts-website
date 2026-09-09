@@ -3,9 +3,10 @@ import test from "node:test";
 
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../../src/services/weeklyMeetingPermissions.ts";
 
-test("Section Leaders and the Group Leader can edit past operational fields", () => {
+test("Section Leaders and Group Leadership can edit past operational fields", () => {
   assert.equal(canEditPastWeeklyMeeting("Section Leader", false), true);
   assert.equal(canEditPastWeeklyMeeting("Group Leader", false), true);
+  assert.equal(canEditPastWeeklyMeeting("Deputy Group Leader", false), true);
 });
 
 test("admin access can edit past operational fields", () => {
@@ -21,6 +22,10 @@ test("lower section roles and the Group Secretary are read-only for past meeting
 
 test("programme and completed badgework are locked for every closed meeting", () => {
   assert.deepEqual(weeklyMeetingEditMode("closed", "Section Leader", false, false), {
+    canEditOperationalFields: true,
+    canEditPlanningFields: false
+  });
+  assert.deepEqual(weeklyMeetingEditMode("closed", "Deputy Group Leader", false, false), {
     canEditOperationalFields: true,
     canEditPlanningFields: false
   });

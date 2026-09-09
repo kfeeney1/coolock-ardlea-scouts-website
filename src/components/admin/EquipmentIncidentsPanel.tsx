@@ -251,7 +251,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
           </FormControl>
           <TextField label="Quantity affected" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} slotProps={{ htmlInput: { min: 1, max: selectedSource?.maximum ?? 1, step: 1 } }} helperText={selectedSource ? `Maximum from this source: ${selectedSource.maximum}` : "Choose the equipment first."} />
           <TextField label="What happened?" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={3} required placeholder="Describe the damage, where the item was last seen, or what maintenance is needed." />
-          {incidentRequiresUrgentNotification(type) && <Alert severity="info">Submitting this report will notify the Quartermaster / Bo'sun and Group Leader on their dashboard and by email.</Alert>}
+          {incidentRequiresUrgentNotification(type) && <Alert severity="info">Submitting this report will notify the Quartermaster / Bo'sun and Group Leadership on their dashboard and by email.</Alert>}
         </Stack>
       </DialogContent>
       <DialogActions><Button onClick={() => setOpen(false)} disabled={saving}>Cancel</Button><Button variant="contained" color="warning" onClick={() => void submit()} disabled={saving}>{saving ? "Reporting…" : "Report issue"}</Button></DialogActions>

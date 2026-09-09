@@ -8,6 +8,11 @@ function credentials(prefix: string): Credentials | null {
   return email && password ? { email, password } : null;
 }
 
+function seededCredentials(email: string): Credentials | null {
+  const password = process.env.E2E_TEST_USER_PASSWORD;
+  return password ? { email, password } : null;
+}
+
 async function loginLeader(page: Page, account: Credentials) {
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill(account.email);
@@ -41,6 +46,56 @@ test.describe("leader roles catalogue", () => {
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
     await expect(page.getByText("System access roles", { exact: true })).toBeVisible();
     await expect(page.getByText("Scouting appointments", { exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
+  });
+});
+
+test.describe("Deputy Group Leader parity", () => {
+  const account = seededCredentials("test.deputy.group.leader@example.com");
+
+  test("Deputy Group Leader receives the Group Leader operational bundle without Admin authority", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium", "Deputy parity security journey runs once on desktop Chromium.");
+    test.skip(!account, "Configure the canonical E2E password.");
+    await loginLeader(page, account!);
+    await page.goto("/leader/roles");
+
+    await expect(page.getByTestId("effective-permissions")).toContainText("Deputy Group Leader");
+    for (const permission of [
+      "members.read.group",
+      "weekly-meetings.manage.group",
+      "programme.manage.group",
+      "badgework.manage.group",
+      "finance.manage.group",
+      "equipment.manage",
+      "audit.read",
+      "settings.subs.manage"
+    ]) {
+      await expect(page.getByTestId(`permission-${permission}`)).toContainText("Effective for you");
+    }
+    await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
+    await expect(page.getByTestId("permission-system.superadmin.protect")).toContainText("Not granted");
+
+    await page.goto("/leader/activity");
+    await expect(page.getByRole("heading", { name: "Activity Log" })).toBeVisible();
+    await page.goto("/leader/settings");
+    await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
+    await page.goto("/leader/access");
+    await expect(page.getByText("Administrator access is required.")).toBeVisible();
+  });
+
+  test("Deputy Group Leader has usable mobile Roles and navigation without Leader Access", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Deputy mobile parity runs once on mobile Chromium.");
+    test.skip(!account, "Configure the canonical E2E password.");
+    await loginLeader(page, account!);
+    await page.goto("/leader/roles");
+    await expect(page.getByRole("heading", { name: "Roles & Permissions" })).toBeVisible();
+    await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
+    const navigation = page.getByRole("navigation", { name: "Leader navigation" });
+    const administration = navigation.getByTestId("leader-navigation-mobile").getByRole("button", { name: "Administration" });
+    await administration.click();
+    await expect(navigation.getByRole("link", { name: "Roles & Permissions" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
     await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
   });
 });

@@ -47,8 +47,15 @@ service firebase.storage {
             && firestore.get(leadershipPath()).data.get("scoutingRole", "") == role
           : false);
     }
+    function hasGroupLeadershipRole() {
+      return isActiveLeader()
+        && (firestore.exists(leadershipPath())
+          ? firestore.get(leadershipPath()).data.get("active", false) == true
+            && firestore.get(leadershipPath()).data.get("scoutingRole", "") in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]
+          : false);
+    }
     function canViewAllFinance() {
-      return isAdmin() || hasLeadershipRole("Group Leader") || hasLeadershipRole("Group Treasurer");
+      return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Treasurer");
     }
     function canAccessFinanceSection(section) {
       return isActiveLeader()
@@ -57,7 +64,7 @@ service firebase.storage {
     }
     function canAccessGallerySection(section) {
       return isActiveLeader()
-        ? isAdmin() || hasLeadershipRole("Group Leader") || section in profile().get("sections", [])
+        ? isAdmin() || hasGroupLeadershipRole() || section in profile().get("sections", [])
         : false;
     }
     function galleryAccessPath(eventId) {

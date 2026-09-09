@@ -6,6 +6,7 @@ import OperationalFilterBar from "../components/admin/OperationalFilterBar";
 import OperationalSearchField from "../components/admin/OperationalSearchField";
 import { OperationalEmptyState, OperationalLoading } from "../components/admin/OperationalStates";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { loadAuditLog, type AuditLogEntry } from "../services/auditLog";
 
 function formatDate(value: Date | null) {
@@ -28,7 +29,7 @@ export default function ActivityLog() {
   const [search, setSearch] = useState("");
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-  const isGroupOfficer = adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Secretary";
+  const isGroupOfficer = isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Secretary";
   const canViewActivityLog = isAdmin || isGroupOfficer;
 
   const refresh = async () => {
@@ -54,7 +55,7 @@ export default function ActivityLog() {
   }, [entries, search]);
 
   if (!canViewActivityLog) {
-    return <Container maxWidth="md" sx={{ py: 6 }}><Alert severity="error">Admin, Group Leader or Group Secretary access is required to view the Activity Log.</Alert></Container>;
+    return <Container maxWidth="md" sx={{ py: 6 }}><Alert severity="error">Admin, Group Leader, Deputy Group Leader or Group Secretary access is required to view the Activity Log.</Alert></Container>;
   }
 
   return (
