@@ -46,6 +46,16 @@ service cloud.firestore {
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
     function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
     function canManageSubsPolicy() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
+    function isOrdinaryLeaderTarget(userId) {
+      return exists(/databases/$(database)/documents/adminUsers/$(userId))
+        && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
+    }
+    function isGroupLeadershipDelegableAppointment(value) {
+      return value in ["Group Chairperson", "Group Youth Champion", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+    }
+    function canDelegateLeaderTarget(userId) {
+      return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
+    }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
@@ -98,12 +108,14 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(["section"]);
       allow update: if (request.auth.uid == userId && isActiveLeader()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
-        || (isAdmin() && resource.data.role == "leader"
+        || ((isAdmin() || canDelegateLeaderTarget(userId)) && resource.data.role == "leader"
           && request.resource.data.role == "leader"
           && request.resource.data.sections is list
           && request.resource.data.sections.size() > 0
           && !request.resource.data.keys().hasAny(["section"])
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["active", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"]))
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(isAdmin() ? ["active", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"] : ["sections", "updatedAt", "updatedBy"]))
         || (isSuperAdmin() && resource.data.role != "super-admin"
           && request.resource.data.role in ["leader", "admin"]
           && request.resource.data.sections is list
@@ -845,7 +857,10 @@ service cloud.firestore {
 
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
-      allow create, update: if isAdmin()
+      allow create, update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
+          && request.resource.data.scoutingRole is string
+          && isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole)
+          && resource.data.diff(request.resource.data).affectedKeys().hasOnly(["scoutingRole", "updatedAt"])))
         && request.resource.data.displayName is string
         && request.resource.data.scoutingRole is string
         && request.resource.data.organisationSection is string

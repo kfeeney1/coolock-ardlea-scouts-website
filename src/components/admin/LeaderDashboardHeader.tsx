@@ -6,7 +6,7 @@ import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
 
-type NavItem = { label: string; path: string; adminOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; };
+type NavItem = { label: string; path: string; adminOnly?: boolean; leaderAccessOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; };
 type NavGroup = { label: string; items: NavItem[]; };
 
 const dashboardItem: NavItem = { label: "Dashboard", path: "/leader" };
@@ -39,7 +39,7 @@ const navGroups: NavGroup[] = [
   { label: "Roles & Permissions", path: "/leader/roles" },
   { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
   { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
-  { label: "Leader Access", path: "/leader/access", adminOnly: true },
+  { label: "Leader Access", path: "/leader/access", leaderAccessOnly: true },
   { label: "Settings", path: "/leader/settings", settingsOnly: true }
  ] }
 ];
@@ -69,7 +69,8 @@ export default function LeaderDashboardHeader() {
  const isGroupOfficer = isGroupLeadership || adminProfile?.scoutingRole === "Group Secretary";
  const canViewActivityLog = isAdmin || isGroupOfficer;
  const canViewSettings = isAdmin || isGroupLeadership || adminProfile?.scoutingRole === "Group Treasurer";
- const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
+ const canViewLeaderAccess = isAdmin || isGroupLeadership;
+ const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [dashboardItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
