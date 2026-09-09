@@ -45,7 +45,7 @@ service cloud.firestore {
     }
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
     function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
-    function canManageSubsPolicy() { return isGroupLeader() || isGroupTreasurer(); }
+    function canManageSubsPolicy() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
@@ -154,7 +154,7 @@ service cloud.firestore {
         && request.resource.data.status in ["active", "inactive", "left"]
         && ((request.resource.data.source == "join-application" && request.resource.data.status == "active") || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
-        || (isActiveLeader() && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary()))
+        || (isActiveLeader() && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary() || isGroupTreasurer()))
         || isApprovedParentForMember(memberId);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.status in ["active", "inactive", "left"]
@@ -521,17 +521,53 @@ service cloud.firestore {
       allow create: if canManageSubsPolicy()
         && request.resource.data.period is string
         && request.resource.data.effectiveFrom is string
+        && request.resource.data.periodStart is string
+        && request.resource.data.periodEnd is string
         && request.resource.data.standardCents is number && request.resource.data.standardCents >= 0
         && request.resource.data.leaderChildCents is number && request.resource.data.leaderChildCents >= 0
         && request.resource.data.siblingCents is number && request.resource.data.siblingCents >= 0
+        && request.resource.data.standardFamilyRatesCents is list
+        && request.resource.data.standardFamilyRatesCents.size() == 4
+        && request.resource.data.standardFamilyRatesCents[0] is number && request.resource.data.standardFamilyRatesCents[0] >= 0
+        && request.resource.data.standardFamilyRatesCents[1] is number && request.resource.data.standardFamilyRatesCents[1] >= request.resource.data.standardFamilyRatesCents[0]
+        && request.resource.data.standardFamilyRatesCents[2] is number && request.resource.data.standardFamilyRatesCents[2] >= request.resource.data.standardFamilyRatesCents[1]
+        && request.resource.data.standardFamilyRatesCents[3] is number && request.resource.data.standardFamilyRatesCents[3] >= request.resource.data.standardFamilyRatesCents[2]
+        && request.resource.data.leaderFamilyRatesCents is list
+        && request.resource.data.leaderFamilyRatesCents.size() == 3
+        && request.resource.data.leaderFamilyRatesCents[0] is number && request.resource.data.leaderFamilyRatesCents[0] >= 0
+        && request.resource.data.leaderFamilyRatesCents[1] is number && request.resource.data.leaderFamilyRatesCents[1] >= request.resource.data.leaderFamilyRatesCents[0]
+        && request.resource.data.leaderFamilyRatesCents[2] is number && request.resource.data.leaderFamilyRatesCents[2] >= request.resource.data.leaderFamilyRatesCents[1]
+        && request.resource.data.standardCents == request.resource.data.standardFamilyRatesCents[0]
+        && request.resource.data.leaderChildCents == request.resource.data.leaderFamilyRatesCents[0]
         && request.resource.data.version is number && request.resource.data.version >= 1
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasOnly(["period", "effectiveFrom", "standardCents", "leaderChildCents", "siblingCents", "version", "createdBy", "createdAt"]);
+        && request.resource.data.keys().hasOnly(["period", "effectiveFrom", "periodStart", "periodEnd", "standardCents", "leaderChildCents", "siblingCents", "standardFamilyRatesCents", "leaderFamilyRatesCents", "version", "createdBy", "createdAt"]);
       allow update, delete: if false;
     }
 
     match /subsAssignments/{assignmentId} {
+      function isValidFamilyAssignment(policy) {
+        return request.resource.data.familyType in ["standard", "leader"]
+          && request.resource.data.familyPosition is number
+          && request.resource.data.familyPosition >= 1
+          && ((request.resource.data.familyType == "standard"
+              && request.resource.data.familyPosition <= 4
+              && request.resource.data.leaderChild == false
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && ((request.resource.data.familyPosition == 1 && request.resource.data.category == "standard" && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[0])
+                || (request.resource.data.familyPosition == 2 && request.resource.data.category == "sibling" && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[1] - policy.standardFamilyRatesCents[0])
+                || (request.resource.data.familyPosition == 3 && request.resource.data.category == "sibling" && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[2] - policy.standardFamilyRatesCents[1])
+                || (request.resource.data.familyPosition == 4 && request.resource.data.category == "sibling" && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[3] - policy.standardFamilyRatesCents[2])))
+            || (request.resource.data.familyType == "leader"
+              && request.resource.data.familyPosition <= 3
+              && request.resource.data.leaderChild == true
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && request.resource.data.category == "leader-child"
+              && ((request.resource.data.familyPosition == 1 && request.resource.data.amountDueCents == policy.leaderFamilyRatesCents[0])
+                || (request.resource.data.familyPosition == 2 && request.resource.data.amountDueCents == policy.leaderFamilyRatesCents[1] - policy.leaderFamilyRatesCents[0])
+                || (request.resource.data.familyPosition == 3 && request.resource.data.amountDueCents == policy.leaderFamilyRatesCents[2] - policy.leaderFamilyRatesCents[1]))));
+      }
       allow get, list: if isActiveLeader()
         && resource.data.section is string
         && (canViewAllFinance() || hasSection(resource.data.section));
@@ -547,13 +583,11 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId))
         && request.resource.data.policyVersion == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.version
         && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
-        && ((request.resource.data.category == "standard" && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.standardCents)
-          || (request.resource.data.category == "leader-child" && request.resource.data.leaderChild == true && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.leaderChildCents)
-          || (request.resource.data.category == "sibling" && request.resource.data.sibling == true && request.resource.data.amountDueCents == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.siblingCents))
         && request.resource.data.sibling is bool && request.resource.data.leaderChild is bool
+        && isValidFamilyAssignment(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
         && request.resource.data.classifiedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "classifiedBy", "createdAt"]);
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "familyType", "familyPosition", "classifiedBy", "createdAt"]);
       allow update, delete: if false;
     }
 
