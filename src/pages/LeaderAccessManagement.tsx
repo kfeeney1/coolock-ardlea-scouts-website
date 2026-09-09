@@ -41,6 +41,9 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
   if (previous.role !== next.role) {
     changes.push(`System role will change from ${previous.role} to ${next.role}.`);
   }
+  if (previous.scoutingRole !== next.scoutingRole) {
+    changes.push(`Scouting appointment will change from ${previous.scoutingRole || "none"} to ${next.scoutingRole || "none"}.`);
+  }
   if (previous.active !== next.active) {
     changes.push(next.active ? "Account access will be re-enabled." : "Account access will be disabled.");
   }
@@ -96,7 +99,7 @@ export default function LeaderAccessManagement() {
       await refresh();
     } catch (e) {
       console.error(e);
-      setError("Unable to update this leader. Check that your role permits this change.");
+      setError(e instanceof Error ? e.message : "Unable to update this leader. Check that your role permits this change.");
     } finally {
       setWorkingUid("");
     }

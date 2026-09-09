@@ -97,7 +97,7 @@ service cloud.firestore {
 
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
-      allow list: if isAdmin();
+      allow list: if isAdmin() || isGroupLeader();
       allow create: if isAdmin()
         && request.resource.data.role == "leader"
         && request.resource.data.active == true
@@ -859,8 +859,10 @@ service cloud.firestore {
       allow read: if isActiveLeader();
       allow create, update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && request.resource.data.scoutingRole is string
-          && isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole)
-          && resource.data.diff(request.resource.data).affectedKeys().hasOnly(["scoutingRole", "updatedAt"])))
+          && ((request.resource.data.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole))
+            || isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole))
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "updatedAt"])))
         && request.resource.data.displayName is string
         && request.resource.data.scoutingRole is string
         && request.resource.data.organisationSection is string
@@ -877,7 +879,7 @@ service cloud.firestore {
         && resource.data.sourceAccessRole == "leader"
         && resource.data.active == true
         && resource.data.showPublicly == true;
-      allow create, update: if isAdmin()
+      allow create: if isAdmin()
         && request.resource.data.displayName is string
         && request.resource.data.scoutingRole is string
         && request.resource.data.organisationSection is string
@@ -888,6 +890,19 @@ service cloud.firestore {
         && request.resource.data.publicProjectionVersion == 2
         && request.resource.data.sourceAccessRole == "leader"
         && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "showPublicly", "active", "publicProjectionVersion", "sourceAccessRole", "updatedAt"]);
+      allow update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
+          && request.resource.data.scoutingRole is string
+          && isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole)
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "updatedAt"])))
+        && request.resource.data.displayName is string
+        && request.resource.data.organisationSection is string
+        && request.resource.data.organisationOrder is number
+        && request.resource.data.reportsToUid is string
+        && request.resource.data.showPublicly == true
+        && request.resource.data.active == true
+        && request.resource.data.publicProjectionVersion == 2
+        && request.resource.data.sourceAccessRole == "leader";
       allow delete: if isAdmin();
     }
 
