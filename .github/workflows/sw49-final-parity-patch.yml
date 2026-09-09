@@ -1,0 +1,33 @@
+name: SW-49 final parity patch
+
+on:
+  push:
+    branches: [sw-49-deputy-group-leader-parity]
+    paths:
+      - scripts/sw49-final-parity-patch.mjs
+      - .github/workflows/sw49-final-parity-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: sw-49-deputy-group-leader-parity
+      - name: Apply guarded final parity replacements
+        run: node scripts/sw49-final-parity-patch.mjs
+      - name: Commit parity changes
+        run: |
+          if git diff --quiet; then
+            echo "No final parity patch required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add email-worker src
+          git commit -m "SW-49 complete Group Leadership parity surfaces"
+          git push origin HEAD:sw-49-deputy-group-leader-parity
