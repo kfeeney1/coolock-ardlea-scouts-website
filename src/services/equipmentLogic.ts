@@ -1,4 +1,5 @@
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 
 export const DEFAULT_EQUIPMENT_CATEGORIES = [
   "Camping & Sleeping",
@@ -55,7 +56,7 @@ export function canManageEquipment(profile: AdminProfile | null): boolean {
   if (!profile) return false;
   return profile.role === "admin"
     || profile.role === "super-admin"
-    || profile.scoutingRole === "Group Leader"
+    || isGroupLeadershipAppointment(profile.scoutingRole)
     || isQuartermasterRole(profile.scoutingRole);
 }
 
