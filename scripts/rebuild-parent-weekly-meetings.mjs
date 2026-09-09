@@ -1,10 +1,30 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 const apply = process.env.APPLY === "true";
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+
+if (apply) {
+  requireFirebaseMutationTarget({
+    operation: "rebuild-parent-weekly-meetings",
+    credentialJson: rawCredentials,
+    allowProduction: true,
+  });
+} else {
+  const environment = String(process.env.DEPLOY_ENVIRONMENT || "").trim();
+  const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
+  if (!environment || !projectId) {
+    throw new Error("Dry-run requires explicit DEPLOY_ENVIRONMENT and FIREBASE_PROJECT_ID.");
+  }
+  const credentialProjectId = String(JSON.parse(rawCredentials)?.project_id || "").trim();
+  if (!credentialProjectId || credentialProjectId !== projectId) {
+    throw new Error("Dry-run service-account project_id must exactly match FIREBASE_PROJECT_ID.");
+  }
+}
+
+initializeApp({ credential: cert(JSON.parse(rawCredentials)), projectId: process.env.FIREBASE_PROJECT_ID });
 const db = getFirestore();
 
 const ACTIVITY_MARKER = "weekly-activities-v1";
