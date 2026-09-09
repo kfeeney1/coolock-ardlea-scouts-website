@@ -37,6 +37,19 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
   }
 
+  const expectedIcons = [
+    { sectionId: "group", iconId: "neutral-group", toggle: groupToggle },
+    { sectionId: "beavers", iconId: "official-one-programme-beavers", toggle: beaversToggle },
+    { sectionId: "scouts", iconId: "official-one-programme-scouts", toggle: scoutsToggle }
+  ];
+  for (const { sectionId, iconId, toggle } of expectedIcons) {
+    const icon = page.getByTestId(`whos-who-section-icon-${sectionId}`);
+    await expect(icon).toBeVisible();
+    await expect(icon).toHaveAttribute("aria-hidden", "true");
+    await expect(icon).toHaveAttribute("data-icon-id", iconId);
+    await expect(toggle).toHaveAttribute("data-section", sectionId === "group" ? "group" : sectionId[0].toUpperCase() + sectionId.slice(1));
+  }
+
   await expect(page.getByTestId("whos-who-leader-group-TEST_uid_group_leader")).toHaveCount(0);
   await expect(page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader")).toHaveCount(0);
   await expect(page.getByTestId("whos-who-leader-scouts-TEST_uid_scout_programme_scouter")).toHaveCount(0);
@@ -108,6 +121,7 @@ test("public Who's Who tiles remain readable without horizontal overflow from ph
   ]) {
     await page.setViewportSize(viewport);
     if (await beaversToggle.getAttribute("aria-expanded") === "false") await beaversToggle.click();
+    await expect(page.getByTestId("whos-who-section-icon-beavers")).toBeVisible();
     await expect(leaderTile).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
