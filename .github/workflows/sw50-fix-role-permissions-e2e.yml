@@ -1,0 +1,36 @@
+name: SW-50 Fix Role Permissions E2E
+
+on:
+  push:
+    branches:
+      - sw-50-leader-access-role-management
+    paths:
+      - scripts/sw50-fix-role-permissions-e2e.mjs
+      - .github/workflows/sw50-fix-role-permissions-e2e.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sw-50-leader-access-role-management
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply guarded assertion patch
+        run: node scripts/sw50-fix-role-permissions-e2e.mjs
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add e2e/role-permissions.spec.ts
+          git commit -m "SW-50: align super-admin E2E assertion"
+          git push
