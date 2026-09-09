@@ -39,8 +39,8 @@ const content = {
   about: {
     title: "About Us",
     intro: "Welcome to 80th 160th Coolock Ardlea Scout Group.",
-    whosWhoTitle: "Who’s Who",
-    whosWhoIntro: "Meet the leaders who have chosen to be listed publicly."
+    whosWhoTitle: "Meet the Leaders",
+    whosWhoIntro: "These leaders have chosen to be listed publicly."
   },
   activities: {
     title: "Upcoming Activities",
