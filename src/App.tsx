@@ -28,6 +28,7 @@ const LeaderRequests = lazy(() => import("./pages/LeaderRequests"));
 const LeaderAccessManagement = lazy(() => import("./pages/LeaderAccessManagement"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const LeaderProfile = lazy(() => import("./pages/LeaderProfile"));
+const ScouterConsentPage = lazy(() => import("./pages/ScouterConsentPage"));
 const LeaderReports = lazy(() => import("./pages/LeaderReports"));
 const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
 const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
               <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
               <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
+              <Route path="/leader/profile/consent" element={protectedRoute(<ScouterConsentPage />)} />
               <Route path="/leader/reports" element={protectedRoute(<LeaderReports />)} />
               <Route path="/leader/attendance" element={protectedRoute(<AttendanceInsights />)} />
               <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
