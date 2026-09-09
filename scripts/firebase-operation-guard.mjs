@@ -25,12 +25,12 @@ export function requireFirebaseMutationTarget({
   requireAuthEmulator = false,
   allowProduction = false,
 } = {}) {
-  const environment = text(process.env.DEPLOY_ENVIRONMENT || process.env.APP_ENVIRONMENT);
+  const environment = text(process.env.DEPLOY_ENVIRONMENT || process.env.APP_ENVIRONMENT || process.env.VITE_APP_ENV);
   const projectId = text(process.env.FIREBASE_PROJECT_ID);
 
   if (!operation) throw new Error("Firebase mutation guard requires an operation name.");
   if (!Object.hasOwn(PROJECTS, environment)) {
-    throw new Error(`${operation}: set DEPLOY_ENVIRONMENT explicitly to local, test or production.`);
+    throw new Error(`${operation}: set DEPLOY_ENVIRONMENT (or VITE_APP_ENV for local automation) explicitly to local, test or production.`);
   }
   if (!projectId) throw new Error(`${operation}: FIREBASE_PROJECT_ID must be explicit.`);
 
