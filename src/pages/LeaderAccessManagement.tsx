@@ -26,7 +26,8 @@ import type { SystemRole } from "../components/admin/AdminAuthProvider";
 import { SectionIdentityChip, SectionOptionLabel, SectionSelect, SectionToggleButton, sectionCardSx } from "../components/SectionIdentityControls";
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
-import { recordAuditEvent } from "../services/auditLog";
+import { CANONICAL_SCOUTING_APPOINTMENTS } from "../security/scoutingAppointments";
+import { appointmentsActorMayAssign, canChangeSystemRole, canManageSectionScope, canOpenLeaderAccess } from "../security/leaderDelegationPolicy";
 
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"];
 
@@ -39,6 +40,9 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
   const changes: string[] = [];
   if (previous.role !== next.role) {
     changes.push(`System role will change from ${previous.role} to ${next.role}.`);
+  }
+  if (previous.scoutingRole !== next.scoutingRole) {
+    changes.push(`Scouting appointment will change from ${previous.scoutingRole || "none"} to ${next.scoutingRole || "none"}.`);
   }
   if (previous.active !== next.active) {
     changes.push(next.active ? "Account access will be re-enabled." : "Account access will be disabled.");
@@ -78,9 +82,12 @@ export default function LeaderAccessManagement() {
   };
   useEffect(() => { void refresh(); }, []);
 
-  if (!adminProfile || !["admin", "super-admin"].includes(adminProfile.role)) {
-    return <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}><Alert severity="error">Administrator access is required.</Alert></Container>;
+  const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole } : null;
+  if (!actor || !canOpenLeaderAccess(actor)) {
+    return <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}><Alert severity="error">Group Leadership or Administrator access is required.</Alert></Container>;
   }
+  const isAdminActor = actor.systemRole === "admin" || actor.systemRole === "super-admin";
+  const actorEmail = user?.email || adminProfile?.email || "";
 
   const save = async (record: LeaderAccessRecord) => {
     if (!user) return;
@@ -88,13 +95,12 @@ export default function LeaderAccessManagement() {
     try {
       setError("");
       setMessage("");
-      await updateLeaderAccess(record, user.uid);
-      await recordAuditEvent({ category: "leader-access", action: "Leader access and organisation updated", targetId: record.uid, targetLabel: record.displayName || record.email, section: record.organisationSection, description: `Saved system role ${record.role}; scouting role ${record.scoutingRole || "Leader"}; organisation section ${record.organisationSection}; public listing ${record.showPublicly ? "enabled" : "disabled"}.` });
+      await updateLeaderAccess(record, user.uid, actorEmail);
       setMessage(`${record.displayName} updated.`);
       await refresh();
     } catch (e) {
       console.error(e);
-      setError("Unable to update this leader. Check that your role permits this change.");
+      setError(e instanceof Error ? e.message : "Unable to update this leader. Check that your role permits this change.");
     } finally {
       setWorkingUid("");
     }
@@ -121,7 +127,7 @@ export default function LeaderAccessManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="xl">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title="Leader Access & Organisation" description="Manage account access and each leader's place in the scouting hierarchy. Only a Super Admin can grant or remove Admin access. Public Who's Who publication is opt-in." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
+    <LeaderPageHeader title="Leader Access & Organisation" description="Manage permitted leader assignments. System access roles remain Super Admin-only; Group Leadership can delegate ordinary operational appointments and section scope only." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
     <Stack spacing={2}>
@@ -131,20 +137,20 @@ export default function LeaderAccessManagement() {
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><SectionIdentityChip section={record.organisationSection} /><Chip label={record.role} /></Stack>
         </Box>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, flexWrap: "wrap", mt: 2 }}>
-          <Select size="small" value={record.role} disabled={adminProfile.role !== "super-admin" || record.role === "super-admin"} onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })} sx={{ minWidth: 180 }}><MenuItem value="leader">Leader</MenuItem><MenuItem value="admin">Admin</MenuItem>{record.role === "super-admin" && <MenuItem value="super-admin">Super Admin</MenuItem>}</Select>
-          <FormControlLabel control={<Switch checked={record.active} disabled={record.role === "super-admin"} onChange={(e) => patch(record.uid, { active: e.target.checked })} />} label="Active" />
+          <Select size="small" value={record.role} disabled={!canChangeSystemRole(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })} sx={{ minWidth: 180 }}><MenuItem value="leader">Leader</MenuItem><MenuItem value="admin">Admin</MenuItem>{record.role === "super-admin" && <MenuItem value="super-admin">Super Admin</MenuItem>}</Select>
+          <FormControlLabel control={<Switch checked={record.active} disabled={!isAdminActor || record.role === "super-admin"} onChange={(e) => patch(record.uid, { active: e.target.checked })} />} label="Active" />
         </Box>
-        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box></Box>}
+        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box></Box>}
         <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
-          <TextField label="Scouting role / title" value={record.scoutingRole} onChange={(e) => patch(record.uid, { scoutingRole: e.target.value })} placeholder="e.g. Cub Section Leader" />
-          <SectionSelect id={`organisation-section-${record.uid}`} label="Organisation section" value={record.organisationSection} options={sections} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })} />
-          <TextField label="Display order" type="number" value={record.organisationOrder} onChange={(e) => patch(record.uid, { organisationOrder: Number(e.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, max: 999 } }} />
-          <TextField select label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}><SectionOptionLabel section={leader.organisationSection} label={<>{leader.displayName} · {leader.scoutingRole || "Leader"}</>} /></MenuItem>)}</TextField>
+          <TextField select label="Scouting appointment" value={record.scoutingRole} disabled={record.role !== "leader" || record.uid === actor.uid} onChange={(e) => patch(record.uid, { scoutingRole: e.target.value })}><MenuItem value="">No appointment</MenuItem>{CANONICAL_SCOUTING_APPOINTMENTS.filter((appointment) => appointmentsActorMayAssign(actor).includes(appointment) || appointment === record.scoutingRole).map((appointment) => <MenuItem key={appointment} value={appointment}>{appointment}</MenuItem>)}</TextField>
+          <SectionSelect id={`organisation-section-${record.uid}`} label="Organisation section" value={record.organisationSection} options={sections} disabled={!isAdminActor} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })} />
+          <TextField disabled={!isAdminActor} label="Display order" type="number" value={record.organisationOrder} onChange={(e) => patch(record.uid, { organisationOrder: Number(e.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, max: 999 } }} />
+          <TextField select disabled={!isAdminActor} label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}><SectionOptionLabel section={leader.organisationSection} label={<>{leader.displayName} · {leader.scoutingRole || "Leader"}</>} /></MenuItem>)}</TextField>
         </Box>
         <FormControlLabel
           sx={{ alignItems: "flex-start", mt: 2 }}
-          control={<Switch checked={record.showPublicly} onChange={(e) => patch(record.uid, { showPublicly: e.target.checked })} />}
+          control={<Switch checked={record.showPublicly} disabled={!isAdminActor || record.role !== "leader"} onChange={(e) => patch(record.uid, { showPublicly: e.target.checked })} />}
           label={<Box><Typography sx={{ fontWeight: 700 }}>Show on public Who's Who</Typography><Typography variant="body2" color="text.secondary">Publishes name, scouting role, section and hierarchy only. Email, phone and account role remain private.</Typography></Box>}
         />
         <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid} onClick={() => requestSave(record)}>Save Leader</Button>

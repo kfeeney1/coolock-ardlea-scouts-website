@@ -80,10 +80,11 @@ test.describe("Deputy Group Leader parity", () => {
     await page.goto("/leader/settings");
     await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
     await page.goto("/leader/access");
-    await expect(page.getByText("Administrator access is required.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
+    await expect(page.getByText(/System access roles remain Super Admin-only/i)).toBeVisible();
   });
 
-  test("Deputy Group Leader has usable mobile Roles and navigation without Leader Access", async ({ page }, testInfo) => {
+  test("Deputy Group Leader has usable mobile Roles and Leader Access navigation", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Deputy mobile parity runs once on mobile Chromium.");
     test.skip(!account, "Configure the canonical E2E password.");
     await loginLeader(page, account!);
@@ -95,7 +96,7 @@ test.describe("Deputy Group Leader parity", () => {
     await administration.click();
     await expect(navigation.getByRole("link", { name: "Roles & Permissions" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Settings" })).toBeVisible();
-    await expect(navigation.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
+    await expect(navigation.getByRole("link", { name: "Leader Access" })).toBeVisible();
     await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
   });
 });
