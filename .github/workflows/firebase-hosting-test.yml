@@ -1,0 +1,72 @@
+name: Firebase TEST Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-test-deploy
+  cancel-in-progress: false
+
+env:
+  DEPLOY_ENVIRONMENT: test
+  FIREBASE_PROJECT_ID: coolock-ardlea-scouts-test
+
+jobs:
+  deploy_test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - name: Validate TEST credential target
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+        run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+      - name: Install dependencies
+        run: npm ci
+      - name: Build TEST artifact
+        run: npm run build
+        env:
+          VITE_APP_ENV: test
+          VITE_BUILD_COMMIT: ${{ github.sha }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+      - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to TEST
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
+          trap 'rm -f /tmp/firebase-service-account.json' EXIT
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
+          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Verify TEST release metadata and public smoke
+        env:
+          E2E_BASE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
+        run: |
+          test -n "$E2E_BASE_URL" || { echo '::error::FIREBASE_HOSTING_URL is not configured in the test environment.'; exit 1; }
+          npm run smoke:hosting -- "$E2E_BASE_URL" "$FIREBASE_PROJECT_ID"
+      - name: Record TEST deployment evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### TEST deployment evidence'
+            echo "- Actor: $GITHUB_ACTOR"
+            echo "- SHA: $GITHUB_SHA"
+            echo "- Target: $FIREBASE_PROJECT_ID"
+            echo "- Workflow run: $GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
