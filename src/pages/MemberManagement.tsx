@@ -26,6 +26,7 @@ import {
     Typography
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
     createMember,
     loadMemberConsentSummaries,
@@ -330,7 +331,10 @@ export default function MemberManagement() {
                                 <Typography sx={{ mt: 1 }}>Parent / Guardian: {member.parentName || "Not provided"}</Typography>
                                 <Typography sx={{ mt: 0.5 }}>Phone: {member.mobileNumber || "Not provided"}</Typography>
                             </Box>
-                            <Button variant="contained" color="success" onClick={() => void openMember(member)}>Manage</Button>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                <Button component={Link} to={`/leader/subs?member=${encodeURIComponent(member.id)}`} variant="outlined">Record subs</Button>
+                                <Button variant="contained" color="success" onClick={() => void openMember(member)}>Manage</Button>
+                            </Stack>
                         </Box>
                     </Paper>
                 ))}

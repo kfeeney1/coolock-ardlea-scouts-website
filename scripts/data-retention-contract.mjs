@@ -57,6 +57,9 @@ export const DATA_RETENTION_CONTRACT = Object.freeze([
   policy("publicLeadership", "public-projection", DATA_SENSITIVITY.PUBLIC, RETENTION_DISPOSITIONS.SOURCE_PROJECTION, "source-role-ended", "Public leadership documents are safe projections and must follow canonical leadership state.", "organisationLeadership"),
   policy("publicSiteContent", "site-content", DATA_SENSITIVITY.PUBLIC, RETENTION_DISPOSITIONS.CONFIGURATION, "content-replaced", "Published site content is configuration/reference data and should be versioned or replaced deliberately."),
   policy("siteSettings", "site-content", DATA_SENSITIVITY.INTERNAL, RETENTION_DISPOSITIONS.CONFIGURATION, "setting-replaced", "Site settings are configuration data and are not candidates for age-based deletion."),
+  policy("subsAssignments", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Period-specific subs assignments snapshot historical liability and classification provenance and must not be routinely deleted."),
+  policy("subsPayments", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Subs payments and linked reversals are an auditable financial ledger and must not be routinely deleted."),
+  policy("subsRatePolicies", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Versioned subs rates explain historical balances and require an explicit financial-governance review before any removal."),
   policy("weeklyMeetings", "meetings", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "governance-review", "Weekly meetings can contain attendance, notes, medical issues and badgework context and must not be routinely purged.")
 ]);
 

@@ -52,7 +52,7 @@ A member becoming `inactive`, `left`, or moving section is not deletion. `member
 
 ### Audit, finance and equipment history
 
-`auditLog`, `financeTransactions`, `financeReconciliations`, `equipmentHistory`, `equipmentLoans` and `equipmentIncidents` are classified as no-routine-deletion records. They support accountability and historical understanding and must not be swept into a generic privacy cleanup.
+`auditLog`, `financeTransactions`, `financeReconciliations`, `subsRatePolicies`, `subsAssignments`, `subsPayments`, `equipmentHistory`, `equipmentLoans` and `equipmentIncidents` are classified as no-routine-deletion records. They support accountability and historical understanding and must not be swept into a generic privacy cleanup.
 
 This classification does not claim that such records must be kept forever. It means any later deletion or anonymisation policy must be domain-specific and explicitly approved rather than inferred from age alone.
 
