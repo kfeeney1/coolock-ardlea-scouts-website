@@ -38,6 +38,11 @@ export default function MemberCardNavigation() {
       const target = event.target as HTMLElement | null;
       const card = target?.closest<HTMLElement>('[data-testid^="member-card-"]');
       if (!card) return;
+      // Cards contain explicit actions (for example, "Record subs"). Let those
+      // controls handle their own navigation instead of capturing the click as
+      // an "open member record" action.
+      const interactiveTarget = target?.closest("a, button, input, select, textarea, [role='button'], [role='link']");
+      if (interactiveTarget && interactiveTarget !== card) return;
       const memberId = card.dataset.testid?.replace("member-card-", "");
       if (!memberId) return;
       event.preventDefault();
