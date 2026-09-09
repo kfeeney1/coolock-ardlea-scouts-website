@@ -9,6 +9,7 @@ const legacySecrets = [
   "FIREBASE_SERVICE_ACCOUNT_JSON",
 ];
 const productionWorkflow = "firebase-hosting-merge.yml";
+const forbiddenWorkflowScripts = ["scripts/purge-test-data.mjs"];
 const failures = [];
 
 function fail(message) {
@@ -60,6 +61,12 @@ for (const name of entries) {
   const usesProductionSecret = referencesSecret(source, productionSecret);
   const usesTestSecret = referencesSecret(source, testSecret);
   const pullRequestTriggered = hasPullRequestTrigger(source);
+
+  for (const forbiddenScript of forbiddenWorkflowScripts) {
+    if (source.includes(forbiddenScript)) {
+      fail(`${name} must never invoke ${forbiddenScript} from GitHub Actions.`);
+    }
+  }
 
   for (const legacySecret of legacySecrets) {
     if (referencesSecret(source, legacySecret)) {
