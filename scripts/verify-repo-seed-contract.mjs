@@ -49,7 +49,7 @@ const allowedEmails = new Set(seedCorpus.match(/[A-Za-z0-9._%+-]+@example\.com/g
 
 const sectionKeys = ["beaver", "cub", "scout", "venture", "rover"];
 const sectionRoleKeys = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
-const groupRoleKeys = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
+const groupRoleKeys = ["group_leader", "deputy_group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
 const membersPerSection = 6;
 for (const section of sectionKeys) {
   for (let i = 1; i <= membersPerSection; i += 1) {
