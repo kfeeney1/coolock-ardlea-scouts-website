@@ -4,10 +4,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { gcloudExecutable } from "../../scripts/member-import-auth.mjs";
 
 function privateManifestPath(): { dir: string; manifest: string } {
-  const dir = mkdtempSync(join(tmpdir(), "member-import-cli-"));
+  const dir = mkdtempSync(join(tmpdir(), "member-seed-cli-"));
   const manifest = join(dir, "manifest.json");
   writeFileSync(manifest, JSON.stringify({
     version: 1,
@@ -19,16 +18,10 @@ function privateManifestPath(): { dir: string; manifest: string } {
   return { dir, manifest };
 }
 
-function runImport(manifest: string, args: string[] = [], env: NodeJS.ProcessEnv = {}): string {
+function runImport(args: string[]): string {
   try {
-    execFileSync(process.execPath, ["scripts/import-members.mjs", `--manifest=${manifest}`, ...args], {
+    execFileSync(process.execPath, ["scripts/import-members.mjs", ...args], {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        FIREBASE_SERVICE_ACCOUNT_JSON: "",
-        PROD_MEMBER_IMPORT_CONFIRM_PROJECT: "",
-        ...env
-      },
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -39,30 +32,34 @@ function runImport(manifest: string, args: string[] = [], env: NodeJS.ProcessEnv
   }
 }
 
-test("ADC dry-run requires an explicit project confirmation", () => {
+test("member seed requires manifest and explicit project", () => {
+  const stderr = runImport([]);
+  assert.match(stderr, /Usage: npm run seed:members/);
+});
+
+test("member seed refuses execute without exact confirmation before authentication", () => {
   const { dir, manifest } = privateManifestPath();
   try {
-    const stderr = runImport(manifest);
-    assert.match(stderr, /ADC dry-run requires PROD_MEMBER_IMPORT_CONFIRM_PROJECT/);
+    const stderr = runImport([
+      `--manifest=${manifest}`,
+      "--project=coolock-ardlea-scouts",
+      "--execute"
+    ]);
+    assert.match(stderr, /requires --execute --confirm=SEED-MEMBERS/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("ADC credentials can never be used for execute mode", () => {
+test("member seed refuses an empty project before authentication", () => {
   const { dir, manifest } = privateManifestPath();
   try {
-    const stderr = runImport(manifest, ["--execute"], {
-      PROD_MEMBER_IMPORT_CONFIRM_PROJECT: "coolock-ardlea-scouts"
-    });
-    assert.match(stderr, /Production mutation still requires FIREBASE_SERVICE_ACCOUNT_JSON; ADC is dry-run only/);
+    const stderr = runImport([
+      `--manifest=${manifest}`,
+      "--project="
+    ]);
+    assert.match(stderr, /--project must be the exact Firebase project ID/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("gcloud launcher uses the Windows command shim on win32", () => {
-  assert.equal(gcloudExecutable("win32"), "gcloud.cmd");
-  assert.equal(gcloudExecutable("linux"), "gcloud");
-  assert.equal(gcloudExecutable("darwin"), "gcloud");
 });
