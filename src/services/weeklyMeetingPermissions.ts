@@ -1,4 +1,4 @@
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
 import type { WeeklyMeetingStatus } from "./weeklyTracker";
 
 const PAST_MEETING_EDITOR_ROLES = new Set(["Section Leader"]);

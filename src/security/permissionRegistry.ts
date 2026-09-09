@@ -1,4 +1,4 @@
-import { isGroupLeadershipAppointment } from "./scoutingAppointments";
+import { isGroupLeadershipAppointment } from "./scoutingAppointments.ts";
 
 export type PermissionScope = "own" | "linked-members" | "assigned-section" | "group-wide" | "system";
 export type PermissionArea =

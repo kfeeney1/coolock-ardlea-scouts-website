@@ -1,5 +1,5 @@
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
 
 export const DEFAULT_EQUIPMENT_CATEGORIES = [
   "Camping & Sleeping",

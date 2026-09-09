@@ -1,4 +1,4 @@
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
 
 export const EQUIPMENT_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"] as const;
 
