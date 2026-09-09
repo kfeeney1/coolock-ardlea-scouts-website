@@ -1,0 +1,21 @@
+name: SW-49 audit Group Leader literals
+
+on:
+  push:
+    branches: [sw-49-deputy-group-leader-parity]
+    paths:
+      - .github/workflows/sw49-audit-group-leader-literals.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Find Group Leader branches
+        run: |
+          echo '===== Literal Group Leader occurrences ====='
+          rg -n 'Group Leader|isGroupLeader|scoutingRole' src firestore.rules storage.rules scripts tests e2e config docs || true
