@@ -7,12 +7,21 @@ export type PublicWhosWhoLeader = {
   displayName: string;
   scoutingRole: string;
   organisationSection: string;
+  organisationSections: string[];
   organisationOrder: number;
   reportsToUid: string;
 };
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function publicSections(value: unknown, scoutingRole: string, primarySection: string): string[] {
+  const candidates = Array.isArray(value) ? value.map(text) : [];
+  const sections = [primarySection, ...candidates]
+    .filter(Boolean)
+    .filter((section) => isAllowedPublicAppointment(scoutingRole, section));
+  return [...new Set(sections)];
 }
 
 export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
@@ -36,6 +45,7 @@ export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
         displayName,
         scoutingRole,
         organisationSection,
+        organisationSections: publicSections(data.organisationSections, scoutingRole, organisationSection),
         organisationOrder: typeof data.organisationOrder === "number" ? data.organisationOrder : 999,
         reportsToUid: text(data.reportsToUid)
       } satisfies PublicWhosWhoLeader;
