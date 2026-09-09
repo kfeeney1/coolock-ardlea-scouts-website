@@ -23,8 +23,7 @@ export type PermissionGrant =
   | "Group Leader"
   | "Group Secretary"
   | "Group Treasurer"
-  | "Group Quartermaster / Bo'sun"
-  | "Section Leader";
+  | "Group Quartermaster / Bo'sun";
 
 export type PermissionDefinition = {
   id: string;
@@ -58,9 +57,8 @@ export const PERMISSION_REGISTRY: PermissionDefinition[] = [
   { id: "members.read.group", name: "View members group-wide", description: "View member records across all sections without becoming a system administrator.", area: "Members", scope: "group-wide", grantedBy: ["Group Leader", "Group Secretary", "Group Treasurer"], enforcement: ["Firestore members rules", "organisationLeadership appointment"], protected: true },
   { id: "members.write.section", name: "Manage section members", description: "Create and update member records inside assigned sections.", area: "Members", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore members rules"], protected: true },
   { id: "parents.manage", name: "Manage parent access", description: "Review parent accounts and maintain approved member/section links.", area: "Parents & Guardians", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Firestore parentAccounts rules", "route/UI guard"], protected: true },
-  { id: "meetings.manage.section", name: "Manage section meetings", description: "Manage weekly and meeting records for assigned sections.", area: "Meetings & Attendance", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore weeklyMeetings/meetingRecords rules"], protected: true },
+  { id: "meetings.manage.section", name: "Manage section meetings", description: "Manage weekly and leader-meeting records for assigned sections under the same section-scoped Rules used for ordinary leaders.", area: "Meetings & Attendance", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore weeklyMeetings/meetingRecords rules"], protected: true },
   { id: "meetings.read.group", name: "Read meetings group-wide", description: "Read weekly and meeting records across sections.", area: "Meetings & Attendance", scope: "group-wide", grantedBy: ["Group Leader", "Group Secretary"], enforcement: ["Firestore weeklyMeetings/meetingRecords rules"], protected: true },
-  { id: "meetings.closed.amend", name: "Amend closed meeting attendance", description: "Update the limited attendance, medical-issue and note fields permitted after closure.", area: "Meetings & Attendance", scope: "assigned-section", grantedBy: ["Section Leader", "admin", "super-admin"], enforcement: ["Firestore weeklyMeetings rules"], protected: true },
   { id: "events.manage.section", name: "Manage section events", description: "Create and update events for assigned sections.", area: "Events & Programme", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore events/publicEvents rules"], protected: true },
   { id: "programme.manage.section", name: "Manage programme", description: "Use programme records for assigned sections.", area: "Events & Programme", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore programmeLibrary rules"], protected: true },
   { id: "badgework.read.linked", name: "View linked badgework", description: "View Adventure Skills progress for approved linked children.", area: "Badgework", scope: "linked-members", grantedBy: ["parent"], enforcement: ["Firestore memberAdventureSkillProgress rules"], protected: true },
