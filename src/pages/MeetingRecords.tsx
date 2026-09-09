@@ -2,12 +2,13 @@ import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { isSupportedMeetingImportFile, parseMeetingDocument } from "../services/meetingRecordImport";
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
-const FULL_MEETING_HISTORY_ROLES = new Set(["Group Leader", "Group Secretary"]);
+const FULL_MEETING_HISTORY_ROLES = new Set(["Group Secretary"]);
 const MAX_IMPORT_BYTES = 500_000;
 
 const emptyForm: MeetingInput = {
@@ -55,7 +56,7 @@ export default function MeetingRecords() {
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
-  const isGroupOfficer = Boolean(adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole));
+  const isGroupOfficer = Boolean(isGroupLeadershipAppointment(adminProfile?.scoutingRole) || (adminProfile?.scoutingRole && FULL_MEETING_HISTORY_ROLES.has(adminProfile.scoutingRole)));
   const hasFullMeetingHistoryAccess = Boolean(isAdmin || isGroupOfficer);
   const sections = useMemo(() => adminProfile?.sections ?? [], [adminProfile?.sections]);
   const availableSections = useMemo(() => isAdmin ? GROUP_SECTIONS : sections, [isAdmin, sections]);

@@ -1,3 +1,5 @@
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+
 export const EQUIPMENT_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"] as const;
 
 export type EquipmentLoanProfile = {
@@ -37,7 +39,7 @@ function isQuartermasterRole(role: string): boolean {
 function canManageEquipment(profile: EquipmentLoanProfile): boolean {
   return profile.role === "admin"
     || profile.role === "super-admin"
-    || profile.scoutingRole === "Group Leader"
+    || isGroupLeadershipAppointment(profile.scoutingRole)
     || isQuartermasterRole(profile.scoutingRole);
 }
 

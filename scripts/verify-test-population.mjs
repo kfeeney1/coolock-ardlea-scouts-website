@@ -22,7 +22,7 @@ const SECTIONS = [
   { section: "Rovers", key: "rover" }
 ];
 const GROUP_ROLE_KEYS = ["group_leader", "group_chairperson", "group_secretary", "group_treasurer", "group_quartermaster", "group_youth_champion"];
-const GROUP_ROLES = new Set(["Group Leader", "Group Chairperson", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Youth Champion"]);
+const GROUP_ROLES = new Set(["Group Leader", "Deputy Group Leader", "Group Chairperson", "Group Secretary", "Group Treasurer", "Group Quartermaster / Bo'sun", "Group Youth Champion"]);
 const SECTION_ROLE_KEYS = ["section_leader", "assistant_section_leader", "programme_scouter", "scouter"];
 const SECTION_ROLES = new Set(["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]);
 

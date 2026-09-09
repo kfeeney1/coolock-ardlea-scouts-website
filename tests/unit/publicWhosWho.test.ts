@@ -6,6 +6,7 @@ describe("public Who's Who role policy", () => {
   it("allows the agreed Group executive roles", () => {
     for (const role of [
       "Group Leader",
+      "Deputy Group Leader",
       "Group Chairperson",
       "Group Secretary",
       "Group Treasurer",
@@ -17,7 +18,7 @@ describe("public Who's Who role policy", () => {
   });
 
   it("rejects internal Group administration titles", () => {
-    for (const role of ["Group Council Administrator", "Elected Member", "Deputy Group Leader", "Admin", "Super Admin"]) {
+    for (const role of ["Group Council Administrator", "Elected Member", "Admin", "Super Admin"]) {
       assert.equal(isAllowedPublicAppointment(role, "Group"), false);
     }
   });

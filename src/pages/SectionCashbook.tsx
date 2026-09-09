@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
 import { addFinanceReceipt } from "../services/financeReceipts";
 import { createFinanceTransaction, loadFinanceTransactions, reverseFinanceTransaction } from "../services/financeLedger";
@@ -67,7 +68,7 @@ function transactionLabel(transaction: FinanceTransaction): string {
 
 export default function SectionCashbook() {
   const { adminProfile } = useAdminAuth();
-  const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || adminProfile?.scoutingRole === "Group Leader" || adminProfile?.scoutingRole === "Group Treasurer";
+  const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Treasurer";
   const sections = useMemo(() => isAllSectionsRole ? GROUP_SECTIONS : (adminProfile?.sections ?? []).filter((item) => item !== "Group"), [adminProfile, isAllSectionsRole]);
   const [section, setSection] = useState("");
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
