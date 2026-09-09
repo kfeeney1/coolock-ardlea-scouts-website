@@ -35,8 +35,7 @@ Deputy Group Leader is intentionally not granted Group Leader parity in SW-48. S
 - **Group Secretary**: group member/badgework/meeting read and audit access where encoded.
 - **Group Treasurer**: group member read required by the present finance model plus group finance/subs authority.
 - **Group Quartermaster / Bo'sun**: equipment management.
-- **Section Leader**: ordinary assigned-section Leader permissions plus the limited closed-weekly-meeting amendment path encoded in Rules.
-- Other ordinary section appointments currently add no system-wide permission beyond the Leader's assigned sections.
+- **Section Leader**, **Assistant Section Leader**, **Programme Scouter**, **Scouter**, **Group Chairperson** and **Group Youth Champion** currently add no group-wide authorization beyond the person's system role and assigned sections. The current Rules do not contain a separate Section Leader-only closed-meeting amendment permission.
 
 ## Enforcement points
 
