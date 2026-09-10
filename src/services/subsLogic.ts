@@ -1,10 +1,12 @@
 export const SUBS_PAYMENT_METHODS = ["bank", "cash", "revolut", "other"] as const;
 export const SUBS_RATE_CATEGORIES = ["standard", "leader-child", "sibling"] as const;
 export const SUBS_FAMILY_TYPES = ["standard", "leader"] as const;
+export const SUBS_ACCOUNT_CLASSIFICATION_SOURCES = ["finance-officer-confirmed"] as const;
 
 export type SubsPaymentMethod = typeof SUBS_PAYMENT_METHODS[number];
 export type SubsRateCategory = typeof SUBS_RATE_CATEGORIES[number];
 export type SubsFamilyType = typeof SUBS_FAMILY_TYPES[number];
+export type SubsAccountClassificationSource = typeof SUBS_ACCOUNT_CLASSIFICATION_SOURCES[number];
 
 export type SubsRatePolicy = {
   id: string;
@@ -18,6 +20,22 @@ export type SubsRatePolicy = {
   periodEnd?: string;
   standardFamilyRatesCents?: number[];
   leaderFamilyRatesCents?: number[];
+};
+
+export type SubsAccount = {
+  id: string;
+  period: string;
+  policyId: string;
+  policyVersion: number;
+  familyType: SubsFamilyType;
+  memberIds: string[];
+  sections: string[];
+  childCount: number;
+  amountDueCents: number;
+  classificationSource: SubsAccountClassificationSource;
+  classificationNote: string;
+  createdBy: string;
+  createdAt?: Date | null;
 };
 
 export type SubsAssignment = {
@@ -34,6 +52,9 @@ export type SubsAssignment = {
   leaderChild: boolean;
   familyType?: SubsFamilyType;
   familyPosition?: number;
+  accountId?: string;
+  accountAmountDueCents?: number;
+  accountChildCount?: number;
 };
 
 export type SubsPayment = {
@@ -42,6 +63,7 @@ export type SubsPayment = {
   memberName: string;
   section: string;
   period: string;
+  accountId?: string;
   amountCents: number;
   method: SubsPaymentMethod;
   paymentDate: string;
@@ -140,9 +162,45 @@ export function paidCents(payments: SubsPayment[]): number {
   return payments.reduce((sum, payment) => sum + payment.amountCents, 0);
 }
 
+export function paymentsForAssignment(assignment: SubsAssignment, payments: SubsPayment[]): SubsPayment[] {
+  if (assignment.accountId) {
+    return payments.filter((payment) => payment.accountId === assignment.accountId && payment.period === assignment.period);
+  }
+  return payments.filter((payment) => !payment.accountId && payment.memberId === assignment.memberId && payment.period === assignment.period);
+}
+
 export function balanceFor(assignment: SubsAssignment, payments: SubsPayment[]) {
-  const paid = paidCents(payments.filter((payment) => payment.memberId === assignment.memberId && payment.period === assignment.period));
-  return { dueCents: assignment.amountDueCents, paidCents: paid, remainingCents: assignment.amountDueCents - paid };
+  const relevantPayments = paymentsForAssignment(assignment, payments);
+  const paid = paidCents(relevantPayments);
+  const due = assignment.accountId && Number.isSafeInteger(assignment.accountAmountDueCents)
+    ? assignment.accountAmountDueCents!
+    : assignment.amountDueCents;
+  return { dueCents: due, paidCents: paid, remainingCents: due - paid };
+}
+
+export function balanceForAccount(account: SubsAccount, payments: SubsPayment[]) {
+  const paid = paidCents(payments.filter((payment) => payment.accountId === account.id && payment.period === account.period));
+  return { dueCents: account.amountDueCents, paidCents: paid, remainingCents: account.amountDueCents - paid };
+}
+
+export function validateFamilyAccountSelection(memberIds: string[], classificationNote: string): { memberIds: string[]; classificationNote: string } {
+  const unique = [...new Set(memberIds.filter(Boolean))];
+  if (!unique.length) throw new Error("Select at least one child for the family subs account.");
+  if (unique.length !== memberIds.length) throw new Error("A child cannot appear twice in the same family subs account.");
+  const note = classificationNote.trim();
+  if (note.length < 3) throw new Error("Record how the family relationship was confirmed.");
+  if (note.length > 200) throw new Error("Family classification evidence must be 200 characters or fewer.");
+  return { memberIds: unique, classificationNote: note };
+}
+
+export function subsFamilyAccountId(period: string, memberIds: string[]): string {
+  const safePeriod = validatePeriod(period).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const members = [...new Set(memberIds.filter(Boolean))].sort();
+  if (!members.length || members.length !== memberIds.length) throw new Error("Family account identity requires each child exactly once.");
+  if (members.some((memberId) => !/^[A-Za-z0-9_-]{1,128}$/.test(memberId))) throw new Error("Family account contains an invalid member identifier.");
+  const id = `${safePeriod}--${members.join("--")}`;
+  if (id.length > 1400) throw new Error("Family account contains too many members for a stable identifier.");
+  return id;
 }
 
 function validateFamilyRates(rates: number[] | undefined, label: string): void {
@@ -184,7 +242,7 @@ export function validatePayment(input: Omit<SubsPayment, "id" | "recordedBy" | "
   if (!SUBS_PAYMENT_METHODS.includes(input.method)) throw new Error("Select a valid payment method.");
   if (input.reversalOfPaymentId) throw new Error("Use the correction workflow to reverse a payment.");
   if (input.note.trim().length > 200) throw new Error("Notes must be 200 characters or fewer.");
-  return { ...input, note: input.note.trim() };
+  return { ...input, accountId: input.accountId ?? "", note: input.note.trim() };
 }
 
 export function createPaymentReversal(original: SubsPayment, note: string): Omit<SubsPayment, "id" | "recordedBy" | "createdAt"> {
@@ -196,6 +254,7 @@ export function createPaymentReversal(original: SubsPayment, note: string): Omit
     memberName: original.memberName,
     section: original.section,
     period: original.period,
+    accountId: original.accountId ?? "",
     amountCents: -original.amountCents,
     method: original.method,
     paymentDate: new Date().toISOString().slice(0, 10),
