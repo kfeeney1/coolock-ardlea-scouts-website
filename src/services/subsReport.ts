@@ -13,6 +13,7 @@ export type SubsReportRow = {
   paidCents: number | null;
   reversedCents: number | null;
   remainingCents: number | null;
+  ledgerPayments: SubsPayment[];
   familyType?: SubsAssignment["familyType"];
   childCount?: number;
   classificationSource?: SubsAccount["classificationSource"];
@@ -35,6 +36,7 @@ const paymentTotals = (payments: SubsPayment[]) => {
   const reversedCents = unique.filter((payment) => payment.amountCents < 0 && payment.reversalOfPaymentId).reduce((sum, payment) => sum + Math.abs(payment.amountCents), 0);
   return { paidCents, reversedCents };
 };
+const orderedPayments = (payments: SubsPayment[]) => uniqueById(payments).sort((a, b) => a.paymentDate.localeCompare(b.paymentDate) || a.id.localeCompare(b.id));
 
 export function buildSubsReportRows(
   assignments: SubsAssignment[],
@@ -82,6 +84,7 @@ export function buildSubsReportRows(
       paidCents: restricted ? null : totals.paidCents,
       reversedCents: restricted ? null : totals.reversedCents,
       remainingCents: restricted || due === null ? null : due - totals.paidCents,
+      ledgerPayments: restricted ? [] : orderedPayments(relevantPayments),
       familyType: restricted ? undefined : account?.familyType ?? first.familyType,
       childCount: restricted ? undefined : account?.childCount ?? first.accountChildCount ?? allMembers.length,
       classificationSource: options.canViewFamilyDetails ? account?.classificationSource : undefined,
@@ -105,6 +108,7 @@ export function buildSubsReportRows(
       paidCents: balance.paidCents,
       reversedCents: totals.reversedCents,
       remainingCents: balance.remainingCents,
+      ledgerPayments: orderedPayments(relevantPayments),
       familyType: assignment.familyType,
       familyPosition: assignment.familyPosition,
       category: assignment.category,
