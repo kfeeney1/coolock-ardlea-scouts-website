@@ -64,10 +64,9 @@ export function buildSubsReportRows(
     const matchesSection = !options.section || options.section === "all" || allMembers.some((member) => member.section === options.section);
     if (!matchesSection) return [];
 
-    const visibleMembers = options.canViewFamilyDetails || !options.section || options.section === "all"
-      ? allMembers
-      : allMembers.filter((member) => member.section === options.section);
     const restricted = !options.canViewFamilyDetails;
+    const sectionMembers = options.section && options.section !== "all" ? allMembers.filter((member) => member.section === options.section) : [];
+    const visibleMembers = restricted ? (sectionMembers.length ? sectionMembers : allMembers.slice(0, 1)) : allMembers;
     const relevantPayments = payments.filter((payment) => payment.accountId === first.accountId && payment.period === first.period);
     const totals = paymentTotals(relevantPayments);
     const due = account?.amountDueCents ?? (Number.isSafeInteger(first.accountAmountDueCents) ? first.accountAmountDueCents! : null);
@@ -78,13 +77,13 @@ export function buildSubsReportRows(
       accountId: first.accountId,
       period: first.period,
       members: visibleMembers,
-      sections: options.canViewFamilyDetails ? [...new Set(allMembers.map((member) => member.section))].sort() : [...new Set(visibleMembers.map((member) => member.section))].sort(),
+      sections: restricted ? [...new Set(visibleMembers.map((member) => member.section))].sort() : [...new Set(allMembers.map((member) => member.section))].sort(),
       dueCents: restricted ? null : due,
       paidCents: restricted ? null : totals.paidCents,
       reversedCents: restricted ? null : totals.reversedCents,
       remainingCents: restricted || due === null ? null : due - totals.paidCents,
-      familyType: account?.familyType ?? first.familyType,
-      childCount: account?.childCount ?? first.accountChildCount ?? allMembers.length,
+      familyType: restricted ? undefined : account?.familyType ?? first.familyType,
+      childCount: restricted ? undefined : account?.childCount ?? first.accountChildCount ?? allMembers.length,
       classificationSource: options.canViewFamilyDetails ? account?.classificationSource : undefined,
       classificationNote: options.canViewFamilyDetails ? account?.classificationNote : undefined,
       restricted
