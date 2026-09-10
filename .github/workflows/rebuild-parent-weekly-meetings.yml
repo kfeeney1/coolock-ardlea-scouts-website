@@ -33,14 +33,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Validate production credential target
+      - name: Validate production operations credential target
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: node scripts/validate-firebase-environment.mjs --environment production --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Rebuild parent-safe weekly meeting projections
         run: node scripts/rebuild-parent-weekly-meetings.mjs --allow-production
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           APPLY: 'true'
           PRODUCTION_PROJECT_CONFIRMATION: coolock-ardlea-scouts
           ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
