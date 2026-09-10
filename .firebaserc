@@ -3,5 +3,14 @@
     "default": "coolock-ardlea-scouts-test",
     "test": "coolock-ardlea-scouts-test",
     "production": "coolock-ardlea-scouts"
+  },
+  "targets": {
+    "coolock-ardlea-scouts-test": {
+      "storage": {
+        "test-default": [
+          "coolock-ardlea-scouts-test.firebasestorage.app"
+        ]
+      }
+    }
   }
 }
