@@ -11,6 +11,7 @@ import {
   parseEuroToCents,
   paymentsForAssignment,
   rateForCategory,
+  subsFamilyAccountId,
   validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
@@ -80,6 +81,14 @@ test("family relationship evidence is explicit and rejects duplicate membership"
  assert.throws(()=>validateFamilyAccountSelection(["m1","m1"],"Checked record"),/twice/);
  assert.throws(()=>validateFamilyAccountSelection([],"Checked record"),/at least one/);
  assert.throws(()=>validateFamilyAccountSelection(["m1"],""),/confirmed/);
+});
+test("family account identity is stable for the same Scout-year membership snapshot",()=>{
+ const first=subsFamilyAccountId("2026/27",["member-cub","member-beaver","member-scout"]);
+ const reordered=subsFamilyAccountId("2026/27",["member-scout","member-cub","member-beaver"]);
+ assert.equal(first,reordered);
+ assert.equal(first,"2026-27--member-beaver--member-cub--member-scout");
+ assert.notEqual(first,subsFamilyAccountId("2027/28",["member-cub","member-beaver","member-scout"]));
+ assert.throws(()=>subsFamilyAccountId("2026/27",["member-cub","member-cub"]),/exactly once/);
 });
 test("parses euro amounts into integer cents without floating point storage",()=>{ assert.equal(parseEuroToCents("5"),500); assert.equal(parseEuroToCents("5.2"),520); assert.equal(parseEuroToCents("5,25"),525); assert.throws(()=>parseEuroToCents("5.999")); assert.throws(()=>parseEuroToCents("-1")); });
 test("legacy explicit categories remain readable",()=>{ assert.equal(rateForCategory(policy,"standard"),26400); assert.equal(rateForCategory(policy,"leader-child"),20500); assert.equal(rateForCategory(policy,"sibling"),15500); });
