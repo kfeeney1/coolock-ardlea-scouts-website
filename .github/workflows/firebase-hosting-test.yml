@@ -53,6 +53,15 @@ jobs:
           trap 'rm -f /tmp/firebase-service-account.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
           npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Seed canonical synthetic TEST identities and public content
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+          E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/seed-population-data.mjs seed
+          node scripts/seed-public-site-content.mjs seed
+          node scripts/verify-test-population.mjs
       - name: Verify TEST release metadata and public boundaries
         run: |
           node scripts/check-live-build-info.mjs
@@ -65,6 +74,16 @@ jobs:
           FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           FIREBASE_STORAGE_ENABLED: ${{ vars.FIREBASE_STORAGE_ENABLED }}
           EXPECTED_BUILD_SHA: ${{ github.sha }}
+      - name: Install pinned TEST smoke runner
+        run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
+      - name: Install Chromium for TEST smoke
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run read-only public, leader and parent TEST smoke
+        env:
+          CI: "true"
+          E2E_BASE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
+          E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
+        run: npx --no-install playwright test e2e/test-environment-smoke.spec.ts --project=chromium --project=mobile-chromium
       - name: Record TEST deployment evidence
         if: always()
         shell: bash
