@@ -17,11 +17,11 @@ test("two and three sibling families each produce one canonical family row",()=>
  assert.equal(rows.length,1); assert.equal(rows[0].members.length,3); assert.deepEqual(rows[0].sections,["Beavers","Cubs","Scouts"]);
 });
 
-test("payments through any sibling and exact reversals produce one shared balance",()=>{
+test("payments through any sibling and exact reversals produce one shared balance and complete finance ledger",()=>{
  const assignments=[familyAssignment("a","A","Beavers",1),familyAssignment("b","B","Cubs",2),familyAssignment("c","C","Scouts",3)];
  const payments=[payment("p-a","a","Beavers",20000,"family-1"),payment("p-b","b","Cubs",10000,"family-1"),payment("reversal-p-b","b","Cubs",-10000,"family-1","p-b")];
  const [row]=buildSubsReportRows(assignments,payments,[account(["a","b","c"],["Beavers","Cubs","Scouts"])],{period,section:"all",canViewFamilyDetails:true});
- assert.equal(row.dueCents,52400); assert.equal(row.paidCents,20000); assert.equal(row.reversedCents,10000); assert.equal(row.remainingCents,32400);
+ assert.equal(row.dueCents,52400); assert.equal(row.paidCents,20000); assert.equal(row.reversedCents,10000); assert.equal(row.remainingCents,32400); assert.deepEqual(row.ledgerPayments.map(entry=>entry.id),["p-a","p-b","reversal-p-b"]);
 });
 
 test("cross-section family is counted once in group and matching section reports",()=>{
@@ -40,7 +40,7 @@ test("unrelated and historical individual assignments remain separate and single
 test("section-scoped family report hides cross-section sibling details and shared ledger totals",()=>{
  const assignments=[familyAssignment("a","A","Beavers",1),familyAssignment("b","B","Cubs",2),familyAssignment("c","C","Scouts",3)];
  const [row]=buildSubsReportRows(assignments,[payment("p","a","Beavers",20000,"family-1")],[],{period,section:"Cubs",canViewFamilyDetails:false});
- assert.deepEqual(row.members.map(member=>member.name),["B"]); assert.deepEqual(row.sections,["Cubs"]); assert.equal(row.dueCents,null); assert.equal(row.paidCents,null); assert.equal(row.remainingCents,null); assert.equal(row.classificationNote,undefined);
+ assert.deepEqual(row.members.map(member=>member.name),["B"]); assert.deepEqual(row.sections,["Cubs"]); assert.equal(row.dueCents,null); assert.equal(row.paidCents,null); assert.equal(row.remainingCents,null); assert.equal(row.classificationNote,undefined); assert.equal(row.childCount,undefined); assert.deepEqual(row.ledgerPayments,[]);
 });
 
 test("group finance sees complete family membership and classification provenance",()=>{
