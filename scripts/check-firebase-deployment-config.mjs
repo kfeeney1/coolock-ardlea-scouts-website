@@ -43,8 +43,9 @@ requireContract(firebaseRc?.projects?.test === TEST, "Firebase TEST alias target
 requireContract(firebaseRc?.projects?.production === PROD, "Firebase PRODUCTION alias targets the authoritative production project.");
 requireContract(firebaseRc?.projects?.default === TEST, "The default Firebase CLI alias is non-production.");
 requireContract(firebaseRc?.targets?.[TEST]?.storage?.["test-default"]?.includes(ISOLATED_STORAGE_BUCKET), "TEST Storage deploy target maps to the existing isolated TEST bucket.");
-requireContract(firebaseTest?.storage?.target === "test-default", "TEST Firebase config requires the explicit TEST Storage target.");
-requireContract(firebaseTest?.storage?.rules === "storage.rules", "TEST Firebase config deploys the reviewed Storage rules.");
+const testStorageConfig = Array.isArray(firebaseTest?.storage) ? firebaseTest.storage[0] : firebaseTest?.storage;
+requireContract(testStorageConfig?.target === "test-default", "TEST Firebase config requires the explicit TEST Storage target.");
+requireContract(testStorageConfig?.rules === "storage.rules", "TEST Firebase config deploys the reviewed Storage rules.");
 
 const productionTriggers = triggerBlock(productionWorkflow);
 requireContract(productionTriggers.includes("workflow_dispatch:"), "Production deployment is explicitly manually dispatched.");
