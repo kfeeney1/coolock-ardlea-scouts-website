@@ -1,12 +1,15 @@
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
   categoryForFamilyPosition,
   createPaymentReversal,
   familyIncrementFor,
+  familyTotalFor,
+  validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
+  type SubsAccount,
   type SubsAssignment,
   type SubsFamilyType,
   type SubsPayment,
@@ -46,6 +49,16 @@ export async function saveSubsPolicy(input: Omit<SubsRatePolicy, "id">): Promise
     section: "Group"
   });
   return id;
+}
+
+export async function loadSubsAccounts(): Promise<SubsAccount[]> {
+  const snap = await getDocs(collection(db, "subsAccounts"));
+  return snap.docs
+    .map((item) => {
+      const data = item.data();
+      return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsAccount;
+    })
+    .sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));
 }
 
 export async function loadSubsAssignments(section?: string): Promise<SubsAssignment[]> {
@@ -133,6 +146,74 @@ export async function assignSubsFamilyRate(
   return id;
 }
 
+export async function createSubsFamilyAccount(
+  members: Array<{ id: string; displayName: string; section: string }>,
+  policy: SubsRatePolicy,
+  familyType: SubsFamilyType,
+  classificationNote: string
+): Promise<string> {
+  const actor = uid();
+  const validated = validateFamilyAccountSelection(members.map((member) => member.id), classificationNote);
+  const uniqueMembers = [...members]
+    .filter((member, index, list) => list.findIndex((candidate) => candidate.id === member.id) === index)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
+  if (uniqueMembers.length !== validated.memberIds.length) throw new Error("Select each child exactly once.");
+
+  const amountDueCents = familyTotalFor(policy, familyType, uniqueMembers.length);
+  const accountRef = doc(collection(db, "subsAccounts"));
+  const sections = [...new Set(uniqueMembers.map((member) => member.section))].sort();
+  const batch = writeBatch(db);
+  batch.set(accountRef, {
+    period: policy.period,
+    policyId: policy.id,
+    policyVersion: policy.version,
+    familyType,
+    memberIds: uniqueMembers.map((member) => member.id),
+    sections,
+    childCount: uniqueMembers.length,
+    amountDueCents,
+    classificationSource: "finance-officer-confirmed",
+    classificationNote: validated.classificationNote,
+    createdBy: actor,
+    createdAt: serverTimestamp()
+  });
+
+  uniqueMembers.forEach((member, index) => {
+    const familyPosition = index + 1;
+    const assignmentId = `${member.id}--${policy.period.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    batch.set(doc(db, "subsAssignments", assignmentId), {
+      memberId: member.id,
+      memberName: member.displayName,
+      section: member.section,
+      period: policy.period,
+      category: categoryForFamilyPosition(familyType, familyPosition),
+      amountDueCents: familyIncrementFor(policy, familyType, familyPosition),
+      policyId: policy.id,
+      policyVersion: policy.version,
+      sibling: familyPosition > 1,
+      leaderChild: familyType === "leader",
+      familyType,
+      familyPosition,
+      accountId: accountRef.id,
+      accountAmountDueCents: amountDueCents,
+      accountChildCount: uniqueMembers.length,
+      classifiedBy: actor,
+      createdAt: serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+  void recordAuditEvent({
+    category: "finance",
+    action: "subs-family-account-created",
+    targetId: accountRef.id,
+    targetLabel: `${policy.period} family account`,
+    description: `${familyType} family account created for ${uniqueMembers.length} child${uniqueMembers.length === 1 ? "" : "ren"}; relationship confirmation recorded.`,
+    section: sections.length === 1 ? sections[0] : "Group"
+  });
+  return accountRef.id;
+}
+
 export async function loadSubsPayments(section?: string): Promise<SubsPayment[]> {
   const source = section
     ? query(collection(db, "subsPayments"), where("section", "==", section))
@@ -148,18 +229,32 @@ export async function loadSubsPayments(section?: string): Promise<SubsPayment[]>
       || b.id.localeCompare(a.id));
 }
 
+export async function loadSubsPaymentsForAccount(accountId: string): Promise<SubsPayment[]> {
+  if (!accountId) return [];
+  const snap = await getDocs(query(collection(db, "subsPayments"), where("accountId", "==", accountId)));
+  return snap.docs
+    .map((item) => {
+      const data = item.data();
+      return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsPayment;
+    })
+    .sort((a, b) => b.paymentDate.localeCompare(a.paymentDate)
+      || (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
+      || b.id.localeCompare(a.id));
+}
+
 export async function recordSubsPayment(input: {
   memberId: string;
   memberName: string;
   section: string;
   period: string;
+  accountId?: string;
   amountCents: number;
   method: SubsPaymentMethod;
   paymentDate: string;
   note: string;
 }): Promise<string> {
   const actor = uid();
-  const valid = validatePayment({ ...input, reversalOfPaymentId: "" });
+  const valid = validatePayment({ ...input, accountId: input.accountId ?? "", reversalOfPaymentId: "" });
   const id = doc(collection(db, "subsPayments")).id;
   await setDoc(doc(db, "subsPayments", id), { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
@@ -167,7 +262,7 @@ export async function recordSubsPayment(input: {
     action: "subs-payment-recorded",
     targetId: id,
     targetLabel: input.memberName,
-    description: `Subs payment recorded for ${input.period}.`,
+    description: `Subs payment recorded for ${input.period}${input.accountId ? " against the shared family account" : ""}.`,
     section: input.section
   });
   return id;
