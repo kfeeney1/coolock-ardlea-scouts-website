@@ -60,6 +60,9 @@ requireContract(productionWorkflow.includes("git merge-base --is-ancestor"), "Pr
 requireContract(productionWorkflow.includes("production_project_id"), "Production requires exact project-ID confirmation.");
 requireContract(productionWorkflow.includes("tests/firestore/*.test.mjs"), "Production reruns Firestore Rules tests on emulators before deployment.");
 requireContract(productionWorkflow.includes("tests/storage/*.test.mjs"), "Production reruns Storage Rules tests on emulators before deployment.");
+requireContract(productionWorkflow.includes("npm run check:workflow-production-credentials"), "Production reruns the repository's workflow credential-separation check.");
+requireContract(!productionWorkflow.includes("npm run check:workflow-credentials"), "Production does not call the obsolete workflow credential-check script name.");
+requireContract(productionWorkflow.includes("npm run check:production-env"), "Production validates required public configuration before building.");
 requireContract(productionWorkflow.includes("smoke:live"), "Production performs a read-only post-deployment smoke check.");
 requireContract(productionWorkflow.includes("EXPECTED_BUILD_SHA: ${{ inputs.commit_sha }}"), "Production verifies the exact deployed release SHA.");
 requireContract(!productionWorkflow.includes("continue-on-error: true"), "Production deployment fails closed.");
