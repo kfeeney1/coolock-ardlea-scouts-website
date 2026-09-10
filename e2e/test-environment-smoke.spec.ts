@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const testPassword = process.env.E2E_TEST_USER_PASSWORD;
+const stableTestSmoke = process.env.E2E_STABLE_TEST_SMOKE === "true";
 
 async function signIn(page: import("@playwright/test").Page, path: string, email: string) {
   await page.goto(path);
@@ -10,6 +11,7 @@ async function signIn(page: import("@playwright/test").Page, path: string, email
 }
 
 test.describe("stable TEST environment smoke", () => {
+  test.skip(!stableTestSmoke, "Stable TEST smoke runs only after a TEST deployment.");
   test.skip(!testPassword, "Stable TEST smoke requires the synthetic TEST password.");
 
   test("public journey renders the deployed public site", async ({ page }) => {
