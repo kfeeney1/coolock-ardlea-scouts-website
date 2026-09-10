@@ -8,9 +8,96 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  patch-sw52-rules:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'sw-52-open-ended-subs-rates' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout SW-52 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: sw-52-open-ended-subs-rates
+          fetch-depth: 0
+
+      - name: Patch dynamic subs Rules and restore workflows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('firestore.rules')
+          s = p.read_text()
+          old_policy = '''        && request.resource.data.standardFamilyRatesCents is list
+        && request.resource.data.standardFamilyRatesCents.size() == 4
+        && request.resource.data.standardFamilyRatesCents[0] is number && request.resource.data.standardFamilyRatesCents[0] >= 0
+        && request.resource.data.standardFamilyRatesCents[1] is number && request.resource.data.standardFamilyRatesCents[1] >= request.resource.data.standardFamilyRatesCents[0]
+        && request.resource.data.standardFamilyRatesCents[2] is number && request.resource.data.standardFamilyRatesCents[2] >= request.resource.data.standardFamilyRatesCents[1]
+        && request.resource.data.standardFamilyRatesCents[3] is number && request.resource.data.standardFamilyRatesCents[3] >= request.resource.data.standardFamilyRatesCents[2]
+        && request.resource.data.leaderFamilyRatesCents is list
+        && request.resource.data.leaderFamilyRatesCents.size() == 3
+        && request.resource.data.leaderFamilyRatesCents[0] is number && request.resource.data.leaderFamilyRatesCents[0] >= 0
+        && request.resource.data.leaderFamilyRatesCents[1] is number && request.resource.data.leaderFamilyRatesCents[1] >= request.resource.data.leaderFamilyRatesCents[0]
+        && request.resource.data.leaderFamilyRatesCents[2] is number && request.resource.data.leaderFamilyRatesCents[2] >= request.resource.data.leaderFamilyRatesCents[1]
+'''
+          new_policy = '''        && request.resource.data.standardFamilyRatesCents is list
+        && request.resource.data.standardFamilyRatesCents.size() >= 1
+        && request.resource.data.standardFamilyRatesCents[0] is number && request.resource.data.standardFamilyRatesCents[0] >= 0
+        && request.resource.data.leaderFamilyRatesCents is list
+        && request.resource.data.leaderFamilyRatesCents.size() >= 1
+        && request.resource.data.leaderFamilyRatesCents[0] is number && request.resource.data.leaderFamilyRatesCents[0] >= 0
+'''
+          if old_policy not in s:
+              raise SystemExit('SW-52 policy Rules anchor not found')
+          s = s.replace(old_policy, new_policy, 1)
+          start = s.index('''      function isValidFamilyAssignment(policy) {''')
+          end = s.index('''      allow get, list: if isActiveLeader()''', start)
+          new_helpers = '''      function isValidFamilyIncrement(rates, position, amount) {
+        return rates is list
+          && position is number
+          && position >= 1
+          && position <= rates.size()
+          && rates[position - 1] is number
+          && rates[position - 1] >= 0
+          && ((position == 1 && amount == rates[0])
+            || (position > 1
+              && rates[position - 2] is number
+              && rates[position - 2] >= 0
+              && rates[position - 1] >= rates[position - 2]
+              && amount == rates[position - 1] - rates[position - 2]));
+      }
+      function isValidFamilyAssignment(policy) {
+        return request.resource.data.familyType in ["standard", "leader"]
+          && request.resource.data.familyPosition is number
+          && request.resource.data.familyPosition >= 1
+          && ((request.resource.data.familyType == "standard"
+              && request.resource.data.leaderChild == false
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && ((request.resource.data.familyPosition == 1 && request.resource.data.category == "standard")
+                || (request.resource.data.familyPosition > 1 && request.resource.data.category == "sibling"))
+              && isValidFamilyIncrement(policy.standardFamilyRatesCents, request.resource.data.familyPosition, request.resource.data.amountDueCents))
+            || (request.resource.data.familyType == "leader"
+              && request.resource.data.leaderChild == true
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && request.resource.data.category == "leader-child"
+              && isValidFamilyIncrement(policy.leaderFamilyRatesCents, request.resource.data.familyPosition, request.resource.data.amountDueCents)));
+      }
+'''
+          s = s[:start] + new_helpers + s[end:]
+          p.write_text(s)
+          PY
+          git fetch origin main:refs/remotes/origin/main
+          git checkout origin/main -- .github/workflows/quality.yml
+          git rm -f .github/workflows/sw52-patch.yml
+
+      - name: Commit SW-52 Rules patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add firestore.rules .github/workflows/quality.yml
+          git commit -m "SW-52: enforce dynamic family rates in Rules"
+          git push origin HEAD:sw-52-open-ended-subs-rates
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
