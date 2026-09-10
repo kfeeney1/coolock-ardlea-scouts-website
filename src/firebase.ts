@@ -4,7 +4,7 @@ import { connectFirestoreEmulator, getFirestore, initializeFirestore } from "fir
 import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
-const TEST_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test";
+const TESTING_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test";
 const LOCAL_FIREBASE_PROJECT_ID = "demo-coolock-ardlea-scouts";
 
 type AppEnvironment = "local" | "test" | "production";
@@ -17,7 +17,7 @@ if (!(["local", "test", "production"] as const).includes(appEnvironment)) {
 const expectedProjectId = appEnvironment === "production"
     ? PRODUCTION_FIREBASE_PROJECT_ID
     : appEnvironment === "test"
-        ? TEST_FIREBASE_PROJECT_ID
+        ? TESTING_FIREBASE_PROJECT_ID
         : LOCAL_FIREBASE_PROJECT_ID;
 const configuredProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim() || expectedProjectId;
 
