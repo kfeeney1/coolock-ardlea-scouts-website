@@ -33,17 +33,17 @@ jobs:
           node-version: 22
       - name: Install Firebase Admin SDK
         run: npm install --no-save --ignore-scripts firebase-admin@14.3.0
-      - name: Validate production credential target
+      - name: Validate production operations credential target
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: node scripts/validate-firebase-environment.mjs --environment production --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Rebuild curated public leadership collection
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           PRODUCTION_PROJECT_CONFIRMATION: coolock-ardlea-scouts
           ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
         run: node scripts/rebuild-public-leadership.mjs --execute --allow-production
       - name: Verify live Firestore compatibility
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: node scripts/audit-firestore-compatibility.mjs
