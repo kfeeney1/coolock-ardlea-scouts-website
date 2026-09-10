@@ -51,15 +51,17 @@ test("admin can extend standard and leader family rate tables", async ({ page },
 
   await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
   await page.getByTestId("subs-add-standard-rate").click();
-  await expect(page.getByTestId("subs-standard-rate-5")).toBeVisible();
-  await page.getByLabel("5 children (EUR)").fill("734.00");
+  const standardFive = page.getByTestId("subs-standard-rate-5");
+  await expect(standardFive).toBeVisible();
+  await standardFive.getByRole("textbox").fill("734.00");
 
   await page.getByTestId("subs-add-leader-rate").click();
-  await expect(page.getByTestId("subs-leader-rate-4")).toBeVisible();
-  await page.getByLabel("4 children (EUR)").fill("570.00");
+  const leaderFour = page.getByTestId("subs-leader-rate-4");
+  await expect(leaderFour).toBeVisible();
+  await leaderFour.getByRole("textbox").fill("570.00");
 
   await expect(page.getByText(/no amount is inferred/i)).toBeVisible();
-  await page.getByLabel("5 children (EUR)").fill("bad");
+  await standardFive.getByRole("textbox").fill("bad");
   await page.getByRole("button", { name: "Save immutable rate policy" }).click();
   await expect(page.getByRole("alert").filter({ hasText: /valid euro amount/i })).toBeVisible();
 });
