@@ -3,6 +3,8 @@ name: SW-52 guarded patch
 on:
   push:
     branches: [sw-52-open-ended-subs-rates]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -180,7 +182,6 @@ jobs:
 
           p = Path('tests/firestore/subs.rules.test.mjs')
           s = p.read_text()
-          s = s.replace(''' await assertFails(setDoc(doc(db,"subsAssignments/bad-position"),{...base,familyPosition:5}));''', ''' await assertFails(setDoc(doc(db,"subsAssignments/bad-position"),{...base,familyPosition:5}));''')
           old_test = '''test("policies reject malformed family totals",async()=>{
  await seed([["adminUsers/admin",{active:true,role:"admin",sections:["Group"]}]]);
  const db=env.authenticatedContext("admin").firestore();
