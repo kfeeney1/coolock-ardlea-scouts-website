@@ -20,7 +20,7 @@ For normal changes:
 6. When Firestore rules or rule tests change, confirm **Firestore Rules** passes.
 7. Merge only after the required `quality` and `e2e` checks, plus all other relevant checks, are green. The active ruleset requires the branch to be current with `main` and has no configured bypass actors.
 
-The Firebase Hosting PR workflow builds a preview. A merge to `main` triggers the production Firebase Hosting deployment workflow.
+The Firebase Hosting PR workflow builds a TEST-project preview. A merge to `main` triggers the stable TEST deployment only. Production deployment is a separate, protected `workflow_dispatch` action requiring the exact production project ID and a full commit SHA from `main`; a merge never deploys production automatically.
 
 Do not use a successful preview as evidence that Firestore authorization changes are safe; use the emulator-backed rules test workflow for that boundary.
 
@@ -84,9 +84,9 @@ Never point seed scripts at a different Firebase project without reviewing every
 
 ## 6. Production deployment verification
 
-After a merge that affects production behaviour:
+After an explicitly approved manual production deployment:
 
-1. Confirm the Firebase Hosting merge workflow completed successfully.
+1. Confirm the **Firebase PRODUCTION Manual Deploy** workflow completed successfully for the approved SHA.
 2. Load the production home page and one changed route.
 3. For authenticated changes, verify the affected role can sign in and reach the expected screen.
 4. For Firestore/rules changes, perform one positive and one negative authorization sanity check where practical.
@@ -103,8 +103,9 @@ For a bad application deployment:
 1. Identify the merge/commit that introduced the issue.
 2. Prefer a GitHub revert PR rather than rewriting `main` history.
 3. Let normal CI validate the revert.
-4. Merge the revert so the Firebase Hosting merge workflow redeploys the known-good code.
-5. Verify production again after deployment.
+4. Merge the revert and allow required CI plus stable TEST deployment to complete.
+5. Obtain explicit production approval and use the same manual production workflow with the known-good SHA and exact production-project confirmation.
+6. Verify production again after deployment.
 
 For a Firestore rules regression:
 
@@ -129,7 +130,7 @@ The workflow:
 - waits for the export to complete and checks that output files exist;
 - records the resulting export path in the GitHub Actions job summary.
 
-The backup workflow reuses the existing `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS` secret. The service account that starts the export must have permission to run Firestore import/export operations, and the Firestore service agent must be able to access the backup bucket.
+The backup workflow uses the purpose-scoped `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP` secret. The service account that starts the export must have permission to run Firestore import/export operations, and the Firestore service agent must be able to access the backup bucket.
 
 Production restore is intentionally **not** automated as a one-click workflow. Firestore imports can overwrite existing documents, so an incident must be scoped and reviewed before an import is started.
 
