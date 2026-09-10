@@ -1,0 +1,28 @@
+import { Button,Chip,FormControl,InputLabel,MenuItem,Paper,Select,Stack,Typography } from "@mui/material";
+import { useEffect,useMemo,useState } from "react";
+import { loadSubsAccounts } from "../../services/subsLedger";
+import { formatEuro,familyTypeLabel,rateCategoryLabel,type SubsAccount,type SubsAssignment,type SubsPayment,type SubsRatePolicy } from "../../services/subsLogic";
+import { buildSubsReportRows,subsReportCsvRows } from "../../services/subsReport";
+
+const csv=(rows:string[][])=>rows.map(row=>row.map(value=>`"${value.replaceAll('"','""')}"`).join(",")).join("\r\n");
+const download=(name:string,body:string)=>{const url=URL.createObjectURL(new Blob([body],{type:"text/csv;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download=name;link.click();URL.revokeObjectURL(url);};
+
+type Props={
+ assignments:SubsAssignment[];
+ payments:SubsPayment[];
+ policies:SubsRatePolicy[];
+ period:string;
+ setPeriod:(value:string)=>void;
+ section:string;
+ setSection:(value:string)=>void;
+ sections:string[];
+ canGroupReport:boolean;
+};
+
+export default function SubsBalancesReport({assignments,payments,policies,period,setPeriod,section,setSection,sections,canGroupReport}:Props){
+ const [accounts,setAccounts]=useState<SubsAccount[]>([]);
+ useEffect(()=>{let active=true;if(!canGroupReport){setAccounts([]);return()=>{active=false;};}void loadSubsAccounts().then(rows=>{if(active)setAccounts(rows);}).catch(error=>console.error("Unable to load family subs accounts for report",error));return()=>{active=false;};},[canGroupReport]);
+ const rows=useMemo(()=>buildSubsReportRows(assignments,payments,accounts,{period,section,canViewFamilyDetails:canGroupReport}),[accounts,assignments,canGroupReport,payments,period,section]);
+ const exportBalances=()=>download(`subs-balances-${section}-${period||"all"}.csv`,csv(subsReportCsvRows(rows)));
+ return <Paper sx={{p:{xs:2,md:3}}} data-testid="subs-balances-report"><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Balances and reports</Typography><Stack direction={{xs:"column",sm:"row"}} spacing={2} sx={{mb:2}}><FormControl sx={{minWidth:200}}><InputLabel>Section</InputLabel><Select label="Section" value={section} onChange={e=>setSection(e.target.value)}><MenuItem value="all">All sections</MenuItem>{sections.map(s=><MenuItem key={s} value={s}>{s}</MenuItem>)}</Select></FormControl><FormControl sx={{minWidth:180}}><InputLabel>Scout year</InputLabel><Select label="Scout year" value={period} onChange={e=>setPeriod(e.target.value)}>{policies.map(p=><MenuItem key={p.id} value={p.period}>{p.period}</MenuItem>)}</Select></FormControl>{canGroupReport&&<Button variant="outlined" onClick={exportBalances}>Download balance CSV</Button>}</Stack><Stack spacing={1}>{rows.map(row=>{const names=row.members.map(member=>member.name).join(", ");const sectionNames=row.sections.join(", ");return <Paper key={row.id} variant="outlined" sx={{p:2}} data-testid={`subs-report-row-${row.kind}-${row.accountId??row.members[0]?.id}`}><Typography sx={{fontWeight:800}}>{row.kind==="family"?`Family account · ${names}`:`${names} · ${sectionNames}`}</Typography>{row.kind==="family"&&<Typography color="text.secondary">Sections: {sectionNames||"Not available"}</Typography>}{row.restricted?<Typography color="text.secondary">Shared family balance restricted to group finance.</Typography>:row.dueCents===null?<Typography color="warning.main" sx={{fontWeight:700}}>Rate not configured</Typography>:<Typography>{formatEuro(row.dueCents)} due · {formatEuro(row.paidCents??0)} paid · {row.remainingCents!==null&&row.remainingCents<0?`${formatEuro(-row.remainingCents)} credit`:`${formatEuro(row.remainingCents??0)} remaining`}{row.reversedCents?` · ${formatEuro(row.reversedCents)} reversed`:""}</Typography>}<Stack direction="row" spacing={1} sx={{mt:1,flexWrap:"wrap"}}>{row.kind==="family"?<><Chip size="small" label="Shared family account"/>{row.familyType&&<Chip size="small" label={familyTypeLabel(row.familyType)}/>} {row.childCount&&<Chip size="small" label={`${row.childCount} members`}/>}</>:row.familyType&&row.familyPosition?<><Chip size="small" label={familyTypeLabel(row.familyType)}/><Chip size="small" label={`Member ${row.familyPosition}`}/></>:row.category?<Chip size="small" label={rateCategoryLabel(row.category)}/>:<Chip size="small" label="Legacy classification"/>}</Stack>{canGroupReport&&row.classificationSource&&<Typography variant="body2" color="text.secondary" sx={{mt:1}}>Classification: finance officer confirmed{row.classificationNote?` · ${row.classificationNote}`:""}</Typography>}</Paper>;})}{rows.length===0&&<Typography color="text.secondary">No subs records match this report scope.</Typography>}</Stack></Paper>;
+}
