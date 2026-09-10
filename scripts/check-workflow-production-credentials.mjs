@@ -2,7 +2,10 @@ import { readdir, readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const workflowDir = new URL(".github/workflows/", root);
-const productionSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION";
+const productionDeploySecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION";
+const productionOperationsSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS";
+const productionAuditSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_AUDIT";
+const productionBackupSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP";
 const testSecret = "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST";
 const legacySecrets = [
   "FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS",
@@ -10,6 +13,32 @@ const legacySecrets = [
 ];
 const productionDeployWorkflow = "firebase-hosting-merge.yml";
 const forbiddenWorkflowScripts = ["scripts/purge-test-data.mjs"];
+const productionCredentialPolicy = new Map([
+  [productionDeploySecret, {
+    workflows: new Set([productionDeployWorkflow]),
+    requireProductionEnvironment: true,
+    allowSchedule: false,
+  }],
+  [productionOperationsSecret, {
+    workflows: new Set([
+      "seed-production-equipment.yml",
+      "rebuild-public-leadership.yml",
+      "rebuild-parent-weekly-meetings.yml",
+    ]),
+    requireProductionEnvironment: true,
+    allowSchedule: false,
+  }],
+  [productionAuditSecret, {
+    workflows: new Set(["firestore-data-audit.yml"]),
+    requireProductionEnvironment: true,
+    allowSchedule: false,
+  }],
+  [productionBackupSecret, {
+    workflows: new Set(["firestore-backup.yml", "firestore-backup-freshness.yml"]),
+    requireProductionEnvironment: false,
+    allowSchedule: true,
+  }],
+]);
 const failures = [];
 
 function fail(message) {
@@ -29,6 +58,10 @@ function hasPullRequestTrigger(source) {
 
 function hasPushTrigger(source) {
   return /^on:\s*push\b/m.test(source) || /^\s{2}push:\s*$/m.test(source);
+}
+
+function hasScheduleTrigger(source) {
+  return /^on:\s*schedule\b/m.test(source) || /^\s{2}schedule:\s*$/m.test(source);
 }
 
 function escapeRegex(value) {
@@ -62,16 +95,16 @@ function explicitInstallSpecs(source) {
 }
 
 const entries = (await readdir(workflowDir)).filter((name) => name.endsWith(".yml") || name.endsWith(".yaml")).sort();
-let productionCredentialWorkflowCount = 0;
+const productionCredentialUseCounts = new Map([...productionCredentialPolicy.keys()].map((secret) => [secret, 0]));
 let testCredentialWorkflowCount = 0;
 let pinnedInstallCount = 0;
 
 for (const name of entries) {
   const source = await readFile(new URL(name, workflowDir), "utf8");
-  const usesProductionSecret = referencesSecret(source, productionSecret);
   const usesTestSecret = referencesSecret(source, testSecret);
   const pullRequestTriggered = hasPullRequestTrigger(source);
   const pushTriggered = hasPushTrigger(source);
+  const scheduleTriggered = hasScheduleTrigger(source);
 
   for (const forbiddenScript of forbiddenWorkflowScripts) {
     if (source.includes(forbiddenScript)) {
@@ -85,13 +118,20 @@ for (const name of entries) {
     }
   }
 
-  if (usesProductionSecret) {
-    productionCredentialWorkflowCount += 1;
-    if (!source.includes("environment: production")) {
-      fail(`${name} uses the production Firebase credential without the protected production environment.`);
+  for (const [secret, policy] of productionCredentialPolicy) {
+    if (!referencesSecret(source, secret)) continue;
+    productionCredentialUseCounts.set(secret, productionCredentialUseCounts.get(secret) + 1);
+    if (!policy.workflows.has(name)) {
+      fail(`${name} references purpose-scoped production credential ${secret} outside its approved workflow set.`);
+    }
+    if (policy.requireProductionEnvironment && !source.includes("environment: production")) {
+      fail(`${name} uses ${secret} without the protected production environment.`);
     }
     if (pullRequestTriggered || pushTriggered) {
-      fail(`${name} exposes the production Firebase credential to pull_request/push automation.`);
+      fail(`${name} exposes ${secret} to pull_request/push automation.`);
+    }
+    if (scheduleTriggered && !policy.allowSchedule) {
+      fail(`${name} exposes ${secret} to scheduled automation.`);
     }
   }
 
@@ -120,8 +160,8 @@ for (const name of entries) {
   }
 }
 
-if (productionCredentialWorkflowCount < 1) {
-  fail("Expected at least one protected production Firebase credential workflow.");
+for (const [secret, count] of productionCredentialUseCounts) {
+  if (count < 1) fail(`Expected an approved workflow to reference purpose-scoped production credential ${secret}.`);
 }
 if (testCredentialWorkflowCount < 2) {
   fail("Expected TEST credentials to be scoped to both TEST deployment and TEST PR preview workflows.");
@@ -133,4 +173,4 @@ if (failures.length) {
 }
 
 console.log(`Workflow credential-separation contract passed across ${entries.length} workflows.`);
-console.log(`Protected ${productionCredentialWorkflowCount} production and ${testCredentialWorkflowCount} TEST credential workflow(s); verified ${pinnedInstallCount} transient npm package install(s).`);
+console.log(`Verified ${productionCredentialPolicy.size} purpose-scoped production credential classes and ${testCredentialWorkflowCount} TEST credential workflow(s); verified ${pinnedInstallCount} transient npm package install(s).`);
