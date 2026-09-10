@@ -84,9 +84,13 @@ jobs:
           npm run lint
           npm test
       - name: Re-run Firestore Rules tests on emulators
-        run: npx firebase emulators:exec --only firestore --project demo-coolock-ardlea-scouts "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
+        env:
+          FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+        run: npx firebase emulators:exec --only firestore --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
       - name: Re-run Storage Rules tests on emulators
-        run: npx firebase emulators:exec --only firestore,storage --project demo-coolock-ardlea-scouts "node --test --test-concurrency=1 tests/storage/*.test.mjs"
+        env:
+          FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+        run: npx firebase emulators:exec --only firestore,storage --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/storage/*.test.mjs"
       - name: Validate production credential target
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
@@ -133,7 +137,7 @@ jobs:
           EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
           FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
-          FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
           FIREBASE_STORAGE_ENABLED: ${{ vars.FIREBASE_STORAGE_ENABLED }}
           EXPECTED_BUILD_SHA: ${{ inputs.commit_sha }}
       - name: Record release evidence
