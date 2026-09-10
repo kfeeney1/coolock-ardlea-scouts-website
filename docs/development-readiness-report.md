@@ -97,7 +97,7 @@ Storage Rules protect the supported finance-receipt and event-gallery paths. Ava
 
 ### Hosting and deployment
 
-Pull requests receive a Firebase Hosting preview. Merges to `main` use the production Hosting workflow and post-deploy verification checks the deployed release identity.
+Pull requests receive a TEST-project Firebase Hosting preview. Merges to `main` deploy the stable TEST environment. Production remains isolated behind a protected, manually dispatched workflow that requires an exact `main` SHA and project confirmation; its post-deploy verification checks the deployed release identity.
 
 ## Testing strategy
 
