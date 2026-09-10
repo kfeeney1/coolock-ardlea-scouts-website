@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
@@ -6,6 +6,7 @@ import {
   createPaymentReversal,
   familyIncrementFor,
   familyTotalFor,
+  subsFamilyAccountId,
   validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
@@ -156,11 +157,14 @@ export async function createSubsFamilyAccount(
   const validated = validateFamilyAccountSelection(members.map((member) => member.id), classificationNote);
   const uniqueMembers = [...members]
     .filter((member, index, list) => list.findIndex((candidate) => candidate.id === member.id) === index)
-    .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
+    .sort((a, b) => a.id.localeCompare(b.id));
   if (uniqueMembers.length !== validated.memberIds.length) throw new Error("Select each child exactly once.");
 
   const amountDueCents = familyTotalFor(policy, familyType, uniqueMembers.length);
-  const accountRef = doc(collection(db, "subsAccounts"));
+  const accountId = subsFamilyAccountId(policy.period, uniqueMembers.map((member) => member.id));
+  const accountRef = doc(db, "subsAccounts", accountId);
+  if ((await getDoc(accountRef)).exists()) throw new Error("This family already has a subs account for the selected Scout year.");
+
   const sections = [...new Set(uniqueMembers.map((member) => member.section))].sort();
   const batch = writeBatch(db);
   batch.set(accountRef, {
@@ -194,7 +198,7 @@ export async function createSubsFamilyAccount(
       leaderChild: familyType === "leader",
       familyType,
       familyPosition,
-      accountId: accountRef.id,
+      accountId,
       accountAmountDueCents: amountDueCents,
       accountChildCount: uniqueMembers.length,
       classifiedBy: actor,
@@ -206,12 +210,12 @@ export async function createSubsFamilyAccount(
   void recordAuditEvent({
     category: "finance",
     action: "subs-family-account-created",
-    targetId: accountRef.id,
+    targetId: accountId,
     targetLabel: `${policy.period} family account`,
     description: `${familyType} family account created for ${uniqueMembers.length} child${uniqueMembers.length === 1 ? "" : "ren"}; relationship confirmation recorded.`,
     section: sections.length === 1 ? sections[0] : "Group"
   });
-  return accountRef.id;
+  return accountId;
 }
 
 export async function loadSubsPayments(section?: string): Promise<SubsPayment[]> {
