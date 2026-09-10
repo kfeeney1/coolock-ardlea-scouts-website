@@ -65,19 +65,19 @@ jobs:
             echo "::error::Rollback requires exact production project confirmation."
             exit 1
           fi
-      - name: Validate production credential target
+      - name: Validate production operations credential target
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: node scripts/validate-firebase-environment.mjs --environment production --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Dry run
         if: ${{ inputs.action == 'dry-run' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: npm run seed:equipment
       - name: Seed reviewed equipment
         if: ${{ inputs.action == 'seed' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
           PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT: ${{ inputs.expected_create_count }}
           PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
@@ -86,7 +86,7 @@ jobs:
       - name: Roll back reviewed equipment seed
         if: ${{ inputs.action == 'rollback' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
           ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
         run: npm run seed:equipment -- --rollback
