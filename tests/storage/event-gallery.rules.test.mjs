@@ -4,7 +4,7 @@ import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebas
 import { doc, setDoc } from "firebase/firestore";
 import { getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
 
-const projectId = "coolock-ardlea-scouts";
+const projectId = process.env.FIREBASE_PROJECT_ID || "demo-coolock-ardlea-scouts";
 let testEnv;
 
 async function seedDocuments(entries) {

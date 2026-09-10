@@ -1,8 +1,10 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
+requireFirebaseMutationTarget({ operation: "seed-playwright-records", credentialJson: rawCredentials });
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const marker = { testData: true, testSeed: "playwright-persistence-v1", createdBySeed: "TEST_SEED" };
@@ -88,9 +90,6 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
-// Minimal deterministic Equipment & Stores catalogue for emulator-backed UI and report testing.
-// Keep these fixtures allocation-free so checkout/return tests remain isolated and can assert
-// an empty holdings state after their own transient loans are returned.
 const equipmentSeedItems = [
   { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220, purchaseDate: "2098-07-22", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment", source: "spreadsheet-import", importBatch: "TEST_sw42", importSourceRef: "Equipment:row-3" },
   { id: "TEST_equipment_stoves", name: "TEST Camping Stoves", category: "Cooking", trackingMode: "individual", totalQuantity: 4, location: "Main Equipment Store", condition: "good", notes: "Portable gas stoves for section cooking activities.", replacementValue: 85 },

@@ -1,9 +1,16 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
+
+requireFirebaseMutationTarget({
+  operation: "seed-superadmin-login",
+  credentialJson: rawCredentials,
+  requireAuthEmulator: true,
+});
 
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const auth = getAuth();

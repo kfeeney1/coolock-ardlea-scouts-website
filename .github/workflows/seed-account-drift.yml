@@ -9,14 +9,19 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    environment: test
+    env:
+      DEPLOY_ENVIRONMENT: test
+      FIREBASE_PROJECT_ID: coolock-ardlea-scouts-test
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+      - name: Validate TEST Firebase target and credential
+        run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Install Firebase Admin SDK
         run: npm install --no-save --ignore-scripts firebase-admin@14.3.0
-      - name: Compare live TEST accounts with canonical seed
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+      - name: Compare TEST accounts with canonical seed
         run: node scripts/reconcile-seeded-accounts.mjs --check

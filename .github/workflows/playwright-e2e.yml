@@ -16,23 +16,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-      VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
+      VITE_APP_ENV: local
+      VITE_FIREBASE_API_KEY: demo-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: demo-coolock-ardlea-scouts.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      VITE_FIREBASE_STORAGE_BUCKET: demo-coolock-ardlea-scouts.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+      VITE_FIREBASE_APP_ID: 1:000000000000:web:local
+      VITE_EMAIL_API_URL: http://127.0.0.1:8787
       VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
       FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
       VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
       FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
       E2E_BASE_URL: http://127.0.0.1:4173
       E2E_TEST_USER_PASSWORD: password1
-      E2E_LEADER_JOURNEY_SEEDED: "true"
+      E2E_LEADER_JOURNEY_SEEDED: 'true'
       E2E_PARENT_EMAIL: test.beaver.parent1@example.com
       E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
       E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
@@ -54,8 +55,6 @@ jobs:
       - name: Install app dependencies
         run: npm ci --no-audit
 
-      # Quality runs as its own required workflow. E2E only needs the exact build
-      # it will serve, avoiding a second network-backed npm audit in this job.
       - name: Build tested application
         run: npm run build
 
@@ -64,14 +63,14 @@ jobs:
 
       - name: Explain Dependabot E2E policy
         if: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' }}
-        run: echo "Dependabot pull requests do not receive repository secrets. Static quality, production dependency audit, build and deterministic seed-contract checks ran above; emulator seeding and browser journeys are intentionally deferred to normal pull requests and main."
+        run: echo "Dependabot pull requests receive no Firebase or email credentials. Static quality and deterministic seed-contract checks ran above; emulator browser journeys are deferred to normal pull requests and main."
 
       - name: Setup Java for Firebase emulators
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
 
       - name: Install E2E Firebase tooling
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
@@ -80,7 +79,7 @@ jobs:
       - name: Start Firestore, Auth and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npx firebase emulators:start --only firestore,auth,storage --project coolock-ardlea-scouts > /tmp/firebase-emulator.log 2>&1 &
+          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
           for i in {1..45}; do
             if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
               exit 0
@@ -96,27 +95,25 @@ jobs:
           node <<'NODE'
           const { generateKeyPairSync } = require("node:crypto");
           const { appendFileSync } = require("node:fs");
-
           const { privateKey } = generateKeyPairSync("rsa", {
             modulusLength: 2048,
             publicKeyEncoding: { type: "spki", format: "pem" },
             privateKeyEncoding: { type: "pkcs8", format: "pem" },
           });
-
+          const projectId = process.env.FIREBASE_PROJECT_ID;
           const credential = JSON.stringify({
             type: "service_account",
-            project_id: "coolock-ardlea-scouts",
+            project_id: projectId,
             private_key_id: "emulator-only",
             private_key: privateKey,
-            client_email: "firebase-adminsdk-emulator@coolock-ardlea-scouts.iam.gserviceaccount.com",
+            client_email: `firebase-adminsdk-emulator@${projectId}.iam.gserviceaccount.com`,
             client_id: "000000000000000000000",
             auth_uri: "https://accounts.google.com/o/oauth2/auth",
             token_uri: "https://oauth2.googleapis.com/token",
             auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-            client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-emulator%40coolock-ardlea-scouts.iam.gserviceaccount.com",
+            client_x509_cert_url: "https://example.invalid/emulator-only",
             universe_domain: "googleapis.com",
           });
-
           const delimiter = `FIREBASE_EMULATOR_CREDENTIAL_${Date.now()}`;
           appendFileSync(process.env.GITHUB_ENV, `FIREBASE_SERVICE_ACCOUNT_JSON<<${delimiter}\n${credential}\n${delimiter}\n`);
           NODE
@@ -136,7 +133,6 @@ jobs:
       - name: Prove canonical seed is safe when existing data remains
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          echo "Re-seeding the same emulator without cleanup to prove deterministic seed idempotency."
           node scripts/seed-population-data.mjs seed
           node scripts/seed-superadmin-login.mjs
           node scripts/seed-flow-data.mjs
@@ -154,34 +150,21 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright --version
 
-      # GitHub's ubuntu runner currently preconfigures the Google Chrome apt
-      # source. Playwright does not require that repository for its bundled
-      # Chromium/WebKit dependencies, and a stale Chrome repository index can
-      # otherwise break `apt update` before browser installation begins.
       - name: Isolate Playwright dependencies from unrelated Chrome apt source
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
           for source in /etc/apt/sources.list.d/*; do
             [ -f "$source" ] || continue
-            if grep -q "dl.google.com/linux/chrome-stable" "$source"; then
-              echo "Removing unrelated Chrome apt source from ephemeral runner: $source"
-              sudo rm -f "$source"
-            fi
+            if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
           done
 
       - name: Install Chromium and WebKit
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
           for attempt in 1 2 3; do
-            if npx --no-install playwright install --with-deps chromium webkit; then
-              exit 0
-            fi
-            if [ "$attempt" -lt 3 ]; then
-              echo "::warning::Playwright browser install attempt $attempt failed; retrying after 10 seconds."
-              sleep 10
-            fi
+            if npx --no-install playwright install --with-deps chromium webkit; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
           done
-          echo "::error::Playwright browser installation failed after three attempts."
           exit 1
 
       - name: Start tested build
@@ -189,9 +172,7 @@ jobs:
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
           for i in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent "$E2E_BASE_URL"/ > /dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/vite-preview.log
@@ -211,9 +192,7 @@ jobs:
           mkdir -p e2e-debug
           cp /tmp/firebase-emulator.log e2e-debug/firebase-emulator.log 2>/dev/null || true
           cp /tmp/vite-preview.log e2e-debug/vite-preview.log 2>/dev/null || true
-          echo "===== Firebase emulator log ====="
           cat /tmp/firebase-emulator.log || true
-          echo "===== Vite preview log ====="
           cat /tmp/vite-preview.log || true
 
       - name: Upload Playwright report

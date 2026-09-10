@@ -1,10 +1,28 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
+const execute = process.argv.includes("--execute");
+const environment = String(process.env.DEPLOY_ENVIRONMENT || process.env.VITE_APP_ENV || "").trim();
+const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
+if (!environment || !projectId) {
+  throw new Error("Explicit DEPLOY_ENVIRONMENT/VITE_APP_ENV and FIREBASE_PROJECT_ID are required.");
+}
+const credentialProjectId = String(JSON.parse(rawCredentials)?.project_id || "").trim();
+if (!credentialProjectId || credentialProjectId !== projectId) {
+  throw new Error("Service-account project_id must exactly match FIREBASE_PROJECT_ID.");
+}
+if (execute) {
+  requireFirebaseMutationTarget({
+    operation: "rebuild-public-leadership",
+    credentialJson: rawCredentials,
+    allowProduction: true,
+  });
+}
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+initializeApp({ credential: cert(JSON.parse(rawCredentials)), projectId });
 const db = getFirestore();
 const PUBLIC_PROJECTION_VERSION = 2;
 const CANONICAL_TEST_SEEDS = new Set(["comprehensive-population-v3", "full-system-flows-v2", "playwright-persistence-v1"]);
@@ -107,6 +125,17 @@ if (rejected.length) {
   throw new Error(`Refusing to rebuild publicLeadership from malformed canonical/proven records:\n${rejected.join("\n")}`);
 }
 
+console.log(`${execute ? "Executing" : "Dry-run"} publicLeadership rebuild.`);
+console.log(`Would remove ${existingPublicSnapshot.size} existing public record(s).`);
+console.log(`Would publish ${desired.size} eligible leader record(s) with projection v${PUBLIC_PROJECTION_VERSION}.`);
+if (excludedUnprovenanced.length) {
+  console.log(`Would exclude ${excludedUnprovenanced.length} legacy/ambiguous source record(s): ${excludedUnprovenanced.join(", ")}`);
+}
+if (!execute) {
+  console.log("Dry-run complete. Re-run with --execute after reviewing counts and target.");
+  process.exit(0);
+}
+
 const batch = db.batch();
 for (const doc of existingPublicSnapshot.docs) batch.delete(doc.ref);
 for (const [uid, record] of desired) batch.set(db.collection("publicLeadership").doc(uid), record);
@@ -115,6 +144,3 @@ await batch.commit();
 console.log("Rebuilt publicLeadership only from current canonical seed or approved leader registrations.");
 console.log(`Removed ${existingPublicSnapshot.size} existing public record(s).`);
 console.log(`Published ${desired.size} eligible leader record(s) with projection v${PUBLIC_PROJECTION_VERSION}.`);
-if (excludedUnprovenanced.length) {
-  console.log(`Excluded ${excludedUnprovenanced.length} legacy/ambiguous source record(s): ${excludedUnprovenanced.join(", ")}`);
-}
