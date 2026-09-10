@@ -1,82 +1,56 @@
-# SW-31 — Controlled member import
+# SW-31 — Private member seed
 
-Production member spreadsheets and reviewed member manifests are private operational inputs. They must never be committed to Git, copied into test fixtures, attached to PR descriptions, or printed into CI logs.
+Production member data is private operational data. Real member names, dates of birth and reviewed member manifests must never be committed to GitHub, copied into fixtures, attached to Jira/PRs, or printed into CI logs.
 
-## Current spreadsheet mapping
+## Reviewed private manifest
 
-The reviewed source workbooks map only data that is actually present:
+The manually reviewed member list is stored locally in the existing private manifest. The seed accepts only the fields already reviewed for SW-31 and uses the existing deterministic member-import planner.
 
-| Section | Worksheet | Spreadsheet name column | Spreadsheet DOB column | Canonical member fields |
-| --- | --- | --- | --- | --- |
-| Beavers | `Beavers Subs 2526` | A | C | `displayName`, derived `firstName`/`lastName`, `dateOfBirth`, `section` |
-| Cubs | `Cubs Subs 2627` | A | B | `displayName`, derived `firstName`/`lastName`, `dateOfBirth`, `section` |
-| Scouts | `2026-27` | A | B | `displayName`, derived `firstName`/`lastName`, `dateOfBirth`, `section` |
+The member schema still derives `firstName` and `lastName` deterministically from the supplied display name, preserves the reviewed `displayName`, sets `status` to active, and leaves guardian/contact/emergency fields blank rather than inventing data. The seed does not create Firebase Auth users or parent accounts.
 
-The current member schema requires separate first and last names while these spreadsheets contain one name cell. The deterministic transformation treats the final whitespace-delimited name component as `lastName` and all preceding components as `firstName`; the original normalized full value is retained as `displayName`. This is a transformation of supplied text, not a lookup or enrichment.
+## Simple local seed workflow
 
-The spreadsheets do not provide canonical guardian/contact/emergency-contact fields in the member-list columns, so those fields are deliberately left empty rather than inferred. Parent access remains a separately reviewed relationship through `parentAccounts.memberIds` and `linkedSections`; the import does not create Firebase Auth or parent accounts.
-
-`status` is `active` only for rows admitted to the reviewed current-section manifest. Beavers rows explicitly annotated `Subs recorded in cubs sheet` or `See cubs` are excluded from the Beavers manifest. Cross-section duplicates in the resulting manifest are conflicts and block execution; the tooling never silently chooses one section.
-
-## Private preparation
-
-Run `scripts/prepare-member-import.py` locally against the private workbooks when spreadsheets are the reviewed source. A manually reviewed authoritative list may instead be converted to the same private manifest contract outside the repository. The generated JSON contains personal data and must remain in a private administrator workspace.
-
-Example spreadsheet mapping arguments:
+The repository exposes one command:
 
 ```text
---mapping "Beavers|Beavers Subs 2526|A|C"
---mapping "Cubs|Cubs Subs 2627|A|B"
---mapping "Scouts|2026-27|A|B"
+npm run seed:members -- --manifest=C:\Users\user\scout-private-import\member-import-private-reviewed.json --project=coolock-ardlea-scouts
 ```
 
-The preparation step prints aggregate counts only. Invalid DOB rows are rejected. Explicit Beavers-to-Cubs annotations are recorded as exclusions without copying names into logs.
+That is a dry run. It authenticates with Google Application Default Credentials through `firebase-admin` directly, reads the current `members` collection, and prints aggregate counts only.
 
-## Production dry-run
-
-`scripts/import-members.mjs` compares the private manifest with authoritative Firestore members before any mutation. It supports two authentication paths:
-
-- `FIREBASE_SERVICE_ACCOUNT_JSON` for the existing trusted admin path; or
-- Google Application Default Credentials for local **dry-run only**. Configure ADC with `gcloud auth application-default login` and set `PROD_MEMBER_IMPORT_CONFIRM_PROJECT` to the exact reviewed Firebase project ID.
-
-The ADC path requests only `displayName`, `dateOfBirth`, and `section` from the `members` collection, does not log document contents, and never supports `--execute` or `--rollback`. Production mutation continues to require the trusted service-account path and all mutation gates below.
-
-Example Windows Command Prompt dry-run setup:
+Authentication is configured once with:
 
 ```text
-set PROD_MEMBER_IMPORT_CONFIRM_PROJECT=coolock-ardlea-scouts
-node scripts/import-members.mjs --manifest=C:\Users\user\scout-private-import\member-import-private-reviewed.json
+gcloud auth application-default login
 ```
 
-Duplicate detection uses normalized full display name plus exact ISO date of birth. It is intentionally conservative:
+There is no `gcloud` subprocess inside the seed script and no service-account JSON file is required for this local workflow.
 
-- one exact same-section existing record is an existing match and is left unchanged;
-- multiple existing matches are a conflict;
-- an exact existing identity in another section is a conflict;
-- repeated source identity in more than one section is a conflict;
-- no fuzzy/name-only match causes an overwrite.
+## Duplicate and overwrite protection
 
-New IDs are deterministic hashes of normalized identity plus section. Spreadsheet row numbers never become permanent IDs. Proposed records carry `source: spreadsheet-import`, a non-personal `importBatch`, and a source reference for controlled provenance/rollback. They are not marked as TEST data and therefore do not enter the TEST-data purge detector.
+Duplicate matching remains conservative:
 
-## Mutation gates
+- one exact normalized display-name + DOB match in the same section is treated as an existing member and left unchanged;
+- multiple exact matches are a conflict;
+- an exact identity in another section is a conflict;
+- repeated source identity across sections is a conflict;
+- no fuzzy or name-only match causes an overwrite;
+- new member IDs are deterministic and never based on spreadsheet row numbers.
 
-A production `--execute` run is refused unless conflicts and rejected rows are zero and all reviewed values still match:
+Running the same seed again after a successful import should therefore create zero new members and report the imported members as matches.
 
-- `PROD_MEMBER_IMPORT_CONFIRM_PROJECT`
-- `PROD_MEMBER_IMPORT_EXPECTED_CREATE_COUNT`
-- `PROD_MEMBER_IMPORT_EXPECTED_MATCH_COUNT`
-- `PROD_MEMBER_IMPORT_EXPECTED_MANIFEST_SHA256`
-- `PROD_MEMBER_IMPORT_BACKUP_URI`
-- `PROD_MEMBER_IMPORT_BACKUP_VERIFIED_AT`
+## Production write
 
-The backup must be a reviewed `gs://.../firestore-backups/...` export verified within 192 hours. There is intentionally no GitHub Actions production-import workflow.
+A write is deliberately a separate explicit command:
 
-## Rollback
+```text
+npm run seed:members -- --manifest=C:\Users\user\scout-private-import\member-import-private-reviewed.json --project=coolock-ardlea-scouts --execute --confirm=SEED-MEMBERS
+```
 
-The same reviewed private manifest can be run with `--rollback` after supplying the same project/count/digest/backup gates. Rollback deletes only deterministic IDs from the reviewed create set and refuses any record whose `source`, `importBatch`, or `importSourceRef` provenance no longer matches. Existing legitimate members matched during import are never modified and therefore are never rollback targets.
+The script refuses to write unless `--execute` and the exact `--confirm=SEED-MEMBERS` value are both present. It also refuses all writes while conflicts or rejected records remain and uses Firestore `create`, never overwrite/update, for new member documents.
 
-## Verification layers
+Before using the write command, review the dry-run aggregate counts and explicitly approve the production seed. The command is run locally, not through GitHub Actions, so the private member manifest never leaves the administrator machine.
 
-Unit tests cover deterministic mapping, rejection, exact-match behavior, cross-section conflicts, and no-overwrite behavior. Firebase/production dry-run is the correct layer for raw member integrity and duplicate comparison.
+## Verification
 
-Playwright remains responsible for representative user-visible behavior using synthetic fixtures only: section-scoped member lists/tiles, filters, leader access, parent scoping and existing navigation. This import does not change the UI/member schema or Playwright fixture contract, so duplicating those scenarios with production data would weaken privacy without adding coverage.
+Unit tests cover deterministic member mapping, duplicate/conflict behaviour and the command-line write guards. Playwright continues to use synthetic member data only; production member PII must not be introduced into Playwright fixtures or CI.
