@@ -44,8 +44,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
     }
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
-    function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
-    function canManageSubsPolicy() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
+    function canViewAllFinance() {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      return isActiveLeader()
+        && (profile().role in ["super-admin", "admin"]
+          || (exists(organisationPath)
+            && get(organisationPath).data.active == true
+            && get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]));
+    }
+    function canManageSubsPolicy() { return canViewAllFinance(); }
     function isOrdinaryLeaderTarget(userId) {
       return exists(/databases/$(database)/documents/adminUsers/$(userId))
         && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
@@ -60,7 +67,7 @@ service cloud.firestore {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
     function canAccessFinanceSection(section) {
-      return isActiveLeader() && section is string && (canViewAllFinance() || hasSection(section));
+      return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
     }
     function hasResourceSection(data) {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
@@ -263,8 +270,6 @@ service cloud.firestore {
         && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
       }
       allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent();
-      // Firestore list rules cannot validate each returned document after a query.
-      // Safety is enforced at this dedicated projection's create/update boundary.
       allow list: if true;
       allow create: if isActiveLeader()
         && hasSection(request.resource.data.section)
@@ -551,6 +556,43 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /subsAccounts/{accountId} {
+      function hasConfiguredFamilyTotal(policy) {
+        return request.resource.data.childCount == request.resource.data.memberIds.size()
+          && request.resource.data.childCount >= 1
+          && ((request.resource.data.familyType == "standard"
+              && request.resource.data.childCount <= policy.standardFamilyRatesCents.size()
+              && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[request.resource.data.childCount - 1])
+            || (request.resource.data.familyType == "leader"
+              && request.resource.data.childCount <= policy.leaderFamilyRatesCents.size()
+              && request.resource.data.amountDueCents == policy.leaderFamilyRatesCents[request.resource.data.childCount - 1]));
+      }
+      allow get, list: if canViewAllFinance();
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.period is string
+        && request.resource.data.policyId is string
+        && exists(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId))
+        && request.resource.data.policyVersion == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.version
+        && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
+        && request.resource.data.familyType in ["standard", "leader"]
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() >= 1
+        && request.resource.data.sections is list
+        && request.resource.data.sections.size() >= 1
+        && request.resource.data.childCount is number
+        && request.resource.data.amountDueCents is number
+        && request.resource.data.amountDueCents >= 0
+        && request.resource.data.classificationSource == "finance-officer-confirmed"
+        && request.resource.data.classificationNote is string
+        && request.resource.data.classificationNote.size() >= 3
+        && request.resource.data.classificationNote.size() <= 200
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && hasConfiguredFamilyTotal(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
+        && request.resource.data.keys().hasOnly(["period", "policyId", "policyVersion", "familyType", "memberIds", "sections", "childCount", "amountDueCents", "classificationSource", "classificationNote", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
     match /subsAssignments/{assignmentId} {
       function isValidFamilyIncrement(rates, position, amount) {
         return rates is list
@@ -582,6 +624,22 @@ service cloud.firestore {
               && request.resource.data.category == "leader-child"
               && isValidFamilyIncrement(policy.leaderFamilyRatesCents, request.resource.data.familyPosition, request.resource.data.amountDueCents)));
       }
+      function isValidAccountLink() {
+        let accountId = request.resource.data.get("accountId", "");
+        let accountPath = /databases/$(database)/documents/subsAccounts/$(accountId);
+        return accountId != ""
+          && existsAfter(accountPath)
+          && request.resource.data.memberId in getAfter(accountPath).data.memberIds
+          && request.resource.data.period == getAfter(accountPath).data.period
+          && request.resource.data.policyId == getAfter(accountPath).data.policyId
+          && request.resource.data.policyVersion == getAfter(accountPath).data.policyVersion
+          && request.resource.data.familyType == getAfter(accountPath).data.familyType
+          && request.resource.data.accountAmountDueCents == getAfter(accountPath).data.amountDueCents
+          && request.resource.data.accountChildCount == getAfter(accountPath).data.childCount;
+      }
+      function hasNoAccountLink() {
+        return !request.resource.data.keys().hasAny(["accountId", "accountAmountDueCents", "accountChildCount"]);
+      }
       allow get, list: if isActiveLeader()
         && resource.data.section is string
         && (canViewAllFinance() || hasSection(resource.data.section));
@@ -599,13 +657,23 @@ service cloud.firestore {
         && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
         && request.resource.data.sibling is bool && request.resource.data.leaderChild is bool
         && isValidFamilyAssignment(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
+        && (hasNoAccountLink() || isValidAccountLink())
         && request.resource.data.classifiedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "familyType", "familyPosition", "classifiedBy", "createdAt"]);
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "familyType", "familyPosition", "accountId", "accountAmountDueCents", "accountChildCount", "classifiedBy", "createdAt"]);
       allow update, delete: if false;
     }
 
     match /subsPayments/{paymentId} {
+      function accountIdFor(data) { return data.get("accountId", ""); }
+      function hasValidSubsAccountLink() {
+        let accountId = accountIdFor(request.resource.data);
+        let accountPath = /databases/$(database)/documents/subsAccounts/$(accountId);
+        return accountId == ""
+          || (exists(accountPath)
+            && request.resource.data.memberId in get(accountPath).data.memberIds
+            && request.resource.data.period == get(accountPath).data.period);
+      }
       function isExactSubsReversal() {
         let originalId = request.resource.data.reversalOfPaymentId;
         let originalPath = /databases/$(database)/documents/subsPayments/$(originalId);
@@ -620,6 +688,7 @@ service cloud.firestore {
           && request.resource.data.memberName == original.memberName
           && request.resource.data.section == original.section
           && request.resource.data.period == original.period
+          && accountIdFor(request.resource.data) == accountIdFor(original)
           && request.resource.data.method == original.method;
       }
       allow get, list: if isActiveLeader()
@@ -636,10 +705,11 @@ service cloud.firestore {
         && request.resource.data.note is string
         && request.resource.data.recordedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
+        && hasValidSubsAccountLink()
         && ((request.resource.data.amountCents is number && request.resource.data.amountCents > 0 && request.resource.data.reversalOfPaymentId == "")
           || (request.resource.data.amountCents is number && request.resource.data.amountCents < 0
             && isExactSubsReversal()))
-        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "amountCents", "method", "paymentDate", "reversalOfPaymentId", "note", "recordedBy", "createdAt"]);
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "accountId", "amountCents", "method", "paymentDate", "reversalOfPaymentId", "note", "recordedBy", "createdAt"]);
       allow update, delete: if false;
     }
 
