@@ -95,7 +95,7 @@ Before treating a release as production-ready:
 
 ## Running the live smoke check manually
 
-Set `SITE_URL` and `EMAIL_API_URL`, then run `npm run smoke:live`. Both values must be HTTPS URLs. The GitHub workflow uses `https://coolock-ardlea-scouts.web.app` for the production site and the existing `VITE_EMAIL_API_URL` repository secret for the Worker.
+Set `SITE_URL` and `EMAIL_API_URL`, then run `npm run smoke:live`. Both values must be HTTPS URLs. The manual production workflow reads `FIREBASE_HOSTING_URL` and `VITE_EMAIL_API_URL` from the protected `production` environment. Use the Firebase-hosted URL for the first verified release, then change `FIREBASE_HOSTING_URL` to the verified canonical custom-domain URL only after Firebase domain verification and managed TLS provisioning complete.
 
 ## Backup and recovery
 
