@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for required_check in 'build' 'Playwright E2E'; do
+          for required_check in 'quality' 'e2e'; do
             conclusions="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" --jq ".check_runs[] | select(.name == \"${required_check}\") | .conclusion")"
             if ! grep -qx 'success' <<< "$conclusions"; then
               echo "::error::Required successful check missing for ${required_check} on ${TARGET_SHA}."
