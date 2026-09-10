@@ -11,8 +11,8 @@ if (!siteUrl.startsWith("https://")) {
   console.error("SITE_URL must be a valid HTTPS URL.");
   process.exit(1);
 }
-if (!emailApiUrl.startsWith("https://")) {
-  console.error("EMAIL_API_URL must be a valid HTTPS URL.");
+if (emailApiUrl && !emailApiUrl.startsWith("https://")) {
+  console.error("EMAIL_API_URL must be a valid HTTPS URL when configured.");
   process.exit(1);
 }
 if (!firebaseApiKey) {
@@ -252,15 +252,19 @@ if (!firebaseStorageEnabled) {
   }
 }
 
-const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
-  method: "OPTIONS",
-  headers: { Origin: siteUrl, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization,content-type" }
-});
-if (corsResponse.status !== 204) fail(`Email Worker preflight returned ${corsResponse.status}`);
-else pass("Email Worker preflight returned 204");
-const allowedOrigin = corsResponse.headers.get("access-control-allow-origin") || "";
-if (allowedOrigin !== siteUrl) fail(`Email Worker allows origin '${allowedOrigin}' instead of '${siteUrl}'`);
-else pass("Email Worker allows the production site origin");
+if (!emailApiUrl) {
+  warn("Production email endpoint is not configured; Email Worker smoke checks are skipped pending SW-14.");
+} else {
+  const corsResponse = await fetch(`${emailApiUrl}/leader-communication`, {
+    method: "OPTIONS",
+    headers: { Origin: siteUrl, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization,content-type" }
+  });
+  if (corsResponse.status !== 204) fail(`Email Worker preflight returned ${corsResponse.status}`);
+  else pass("Email Worker preflight returned 204");
+  const allowedOrigin = corsResponse.headers.get("access-control-allow-origin") || "";
+  if (allowedOrigin !== siteUrl) fail(`Email Worker allows origin '${allowedOrigin}' instead of '${siteUrl}'`);
+  else pass("Email Worker allows the production site origin");
+}
 
 if (failures.length) {
   console.error(`\nLive deployment smoke check failed with ${failures.length} issue(s).`);
