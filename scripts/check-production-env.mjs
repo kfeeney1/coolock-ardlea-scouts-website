@@ -4,8 +4,7 @@ const required = [
   "VITE_FIREBASE_PROJECT_ID",
   "VITE_FIREBASE_STORAGE_BUCKET",
   "VITE_FIREBASE_MESSAGING_SENDER_ID",
-  "VITE_FIREBASE_APP_ID",
-  "VITE_EMAIL_API_URL"
+  "VITE_FIREBASE_APP_ID"
 ];
 
 const missing = required.filter((name) => !String(process.env[name] || "").trim());
@@ -15,13 +14,18 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const emailApiUrl = process.env.VITE_EMAIL_API_URL.trim();
-try {
-  const parsed = new URL(emailApiUrl);
-  if (parsed.protocol !== "https:") throw new Error("not https");
-} catch {
-  console.error("VITE_EMAIL_API_URL must be a valid HTTPS URL.");
-  process.exit(1);
+const emailApiUrl = String(process.env.VITE_EMAIL_API_URL || "").trim();
+if (emailApiUrl) {
+  try {
+    const parsed = new URL(emailApiUrl);
+    if (parsed.protocol !== "https:") throw new Error("not https");
+  } catch {
+    console.error("VITE_EMAIL_API_URL must be a valid HTTPS URL when configured.");
+    process.exit(1);
+  }
+  console.log("Production email endpoint is configured and valid.");
+} else {
+  console.log("Production email endpoint is not configured; email sending remains disabled pending SW-14.");
 }
 
 console.log("Production environment configuration is present and valid.");
