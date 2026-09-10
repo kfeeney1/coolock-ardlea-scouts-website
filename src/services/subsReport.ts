@@ -1,4 +1,4 @@
-import { balanceFor, familyTypeLabel, rateCategoryLabel, type SubsAccount, type SubsAssignment, type SubsPayment } from "./subsLogic";
+import { balanceFor, familyTypeLabel, rateCategoryLabel, type SubsAccount, type SubsAssignment, type SubsPayment } from "./subsLogic.ts";
 
 export type SubsReportMember = { id: string; name: string; section: string };
 
