@@ -8,9 +8,11 @@ const productionSmokeWorkflow = await readFile(new URL(".github/workflows/post-d
 const playwrightWorkflow = await readFile(new URL(".github/workflows/playwright-e2e.yml", root), "utf8");
 const firebaseRc = JSON.parse(await readFile(new URL(".firebaserc", root), "utf8"));
 const firebase = JSON.parse(await readFile(new URL("firebase.json", root), "utf8"));
+const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", root), "utf8"));
 
 const PROD = "coolock-ardlea-scouts";
 const TEST = "coolock-ardlea-scouts-test";
+const TEST_STORAGE_BUCKET = "coolock-ardlea-scouts-test.firebasestorage.app";
 const LOCAL = "demo-coolock-ardlea-scouts";
 const failures = [];
 
@@ -40,6 +42,9 @@ requireContract(firebase?.storage?.rules === "storage.rules", "firebase.json dec
 requireContract(firebaseRc?.projects?.test === TEST, "Firebase TEST alias targets the isolated TEST project.");
 requireContract(firebaseRc?.projects?.production === PROD, "Firebase PRODUCTION alias targets the authoritative production project.");
 requireContract(firebaseRc?.projects?.default === TEST, "The default Firebase CLI alias is non-production.");
+requireContract(firebaseRc?.targets?.[TEST]?.storage?.["test-default"]?.includes(TEST_STORAGE_BUCKET), "TEST Storage deploy target maps to the existing isolated TEST bucket.");
+requireContract(firebaseTest?.storage?.target === "test-default", "TEST Firebase config requires the explicit TEST Storage target.");
+requireContract(firebaseTest?.storage?.rules === "storage.rules", "TEST Firebase config deploys the reviewed Storage rules.");
 
 const productionTriggers = triggerBlock(productionWorkflow);
 requireContract(productionTriggers.includes("workflow_dispatch:"), "Production deployment is explicitly manually dispatched.");
@@ -69,7 +74,8 @@ requireContract(testWorkflow.includes("push:\n    branches:\n      - main"), "TE
 requireContract(testWorkflow.includes("environment: test"), "TEST deployment uses the test GitHub environment.");
 requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment explicitly targets the TEST Firebase project.");
 requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
-requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage,hosting"), "TEST deploys reviewed Rules, indexes, Storage rules and Hosting together.");
+requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
+requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
 
