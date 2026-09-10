@@ -173,6 +173,20 @@ const privateAdminUsers = [
     reportsToUid: "TEST_uid_group_leader",
     showPublicly: false,
     kind: "super-admin"
+  },
+  {
+    uid: "TEST_uid_modern_super_admin_01",
+    email: "test.modern.superadmin@example.com",
+    displayName: "Test Modern Website Super Admin",
+    accessRole: "super-admin",
+    sections: ["Group"],
+    scoutingRole: "Group Council Administrator",
+    organisationSection: "Group",
+    organisationOrder: 92,
+    reportsToUid: "TEST_uid_group_leader",
+    showPublicly: false,
+    kind: "super-admin",
+    uiTheme: "modern"
   }
 ];
 
@@ -252,7 +266,8 @@ async function seedLeader(user) {
     sections: user.sections,
     active: true,
     mobileNumber: "0872000000",
-    testRoleType: user.kind
+    testRoleType: user.kind,
+    ...(user.uiTheme ? { uiTheme: user.uiTheme } : {})
   });
 
   const organisationRecord = {
@@ -302,7 +317,7 @@ async function seed() {
   console.log(`Seeded ${sections.length * sectionRoleTemplates.length} section leadership roles.`);
   console.log(`Seeded ${parents.length} parent-only users and ${sections.length} parent+leader users.`);
   console.log(`Seeded ${sectionLeaders().filter((leader) => leader.kind === "leader-only").length} leader-only section users.`);
-  console.log("Seeded one private multi-section leader scenario and two private website administration fixtures.");
+  console.log("Seeded one private multi-section leader scenario and three private website administration fixtures.");
 }
 
 async function cleanup() {
