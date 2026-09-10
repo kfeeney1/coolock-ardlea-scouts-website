@@ -45,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -184,7 +186,13 @@ jobs:
 
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm run test:e2e
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}"
+          else
+            npm run test:e2e:full
+          fi
 
       - name: Collect E2E service logs on failure
         if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
