@@ -64,11 +64,23 @@ test("leader-family child positions use the configured incremental total",async(
  await assertFails(setDoc(doc(db,"subsAssignments/leader-child-wrong"),{...assignment,amountDueCents:34300}));
 });
 
-test("policies reject malformed family totals",async()=>{
+test("policies and assignments support additional configured child counts",async()=>{
+ await seed([["adminUsers/admin",{active:true,role:"admin",sections:["Group"]}],["members/m1",member()]]);
+ const db=env.authenticatedContext("admin").firestore();
+ const expanded={...policy("admin"),standardFamilyRatesCents:[26400,41900,52400,62900,73400],leaderFamilyRatesCents:[20500,34300,46500,57000]};
+ await assertSucceeds(setDoc(doc(db,"subsRatePolicies/expanded"),expanded));
+ const fifth={memberId:"m1",memberName:"Member One",section:"Cubs",period:"2026/27",category:"sibling",amountDueCents:10500,policyId:"expanded",policyVersion:1,sibling:true,leaderChild:false,familyType:"standard",familyPosition:5,classifiedBy:"admin",createdAt:serverTimestamp()};
+ await assertSucceeds(setDoc(doc(db,"subsAssignments/fifth-child"),fifth));
+ await assertFails(setDoc(doc(db,"subsAssignments/sixth-child"),{...fifth,familyPosition:6}));
+ const fourthLeader={...fifth,category:"leader-child",amountDueCents:10500,familyType:"leader",familyPosition:4,leaderChild:true};
+ await assertSucceeds(setDoc(doc(db,"subsAssignments/fourth-leader-child"),fourthLeader));
+});
+
+test("policies reject unusable family-rate table roots",async()=>{
  await seed([["adminUsers/admin",{active:true,role:"admin",sections:["Group"]}]]);
  const db=env.authenticatedContext("admin").firestore();
- await assertFails(setDoc(doc(db,"subsRatePolicies/bad-count"),{...policy("admin"),standardFamilyRatesCents:[26400,41900,52400]}));
- await assertFails(setDoc(doc(db,"subsRatePolicies/decreasing"),{...policy("admin"),leaderFamilyRatesCents:[20500,19000,46500]}));
+ await assertFails(setDoc(doc(db,"subsRatePolicies/empty-standard"),{...policy("admin"),standardFamilyRatesCents:[]}));
+ await assertFails(setDoc(doc(db,"subsRatePolicies/empty-leader"),{...policy("admin"),leaderFamilyRatesCents:[]}));
  await assertFails(setDoc(doc(db,"subsRatePolicies/mismatched-first"),{...policy("admin"),standardCents:1}));
 });
 
