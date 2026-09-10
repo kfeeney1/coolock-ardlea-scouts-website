@@ -60,7 +60,7 @@ service cloud.firestore {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
     function canAccessFinanceSection(section) {
-      return isActiveLeader() && section is string && (canViewAllFinance() || hasSection(section));
+      return isActiveLeader() && section is string && (hasSection(section) || canViewAllFinance());
     }
     function hasResourceSection(data) {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
