@@ -64,8 +64,13 @@ jobs:
           node scripts/verify-test-population.mjs
       - name: Verify TEST release metadata and public boundaries
         run: |
+          set -euo pipefail
           node scripts/check-live-build-info.mjs
-          npm run smoke:live
+          if [ -n "${EMAIL_API_URL:-}" ]; then
+            npm run smoke:live
+          else
+            echo "TEST email integration is intentionally disabled; skipping email-dependent live smoke."
+          fi
         env:
           SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
           EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
