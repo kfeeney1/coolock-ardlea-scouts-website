@@ -12,7 +12,7 @@ const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", roo
 
 const PROD = "coolock-ardlea-scouts";
 const TEST = "coolock-ardlea-scouts-test";
-const TEST_STORAGE_BUCKET = "coolock-ardlea-scouts-test.firebasestorage.app";
+const ISOLATED_STORAGE_BUCKET = "coolock-ardlea-scouts-test.firebasestorage.app";
 const LOCAL = "demo-coolock-ardlea-scouts";
 const failures = [];
 
@@ -42,7 +42,7 @@ requireContract(firebase?.storage?.rules === "storage.rules", "firebase.json dec
 requireContract(firebaseRc?.projects?.test === TEST, "Firebase TEST alias targets the isolated TEST project.");
 requireContract(firebaseRc?.projects?.production === PROD, "Firebase PRODUCTION alias targets the authoritative production project.");
 requireContract(firebaseRc?.projects?.default === TEST, "The default Firebase CLI alias is non-production.");
-requireContract(firebaseRc?.targets?.[TEST]?.storage?.["test-default"]?.includes(TEST_STORAGE_BUCKET), "TEST Storage deploy target maps to the existing isolated TEST bucket.");
+requireContract(firebaseRc?.targets?.[TEST]?.storage?.["test-default"]?.includes(ISOLATED_STORAGE_BUCKET), "TEST Storage deploy target maps to the existing isolated TEST bucket.");
 requireContract(firebaseTest?.storage?.target === "test-default", "TEST Firebase config requires the explicit TEST Storage target.");
 requireContract(firebaseTest?.storage?.rules === "storage.rules", "TEST Firebase config deploys the reviewed Storage rules.");
 
