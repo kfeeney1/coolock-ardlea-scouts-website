@@ -1,7 +1,7 @@
 const PRODUCTION_PROJECT_ID = "coolock-ardlea-scouts";
-const TEST_PROJECT_ID = "coolock-ardlea-scouts-test";
+const TESTING_PROJECT_ID = "coolock-ardlea-scouts-test";
 const ALLOWED = new Map([
-  ["test", TEST_PROJECT_ID],
+  ["test", TESTING_PROJECT_ID],
   ["production", PRODUCTION_PROJECT_ID],
 ]);
 
@@ -32,7 +32,7 @@ if (projectId !== expectedProjectId) {
 if (environment === "test" && projectId === PRODUCTION_PROJECT_ID) {
   fail("TEST must never target the production Firebase project");
 }
-if (environment === "production" && projectId === TEST_PROJECT_ID) {
+if (environment === "production" && projectId === TESTING_PROJECT_ID) {
   fail("PRODUCTION must never target the TEST Firebase project");
 }
 
