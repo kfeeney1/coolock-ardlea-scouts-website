@@ -14,9 +14,17 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: production
+    env:
+      DEPLOY_ENVIRONMENT: production
+      FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_AUDIT }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate production audit target and credential
+        run: node scripts/validate-firebase-environment.mjs --environment production --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -36,71 +44,51 @@ jobs:
       - name: Inventory live TEST-data candidates
         id: inventory
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/inventory-live-test-data.mjs 2>&1 | tee firestore-audit-report/00-test-data-inventory.txt
 
       - name: Audit live Firestore provenance in one pass
         id: provenance
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-live-data-provenance.mjs 2>&1 | tee firestore-audit-report/01-provenance.txt
 
       - name: Report safely migratable active leader section profiles
         id: leader_sections
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-admin-user-sections.mjs --check 2>&1 | tee firestore-audit-report/02-leader-sections.txt
 
       - name: Audit live non-meeting Firestore compatibility
         id: compatibility
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-firestore-compatibility.mjs 2>&1 | tee firestore-audit-report/03-compatibility.txt
 
       - name: Audit live weekly meeting compatibility
         id: weekly_meetings
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-weekly-meeting-compatibility.mjs 2>&1 | tee firestore-audit-report/04-weekly-meetings.txt
 
       - name: Audit live meeting record compatibility
         id: meeting_records
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-meeting-record-compatibility.mjs 2>&1 | tee firestore-audit-report/05-meeting-records.txt
 
       - name: Require canonical meeting record schema
         id: meeting_migrations
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-meeting-records.mjs --check 2>&1 | tee firestore-audit-report/06-meeting-migrations.txt
 
       - name: Report unprovenanced leadership records
         id: leadership_provenance
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/reconcile-leadership-provenance.mjs --check 2>&1 | tee firestore-audit-report/07-leadership-provenance.txt
 
       - name: Audit parent event-gallery access projections
         id: gallery_access
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node scripts/audit-event-gallery-access.mjs 2>&1 | tee firestore-audit-report/08-gallery-access.txt
 
       - name: Audit Adventure Skills nested progress
         id: adventure_skills
         continue-on-error: true
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
         run: set -o pipefail; node --experimental-strip-types scripts/audit-adventure-skill-integrity.mjs 2>&1 | tee firestore-audit-report/09-adventure-skills.txt
 
       - name: Upload dry-run integrity report

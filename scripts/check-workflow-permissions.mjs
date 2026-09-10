@@ -4,9 +4,7 @@ const root = new URL("../", import.meta.url);
 const workflowsDirectory = new URL(".github/workflows/", root);
 const failures = [];
 
-const allowedWriteScopes = new Map([
-  ["firebase-hosting-merge.yml", new Set(["checks"])],
-]);
+const allowedWriteScopes = new Map();
 
 function fail(message) {
   failures.push(message);

@@ -13,7 +13,7 @@ on:
           - seed
           - rollback
       confirmation:
-        description: "For seed type SEED EQUIPMENT; for rollback type ROLLBACK EQUIPMENT"
+        description: "For seed type SEED EQUIPMENT coolock-ardlea-scouts; for rollback type ROLLBACK EQUIPMENT coolock-ardlea-scouts"
         required: false
         type: string
       expected_create_count:
@@ -31,6 +31,10 @@ permissions:
 concurrency:
   group: production-equipment-seed
   cancel-in-progress: false
+
+env:
+  DEPLOY_ENVIRONMENT: production
+  FIREBASE_PROJECT_ID: coolock-ardlea-scouts
 
 jobs:
   equipment:
@@ -53,30 +57,36 @@ jobs:
           EXPECTED_SHA256: ${{ inputs.expected_manifest_sha256 }}
         run: |
           set -euo pipefail
-          if [[ "$ACTION" == "seed" && ( "$CONFIRMATION" != "SEED EQUIPMENT" || ! "$EXPECTED_CREATE_COUNT" =~ ^[0-9]+$ || ! "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ) ]]; then
-            echo "::error::Seed requires exact confirmation plus count and SHA-256 copied from a separate dry run."
+          if [[ "$ACTION" == "seed" && ( "$CONFIRMATION" != "SEED EQUIPMENT coolock-ardlea-scouts" || ! "$EXPECTED_CREATE_COUNT" =~ ^[0-9]+$ || ! "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ) ]]; then
+            echo "::error::Seed requires exact project confirmation plus count and SHA-256 copied from a separate dry run."
             exit 1
           fi
-          if [[ "$ACTION" == "rollback" && "$CONFIRMATION" != "ROLLBACK EQUIPMENT" ]]; then
-            echo "::error::Rollback requires the exact confirmation ROLLBACK EQUIPMENT."
+          if [[ "$ACTION" == "rollback" && "$CONFIRMATION" != "ROLLBACK EQUIPMENT coolock-ardlea-scouts" ]]; then
+            echo "::error::Rollback requires exact production project confirmation."
             exit 1
           fi
+      - name: Validate production operations credential target
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        run: node scripts/validate-firebase-environment.mjs --environment production --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Dry run
         if: ${{ inputs.action == 'dry-run' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
         run: npm run seed:equipment
       - name: Seed reviewed equipment
         if: ${{ inputs.action == 'seed' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
           PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT: ${{ inputs.expected_create_count }}
           PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256: ${{ inputs.expected_manifest_sha256 }}
+          ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
         run: npm run seed:equipment -- --execute
       - name: Roll back reviewed equipment seed
         if: ${{ inputs.action == 'rollback' }}
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
           PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
+          ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
         run: npm run seed:equipment -- --rollback

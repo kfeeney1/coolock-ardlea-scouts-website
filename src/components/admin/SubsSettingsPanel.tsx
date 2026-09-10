@@ -120,6 +120,20 @@ export default function SubsSettingsPanel() {
     setError("");
   };
 
+  const addRate = (type: "standard" | "leader") => {
+    const setter = type === "standard" ? setStandardRates : setLeaderRates;
+    setter((current) => [...current, ""]);
+    setMessage("");
+    setError("");
+  };
+
+  const removeLastRate = (type: "standard" | "leader") => {
+    const setter = type === "standard" ? setStandardRates : setLeaderRates;
+    setter((current) => current.length > 1 ? current.slice(0, -1) : current);
+    setMessage("");
+    setError("");
+  };
+
   const savePolicy = async () => {
     setSaving(true);
     setMessage("");
@@ -199,18 +213,29 @@ export default function SubsSettingsPanel() {
         </Box>
 
         <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>Standard family total</Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" }, gap: 2 }}>
           {standardRates.map((value, index) => (
-            <TextField key={`standard-${index}`} label={`${index + 1} child${index ? "ren" : ""} (EUR)`} value={value} onChange={(event) => setRate("standard", index, event.target.value)} />
+            <TextField key={`standard-${index}`} data-testid={`subs-standard-rate-${index + 1}`} label={`${index + 1} child${index ? "ren" : ""} (EUR)`} value={value} onChange={(event) => setRate("standard", index, event.target.value)} />
           ))}
         </Box>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
+          <Button variant="outlined" onClick={() => addRate("standard")} data-testid="subs-add-standard-rate">Add standard child rate</Button>
+          <Button variant="text" disabled={standardRates.length <= 1} onClick={() => removeLastRate("standard")}>Remove last standard rate</Button>
+        </Stack>
 
         <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>Leader family total</Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 2 }}>
           {leaderRates.map((value, index) => (
-            <TextField key={`leader-${index}`} label={`${index + 1} child${index ? "ren" : ""} (EUR)`} value={value} onChange={(event) => setRate("leader", index, event.target.value)} />
+            <TextField key={`leader-${index}`} data-testid={`subs-leader-rate-${index + 1}`} label={`${index + 1} child${index ? "ren" : ""} (EUR)`} value={value} onChange={(event) => setRate("leader", index, event.target.value)} />
           ))}
         </Box>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
+          <Button variant="outlined" onClick={() => addRate("leader")} data-testid="subs-add-leader-rate">Add leader child rate</Button>
+          <Button variant="text" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
+        </Stack>
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          If a family has more active children than this policy defines, no amount is inferred. Add the exact approved family-size rate before classifying or billing that family.
+        </Alert>
         <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving} onClick={() => void savePolicy()}>
           {saving ? "Saving…" : "Save immutable rate policy"}
         </Button>

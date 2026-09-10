@@ -112,8 +112,11 @@ export function familyRatesFor(policy: SubsRatePolicy, type: SubsFamilyType): nu
 
 export function familyTotalFor(policy: SubsRatePolicy, type: SubsFamilyType, childCount: number): number {
   const rates = familyRatesFor(policy, type);
-  if (!Number.isInteger(childCount) || childCount < 1 || childCount > rates.length) {
-    throw new Error(`${familyTypeLabel(type)} supports between 1 and ${rates.length} children for this policy.`);
+  if (!Number.isInteger(childCount) || childCount < 1) {
+    throw new Error("Family child count must be a positive integer.");
+  }
+  if (childCount > rates.length) {
+    throw new Error(`Rate not configured for ${childCount} children in this ${familyTypeLabel(type).toLowerCase()}.`);
   }
   return rates[childCount - 1];
 }

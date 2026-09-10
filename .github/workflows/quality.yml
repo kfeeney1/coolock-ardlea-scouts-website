@@ -14,6 +14,12 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      VITE_APP_ENV: local
+      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,30 +47,18 @@ jobs:
           echo "::error::Production dependency audit did not complete successfully after two bounded attempts."
           exit 1
 
-      - name: Explain Dependabot production-config policy
-        if: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' }}
-        run: echo "Dependabot pull requests do not receive repository secrets, so production environment validation is intentionally deferred. The install, production dependency audit, lint, unit tests, seed contract, hosting config and production build still run in this job."
-
-      - name: Validate production configuration
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm run check:production-env
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}
+      - name: Verify normal CI is isolated from production configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${VITE_APP_ENV}" != "local" || "${VITE_FIREBASE_PROJECT_ID}" != demo-* ]]; then
+            echo "::error::Quality CI must use only the local/demo Firebase identity."
+            exit 1
+          fi
+          if env | grep -Eq '^(FIREBASE_SERVICE_ACCOUNT_JSON|VITE_EMAIL_API_URL)='; then
+            echo "::error::Normal Quality CI must not receive Firebase service-account or email-delivery configuration."
+            exit 1
+          fi
 
       - name: Run quality gate
         run: npm run quality:checks
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_EMAIL_API_URL: ${{ secrets.VITE_EMAIL_API_URL }}

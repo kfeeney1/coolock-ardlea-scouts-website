@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import TestEnvironmentBanner from "./components/TestEnvironmentBanner";
 import { installSitewideDateFormat } from "./services/siteDateFormat";
 
 import "./index.css";
@@ -33,6 +34,7 @@ ReactDOM
     <React.StrictMode>
       <AppErrorBoundary>
         <BrowserRouter>
+          <TestEnvironmentBanner />
           <App />
         </BrowserRouter>
       </AppErrorBoundary>

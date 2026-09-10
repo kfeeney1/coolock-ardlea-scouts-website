@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "coolock-ardlea-scouts"
+    "default": "coolock-ardlea-scouts-test",
+    "test": "coolock-ardlea-scouts-test",
+    "production": "coolock-ardlea-scouts"
   }
 }
