@@ -22,9 +22,9 @@ export default function SubsSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [period, setPeriod] = useState(AGREED_SUBS_2026_27.period);
-  const [periodStart, setPeriodStart] = useState(AGREED_SUBS_2026_27.periodStart);
-  const [periodEnd, setPeriodEnd] = useState(AGREED_SUBS_2026_27.periodEnd);
+  const [period, setPeriod] = useState<string>(AGREED_SUBS_2026_27.period);
+  const [periodStart, setPeriodStart] = useState<string>(AGREED_SUBS_2026_27.periodStart);
+  const [periodEnd, setPeriodEnd] = useState<string>(AGREED_SUBS_2026_27.periodEnd);
   const [version, setVersion] = useState("1");
   const [standardRates, setStandardRates] = useState(AGREED_SUBS_2026_27.standardFamilyRatesCents.map(euroValue));
   const [leaderRates, setLeaderRates] = useState(AGREED_SUBS_2026_27.leaderFamilyRatesCents.map(euroValue));
@@ -106,7 +106,7 @@ export default function SubsSettingsPanel() {
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 2 }}>
         {leaderRates.map((value, index) => <TextField key={`leader-${index}`} data-testid={`subs-leader-rate-${index + 1}`} label={`${index + 1} member${index ? "s" : ""} (EUR)`} value={value} onChange={(event) => setRate("leader", index, event.target.value)} />)}
       </Box>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
+      <Stack direction={{ xs: "column", sm:"row" }} spacing={1} sx={{ mt: 1.5 }}>
         <Button variant="outlined" onClick={() => addRate("leader")} data-testid="subs-add-leader-rate">Add leader family member rate</Button>
         <Button variant="text" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
       </Stack>
