@@ -30,6 +30,7 @@
     "check:seed-contract": "node scripts/verify-repo-seed-contract.mjs",
     "smoke:live": "node scripts/check-live-deployment.mjs",
     "seed:equipment": "node scripts/import-equipment.mjs --manifest=config/sw-42-equipment-seed.json",
+    "seed:members": "node scripts/import-members.mjs",
     "quality:checks": "npm run lint && npm test && npm run test:email-worker && npm run check:seed-contract && npm run check:playwright-suite && npm run check:dropdown-implementation && npm run check:source-complexity && npm run check:hosting-config && npm run check:firebase-deploy-config && npm run check:firestore-audit-coverage && npm run check:rbac-matrix && npm run check:rbac-test-coverage && npm run check:workflow-permissions && npm run check:workflow-action-pinning && npm run check:workflow-production-credentials && npm run check:smoke-script && npm run build",
     "quality": "npm run audit:production && npm run quality:checks",
     "preview": "vite preview"
