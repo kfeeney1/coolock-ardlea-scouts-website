@@ -193,6 +193,16 @@ export function validateFamilyAccountSelection(memberIds: string[], classificati
   return { memberIds: unique, classificationNote: note };
 }
 
+export function subsFamilyAccountId(period: string, memberIds: string[]): string {
+  const safePeriod = validatePeriod(period).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const members = [...new Set(memberIds.filter(Boolean))].sort();
+  if (!members.length || members.length !== memberIds.length) throw new Error("Family account identity requires each child exactly once.");
+  if (members.some((memberId) => !/^[A-Za-z0-9_-]{1,128}$/.test(memberId))) throw new Error("Family account contains an invalid member identifier.");
+  const id = `${safePeriod}--${members.join("--")}`;
+  if (id.length > 1400) throw new Error("Family account contains too many members for a stable identifier.");
+  return id;
+}
+
 function validateFamilyRates(rates: number[] | undefined, label: string): void {
   if (!rates?.length) return;
   let previous = 0;
