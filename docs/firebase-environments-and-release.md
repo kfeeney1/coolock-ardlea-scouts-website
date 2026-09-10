@@ -42,15 +42,20 @@ TEST must permit the automatic `main` deployment. If deployment-branch restricti
 
 Protect this environment with required human reviewer approval and restrict deployment branches to `main` where supported. Production values must never be copied into the `test` environment or repository-level normal-CI secrets.
 
-Configure directly in GitHub:
+Use separate least-privilege credentials for separate production purposes. Do not reuse the deployment credential for maintenance, audit or backup work:
 
-- secret: `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION`
-- the same variable names listed above, but all values must belong to the production project/services
-- `VITE_FIREBASE_PROJECT_ID` must equal `coolock-ardlea-scouts`
+- `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION` — manual Firebase Hosting/Rules release only.
+- `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS` — explicitly confirmed manual operational mutations such as approved rebuilds/equipment seed only.
+- `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_AUDIT` — manual read-only production integrity/provenance audit only.
+- `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP` — scheduled/manual Firestore export and backup-freshness access only.
+
+The production deployment workflow also uses the same public Firebase variable names listed for TEST, but every production value must belong to `coolock-ardlea-scouts`; `VITE_FIREBASE_PROJECT_ID` must equal that exact project ID.
 
 The production workflow requires `workflow_dispatch`, the exact project-ID confirmation and an exact 40-character commit SHA. It proves that SHA is contained in current `main`, requires successful protected CI evidence, reruns security/unit/Rules checks, validates the service-account `project_id`, and only then deploys the reviewed Rules/indexes/Storage rules/Hosting bundle.
 
 A green merge never triggers production deployment.
+
+Normal PR/push Quality and Playwright workflows receive no production service-account credential and no production email-delivery configuration. Quality uses the local/demo Firebase identity; Playwright uses Firebase emulators and deterministic synthetic data.
 
 ## Firebase TEST project owner setup
 
@@ -74,12 +79,22 @@ The existing `coolock-ardlea-scouts` project remains authoritative production un
 Before any approved release, confirm:
 
 - target project resolves exactly to `coolock-ardlea-scouts`;
-- production service-account `project_id` is exactly `coolock-ardlea-scouts`;
+- production deployment service-account `project_id` is exactly `coolock-ardlea-scouts`;
 - selected SHA is in current `main`;
 - protected Quality and Playwright checks are successful for the selected SHA;
 - Firestore and Storage Rules tests pass against emulators;
 - production build contains `VITE_APP_ENV=production` and production-only public Firebase config;
 - post-deployment checks are read-only.
+
+Production maintenance credentials must be restricted to the resources/actions required for their documented purpose. Scheduled backup is a resilience control, not a deployment trigger; it must never gain Hosting/Rules release authority.
+
+## Operational mutation policy
+
+Operational scripts must never infer production from a default Firebase project. New or modified mutators must use `scripts/firebase-operation-guard.mjs` or equivalent fail-closed validation.
+
+For scripts that support local automation, local writes require emulator hosts. TEST writes require the explicit TEST project and TEST-only credential. Production writes are unsupported by default; an approved production-capable script must explicitly opt in and require exact project confirmation plus `ALLOW_PRODUCTION_MUTATION=I_UNDERSTAND` and its script-specific confirmation/evidence.
+
+Canonical synthetic seed data is TEST/local data. It must never contain real child, guardian, medical, consent or other personal data and must never be restored into production.
 
 ## Rollback
 
