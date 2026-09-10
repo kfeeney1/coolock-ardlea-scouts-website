@@ -44,8 +44,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
     }
     function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
-    function canViewAllFinance() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
-    function canManageSubsPolicy() { return isAdmin() || isGroupLeader() || isGroupTreasurer(); }
+    function canViewAllFinance() {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      return isActiveLeader()
+        && (profile().role in ["super-admin", "admin"]
+          || (exists(organisationPath)
+            && get(organisationPath).data.active == true
+            && get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]));
+    }
+    function canManageSubsPolicy() { return canViewAllFinance(); }
     function isOrdinaryLeaderTarget(userId) {
       return exists(/databases/$(database)/documents/adminUsers/$(userId))
         && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
@@ -60,7 +67,7 @@ service cloud.firestore {
       return isAdmin() || (isActiveLeader() && section in profile().sections);
     }
     function canAccessFinanceSection(section) {
-      return isActiveLeader() && section is string && (hasSection(section) || canViewAllFinance());
+      return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
     }
     function hasResourceSection(data) {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
