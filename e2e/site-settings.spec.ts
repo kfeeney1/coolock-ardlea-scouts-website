@@ -41,3 +41,27 @@ test("ordinary leader cannot access site settings", async ({ page }, testInfo) =
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
 });
+
+test("admin can extend standard and leader family rate tables", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.webadmin@example.com");
+  await page.goto("/leader/settings");
+
+  await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
+  await page.getByTestId("subs-add-standard-rate").click();
+  const standardFive = page.getByTestId("subs-standard-rate-5");
+  await expect(standardFive).toBeVisible();
+  await standardFive.getByRole("textbox").fill("734.00");
+
+  await page.getByTestId("subs-add-leader-rate").click();
+  const leaderFour = page.getByTestId("subs-leader-rate-4");
+  await expect(leaderFour).toBeVisible();
+  await leaderFour.getByRole("textbox").fill("570.00");
+
+  await expect(page.getByText(/no amount is inferred/i)).toBeVisible();
+  await standardFive.getByRole("textbox").fill("bad");
+  await page.getByRole("button", { name: "Save immutable rate policy" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: /valid euro amount/i })).toBeVisible();
+});
