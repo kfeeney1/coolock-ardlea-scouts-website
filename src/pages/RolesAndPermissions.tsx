@@ -9,6 +9,7 @@ import {
   PERMISSION_REGISTRY,
   SYSTEM_ACCESS_ROLES
 } from "../security/permissionRegistry";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 
 const areaOrder = [...new Set(PERMISSION_REGISTRY.map((permission) => permission.area))];
 
@@ -32,7 +33,15 @@ export default function RolesAndPermissions() {
   const effective = effectivePermissionsFor(adminProfile.role, adminProfile.scoutingRole);
   const effectiveIds = new Set(effective.map((permission) => permission.id));
   const canManageSystemRoles = adminProfile.role === "super-admin";
-  const canManageOrdinaryAccess = adminProfile.role === "admin" || canManageSystemRoles;
+  const canManageAdminAccess = adminProfile.role === "admin";
+  const canDelegateOperationalAccess = isGroupLeadershipAppointment(adminProfile.scoutingRole);
+  const canManageOrdinaryAccess = canManageSystemRoles || canManageAdminAccess || canDelegateOperationalAccess;
+
+  const administrationGuidance = canManageSystemRoles
+    ? "Super Admin may also promote or demote non-Super-Admin accounts between Leader and Admin. Protected Super Admin accounts cannot be altered here."
+    : canManageAdminAccess
+      ? "Admin may manage ordinary leader activation, sections and appointments, but cannot grant Admin or Super Admin system access."
+      : "Group Leadership may update ordinary Leader section scope and permitted operational appointments, but cannot change activation or any system role.";
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
@@ -56,12 +65,10 @@ export default function RolesAndPermissions() {
             Manage user roles & appointments
           </Button>
           <Typography variant="body2" color="text.secondary">
-            {canManageSystemRoles
-              ? "Super Admin may also promote or demote non-Super-Admin accounts between Leader and Admin. Protected Super Admin accounts cannot be altered here."
-              : "Admin may manage ordinary leader activation, sections and appointments, but cannot grant Admin or Super Admin system access."}
+            {administrationGuidance}
           </Typography>
         </Stack> : <Alert severity="warning">
-          Your current role can inspect the permission model but cannot change system role assignments.
+          Your current role can inspect the permission model but cannot change role or appointment assignments.
         </Alert>}
       </Paper>
 
