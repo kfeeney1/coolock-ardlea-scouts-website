@@ -18,10 +18,13 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
+import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import EquipmentOperationsDashboard from "../components/admin/EquipmentOperationsDashboard";
+import type { EquipmentDashboardFilter } from "../components/admin/EquipmentOperationsDashboard";
 import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -64,9 +67,12 @@ const EMPTY_FORM: EquipmentFormState = {
   replacementValue: null
 };
 
+type InventoryStatusFilter = EquipmentDashboardFilter;
+
 export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
   const [incidents, setIncidents] = useState<EquipmentIncident[]>([]);
@@ -74,10 +80,6 @@ export default function EquipmentManagement() {
   const [locations, setLocations] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
-  const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
   const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
   const [form, setForm] = useState<EquipmentFormState>(EMPTY_FORM);
@@ -86,6 +88,22 @@ export default function EquipmentManagement() {
   const [saving, setSaving] = useState(false);
   const [manageLocationsOpen, setManageLocationsOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
+
+  const search = searchParams.get("q") ?? "";
+  const categoryFilter = searchParams.get("category") ?? "all";
+  const locationFilter = searchParams.get("store") ?? "all";
+  const statusParam = searchParams.get("status") ?? "all";
+  const statusFilter: InventoryStatusFilter = ["all", "available", "checked-out", "unavailable"].includes(statusParam)
+    ? statusParam as InventoryStatusFilter
+    : "all";
+  const showArchived = searchParams.get("archived") === "1";
+
+  const updateFilterParam = (key: string, value: string, defaultValue = "all", replace = false) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === defaultValue) next.delete(key);
+    else next.set(key, value);
+    setSearchParams(next, { replace });
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -118,25 +136,36 @@ export default function EquipmentManagement() {
     ...DEFAULT_EQUIPMENT_CATEGORIES.filter((item) => item !== "Other"),
     ...categories.map((item) => item.name)
   ])).sort((a, b) => a.localeCompare(b)), [categories]);
-  const locationNames = useMemo(() => locations.map((item) => item.name), [locations]);
+  const locationNames = useMemo(() => Array.from(new Set([
+    ...locations.map((item) => item.name),
+    ...items.map((item) => item.location.trim()).filter(Boolean)
+  ])).sort((a, b) => a.localeCompare(b)), [locations, items]);
   const activeItems = useMemo(() => items.filter((item) => !item.archived), [items]);
+  const hasUnassignedStore = useMemo(() => items.some((item) => !item.location.trim()), [items]);
 
   const visibleItems = useMemo(() => items.filter((item) => {
     if (!showArchived && item.archived) return false;
     if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
-    if (locationFilter !== "all" && item.location !== locationFilter) return false;
+    if (locationFilter === UNASSIGNED_EQUIPMENT_STORE && item.location.trim()) return false;
+    if (locationFilter !== "all" && locationFilter !== UNASSIGNED_EQUIPMENT_STORE && item.location !== locationFilter) return false;
+    if (statusFilter === "available" && availableEquipmentQuantity(item) <= 0) return false;
+    if (statusFilter === "checked-out" && item.checkedOutQuantity <= 0) return false;
+    if (statusFilter === "unavailable" && item.unavailableQuantity <= 0) return false;
     const query = search.trim().toLowerCase();
     if (!query) return true;
     return [item.name, item.category, item.location, item.notes].join(" ").toLowerCase().includes(query);
-  }), [items, search, categoryFilter, locationFilter, showArchived]);
+  }), [items, search, categoryFilter, locationFilter, statusFilter, showArchived]);
 
-  const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || showArchived);
+  const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || statusFilter !== "all" || showArchived);
 
-  const resetFilters = () => {
-    setSearch("");
-    setCategoryFilter("all");
-    setLocationFilter("all");
-    setShowArchived(false);
+  const resetFilters = () => setSearchParams(new URLSearchParams());
+
+  const showInventoryFilter = (filter: EquipmentDashboardFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (filter === "all") next.delete("status");
+    else next.set("status", filter);
+    setSearchParams(next);
+    requestAnimationFrame(() => document.querySelector('[data-testid="equipment-inventory-controls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const openCreate = () => {
@@ -187,11 +216,11 @@ export default function EquipmentManagement() {
       let location = form.location;
       if (location === OTHER) {
         const safe = normaliseEquipmentLabel(newLocation);
-        if (!safe) throw new Error("Enter the new storage location.");
-        if (isDuplicateEquipmentLabel(safe, locationNames)) throw new Error("That location already exists. Select it from the list instead.");
+        if (!safe) throw new Error("Enter the new Store name.");
+        if (isDuplicateEquipmentLabel(safe, locationNames)) throw new Error("That Store already exists. Select it from the list instead.");
         location = (await addEquipmentOption("locations", safe)).name;
       }
-      if (!category || !location) throw new Error("Choose a category and storage location.");
+      if (!category || !location) throw new Error("Choose a category and Store.");
 
       const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
       if (editing) await updateEquipmentItem(editing.id, payload);
@@ -214,7 +243,7 @@ export default function EquipmentManagement() {
       await refresh();
     } catch (deleteError) {
       console.error(`Unable to delete equipment ${kind}:`, deleteError);
-      setError(`Unable to delete that ${kind === "categories" ? "category" : "storage location"}.`);
+      setError(`Unable to delete that ${kind === "categories" ? "category" : "Store"}.`);
     }
   };
 
@@ -235,13 +264,13 @@ export default function EquipmentManagement() {
     open: boolean,
     close: () => void
   ) => <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
-    <DialogTitle>Manage {kind === "categories" ? "custom categories" : "storage locations"}</DialogTitle>
+    <DialogTitle>Manage {kind === "categories" ? "custom categories" : "Stores"}</DialogTitle>
     <DialogContent dividers>
-      {options.length === 0 ? <Alert severity="info">No saved {kind === "categories" ? "custom categories" : "locations"} yet. Add one by choosing Other… when adding equipment.</Alert> : <Stack spacing={1.25}>{options.map((option) => {
+      {options.length === 0 ? <Alert severity="info">No saved {kind === "categories" ? "custom categories" : "Stores"} yet. Add one by choosing Other… when adding equipment.</Alert> : <Stack spacing={1.25}>{options.map((option) => {
         const values = activeItems.map((item) => kind === "categories" ? item.category : item.location);
         const usage = values.filter((value) => value.toLowerCase() === option.name.toLowerCase()).length;
         return <Paper key={option.id} variant="outlined" sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
-          <Box><Typography sx={{ fontWeight: 700 }}>{option.name}</Typography><Typography variant="body2" color="text.secondary">{usage ? `${usage} equipment record${usage === 1 ? "" : "s"} currently use this ${kind === "categories" ? "category" : "location"}` : "Unused"}</Typography></Box>
+          <Box><Typography sx={{ fontWeight: 700 }}>{option.name}</Typography><Typography variant="body2" color="text.secondary">{usage ? `${usage} equipment record${usage === 1 ? "" : "s"} currently use this ${kind === "categories" ? "category" : "Store"}` : "Unused"}</Typography></Box>
           <Button color="error" disabled={!canDeleteEquipmentOption(option.name, values)} onClick={() => void removeOption(kind, option)}>Delete</Button>
         </Paper>;
       })}</Stack>}
@@ -252,51 +281,39 @@ export default function EquipmentManagement() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Equipment & Stores" description="Track stock, section holdings, returns, equipment history and broken, lost or missing equipment." />
+      <LeaderPageHeader title="Equipment & Stores" description="Track stock, Stores, section holdings, returns, equipment history and broken, lost or missing equipment." />
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} />}
+      {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
       {!loading && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
       {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
-      <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-inventory-controls">
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Detailed inventory</Typography>
-          <Typography color="text.secondary">Search, filter and manage the full equipment catalogue.</Typography>
-        </Box>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField fullWidth label="Search equipment" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "equipment-search" } }} />
-          <FormControl fullWidth>
-            <InputLabel id="equipment-category-filter-label">Category</InputLabel>
-            <Select id="equipment-category-filter" labelId="equipment-category-filter-label" label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} data-testid="equipment-category-filter">
-              <MenuItem value="all">All categories</MenuItem>
-              {categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth>
-            <InputLabel id="equipment-location-filter-label">Location</InputLabel>
-            <Select id="equipment-location-filter" labelId="equipment-location-filter-label" label="Location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} data-testid="equipment-location-filter">
-              <MenuItem value="all">All locations</MenuItem>
-              {locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-            </Select>
-          </FormControl>
-        </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ mt: 2, flexWrap: "wrap" }}>
-          {canManage && <Button variant="contained" color="success" onClick={openCreate}>Add equipment</Button>}
-          {canManage && <Button variant="outlined" onClick={() => setManageLocationsOpen(true)}>Manage locations</Button>}
-          {canManage && <Button variant="outlined" onClick={() => setManageCategoriesOpen(true)}>Manage categories</Button>}
-          <Button variant="outlined" onClick={() => setShowArchived((value) => !value)} aria-pressed={showArchived} data-testid="equipment-archived-filter">{showArchived ? "Hide archived" : "Show archived"}</Button>
-          {hasActiveFilters && <Button variant="outlined" onClick={resetFilters} data-testid="equipment-reset-filters">Reset filters</Button>}
-          <Button variant="outlined" onClick={() => void refresh()}>Refresh</Button>
-        </Stack>
-        {!loading && (
-          <Typography sx={{ mt: 2 }} color="text.secondary" role="status" aria-live="polite" data-testid="equipment-result-count">
-            {visibleItems.length} matching equipment item{visibleItems.length === 1 ? "" : "s"}
-          </Typography>
-        )}
-      </Paper>
+      <EquipmentInventoryFilters
+        search={search}
+        status={statusFilter}
+        category={categoryFilter}
+        store={locationFilter}
+        showArchived={showArchived}
+        categories={categoryNames}
+        stores={locationNames}
+        hasUnassignedStore={hasUnassignedStore}
+        canManage={canManage}
+        hasActiveFilters={hasActiveFilters}
+        loading={loading}
+        resultCount={visibleItems.length}
+        onSearchChange={(value) => updateFilterParam("q", value, "", true)}
+        onStatusChange={(value) => updateFilterParam("status", value)}
+        onCategoryChange={(value) => updateFilterParam("category", value)}
+        onStoreChange={(value) => updateFilterParam("store", value)}
+        onAddEquipment={openCreate}
+        onManageStores={() => setManageLocationsOpen(true)}
+        onManageCategories={() => setManageCategoriesOpen(true)}
+        onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "", false)}
+        onReset={resetFilters}
+        onRefresh={() => void refresh()}
+      />
 
       {loading ? <Alert severity="info">Loading equipment…</Alert> : items.length === 0 ? <Alert severity="info">No equipment has been added yet.</Alert> : visibleItems.length === 0 ? <Alert severity="info">No equipment matches the current filters.</Alert> : (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
@@ -304,7 +321,7 @@ export default function EquipmentManagement() {
             const available = availableEquipmentQuantity(item);
             return <Paper key={item.id} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
               <Stack spacing={1.25}>
-                <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · {item.location}</Typography></Box>
+                <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                   <Chip label={`${item.totalQuantity} total`} color="primary" />
                   <Chip label={`${available} available`} color={available === 0 ? "warning" : "success"} variant="outlined" />
@@ -316,7 +333,7 @@ export default function EquipmentManagement() {
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                  <Button size="small" onClick={() => setHistoryItem(item)}>History{canManage && !item.archived && available > 0 ? " / move" : ""}</Button>
+                  <Button size="small" onClick={() => setHistoryItem(item)}>History{canManage && !item.archived && available > 0 ? " / move Store" : ""}</Button>
                   {canManage && <Button size="small" onClick={() => openEdit(item)}>Edit</Button>}
                   {canManage && <Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button>}
                 </Stack>
@@ -332,8 +349,9 @@ export default function EquipmentManagement() {
           <TextField label="Equipment name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
           <FormControl><InputLabel>Category</InputLabel><Select label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
-          <FormControl><InputLabel>Storage location</InputLabel><Select label="Storage location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select location</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
-          {form.location === OTHER && <TextField label="New storage location" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
+          <FormControl disabled={Boolean(editing)}><InputLabel>Store</InputLabel><Select label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
+          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use History / move Store so the stock movement remains auditable.</Typography>}
+          {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
           <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
           <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="not-recorded">Not recorded</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>

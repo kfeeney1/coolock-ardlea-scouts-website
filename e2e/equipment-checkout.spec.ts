@@ -12,7 +12,9 @@ async function loginLeader(page: Page, account: Credentials) {
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
+  const leaderNavigation = page.waitForURL((url) => url.pathname === "/leader");
   await page.getByRole("button", { name: "Sign In" }).click();
+  await leaderNavigation;
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
@@ -44,7 +46,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
     await existingStore.click();
   } else {
     await page.getByRole("option", { name: "Other…" }).click();
-    await addDialog.getByLabel("New storage location").fill(storeName);
+    await addDialog.getByLabel("New Store").fill(storeName);
   }
   await addDialog.getByLabel("Total quantity").fill("3");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
@@ -85,13 +87,15 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await page.getByRole("button", { name: "Show archived" }).click();
   await expect(page.getByTestId("equipment-result-count")).toContainText("1 matching equipment item");
   await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(storeName);
 
   await page.getByRole("button", { name: "Reset filters" }).click();
   await expect(search).toHaveValue("");
   await expect(category).toContainText("All categories");
-  await expect(location).toContainText("All locations");
+  await expect(location).toContainText("All Stores");
   await expect(page.getByRole("button", { name: "Show archived" })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/store=/);
 });
 
 test("missing checkout equipment can be investigated and resolved back into stock", async ({ page }, testInfo) => {
@@ -179,7 +183,7 @@ test("admin can partially move stock and see the movement in item history", asyn
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await comboboxes.nth(1).click();
   await page.getByRole("option", { name: "Other…" }).click();
-  await addDialog.getByLabel("New storage location").fill(destination);
+  await addDialog.getByLabel("New Store").fill(destination);
   await addDialog.getByLabel("Total quantity").fill("1");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText(markerName, { exact: true })).toBeVisible();
@@ -252,4 +256,27 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
   const reloadedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(reloadedCard.getByText("5 total", { exact: true })).toBeVisible();
+});
+
+test("dashboard tile filters inventory through the URL and browser Back restores the prior view", async ({ page }, testInfo) => {
+  const account = adminCredentials();
+  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  await loginLeader(page, account!);
+  await page.goto("/leader/equipment");
+  await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Show available in detailed inventory" }).click();
+  await expect(page).toHaveURL(/status=available/);
+  await expect(page.locator("#equipment-status-filter")).toContainText("Available stock");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).not.toHaveURL(/status=/);
+  await expect(page.locator("#equipment-status-filter")).toContainText("All statuses");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
+
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect(page.getByTestId("equipment-inventory-controls")).toBeVisible();
+    await expect(page.getByLabel("Search equipment")).toBeVisible();
+  }
 });
