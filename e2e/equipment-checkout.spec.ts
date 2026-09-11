@@ -213,3 +213,41 @@ test("admin can partially move stock and see the movement in item history", asyn
   await expect(sourceAfter.getByText("2 total", { exact: true })).toBeVisible();
   await expect(destinationAfter.getByText("2 total", { exact: true })).toBeVisible();
 });
+
+test("equipment quantity can be cleared from zero, replaced and persisted", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  const account = adminCredentials();
+  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
+  const itemName = `TEST Zero Quantity ${testInfo.retry}`;
+  await loginLeader(page, account!);
+  await page.goto("/leader/equipment");
+
+  await page.getByRole("button", { name: "Add equipment" }).click();
+  const addDialog = page.getByRole("dialog", { name: "Add equipment" });
+  await addDialog.getByLabel("Equipment name").fill(itemName);
+  const comboboxes = addDialog.getByRole("combobox");
+  await comboboxes.nth(0).click();
+  await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await comboboxes.nth(1).click();
+  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  const quantity = addDialog.getByTestId("equipment-total-quantity");
+  await quantity.fill("0");
+  await addDialog.getByRole("button", { name: "Save equipment" }).click();
+
+  const card = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await expect(card.getByText("0 total", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Edit" }).click();
+  const editDialog = page.getByRole("dialog", { name: "Edit equipment" });
+  const editQuantity = editDialog.getByTestId("equipment-total-quantity");
+  await expect(editQuantity).toHaveValue("0");
+  await editQuantity.fill("");
+  await expect(editQuantity).toHaveValue("");
+  await editQuantity.fill("5");
+  await expect(editQuantity).toHaveValue("5");
+  await editDialog.getByRole("button", { name: "Save equipment" }).click();
+
+  await expect(card.getByText("5 total", { exact: true })).toBeVisible();
+  await page.reload();
+  const reloadedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await expect(reloadedCard.getByText("5 total", { exact: true })).toBeVisible();
+});
