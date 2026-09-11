@@ -12,7 +12,9 @@ async function loginLeader(page: Page, account: Credentials) {
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
+  const leaderNavigation = page.waitForURL((url) => url.pathname === "/leader");
   await page.getByRole("button", { name: "Sign In" }).click();
+  await leaderNavigation;
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
@@ -85,7 +87,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await page.getByRole("button", { name: "Show archived" }).click();
   await expect(page.getByTestId("equipment-result-count")).toContainText("1 matching equipment item");
   await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`store=${encodeURIComponent(storeName)}`));
+  await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(storeName);
 
   await page.getByRole("button", { name: "Reset filters" }).click();
   await expect(search).toHaveValue("");
