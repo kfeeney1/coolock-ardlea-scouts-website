@@ -24,6 +24,8 @@ export type EquipmentReportLoan = {
   notes: string;
   status: "open" | "returned";
   lines: Array<{ itemId: string; itemName: string; quantity: number; returnedQuantity: number; incidentQuantity?: number }>;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
 };
 
 export type EquipmentReportIncident = {
@@ -53,10 +55,15 @@ export type EquipmentReportFilters = {
   toDate?: string;
 };
 
+export type EquipmentOperationalSources = {
+  loans?: EquipmentReportLoan[];
+  incidents?: EquipmentReportIncident[];
+};
+
 const RESERVATION_PREFIX = "[equipment-reservation]";
 const available = (item: EquipmentReportItem) => Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
 const outstanding = (line: EquipmentReportLoan["lines"][number]) => Math.max(0, line.quantity - line.returnedQuantity - (line.incidentQuantity ?? 0));
-const dateValue = (value: Date | null) => value ? value.toISOString().slice(0, 10) : "";
+const dateValue = (value: Date | null | undefined) => value ? value.toISOString().slice(0, 10) : "";
 const money = (value: number | null) => value === null ? "" : value.toFixed(2);
 const isReservation = (loan: EquipmentReportLoan) => loan.notes.startsWith(RESERVATION_PREFIX);
 
@@ -110,11 +117,70 @@ function filterIncidents(incidents: EquipmentReportIncident[], filters: Equipmen
   });
 }
 
-export function equipmentInventoryCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}): string {
+function operationalDetails(itemId: string, sources: EquipmentOperationalSources) {
+  const loans = (sources.loans ?? []).filter((loan) => !isReservation(loan) && loan.lines.some((line) => line.itemId === itemId));
+  const incidents = (sources.incidents ?? []).filter((incident) => incident.itemId === itemId && incident.type === "damaged");
+
+  const openCheckouts = loans
+    .filter((loan) => loan.status === "open")
+    .flatMap((loan) => loan.lines
+      .filter((line) => line.itemId === itemId && outstanding(line) > 0)
+      .map((line) => `${loan.section}: ${outstanding(line)} out, due ${loan.expectedReturnDate}`));
+
+  const latestCheckout = loans
+    .filter((loan) => loan.createdAt)
+    .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))[0];
+  const returnedLoans = loans
+    .filter((loan) => loan.updatedAt && loan.lines.some((line) => line.itemId === itemId && line.returnedQuantity > 0))
+    .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+  const latestReturn = returnedLoans[0];
+
+  const damage = incidents
+    .sort((a, b) => (b.reportedAt?.getTime() ?? 0) - (a.reportedAt?.getTime() ?? 0))
+    .map((incident) => {
+      const when = dateValue(incident.reportedAt);
+      const details = incident.description.trim() || "No description recorded";
+      const resolution = incident.status === "resolved"
+        ? `resolved${incident.resolutionType ? ` (${incident.resolutionType})` : ""}`
+        : incident.status;
+      return `${incident.quantity} × ${resolution}${incident.section ? `, ${incident.section}` : ""}${when ? `, ${when}` : ""}: ${details}`;
+    })
+    .join(" | ");
+
+  return {
+    damage,
+    currentCheckout: openCheckouts.join(" | "),
+    lastCheckIn: latestReturn ? `${dateValue(latestReturn.updatedAt)}${latestReturn.section ? ` · ${latestReturn.section}` : ""}` : "",
+    lastUsed: latestCheckout ? `${dateValue(latestCheckout.createdAt)}${latestCheckout.section ? ` · ${latestCheckout.section}` : ""}` : ""
+  };
+}
+
+export function equipmentInventoryCsv(items: EquipmentReportItem[], filters: EquipmentReportFilters = {}, sources: EquipmentOperationalSources = {}): string {
   const body = filterItems(items, filters)
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
-    .map((item) => [item.name, item.category, item.location, item.trackingMode, item.condition, item.totalQuantity, available(item), item.checkedOutQuantity, item.unavailableQuantity, money(item.replacementValue), item.replacementValue === null ? "" : money(item.replacementValue * item.totalQuantity), item.archived ? "Yes" : "No", item.notes]);
-  return csv(["Equipment", "Category", "Location", "Tracking", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable", "Replacement value each (€)", "Total replacement value (€)", "Archived", "Notes"], body);
+    .map((item) => {
+      const operations = operationalDetails(item.id, sources);
+      return [
+        item.name,
+        item.category,
+        item.location,
+        item.trackingMode,
+        item.condition,
+        item.totalQuantity,
+        available(item),
+        item.checkedOutQuantity,
+        item.unavailableQuantity,
+        operations.damage,
+        operations.currentCheckout,
+        operations.lastCheckIn,
+        operations.lastUsed,
+        money(item.replacementValue),
+        item.replacementValue === null ? "" : money(item.replacementValue * item.totalQuantity),
+        item.archived ? "Yes" : "No",
+        item.notes
+      ];
+    });
+  return csv(["Equipment", "Category", "Location", "Tracking", "Condition", "Total", "Available", "Checked out / reserved", "Unavailable", "Damage", "Current checkout", "Last checked in", "Last used", "Replacement value each (€)", "Total replacement value (€)", "Archived", "Notes"], body);
 }
 
 export function equipmentAssetRegisterCsv(items: EquipmentReportItem[]): string {
