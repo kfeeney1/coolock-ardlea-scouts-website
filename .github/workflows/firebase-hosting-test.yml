@@ -53,16 +53,18 @@ jobs:
           trap 'rm -f /tmp/firebase-service-account.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
           npx --yes firebase-tools@15.28.1 deploy --config firebase.test.json --only firestore:rules,firestore:indexes,storage:test-default,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
-      - name: Seed canonical synthetic TEST identities, public content and equipment
+      - name: Seed canonical synthetic TEST identities, families, public content and equipment
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
           E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
         run: |
           set -euo pipefail
           node scripts/seed-population-data.mjs seed
+          node scripts/seed-test-family-scenarios.mjs seed
           node scripts/seed-public-site-content.mjs seed
           npm run seed:equipment -- --execute
           node scripts/verify-test-population.mjs
+          node scripts/seed-test-family-scenarios-verifier.mjs
       - name: Verify TEST release metadata and public boundaries
         run: |
           set -euo pipefail

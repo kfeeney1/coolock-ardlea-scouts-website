@@ -11,8 +11,18 @@ test.describe("public website", () => {
       await expect(page.locator("body")).not.toBeEmpty();
       await expect(page.locator("body")).toBeVisible();
       await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
+      await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);
     });
   }
+});
+
+test("build information lives on About rather than the public footer", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);
+
+  await page.goto("/about");
+  await expect(page.getByRole("heading", { name: "Build information" })).toBeVisible();
+  await expect(page.getByText(/Build .* · Commit /i)).toBeVisible();
 });
 
 test("activities show only published current and upcoming records", async ({ page }) => {
