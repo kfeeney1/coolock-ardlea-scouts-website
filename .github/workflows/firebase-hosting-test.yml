@@ -64,7 +64,7 @@ jobs:
           node scripts/seed-public-site-content.mjs seed
           npm run seed:equipment -- --execute
           node scripts/verify-test-population.mjs
-          node scripts/verify-test-family-scenarios.mjs
+          node scripts/seed-test-family-scenarios-verifier.mjs
       - name: Verify TEST release metadata and public boundaries
         run: |
           set -euo pipefail
