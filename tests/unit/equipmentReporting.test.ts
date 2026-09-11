@@ -18,9 +18,9 @@ const items: EquipmentReportItem[] = [
 ];
 
 const loans: EquipmentReportLoan[] = [
-  { id: "loan-1", section: "Scouts", expectedReturnDate: "2026-08-01", notes: "Camp", status: "open", lines: [{ itemId: "tent", itemName: "Patrol Tent", quantity: 3, returnedQuantity: 1, incidentQuantity: 0 }] },
-  { id: "reservation-1", section: "Scouts", expectedReturnDate: "2026-09-01", notes: "[equipment-reservation] event-1 · Camp", status: "open", lines: [{ itemId: "rope", itemName: "Rope", quantity: 4, returnedQuantity: 0, incidentQuantity: 0 }] },
-  { id: "loan-2", section: "Cubs", expectedReturnDate: "2026-07-01", notes: "Old loan", status: "returned", lines: [{ itemId: "rope", itemName: "Rope", quantity: 2, returnedQuantity: 2, incidentQuantity: 0 }] }
+  { id: "loan-1", section: "Scouts", expectedReturnDate: "2026-08-01", notes: "Camp", status: "open", createdAt: new Date("2026-07-08T10:00:00Z"), updatedAt: new Date("2026-07-11T16:00:00Z"), lines: [{ itemId: "tent", itemName: "Patrol Tent", quantity: 3, returnedQuantity: 1, incidentQuantity: 0 }] },
+  { id: "reservation-1", section: "Scouts", expectedReturnDate: "2026-09-01", notes: "[equipment-reservation] event-1 · Camp", status: "open", createdAt: new Date("2026-07-09T10:00:00Z"), lines: [{ itemId: "rope", itemName: "Rope", quantity: 4, returnedQuantity: 0, incidentQuantity: 0 }] },
+  { id: "loan-2", section: "Cubs", expectedReturnDate: "2026-07-01", notes: "Old loan", status: "returned", createdAt: new Date("2026-06-25T10:00:00Z"), updatedAt: new Date("2026-06-28T16:00:00Z"), lines: [{ itemId: "rope", itemName: "Rope", quantity: 2, returnedQuantity: 2, incidentQuantity: 0 }] }
 ];
 
 const incidents: EquipmentReportIncident[] = [
@@ -33,6 +33,42 @@ describe("equipment reports", () => {
     assert.match(report, /"Patrol Tent"/);
     assert.match(report, /"10","5","3","2"/);
     assert.match(report, /"120\.00","1200\.00"/);
+  });
+
+  it("starts the inventory CSV with the Equipment header and no BOM bytes", () => {
+    const report = equipmentInventoryCsv(items);
+    assert.equal(report.startsWith('\uFEFF'), false);
+    assert.equal(report.split("\r\n")[0].startsWith('"Equipment","Category"'), true);
+  });
+
+  it("derives damage, current checkout, last check-in and last-used details from authoritative operational records", () => {
+    const report = equipmentInventoryCsv(items, {}, { loans, incidents });
+    const tentRow = report.split("\r\n").find((line) => line.includes('"Patrol Tent"')) ?? "";
+    assert.match(tentRow, /2 × resolved \(written-off\), Scouts, 2026-07-10: Poles bent/);
+    assert.match(tentRow, /Scouts: 2 out, due 2026-08-01/);
+    assert.match(tentRow, /2026-07-11 · Scouts/);
+    assert.match(tentRow, /2026-07-08 · Scouts/);
+  });
+
+  it("makes a newly recorded damage incident visible in the inventory report", () => {
+    const newDamage: EquipmentReportIncident = {
+      id: "damage-new",
+      itemId: "rope",
+      itemName: "Rope",
+      itemCategory: "Pioneering",
+      itemLocation: "Gear Room",
+      quantity: 1,
+      type: "damaged",
+      status: "reported",
+      section: "Cubs",
+      description: "Frayed outer sheath",
+      reportedAt: new Date("2026-09-11T06:30:00Z"),
+      resolutionType: "",
+      resolutionNotes: "",
+      resolvedAt: null
+    };
+    const report = equipmentInventoryCsv(items, {}, { incidents: [...incidents, newDamage], loans });
+    assert.match(report, /1 × reported, Cubs, 2026-09-11: Frayed outer sheath/);
   });
 
   it("neutralises spreadsheet formulas in free text", () => {
