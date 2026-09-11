@@ -47,7 +47,7 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents }
     }
     for (const loan of loans) {
       if (isEquipmentReservationLoan(loan)) continue;
-      const itemSummary = loan.lines.map((line) => `${line.quantity} × ${line.itemName}`).join(", ");
+      const itemSummary = loan.lines.map((line) => `${line.itemName} · ${line.quantity} unit${line.quantity === 1 ? "" : "s"}`).join(", ");
       if (loan.createdAt) entries.push({
         key: `checkout-${loan.id}`,
         at: loan.createdAt,
