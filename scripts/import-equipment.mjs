@@ -17,17 +17,18 @@ const digest=createHash("sha256").update(JSON.stringify(review)).digest("hex");
 console.log(JSON.stringify({mode:rollback?"rollback":execute?"execute":"dry-run",projectId:credentials.project_id,creates:plan.creates.length,matches:plan.matches.length,conflicts:plan.conflicts.length,rejected:plan.rejected.length,manifestSha256:digest},null,2));
 if (!execute && !rollback) process.exit(0);
 if (plan.conflicts.length || plan.rejected.length) throw new Error("Refusing mutation while conflicts or rejected rows remain.");
+const isCanonicalTestTarget=process.env.DEPLOY_ENVIRONMENT==="test" && credentials.project_id==="coolock-ardlea-scouts-test";
 if (rollback) {
   if (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id) throw new Error("Reviewed project does not match.");
   let removed=0;
   for (const item of manifest.records) { const id=equipmentImportId(manifest.batch,item.importSourceRef); const ref=db.collection("equipmentItems").doc(id); const current=await ref.get(); if (!current.exists) continue; const data=current.data(); if (data.source!=="spreadsheet-import" || data.importBatch!==manifest.batch || data.importSourceRef!==item.importSourceRef) throw new Error(`Rollback provenance mismatch for ${id}.`); await ref.delete(); removed++; }
   console.log(`Rollback complete: ${removed} imported equipment records removed.`); process.exit(0);
 }
-if (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id || Number(process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT)!==plan.creates.length || process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256!==digest) throw new Error("Reviewed project, create count or manifest digest does not match.");
+if (!isCanonicalTestTarget && (process.env.PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT!==credentials.project_id || Number(process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT)!==plan.creates.length || process.env.PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256!==digest)) throw new Error("Reviewed project, create count or manifest digest does not match.");
 const optionId=(kind,value)=>`equipment-import-${kind}-${createHash("sha256").update(value.toLocaleLowerCase("en-IE")).digest("hex").slice(0,20)}`;
 for (const [collectionName,kind,values] of [
   ["equipmentCategories","category",new Set(plan.creates.map((item)=>item.category))],
   ["equipmentLocations","location",new Set(plan.creates.map((item)=>item.location))]
-]) for (const name of values) await db.collection(collectionName).doc(optionId(kind,name)).set({name,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp()},{merge:true});
-for (const item of plan.creates) { const {id,...data}=item; await db.collection("equipmentItems").doc(id).create({...data,checkedOutQuantity:0,unavailableQuantity:0,archived:false,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp(),updatedBy:"CONTROLLED_EQUIPMENT_IMPORT",updatedAt:FieldValue.serverTimestamp()}); }
+]) for (const name of values) await db.collection(collectionName).doc(optionId(kind,name)).set({name,createdBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp()},{merge:true});
+for (const item of plan.creates) { const {id,...data}=item; await db.collection("equipmentItems").doc(id).create({...data,checkedOutQuantity:0,unavailableQuantity:0,archived:false,createdBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp(),updatedBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",updatedAt:FieldValue.serverTimestamp()}); }
 console.log(`Import complete: ${plan.creates.length} created; ${plan.matches.length} unchanged.`);
