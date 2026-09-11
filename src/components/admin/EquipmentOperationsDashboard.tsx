@@ -6,10 +6,13 @@ import type { EquipmentLoan } from "../../services/equipmentLoans";
 import { availableEquipmentQuantity, outstandingLoanQuantity } from "../../services/equipmentLoanLogic";
 import { isEquipmentReservationLoan } from "../../services/equipmentProgrammeLogic";
 
+export type EquipmentDashboardFilter = "all" | "available" | "checked-out" | "unavailable";
+
 type Props = {
   items: EquipmentItem[];
   loans: EquipmentLoan[];
   incidents: EquipmentIncident[];
+  onFilterInventory?: (filter: EquipmentDashboardFilter) => void;
 };
 
 type Activity = {
@@ -24,7 +27,7 @@ function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-IE", { day: "2-digit", month: "short", year: "numeric" }).format(value);
 }
 
-export default function EquipmentOperationsDashboard({ items, loans, incidents }: Props) {
+export default function EquipmentOperationsDashboard({ items, loans, incidents, onFilterInventory }: Props) {
   const activeItems = useMemo(() => items.filter((item) => !item.archived), [items]);
   const totalUnits = useMemo(() => activeItems.reduce((sum, item) => sum + item.totalQuantity, 0), [activeItems]);
   const availableUnits = useMemo(() => activeItems.reduce((sum, item) => sum + availableEquipmentQuantity(item), 0), [activeItems]);
@@ -67,6 +70,13 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents }
     return entries.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 6);
   }, [incidents, loans]);
 
+  const tiles: Array<[string, number, string, EquipmentDashboardFilter]> = [
+    ["Stock units", totalUnits, `${activeItems.length} active items`, "all"],
+    ["Available", availableUnits, `${checkedOutUnits} checked out`, "available"],
+    ["Unavailable", unavailableUnits, openDamage.length ? `${openDamage.length} open damage report${openDamage.length === 1 ? "" : "s"}` : "No open damage", "unavailable"],
+    ["Open checkouts", openLoans.length, `${openLoans.reduce((sum, loan) => sum + loan.lines.reduce((lineSum, line) => lineSum + outstandingLoanQuantity(line), 0), 0)} units outstanding`, "checked-out"]
+  ];
+
   return <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-operations-dashboard">
     <Stack spacing={2.5}>
       <Box>
@@ -75,12 +85,26 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents }
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2,minmax(0,1fr))", md: "repeat(4,minmax(0,1fr))" }, gap: 1.5 }}>
-        {[
-          ["Stock units", totalUnits, `${activeItems.length} active items`],
-          ["Available", availableUnits, `${checkedOutUnits} checked out`],
-          ["Unavailable", unavailableUnits, openDamage.length ? `${openDamage.length} open damage report${openDamage.length === 1 ? "" : "s"}` : "No open damage"],
-          ["Open checkouts", openLoans.length, `${openLoans.reduce((sum, loan) => sum + loan.lines.reduce((lineSum, line) => lineSum + outstandingLoanQuantity(line), 0), 0)} units outstanding`]
-        ].map(([label, value, helper]) => <Paper key={String(label)} variant="outlined" sx={{ p: 1.75 }}>
+        {tiles.map(([label, value, helper, filter]) => <Paper
+          key={label}
+          component="button"
+          type="button"
+          variant="outlined"
+          aria-label={`Show ${label.toLowerCase()} in detailed inventory`}
+          onClick={() => onFilterInventory?.(filter)}
+          sx={{
+            p: 1.75,
+            textAlign: "left",
+            font: "inherit",
+            color: "inherit",
+            backgroundColor: "background.paper",
+            cursor: onFilterInventory ? "pointer" : "default",
+            transition: "border-color 120ms ease, box-shadow 120ms ease",
+            "&:hover": onFilterInventory ? { borderColor: "primary.main", boxShadow: 1 } : undefined,
+            "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
+          }}
+          data-testid={`equipment-dashboard-${filter}`}
+        >
           <Typography variant="body2" color="text.secondary">{label}</Typography>
           <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.25 }}>{value}</Typography>
           <Typography variant="caption" color="text.secondary">{helper}</Typography>
