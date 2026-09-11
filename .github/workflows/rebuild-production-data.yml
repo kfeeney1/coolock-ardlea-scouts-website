@@ -1,0 +1,216 @@
+name: Rebuild production data
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Dry-run the reset, or rebuild production data"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - rebuild
+      confirmation:
+        description: "For rebuild type REBUILD PRODUCTION coolock-ardlea-scouts"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-data-rebuild
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: coolock-ardlea-scouts
+  DEPLOY_ENVIRONMENT: production
+  FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate request and private member manifest
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          MEMBER_MANIFEST_B64: ${{ secrets.PRODUCTION_MEMBER_IMPORT_MANIFEST_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$ACTION" == "rebuild" && "$CONFIRMATION" != "REBUILD PRODUCTION coolock-ardlea-scouts" ]]; then
+            echo "::error::Rebuild requires exact production confirmation."
+            exit 1
+          fi
+          if [[ -z "$MEMBER_MANIFEST_B64" ]]; then
+            echo "::error::PRODUCTION_MEMBER_IMPORT_MANIFEST_B64 is not configured in the production environment."
+            exit 1
+          fi
+          printf '%s' "$MEMBER_MANIFEST_B64" | base64 --decode > /tmp/member-import-private-reviewed.json
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const manifest = JSON.parse(await readFile('/tmp/member-import-private-reviewed.json', 'utf8'));
+          if (manifest?.version !== 1 || !Array.isArray(manifest.records) || manifest.records.length === 0) {
+            throw new Error('Invalid or empty production member manifest.');
+          }
+          if ((manifest.preparationRejected || []).length !== 0) {
+            throw new Error('Production member manifest contains rejected rows.');
+          }
+          console.log(`Validated private member manifest: ${manifest.records.length} reviewed record(s).`);
+          NODE
+
+      - name: Validate production operations credential target
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        run: node scripts/validate-firebase-environment.mjs --environment production --project "$PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+
+      - name: Reset dry run
+        id: reset_dry_run
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/reset-production-data.mjs | tee /tmp/reset-dry-run.txt
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import { readFile } from 'node:fs/promises';
+          const text = await readFile('/tmp/reset-dry-run.txt', 'utf8');
+          const match = text.match(/\{[\s\S]*?\n\}/);
+          if (!match) throw new Error('Reset dry-run JSON was not found.');
+          const result = JSON.parse(match[0]);
+          console.log(`firestore_count=${result.firestoreDeleteCount}`);
+          console.log(`auth_count=${result.authDeleteCount}`);
+          console.log(`manifest_sha=${result.manifestSha256}`);
+          console.log(`preserved_uid=${result.preservedUid}`);
+          NODE
+
+      - name: Member import preflight
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/production-operations.json
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node scripts/import-members.mjs --manifest=/tmp/member-import-private-reviewed.json --project="$PROJECT_ID"
+
+      - name: Stop after dry run
+        if: ${{ inputs.action == 'dry-run' }}
+        run: |
+          echo "Dry run complete. No production data was changed."
+          echo "Preserved superuser UID: ${{ steps.reset_dry_run.outputs.preserved_uid }}"
+
+      - name: Authenticate backup credential
+        if: ${{ inputs.action == 'rebuild' }}
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP }}
+
+      - name: Set up Google Cloud SDK
+        if: ${{ inputs.action == 'rebuild' }}
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Create and verify immediate pre-rebuild backup
+        if: ${{ inputs.action == 'rebuild' }}
+        id: backup
+        env:
+          BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BACKUP_BUCKET" || "$BACKUP_BUCKET" != gs://* ]]; then
+            echo "::error::FIRESTORE_BACKUP_BUCKET must be configured as a gs:// URI."
+            exit 1
+          fi
+          TIMESTAMP="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          DESTINATION="${BACKUP_BUCKET%/}/firestore-backups/pre-production-rebuild-${TIMESTAMP}"
+          gcloud firestore export "$DESTINATION" --project="$PROJECT_ID" --database="(default)" --quiet
+          gcloud storage ls "$DESTINATION/" >/dev/null
+          echo "destination=$DESTINATION" >> "$GITHUB_OUTPUT"
+          echo "Verified backup at $DESTINATION"
+
+      - name: Depopulate production except superuser
+        if: ${{ inputs.action == 'rebuild' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+          PROD_RESET_CONFIRMATION: ${{ inputs.confirmation }}
+          PROD_RESET_EXPECTED_FIRESTORE_COUNT: ${{ steps.reset_dry_run.outputs.firestore_count }}
+          PROD_RESET_EXPECTED_AUTH_COUNT: ${{ steps.reset_dry_run.outputs.auth_count }}
+          PROD_RESET_EXPECTED_MANIFEST_SHA256: ${{ steps.reset_dry_run.outputs.manifest_sha }}
+          PROD_RESET_BACKUP_URI: ${{ steps.backup.outputs.destination }}
+        run: node scripts/reset-production-data.mjs --execute
+
+      - name: Populate reviewed real members
+        if: ${{ inputs.action == 'rebuild' }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/production-operations.json
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node scripts/import-members.mjs --manifest=/tmp/member-import-private-reviewed.json --project="$PROJECT_ID"
+          node scripts/import-members.mjs --manifest=/tmp/member-import-private-reviewed.json --project="$PROJECT_ID" --execute --confirm=SEED-MEMBERS
+
+      - name: Equipment dry run after reset
+        if: ${{ inputs.action == 'rebuild' }}
+        id: equipment_dry_run
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run seed:equipment | tee /tmp/equipment-dry-run.txt
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import { readFile } from 'node:fs/promises';
+          const text = await readFile('/tmp/equipment-dry-run.txt', 'utf8');
+          const match = text.match(/\{[\s\S]*?\n\}/);
+          if (!match) throw new Error('Equipment dry-run JSON was not found.');
+          const result = JSON.parse(match[0]);
+          console.log(`create_count=${result.creates}`);
+          console.log(`manifest_sha=${result.manifestSha256}`);
+          NODE
+
+      - name: Populate approved SW-42 equipment
+        if: ${{ inputs.action == 'rebuild' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+          PROD_EQUIPMENT_IMPORT_CONFIRM_PROJECT: coolock-ardlea-scouts
+          PROD_EQUIPMENT_IMPORT_EXPECTED_CREATE_COUNT: ${{ steps.equipment_dry_run.outputs.create_count }}
+          PROD_EQUIPMENT_IMPORT_EXPECTED_MANIFEST_SHA256: ${{ steps.equipment_dry_run.outputs.manifest_sha }}
+          ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
+        run: npm run seed:equipment -- --execute
+
+      - name: Verify preserved superuser and rebuilt data
+        if: ${{ inputs.action == 'rebuild' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_OPERATIONS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/reset-production-data.mjs > /tmp/post-rebuild-audit.txt
+          cat /tmp/post-rebuild-audit.txt
+          if ! grep -q '"authDeleteCount": 0' /tmp/post-rebuild-audit.txt; then
+            echo "::error::Unexpected extra Firebase Authentication users exist after rebuild."
+            exit 1
+          fi
+          echo "Production rebuild completed. Superuser preserved; real members and approved equipment populated."
