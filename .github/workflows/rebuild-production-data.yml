@@ -27,6 +27,7 @@ env:
   PROJECT_ID: coolock-ardlea-scouts
   DEPLOY_ENVIRONMENT: production
   FIREBASE_PROJECT_ID: coolock-ardlea-scouts
+  EXPECTED_PRESERVED_SUPERUSER_UID: gZ2yjQT38FP8t8000PquVOsO2dB2
 
 jobs:
   rebuild:
@@ -100,6 +101,18 @@ jobs:
           console.log(`manifest_sha=${result.manifestSha256}`);
           console.log(`preserved_uid=${result.preservedUid}`);
           NODE
+
+      - name: Verify exact preserved production superuser UID
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.reset_dry_run.outputs.preserved_uid }}" != "$EXPECTED_PRESERVED_SUPERUSER_UID" ]]; then
+            echo "::error::Refusing production rebuild: resolved preserved superuser UID does not match the verified production UID."
+            echo "Expected: $EXPECTED_PRESERVED_SUPERUSER_UID"
+            echo "Resolved: ${{ steps.reset_dry_run.outputs.preserved_uid }}"
+            exit 1
+          fi
+          echo "Verified preserved superuser UID: $EXPECTED_PRESERVED_SUPERUSER_UID"
 
       - name: Member import preflight
         env:
