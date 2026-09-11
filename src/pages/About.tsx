@@ -1,4 +1,5 @@
 import { Box, Container, Paper, Typography } from "@mui/material";
+import { BUILD_NUMBER, SHORT_BUILD_COMMIT } from "../buildInfo";
 import PublicWhosWho from "../components/PublicWhosWho";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 
@@ -21,6 +22,15 @@ export default function About() {
           <Typography color="text.secondary" sx={{ mb: 3 }}>{content.about.whosWhoIntro}</Typography>
           <PublicWhosWho />
         </Box>
+
+        <Paper component="section" aria-labelledby="build-information-heading" variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, mt: 4 }}>
+          <Typography id="build-information-heading" variant="h6" color="secondary" sx={{ fontWeight: 800 }}>
+            Build information
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+            Build {BUILD_NUMBER} · Commit {SHORT_BUILD_COMMIT}
+          </Typography>
+        </Paper>
       </Container>
     </Box>
   );
