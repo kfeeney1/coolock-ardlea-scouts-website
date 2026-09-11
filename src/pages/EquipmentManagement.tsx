@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
+import EquipmentOperationsDashboard from "../components/admin/EquipmentOperationsDashboard";
 import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -253,11 +254,16 @@ export default function EquipmentManagement() {
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} />}
       {!loading && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
       {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
-      <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }}>
+      <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-inventory-controls">
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Detailed inventory</Typography>
+          <Typography color="text.secondary">Search, filter and manage the full equipment catalogue.</Typography>
+        </Box>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <TextField fullWidth label="Search equipment" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "equipment-search" } }} />
           <FormControl fullWidth>
