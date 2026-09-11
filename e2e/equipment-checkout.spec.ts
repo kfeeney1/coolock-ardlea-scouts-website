@@ -251,7 +251,8 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await editDialog.getByRole("button", { name: "Save equipment" }).click();
 
   await expect(card.getByText("5 total", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.goto("/leader");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/equipment");
   await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
   const reloadedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
