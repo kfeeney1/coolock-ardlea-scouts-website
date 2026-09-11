@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { numericInputDisplayValue, parseOptionalNumberInput } from "../../src/services/numericInput";
+import { numericInputDisplayValue, parseOptionalNumberInput } from "../../src/services/numericInput.ts";
 
 test("numeric input preserves a temporary empty value instead of coercing it to zero", () => {
   assert.equal(parseOptionalNumberInput(""), null);
