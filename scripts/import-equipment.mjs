@@ -29,6 +29,6 @@ const optionId=(kind,value)=>`equipment-import-${kind}-${createHash("sha256").up
 for (const [collectionName,kind,values] of [
   ["equipmentCategories","category",new Set(plan.creates.map((item)=>item.category))],
   ["equipmentLocations","location",new Set(plan.creates.map((item)=>item.location))]
-]) for (const name of values) await db.collection(collectionName).doc(optionId(kind,name)).set({name,createdBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp()},{merge:true});
-for (const item of plan.creates) { const {id,...data}=item; await db.collection("equipmentItems").doc(id).create({...data,checkedOutQuantity:0,unavailableQuantity:0,archived:false,createdBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp(),updatedBy:isCanonicalTestTarget?"CANONICAL_TEST_EQUIPMENT_SEED":"CONTROLLED_EQUIPMENT_IMPORT",updatedAt:FieldValue.serverTimestamp()}); }
+]) for (const name of values) await db.collection(collectionName).doc(optionId(kind,name)).set({name,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp()},{merge:true});
+for (const item of plan.creates) { const {id,...data}=item; await db.collection("equipmentItems").doc(id).create({...data,checkedOutQuantity:0,unavailableQuantity:0,archived:false,createdBy:"CONTROLLED_EQUIPMENT_IMPORT",createdAt:FieldValue.serverTimestamp(),updatedBy:"CONTROLLED_EQUIPMENT_IMPORT",updatedAt:FieldValue.serverTimestamp()}); }
 console.log(`Import complete: ${plan.creates.length} created; ${plan.matches.length} unchanged.`);
