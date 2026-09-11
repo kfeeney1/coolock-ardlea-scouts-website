@@ -40,7 +40,10 @@ test.describe("leader roles catalogue", () => {
     await page.goto("/leader/roles");
 
     await expect(page.getByRole("heading", { name: "Roles & Permissions" })).toBeVisible();
-    await expect(page.getByText(/Permissions are currently code-defined/i)).toBeVisible();
+    await expect(page.getByText(/security-protected and code-defined/i)).toBeVisible();
+    await expect(page.getByTestId("role-administration")).toContainText("Role assignment and permission configuration are intentionally separate");
+    await expect(page.getByTestId("role-administration")).toContainText("cannot change role or appointment assignments");
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toHaveCount(0);
     await expect(page.getByTestId("effective-permissions")).toContainText("leader");
     await expect(page.getByTestId("permission-members.read.section")).toContainText("Effective for you");
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
@@ -74,6 +77,8 @@ test.describe("Deputy Group Leader parity", () => {
     }
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
     await expect(page.getByTestId("permission-system.superadmin.protect")).toContainText("Not granted");
+    await expect(page.getByTestId("role-administration")).toContainText("cannot change activation or any system role");
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
 
     await page.goto("/leader/activity");
     await expect(page.getByRole("heading", { name: "Activity Log" })).toBeVisible();
@@ -90,6 +95,7 @@ test.describe("Deputy Group Leader parity", () => {
     await loginLeader(page, account!);
     await page.goto("/leader/roles");
     await expect(page.getByRole("heading", { name: "Roles & Permissions" })).toBeVisible();
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
     await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
     const navigation = page.getByRole("navigation", { name: "Leader navigation" });
     const administration = navigation.getByTestId("leader-navigation-mobile").getByRole("button", { name: "Administration" });
@@ -111,18 +117,57 @@ test.describe("admin roles catalogue", () => {
     await page.goto("/leader/roles");
     await expect(page.getByTestId("permission-roles.manage.operational")).toContainText("Effective for you");
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
+    await expect(page.getByTestId("role-administration")).toContainText("cannot grant Admin or Super Admin system access");
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
   });
 });
 
 test.describe("super-admin roles catalogue", () => {
   const account = credentials("E2E_SUPER_ADMIN");
 
-  test("Super Admin sees protected Admin-promotion authority", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "chromium", "Authenticated Super Admin check runs once on desktop Chromium.");
+  test("Super Admin receives the complete protected administrative and operational bundle", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium", "Authenticated Super Admin security journey runs once on desktop Chromium.");
     test.skip(!account, "Configure the seeded E2E Super Admin account.");
     await loginLeader(page, account!);
     await page.goto("/leader/roles");
+
+    await expect(page.getByTestId("system-role-matrix")).toContainText("Super Admin");
+    await expect(page.getByTestId("system-role-matrix")).toContainText("Protected");
+    await expect(page.getByTestId("role-administration")).toContainText("Protected Super Admin accounts cannot be altered");
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
+
+    for (const permission of [
+      "members.read.group",
+      "weekly-meetings.manage.group",
+      "meeting-records.read.group",
+      "programme.manage.group",
+      "event-gallery.manage.group",
+      "badgework.manage.group",
+      "badgework.read.group",
+      "finance.manage.group",
+      "equipment.manage",
+      "audit.read",
+      "roles.delegate.operational",
+      "roles.manage.operational",
+      "roles.manage.admin",
+      "settings.session.manage",
+      "settings.subs.manage",
+      "system.superadmin.protect"
+    ]) {
+      await expect(page.getByTestId(`permission-${permission}`)).toContainText("Effective for you");
+    }
+
+    await expect(page.getByTestId("permission-members.read.linked")).toContainText("Not granted");
+    await expect(page.getByTestId("permission-badgework.read.linked")).toContainText("Not granted");
+  });
+
+  test("Super Admin role administration remains usable on Pixel 7/mobile", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Super Admin mobile role administration runs once on mobile Chromium.");
+    test.skip(!account, "Configure the seeded E2E Super Admin account.");
+    await loginLeader(page, account!);
+    await page.goto("/leader/roles");
+    await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Effective for you");
-    await expect(page.getByTestId("permission-system.superadmin.protect")).toContainText("Effective for you");
+    await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
   });
 });
