@@ -17,6 +17,7 @@ import {
   Typography
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import NonNegativeNumberField from "../common/NonNegativeNumberField";
 import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -169,7 +170,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
             return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
                 <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available after current checkouts and reservations</Typography></Box>
-                <TextField label="Qty" type="number" value={checkoutQuantities[item.id] ?? 0} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
+                <NonNegativeNumberField label="Qty" value={checkoutQuantities[item.id] ?? 0} disabled={available === 0} min={0} max={available} step={1} onValueChange={(value) => setCheckoutQuantities((current) => ({ ...current, [item.id]: value }))} sx={{ width: { sm: 120 } }} />
               </Stack>
             </Paper>;
           })}</Stack>
@@ -186,7 +187,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
           return <Paper key={line.itemId} variant="outlined" sx={{ p: 1.5 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
               <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{line.itemName}</Typography><Typography variant="body2" color="text.secondary">{outstanding} currently checked out</Typography></Box>
-              <TextField label="Return" type="number" value={returnQuantities[line.itemId] ?? 0} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.itemId]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: outstanding, step: 1 } }} sx={{ width: { sm: 130 } }} />
+              <NonNegativeNumberField label="Return" value={returnQuantities[line.itemId] ?? 0} min={0} max={outstanding} step={1} onValueChange={(value) => setReturnQuantities((current) => ({ ...current, [line.itemId]: value }))} sx={{ width: { sm: 130 } }} />
             </Stack>
           </Paper>;
         })}</Stack>}
