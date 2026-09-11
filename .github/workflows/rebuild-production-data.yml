@@ -27,7 +27,7 @@ env:
   PROJECT_ID: coolock-ardlea-scouts
   DEPLOY_ENVIRONMENT: production
   FIREBASE_PROJECT_ID: coolock-ardlea-scouts
-  EXPECTED_PRESERVED_SUPERUSER_UID: gZ2yjQT38FP8t8000PquVOsO2dB2
+  EXPECTED_PRESERVED_SUPERUSER_UID: gz2yjQT38FP8t8000PquVOsO2dB2
 
 jobs:
   rebuild:
