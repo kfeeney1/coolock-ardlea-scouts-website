@@ -7,7 +7,7 @@ import {
   Stack,
   Typography
 } from "@mui/material";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type GeneratedReport = {
   filename: string;
@@ -16,34 +16,12 @@ export type GeneratedReport = {
   url: string;
 };
 
-export function useGeneratedReport() {
-  const [report, setReport] = useState<GeneratedReport | null>(null);
-  const [open, setOpen] = useState(false);
-  const objectUrlRef = useRef<string | null>(null);
-
-  const releaseCurrentUrl = useCallback(() => {
-    if (!objectUrlRef.current) return;
-    URL.revokeObjectURL(objectUrlRef.current);
-    objectUrlRef.current = null;
-  }, []);
-
-  useEffect(() => () => releaseCurrentUrl(), [releaseCurrentUrl]);
-
-  const prepareCsv = useCallback((filename: string, label: string, content: string, includeBom = false) => {
-    releaseCurrentUrl();
-    const blob = new Blob([includeBom ? "\uFEFF" : "", content], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    objectUrlRef.current = url;
-    setReport({ filename, label, mimeType: blob.type, url });
-    setOpen(true);
-  }, [releaseCurrentUrl]);
-
-  const close = useCallback(() => setOpen(false), []);
-  const reopen = useCallback(() => {
-    if (report) setOpen(true);
-  }, [report]);
-
-  return { report, open, prepareCsv, close, reopen };
+function reportLabel(filename: string) {
+  return filename
+    .replace(/\.csv$/i, "")
+    .replace(/-\d{4}-\d{2}-\d{2}$/i, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function openInNewTab(url: string) {
@@ -53,12 +31,12 @@ function openInNewTab(url: string) {
 
 function emailHref(report: GeneratedReport) {
   const subject = encodeURIComponent(report.label);
-  const body = encodeURIComponent(`The report ${report.filename} has been generated. Download the report from the application and attach it to this email before sending.`);
+  const body = encodeURIComponent(`The report ${report.filename} is ready. Download it from the Scout website and attach it to this email before sending.`);
   return `mailto:?subject=${subject}&body=${body}`;
 }
 
 function whatsappHref(report: GeneratedReport) {
-  const text = encodeURIComponent(`The report ${report.filename} has been generated. Download the report from the application and attach it in WhatsApp before sending.`);
+  const text = encodeURIComponent(`The report ${report.filename} is ready. Download it from the Scout website and attach it in WhatsApp before sending.`);
   return `https://wa.me/?text=${text}`;
 }
 
@@ -68,7 +46,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function GeneratedReportDialog({ report, open, onClose }: Props) {
+export function GeneratedReportDialog({ report, open, onClose }: Props) {
   const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
 
   useEffect(() => {
@@ -84,7 +62,7 @@ export default function GeneratedReportDialog({ report, open, onClose }: Props) 
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Open it in a new tab, download the same generated file, send it using Email or WhatsApp, or keep working.
           </Typography>
-          {sendOptionsOpen && <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} sx={{ mt: 2 }} data-testid="report-send-options">
+          {sendOptionsOpen && <Stack id="report-send-options" direction={{ xs: "column", sm: "row" }} spacing={1.25} sx={{ mt: 2 }} data-testid="report-send-options">
             <Button component="a" href={emailHref(report)} target="_blank" rel="noreferrer" variant="outlined">Email</Button>
             <Button component="a" href={whatsappHref(report)} target="_blank" rel="noreferrer" variant="outlined">WhatsApp</Button>
           </Stack>}
@@ -98,4 +76,63 @@ export default function GeneratedReportDialog({ report, open, onClose }: Props) 
       </>}
     </Dialog>
   );
+}
+
+export default function ReportDownloadExperience() {
+  const [report, setReport] = useState<GeneratedReport | null>(null);
+  const [open, setOpen] = useState(false);
+  const ownedUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const nativeCreateObjectURL = URL.createObjectURL.bind(URL);
+    const nativeRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+    const generatedBlobs = new Map<string, Blob>();
+    const currentCreateObjectURL = URL.createObjectURL;
+    const currentRevokeObjectURL = URL.revokeObjectURL;
+
+    URL.createObjectURL = ((object: Blob | MediaSource) => {
+      const url = nativeCreateObjectURL(object);
+      if (object instanceof Blob) generatedBlobs.set(url, object);
+      return url;
+    }) as typeof URL.createObjectURL;
+
+    URL.revokeObjectURL = ((url: string) => {
+      generatedBlobs.delete(url);
+      nativeRevokeObjectURL(url);
+    }) as typeof URL.revokeObjectURL;
+
+    const handleDownloadClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest("a[download]");
+      if (!(link instanceof HTMLAnchorElement)) return;
+      const path = window.location.pathname;
+      if (path !== "/leader/reports" && path !== "/leader/equipment") return;
+      const filename = link.download;
+      if (!filename.toLowerCase().endsWith(".csv")) return;
+      const blob = generatedBlobs.get(link.href);
+      if (!blob || !blob.type.toLowerCase().startsWith("text/csv")) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (ownedUrlRef.current) nativeRevokeObjectURL(ownedUrlRef.current);
+      const retainedUrl = nativeCreateObjectURL(blob);
+      ownedUrlRef.current = retainedUrl;
+      setReport({ filename, label: reportLabel(filename), mimeType: blob.type, url: retainedUrl });
+      setOpen(true);
+    };
+
+    document.addEventListener("click", handleDownloadClick, true);
+    return () => {
+      document.removeEventListener("click", handleDownloadClick, true);
+      URL.createObjectURL = currentCreateObjectURL;
+      URL.revokeObjectURL = currentRevokeObjectURL;
+      if (ownedUrlRef.current) nativeRevokeObjectURL(ownedUrlRef.current);
+      ownedUrlRef.current = null;
+      generatedBlobs.clear();
+    };
+  }, []);
+
+  return <GeneratedReportDialog report={report} open={open} onClose={() => setOpen(false)} />;
 }
