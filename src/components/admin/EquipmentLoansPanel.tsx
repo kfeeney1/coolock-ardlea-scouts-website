@@ -29,6 +29,7 @@ import {
   validateCheckoutQuantity
 } from "../../services/equipmentLoanLogic";
 import { isEquipmentReservationLoan } from "../../services/equipmentProgrammeLogic";
+import { numericInputDisplayValue, parseOptionalNumberInput } from "../../services/numericInput";
 
 function defaultReturnDate(): string {
   const date = new Date();
@@ -44,14 +45,16 @@ type Props = {
   onError: (message: string) => void;
 };
 
+type EditableQuantityMap = Record<string, number | null>;
+
 export default function EquipmentLoansPanel({ profile, items, loans, onChanged, onError }: Props) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState("");
   const [expectedReturnDate, setExpectedReturnDate] = useState(defaultReturnDate());
   const [notes, setNotes] = useState("");
-  const [checkoutQuantities, setCheckoutQuantities] = useState<Record<string, number>>({});
+  const [checkoutQuantities, setCheckoutQuantities] = useState<EditableQuantityMap>({});
   const [returningLoan, setReturningLoan] = useState<EquipmentLoan | null>(null);
-  const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
+  const [returnQuantities, setReturnQuantities] = useState<EditableQuantityMap>({});
   const [saving, setSaving] = useState(false);
 
   const sectionOptions = useMemo(() => checkoutSectionOptions(profile), [profile]);
@@ -108,7 +111,10 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
     onError("");
     setSaving(true);
     try {
-      await returnEquipment({ loanId: returningLoan.id, quantities: returnQuantities });
+      await returnEquipment({
+        loanId: returningLoan.id,
+        quantities: Object.fromEntries(Object.entries(returnQuantities).map(([itemId, quantity]) => [itemId, quantity ?? 0]))
+      });
       setReturningLoan(null);
       await onChanged();
     } catch (error) {
@@ -166,10 +172,11 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
           <Typography sx={{ fontWeight: 800 }}>Equipment</Typography>
           <Stack spacing={1.25}>{activeItems.map((item) => {
             const available = availableEquipmentQuantity(item);
+            const quantity = Object.hasOwn(checkoutQuantities, item.id) ? checkoutQuantities[item.id] : 0;
             return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
                 <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available after current checkouts and reservations</Typography></Box>
-                <TextField label="Qty" type="number" value={checkoutQuantities[item.id] ?? 0} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
+                <TextField label="Qty" type="number" value={numericInputDisplayValue(quantity)} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
               </Stack>
             </Paper>;
           })}</Stack>
@@ -186,7 +193,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
           return <Paper key={line.itemId} variant="outlined" sx={{ p: 1.5 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
               <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{line.itemName}</Typography><Typography variant="body2" color="text.secondary">{outstanding} currently checked out</Typography></Box>
-              <TextField label="Return" type="number" value={returnQuantities[line.itemId] ?? 0} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.itemId]: Number(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: outstanding, step: 1 } }} sx={{ width: { sm: 130 } }} />
+              <TextField label="Return" type="number" value={numericInputDisplayValue(returnQuantities[line.itemId])} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.itemId]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: outstanding, step: 1 } }} sx={{ width: { sm: 130 } }} />
             </Stack>
           </Paper>;
         })}</Stack>}
