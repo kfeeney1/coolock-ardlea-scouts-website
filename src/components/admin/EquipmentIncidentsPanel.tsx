@@ -37,6 +37,7 @@ import {
   validateIncidentResolution
 } from "../../services/equipmentIncidentLogic";
 import type { EquipmentIncidentResolution, EquipmentIncidentType } from "../../services/equipmentIncidentLogic";
+import { numericInputDisplayValue, parseOptionalNumberInput } from "../../services/numericInput";
 
 type Props = {
   profile: AdminProfile | null;
@@ -61,7 +62,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [type, setType] = useState<EquipmentIncidentType>("damaged");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | null>(1);
   const [description, setDescription] = useState("");
   const [resolving, setResolving] = useState<EquipmentIncident | null>(null);
   const [resolution, setResolution] = useState<EquipmentIncidentResolution>("found-returned");
@@ -123,7 +124,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const submit = async () => {
     onError("");
     if (!selectedSource) return onError("Choose the equipment connected to the issue.");
-    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > selectedSource.maximum) {
+    if (quantity === null || !Number.isInteger(quantity) || quantity <= 0 || quantity > selectedSource.maximum) {
       return onError(`Enter a whole-number quantity between 1 and ${selectedSource.maximum}.`);
     }
     if (!description.trim()) return onError("Describe what happened to the equipment.");
@@ -249,7 +250,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
               <MenuItem value="maintenance">Needs cleaning / maintenance</MenuItem>
             </Select>
           </FormControl>
-          <TextField label="Quantity affected" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} slotProps={{ htmlInput: { min: 1, max: selectedSource?.maximum ?? 1, step: 1 } }} helperText={selectedSource ? `Maximum from this source: ${selectedSource.maximum}` : "Choose the equipment first."} />
+          <TextField label="Quantity affected" type="number" value={numericInputDisplayValue(quantity)} onChange={(event) => setQuantity(parseOptionalNumberInput(event.target.value))} slotProps={{ htmlInput: { min: 1, max: selectedSource?.maximum ?? 1, step: 1, "data-testid": "equipment-incident-quantity" } }} helperText={selectedSource ? `Maximum from this source: ${selectedSource.maximum}` : "Choose the equipment first."} />
           <TextField label="What happened?" value={description} onChange={(event) => setDescription(event.target.value)} multiline minRows={3} required placeholder="Describe the damage, where the item was last seen, or what maintenance is needed." />
           {incidentRequiresUrgentNotification(type) && <Alert severity="info">Submitting this report will notify the Quartermaster / Bo'sun and Group Leadership on their dashboard and by email.</Alert>}
         </Stack>
