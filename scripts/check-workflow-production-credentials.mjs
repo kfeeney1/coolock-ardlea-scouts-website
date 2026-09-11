@@ -24,6 +24,7 @@ const productionCredentialPolicy = new Map([
       "seed-production-equipment.yml",
       "rebuild-public-leadership.yml",
       "rebuild-parent-weekly-meetings.yml",
+      "rebuild-production-data.yml",
     ]),
     requireProductionEnvironment: true,
     allowSchedule: false,
@@ -34,7 +35,11 @@ const productionCredentialPolicy = new Map([
     allowSchedule: false,
   }],
   [productionBackupSecret, {
-    workflows: new Set(["firestore-backup.yml", "firestore-backup-freshness.yml"]),
+    workflows: new Set([
+      "firestore-backup.yml",
+      "firestore-backup-freshness.yml",
+      "rebuild-production-data.yml",
+    ]),
     requireProductionEnvironment: false,
     allowSchedule: true,
   }],
