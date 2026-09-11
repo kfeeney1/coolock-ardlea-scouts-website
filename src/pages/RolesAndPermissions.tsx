@@ -60,7 +60,7 @@ export default function RolesAndPermissions() {
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           Role assignment and permission configuration are intentionally separate. Use Leader Access to change who has an existing role or appointment. The permission definitions below are protected system policy and are changed only with matching application, Firebase Rules and regression-test updates.
         </Typography>
-        {canManageOrdinaryAccess ? <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+        {canManageOrdinaryAccess ? <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
           <Button component={Link} to="/leader/access" variant="contained" color="secondary">
             Manage user roles & appointments
           </Button>
@@ -77,7 +77,7 @@ export default function RolesAndPermissions() {
           const permissionCount = effectivePermissionsFor(summary.role, "").length;
           const protectedRole = summary.role === "super-admin";
           return <Paper key={summary.role} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+            <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>{summary.label}</Typography>
               {protectedRole && <Chip size="small" color="warning" label="Protected" />}
             </Stack>
