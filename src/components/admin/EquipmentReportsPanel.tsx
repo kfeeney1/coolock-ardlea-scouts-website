@@ -41,7 +41,7 @@ type Props = {
 };
 
 function downloadCsv(filename: string, content: string) {
-  const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -68,10 +68,11 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
   const activeItems = useMemo(() => items.filter((item) => !item.archived).sort((a, b) => a.name.localeCompare(b.name)), [items]);
 
   const filters: EquipmentReportFilters = { section, itemId, category, location, status, fromDate, toDate };
+  const operationalSources = { loans, incidents };
   const today = new Date().toISOString().slice(0, 10);
 
   const build = (id: ReportId) => {
-    if (id === "inventory") return equipmentInventoryCsv(items, filters);
+    if (id === "inventory") return equipmentInventoryCsv(items, filters, operationalSources);
     if (id === "location") return equipmentByLocationCsv(items, filters);
     if (id === "category") return equipmentByCategoryCsv(items, filters);
     if (id === "holdings") return currentSectionHoldingsCsv(loans, filters);
@@ -92,9 +93,9 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
     <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2 }}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>Equipment Reports</Typography>
-        <Typography color="text.secondary">Export stock, holdings, overdue items, maintenance, incidents, usage and replacement-value reports as CSV.</Typography>
+        <Typography color="text.secondary">Export stock and operational details, including damage, current checkout, last check-in and last-used information, plus holdings, overdue items, maintenance, usage and replacement-value reports.</Typography>
       </Box>
-      {canManage && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentInventoryCsv(items))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
+      {canManage && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentInventoryCsv(items, {}, operationalSources))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
       {canManage && <Button variant="outlined" onClick={() => downloadCsv(`equipment-asset-register-${today}.csv`, equipmentAssetRegisterCsv(items))} data-testid="export-equipment-asset-register">Export asset register</Button>}
     </Stack>
 
