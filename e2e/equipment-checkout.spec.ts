@@ -248,6 +248,8 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
 
   await expect(card.getByText("5 total", { exact: true })).toBeVisible();
   await page.reload();
+  await page.goto("/leader/equipment");
+  await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
   const reloadedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(reloadedCard.getByText("5 total", { exact: true })).toBeVisible();
 });
