@@ -126,21 +126,22 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
-          trap 'rm -f /tmp/firebase-service-account.json /tmp/firebase.production.json' EXIT
+          trap 'rm -f /tmp/firebase-service-account.json firebase.production.generated.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
 
           # New default buckets use PROJECT_ID.firebasestorage.app. Bind the reviewed
           # Storage rules to the exact production bucket instead of relying on the
-          # CLI's default-bucket discovery.
+          # CLI's default-bucket discovery. Keep the generated config in the repo
+          # root so Firebase resolves the adjacent .firebaserc target mapping.
           npx --yes firebase-tools@15.28.1 target:apply storage production-default "$PRODUCTION_STORAGE_BUCKET" --project "$FIREBASE_PROJECT_ID" --non-interactive
           node - <<'NODE'
           const fs = require('node:fs');
           const config = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
           config.storage = [{ target: 'production-default', rules: 'storage.rules' }];
-          fs.writeFileSync('/tmp/firebase.production.json', JSON.stringify(config, null, 2));
+          fs.writeFileSync('firebase.production.generated.json', JSON.stringify(config, null, 2));
           NODE
 
-          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config /tmp/firebase.production.json --non-interactive
+          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
       - name: Read-only post-deployment verification
         run: |
           node scripts/check-live-build-info.mjs
