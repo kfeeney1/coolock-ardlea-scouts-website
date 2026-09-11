@@ -52,3 +52,21 @@ test("only Super Admin receives admin promotion permission", () => {
   assert.equal(effectivePermissionsFor("admin", "").some((permission) => permission.id === "roles.manage.admin"), false);
   assert.equal(effectivePermissionsFor("super-admin", "").some((permission) => permission.id === "roles.manage.admin"), true);
 });
+
+test("Super Admin receives every administrative and operational permission regardless of Scouting appointment", () => {
+  const ids = new Set(effectivePermissionsFor("super-admin", "").map((permission) => permission.id));
+  const expected = PERMISSION_REGISTRY
+    .filter((permission) => permission.grantedBy.some((grant) => grant !== "parent"))
+    .map((permission) => permission.id);
+
+  assert.deepEqual([...ids].sort(), expected.sort());
+  assert.ok(ids.has("weekly-meetings.manage.group"));
+  assert.ok(ids.has("programme.manage.group"));
+  assert.ok(ids.has("event-gallery.manage.group"));
+  assert.ok(ids.has("badgework.manage.group"));
+  assert.ok(ids.has("roles.delegate.operational"));
+  assert.ok(ids.has("roles.manage.admin"));
+  assert.ok(ids.has("system.superadmin.protect"));
+  assert.equal(ids.has("members.read.linked"), false);
+  assert.equal(ids.has("badgework.read.linked"), false);
+});
