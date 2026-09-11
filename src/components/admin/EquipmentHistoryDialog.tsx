@@ -22,6 +22,7 @@ import { loadEquipmentHistory, moveEquipmentStock } from "../../services/equipme
 import type { EquipmentHistoryEntry } from "../../services/equipmentHistory";
 import { equipmentHistoryLabel } from "../../services/equipmentHistoryLogic";
 import { availableEquipmentQuantity } from "../../services/equipmentLoanLogic";
+import { numericInputDisplayValue, parseOptionalNumberInput } from "../../services/numericInput";
 
 type Props = {
   item: EquipmentItem | null;
@@ -41,7 +42,7 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
   const [history, setHistory] = useState<EquipmentHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [destination, setDestination] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | null>(1);
   const [moving, setMoving] = useState(false);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
   const destinations = useMemo(() => locations.filter((location) => item && location.toLowerCase() !== item.location.toLowerCase()), [item, locations]);
 
   const move = async () => {
-    if (!item) return;
+    if (!item || quantity === null) return;
     setMoving(true);
     try {
       await moveEquipmentStock(item, quantity, destination);
@@ -87,8 +88,8 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Move available stock from {item.location}. Partial moves create a separate stock record at the destination so each location keeps an accurate quantity.</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <FormControl fullWidth><InputLabel>Destination</InputLabel><Select label="Destination" value={destination} onChange={(event) => setDestination(event.target.value)}>{destinations.map((location) => <MenuItem key={location} value={location}>{location}</MenuItem>)}</Select></FormControl>
-            <TextField label="Quantity to move" type="number" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} slotProps={{ htmlInput: { min: 1, max: available, step: 1 } }} helperText={`${available} available`} />
-            <Button variant="contained" color="success" disabled={moving || !destination || quantity < 1 || quantity > available || !Number.isInteger(quantity)} onClick={() => void move()} sx={{ minWidth: { sm: 120 } }}>{moving ? "Moving…" : "Move stock"}</Button>
+            <TextField label="Quantity to move" type="number" value={numericInputDisplayValue(quantity)} onChange={(event) => setQuantity(parseOptionalNumberInput(event.target.value))} slotProps={{ htmlInput: { min: 1, max: available, step: 1 } }} helperText={`${available} available`} />
+            <Button variant="contained" color="success" disabled={moving || !destination || quantity === null || quantity < 1 || quantity > available || !Number.isInteger(quantity)} onClick={() => void move()} sx={{ minWidth: { sm: 120 } }}>{moving ? "Moving…" : "Move stock"}</Button>
           </Stack>
         </Paper>}
 
