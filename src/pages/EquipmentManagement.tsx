@@ -49,9 +49,11 @@ import {
   isDuplicateEquipmentLabel,
   normaliseEquipmentLabel
 } from "../services/equipmentLogic";
+import { numericInputDisplayValue, parseOptionalNumberInput } from "../services/numericInput";
 
 const OTHER = "__other__";
-const EMPTY_FORM: EquipmentItemInput = {
+type EquipmentFormState = Omit<EquipmentItemInput, "totalQuantity"> & { totalQuantity: number | null };
+const EMPTY_FORM: EquipmentFormState = {
   name: "",
   category: "",
   trackingMode: "quantity",
@@ -78,7 +80,7 @@ export default function EquipmentManagement() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
   const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
-  const [form, setForm] = useState<EquipmentItemInput>(EMPTY_FORM);
+  const [form, setForm] = useState<EquipmentFormState>(EMPTY_FORM);
   const [newCategory, setNewCategory] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [saving, setSaving] = useState(false);
@@ -167,7 +169,7 @@ export default function EquipmentManagement() {
     if (isDuplicateEquipmentItemName(name, items, editing?.id)) {
       return setError("An equipment item with that name already exists. Edit or restore the existing record instead.");
     }
-    if (!Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
+    if (form.totalQuantity === null || !Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
     const committedQuantity = editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0;
     if (editing && form.totalQuantity < committedQuantity) return setError(`At least ${committedQuantity} are currently checked out or unavailable. Resolve stock before reducing the total below that number.`);
     if (form.replacementValue !== null && (!Number.isFinite(form.replacementValue) || form.replacementValue < 0)) return setError("Replacement value cannot be negative.");
@@ -191,7 +193,7 @@ export default function EquipmentManagement() {
       }
       if (!category || !location) throw new Error("Choose a category and storage location.");
 
-      const payload = { ...form, name, category, location };
+      const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
       if (editing) await updateEquipmentItem(editing.id, payload);
       else await createEquipmentItem(payload);
       setEditing(undefined);
@@ -333,7 +335,7 @@ export default function EquipmentManagement() {
           <FormControl><InputLabel>Storage location</InputLabel><Select label="Storage location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select location</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.location === OTHER && <TextField label="New storage location" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
-          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0, step: 1 } }} value={form.totalQuantity} onChange={(event) => setForm({ ...form, totalQuantity: Number(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
+          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
           <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="not-recorded">Not recorded</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>
           <TextField label="Replacement value (€)" type="number" slotProps={{ htmlInput: { min: 0, step: "0.01" } }} value={form.replacementValue ?? ""} onChange={(event) => setForm({ ...form, replacementValue: event.target.value === "" ? null : Number(event.target.value) })} />
           <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
