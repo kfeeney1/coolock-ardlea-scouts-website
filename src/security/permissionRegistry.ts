@@ -91,6 +91,10 @@ export const PERMISSION_REGISTRY: PermissionDefinition[] = [
 ];
 
 const grantMatches = (grant: PermissionGrant, role: string, scoutingRole: string) => {
+  // Super Admin is the authoritative application-level override. Parent-only
+  // capabilities remain tied to the parent relationship model rather than
+  // being treated as administrative privileges.
+  if (role === "super-admin" && grant !== "parent") return true;
   if (grant === role) return true;
   if (grant === "admin" && role === "super-admin") return true;
   if (grant === "leader" && ["leader", "admin", "super-admin"].includes(role)) return true;
