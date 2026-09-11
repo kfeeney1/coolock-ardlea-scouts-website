@@ -25,10 +25,8 @@ function reportLabel(filename: string) {
 }
 
 function openInNewTab(url: string) {
-  const opened = window.open("about:blank", "_blank");
-  if (!opened) return;
-  opened.opener = null;
-  opened.location.replace(url);
+  const opened = window.open(url, "_blank");
+  if (opened) opened.opener = null;
 }
 
 function emailHref(report: GeneratedReport) {
