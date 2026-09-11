@@ -4,7 +4,6 @@ import {
     Typography
 } from "@mui/material";
 
-import { BUILD_NUMBER } from "../buildInfo";
 import { SITE_IDENTITY } from "../content/siteIdentity";
 import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "./PublicSiteContentProvider";
@@ -47,17 +46,6 @@ export default function Footer() {
                     }}
                 >
                     Registered Charity Number (RCN): {SITE_IDENTITY.registeredCharityNumber}
-                </Typography>
-
-                <Typography
-                    variant="caption"
-                    sx={{
-                        display: "block",
-                        mt: 0.75,
-                        color: "rgba(255,255,255,0.75)"
-                    }}
-                >
-                    Build {BUILD_NUMBER}
                 </Typography>
             </Container>
         </Box>
