@@ -8,6 +8,11 @@ body {
   min-width: 320px;
 }
 
+.MuiMenu-paper,
+.MuiAutocomplete-paper {
+  overscroll-behavior: contain;
+}
+
 @media (max-width: 600px) {
   [data-testid="event-detail-report"] {
     min-width: 0;
