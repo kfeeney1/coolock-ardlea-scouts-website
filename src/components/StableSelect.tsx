@@ -40,26 +40,6 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
   const preserveViewport = () => window.scrollTo(openScroll.current.x, openScroll.current.y);
   const paper = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const dismissDetachedMenu = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('[role="listbox"]')) return;
-      if ((event.target === document || event.target === document.documentElement)
-        && window.scrollX === openScroll.current.x && window.scrollY === openScroll.current.y) return;
-      closeFromScroll.current = true;
-      setMenuOpen(false);
-    };
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => window.addEventListener("scroll", dismissDetachedMenu, true));
-    });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-      window.removeEventListener("scroll", dismissDetachedMenu, true);
-    };
-  }, [menuOpen]);
-
   return <Select
     {...selectProps}
     open={menuOpen}
@@ -92,7 +72,7 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       anchorOrigin: { vertical: placement.anchorVertical, horizontal: "left" },
       transformOrigin: { vertical: placement.transformVertical, horizontal: "left" },
       marginThreshold: 0,
-      disableScrollLock: true,
+      disableScrollLock: false,
       disableRestoreFocus: true,
       slotProps: {
         ...MenuProps?.slotProps,
