@@ -29,7 +29,9 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm --prefix functions install --no-audit --package-lock=false
       - name: Build TEST artifact
         run: npm run build
         env:
@@ -43,7 +45,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
-      - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to TEST
+      - name: Deploy reviewed Rules, indexes, authoritative functions, Storage rules and Hosting to TEST
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
         shell: bash
@@ -52,7 +54,7 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
           trap 'rm -f /tmp/firebase-service-account.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
-          npx --yes firebase-tools@15.28.1 deploy --config firebase.test.json --only firestore:rules,firestore:indexes,storage:test-default,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+          npx --yes firebase-tools@15.28.1 deploy --config firebase.test.json --only firestore:rules,firestore:indexes,functions:adventure-skills,storage:test-default,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
       - name: Seed canonical synthetic TEST identities, families, public content and equipment
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}

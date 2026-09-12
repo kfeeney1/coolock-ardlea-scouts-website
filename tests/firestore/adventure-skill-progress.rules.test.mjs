@@ -75,25 +75,36 @@ test("approved parents can read linked-child progress but cannot write it or rea
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/requirements/camping-stage-1-requirement-06"), requirement("parent-1")));
 });
 
-test("awards are separately protected and attributed", async () => {
+test("direct client award mutations are denied even to an authorised leader", async () => {
   await seed([
     ["adminUsers/leader-beavers", { active: true, role: "leader", sections: ["Beavers"] }],
     ["members/member-1", { section: "Beavers", status: "active" }],
+    ["memberAdventureSkillProgress/member-1/awards/camping-stage-1", { ...award("leader-old"), awardedAt: new Date(), awardedBy: "leader-old" }],
   ]);
   const db = testEnv.authenticatedContext("leader-beavers").firestore();
-  await assertSucceeds(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers")));
-  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/wrong-id"), award("leader-beavers")));
-  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers", "member-1", "wrong-id")));
+  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-2"), award("leader-beavers", "member-1", "camping-stage-2", "camping", 2)));
+  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-beavers")));
+  await assertFails(deleteDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1")));
 });
 
-test("award writes accept only canonical Adventure Skill stage identities", async () => {
+test("historical award records remain readable after direct writes are closed", async () => {
+  await seed([
+    ["adminUsers/leader-beavers", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["members/member-1", { section: "Beavers", status: "active" }],
+    ["memberAdventureSkillProgress/member-1/awards/camping-stage-1", { ...award("leader-old"), awardedAt: new Date(), awardedBy: "leader-old" }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-beavers").firestore();
+  await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/member-1/awards")));
+});
+
+test("direct bypass attempts stay denied for canonical, invalid and Swimming identities", async () => {
   await seed([
     ["adminUsers/leader-beavers", { active: true, role: "leader", sections: ["Beavers"] }],
     ["members/member-1", { section: "Beavers", status: "active" }],
   ]);
   const db = testEnv.authenticatedContext("leader-beavers").firestore();
 
-  await assertSucceeds(setDoc(
+  await assertFails(setDoc(
     doc(db, "memberAdventureSkillProgress/member-1/awards/swimming-stage-6"),
     award("leader-beavers", "member-1", "swimming-stage-6", "swimming", 6),
   ));
@@ -109,6 +120,18 @@ test("award writes accept only canonical Adventure Skill stage identities", asyn
     doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-2"),
     award("leader-beavers", "member-1", "camping-stage-2", "camping", 1),
   ));
+});
+
+test("parents and out-of-scope leaders cannot bypass the trusted award boundary", async () => {
+  await seed([
+    ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-1"], linkedSections: ["Beavers"] }],
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["members/member-1", { section: "Beavers", status: "active" }],
+  ]);
+  const parentDb = testEnv.authenticatedContext("parent-1").firestore();
+  const leaderDb = testEnv.authenticatedContext("leader-cubs").firestore();
+  await assertFails(setDoc(doc(parentDb, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("parent-1")));
+  await assertFails(setDoc(doc(leaderDb, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("leader-cubs")));
 });
 
 test("requirement writes reject forged attribution and unsupported source types", async () => {
