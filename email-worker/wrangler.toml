@@ -1,14 +1,28 @@
 name = "coolock-ardlea-scouts-email"
-main = "src/index.js"
+main = "src/entry.js"
 compatibility_date = "2026-08-01"
 
+# Safe default for local development and non-production deployment. A plain
+# `wrangler deploy` cannot send to real members/leaders because delivery is
+# redirected to the controlled test inbox.
 [vars]
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
 SITE_URL = "https://coolock-ardlea-scouts.web.app"
+EMAIL_DELIVERY_MODE = "test"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <onboarding@resend.dev>"
 ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
 ADMIN_EMAILS = "kfeeney1@hotmail.com"
-# While Resend is using onboarding@resend.dev, redirect all intended recipients
-# to the Resend account owner so every flow can be tested. Clear this after
-# verifying a sending domain and changing EMAIL_FROM to that domain.
 TEST_EMAIL_REDIRECT = "kfeeney1@hotmail.com"
+
+# Genuine delivery must be an explicit production deployment. Wrangler `vars`
+# are non-inheritable, so the complete production configuration is repeated.
+[env.production]
+name = "coolock-ardlea-scouts-email"
+
+[env.production.vars]
+FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
+SITE_URL = "https://coolockardleascouts.ie"
+EMAIL_DELIVERY_MODE = "production"
+EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>"
+ALLOWED_ORIGINS = "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie"
+ADMIN_EMAILS = "kfeeney1@hotmail.com"
