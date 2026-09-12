@@ -45,26 +45,29 @@ async function triggerHandle(trigger: Locator) {
 }
 
 async function expectAttachedGeometry(page: Page, trigger: ElementHandle<HTMLElement>, listbox: Locator) {
-  const [triggerBox, menuBox, viewport] = await Promise.all([
+  const menuBox = await listbox.evaluate((element) => {
+    const surface = element.closest(".MuiPaper-root");
+    const rect = (surface ?? element).getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
+  const [triggerBox, viewport] = await Promise.all([
     trigger.boundingBox(),
-    listbox.boundingBox(),
     viewportState(page)
   ]);
   expect(triggerBox).not.toBeNull();
-  expect(menuBox).not.toBeNull();
 
   const verticalGap = Math.max(
-    triggerBox!.y - (menuBox!.y + menuBox!.height),
-    menuBox!.y - (triggerBox!.y + triggerBox!.height),
+    triggerBox!.y - (menuBox.y + menuBox.height),
+    menuBox.y - (triggerBox!.y + triggerBox!.height),
     0
   );
   expect(verticalGap).toBeLessThanOrEqual(8);
-  expect(menuBox!.x).toBeLessThan(triggerBox!.x + triggerBox!.width);
-  expect(menuBox!.x + menuBox!.width).toBeGreaterThan(triggerBox!.x);
-  expect(menuBox!.x).toBeGreaterThanOrEqual(-1);
-  expect(menuBox!.y).toBeGreaterThanOrEqual(-1);
-  expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(viewport.clientWidth + 1);
-  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(viewport.clientHeight + 1);
+  expect(menuBox.x).toBeLessThan(triggerBox!.x + triggerBox!.width);
+  expect(menuBox.x + menuBox.width).toBeGreaterThan(triggerBox!.x);
+  expect(menuBox.x).toBeGreaterThanOrEqual(-1);
+  expect(menuBox.y).toBeGreaterThanOrEqual(-1);
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(viewport.clientWidth + 1);
+  expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(viewport.clientHeight + 1);
 }
 
 async function openAttachedDropdown(page: Page, trigger: Locator) {
