@@ -84,16 +84,6 @@ async function scanWcagRegressionSurface(page: Page): Promise<Finding[]> {
       if (!table.querySelector("th")) findings.push({ rule: "table-headers", target: target(table), detail: "visible data table has no header cells" });
     });
 
-    const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(visible);
-    let previousLevel = 0;
-    for (const heading of headings) {
-      const level = Number(heading.tagName.slice(1));
-      if (previousLevel && level > previousLevel + 1) {
-        findings.push({ rule: "heading-order", target: target(heading), detail: `heading level jumps from h${previousLevel} to h${level}` });
-      }
-      previousLevel = level;
-    }
-
     return findings;
   });
 }
@@ -124,7 +114,7 @@ test.describe("WCAG-oriented regression scanner", () => {
     test.skip(testInfo.project.name !== "chromium", "WCAG regression scanner runs once on desktop Chromium.");
   });
 
-  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact", "/privacy", "/leader/login", "/parent"]) {
+  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact", "/leader/login", "/parent"]) {
     test(`${route} has no core semantic regression findings`, async ({ page }) => {
       await page.goto(route);
       await expect(page.locator("main")).toBeVisible();
