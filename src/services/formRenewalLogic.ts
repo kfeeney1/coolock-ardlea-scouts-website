@@ -71,12 +71,12 @@ export function findMembersNeedingFormRenewal(
     ]);
   }
 
-  return members.flatMap((member) => {
+  return members.flatMap<FormRenewalDue>((member) => {
     if (!member.active) return [];
 
     const current = currentYouthConsent(recordsByMember.get(member.id) || []);
     if (!current) {
-      return [{ memberId: member.id, reason: "missing" as const, referenceDate: null }];
+      return [{ memberId: member.id, reason: "missing", referenceDate: null }];
     }
 
     if (current.consentTo) {
@@ -84,7 +84,7 @@ export function findMembersNeedingFormRenewal(
       if (!Number.isNaN(expiry.getTime()) && expiry < asOfDay) {
         return [{
           memberId: member.id,
-          reason: "expired" as const,
+          reason: "expired",
           referenceDate: latestDate(current.parentUpdatedAt, current.updatedAt, current.submittedAt)
         }];
       }
@@ -92,7 +92,7 @@ export function findMembersNeedingFormRenewal(
 
     const referenceDate = latestDate(current.parentUpdatedAt, current.updatedAt, current.submittedAt);
     if (!referenceDate || addUtcYear(startOfUtcDay(referenceDate)) <= asOfDay) {
-      return [{ memberId: member.id, reason: "annual" as const, referenceDate }];
+      return [{ memberId: member.id, reason: "annual", referenceDate }];
     }
 
     return [];
