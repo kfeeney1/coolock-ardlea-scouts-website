@@ -31,8 +31,7 @@ export default function ParentAccessManagement() {
     const [message, setMessage] = useState("");
 
     const load = async () => {
-        setLoading(true);
-        setError("");
+        setLoading(true); setError("");
         try {
             const [loadedParents, loadedMembers] = await Promise.all([loadParentAccounts(), loadMembers()]);
             setParents(loadedParents);
@@ -41,37 +40,22 @@ export default function ParentAccessManagement() {
         } catch (loadError) {
             console.error("Unable to load parent access requests:", loadError);
             setError("Unable to load parent access requests.");
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
-
     useEffect(() => { void load(); }, []);
     const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
 
-    const toggleParent = (uid: string) => {
-        setActiveParentUid((current) => current === uid ? "" : uid);
-        setMemberSearch("");
-        setError("");
-    };
-
-    const toggleMember = (uid: string, memberId: string) => {
-        setSelected((current) => {
-            const ids = current[uid] || [];
-            return { ...current, [uid]: ids.includes(memberId) ? ids.filter((id) => id !== memberId) : [...ids, memberId] };
-        });
-    };
+    const toggleParent = (uid: string) => { setActiveParentUid((current) => current === uid ? "" : uid); setMemberSearch(""); setError(""); };
+    const toggleMember = (uid: string, memberId: string) => setSelected((current) => {
+        const ids = current[uid] || [];
+        return { ...current, [uid]: ids.includes(memberId) ? ids.filter((id) => id !== memberId) : [...ids, memberId] };
+    });
 
     const save = async (parent: ParentAccount, status: ParentAccessStatus) => {
         const memberIds = selected[parent.uid] || [];
-        if (status === "approved" && memberIds.length === 0) {
-            setError("Confirm at least one member before approving parent access.");
-            return;
-        }
+        if (status === "approved" && memberIds.length === 0) { setError("Confirm at least one member before approving parent access."); return; }
         const linkedSections = [...new Set(members.filter((member) => memberIds.includes(member.id)).map((member) => member.section).filter(Boolean))];
-        setWorkingUid(parent.uid);
-        setError("");
-        setMessage("");
+        setWorkingUid(parent.uid); setError(""); setMessage("");
         try {
             const linked = status === "approved" ? await linkConsentRecordsToMembers(memberIds) : 0;
             await updateParentAccess(parent.uid, status, status === "approved" ? memberIds : [], status === "approved" ? linkedSections : []);
@@ -89,27 +73,11 @@ export default function ParentAccessManagement() {
     };
 
     const requestDecision = (parent: ParentAccount, status: "approved" | "rejected") => {
-        if (status === "approved" && (selected[parent.uid] || []).length === 0) {
-            setError("Confirm at least one member before approving parent access.");
-            return;
-        }
-        setError("");
-        setMessage("");
-        setDecisionTarget({ parent, status });
+        if (status === "approved" && (selected[parent.uid] || []).length === 0) { setError("Confirm at least one member before approving parent access."); return; }
+        setError(""); setMessage(""); setDecisionTarget({ parent, status });
     };
-
-    const confirmDecision = () => {
-        if (!decisionTarget) return;
-        const { parent, status } = decisionTarget;
-        setDecisionTarget(null);
-        void save(parent, status);
-    };
-    const confirmRevoke = () => {
-        if (!revokeTarget) return;
-        const parent = revokeTarget;
-        setRevokeTarget(null);
-        void save(parent, "revoked");
-    };
+    const confirmDecision = () => { if (!decisionTarget) return; const { parent, status } = decisionTarget; setDecisionTarget(null); void save(parent, status); };
+    const confirmRevoke = () => { if (!revokeTarget) return; const parent = revokeTarget; setRevokeTarget(null); void save(parent, "revoked"); };
     const decisionMemberIds = decisionTarget ? selected[decisionTarget.parent.uid] || [] : [];
     const decisionSections = [...new Set(members.filter((member) => decisionMemberIds.includes(member.id)).map((member) => member.section).filter(Boolean))];
 
@@ -151,7 +119,7 @@ export default function ParentAccessManagement() {
                                     const alreadyApproved = Boolean(candidate && parent.memberIds.includes(candidate.id));
                                     const selectedForApproval = Boolean(candidate && linkedIds.includes(candidate.id));
                                     return <Paper key={`${match.request.firstName}-${match.request.lastName}-${match.request.dateOfBirth}-${index}`} variant="outlined" sx={{ p: 2 }} data-testid={`requested-child-${parent.uid}-${index}`}>
-                                        <Typography fontWeight={800}>{match.request.firstName} {match.request.lastName}</Typography>
+                                        <Typography sx={{ fontWeight: 800 }}>{match.request.firstName} {match.request.lastName}</Typography>
                                         <Typography color="text.secondary">DOB supplied by parent: {match.request.dateOfBirth}</Typography>
                                         {match.outcome === "matched" && candidate && <Stack spacing={1.25} sx={{ mt: 1.5 }}><Alert severity={alreadyApproved || selectedForApproval ? "success" : "info"}><strong>Likely existing member:</strong> {candidate.displayName} · {candidate.section}. {alreadyApproved ? "Already approved and linked." : selectedForApproval ? "Confirmed for this approval." : "Verify the relationship, then confirm this link."}</Alert>{!alreadyApproved && <Button variant={selectedForApproval ? "outlined" : "contained"} color={selectedForApproval ? "secondary" : "success"} onClick={() => toggleMember(parent.uid, candidate.id)}>{selectedForApproval ? "Remove Confirmed Link" : "Confirm & Link"}</Button>}</Stack>}
                                         {match.outcome === "none" && <Alert severity="warning" sx={{ mt: 1.5 }}>No exact existing member match. Manual review is required; no new member will be created.</Alert>}
