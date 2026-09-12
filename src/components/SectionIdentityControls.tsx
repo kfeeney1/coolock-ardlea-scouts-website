@@ -1,9 +1,10 @@
 import { Box, Button, Chip, FormControl, InputLabel, MenuItem, type ButtonProps, type ChipProps } from "@mui/material";
-import Select, { type SelectChangeEvent, type SelectProps } from "@mui/material/Select";
+import { type SelectChangeEvent, type SelectProps } from "@mui/material/Select";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { sectionVisualTokens } from "../theme/sectionColours";
+import StableSelect from "./StableSelect";
 
 function sectionControlSx(section: string | null | undefined): SxProps<Theme> {
   const tokens = sectionVisualTokens(section);
@@ -92,119 +93,30 @@ type SectionSelectProps = {
   sx?: SxProps<Theme>;
 };
 
-type MenuPlacement = {
-  anchorVertical: "top" | "bottom";
-  transformVertical: "top" | "bottom";
-  maxHeight: number;
-};
-
-const DEFAULT_MENU_PLACEMENT: MenuPlacement = {
-  anchorVertical: "bottom",
-  transformVertical: "top",
-  maxHeight: 320
-};
-
 export function SectionSelect({ id, label, value, options, onChange, allValue, allLabel = "All sections", size, disabled, fullWidth, sx }: SectionSelectProps) {
   const labelId = `${id}-label`;
   const selectedTokens = sectionVisualTokens(value === allValue ? null : value);
   const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
-  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>(DEFAULT_MENU_PLACEMENT);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const controlRef = useRef<HTMLDivElement | null>(null);
-  const openScroll = useRef({ x: 0, y: 0 });
-  const closeFromScroll = useRef(false);
-
-  const getTrigger = () => controlRef.current?.querySelector<HTMLElement>('[role="combobox"]') ?? document.getElementById(id);
-
-  const handleOpen = () => {
-    const trigger = getTrigger();
-    if (!trigger) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const viewportMargin = 16;
-    const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
-    const spaceAbove = rect.top - viewportMargin;
-    const openAbove = spaceAbove > spaceBelow;
-    const availableSpace = Math.max(openAbove ? spaceAbove : spaceBelow, 0);
-
-    window.scrollTo(openScroll.current.x, openScroll.current.y);
-    setMenuPlacement({
-      anchorVertical: openAbove ? "top" : "bottom",
-      transformVertical: openAbove ? "bottom" : "top",
-      maxHeight: Math.max(Math.min(320, availableSpace), 48)
-    });
-    closeFromScroll.current = false;
-    setMenuOpen(true);
-  };
-
-  const captureOpen = () => {
-    openScroll.current = { x: window.scrollX, y: window.scrollY };
-  };
-
-  const handleClose = () => {
-    setMenuOpen(false);
-    if (!closeFromScroll.current) {
-      getTrigger()?.focus({ preventScroll: true });
-      window.scrollTo(openScroll.current.x, openScroll.current.y);
-    }
-  };
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const dismissDetachedMenu = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('[role="listbox"]')) return;
-      if ((event.target === document || event.target === document.documentElement)
-        && window.scrollX === openScroll.current.x && window.scrollY === openScroll.current.y) return;
-      closeFromScroll.current = true;
-      setMenuOpen(false);
-    };
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => window.addEventListener("scroll", dismissDetachedMenu, true));
-    });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-      window.removeEventListener("scroll", dismissDetachedMenu, true);
-    };
-  }, [menuOpen]);
 
   return (
-    <FormControl ref={controlRef} size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
+    <FormControl size={size} disabled={disabled} fullWidth={fullWidth} sx={sx}>
       <InputLabel id={labelId}>{label}</InputLabel>
-      <Select
+      <StableSelect
         id={id}
         labelId={labelId}
         label={label}
         value={value}
-        open={menuOpen}
-        onChange={onChange}
-        onMouseDownCapture={captureOpen}
-        onKeyDownCapture={captureOpen}
-        onOpen={handleOpen}
-        onClose={handleClose}
+        onChange={(event) => onChange(event as SelectChangeEvent<string>)}
         data-section={selectedTokens.section ?? "all"}
-        MenuProps={{
-          anchorEl: getTrigger,
-          anchorOrigin: { vertical: menuPlacement.anchorVertical, horizontal: "left" },
-          transformOrigin: { vertical: menuPlacement.transformVertical, horizontal: "left" },
-          marginThreshold: 0,
-          disableScrollLock: true,
-          disableRestoreFocus: true,
-          slotProps: {
-            paper: {
-              sx: {
-                maxHeight: `${menuPlacement.maxHeight}px`
-              }
-            }
-          }
+        renderValue={(selected) => {
+          const selectedValue = selected as string;
+          return (
+            <SectionOptionLabel
+              section={selectedValue === allValue ? null : selectedValue}
+              label={selectedValue === allValue ? allLabel : normalizedOptions.find((option) => option.value === selectedValue)?.label ?? selectedValue}
+            />
+          );
         }}
-        renderValue={(selected) => (
-          <SectionOptionLabel
-            section={selected === allValue ? null : selected}
-            label={selected === allValue ? allLabel : normalizedOptions.find((option) => option.value === selected)?.label ?? selected}
-          />
-        )}
         sx={sectionControlSx(value === allValue ? null : value)}
       >
         {allValue !== undefined && (
@@ -217,7 +129,7 @@ export function SectionSelect({ id, label, value, options, onChange, allValue, a
             <SectionOptionLabel section={option.value} label={option.label} />
           </MenuItem>
         ))}
-      </Select>
+      </StableSelect>
     </FormControl>
   );
 }

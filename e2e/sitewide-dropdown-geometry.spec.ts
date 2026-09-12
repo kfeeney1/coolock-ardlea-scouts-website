@@ -99,18 +99,13 @@ async function expectSelectionPreservesScroll(page: Page, trigger: Locator) {
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 }
 
-async function expectScrollDismissesWithoutJumpingBack(page: Page, trigger: Locator) {
-  const { listbox } = await openAttachedDropdown(page, trigger);
-  const beforeScroll = await viewportState(page);
-  const scrollDelta = await page.evaluate(() => {
-    const remainingBelow = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
-    const delta = remainingBelow >= 80 ? Math.min(160, remainingBelow) : -Math.min(160, window.scrollY);
-    window.scrollBy({ top: delta, behavior: "instant" });
-    return delta;
-  });
-  expect(scrollDelta).not.toBe(0);
+async function expectBackgroundScrollLocked(page: Page, trigger: Locator) {
+  const { beforeOpen, listbox } = await openAttachedDropdown(page, trigger);
+  await page.mouse.wheel(0, 500);
+  await expect(listbox).toBeVisible();
+  await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
+  await page.keyboard.press("Escape");
   await expect(listbox).toBeHidden();
-  await expect.poll(async () => (await viewportState(page)).scrollY).toBe(beforeScroll.scrollY + scrollDelta);
 }
 
 test("ordinary and TextField selects stay anchored without open, select, or close scroll jumps", async ({ page }, testInfo) => {
@@ -127,7 +122,7 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Reports to" }).first());
 });
 
-test("opening a second dropdown leaves only the intended listbox and no stale overlay", async ({ page }, testInfo) => {
+test("closing one dropdown before opening another leaves no stale overlay", async ({ page }, testInfo) => {
   supportedProject(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -138,27 +133,27 @@ test("opening a second dropdown leaves only the intended listbox and no stale ov
   expect(await reportsTo.count()).toBeGreaterThanOrEqual(2);
   const first = reportsTo.nth(0);
   const second = reportsTo.nth(1);
-  const firstElement = await triggerHandle(first);
-  const secondElement = await triggerHandle(second);
 
-  await openAttachedDropdown(page, first);
-  await secondElement.click();
-  const secondListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, secondElement, secondListbox);
+  const { listbox: firstListbox } = await openAttachedDropdown(page, first);
+  await page.keyboard.press("Escape");
+  await expect(firstListbox).toBeHidden();
 
+  const { listbox: secondListbox } = await openAttachedDropdown(page, second);
+  await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
 
-  await firstElement.click();
-  const reopenedFirstListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, firstElement, reopenedFirstListbox);
+  const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, first);
+  await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(reopenedFirstListbox).toBeHidden();
 });
 
-test("SectionSelect stays associated with its trigger on a long page and closes on scroll", async ({ page }, testInfo) => {
+test("SectionSelect stays associated with its trigger and locks background scrolling", async ({ page }, testInfo) => {
   supportedProject(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/badgework");
   await expect(page.getByRole("heading", { name: "Adventure Skills Badgework", exact: true })).toBeVisible();
-  await expectScrollDismissesWithoutJumpingBack(page, page.getByRole("combobox", { name: "Section", exact: true }));
+  await expectBackgroundScrollLocked(page, page.getByRole("combobox", { name: "Section", exact: true }));
 });

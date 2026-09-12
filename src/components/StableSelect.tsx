@@ -11,14 +11,15 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
   const { MenuProps, onOpen, onMouseDownCapture, onKeyDownCapture, ...selectProps } = props;
   const rootRef = useRef<HTMLElement | null>(null);
   const openScroll = useRef({ x: 0, y: 0 });
-  const closeFromScroll = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
+
   const getTrigger = () => {
     const root = rootRef.current;
     if (!root) return null;
     return root.getAttribute("role") === "combobox" ? root : root.querySelector<HTMLElement>('[role="combobox"]');
   };
+
   const measurePlacement = () => {
     const trigger = getTrigger();
     if (!trigger) return;
@@ -33,30 +34,29 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       maxHeight: Math.max(Math.min(320, openAbove ? above : below), 48)
     });
   };
+
   const captureOpen = () => {
     openScroll.current = { x: window.scrollX, y: window.scrollY };
     measurePlacement();
   };
+
   const preserveViewport = () => window.scrollTo(openScroll.current.x, openScroll.current.y);
   const paper = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
 
   useEffect(() => {
     if (!menuOpen) return;
-    const dismissDetachedMenu = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('[role="listbox"]')) return;
-      if ((event.target === document || event.target === document.documentElement)
-        && window.scrollX === openScroll.current.x && window.scrollY === openScroll.current.y) return;
-      closeFromScroll.current = true;
-      setMenuOpen(false);
+
+    const preventBackgroundScroll = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest(".MuiPaper-root")) return;
+      event.preventDefault();
     };
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => window.addEventListener("scroll", dismissDetachedMenu, true));
-    });
+
+    document.addEventListener("wheel", preventBackgroundScroll, { capture: true, passive: false });
+    document.addEventListener("touchmove", preventBackgroundScroll, { capture: true, passive: false });
+
     return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-      window.removeEventListener("scroll", dismissDetachedMenu, true);
+      document.removeEventListener("wheel", preventBackgroundScroll, true);
+      document.removeEventListener("touchmove", preventBackgroundScroll, true);
     };
   }, [menuOpen]);
 
@@ -71,7 +71,6 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
     onMouseDownCapture={(event) => { captureOpen(); onMouseDownCapture?.(event); }}
     onKeyDownCapture={(event) => { captureOpen(); onKeyDownCapture?.(event); }}
     onOpen={(event) => {
-      closeFromScroll.current = false;
       preserveViewport();
       setMenuOpen(true);
       onOpen?.(event);
@@ -80,10 +79,8 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       props.onClose?.(event);
       if (!event.defaultPrevented) {
         setMenuOpen(false);
-        if (!closeFromScroll.current) {
-          getTrigger()?.focus({ preventScroll: true });
-          preserveViewport();
-        }
+        getTrigger()?.focus({ preventScroll: true });
+        preserveViewport();
       }
     }}
     MenuProps={{
@@ -92,13 +89,16 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       anchorOrigin: { vertical: placement.anchorVertical, horizontal: "left" },
       transformOrigin: { vertical: placement.transformVertical, horizontal: "left" },
       marginThreshold: 0,
-      disableScrollLock: true,
+      disableScrollLock: false,
       disableRestoreFocus: true,
       slotProps: {
         ...MenuProps?.slotProps,
         paper: {
           ...paper,
-          sx: [{ maxHeight: `${placement.maxHeight}px` }, ...(Array.isArray(paper?.sx) ? paper.sx : paper?.sx ? [paper.sx] : [])]
+          sx: [
+            { maxHeight: `${placement.maxHeight}px`, overscrollBehavior: "contain" },
+            ...(Array.isArray(paper?.sx) ? paper.sx : paper?.sx ? [paper.sx] : [])
+          ]
         }
       }
     }}
