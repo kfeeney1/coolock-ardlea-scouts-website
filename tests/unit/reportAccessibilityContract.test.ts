@@ -9,8 +9,12 @@ const accessibilityDoc = readFileSync(new URL("../../docs/report-accessibility.m
 test("current report surface keeps machine-readable HTML/CSV alternatives", () => {
   assert.match(leaderReportsSource, /text\/csv;charset=utf-8/);
   assert.match(leaderReportsSource, /window\.print\(\)/);
-  assert.match(generatedReportDialogSource, /Download CSV/);
-  assert.match(generatedReportDialogSource, /Preparing CSV file/);
+  assert.match(generatedReportDialogSource, /data-testid="open-generated-report"/);
+  assert.match(generatedReportDialogSource, /data-testid="download-generated-report"/);
+  assert.match(generatedReportDialogSource, />Open report</);
+  assert.match(generatedReportDialogSource, />Download report</);
+  assert.match(generatedReportDialogSource, /text\/csv/);
+  assert.match(generatedReportDialogSource, /text\/plain;charset=utf-8/);
 });
 
 test("current application does not claim an owned accessible PDF generator", () => {
