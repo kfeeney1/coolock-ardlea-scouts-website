@@ -80,7 +80,7 @@ export async function approveLeaderRegistration(request: LeaderRegistrationReque
         transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
         transaction.update(requestRef, { status: "approved", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     });
-    try { await notifyLeaderAccessStatus(request.email, request.fullName, "approved", request.requestedSection); } catch (emailError) { console.error("Unable to send leader approval email:", emailError); }
+    try { await notifyLeaderAccessStatus(request.uid, "approved"); } catch (emailError) { console.error("Unable to send leader approval email:", emailError); }
 }
 
 export async function rejectLeaderRegistration(requestUid: string, reviewerUid: string, reviewNote: string): Promise<void> {
@@ -89,6 +89,6 @@ export async function rejectLeaderRegistration(requestUid: string, reviewerUid: 
     const request = snapshot.exists() ? mapRequest(snapshot.id, snapshot.data()) : null;
     await updateDoc(requestRef, { status: "rejected", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     if (request) {
-        try { await notifyLeaderAccessStatus(request.email, request.fullName, "rejected", request.requestedSection); } catch (emailError) { console.error("Unable to send leader rejection email:", emailError); }
+        try { await notifyLeaderAccessStatus(request.uid, "rejected"); } catch (emailError) { console.error("Unable to send leader rejection email:", emailError); }
     }
 }
