@@ -14,6 +14,7 @@ export type GeneratedReport = {
   label: string;
   mimeType: string;
   url: string;
+  viewUrl: string;
 };
 
 function reportLabel(filename: string) {
@@ -68,7 +69,7 @@ export function GeneratedReportDialog({ report, open, onClose }: Props) {
           </Stack>}
         </DialogContent>
         <DialogActions sx={{ flexWrap: "wrap", gap: 1, px: 3, py: 2 }}>
-          <Button onClick={() => openInNewTab(report.url)} data-testid="open-generated-report">Open report</Button>
+          <Button onClick={() => openInNewTab(report.viewUrl)} data-testid="open-generated-report">Open report</Button>
           <Button component="a" href={report.url} download={report.filename} data-testid="download-generated-report">Download report</Button>
           <Button onClick={() => setSendOptionsOpen((current) => !current)} aria-expanded={sendOptionsOpen} aria-controls="report-send-options">Send report</Button>
           <Button variant="contained" onClick={onClose}>Keep working</Button>
@@ -81,7 +82,7 @@ export function GeneratedReportDialog({ report, open, onClose }: Props) {
 export default function ReportDownloadExperience() {
   const [report, setReport] = useState<GeneratedReport | null>(null);
   const [open, setOpen] = useState(false);
-  const ownedUrlRef = useRef<string | null>(null);
+  const ownedUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const nativeCreateObjectURL = URL.createObjectURL.bind(URL);
@@ -89,6 +90,11 @@ export default function ReportDownloadExperience() {
     const generatedBlobs = new Map<string, Blob>();
     const currentCreateObjectURL = URL.createObjectURL;
     const currentRevokeObjectURL = URL.revokeObjectURL;
+
+    const releaseOwnedUrls = () => {
+      for (const url of ownedUrlsRef.current) nativeRevokeObjectURL(url);
+      ownedUrlsRef.current = [];
+    };
 
     URL.createObjectURL = ((object: Blob | MediaSource) => {
       const url = nativeCreateObjectURL(object);
@@ -116,10 +122,12 @@ export default function ReportDownloadExperience() {
       event.preventDefault();
       event.stopPropagation();
 
-      if (ownedUrlRef.current) nativeRevokeObjectURL(ownedUrlRef.current);
+      releaseOwnedUrls();
       const retainedUrl = nativeCreateObjectURL(blob);
-      ownedUrlRef.current = retainedUrl;
-      setReport({ filename, label: reportLabel(filename), mimeType: blob.type, url: retainedUrl });
+      const viewBlob = blob.slice(0, blob.size, "text/plain;charset=utf-8");
+      const viewUrl = nativeCreateObjectURL(viewBlob);
+      ownedUrlsRef.current = [retainedUrl, viewUrl];
+      setReport({ filename, label: reportLabel(filename), mimeType: blob.type, url: retainedUrl, viewUrl });
       setOpen(true);
     };
 
@@ -128,8 +136,7 @@ export default function ReportDownloadExperience() {
       document.removeEventListener("click", handleDownloadClick, true);
       URL.createObjectURL = currentCreateObjectURL;
       URL.revokeObjectURL = currentRevokeObjectURL;
-      if (ownedUrlRef.current) nativeRevokeObjectURL(ownedUrlRef.current);
-      ownedUrlRef.current = null;
+      releaseOwnedUrls();
       generatedBlobs.clear();
     };
   }, []);
