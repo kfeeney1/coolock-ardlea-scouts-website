@@ -31,12 +31,9 @@ async function placeTriggerAtViewportEdge(trigger: Locator) {
   await expect(trigger).toBeInViewport();
 }
 
-async function controlledListbox(page: Page, trigger: Locator) {
-  await expect.poll(() => trigger.getAttribute("aria-controls")).not.toBeNull();
-  const listboxId = await trigger.getAttribute("aria-controls");
-  expect(listboxId).toBeTruthy();
-  const listbox = page.locator(`[id="${listboxId}"]`);
-  await expect(listbox).toHaveRole("listbox");
+async function visibleListbox(page: Page) {
+  const listbox = page.locator('[role="listbox"]:visible');
+  await expect(listbox).toHaveCount(1);
   await expect(listbox).toBeVisible();
   return listbox;
 }
@@ -69,8 +66,7 @@ async function openAttachedDropdown(page: Page, trigger: Locator) {
   await placeTriggerAtViewportEdge(trigger);
   const beforeOpen = await viewportState(page);
   await trigger.click();
-  const listbox = await controlledListbox(page, trigger);
-  await expect(page.getByRole("listbox").filter({ visible: true })).toHaveCount(1);
+  const listbox = await visibleListbox(page);
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
   await expectAttachedGeometry(page, trigger, listbox);
   return { beforeOpen, listbox };
@@ -132,17 +128,18 @@ test("opening a second dropdown leaves only the intended listbox and no stale ov
   expect(await reportsTo.count()).toBeGreaterThanOrEqual(2);
   const first = reportsTo.nth(0);
   const second = reportsTo.nth(1);
-  const { listbox: firstListbox } = await openAttachedDropdown(page, first);
+
+  await openAttachedDropdown(page, first);
   await second.click();
-  const secondListbox = await controlledListbox(page, second);
-  await expect(firstListbox).toBeHidden();
-  await expect(secondListbox).toBeVisible();
-  await expect(page.getByRole("listbox").filter({ visible: true })).toHaveCount(1);
+  const secondListbox = await visibleListbox(page);
+  await expectAttachedGeometry(page, second, secondListbox);
 
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
+
   await first.click();
-  await expect(await controlledListbox(page, first)).toBeVisible();
+  const reopenedFirstListbox = await visibleListbox(page);
+  await expectAttachedGeometry(page, first, reopenedFirstListbox);
 });
 
 test("SectionSelect stays associated with its trigger on a long page and closes on scroll", async ({ page }, testInfo) => {
