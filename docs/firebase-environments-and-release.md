@@ -51,7 +51,7 @@ Use separate least-privilege credentials for separate production purposes. Do no
 
 The production deployment workflow also uses the same public Firebase variable names listed for TEST, but every production value must belong to `coolock-ardlea-scouts`; `VITE_FIREBASE_PROJECT_ID` must equal that exact project ID.
 
-The production workflow requires `workflow_dispatch`, the exact project-ID confirmation and an exact 40-character commit SHA. It proves that SHA is contained in current `main`, requires successful protected CI evidence, reruns security/unit/Rules checks, validates the service-account `project_id`, and only then deploys the reviewed Rules/indexes/Storage rules/Hosting bundle.
+The production workflow is deliberately one-click but remains manual. A maintainer starts `Firebase PRODUCTION Manual Deploy` with `workflow_dispatch` on `main`; no project ID or commit SHA is typed. The workflow pins the production project, checks out current `main`, resolves and records its exact SHA, proves the checkout still matches `origin/main`, requires successful protected CI evidence for that SHA, reruns security/unit/Rules checks, validates the service-account `project_id`, and only then deploys the reviewed Rules/indexes/Storage rules/Hosting bundle.
 
 A green merge never triggers production deployment.
 
@@ -80,8 +80,8 @@ Before any approved release, confirm:
 
 - target project resolves exactly to `coolock-ardlea-scouts`;
 - production deployment service-account `project_id` is exactly `coolock-ardlea-scouts`;
-- selected SHA is in current `main`;
-- protected Quality and Playwright checks are successful for the selected SHA;
+- current `main` is the intended reviewed release and its exact SHA is recorded automatically;
+- protected Quality and Playwright checks are successful for that SHA;
 - Firestore and Storage Rules tests pass against emulators;
 - production build contains `VITE_APP_ENV=production` and production-only public Firebase config;
 - post-deployment checks are read-only.
@@ -98,7 +98,7 @@ Canonical synthetic seed data is TEST/local data. It must never contain real chi
 
 ## Rollback
 
-Do not roll back by force-pushing or bypassing the production environment. Identify the last known-good commit that is contained in `main`, verify its required check evidence, and use the same manual production workflow with that exact SHA and production-project confirmation. This preserves actor/SHA/target audit evidence and keeps rollback subject to the same deployment boundary as a forward release.
+Do not roll back by force-pushing or bypassing the production environment. Restore or revert the desired known-good application state onto reviewed `main`, wait for the required Quality and Playwright checks to pass, then use the same manual production workflow. The workflow resolves and records that new reviewed `main` SHA automatically, preserving actor/SHA/target audit evidence and keeping rollback subject to the same deployment boundary as a forward release.
 
 If rollback would require restoring Firestore data or another destructive production mutation, follow the separate backup/recovery procedure and obtain owner approval before mutation.
 
@@ -108,4 +108,4 @@ Do not begin production custom-domain mutation until SW-34 is merged and proven:
 
 For `coolockardleascouts.ie`, obtain DNS records from Firebase Hosting during the production-domain connection flow. Never invent or substitute records. Snapshot and preserve existing MX, SPF, DKIM, DMARC and other mail-related DNS records before changing web records. Configure deliberate apex/`www` canonical behaviour, wait for Firebase verification and managed TLS provisioning, then add the production hostname to production Firebase Auth authorised domains and review OAuth callbacks, CORS/API allow-lists, CSP, public/email links, sitemap, robots and canonical metadata.
 
-Prepare the exact production release SHA, but do not trigger the manual production deployment without explicit owner approval.
+Once the reviewed release is on `main` with required checks green, production still changes only when an authorised maintainer deliberately starts `Firebase PRODUCTION Manual Deploy` and any protected-environment approval is satisfied.

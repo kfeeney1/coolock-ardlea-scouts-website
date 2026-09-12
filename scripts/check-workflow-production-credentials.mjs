@@ -154,9 +154,12 @@ for (const name of entries) {
   if (name === productionDeployWorkflow) {
     const triggers = triggerBlock(source);
     if (!triggers.includes("workflow_dispatch:")) fail("Production deploy workflow must use workflow_dispatch.");
+    if (triggers.includes("inputs:")) fail("Production deploy workflow must remain a one-click dispatch without typed inputs.");
     for (const forbidden of ["push:", "pull_request:", "schedule:", "release:", "workflow_run:"]) {
       if (triggers.includes(forbidden)) fail(`Production deploy workflow must not contain ${forbidden}`);
     }
+    if (!source.includes("ref: main")) fail("Production deploy workflow must explicitly check out main.");
+    if (!source.includes("FIREBASE_PROJECT_ID: coolock-ardlea-scouts")) fail("Production deploy workflow must pin the production Firebase project ID.");
   }
 
   for (const spec of explicitInstallSpecs(source)) {

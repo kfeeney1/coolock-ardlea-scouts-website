@@ -12,6 +12,7 @@ const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", roo
 
 const PROD = "coolock-ardlea-scouts";
 const TEST = "coolock-ardlea-scouts-test";
+const PROD_URL = "https://coolockardleascouts.ie";
 const ISOLATED_STORAGE_BUCKET = "coolock-ardlea-scouts-test.firebasestorage.app";
 const LOCAL = "demo-coolock-ardlea-scouts";
 const failures = [];
@@ -49,6 +50,7 @@ requireContract(testStorageConfig?.rules === "storage.rules", "TEST Firebase con
 
 const productionTriggers = triggerBlock(productionWorkflow);
 requireContract(productionTriggers.includes("workflow_dispatch:"), "Production deployment is explicitly manually dispatched.");
+requireContract(!productionTriggers.includes("inputs:"), "Production manual dispatch requires no typed confirmation inputs.");
 for (const forbidden of ["push:", "pull_request:", "schedule:", "release:", "workflow_run:"]) {
   requireContract(!productionTriggers.includes(forbidden), `Production deployment is not triggered by ${forbidden.replace(":", "")}.`);
 }
@@ -56,15 +58,19 @@ requireContract(productionWorkflow.includes("environment: production"), "Product
 requireContract(productionWorkflow.includes("FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION"), "Production uses a production-scoped credential name.");
 requireContract(exactProjectReference(productionWorkflow, PROD), "Production workflow explicitly targets the production Firebase project.");
 requireContract(!exactProjectReference(productionWorkflow, TEST), "Production workflow does not target the TEST Firebase project.");
-requireContract(productionWorkflow.includes("git merge-base --is-ancestor"), "Production verifies the requested SHA is contained in current main.");
-requireContract(productionWorkflow.includes("production_project_id"), "Production requires exact project-ID confirmation.");
+requireContract(productionWorkflow.includes(`PRODUCTION_URL: ${PROD_URL}`), "Production deploy smoke is pinned to the supported custom apex hostname.");
+requireContract(productionWorkflow.includes("ref: main"), "Production explicitly checks out main.");
+requireContract(productionWorkflow.includes('REMOTE_MAIN_SHA="$(git rev-parse origin/main)"'), "Production resolves the current remote main SHA.");
+requireContract(productionWorkflow.includes('test "$TARGET_SHA" = "$REMOTE_MAIN_SHA"'), "Production verifies the checked-out release is current main.");
+requireContract(productionWorkflow.includes('commits/${TARGET_SHA}/check-runs'), "Production verifies required CI evidence for the exact resolved SHA.");
 requireContract(productionWorkflow.includes("tests/firestore/*.test.mjs"), "Production reruns Firestore Rules tests on emulators before deployment.");
 requireContract(productionWorkflow.includes("tests/storage/*.test.mjs"), "Production reruns Storage Rules tests on emulators before deployment.");
 requireContract(productionWorkflow.includes("npm run check:workflow-production-credentials"), "Production reruns the repository's workflow credential-separation check.");
 requireContract(!productionWorkflow.includes("npm run check:workflow-credentials"), "Production does not call the obsolete workflow credential-check script name.");
 requireContract(productionWorkflow.includes("npm run check:production-env"), "Production validates required public configuration before building.");
 requireContract(productionWorkflow.includes("smoke:live"), "Production performs a read-only post-deployment smoke check.");
-requireContract(productionWorkflow.includes("EXPECTED_BUILD_SHA: ${{ inputs.commit_sha }}"), "Production verifies the exact deployed release SHA.");
+requireContract(productionWorkflow.includes("SITE_URL: ${{ env.PRODUCTION_URL }}"), "Production post-deploy verification exercises the custom apex hostname.");
+requireContract(productionWorkflow.includes("EXPECTED_BUILD_SHA: ${{ steps.release.outputs.sha }}"), "Production verifies the exact resolved release SHA after deployment.");
 requireContract(!productionWorkflow.includes("continue-on-error: true"), "Production deployment fails closed.");
 
 const smokeTriggers = triggerBlock(productionSmokeWorkflow);
@@ -73,6 +79,8 @@ for (const forbidden of ["push:", "pull_request:", "schedule:", "release:", "wor
   requireContract(!smokeTriggers.includes(forbidden), `Production smoke is not automatically triggered by ${forbidden.replace(":", "")}.`);
 }
 requireContract(productionSmokeWorkflow.includes("environment: production"), "Standalone production smoke uses the production GitHub environment.");
+requireContract(productionSmokeWorkflow.includes(`PRODUCTION_URL: ${PROD_URL}`), "Standalone production smoke is pinned to the supported custom apex hostname.");
+requireContract(productionSmokeWorkflow.includes("SITE_URL: ${{ env.PRODUCTION_URL }}"), "Standalone production smoke exercises the custom apex hostname.");
 
 requireContract(testWorkflow.includes("push:\n    branches:\n      - main"), "TEST deploys from main only.");
 requireContract(testWorkflow.includes("environment: test"), "TEST deployment uses the test GitHub environment.");

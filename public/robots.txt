@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /leader
+Disallow: /parent
+Disallow: /event-consent/
+Disallow: /activities/consent
+
+Sitemap: https://coolockardleascouts.ie/sitemap.xml
