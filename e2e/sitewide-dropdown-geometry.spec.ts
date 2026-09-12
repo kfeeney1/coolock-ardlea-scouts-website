@@ -86,7 +86,7 @@ async function expectEscapeClosePreservesScroll(page: Page, trigger: Locator) {
 
 async function expectSelectionPreservesScroll(page: Page, trigger: Locator) {
   const { beforeOpen, listbox } = await openAttachedDropdown(page, trigger);
-  const option = listbox.getByRole("option").locator(':not([aria-selected="true"])').first();
+  const option = listbox.locator('[role="option"]:not([aria-selected="true"])').first();
   await expect(option).toBeVisible();
   await option.click();
   await expect(listbox).toBeHidden();
