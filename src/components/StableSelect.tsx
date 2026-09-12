@@ -1,5 +1,5 @@
 import Select, { type SelectProps } from "@mui/material/Select";
-import { forwardRef, useEffect, useRef, useState, type ForwardedRef } from "react";
+import { forwardRef, useRef, useState, type ForwardedRef } from "react";
 
 type Placement = { anchorVertical: "top" | "bottom"; transformVertical: "top" | "bottom"; maxHeight: number };
 const DEFAULT_PLACEMENT: Placement = { anchorVertical: "bottom", transformVertical: "top", maxHeight: 320 };
@@ -11,7 +11,6 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
   const { MenuProps, onOpen, onMouseDownCapture, onKeyDownCapture, ...selectProps } = props;
   const rootRef = useRef<HTMLElement | null>(null);
   const openScroll = useRef({ x: 0, y: 0 });
-  const closeFromScroll = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
   const getTrigger = () => {
@@ -51,7 +50,6 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
     onMouseDownCapture={(event) => { captureOpen(); onMouseDownCapture?.(event); }}
     onKeyDownCapture={(event) => { captureOpen(); onKeyDownCapture?.(event); }}
     onOpen={(event) => {
-      closeFromScroll.current = false;
       preserveViewport();
       setMenuOpen(true);
       onOpen?.(event);
@@ -60,10 +58,8 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
       props.onClose?.(event);
       if (!event.defaultPrevented) {
         setMenuOpen(false);
-        if (!closeFromScroll.current) {
-          getTrigger()?.focus({ preventScroll: true });
-          preserveViewport();
-        }
+        getTrigger()?.focus({ preventScroll: true });
+        preserveViewport();
       }
     }}
     MenuProps={{
