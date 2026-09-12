@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type ElementHandle, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
@@ -38,7 +38,13 @@ async function visibleListbox(page: Page) {
   return listbox;
 }
 
-async function expectAttachedGeometry(page: Page, trigger: Locator, listbox: Locator) {
+async function triggerHandle(trigger: Locator) {
+  const handle = await trigger.elementHandle();
+  expect(handle).not.toBeNull();
+  return handle as ElementHandle<HTMLElement>;
+}
+
+async function expectAttachedGeometry(page: Page, trigger: ElementHandle<HTMLElement>, listbox: Locator) {
   const [triggerBox, menuBox, viewport] = await Promise.all([
     trigger.boundingBox(),
     listbox.boundingBox(),
@@ -64,12 +70,13 @@ async function expectAttachedGeometry(page: Page, trigger: Locator, listbox: Loc
 async function openAttachedDropdown(page: Page, trigger: Locator) {
   await expect(trigger).toBeVisible();
   await placeTriggerAtViewportEdge(trigger);
+  const triggerElement = await triggerHandle(trigger);
   const beforeOpen = await viewportState(page);
   await trigger.click();
   const listbox = await visibleListbox(page);
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
-  await expectAttachedGeometry(page, trigger, listbox);
-  return { beforeOpen, listbox };
+  await expectAttachedGeometry(page, triggerElement, listbox);
+  return { beforeOpen, listbox, triggerElement };
 }
 
 async function expectEscapeClosePreservesScroll(page: Page, trigger: Locator) {
@@ -128,18 +135,20 @@ test("opening a second dropdown leaves only the intended listbox and no stale ov
   expect(await reportsTo.count()).toBeGreaterThanOrEqual(2);
   const first = reportsTo.nth(0);
   const second = reportsTo.nth(1);
+  const firstElement = await triggerHandle(first);
+  const secondElement = await triggerHandle(second);
 
   await openAttachedDropdown(page, first);
-  await second.click();
+  await secondElement.click();
   const secondListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, second, secondListbox);
+  await expectAttachedGeometry(page, secondElement, secondListbox);
 
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
 
-  await first.click();
+  await firstElement.click();
   const reopenedFirstListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, first, reopenedFirstListbox);
+  await expectAttachedGeometry(page, firstElement, reopenedFirstListbox);
 });
 
 test("SectionSelect stays associated with its trigger on a long page and closes on scroll", async ({ page }, testInfo) => {
