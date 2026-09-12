@@ -4,18 +4,21 @@ compatibility_date = "2026-08-01"
 
 # Safe default for local development and non-production deployment. A plain
 # `wrangler deploy` cannot send to real members/leaders because delivery is
-# redirected to the controlled test inbox.
+# test-only and fails closed until TEST_EMAIL_REDIRECT is explicitly supplied
+# through environment-managed configuration.
 [vars]
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
 SITE_URL = "https://coolock-ardlea-scouts.web.app"
 EMAIL_DELIVERY_MODE = "test"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <onboarding@resend.dev>"
 ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
-ADMIN_EMAILS = "kfeeney1@hotmail.com"
-TEST_EMAIL_REDIRECT = "kfeeney1@hotmail.com"
+
+# ADMIN_EMAILS and TEST_EMAIL_REDIRECT are intentionally not versioned here.
+# Provide them through the Cloudflare deployment environment / Wrangler secrets
+# or local .dev.vars. Test mode fails closed when TEST_EMAIL_REDIRECT is absent.
 
 # Genuine delivery must be an explicit production deployment. Wrangler `vars`
-# are non-inheritable, so the complete production configuration is repeated.
+# are non-inheritable, so the complete non-personal production configuration is repeated.
 [env.production]
 name = "coolock-ardlea-scouts-email"
 
@@ -25,4 +28,7 @@ SITE_URL = "https://coolockardleascouts.ie"
 EMAIL_DELIVERY_MODE = "production"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>"
 ALLOWED_ORIGINS = "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie"
-ADMIN_EMAILS = "kfeeney1@hotmail.com"
+
+# ADMIN_EMAILS must be supplied through environment-managed configuration for
+# production. TEST_EMAIL_REDIRECT must remain unset in production; entry.js
+# rejects production configuration if a redirect is present.
