@@ -149,11 +149,12 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   await expect(reopenedFirstListbox).toBeHidden();
 });
 
-test("SectionSelect stays associated with its trigger and locks background scrolling", async ({ page }, testInfo) => {
+test("SectionSelect and direct MUI Select lock background scrolling", async ({ page }, testInfo) => {
   supportedProject(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/badgework");
   await expect(page.getByRole("heading", { name: "Adventure Skills Badgework", exact: true })).toBeVisible();
   await expectBackgroundScrollLocked(page, page.getByRole("combobox", { name: "Section", exact: true }));
+  await expectBackgroundScrollLocked(page, page.getByRole("combobox", { name: "Adventure Skill", exact: true }));
 });
