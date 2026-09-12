@@ -4,6 +4,7 @@ import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 import { buildLeaderToday, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
 import { canManageEquipment } from "./equipmentLogic";
 import { incidentTypeLabel } from "./equipmentIncidentLogic";
+import { findMembersNeedingFormRenewal, type FormRenewalConsent } from "./formRenewalLogic";
 
 export type AdminOverviewEvent = {
   id: string;
@@ -42,6 +43,17 @@ function stringValue(value: unknown): string {
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function dateValue(value: unknown): Date | null {
+  if (value && typeof value === "object" && "toDate" in value) {
+    const toDate = (value as { toDate?: unknown }).toDate;
+    if (typeof toDate === "function") {
+      const date = toDate.call(value);
+      if (date instanceof Date && !Number.isNaN(date.getTime())) return date;
+    }
+  }
+  return null;
 }
 
 function todayIso(): string {
@@ -88,6 +100,22 @@ function mapMeeting(snapshot: FirestoreSnapshot): LeaderTodayMeeting | null {
     location: stringValue(data.location),
     programmeReady: encodedProgrammeHasContent(data.plannedActivities, "activity") || encodedProgrammeHasContent(data.plannedBadgework, "badge") || encodedProgrammeHasContent(data.programmeNotes),
     attendanceStarted: entries.some((entry) => entry && typeof entry === "object" && ["present", "absent"].includes(String((entry as Record<string, unknown>).attendance || "")))
+  };
+}
+
+function mapFormRenewalConsent(snapshot: FirestoreSnapshot): FormRenewalConsent | null {
+  const data = snapshot.data();
+  const memberId = stringValue(data.memberId);
+  const formType = stringValue(data.formType);
+  if (!memberId || !formType) return null;
+  return {
+    memberId,
+    formType,
+    status: stringValue(data.status),
+    consentTo: stringValue(data.consentTo),
+    submittedAt: dateValue(data.submittedAt),
+    updatedAt: dateValue(data.updatedAt),
+    parentUpdatedAt: dateValue(data.parentUpdatedAt)
   };
 }
 
@@ -154,13 +182,14 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
   if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
 
   const admin = isAdmin(profile);
-  const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments, meetingDocuments, equipmentAttention] = await Promise.all([
+  const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments, meetingDocuments, consentDocuments, equipmentAttention] = await Promise.all([
     admin ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending"))) : Promise.resolve(0),
     admin ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending"))) : Promise.resolve(0),
     countScopedNewJoins(profile),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile),
     loadScopedWeeklyMeetings(profile),
+    loadScopedCollection("consentApplications", profile),
     loadEquipmentAttention(profile)
   ]);
 
@@ -177,6 +206,22 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
   const membersBySection = [...sectionCounts.entries()].map(([section, count]) => ({ section, count })).sort((a, b) => a.section.localeCompare(b.section));
 
   const today = todayIso();
+  const renewalConsents = consentDocuments
+    .map(mapFormRenewalConsent)
+    .filter((record): record is FormRenewalConsent => record !== null);
+  const formRenewalsDue = findMembersNeedingFormRenewal(
+    members.map((member) => ({ id: member.id, active: member.active })),
+    renewalConsents,
+    new Date(`${today}T12:00:00Z`)
+  );
+  const formRenewalAttention: LeaderAttentionItem[] = formRenewalsDue.length > 0 ? [{
+    id: "form-renewal-overdue",
+    label: `${formRenewalsDue.length} active member${formRenewalsDue.length === 1 ? "" : "s"} need annual form renewal`,
+    detail: "Review out-of-date consent and medical information and contact the linked parent or guardian.",
+    path: "/leader/consents",
+    severity: "warning"
+  }] : [];
+
   const upcomingEvents = eventDocuments.flatMap((snapshot) => {
     const data = snapshot.data();
     const title = stringValue(data.title);
@@ -204,7 +249,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     membersBySection,
     upcomingEvents,
     nextMeeting: leaderToday.nextMeeting,
-    attentionItems: [...equipmentAttention, ...leaderToday.attentionItems].slice(0, 8)
+    attentionItems: [...formRenewalAttention, ...equipmentAttention, ...leaderToday.attentionItems].slice(0, 8)
   };
 
   overviewCache.set(key, { value: overview, expiresAt: Date.now() + OVERVIEW_CACHE_MS });
