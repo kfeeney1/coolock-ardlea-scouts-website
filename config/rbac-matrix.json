@@ -12,6 +12,7 @@
     "/parent": "parent-entry",
     "/join": "public-form",
     "/contact": "public",
+    "/privacy": "public",
     "/leader/login": "leader-entry",
     "/leader/register": "leader-entry",
     "/leader": "leader",
