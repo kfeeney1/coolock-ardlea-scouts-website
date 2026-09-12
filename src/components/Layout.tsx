@@ -1,12 +1,12 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Container, Link, Typography } from "@mui/material";
 import { Suspense, useEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Link as RouterLink, Outlet, useLocation } from "react-router-dom";
 
 import Footer from "./Footer";
 import Header from "./Header";
 
 const PRODUCTION_ORIGIN = "https://coolockardleascouts.ie";
-const CANONICAL_PUBLIC_PATHS = new Set(["/", "/about", "/activities", "/join", "/contact"]);
+const CANONICAL_PUBLIC_PATHS = new Set(["/", "/about", "/activities", "/join", "/contact", "/privacy"]);
 
 function RouteFallback() {
     return (
@@ -28,6 +28,10 @@ function RouteFallback() {
 export default function Layout() {
     const { pathname } = useLocation();
     const isLeaderRoute = pathname.startsWith("/leader") && pathname !== "/leader/login";
+    const showsSensitiveFormPrivacyLink = pathname === "/join"
+        || pathname === "/parent"
+        || pathname === "/activities/consent"
+        || pathname.startsWith("/event-consent/");
 
     useEffect(() => {
         const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
@@ -72,6 +76,15 @@ export default function Layout() {
                     <Outlet />
                 </Suspense>
             </Box>
+
+            {showsSensitiveFormPrivacyLink && (
+                <Container maxWidth="md" sx={{ pb: 2, textAlign: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Before submitting personal, consent or medical information, please read our{" "}
+                        <Link component={RouterLink} to="/privacy">privacy &amp; data protection information</Link>.
+                    </Typography>
+                </Container>
+            )}
 
             <Footer />
         </Box>

@@ -23,6 +23,7 @@ const EventConsent = lazy(() => import("./pages/EventConsent"));
 const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const Join = lazy(() => import("./pages/Join"));
 const Contact = lazy(() => import("./pages/Contact"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const LeaderRegister = lazy(() => import("./pages/LeaderRegister"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="/parent" element={<ParentPortal />} />
               <Route path="/join" element={<Join />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="/leader/login" element={<AdminLogin />} />
               <Route path="/leader/register" element={<LeaderRegister />} />
               <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
