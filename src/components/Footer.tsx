@@ -1,8 +1,10 @@
 import {
     Box,
     Container,
+    Link,
     Typography
 } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 
 import { SITE_IDENTITY } from "../content/siteIdentity";
 import { brandColours } from "../theme/theme";
@@ -47,6 +49,19 @@ export default function Footer() {
                 >
                     Registered Charity Number (RCN): {SITE_IDENTITY.registeredCharityNumber}
                 </Typography>
+
+                <Link
+                    component={RouterLink}
+                    to="/privacy"
+                    sx={{
+                        display: "inline-block",
+                        mt: 1,
+                        color: "secondary.contrastText",
+                        fontWeight: 700
+                    }}
+                >
+                    Privacy &amp; data protection
+                </Link>
             </Container>
         </Box>
     );
