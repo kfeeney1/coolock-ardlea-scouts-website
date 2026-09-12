@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
-import { addFinanceReceipt, loadFinanceReceipts, type FinanceReceipt } from "../../services/financeReceipts";
+import { addFinanceReceipt, loadFinanceReceipts, revokeFinanceReceiptUrls, type FinanceReceipt } from "../../services/financeReceipts";
 
 interface Props {
   transactionId: string;
@@ -35,12 +35,13 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     setLoading(true);
     setError("");
     try {
-      const all = await withTimeout(
-        loadFinanceReceipts(section),
-        RECEIPT_CHECK_TIMEOUT_MS,
-        "Receipt check timed out."
-      );
-      setReceipts(all.filter((item) => item.transactionId === transactionId));
+      const all = await withTimeout(loadFinanceReceipts(section), RECEIPT_CHECK_TIMEOUT_MS, "Receipt check timed out.");
+      const matching = all.filter((item) => item.transactionId === transactionId);
+      revokeFinanceReceiptUrls(all.filter((item) => item.transactionId !== transactionId));
+      setReceipts((current) => {
+        revokeFinanceReceiptUrls(current);
+        return matching;
+      });
     } catch (loadError) {
       console.error("Unable to load finance receipts:", loadError);
       setError("Receipt storage is unavailable right now. You can retry the check or attach a receipt once Storage is available.");
@@ -49,18 +50,20 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     }
   };
 
-  useEffect(() => { void refresh(); }, [section, transactionId, refreshKey]);
+  useEffect(() => {
+    void refresh();
+    return () => setReceipts((current) => {
+      revokeFinanceReceiptUrls(current);
+      return [];
+    });
+  }, [section, transactionId, refreshKey]);
 
   const upload = async (file: File | undefined) => {
     if (!file) return;
     setUploading(true);
     setError("");
     try {
-      await withTimeout(
-        addFinanceReceipt(transactionId, section, file),
-        RECEIPT_UPLOAD_TIMEOUT_MS,
-        "Receipt upload timed out."
-      );
+      await withTimeout(addFinanceReceipt(transactionId, section, file), RECEIPT_UPLOAD_TIMEOUT_MS, "Receipt upload timed out.");
       await refresh();
     } catch (uploadError) {
       console.error("Unable to upload finance receipt:", uploadError);
@@ -82,12 +85,12 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
 
     {receipts.length > 0 && <Stack spacing={1} sx={{ width: "100%" }}>
       {receipts.map((receipt, index) => <Stack key={receipt.id} direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-        <Button component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" size="small" variant="contained" color="secondary">
+        <Button component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" size="small" variant="contained" color="secondary">
           {receipts.length === 1 ? "View receipt" : `View receipt ${index + 1}`}
         </Button>
         <Typography variant="caption" color="text.secondary">{receipt.fileName}</Typography>
-        {receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.downloadUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
-          <Box component="img" src={receipt.downloadUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
+        {receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+          <Box component="img" src={receipt.viewUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
         </Box>}
       </Stack>)}
     </Stack>}
