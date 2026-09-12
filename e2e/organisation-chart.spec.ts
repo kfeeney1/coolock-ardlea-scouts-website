@@ -50,6 +50,11 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
     await expect(toggle).toHaveAttribute("data-section", sectionId === "group" ? "group" : sectionId[0].toUpperCase() + sectionId.slice(1));
   }
 
+  const groupSection = page.getByTestId("whos-who-section-group");
+  await expect(groupSection).toHaveAttribute("data-visual-treatment", "group-brand");
+  const groupBackground = await groupToggle.evaluate((element) => getComputedStyle(element).backgroundImage);
+  expect(groupBackground).toContain("linear-gradient");
+
   await expect(page.getByTestId("whos-who-leader-group-TEST_uid_group_leader")).toHaveCount(0);
   await expect(page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader")).toHaveCount(0);
   await expect(page.getByTestId("whos-who-leader-scouts-TEST_uid_scout_programme_scouter")).toHaveCount(0);
@@ -62,9 +67,12 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
   const groupLeader = page.getByTestId("whos-who-leader-group-TEST_uid_group_leader");
   await expect(groupLeader).toBeVisible();
   await expect(groupLeader).toHaveAttribute("data-section", "Group");
+  await expect(groupLeader).toHaveAttribute("data-visual-treatment", "group-brand");
   await expect(groupLeader.getByRole("heading", { name: "Declan O'Connor", exact: true })).toBeVisible();
   await expect(groupLeader.getByText("Group Leader", { exact: true })).toBeVisible();
   await expect(groupLeader.getByText("Group", { exact: true })).toBeVisible();
+  const groupTileBackground = await groupLeader.evaluate((element) => getComputedStyle(element).backgroundImage);
+  expect(groupTileBackground).toContain("linear-gradient");
 
   await page.keyboard.press("Space");
   await expect(groupToggle).toHaveAttribute("aria-expanded", "false");
@@ -81,6 +89,7 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
   const beaverLeader = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
   await expect(beaverLeader).toBeVisible();
   await expect(beaverLeader).toHaveAttribute("data-section", "Beavers");
+  await expect(beaverLeader).toHaveAttribute("data-visual-treatment", "section");
   await expect(beaverLeader.getByRole("heading", { name: "Beavers Section Leader", exact: true })).toBeVisible();
   await expect(beaverLeader.getByText("Section Leader", { exact: true })).toBeVisible();
   await expect(beaverLeader.getByTestId("section-swatch-beavers")).toBeVisible();
@@ -111,8 +120,10 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
 test("public Who's Who tiles remain readable without horizontal overflow from phone to desktop", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   await page.goto("/about");
+  const groupToggle = page.getByRole("button", { name: "Group Leadership", exact: true });
   const beaversToggle = page.getByRole("button", { name: "Beavers", exact: true });
-  const leaderTile = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
+  const groupLeader = page.getByTestId("whos-who-leader-group-TEST_uid_group_leader");
+  const beaverLeader = page.getByTestId("whos-who-leader-beavers-TEST_uid_beaver_section_leader");
 
   for (const viewport of [
     { width: 390, height: 844 },
@@ -120,14 +131,19 @@ test("public Who's Who tiles remain readable without horizontal overflow from ph
     { width: 1280, height: 900 }
   ]) {
     await page.setViewportSize(viewport);
+    if (await groupToggle.getAttribute("aria-expanded") === "false") await groupToggle.click();
     if (await beaversToggle.getAttribute("aria-expanded") === "false") await beaversToggle.click();
+    await expect(page.getByTestId("whos-who-section-icon-group")).toBeVisible();
     await expect(page.getByTestId("whos-who-section-icon-beavers")).toBeVisible();
-    await expect(leaderTile).toBeVisible();
+    await expect(groupLeader).toBeVisible();
+    await expect(beaverLeader).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    const box = await leaderTile.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.width).toBeLessThanOrEqual(viewport.width);
+    for (const tile of [groupLeader, beaverLeader]) {
+      const box = await tile.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeLessThanOrEqual(viewport.width);
+    }
   }
 });
 

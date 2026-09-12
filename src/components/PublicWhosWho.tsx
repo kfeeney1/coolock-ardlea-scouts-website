@@ -14,6 +14,16 @@ const OFFICIAL_SECTION_SYMBOL_POSITION: Readonly<Record<string, string>> = {
   Rovers: "100% 50%"
 };
 
+const GROUP_LEADERSHIP_VISUAL = {
+  accent: "#081E67",
+  border: "#BEC7DE",
+  foreground: "#081E67",
+  focusRing: "#B3263C",
+  subtleBackground: "linear-gradient(135deg, #FDF2F4 0%, #F2F4FA 100%)",
+  hoverBackground: "linear-gradient(135deg, #FAE7EB 0%, #E8ECF7 100%)",
+  tileBackground: "linear-gradient(135deg, rgba(245,45,69,0.055) 0%, rgba(8,30,103,0.07) 100%)"
+} as const;
+
 function WhosWhoSectionIcon({ section, sectionId }: { section: string; sectionId: string }) {
   const spritePosition = OFFICIAL_SECTION_SYMBOL_POSITION[section];
 
@@ -45,7 +55,18 @@ function WhosWhoSectionIcon({ section, sectionId }: { section: string; sectionId
       aria-hidden="true"
       data-testid={`whos-who-section-icon-${sectionId}`}
       data-icon-id="neutral-group"
-      sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 36, flex: "0 0 auto" }}
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 38,
+        height: 36,
+        flex: "0 0 auto",
+        color: GROUP_LEADERSHIP_VISUAL.foreground,
+        backgroundColor: "rgba(255,255,255,0.72)",
+        border: `1px solid ${GROUP_LEADERSHIP_VISUAL.border}`,
+        borderRadius: 1
+      }}
     >
       <GroupsRoundedIcon fontSize="medium" />
     </Box>
@@ -94,10 +115,19 @@ export default function PublicWhosWho() {
       const sectionId = publicSectionTestId(section);
       const sectionLeaders = publicLeadersForSection(leaders, section);
       const expanded = expandedSections.has(section);
-      const label = section === "Group" ? "Group Leadership" : section;
+      const isGroupLeadership = section === "Group";
+      const label = isGroupLeadership ? "Group Leadership" : section;
       const toggleId = `whos-who-${sectionId}-toggle`;
       const panelId = `whos-who-${sectionId}-panel`;
       const tokens = sectionVisualTokens(section);
+      const disclosureBackground = isGroupLeadership
+        ? (expanded ? GROUP_LEADERSHIP_VISUAL.hoverBackground : GROUP_LEADERSHIP_VISUAL.subtleBackground)
+        : (expanded ? tokens.hoverBackground : tokens.subtleBackground);
+      const disclosureHoverBackground = isGroupLeadership ? GROUP_LEADERSHIP_VISUAL.hoverBackground : tokens.hoverBackground;
+      const disclosureAccent = isGroupLeadership ? GROUP_LEADERSHIP_VISUAL.accent : tokens.accent;
+      const disclosureBorder = isGroupLeadership ? GROUP_LEADERSHIP_VISUAL.border : tokens.border;
+      const disclosureForeground = isGroupLeadership ? GROUP_LEADERSHIP_VISUAL.foreground : tokens.foreground;
+      const disclosureFocusRing = isGroupLeadership ? GROUP_LEADERSHIP_VISUAL.focusRing : tokens.focusRing;
 
       const toggleSection = () => {
         setExpandedSections((current) => {
@@ -115,8 +145,9 @@ export default function PublicWhosWho() {
           aria-labelledby={toggleId}
           data-testid={`whos-who-section-${sectionId}`}
           data-section={tokens.section ?? "group"}
+          data-visual-treatment={isGroupLeadership ? "group-brand" : "section"}
           variant="outlined"
-          sx={{ minWidth: 0, overflow: "hidden", borderColor: tokens.border }}
+          sx={{ minWidth: 0, overflow: "hidden", borderColor: disclosureBorder }}
         >
           <Button
             id={toggleId}
@@ -136,21 +167,21 @@ export default function PublicWhosWho() {
               textAlign: "left",
               textTransform: "none",
               color: "text.primary",
-              backgroundColor: expanded ? tokens.hoverBackground : tokens.subtleBackground,
-              borderLeft: `4px solid ${tokens.accent}`,
+              background: disclosureBackground,
+              borderLeft: `4px solid ${disclosureAccent}`,
               borderRadius: 0,
-              transition: "background-color 150ms ease",
-              "&:hover": { backgroundColor: tokens.hoverBackground },
+              transition: "background 150ms ease",
+              "&:hover": { background: disclosureHoverBackground },
               "&.Mui-focusVisible": {
-                outline: `3px solid ${tokens.focusRing}`,
+                outline: `3px solid ${disclosureFocusRing}`,
                 outlineOffset: "-3px",
-                backgroundColor: tokens.hoverBackground
+                background: disclosureHoverBackground
               }
             }}
           >
             <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
               <WhosWhoSectionIcon section={section} sectionId={sectionId} />
-              <Typography component="span" variant="h4" sx={{ fontWeight: 800, minWidth: 0, overflowWrap: "anywhere", color: tokens.foreground }}>
+              <Typography component="span" variant="h4" sx={{ fontWeight: 800, minWidth: 0, overflowWrap: "anywhere", color: disclosureForeground }}>
                 {label}
               </Typography>
             </Stack>
@@ -161,7 +192,7 @@ export default function PublicWhosWho() {
                 sx={{
                   fontSize: "1.5rem",
                   lineHeight: 1,
-                  color: tokens.foreground,
+                  color: disclosureForeground,
                   transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
                   transition: "transform 150ms ease"
                 }}
@@ -193,7 +224,16 @@ export default function PublicWhosWho() {
                   variant="outlined"
                   data-testid={`whos-who-leader-${sectionId}-${leader.uid}`}
                   data-section={section}
-                  sx={[{ p: 2, minWidth: 0, overflowWrap: "anywhere" }, sectionCardSx(section)]}
+                  data-visual-treatment={isGroupLeadership ? "group-brand" : "section"}
+                  sx={[
+                    { p: 2, minWidth: 0, overflowWrap: "anywhere" },
+                    sectionCardSx(section),
+                    isGroupLeadership ? {
+                      background: GROUP_LEADERSHIP_VISUAL.tileBackground,
+                      borderColor: GROUP_LEADERSHIP_VISUAL.border,
+                      borderTop: `4px solid ${GROUP_LEADERSHIP_VISUAL.accent}`
+                    } : {}
+                  ]}
                 >
                   <Typography component="h4" variant="h6" sx={{ fontWeight: 800 }}>{leader.displayName}</Typography>
                   <Typography color="text.secondary" sx={{ mt: .5, fontWeight: 700 }}>{leader.scoutingRole}</Typography>
