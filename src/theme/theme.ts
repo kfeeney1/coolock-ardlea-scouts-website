@@ -1,16 +1,17 @@
 import { createTheme } from "@mui/material/styles";
 import type { Theme } from "@mui/material/styles";
 import StableSelect from "../components/StableSelect";
+import { controlColours } from "./controlColours";
 import type { ThemeName } from "./themePreferences";
 
 export const brandColours = {
   coral: "#F52D45",
-  coralControl: "#D7263D",
+  coralControl: controlColours.default.primary.background,
   coralLight: "#FDE8EC",
-  navy: "#081E67",
+  navy: controlColours.default.secondary.background,
   navyLight: "#EEF1FA",
   green: "#00B050",
-  greenDark: "#00853B",
+  greenDark: controlColours.default.success.background,
   page: "#F8F9FA",
   white: "#FFFFFF",
   text: "#1F2937",
@@ -41,9 +42,9 @@ const stableTextFieldSelect = {
 
 export const defaultTheme = createTheme({
   palette: {
-    primary: { main: brandColours.coralControl, contrastText: brandColours.white },
-    secondary: { main: brandColours.navy, contrastText: brandColours.white },
-    success: { main: brandColours.greenDark, dark: brandColours.greenDark, contrastText: brandColours.white },
+    primary: { main: controlColours.default.primary.background, contrastText: controlColours.default.primary.foreground },
+    secondary: { main: controlColours.default.secondary.background, contrastText: controlColours.default.secondary.foreground },
+    success: { main: controlColours.default.success.background, dark: controlColours.default.success.background, contrastText: controlColours.default.success.foreground },
     background: { default: brandColours.page, paper: brandColours.white },
     text: { primary: brandColours.text, secondary: brandColours.muted }
   },
@@ -66,9 +67,9 @@ export const defaultTheme = createTheme({
 export const modernTheme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#3155E7", contrastText: "#FFFFFF" },
-    secondary: { main: "#0E7490", contrastText: "#FFFFFF" },
-    success: { main: "#15803D" },
+    primary: { main: controlColours.modern.primary.background, contrastText: controlColours.modern.primary.foreground },
+    secondary: { main: controlColours.modern.secondary.background, contrastText: controlColours.modern.secondary.foreground },
+    success: { main: controlColours.modern.success.background, contrastText: controlColours.modern.success.foreground },
     background: { default: "#F3F6FB", paper: "#FFFFFF" },
     text: { primary: "#172033", secondary: "#667085" },
     divider: "#DCE3EF"
