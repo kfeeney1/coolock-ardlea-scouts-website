@@ -13,9 +13,9 @@ import ParentEventConsentSection from "../components/parent/ParentEventConsentSe
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
 import { auth } from "../firebase";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
+import type { ParentChildRequest } from "../services/parentChildMatching";
 import { createParentAccessForCurrentUser, loadParentAccount, loginParent, logoutParent, registerParent } from "../services/parentPortal";
 import type { ParentAccount } from "../services/parentPortal";
-import type { ParentChildRequest } from "../services/parentChildMatching";
 
 const emptyChild = (): ParentChildRequest => ({ firstName: "", lastName: "", dateOfBirth: "" });
 
@@ -31,10 +31,10 @@ function ChildFields({ children, setChildren }: { children: ParentChildRequest[]
         <Typography color="text.secondary">Provide only the child's name and date of birth. These details are submitted for verification and never grant access automatically.</Typography>
         {children.map((child, index) => <Paper key={index} variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1.5}>
-                <Typography fontWeight={800}>Child {index + 1}</Typography>
+                <Typography sx={{ fontWeight: 800 }}>Child {index + 1}</Typography>
                 <TextField label={`Child ${index + 1} first name`} value={child.firstName} onChange={(event) => update(index, "firstName", event.target.value)} required />
                 <TextField label={`Child ${index + 1} surname`} value={child.lastName} onChange={(event) => update(index, "lastName", event.target.value)} required />
-                <TextField label={`Child ${index + 1} date of birth`} type="date" value={child.dateOfBirth} onChange={(event) => update(index, "dateOfBirth", event.target.value)} InputLabelProps={{ shrink: true }} required />
+                <TextField label={`Child ${index + 1} date of birth`} type="date" value={child.dateOfBirth} onChange={(event) => update(index, "dateOfBirth", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
                 {children.length > 1 && <Button color="secondary" onClick={() => setChildren(children.filter((_, i) => i !== index))}>Remove Child {index + 1}</Button>}
             </Stack>
         </Paper>)}
