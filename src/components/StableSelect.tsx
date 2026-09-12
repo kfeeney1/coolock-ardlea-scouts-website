@@ -1,5 +1,5 @@
 import Select, { type SelectProps } from "@mui/material/Select";
-import { forwardRef, useEffect, useRef, useState, type ForwardedRef } from "react";
+import { forwardRef, useRef, useState, type ForwardedRef } from "react";
 
 type Placement = { anchorVertical: "top" | "bottom"; transformVertical: "top" | "bottom"; maxHeight: number };
 const DEFAULT_PLACEMENT: Placement = { anchorVertical: "bottom", transformVertical: "top", maxHeight: 320 };
@@ -42,23 +42,6 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
 
   const preserveViewport = () => window.scrollTo(openScroll.current.x, openScroll.current.y);
   const paper = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const preventBackgroundScroll = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest(".MuiPaper-root")) return;
-      event.preventDefault();
-    };
-
-    document.addEventListener("wheel", preventBackgroundScroll, { capture: true, passive: false });
-    document.addEventListener("touchmove", preventBackgroundScroll, { capture: true, passive: false });
-
-    return () => {
-      document.removeEventListener("wheel", preventBackgroundScroll, true);
-      document.removeEventListener("touchmove", preventBackgroundScroll, true);
-    };
-  }, [menuOpen]);
 
   return <Select
     {...selectProps}
