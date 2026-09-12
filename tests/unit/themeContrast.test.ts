@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultTheme, modernTheme } from "../../src/theme/theme.ts";
+import { controlColours } from "../../src/theme/controlColours.ts";
 import { SECTION_VISUAL_TOKENS } from "../../src/theme/sectionColours.ts";
 
 function channel(value: number) {
@@ -33,11 +33,11 @@ function assertNormalTextContrast(label: string, foreground: string, background:
   );
 }
 
-test("default and modern theme contained controls meet AA text contrast", () => {
-  for (const [name, theme] of [["default", defaultTheme], ["modern", modernTheme]] as const) {
-    assertNormalTextContrast(`${name} primary`, theme.palette.primary.contrastText, theme.palette.primary.main);
-    assertNormalTextContrast(`${name} secondary`, theme.palette.secondary.contrastText, theme.palette.secondary.main);
-    assertNormalTextContrast(`${name} success`, theme.palette.success.contrastText, theme.palette.success.main);
+test("default and modern contained-control colours meet AA text contrast", () => {
+  for (const [themeName, themeColours] of Object.entries(controlColours)) {
+    for (const [role, colours] of Object.entries(themeColours)) {
+      assertNormalTextContrast(`${themeName} ${role}`, colours.foreground, colours.background);
+    }
   }
 });
 
