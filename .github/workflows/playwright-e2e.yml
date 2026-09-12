@@ -75,17 +75,20 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Install E2E Firebase and Functions tooling
+      - name: Install E2E Firebase, Functions and Playwright tooling
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
+          # Install transient root tooling in one operation. A later npm install would
+          # prune firebase-tools while the emulator is still running, causing lazy
+          # Functions invocations to lose functionsEmulatorRuntime.
+          npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1 "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
           npm --prefix functions install --no-audit --package-lock=false
           node --experimental-strip-types functions/scripts/generate-adventure-catalogue.mjs
 
       - name: Start Firestore, Auth, Functions and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npx firebase emulators:start --only firestore,auth,functions,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
+          npx --no-install firebase emulators:start --only firestore,auth,functions,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
           for i in {1..60}; do
             if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/5001) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
               exit 0
@@ -147,10 +150,6 @@ jobs:
           node scripts/rebuild-public-leadership.mjs
           node scripts/verify-test-population.mjs
           node scripts/verify-flow-data.mjs
-
-      - name: Install pinned Playwright test runner
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
 
       - name: Report Playwright version
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
