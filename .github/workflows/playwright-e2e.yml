@@ -28,6 +28,7 @@ jobs:
       FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
       VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
       FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST: 127.0.0.1:5001
       VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
       FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
       FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
@@ -74,16 +75,19 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Install E2E Firebase tooling
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
-
-      - name: Start Firestore, Auth and Storage emulators with branch rules
+      - name: Install E2E Firebase and Functions tooling
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
-          for i in {1..45}; do
-            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
+          npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
+          npm --prefix functions install --no-audit --package-lock=false
+          node --experimental-strip-types functions/scripts/generate-adventure-catalogue.mjs
+
+      - name: Start Firestore, Auth, Functions and Storage emulators with branch rules
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          npx firebase emulators:start --only firestore,auth,functions,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
+          for i in {1..60}; do
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/5001) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
               exit 0
             fi
             sleep 1
