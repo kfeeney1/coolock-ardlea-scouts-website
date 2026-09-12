@@ -45,19 +45,12 @@ export async function notifyParentRegistration(): Promise<void> {
     await post("/parent-registration", {}, true);
 }
 
-export async function notifyParentAccessApproved(account: ParentAccount, childCount: number): Promise<void> {
-    await post("/parent-access-approved", {
-        email: account.email,
-        displayName: account.displayName,
-        childCount
-    }, true);
+export async function notifyParentAccessApproved(account: ParentAccount, _childCount: number): Promise<void> {
+    await post("/parent-access-approved", { parentAccountUid: account.uid }, true);
 }
 
 export async function notifyParentAccessRejected(account: ParentAccount): Promise<void> {
-    await post("/parent-access-rejected", {
-        email: account.email,
-        displayName: account.displayName
-    }, true);
+    await post("/parent-access-rejected", { parentAccountUid: account.uid }, true);
 }
 
 export async function notifyLeaderRegistration(): Promise<void> {
@@ -65,12 +58,10 @@ export async function notifyLeaderRegistration(): Promise<void> {
 }
 
 export async function notifyLeaderAccessStatus(
-    email: string,
-    displayName: string,
-    status: "approved" | "rejected",
-    section: string
+    leaderRequestUid: string,
+    status: "approved" | "rejected"
 ): Promise<void> {
-    await post("/leader-access-status", { email, displayName, status, section }, true);
+    await post("/leader-access-status", { leaderRequestUid, status }, true);
 }
 
 export type EventNotificationKind = "notice" | "update" | "reminder";
