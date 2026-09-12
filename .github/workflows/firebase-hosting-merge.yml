@@ -59,9 +59,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install application and pinned Firebase test tooling
+      - name: Install application, functions and pinned Firebase test tooling
         run: |
           npm ci
+          npm --prefix functions install --no-audit --package-lock=false
           npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
       - name: Re-run release security checks
         run: |
@@ -69,6 +70,8 @@ jobs:
           npm run check:firebase-deploy-config
           npm run lint
           npm test
+          npm run test:adventure-functions
+          npm run check:adventure-functions
       - name: Re-run Firestore Rules tests on emulators
         env:
           FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
@@ -104,7 +107,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
-      - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to PRODUCTION
+      - name: Deploy reviewed Rules, indexes, authoritative functions, Storage rules and Hosting to PRODUCTION
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
         shell: bash
@@ -126,7 +129,7 @@ jobs:
           fs.writeFileSync('firebase.production.generated.json', JSON.stringify(config, null, 2));
           NODE
 
-          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
+          npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,functions:adventure-skills,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
       - name: Read-only post-deployment verification on custom domain
         run: |
           node scripts/check-live-build-info.mjs
