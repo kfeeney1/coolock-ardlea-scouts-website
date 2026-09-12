@@ -76,10 +76,17 @@ test.describe("accessibility baseline", () => {
     test.skip(testInfo.project.name !== "chromium", "Accessibility baseline runs once on desktop Chromium.");
   });
 
-  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact"]) {
+  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact", "/privacy"]) {
     test(`public route ${route} has baseline accessible structure`, async ({ page }) => {
       await page.goto(route);
       await expectAccessibilityBaseline(page);
+    });
+  }
+
+  for (const route of ["/join", "/parent", "/activities/consent"]) {
+    test(`personal-data route ${route} links to privacy information`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page.getByRole("link", { name: /privacy & data protection information/i })).toBeVisible();
     });
   }
 

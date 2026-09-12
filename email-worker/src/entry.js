@@ -2,6 +2,7 @@ import worker from "./index.js";
 
 const PRODUCTION_HOST = "https://coolockardleascouts.ie";
 const PRODUCTION_DOMAIN = "coolockardleascouts.ie";
+const rawConsoleError = console.error.bind(console);
 
 function clean(value, max = 300) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -28,6 +29,30 @@ function json(request, env, status, body) {
     headers: { "Content-Type": "application/json", ...corsHeaders(request, env) }
   });
 }
+
+export function privacySafeDiagnostic(args) {
+  const values = Array.isArray(args) ? args : [args];
+  const label = typeof values[0] === "string" && values[0].trim()
+    ? values[0].trim().slice(0, 120)
+    : "Email worker error";
+  const error = values.find((value) => value instanceof Error);
+  const providerStatus = error?.message?.match(/Resend returned\s+(\d{3})/i)?.[1] || "";
+  return {
+    label,
+    detail: {
+      code: providerStatus ? "email-provider-error" : "email-worker-error",
+      ...(providerStatus ? { providerStatus: Number(providerStatus) } : {})
+    }
+  };
+}
+
+// The underlying worker historically logged Error objects directly. Provider
+// errors can contain response bodies with delivery metadata, recipient details
+// or other personal information. Keep only a bounded label and safe status/code.
+console.error = (...args) => {
+  const diagnostic = privacySafeDiagnostic(args);
+  rawConsoleError(diagnostic.label, diagnostic.detail);
+};
 
 export function validateDeliveryEnvironment(env) {
   const mode = clean(env.EMAIL_DELIVERY_MODE, 32).toLowerCase();

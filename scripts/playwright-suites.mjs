@@ -71,6 +71,7 @@ export const suiteSpecs = {
     "section-aware-cards.spec.ts",
     "sitewide-dropdown-geometry.spec.ts",
     "theme-parity.spec.ts",
+    "wcag-regression.spec.ts",
     "webkit-critical-path.spec.ts"
   ],
   "domain-deployment": ["test-environment-smoke.spec.ts"]
@@ -90,7 +91,7 @@ const keywordSuites = [
   [/activity|event|programme|meeting|weekly|attendance|planner/i, "activities-programme"],
   [/role|permission|rbac|auth|access|organisation|organization/i, "authentication-rbac"],
   [/public|contact|about|leadership|who.?s.?who/i, "public-pages"],
-  [/theme|mobile|navigation|layout|dropdown|accessibility/i, "platform-ui"],
+  [/theme|mobile|navigation|layout|dropdown|accessibility|wcag/i, "platform-ui"],
   [/deploy|hosting|domain|environment|firebase/i, "domain-deployment"]
 ];
 

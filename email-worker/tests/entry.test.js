@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateDeliveryEnvironment } from "../src/entry.js";
+import { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
@@ -28,4 +28,29 @@ test("test delivery requires an explicit redirect recipient", () => {
 test("ambiguous email environment fails closed", () => {
   assert.match(validateDeliveryEnvironment({}), /explicitly set/);
   assert.match(validateDeliveryEnvironment({ EMAIL_DELIVERY_MODE: "staging" }), /explicitly set/);
+});
+
+test("provider diagnostics retain status but discard provider body and personal data", () => {
+  const diagnostic = privacySafeDiagnostic([
+    "Email worker error",
+    new Error("Resend returned 422: {\"message\":\"recipient parent@example.com rejected for Child Name\",\"token\":\"secret-token\"}")
+  ]);
+
+  assert.deepEqual(diagnostic, {
+    label: "Email worker error",
+    detail: { code: "email-provider-error", providerStatus: 422 }
+  });
+  const serialized = JSON.stringify(diagnostic);
+  assert.doesNotMatch(serialized, /parent@example\.com/);
+  assert.doesNotMatch(serialized, /Child Name/);
+  assert.doesNotMatch(serialized, /secret-token/);
+});
+
+test("non-provider diagnostics do not expose raw error messages", () => {
+  const diagnostic = privacySafeDiagnostic(["Email worker error", new Error("Sensitive payload with api-key-123")]);
+  assert.deepEqual(diagnostic, {
+    label: "Email worker error",
+    detail: { code: "email-worker-error" }
+  });
+  assert.doesNotMatch(JSON.stringify(diagnostic), /api-key-123/);
 });
