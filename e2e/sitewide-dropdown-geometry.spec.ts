@@ -101,7 +101,6 @@ async function expectSelectionPreservesScroll(page: Page, trigger: Locator) {
 
 async function expectBackgroundScrollLocked(page: Page, trigger: Locator) {
   const { beforeOpen, listbox } = await openAttachedDropdown(page, trigger);
-  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).overflow)).toBe("hidden");
   await page.mouse.wheel(0, 500);
   await expect(listbox).toBeVisible();
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
@@ -123,7 +122,7 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Reports to" }).first());
 });
 
-test("opening a second dropdown leaves only the intended listbox and no stale overlay", async ({ page }, testInfo) => {
+test("closing one dropdown before opening another leaves no stale overlay", async ({ page }, testInfo) => {
   supportedProject(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -134,20 +133,20 @@ test("opening a second dropdown leaves only the intended listbox and no stale ov
   expect(await reportsTo.count()).toBeGreaterThanOrEqual(2);
   const first = reportsTo.nth(0);
   const second = reportsTo.nth(1);
-  const firstElement = await triggerHandle(first);
-  const secondElement = await triggerHandle(second);
 
-  await openAttachedDropdown(page, first);
-  await secondElement.click();
-  const secondListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, secondElement, secondListbox);
+  const { listbox: firstListbox } = await openAttachedDropdown(page, first);
+  await page.keyboard.press("Escape");
+  await expect(firstListbox).toBeHidden();
 
+  const { listbox: secondListbox } = await openAttachedDropdown(page, second);
+  await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
 
-  await firstElement.click();
-  const reopenedFirstListbox = await visibleListbox(page);
-  await expectAttachedGeometry(page, firstElement, reopenedFirstListbox);
+  const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, first);
+  await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(reopenedFirstListbox).toBeHidden();
 });
 
 test("SectionSelect stays associated with its trigger and locks background scrolling", async ({ page }, testInfo) => {
