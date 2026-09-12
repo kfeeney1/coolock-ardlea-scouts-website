@@ -49,9 +49,12 @@ test("parent update remains current until its annual anniversary", () => {
 });
 
 test("form is due on the one-year anniversary of the authoritative update", () => {
+  const anniversary = new Date("2025-09-12T10:00:00Z");
   const records = [consent({
     consentTo: "",
-    parentUpdatedAt: new Date("2025-09-12T10:00:00Z")
+    submittedAt: anniversary,
+    updatedAt: anniversary,
+    parentUpdatedAt: anniversary
   })];
   const due = findMembersNeedingFormRenewal([{ id: "member-1", active: true }], records, asOf);
   assert.equal(due[0]?.reason, "annual");
