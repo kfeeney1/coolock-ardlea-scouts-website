@@ -39,6 +39,7 @@ function exactProjectReference(workflow, projectId) {
 requireContract(firebase?.firestore?.rules === "firestore.rules", "firebase.json declares Firestore rules.");
 requireContract(firebase?.firestore?.indexes === "firestore.indexes.json", "firebase.json declares Firestore indexes.");
 requireContract(firebase?.storage?.rules === "storage.rules", "firebase.json declares Storage rules.");
+requireContract(Array.isArray(firebase?.functions) && firebase.functions.some((item) => item?.codebase === "adventure-skills" && item?.source === "functions"), "firebase.json declares the authoritative Adventure Skills functions codebase.");
 
 requireContract(firebaseRc?.projects?.test === TEST, "Firebase TEST alias targets the isolated TEST project.");
 requireContract(firebaseRc?.projects?.production === PROD, "Firebase PRODUCTION alias targets the authoritative production project.");
@@ -65,6 +66,7 @@ requireContract(productionWorkflow.includes('test "$TARGET_SHA" = "$REMOTE_MAIN_
 requireContract(productionWorkflow.includes('commits/${TARGET_SHA}/check-runs'), "Production verifies required CI evidence for the exact resolved SHA.");
 requireContract(productionWorkflow.includes("tests/firestore/*.test.mjs"), "Production reruns Firestore Rules tests on emulators before deployment.");
 requireContract(productionWorkflow.includes("tests/storage/*.test.mjs"), "Production reruns Storage Rules tests on emulators before deployment.");
+requireContract(productionWorkflow.includes("functions:adventure-skills"), "Production deploy includes the authoritative Adventure Skills functions codebase.");
 requireContract(productionWorkflow.includes("npm run check:workflow-production-credentials"), "Production reruns the repository's workflow credential-separation check.");
 requireContract(!productionWorkflow.includes("npm run check:workflow-credentials"), "Production does not call the obsolete workflow credential-check script name.");
 requireContract(productionWorkflow.includes("npm run check:production-env"), "Production validates required public configuration before building.");
@@ -87,7 +89,7 @@ requireContract(testWorkflow.includes("environment: test"), "TEST deployment use
 requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment explicitly targets the TEST Firebase project.");
 requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
 requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
-requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
+requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,functions:adventure-skills,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, authoritative functions, explicit TEST Storage rules and Hosting together.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
 
