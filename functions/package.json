@@ -7,12 +7,15 @@
     "node": "22"
   },
   "scripts": {
-    "prepare:catalogue": "node --experimental-strip-types scripts/generate-adventure-catalogue.mjs",
+    "prepare:catalogue": "tsx scripts/generate-adventure-catalogue.mjs",
     "test": "node --test tests/*.test.mjs",
     "check": "npm run prepare:catalogue && node --check index.mjs && npm test"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^6.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
   }
 }
