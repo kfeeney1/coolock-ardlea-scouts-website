@@ -5,10 +5,10 @@ export const REPORTING_READ_BUDGETS = Object.freeze({
   adminOverview: Object.freeze({
     surface: "Leader dashboard overview",
     maxSectionFanout: 6,
-    maxQueryOperations: 25,
+    maxQueryOperations: 31,
     minimumCacheMs: 90_000,
     requiresAggregateCounts: true,
-    rationale: "The overview may fan out by assigned section, but repeat navigation should use the short-lived cache and count-only cards should stay on Firestore aggregation queries."
+    rationale: "The overview may fan out members, events, consent applications and weekly meetings by assigned section. Repeat navigation uses the short-lived cache, count-only cards stay on Firestore aggregation queries, and the additional consent reads are the reviewed cost of surfacing annual form renewal attention on the dashboard."
   }),
   leaderReports: Object.freeze({
     surface: "Reports & Exports",
@@ -70,11 +70,12 @@ export async function validateReportingReadBudgetSource(rootDir = process.cwd())
 
   requireSource(errors, overview, "const OVERVIEW_CACHE_MS = 90_000;", "Leader overview cache must remain at least 90 seconds unless the read budget is explicitly reviewed.");
   requireSource(errors, overview, "getCountFromServer", "Leader overview count cards must retain Firestore aggregation queries.");
-  if (count(overview, "loadScopedCollection(\"") > 2) {
+  if (count(overview, "loadScopedCollection(\"") > 3) {
     errors.push("Leader overview added another section-fanned document collection; review and raise the read budget explicitly if intentional.");
   }
   requireSource(errors, overview, "loadScopedCollection(\"members\", profile)", "Leader overview must keep member reads in the scoped loader.");
   requireSource(errors, overview, "loadScopedCollection(\"events\", profile)", "Leader overview must keep event reads in the scoped loader.");
+  requireSource(errors, overview, "loadScopedCollection(\"consentApplications\", profile)", "Leader overview must keep consent renewal reads in the scoped loader.");
 
   requireSource(errors, leaderReports, "Promise.all([loadMemberReportRows(scope), loadEventReportRecords(scope)])", "Reports must keep the initial Firestore snapshot to the member and event datasets.");
   requireSource(errors, reporting, "const memberReportCache = new Map", "Reports must retain the member snapshot cache used by event exports.");

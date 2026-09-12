@@ -11,10 +11,10 @@ test("reporting read-budget contract is internally valid", () => {
   assert.deepEqual(validateReportingReadBudgetContract(), []);
 });
 
-test("leader overview keeps the 90-second cache and aggregate-count strategy", () => {
+test("leader overview keeps the 90-second cache and reviewed renewal-read budget", () => {
   assert.equal(REPORTING_READ_BUDGETS.adminOverview.minimumCacheMs, 90_000);
   assert.equal(REPORTING_READ_BUDGETS.adminOverview.requiresAggregateCounts, true);
-  assert.equal(REPORTING_READ_BUDGETS.adminOverview.maxQueryOperations, 25);
+  assert.equal(REPORTING_READ_BUDGETS.adminOverview.maxQueryOperations, 31);
 });
 
 test("leader reports budget two initial datasets and zero export reads after load", () => {
