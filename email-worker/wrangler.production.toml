@@ -12,7 +12,7 @@ SITE_URL = "https://coolockardleascouts.ie"
 EMAIL_DELIVERY_MODE = "production"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>"
 ALLOWED_ORIGINS = "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie"
+ADMIN_EMAILS = "kfeeney1@hotmail.com"
 
-# ADMIN_EMAILS is intentionally environment-managed and not committed.
 # TEST_EMAIL_REDIRECT must remain unset in production; entry.js fails closed
 # if a production deployment contains a redirect.
