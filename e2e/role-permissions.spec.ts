@@ -74,7 +74,7 @@ test.describe("parent-only permissions", () => {
 
     await page.goto("/leader");
     await expect(page).toHaveURL(/\/parent$/);
-    await expect(page.getByText(/Parent access does not include Leader Dashboard access/i)).toBeVisible();
+    await expect(page.getByText(/This account does not have leader access/i)).toBeVisible();
   });
 });
 
