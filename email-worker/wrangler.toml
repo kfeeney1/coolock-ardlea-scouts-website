@@ -6,6 +6,10 @@ compatibility_date = "2026-08-01"
 # `wrangler deploy` cannot send to real members/leaders because delivery is
 # test-only and fails closed until TEST_EMAIL_REDIRECT is explicitly supplied
 # through environment-managed configuration.
+#
+# Production uses wrangler.production.toml via `npm run deploy:production`.
+# Do not add a named [env.production] here: modern Wrangler deploys named
+# environments as separate Workers such as `coolock-ardlea-scouts-email-production`.
 [vars]
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
 SITE_URL = "https://coolock-ardlea-scouts.web.app"
@@ -16,19 +20,3 @@ ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
 # ADMIN_EMAILS and TEST_EMAIL_REDIRECT are intentionally not versioned here.
 # Provide them through the Cloudflare deployment environment / Wrangler secrets
 # or local .dev.vars. Test mode fails closed when TEST_EMAIL_REDIRECT is absent.
-
-# Genuine delivery must be an explicit production deployment. Wrangler `vars`
-# are non-inheritable, so the complete non-personal production configuration is repeated.
-[env.production]
-name = "coolock-ardlea-scouts-email"
-
-[env.production.vars]
-FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
-SITE_URL = "https://coolockardleascouts.ie"
-EMAIL_DELIVERY_MODE = "production"
-EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>"
-ALLOWED_ORIGINS = "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie"
-
-# ADMIN_EMAILS must be supplied through environment-managed configuration for
-# production. TEST_EMAIL_REDIRECT must remain unset in production; entry.js
-# rejects production configuration if a redirect is present.

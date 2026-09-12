@@ -1,0 +1,18 @@
+name = "coolock-ardlea-scouts-email"
+main = "src/entry.js"
+compatibility_date = "2026-08-01"
+
+# Production is intentionally a separate top-level Wrangler config rather than
+# a named Wrangler environment. Modern Wrangler deploys named environments as
+# separate Workers (for example `<name>-production`), which is not the intended
+# architecture here. This file targets the existing production Worker directly.
+[vars]
+FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
+SITE_URL = "https://coolockardleascouts.ie"
+EMAIL_DELIVERY_MODE = "production"
+EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>"
+ALLOWED_ORIGINS = "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie"
+
+# ADMIN_EMAILS is intentionally environment-managed and not committed.
+# TEST_EMAIL_REDIRECT must remain unset in production; entry.js fails closed
+# if a production deployment contains a redirect.
