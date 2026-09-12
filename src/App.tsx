@@ -2,6 +2,7 @@ import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminAuthProvider } from "./components/admin/AdminAuthProvider";
+import ReportDownloadExperience from "./components/admin/GeneratedReportDialog";
 import LeaderRecordRoutePreloader from "./components/admin/LeaderRecordRoutePreloader";
 import MemberCardNavigation from "./components/admin/MemberCardNavigation";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
@@ -71,6 +72,7 @@ export default function App() {
           <RecordBackNavigationBridge />
           <LeaderRecordRoutePreloader />
           <MemberCardNavigation />
+          <ReportDownloadExperience />
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />

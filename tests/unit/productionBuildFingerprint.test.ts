@@ -9,6 +9,8 @@ test("SPA shell exposes the production build SHA for live deployment verificatio
   assert.match(indexHtml, /<meta\s+name="app-build-sha"\s+content="%VITE_BUILD_COMMIT%"\s*\/>/);
 });
 
-test("production workflow supplies VITE_BUILD_COMMIT to the production build", () => {
-  assert.match(productionWorkflow, /VITE_BUILD_COMMIT: \$\{\{ inputs\.commit_sha \}\}/);
+test("production workflow resolves current main and supplies that exact SHA to the production build", () => {
+  assert.match(productionWorkflow, /ref: main/);
+  assert.match(productionWorkflow, /REMOTE_MAIN_SHA="\$\(git rev-parse origin\/main\)"/);
+  assert.match(productionWorkflow, /VITE_BUILD_COMMIT: \$\{\{ steps\.release\.outputs\.sha \}\}/);
 });

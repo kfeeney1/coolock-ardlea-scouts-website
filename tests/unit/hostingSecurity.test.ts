@@ -8,6 +8,10 @@ type FirebaseConfig = { hosting?: { headers?: HeaderRule[] } };
 
 const config = JSON.parse(readFileSync(new URL("../../firebase.json", import.meta.url), "utf8")) as FirebaseConfig;
 const rules = config.hosting?.headers || [];
+const indexHtml = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+const layoutSource = readFileSync(new URL("../../src/components/Layout.tsx", import.meta.url), "utf8");
+const robots = readFileSync(new URL("../../public/robots.txt", import.meta.url), "utf8");
+const sitemap = readFileSync(new URL("../../public/sitemap.xml", import.meta.url), "utf8");
 
 function headersFor(source: string): Map<string, string> {
     const rule = rules.find((item) => item.source === source);
@@ -30,4 +34,20 @@ test("Firebase Hosting applies baseline browser security headers", () => {
 test("SPA shell is not cached while hashed assets are immutable", () => {
     assert.equal(headersFor("/index.html").get("cache-control"), "no-cache, no-store, must-revalidate");
     assert.equal(headersFor("/assets/**").get("cache-control"), "public, max-age=31536000, immutable");
+});
+
+test("production canonical metadata is pinned to the custom apex host", () => {
+    assert.match(indexHtml, /rel="canonical" href="https:\/\/coolockardleascouts\.ie\/"/);
+    assert.match(layoutSource, /const PRODUCTION_ORIGIN = "https:\/\/coolockardleascouts\.ie"/);
+    assert.doesNotMatch(indexHtml + layoutSource + sitemap, /coolock-ardlea-scouts-test|web\.app|firebaseapp\.com/);
+});
+
+test("robots and sitemap expose only canonical public production routes", () => {
+    assert.match(robots, /Sitemap: https:\/\/coolockardleascouts\.ie\/sitemap\.xml/);
+    assert.match(robots, /Disallow: \/leader/);
+    assert.match(robots, /Disallow: \/parent/);
+    assert.doesNotMatch(sitemap, /\/leader|\/parent|\/event-consent|\/activities\/consent|\/whos-who/);
+    for (const path of ["/", "/about", "/activities", "/join", "/contact"]) {
+        assert.match(sitemap, new RegExp(`<loc>https://coolockardleascouts\\.ie${path === "/" ? "/" : path}</loc>`));
+    }
 });

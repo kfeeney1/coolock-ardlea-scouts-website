@@ -1,9 +1,12 @@
 import { Box, CircularProgress } from "@mui/material";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import Footer from "./Footer";
 import Header from "./Header";
+
+const PRODUCTION_ORIGIN = "https://coolockardleascouts.ie";
+const CANONICAL_PUBLIC_PATHS = new Set(["/", "/about", "/activities", "/join", "/contact"]);
 
 function RouteFallback() {
     return (
@@ -25,6 +28,19 @@ function RouteFallback() {
 export default function Layout() {
     const { pathname } = useLocation();
     const isLeaderRoute = pathname.startsWith("/leader") && pathname !== "/leader/login";
+
+    useEffect(() => {
+        const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+        if (!CANONICAL_PUBLIC_PATHS.has(pathname)) {
+            existing?.remove();
+            return;
+        }
+
+        const canonical = existing ?? document.createElement("link");
+        canonical.rel = "canonical";
+        canonical.href = new URL(pathname, PRODUCTION_ORIGIN).toString();
+        if (!existing) document.head.append(canonical);
+    }, [pathname]);
 
     return (
         <Box
