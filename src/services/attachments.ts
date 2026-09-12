@@ -1,4 +1,4 @@
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, ref, uploadBytes } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { financeReceiptStoragePath, validateAttachmentUpload } from "./attachmentLogic";
 
@@ -8,7 +8,6 @@ export interface StoredAttachment {
   fileName: string;
   contentType: string;
   size: number;
-  downloadUrl: string;
 }
 
 function currentUid(): string {
@@ -46,7 +45,6 @@ export async function uploadFinanceReceipt(section: string, transactionId: strin
     fileName: validated.fileName,
     contentType: validated.contentType,
     size: validated.size,
-    downloadUrl: await getDownloadURL(storageRef),
   };
 }
 
