@@ -32,7 +32,7 @@ for (const [role, email] of [
     await expect(overview.getByText("Pending Parent Requests")).toBeVisible();
     await expect(overview.getByText("Pending Leader Requests")).toBeVisible();
     await expect(overview.getByText("New Join Applications")).toBeVisible();
-    await expect(overview.getByText("Active Members")).toBeVisible();
+    await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
     await expect(overview.getByText("Outstanding Event Consent")).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
     await expect(overview.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
@@ -87,7 +87,7 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
   await expect(overview.getByText(/^Scope:/)).toBeVisible();
   await expect(overview.getByText("New Join Applications")).toBeVisible();
-  await expect(overview.getByText("Active Members")).toBeVisible();
+  await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
   await expect(overview.getByText("Outstanding Event Consent")).toBeVisible();
   await expect(overview.getByText("Pending Parent Requests")).toHaveCount(0);
   await expect(overview.getByText("Pending Leader Requests")).toHaveCount(0);
