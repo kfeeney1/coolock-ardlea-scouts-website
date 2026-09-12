@@ -11,6 +11,7 @@ env:
   DEPLOY_ENVIRONMENT: production
   FIREBASE_PROJECT_ID: coolock-ardlea-scouts
   PRODUCTION_STORAGE_BUCKET: coolock-ardlea-scouts.firebasestorage.app
+  PRODUCTION_URL: https://coolockardleascouts.ie
 
 concurrency:
   group: firebase-production-deploy
@@ -126,12 +127,12 @@ jobs:
           NODE
 
           npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
-      - name: Read-only post-deployment verification
+      - name: Read-only post-deployment verification on custom domain
         run: |
           node scripts/check-live-build-info.mjs
           npm run smoke:live
         env:
-          SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
+          SITE_URL: ${{ env.PRODUCTION_URL }}
           EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
           FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
@@ -147,6 +148,6 @@ jobs:
             echo "- Actor: $GITHUB_ACTOR"
             echo "- SHA: ${{ steps.release.outputs.sha }}"
             echo "- Target: $FIREBASE_PROJECT_ID"
-            echo "- URL: ${{ vars.FIREBASE_HOSTING_URL }}"
+            echo "- URL: $PRODUCTION_URL"
             echo "- Workflow run: $GITHUB_RUN_ID"
           } >> "$GITHUB_STEP_SUMMARY"
