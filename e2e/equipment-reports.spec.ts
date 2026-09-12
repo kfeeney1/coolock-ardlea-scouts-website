@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Download, type Page, type TestInfo } from "@playwright/test";
 
 type Credentials = { email: string; password: string };
 
@@ -16,18 +16,29 @@ async function loginLeader(page: Page, account: Credentials) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-async function downloadText(download: Awaited<ReturnType<Page["waitForEvent"]>>) {
+async function downloadText(download: Download) {
   const stream = await download.createReadStream();
   let value = "";
   for await (const chunk of stream) value += chunk.toString();
   return value;
 }
 
+async function downloadPreparedReport(page: Page) {
+  const dialog = page.getByRole("dialog", { name: "Report ready" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Open report" })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Download report" }).click();
+  const download = await downloadPromise;
+  await dialog.getByRole("button", { name: "Keep working" }).click();
+  return download;
+}
+
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Equipment report downloads run once on desktop Chromium.");
 }
 
-test("equipment manager sees the operational overview and can export the full inventory and a filtered report", async ({ page }, testInfo) => {
+test("equipment manager sees the operational overview and can generate, open and download inventory reports", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
@@ -43,9 +54,15 @@ test("equipment manager sees the operational overview and can export the full in
   const reports = page.getByTestId("equipment-reports-panel");
   await expect(reports.getByRole("heading", { name: "Equipment Reports" })).toBeVisible();
 
-  const allDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-all-equipment-csv").click();
-  const allDownload = await allDownloadPromise;
+  const ready = page.getByRole("dialog", { name: "Report ready" });
+  await expect(ready.getByRole("button", { name: "Open report" })).toBeVisible();
+  const popupPromise = page.waitForEvent("popup");
+  await ready.getByRole("button", { name: "Open report" }).click();
+  const popup = await popupPromise;
+  await expect.poll(() => popup.url()).toMatch(/^blob:/);
+  await popup.close();
+  const allDownload = await downloadPreparedReport(page);
   expect(allDownload.suggestedFilename()).toMatch(/^all-equipment-\d{4}-\d{2}-\d{2}\.csv$/);
   const allContent = await downloadText(allDownload);
   expect(allContent.startsWith("\uFEFF")).toBe(false);
@@ -55,14 +72,12 @@ test("equipment manager sees the operational overview and can export the full in
 
   await reports.getByLabel("Report").click();
   await page.getByRole("option", { name: "Current Section Holdings" }).click();
-  const selectedDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-selected-equipment-report").click();
-  const selectedDownload = await selectedDownloadPromise;
+  const selectedDownload = await downloadPreparedReport(page);
   expect(selectedDownload.suggestedFilename()).toMatch(/^current-section-holdings-\d{4}-\d{2}-\d{2}\.csv$/);
 
-  const registerDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-equipment-asset-register").click();
-  const registerDownload = await registerDownloadPromise;
+  const registerDownload = await downloadPreparedReport(page);
   expect(registerDownload.suggestedFilename()).toMatch(/^equipment-asset-register-\d{4}-\d{2}-\d{2}\.csv$/);
   const registerContent = await downloadText(registerDownload);
   expect(registerContent).toContain('"Date Purchased","Quantity","Description"');
@@ -119,9 +134,8 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
   await expect(page.getByText(damageNote, { exact: true })).toBeVisible();
 
-  const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-all-equipment-csv").click();
-  const content = await downloadText(await downloadPromise);
+  const content = await downloadText(await downloadPreparedReport(page));
   const itemRow = content.split("\r\n").find((line) => line.includes(itemName)) ?? "";
   expect(itemRow).toContain(damageNote);
   expect(itemRow).toContain("reported");

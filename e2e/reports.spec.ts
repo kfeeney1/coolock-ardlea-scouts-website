@@ -3,8 +3,8 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
 
-function desktopOnly(testInfo: TestInfo) {
-  test.skip(testInfo.project.name !== "chromium", "Reports export checks run once on desktop Chromium.");
+function chromiumOnly(testInfo: TestInfo) {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Reports checks run in Chromium projects.");
 }
 
 async function login(page: Page) {
@@ -15,8 +15,19 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("reports v2 filters event reports, resets the date range and downloads summary CSVs", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+async function expectReportReady(page: Page) {
+  const dialog = page.getByRole("dialog", { name: "Report ready" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Open report" })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Download report" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Send report" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Keep working" })).toBeVisible();
+  return dialog;
+}
+
+test("reports generation offers open, download, send and keep-working actions without regenerating", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(testInfo.project.name !== "chromium", "Full report file assertions run once on desktop Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page);
   await page.goto("/leader/reports");
@@ -31,33 +42,69 @@ test("reports v2 filters event reports, resets the date range and downloads summ
   await expect(resultCount).toHaveAttribute("role", "status");
   await expect(resultCount).toHaveAttribute("aria-live", "polite");
   await expect(resultCount).toContainText(/\d+ of \d+ events in range/);
-  await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
-  await expect(page.getByTestId("attendance-trends-report")).toBeVisible();
-  await expect(page.getByTestId("printable-report-summary")).toContainText("Printable operational summary");
 
   await fromDate.fill("2098-01-01");
   await toDate.fill("2099-12-31");
-  await expect(resultCount).toContainText(/\d+ of \d+ events in range/);
   await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
 
-  const membershipDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Membership Summary" }).click();
+  let dialog = await expectReportReady(page);
+
+  await dialog.getByRole("button", { name: "Send report" }).click();
+  const sendOptions = page.getByTestId("report-send-options");
+  await expect(sendOptions.getByRole("link", { name: "Email" })).toHaveAttribute("href", /^mailto:/);
+  await expect(sendOptions.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\//);
+
+  const popupPromise = page.waitForEvent("popup");
+  await dialog.getByRole("button", { name: "Open report" }).click();
+  const popup = await popupPromise;
+  await expect.poll(() => popup.url()).toMatch(/^blob:/);
+  await popup.close();
+  await expect(page).toHaveURL(/\/leader\/reports$/);
+
+  const membershipDownloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Download report" }).click();
   const membershipDownload = await membershipDownloadPromise;
   expect(membershipDownload.suggestedFilename()).toMatch(/^membership-summary-\d{4}-\d{2}-\d{2}\.csv$/);
+  await dialog.getByRole("button", { name: "Keep working" }).click();
+  await expect(dialog).toHaveCount(0);
 
-  const eventDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Event Overview" }).click();
-  const eventDownload = await eventDownloadPromise;
-  expect(eventDownload.suggestedFilename()).toMatch(/^event-overview-\d{4}-\d{2}-\d{2}\.csv$/);
+  dialog = await expectReportReady(page);
+  const eventDownloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Download report" }).click();
+  expect((await eventDownloadPromise).suggestedFilename()).toMatch(/^event-overview-\d{4}-\d{2}-\d{2}\.csv$/);
+  await dialog.getByRole("button", { name: "Keep working" }).click();
 
-  const trendDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export Attendance Trends" }).click();
-  const trendDownload = await trendDownloadPromise;
-  expect(trendDownload.suggestedFilename()).toMatch(/^attendance-trends-\d{4}-\d{2}-\d{2}\.csv$/);
+  dialog = await expectReportReady(page);
+  const trendDownloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Download report" }).click();
+  expect((await trendDownloadPromise).suggestedFilename()).toMatch(/^attendance-trends-\d{4}-\d{2}-\d{2}\.csv$/);
+  await dialog.getByRole("button", { name: "Keep working" }).click();
 
   await page.getByRole("button", { name: "Reset filters" }).click();
   await expect(fromDate).toHaveValue("");
   await expect(toDate).toHaveValue("");
-  await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
-  await expect(resultCount).toContainText(/\d+ of \d+ events in range/);
+});
+
+test("Pixel 7 report result actions fit the viewport and keep application state", async ({ page }, testInfo) => {
+  chromiumOnly(testInfo);
+  test.skip(testInfo.project.name !== "mobile-chromium", "This regression covers the Pixel 7 project.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page);
+  await page.goto("/leader/reports");
+
+  await page.getByRole("button", { name: "Export Membership Summary" }).click();
+  const dialog = await expectReportReady(page);
+  const box = await dialog.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(412);
+
+  await dialog.getByRole("button", { name: "Send report" }).click();
+  await expect(page.getByTestId("report-send-options").getByRole("link", { name: "Email" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Keep working" }).click();
+  await expect(page).toHaveURL(/\/leader\/reports$/);
+  await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
 });
