@@ -7,6 +7,7 @@ import LeaderRecordRoutePreloader from "./components/admin/LeaderRecordRoutePrel
 import MemberCardNavigation from "./components/admin/MemberCardNavigation";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
+import DropdownBackgroundScrollLockBridge from "./components/DropdownBackgroundScrollLockBridge";
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
 import RecordBackNavigationBridge from "./components/RecordBackNavigationBridge";
@@ -68,6 +69,7 @@ export default function App() {
       <AdminAuthProvider>
         <ThemeExperienceProvider>
           <RouteScrollManager />
+          <DropdownBackgroundScrollLockBridge />
           <TransientOverlayBackDismissBridge />
           <RecordBackNavigationBridge />
           <LeaderRecordRoutePreloader />
