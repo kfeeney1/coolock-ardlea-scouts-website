@@ -4,19 +4,31 @@ The existing Scout email service is a Cloudflare Worker backed by Resend. Keep n
 
 ## Delivery environments
 
-The top-level Wrangler configuration is deliberately **test-safe**. A plain `wrangler dev` or `wrangler deploy` uses `EMAIL_DELIVERY_MODE = "test"` and redirects delivery to the controlled test inbox.
+The default `wrangler.toml` is deliberately **test-safe**. A plain `wrangler dev` or `wrangler deploy` uses `EMAIL_DELIVERY_MODE = "test"` and redirects delivery to the controlled test inbox.
 
-Genuine delivery requires the explicit production environment:
+Production uses a separate top-level Wrangler configuration, `wrangler.production.toml`, which targets the existing `coolock-ardlea-scouts-email` Worker directly. This is intentional: current Wrangler named environments create distinct Workers such as `coolock-ardlea-scouts-email-production`, which is not the production architecture used by this project.
+
+Genuine delivery therefore requires the explicit production command:
 
 ```bash
-npx wrangler deploy --env production
+npm run deploy:production
 ```
+
+Equivalent direct command:
+
+```bash
+npx wrangler deploy --config wrangler.production.toml
+```
+
+Do **not** use `wrangler deploy --env production` for this project.
 
 The worker fails closed if the environment is ambiguous. Production also refuses to start email delivery when `TEST_EMAIL_REDIRECT` is present, the sender is not on `coolockardleascouts.ie`, the site URL is not `https://coolockardleascouts.ie`, or the production origin is missing.
 
 ## Secrets
 
-`RESEND_API_KEY` is a Cloudflare Worker secret. Never place it in this repository, Wrangler vars, logs or browser configuration. Wrangler secrets are environment-specific, so the production secret must be configured for the production environment before the explicit production deployment.
+`RESEND_API_KEY` is a Cloudflare Worker secret. Never place it in this repository, Wrangler vars, logs or browser configuration. The production secret belongs on the existing `coolock-ardlea-scouts-email` Worker. A deployment using `wrangler.production.toml` updates that Worker while retaining its separately stored Cloudflare secret.
+
+If the secret ever needs to be replaced, update it directly on `coolock-ardlea-scouts-email` in Cloudflare (or use `wrangler secret put RESEND_API_KEY --config wrangler.production.toml`) and paste the value only into Cloudflare/Wrangler when prompted.
 
 ## Production sender/domain prerequisite
 
@@ -33,12 +45,13 @@ DMARC should also be reviewed for the domain. Changes must preserve the existing
 After provider verification and before any bulk/member reminders:
 
 1. confirm the Worker production secret is configured;
-2. deploy explicitly with `--env production`;
-3. use one approved controlled recipient;
-4. verify From, recipient, links, mobile rendering and reply behaviour;
-5. confirm no unrelated recipient address is exposed;
-6. confirm the email-provider response reports success;
-7. disable/roll back production delivery immediately if recipient resolution or domain authentication is wrong.
+2. deploy explicitly with `npm run deploy:production`;
+3. verify the deployment output shows `coolock-ardlea-scouts-email` (not a suffixed Worker), `SITE_URL=https://coolockardleascouts.ie`, `EMAIL_DELIVERY_MODE=production`, the production sender and production origins, and no `TEST_EMAIL_REDIRECT`;
+4. use one approved controlled recipient;
+5. verify From, recipient, links, mobile rendering and reply behaviour;
+6. confirm no unrelated recipient address is exposed;
+7. confirm the email-provider response reports success;
+8. disable/roll back production delivery immediately if recipient resolution or domain authentication is wrong.
 
 Do not validate production by sending to a real section or bulk parent list.
 
@@ -52,4 +65,4 @@ Email content should contain only the minimum operational information required. 
 
 ## Rollback / disable
 
-The safest immediate disable is to deploy the top-level test configuration (or otherwise set `EMAIL_DELIVERY_MODE = "test"` with an explicit controlled `TEST_EMAIL_REDIRECT`) so genuine recipients cannot receive messages. Do not remove the fail-closed validation to work around configuration problems.
+The safest immediate disable is to deploy the default test configuration with `npm run deploy` (or otherwise set `EMAIL_DELIVERY_MODE = "test"` with an explicit controlled `TEST_EMAIL_REDIRECT`) so genuine recipients cannot receive messages. Do not remove the fail-closed validation to work around configuration problems.
