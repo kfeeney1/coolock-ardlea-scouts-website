@@ -5,6 +5,7 @@ import type { ThemeName } from "./themePreferences";
 
 export const brandColours = {
   coral: "#F52D45",
+  coralControl: "#D7263D",
   coralLight: "#FDE8EC",
   navy: "#081E67",
   navyLight: "#EEF1FA",
@@ -40,9 +41,9 @@ const stableTextFieldSelect = {
 
 export const defaultTheme = createTheme({
   palette: {
-    primary: { main: brandColours.coral, contrastText: brandColours.white },
+    primary: { main: brandColours.coralControl, contrastText: brandColours.white },
     secondary: { main: brandColours.navy, contrastText: brandColours.white },
-    success: { main: brandColours.green, dark: brandColours.greenDark, contrastText: brandColours.white },
+    success: { main: brandColours.greenDark, dark: brandColours.greenDark, contrastText: brandColours.white },
     background: { default: brandColours.page, paper: brandColours.white },
     text: { primary: brandColours.text, secondary: brandColours.muted }
   },
