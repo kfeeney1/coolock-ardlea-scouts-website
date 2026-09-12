@@ -48,7 +48,7 @@ export default function Activities() {
     return (
         <Box sx={{ backgroundColor: "background.default", minHeight: "70vh", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="lg">
-                <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
+                <Typography component="h1" variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
                     {content.activities.title}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 1, mb: 4 }}>
