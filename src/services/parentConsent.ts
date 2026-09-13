@@ -47,6 +47,7 @@ export type ParentConsentRecord = {
     additionalInfo: string;
     medicationManagement: Record<string, unknown>;
     updatedByParent: boolean;
+    submittedAt: Date | null;
     parentUpdatedAt: Date | null;
     updatedAt: Date | null;
 };
@@ -113,6 +114,7 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
                 ? (data.medicationManagement as Record<string, unknown>)
                 : {},
         updatedByParent: data.updatedByParent === true,
+        submittedAt: timestampToDate(data.submittedAt),
         parentUpdatedAt: timestampToDate(data.parentUpdatedAt),
         updatedAt: timestampToDate(data.updatedAt)
     };
@@ -153,6 +155,7 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
         additionalInfo: "",
         medicationManagement: {},
         updatedByParent: false,
+        submittedAt: null,
         parentUpdatedAt: null,
         updatedAt: null
     };
