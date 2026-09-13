@@ -3,6 +3,16 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "adventure-skills",
+      "runtime": "nodejs22",
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run prepare:catalogue"
+      ]
+    }
+  ],
   "storage": [
     {
       "target": "test-default",
@@ -17,6 +27,10 @@
     "auth": {
       "host": "127.0.0.1",
       "port": 9099
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5001
     },
     "storage": {
       "host": "127.0.0.1",

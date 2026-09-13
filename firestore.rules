@@ -214,19 +214,11 @@ service cloud.firestore {
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader() || isGroupSecretary()));
-        allow create, update: if isActiveLeader()
-          && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
-          && request.resource.data.awardId == awardId
-          && request.resource.data.memberId == memberId
-          && isCanonicalAdventureSkillStage(request.resource.data.skillId, request.resource.data.stage)
-          && isCanonicalAdventureSkillAwardId(awardId, request.resource.data.skillId, request.resource.data.stage)
-          && request.resource.data.awardedAt == request.time
-          && request.resource.data.awardedBy == request.auth.uid
-          && request.resource.data.keys().hasOnly(["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
-        allow delete: if isActiveLeader()
-          && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
+        // Award mutations are server-authoritative. The callable function validates
+        // RBAC, canonical catalogue identity and competency completeness before its
+        // Admin SDK transaction writes or removes an award. Historical reads remain
+        // governed above; direct clients can never mutate award history.
+        allow create, update, delete: if false;
       }
     }
 

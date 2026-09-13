@@ -19,9 +19,14 @@ test("requirement writes are attributed, source-aware and bounded to catalogue s
   assert.match(rules, /request\.resource\.data\.stage <= 9/);
 });
 
-test("awards remain separate from requirement completion and use stable document IDs", () => {
+test("award mutations are server-authoritative while historical awards remain readable", () => {
   assert.match(rules, /match \/awards\/\{awardId\}/);
-  assert.match(rules, /request\.resource\.data\.awardId == awardId/);
-  assert.match(rules, /request\.resource\.data\.keys\(\)\.hasOnly\(\["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"\]\)/);
-  assert.match(rules, /request\.resource\.data\.awardedBy == request\.auth\.uid/);
+  assert.match(
+    rules,
+    /match \/awards\/\{awardId\} \{[^]*?allow get, list: if[^]*?allow create, update, delete: if false;/,
+  );
+  assert.doesNotMatch(
+    rules,
+    /match \/awards\/\{awardId\} \{[^]*?allow create: if[^]*?request\.resource\.data\.awardedBy == request\.auth\.uid/,
+  );
 });

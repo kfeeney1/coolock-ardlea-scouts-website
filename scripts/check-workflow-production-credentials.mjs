@@ -87,6 +87,9 @@ function packageSpecIsPinned(spec) {
 function explicitInstallSpecs(source) {
   const specs = [];
   for (const line of source.split("\n")) {
+    const trimmedLine = line.trimStart();
+    if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+
     const marker = "npm install ";
     const offset = line.indexOf(marker);
     if (offset === -1) continue;
