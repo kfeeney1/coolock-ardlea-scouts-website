@@ -39,6 +39,7 @@ export type MemberRecord = {
   emergencyContactName: string;
   emergencyContactPhone: string;
   status: MemberStatus;
+  familyId: string;
   source: string;
   sourceJoinApplicationId: string;
   createdAt: Date | null;
@@ -115,6 +116,7 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     emergencyContactName: stringValue(data, "emergencyContactName"),
     emergencyContactPhone: stringValue(data, "emergencyContactPhone"),
     status,
+    familyId: stringValue(data, "familyId"),
     source: stringValue(data, "source"),
     sourceJoinApplicationId: stringValue(data, "sourceJoinApplicationId"),
     createdAt: timestampToDate(data.createdAt),

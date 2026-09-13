@@ -17,26 +17,36 @@ async function loginAdmin(page: Page) {
 }
 
 test.describe("parent access management", () => {
-  test("admin opens a parent, searches for children and gets an in-app revoke confirmation", async ({ page }, testInfo) => {
+  test("admin searches parents, reviews children and gets an in-app disable confirmation", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
 
     await loginAdmin(page);
     await page.goto("/leader/parent-access");
-    await expect(page.getByRole("heading", { name: "Parent Access" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Parent Management" })).toBeVisible();
+    await expect(page.getByText(/Family relationships and matching emails never grant Parent Portal access/i)).toBeVisible();
+
+    if (seededJourneyData) {
+      const parentSearch = page.getByLabel("Search parents");
+      await parentSearch.fill("Riley Nolan");
+      await expect(page.getByRole("heading", { name: "Beavers Parent 1" })).toBeVisible();
+      await parentSearch.fill("Ventures");
+      await expect(page.getByRole("heading", { name: "Ventures Parent 1" })).toBeVisible();
+      await parentSearch.fill("");
+    }
 
     const approvedCard = page.getByTestId(/^parent-access-/).filter({ has: page.getByText("approved", { exact: true }) }).first();
     if (await approvedCard.count()) {
       await expect(approvedCard.getByRole("button", { name: "Approve Access" })).toHaveCount(0);
       await expect(approvedCard.getByRole("button", { name: "Manage Linked Children" })).toBeVisible();
 
-      await approvedCard.getByRole("button", { name: "Revoke Access" }).click();
-      const revokeDialog = page.getByRole("dialog", { name: "Revoke parent access?" });
-      await expect(revokeDialog).toBeVisible();
-      await expect(revokeDialog).toContainText(/immediately clears all linked children and sections/i);
-      await expect(revokeDialog).toContainText(/account and historical records are not deleted/i);
-      await revokeDialog.getByRole("button", { name: "Cancel" }).click();
-      await expect(revokeDialog).toHaveCount(0);
+      await approvedCard.getByRole("button", { name: "Disable Parent Access" }).click();
+      const disableDialog = page.getByRole("dialog", { name: "Disable Parent access?" });
+      await expect(disableDialog).toBeVisible();
+      await expect(disableDialog).toContainText(/Child relationships and audit history will be retained/i);
+      await expect(disableDialog).toContainText(/Leader access.*remain active|Firebase identity will not be deleted/i);
+      await disableDialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(disableDialog).toHaveCount(0);
       await expect(approvedCard.getByText("approved", { exact: true })).toBeVisible();
     }
 
@@ -47,12 +57,12 @@ test.describe("parent access management", () => {
     await manageButton.click();
     const search = page.getByLabel(/Search members for/).first();
     await expect(search).toBeVisible();
-    await expect(page.getByText(/full member list is not shown automatically/i)).toBeVisible();
+    await expect(page.getByText(/Enter a name or section to find a child member record manually/i)).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
 
     if (seededJourneyData) {
       await search.fill("Riley Nolan");
-      await expect(page.getByText("Riley Nolan Beavers 01 (Beavers)", { exact: true })).toBeVisible();
+      await expect(page.getByText(/Riley Nolan Beavers 01 \(Beavers · active\)/)).toBeVisible();
       await expect(page.getByRole("checkbox")).toHaveCount(1);
 
       await search.fill("No Such Member 999");
@@ -71,12 +81,12 @@ test.describe("parent access management", () => {
     let pendingCard = page.getByTestId("parent-access-TEST_flow_parent_pending");
     await expect(pendingCard).toBeVisible();
     await expect(pendingCard.getByText("pending", { exact: true })).toBeVisible();
-    await expect(pendingCard).toContainText("0 approved linked children");
+    await expect(pendingCard).toContainText("0 linked children");
 
     await pendingCard.getByRole("button", { name: "Manage Linked Children", exact: true }).click();
     const search = page.getByLabel("Search members for Test Pending Parent");
     await search.fill("Riley Nolan");
-    const child = page.getByText("Riley Nolan Beavers 01 (Beavers)", { exact: true });
+    const child = page.getByText(/Riley Nolan Beavers 01 \(Beavers · active\)/);
     await expect(child).toBeVisible();
     await page.getByRole("checkbox").check();
 
@@ -86,8 +96,7 @@ test.describe("parent access management", () => {
     await expect(approveDialog).toContainText("Test Pending Parent");
     await expect(approveDialog).toContainText("1 confirmed child record");
     await expect(approveDialog).toContainText("Beavers");
-    await expect(approveDialog).toContainText(/grants access to the selected authoritative member records/i);
-    await expect(approveDialog).toContainText(/consent records.*linked/i);
+    await expect(approveDialog).toContainText(/grants access only to the selected authoritative member records/i);
     await approveDialog.getByRole("button", { name: "Back to review", exact: true }).click();
     await expect(approveDialog).toHaveCount(0);
     await expect(pendingCard.getByText("pending", { exact: true })).toBeVisible();
@@ -104,6 +113,6 @@ test.describe("parent access management", () => {
     pendingCard = page.getByTestId("parent-access-TEST_flow_parent_pending");
     await expect(pendingCard).toBeVisible();
     await expect(pendingCard.getByText("pending", { exact: true })).toBeVisible();
-    await expect(pendingCard).toContainText("0 approved linked children");
+    await expect(pendingCard).toContainText("0 linked children");
   });
 });

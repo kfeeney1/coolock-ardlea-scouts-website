@@ -1,5 +1,7 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPanel";
+import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
 import {
     OperationalEmptyState,
     OperationalErrorState,
@@ -40,6 +42,10 @@ import type {
     MemberStatus
 } from "../services/memberAdmin";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
+import { disableParentPortalAccess } from "../services/parentManagement";
+import { parentLifecycleCandidates } from "../services/parentLifecycleLogic";
+import type { ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
+import { loadParentAccounts } from "../services/parentPortal";
 import { moveToUiTargetAfterRender } from "../services/uiTargeting";
 
 const sections = ["all", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
@@ -65,12 +71,6 @@ const statusLabel = (status: MemberStatus) =>
 const statusColor = (status: MemberStatus): "success" | "warning" | "default" =>
     status === "active" ? "success" : status === "inactive" ? "warning" : "default";
 
-const statusChangeConsequence = (status: MemberStatus) => {
-    if (status === "active") return "The member will return to active status in the member register.";
-    if (status === "inactive") return "The member will be marked inactive while their record and lifecycle history are retained.";
-    return "The member will be marked as having left while their record and lifecycle history are retained.";
-};
-
 const formatDate = (value: Date | null) =>
     value
         ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value)
@@ -91,6 +91,7 @@ export default function MemberManagement() {
     const [draft, setDraft] = useState<MemberRecord | null>(null);
     const [saving, setSaving] = useState(false);
     const [statusConfirmationOpen, setStatusConfirmationOpen] = useState(false);
+    const [lifecycleCandidates, setLifecycleCandidates] = useState<ParentLifecycleCandidate[]>([]);
     const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
     const [loadingConsents, setLoadingConsents] = useState(false);
     const [consentLoadError, setConsentLoadError] = useState<unknown>(null);
@@ -163,12 +164,14 @@ export default function MemberManagement() {
 
     const closeMember = () => {
         setStatusConfirmationOpen(false);
+        setLifecycleCandidates([]);
         setSelected(null);
         setDraft(null);
     };
 
     const openMember = async (member: MemberRecord) => {
         setStatusConfirmationOpen(false);
+        setLifecycleCandidates([]);
         setSelected(member);
         setDraft({ ...member });
         setConsents([]);
@@ -177,12 +180,40 @@ export default function MemberManagement() {
         await loadMemberConsents(member);
     };
 
-    const save = async (statusConfirmed = false) => {
+    const refreshSelectedMember = async () => {
+        if (!selected) return;
+        const refreshed = await loadMembers();
+        setMembers(refreshed);
+        const next = refreshed.find((member) => member.id === selected.id) || null;
+        if (next) {
+            setSelected(next);
+            setDraft({ ...next });
+            setMessage("Family relationship updated.");
+        } else {
+            closeMember();
+        }
+    };
+
+    const prepareLifecycleCandidates = async (memberId: string, nextStatus: MemberStatus) => {
+        if (nextStatus === "active") return [];
+        try {
+            const parents = await loadParentAccounts();
+            return parentLifecycleCandidates(parents, members, memberId, nextStatus);
+        } catch (parentError) {
+            if (classifyFirestoreFailure(parentError) !== "permission") {
+                console.error("Unable to evaluate linked parent lifecycle:", parentError);
+            }
+            return [];
+        }
+    };
+
+    const save = async (statusConfirmed = false, disableParents = false) => {
         if (!selected || !draft) return;
         if (!draft.displayName.trim()) return setSaveError("Member name is required.");
         if (!statusConfirmed && draft.status !== selected.status) {
             setSaveError("");
             setMessage("");
+            setLifecycleCandidates(await prepareLifecycleCandidates(selected.id, draft.status));
             setStatusConfirmationOpen(true);
             return;
         }
@@ -207,7 +238,19 @@ export default function MemberManagement() {
             setMembers((current) => current.map((member) => member.id === selected.id ? updated : member));
             setSelected(updated);
             setDraft(updated);
-            setMessage("Member details updated.");
+
+            if (disableParents && lifecycleCandidates.length > 0) {
+                const results = await Promise.allSettled(lifecycleCandidates.map(({ parent }) => disableParentPortalAccess(
+                    parent,
+                    `Parent access disabled after ${updated.displayName} changed from ${selected.status} to ${updated.status} and no other explicitly linked active child remained.`
+                )));
+                const failed = results.filter((result) => result.status === "rejected").length;
+                if (failed > 0) {
+                    setSaveError(`Member status was updated, but ${failed} linked parent account${failed === 1 ? " could" : "s could"} not be disabled. Review Parent Management.`);
+                }
+            }
+            setMessage(disableParents && lifecycleCandidates.length > 0 ? "Member status and selected Parent Portal access updated." : "Member details updated.");
+            setLifecycleCandidates([]);
         } catch (error) {
             console.error("Unable to save member:", error);
             setSaveError("Unable to update the member record.");
@@ -216,9 +259,9 @@ export default function MemberManagement() {
         }
     };
 
-    const confirmStatusChange = () => {
+    const confirmStatusChange = (disableParents: boolean) => {
         setStatusConfirmationOpen(false);
-        void save(true);
+        void save(true, disableParents);
     };
 
     const openAddMember = () => {
@@ -327,6 +370,7 @@ export default function MemberManagement() {
                                     <Typography variant="h5" color="secondary">{member.displayName}</Typography>
                                     <Chip label={statusLabel(member.status)} color={statusColor(member.status)} size="small" />
                                     {member.section && <Chip label={member.section} variant="outlined" size="small" />}
+                                    {member.familyId && <Chip label="Family linked" variant="outlined" size="small" color="info" />}
                                 </Stack>
                                 <Typography sx={{ mt: 1 }}>Parent / Guardian: {member.parentName || "Not provided"}</Typography>
                                 <Typography sx={{ mt: 0.5 }}>Phone: {member.mobileNumber || "Not provided"}</Typography>
@@ -405,7 +449,7 @@ export default function MemberManagement() {
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Member Management"
-                    description="Maintain member records, sections, contacts and consent indicators."
+                    description="Maintain member records, sections, family relationships, contacts and consent indicators."
                     actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                         <Button variant="contained" color="secondary" onClick={openAddMember}>Add Member</Button>
                         <Button variant="contained" color="success" onClick={() => void load()}>Refresh</Button>
@@ -479,6 +523,8 @@ export default function MemberManagement() {
                             {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                             <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Member Details</Typography>
                             {memberForm(draft, (value) => setDraft({ ...draft, ...value }))}
+                            <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Family / Siblings</Typography>
+                            <FamilyRelationshipsPanel member={selected} members={members} onChanged={refreshSelectedMember} />
                             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2, fontWeight: 800 }}>Consent Indicators</Typography>
                             {renderConsentIndicators()}
                         </DialogContent>
@@ -489,36 +535,16 @@ export default function MemberManagement() {
                     </>}
                 </Dialog>
 
-                <Dialog
+                <MemberStatusLifecycleDialog
                     open={Boolean(statusConfirmationOpen && selected && draft)}
-                    onClose={() => !saving && setStatusConfirmationOpen(false)}
-                    aria-labelledby="member-status-confirmation-title"
-                    maxWidth="sm"
-                    fullWidth
-                >
-                    {selected && draft && <>
-                        <DialogTitle id="member-status-confirmation-title">Confirm member status change?</DialogTitle>
-                        <DialogContent dividers>
-                            <Stack spacing={2}>
-                                <Typography>
-                                    <strong>{draft.displayName}</strong> will change from {statusLabel(selected.status)} to {statusLabel(draft.status)}.
-                                </Typography>
-                                <Alert severity={draft.status === "active" ? "info" : "warning"}>
-                                    {statusChangeConsequence(draft.status)}
-                                </Alert>
-                                <Typography color="text.secondary">
-                                    Saving this status change will use the existing member lifecycle history and audit trail.
-                                </Typography>
-                            </Stack>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button disabled={saving} onClick={() => setStatusConfirmationOpen(false)}>Cancel status change</Button>
-                            <Button variant="contained" color={draft.status === "active" ? "success" : "warning"} disabled={saving} onClick={confirmStatusChange}>
-                                {saving ? "Saving..." : "Confirm Status Change"}
-                            </Button>
-                        </DialogActions>
-                    </>}
-                </Dialog>
+                    member={draft}
+                    previousStatus={selected?.status || null}
+                    candidates={lifecycleCandidates}
+                    saving={saving}
+                    onCancel={() => setStatusConfirmationOpen(false)}
+                    onMemberOnly={() => confirmStatusChange(false)}
+                    onMemberAndParents={() => confirmStatusChange(true)}
+                />
 
                 <Dialog open={addOpen} onClose={() => !creating && setAddOpen(false)} maxWidth="md" fullWidth>
                     <DialogTitle>Add Existing Member</DialogTitle>
