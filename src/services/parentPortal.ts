@@ -40,10 +40,21 @@ export type ParentAccount = {
     memberIds: string[];
     linkedSections: string[];
     requestedChildren: ParentChildRequest[];
+    matchingLeaderStatus?: string;
 };
 
 function clean(value: string, max: number): string {
     return value.trim().slice(0, max);
+}
+
+function normalizeEmail(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+function authErrorCode(error: unknown): string {
+    return typeof error === "object" && error !== null && "code" in error && typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : "";
 }
 
 function mapStringArray(value: unknown): string[] | null {
@@ -90,7 +101,13 @@ export function currentUser(): User | null {
 
 export async function registerParent(email: string, password: string, displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[]): Promise<void> {
     const children = prepareRequestedChildren(requestedChildren);
-    await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+    const normalizedEmail = normalizeEmail(email);
+    try {
+        await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+    } catch (error) {
+        if (authErrorCode(error) !== "auth/email-already-in-use") throw error;
+        await signInWithEmailAndPassword(auth, normalizedEmail, password);
+    }
     await createParentAccessForCurrentUser(displayName, mobileNumber, children);
 }
 
@@ -104,7 +121,7 @@ export async function createParentAccessForCurrentUser(displayName: string, mobi
     const children = requestedChildren.length > 0 ? prepareRequestedChildren(requestedChildren) : [];
     await setDoc(doc(db, "parentAccounts", user.uid), {
         uid: user.uid,
-        email: (user.email || "").trim().toLowerCase(),
+        email: normalizeEmail(user.email || ""),
         displayName: clean(displayName, 150),
         mobileNumber: clean(mobileNumber, 40),
         status: "pending",
@@ -119,7 +136,7 @@ export async function createParentAccessForCurrentUser(displayName: string, mobi
 }
 
 export async function loginParent(email: string, password: string): Promise<void> {
-    await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+    await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
 }
 
 export async function logoutParent(): Promise<void> {
@@ -133,9 +150,23 @@ export async function loadParentAccount(uid: string): Promise<ParentAccount | nu
 }
 
 export async function loadParentAccounts(): Promise<ParentAccount[]> {
-    const snapshot = await getDocs(collection(db, "parentAccounts"));
-    return snapshot.docs
-        .map((item) => mapParentAccount(item.id, item.data()))
+    const [parentSnapshot, leaderRequestSnapshot] = await Promise.all([
+        getDocs(collection(db, "parentAccounts")),
+        getDocs(collection(db, "leaderRegistrationRequests"))
+    ]);
+    const leadersByUid = new Map(leaderRequestSnapshot.docs.map((item) => [item.id, item.data()]));
+    const leadersByEmail = new Map(leaderRequestSnapshot.docs.flatMap((item) => {
+        const email = typeof item.data().email === "string" ? normalizeEmail(item.data().email) : "";
+        return email ? [[email, item.data()] as const] : [];
+    }));
+    return parentSnapshot.docs
+        .map((item) => {
+            const account = mapParentAccount(item.id, item.data());
+            if (!account) return null;
+            const leader = leadersByUid.get(account.uid) ?? leadersByEmail.get(normalizeEmail(account.email));
+            const leaderStatus = leader && typeof leader.status === "string" ? leader.status : "";
+            return leaderStatus ? { ...account, matchingLeaderStatus: leaderStatus } : account;
+        })
         .filter((account): account is ParentAccount => account !== null)
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
