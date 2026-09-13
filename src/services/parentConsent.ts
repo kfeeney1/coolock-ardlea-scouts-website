@@ -1,4 +1,5 @@
 import {
+    addDoc,
     collection,
     doc,
     getDoc,
@@ -117,6 +118,46 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
     };
 }
 
+export function createParentConsentDraft(member: ParentLinkedMember): ParentConsentRecord {
+    return {
+        id: "",
+        memberId: member.id,
+        childName: member.displayName,
+        childDOB: member.dateOfBirth,
+        scoutSection: member.section,
+        consentFrom: "",
+        consentTo: "",
+        photoConsent: "",
+        waterActivities: "",
+        canSwim: "",
+        seriousIllness: "",
+        regularMeds: "",
+        medAllergies: "",
+        allergies: "",
+        dietaryReqs: "",
+        vaccinated: "",
+        medicalFurtherInfo: "",
+        gpName: "",
+        gpTel: "",
+        gpAddress: "",
+        lastCheckup: "",
+        parent1Name: "",
+        parent2Name: "",
+        homePhone: "",
+        mobile1: "",
+        workPhone: "",
+        email: "",
+        homeAddress: "",
+        altContactName: "",
+        altContactPhone: "",
+        additionalInfo: "",
+        medicationManagement: {},
+        updatedByParent: false,
+        parentUpdatedAt: null,
+        updatedAt: null
+    };
+}
+
 export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLinkedMember[]> {
     const results: ParentLinkedMember[] = [];
     for (const memberId of memberIds) {
@@ -148,7 +189,7 @@ export async function updateParentConsent(consentId: string, values: Partial<Par
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in parent.");
 
-    await updateDoc(doc(db, "consentApplications", consentId), {
+    const parentFields = {
         consentFrom: values.consentFrom ?? "",
         consentTo: values.consentTo ?? "",
         photoConsent: values.photoConsent ?? "",
@@ -180,6 +221,39 @@ export async function updateParentConsent(consentId: string, values: Partial<Par
         parentUpdatedBy: user.uid,
         parentUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
+    };
+
+    if (consentId) {
+        await updateDoc(doc(db, "consentApplications", consentId), parentFields);
+        return;
+    }
+
+    const memberId = values.memberId?.trim() ?? "";
+    if (!memberId) throw new Error("A linked member is required to create consent.");
+
+    // Re-read the linked member so identity fields cannot be supplied or changed by the form.
+    // Firestore rules only allow an approved parent to read a member linked to their account.
+    const memberSnapshot = await getDoc(doc(db, "members", memberId));
+    if (!memberSnapshot.exists()) throw new Error("The linked member could not be found.");
+    const member = memberSnapshot.data();
+    const childName = stringValue(member, "displayName");
+    const childDOB = stringValue(member, "dateOfBirth");
+    const section = stringValue(member, "section");
+    if (!childName || !childDOB || !section) {
+        throw new Error("The linked member is missing required identity information.");
+    }
+
+    await addDoc(collection(db, "consentApplications"), {
+        ...parentFields,
+        memberId,
+        childName,
+        childDOB,
+        section,
+        formType: "youth-activity-consent",
+        formVersion: "stage2-2026-08",
+        status: "active",
+        source: "website",
+        submittedAt: serverTimestamp()
     });
 }
 
