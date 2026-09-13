@@ -77,7 +77,8 @@ export default function LeaderRequests() {
                       request.mobileNumber,
                       request.requestedRole,
                       request.requestedSection,
-                      request.status
+                      request.status,
+                      request.matchingParentStatus || ""
                   ]
                       .join(" ")
                       .toLowerCase()
@@ -103,19 +104,23 @@ export default function LeaderRequests() {
         try {
             if (approved) {
                 await approveLeaderRegistration(selected, user.uid, reviewNote);
-                setMessage(`${selected.fullName} has been approved as a Leader for ${selected.requestedSection || "their assigned section"}.`);
+                setMessage(selected.matchingParentStatus
+                    ? `${selected.fullName} has been approved as a Leader and the Leader access is now attached to the same login as the matching Parent registration.`
+                    : `${selected.fullName} has been approved as a Leader for ${selected.requestedSection || "their assigned section"}.`);
             } else {
                 await rejectLeaderRegistration(selected.uid, user.uid, reviewNote);
                 setMessage(`${selected.fullName}'s leader access request has been rejected.`);
             }
             await recordAuditEvent({
                 category: "leader-request",
-                action: approved ? "Leader request approved" : "Leader request rejected",
+                action: approved ? (selected.matchingParentStatus ? "Leader request approved and parent login linked" : "Leader request approved") : "Leader request rejected",
                 targetId: selected.uid,
                 targetLabel: selected.fullName,
                 section: selected.requestedSection || "",
                 description: approved
-                    ? `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"}.`
+                    ? selected.matchingParentStatus
+                        ? `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"} after explicitly confirming the matching Parent registration for the same login.`
+                        : `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"}.`
                     : "Rejected leader access request."
             });
             setSelected(null);
@@ -143,7 +148,7 @@ export default function LeaderRequests() {
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Leader Requests"
-                    description="Review pending leader access requests. Approval creates an active section-scoped Leader account; use Leader Access afterwards for additional sections or role changes."
+                    description="Review pending leader registrations. Matching Parent registrations are highlighted, but matching never grants access until an administrator explicitly confirms approval."
                     actions={
                         <>
                             <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>
@@ -181,7 +186,7 @@ export default function LeaderRequests() {
                         {visible.map((request) => (
                             <Paper key={request.uid} variant="outlined" sx={{ p: 2.5 }}>
                                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-                                    <Box>
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{request.fullName}</Typography>
                                         <Typography>{request.email}</Typography>
                                         <Typography color="text.secondary">
@@ -191,6 +196,7 @@ export default function LeaderRequests() {
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
                                             Submitted {formatDate(request.submittedAt)}
                                         </Typography>
+                                        {request.matchingParentStatus && <Alert severity="info" sx={{ mt: 1.5 }}><strong>Matching Parent registration found.</strong> Parent status: {request.matchingParentStatus}. The email/login matches, but both access types still require separate approval.</Alert>}
                                         {request.reason && <Typography sx={{ mt: 1.25 }}>{request.reason}</Typography>}
                                         {request.reviewNote && request.status !== "pending" && (
                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -219,9 +225,12 @@ export default function LeaderRequests() {
                     <DialogTitle id="leader-request-review-title">Review leader request</DialogTitle>
                     <DialogContent>
                         {selected && (
-                            <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-                                Approving {selected.fullName} creates an active Leader account for {selected.requestedSection}. Additional sections can then be assigned from Leader Access.
-                            </Alert>
+                            <Stack spacing={2} sx={{ mt: 1, mb: 2 }}>
+                                <Alert severity="info">
+                                    Approving {selected.fullName} creates active Leader access for {selected.requestedSection}. Additional sections can then be assigned from Leader Access.
+                                </Alert>
+                                {selected.matchingParentStatus && <Alert severity="warning"><strong>Parent registration match:</strong> this login has Parent status {selected.matchingParentStatus}. Confirm that this is the same person before merging Leader access onto the shared login. No Parent permissions are changed by this Leader approval.</Alert>}
+                            </Stack>
                         )}
                         <TextField
                             fullWidth
@@ -235,7 +244,7 @@ export default function LeaderRequests() {
                     <DialogActions>
                         <Button color="error" onClick={() => setDecision("reject")} disabled={saving}>Reject</Button>
                         <Button variant="contained" color="success" onClick={() => setDecision("approve")} disabled={saving}>
-                            Approve as Leader
+                            {selected?.matchingParentStatus ? "Approve & Merge Access" : "Approve as Leader"}
                         </Button>
                     </DialogActions>
                 </Dialog>
@@ -248,7 +257,7 @@ export default function LeaderRequests() {
                     aria-labelledby="leader-request-decision-title"
                 >
                     <DialogTitle id="leader-request-decision-title">
-                        {decision === "approve" ? "Approve leader access?" : "Reject leader request?"}
+                        {decision === "approve" ? (selected?.matchingParentStatus ? "Approve and merge Leader access?" : "Approve leader access?") : "Reject leader request?"}
                     </DialogTitle>
                     <DialogContent>
                         {selected && decision === "approve" && (
@@ -257,10 +266,12 @@ export default function LeaderRequests() {
                                     Approve <strong>{selected.fullName}</strong> as a Leader for {selected.requestedSection}?
                                 </Typography>
                                 <Alert severity="warning">
-                                    This creates an active section-scoped Leader account and grants access to {selected.requestedSection} leader data and workflows.
+                                    {selected.matchingParentStatus
+                                        ? "This explicitly attaches Leader access to the same authenticated login as the matching Parent registration. Parent and child-link approval remains independent."
+                                        : `This creates active section-scoped Leader access and grants access to ${selected.requestedSection} leader data and workflows.`}
                                 </Alert>
                                 <Typography color="text.secondary">
-                                    The existing registration service will re-check that the request is still pending before creating access. Additional sections or role changes remain controlled from Leader Access.
+                                    The registration service re-checks that the request is still pending before creating access. Matching email is review assistance only and never approves either access type automatically.
                                 </Typography>
                             </Stack>
                         )}
@@ -282,7 +293,7 @@ export default function LeaderRequests() {
                         <Button onClick={() => setDecision(null)} disabled={saving}>Back to review</Button>
                         {decision === "approve" ? (
                             <Button variant="contained" color="success" onClick={() => void finish(true)} disabled={saving}>
-                                {saving ? "Saving…" : "Confirm Approval"}
+                                {saving ? "Saving…" : selected?.matchingParentStatus ? "Confirm Approval & Merge" : "Confirm Approval"}
                             </Button>
                         ) : (
                             <Button variant="contained" color="error" onClick={() => void finish(false)} disabled={saving}>

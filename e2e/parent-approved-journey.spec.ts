@@ -11,6 +11,8 @@ async function loginParent(page: import("@playwright/test").Page) {
   await page.getByLabel("Password").fill(password || "");
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Request Leader Access" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Request Leader Access" })).toHaveCount(0);
 }
 
 test.describe("approved parent journey", () => {

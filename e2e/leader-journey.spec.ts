@@ -56,7 +56,7 @@ test.describe("leader journey", () => {
       const review = page.getByRole("dialog", { name: "Review leader request" });
       await expect(review).toBeVisible();
       await expect(review).toContainText("Pending Scouter");
-      await expect(review).toContainText("active Leader account for Beavers");
+      await expect(review).toContainText("active Leader access for Beavers");
 
       await review.getByRole("button", { name: "Reject", exact: true }).click();
       const rejectConfirmation = page.getByRole("dialog", { name: "Reject leader request?" });
@@ -71,7 +71,7 @@ test.describe("leader journey", () => {
       const approveConfirmation = page.getByRole("dialog", { name: "Approve leader access?" });
       await expect(approveConfirmation).toBeVisible();
       await expect(approveConfirmation).toContainText("Pending Scouter");
-      await expect(approveConfirmation).toContainText("active section-scoped Leader account");
+      await expect(approveConfirmation).toContainText("active section-scoped Leader access");
       await expect(approveConfirmation).toContainText("grants access to Beavers leader data and workflows");
       await expect(approveConfirmation.getByRole("button", { name: "Confirm Approval", exact: true })).toBeVisible();
       await approveConfirmation.getByRole("button", { name: "Back to review", exact: true }).click();

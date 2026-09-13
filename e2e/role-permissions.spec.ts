@@ -69,7 +69,8 @@ test.describe("parent-only permissions", () => {
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
 
-    await expect(page.getByRole("link", { name: "Request Leader Access" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Request Leader Access" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Request Leader Access" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toHaveCount(0);
 
     await page.goto("/leader");

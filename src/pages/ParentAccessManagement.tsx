@@ -59,12 +59,16 @@ export default function ParentAccessManagement() {
         try {
             const linked = status === "approved" ? await linkConsentRecordsToMembers(memberIds) : 0;
             await updateParentAccess(parent.uid, status, status === "approved" ? memberIds : [], status === "approved" ? linkedSections : []);
-            const action = status === "approved" ? "Parent access approved" : status === "revoked" ? "Parent access revoked" : "Parent access rejected";
+            const action = status === "approved"
+                ? parent.matchingLeaderStatus ? "Parent access approved and leader login linked" : "Parent access approved"
+                : status === "revoked" ? "Parent access revoked" : "Parent access rejected";
             const description = status === "approved"
-                ? `Approved parent access and linked ${memberIds.length} authoritative member record${memberIds.length === 1 ? "" : "s"}. Requested-child matching was used only as review assistance.`
+                ? parent.matchingLeaderStatus
+                    ? `Approved parent access and linked ${memberIds.length} authoritative member record${memberIds.length === 1 ? "" : "s"} after explicitly confirming the matching Leader registration for the same login.`
+                    : `Approved parent access and linked ${memberIds.length} authoritative member record${memberIds.length === 1 ? "" : "s"}. Requested-child matching was used only as review assistance.`
                 : status === "revoked" ? "Revoked parent access and cleared all linked member and section access." : "Rejected parent access.";
             await recordAuditEvent({ category: "parent-access", action, targetId: parent.uid, targetLabel: parent.displayName || parent.email, section: status === "approved" ? linkedSections.join(", ") : "", description });
-            setMessage(`${parent.displayName || parent.email} access updated.${status === "approved" ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked.` : ""}`);
+            setMessage(`${parent.displayName || parent.email} access updated.${status === "approved" && parent.matchingLeaderStatus ? " Parent access is now attached to the same login as the matching Leader registration." : ""}${status === "approved" ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked.` : ""}`);
             await load();
         } catch (saveError) {
             console.error("Unable to update parent access:", saveError);
@@ -84,10 +88,10 @@ export default function ParentAccessManagement() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
-            <LeaderPageHeader title="Parent Access" description="Review requested children against existing member records, then explicitly confirm the correct links. Matching never grants access." actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>} />
+            <LeaderPageHeader title="Parent Access" description="Review requested children against existing member records, then explicitly confirm the correct links. Matching Leader registrations are highlighted but never grant Parent access automatically." actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>} />
             {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-            <Alert severity="warning" sx={{ mb: 3 }}>Only approve after verifying the parent or guardian. A likely match is review assistance only; it is not selected until a leader explicitly confirms it.</Alert>
+            <Alert severity="warning" sx={{ mb: 3 }}>Only approve after verifying the parent or guardian. A likely child or Leader-account match is review assistance only; approval always requires an explicit confirmation.</Alert>
             {loading ? <Box sx={{ minHeight: 300, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <Box sx={{ display: "grid", gap: 2 }}>
                 {parents.length === 0 && <Alert severity="info">No parent accounts have registered yet.</Alert>}
                 {parents.map((parent) => {
@@ -102,12 +106,13 @@ export default function ParentAccessManagement() {
                                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography variant="h5" color="secondary">{parent.displayName || "Unnamed parent"}</Typography><Chip label={parent.status} size="small" color={parent.status === "approved" ? "success" : parent.status === "pending" ? "warning" : "error"} /></Stack>
                                 <Typography sx={{ mt: 0.75 }}>{parent.email}</Typography>
                                 {parent.mobileNumber && <Typography color="text.secondary">{parent.mobileNumber}</Typography>}
+                                {parent.matchingLeaderStatus && <Alert severity="info" sx={{ mt: 1.5 }}><strong>Matching Leader registration found.</strong> Leader status: {parent.matchingLeaderStatus}. The email/login matches, but Parent access and child links still require separate approval.</Alert>}
                                 <Typography color="text.secondary" sx={{ mt: 1 }}>{parent.memberIds.length} approved linked child{parent.memberIds.length === 1 ? "" : "ren"}</Typography>
                                 {parent.memberIds.length > 0 && <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>{parent.memberIds.map((id) => { const member = memberById.get(id); return <Chip key={id} size="small" label={member ? `${member.displayName} · ${member.section}` : id} />; })}</Stack>}
                             </Box>
                             <Stack spacing={1} sx={{ minWidth: 190 }}>
                                 <Button variant={isActive ? "contained" : "outlined"} color="secondary" aria-expanded={isActive} onClick={() => toggleParent(parent.uid)}>{isActive ? "Close Child Linking" : "Manage Linked Children"}</Button>
-                                {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => requestDecision(parent, "approved")}>Approve Access</Button>}
+                                {parent.status !== "approved" && <Button variant="contained" color="success" disabled={workingUid === parent.uid} onClick={() => requestDecision(parent, "approved")}>{parent.matchingLeaderStatus ? "Approve & Merge Access" : "Approve Access"}</Button>}
                                 {parent.status === "approved" ? <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => setRevokeTarget(parent)}>Revoke Access</Button> : <Button variant="outlined" color="error" disabled={workingUid === parent.uid} onClick={() => requestDecision(parent, "rejected")}>Reject Access</Button>}
                             </Stack>
                         </Box>
@@ -139,9 +144,9 @@ export default function ParentAccessManagement() {
             </Box>}
         </Container>
         <Dialog open={Boolean(decisionTarget)} onClose={() => setDecisionTarget(null)} aria-labelledby="parent-decision-dialog-title" fullWidth maxWidth="sm">
-            <DialogTitle id="parent-decision-dialog-title">{decisionTarget?.status === "approved" ? "Approve parent access?" : "Reject parent access?"}</DialogTitle>
-            <DialogContent>{decisionTarget?.status === "approved" ? <Stack spacing={2} sx={{ pt: 1 }}><Typography>Approve <strong>{decisionTarget.parent.displayName || decisionTarget.parent.email}</strong> for {decisionMemberIds.length} confirmed child record{decisionMemberIds.length === 1 ? "" : "s"}{decisionSections.length ? ` across ${decisionSections.join(", ")}` : ""}?</Typography><Alert severity="warning">Approval grants access to the selected authoritative member records. A requested-child match alone never grants access. Existing consent records will be linked where possible.</Alert><Typography color="text.secondary">Only continue after verifying the parent/guardian identity and every selected child.</Typography></Stack> : <Stack spacing={2} sx={{ pt: 1 }}><Typography>Reject the access request from <strong>{decisionTarget?.parent.displayName || decisionTarget?.parent.email}</strong>?</Typography><Alert severity="warning">No child or section access will be granted.</Alert></Stack>}</DialogContent>
-            <DialogActions><Button onClick={() => setDecisionTarget(null)}>Back to review</Button><Button variant="contained" color={decisionTarget?.status === "approved" ? "success" : "error"} onClick={confirmDecision}>{decisionTarget?.status === "approved" ? "Approve Access" : "Reject Access"}</Button></DialogActions>
+            <DialogTitle id="parent-decision-dialog-title">{decisionTarget?.status === "approved" ? decisionTarget.parent.matchingLeaderStatus ? "Approve and merge Parent access?" : "Approve parent access?" : "Reject parent access?"}</DialogTitle>
+            <DialogContent>{decisionTarget?.status === "approved" ? <Stack spacing={2} sx={{ pt: 1 }}><Typography>Approve <strong>{decisionTarget.parent.displayName || decisionTarget.parent.email}</strong> for {decisionMemberIds.length} confirmed child record{decisionMemberIds.length === 1 ? "" : "s"}{decisionSections.length ? ` across ${decisionSections.join(", ")}` : ""}?</Typography>{decisionTarget.parent.matchingLeaderStatus && <Alert severity="info"><strong>Leader registration match:</strong> status {decisionTarget.parent.matchingLeaderStatus}. Confirm this is the same person before attaching Parent access to the shared login.</Alert>}<Alert severity="warning">{decisionTarget.parent.matchingLeaderStatus ? "This explicitly attaches Parent access and the selected child links to the same authenticated login as the matching Leader registration. Leader permissions are unchanged." : "Approval grants access to the selected authoritative member records. A requested-child match alone never grants access. Existing consent records will be linked where possible."}</Alert><Typography color="text.secondary">Only continue after verifying the parent/guardian identity and every selected child. A matching email never approves either access type automatically.</Typography></Stack> : <Stack spacing={2} sx={{ pt: 1 }}><Typography>Reject the access request from <strong>{decisionTarget?.parent.displayName || decisionTarget?.parent.email}</strong>?</Typography><Alert severity="warning">No child or section access will be granted.</Alert></Stack>}</DialogContent>
+            <DialogActions><Button onClick={() => setDecisionTarget(null)}>Back to review</Button><Button variant="contained" color={decisionTarget?.status === "approved" ? "success" : "error"} onClick={confirmDecision}>{decisionTarget?.status === "approved" ? decisionTarget.parent.matchingLeaderStatus ? "Confirm Approval & Merge" : "Approve Access" : "Reject Access"}</Button></DialogActions>
         </Dialog>
         <Dialog open={Boolean(revokeTarget)} onClose={() => setRevokeTarget(null)} aria-labelledby="parent-revoke-dialog-title"><DialogTitle id="parent-revoke-dialog-title">Revoke parent access?</DialogTitle><DialogContent><DialogContentText>Revoke access for {revokeTarget?.displayName || revokeTarget?.email}? This immediately clears all linked children and sections. The account and historical records are not deleted.</DialogContentText></DialogContent><DialogActions><Button onClick={() => setRevokeTarget(null)}>Cancel</Button><Button color="error" variant="contained" onClick={confirmRevoke}>Revoke Access</Button></DialogActions></Dialog>
     </Box>;
