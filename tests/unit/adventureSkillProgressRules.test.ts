@@ -23,7 +23,7 @@ test("award mutations are server-authoritative while historical awards remain re
   assert.match(rules, /match \/awards\/\{awardId\}/);
   assert.match(
     rules,
-    /match \/awards\/\{awardId\} \{[^]*?allow read: if[^]*?allow create, update, delete: if false;/,
+    /match \/awards\/\{awardId\} \{[^]*?allow get, list: if[^]*?allow create, update, delete: if false;/,
   );
   assert.doesNotMatch(
     rules,
