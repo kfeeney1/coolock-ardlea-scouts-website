@@ -41,6 +41,7 @@ export type ParentAccount = {
     linkedSections: string[];
     requestedChildren: ParentChildRequest[];
     matchingLeaderStatus?: string;
+    hasLeaderAccess?: boolean;
 };
 
 function clean(value: string, max: number): string {
@@ -150,22 +151,31 @@ export async function loadParentAccount(uid: string): Promise<ParentAccount | nu
 }
 
 export async function loadParentAccounts(): Promise<ParentAccount[]> {
-    const [parentSnapshot, leaderRequestSnapshot] = await Promise.all([
+    const [parentSnapshot, leaderRequestSnapshot, leaderProfilesSnapshot] = await Promise.all([
         getDocs(collection(db, "parentAccounts")),
-        getDocs(collection(db, "leaderRegistrationRequests"))
+        getDocs(collection(db, "leaderRegistrationRequests")),
+        getDocs(collection(db, "adminUsers"))
     ]);
     const leadersByUid = new Map(leaderRequestSnapshot.docs.map((item) => [item.id, item.data()]));
     const leadersByEmail = new Map(leaderRequestSnapshot.docs.flatMap((item) => {
         const email = typeof item.data().email === "string" ? normalizeEmail(item.data().email) : "";
         return email ? [[email, item.data()] as const] : [];
     }));
+    const leaderProfilesByUid = new Map(leaderProfilesSnapshot.docs.map((item) => [item.id, item.data()]));
+    const leaderProfilesByEmail = new Map(leaderProfilesSnapshot.docs.flatMap((item) => {
+        const email = typeof item.data().email === "string" ? normalizeEmail(item.data().email) : "";
+        return email ? [[email, item.data()] as const] : [];
+    }));
+
     return parentSnapshot.docs
         .map((item) => {
             const account = mapParentAccount(item.id, item.data());
             if (!account) return null;
             const leader = leadersByUid.get(account.uid) ?? leadersByEmail.get(normalizeEmail(account.email));
             const leaderStatus = leader && typeof leader.status === "string" ? leader.status : "";
-            return leaderStatus ? { ...account, matchingLeaderStatus: leaderStatus } : account;
+            const leaderProfile = leaderProfilesByUid.get(account.uid) ?? leaderProfilesByEmail.get(normalizeEmail(account.email));
+            const hasLeaderAccess = leaderProfile?.active === true;
+            return { ...account, ...(leaderStatus ? { matchingLeaderStatus: leaderStatus } : {}), hasLeaderAccess };
         })
         .filter((account): account is ParentAccount => account !== null)
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -196,11 +206,12 @@ export async function updateParentAccess(uid: string, status: ParentAccessStatus
 
     const uniqueMemberIds = [...new Set(memberIds.map((id) => id.trim()).filter(Boolean))];
     const uniqueSections = [...new Set(linkedSections.map((section) => section.trim()).filter(Boolean))];
+    const preserveExistingLinks = status === "revoked" && beforeAccount;
 
     await updateDoc(accountRef, {
         status,
-        memberIds: status === "approved" ? uniqueMemberIds : [],
-        linkedSections: status === "approved" ? uniqueSections : [],
+        memberIds: preserveExistingLinks ? beforeAccount.memberIds : status === "approved" ? uniqueMemberIds : [],
+        linkedSections: preserveExistingLinks ? beforeAccount.linkedSections : status === "approved" ? uniqueSections : [],
         reviewedBy: leader.uid,
         reviewedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
