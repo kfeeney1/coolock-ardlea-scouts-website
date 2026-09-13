@@ -167,8 +167,8 @@ export async function loadParentAccounts(): Promise<ParentAccount[]> {
         return email ? [[email, item.data()] as const] : [];
     }));
 
-    return parentSnapshot.docs
-        .map((item) => {
+    const accounts = parentSnapshot.docs
+        .map((item): ParentAccount | null => {
             const account = mapParentAccount(item.id, item.data());
             if (!account) return null;
             const leader = leadersByUid.get(account.uid) ?? leadersByEmail.get(normalizeEmail(account.email));
@@ -177,8 +177,8 @@ export async function loadParentAccounts(): Promise<ParentAccount[]> {
             const hasLeaderAccess = leaderProfile?.active === true;
             return { ...account, ...(leaderStatus ? { matchingLeaderStatus: leaderStatus } : {}), hasLeaderAccess };
         })
-        .filter((account): account is ParentAccount => account !== null)
-        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        .filter((account): account is ParentAccount => account !== null);
+    return accounts.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 export async function isCurrentUserActiveLeader(): Promise<boolean> {
