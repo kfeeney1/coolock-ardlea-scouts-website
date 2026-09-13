@@ -1,6 +1,6 @@
 import type { ParentConsentRecord, ParentLinkedMember } from "./parentConsent";
 import type { ParentEventConsentLink } from "./parentEvents";
-import { evaluateMemberFormLifecycle, type FormRenewalConsent } from "./formRenewalLogic";
+import { evaluateMemberFormLifecycle, type FormRenewalConsent } from "./formRenewalLogic.ts";
 
 export type ParentTaskSummary = {
     eventConsentCount: number;
