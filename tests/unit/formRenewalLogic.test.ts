@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   authoritativeFormCompletionDate,
   evaluateMemberFormLifecycle,
+  evaluateScouterFormLifecycle,
+  findLeadersNeedingFormRenewal,
   findMembersNeedingFormRenewal,
   type FormRenewalConsent
 } from "../../src/services/formRenewalLogic.ts";
@@ -154,4 +156,57 @@ test("newest non-archived youth form controls renewal and scouter forms are igno
     consent({ status: "archived", parentUpdatedAt: new Date("2026-09-12T10:00:00Z") })
   ];
   assert.deepEqual(findMembersNeedingFormRenewal([{ id: "member-1", active: true }], records, asOf), []);
+});
+
+test("linked Scouter ES3 uses the same one-year lifecycle", () => {
+  const record = consent({
+    memberId: "",
+    formType: "scouter-es3-medical-advice",
+    consentTo: "",
+    submittedByUid: "leader-a",
+    submittedAt: new Date("2025-09-11T10:00:00Z"),
+    parentUpdatedAt: null
+  });
+  assert.deepEqual(findLeadersNeedingFormRenewal([{ uid: "leader-a", active: true }], [record], asOf), [{
+    leaderUid: "leader-a",
+    reason: "annual",
+    referenceDate: new Date("2025-09-11T10:00:00Z")
+  }]);
+});
+
+test("Scouter ES3 stays current on the anniversary boundary", () => {
+  const record = consent({
+    memberId: "",
+    formType: "scouter-es3-medical-advice",
+    consentTo: "",
+    submittedByUid: "leader-a",
+    submittedAt: new Date("2025-09-12T10:00:00Z"),
+    parentUpdatedAt: null
+  });
+  assert.equal(evaluateScouterFormLifecycle({ uid: "leader-a", active: true }, [record], asOf)?.status, "current");
+});
+
+test("inactive leaders are excluded from Scouter renewal", () => {
+  const record = consent({
+    memberId: "",
+    formType: "scouter-es3-medical-advice",
+    consentTo: "",
+    submittedByUid: "leader-a",
+    submittedAt: new Date("2024-01-01T10:00:00Z"),
+    parentUpdatedAt: null
+  });
+  assert.deepEqual(findLeadersNeedingFormRenewal([{ uid: "leader-a", active: false }], [record], asOf), []);
+});
+
+test("optional Scouter ES3 absence and unlinked legacy records are not guessed as overdue", () => {
+  const legacy = consent({
+    memberId: "",
+    formType: "scouter-es3-medical-advice",
+    consentTo: "",
+    submittedByUid: undefined,
+    submittedAt: new Date("2024-01-01T10:00:00Z"),
+    parentUpdatedAt: null
+  });
+  assert.equal(evaluateScouterFormLifecycle({ uid: "leader-a", active: true }, [], asOf), null);
+  assert.deepEqual(findLeadersNeedingFormRenewal([{ uid: "leader-a", active: true }], [legacy], asOf), []);
 });
