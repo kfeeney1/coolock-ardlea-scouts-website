@@ -40,17 +40,51 @@ jobs:
           }
           echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
           echo "Deploying reviewed main SHA: $TARGET_SHA"
-      - name: Verify required CI evidence for exact SHA
+      - name: Wait for required CI evidence for exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.release.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
+
+          # A manual production deploy can be started immediately after a merge,
+          # before push-triggered quality/e2e checks have finished (or even appeared).
+          # Wait for the latest run of each required check on the exact release SHA.
+          deadline=$((SECONDS + 2700))
+
           for required_check in 'quality' 'e2e'; do
-            conclusions="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" --jq ".check_runs[] | select(.name == \"${required_check}\") | .conclusion")"
-            if ! grep -qx 'success' <<< "$conclusions"; then
-              echo "::error::Required successful check missing for ${required_check} on ${TARGET_SHA}."
+            echo "Waiting for ${required_check} on ${TARGET_SHA}..."
+
+            while (( SECONDS < deadline )); do
+              latest="$(
+                gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" \
+                  --jq ".check_runs
+                    | map(select(.name == \"${required_check}\"))
+                    | sort_by(.id)
+                    | last
+                    | if . == null then \"missing\\t\" else [.status, (.conclusion // \"\")] | @tsv end"
+              )"
+
+              status="${latest%%$'\t'*}"
+              conclusion="${latest#*$'\t'}"
+
+              if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
+                echo "${required_check}: success"
+                break
+              fi
+
+              if [[ "$status" == "completed" && -n "$conclusion" && "$conclusion" != "success" ]]; then
+                echo "::error::Required check ${required_check} completed with ${conclusion} on ${TARGET_SHA}."
+                exit 1
+              fi
+
+              echo "${required_check}: ${status}${conclusion:+/${conclusion}}; checking again in 30s"
+              sleep 30
+            done
+
+            if (( SECONDS >= deadline )); then
+              echo "::error::Timed out waiting for required check ${required_check} on ${TARGET_SHA}."
               exit 1
             fi
           done
