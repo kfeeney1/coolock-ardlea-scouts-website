@@ -1,11 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFormReminderCandidates, formReminderCycleKey } from "../../src/services/formReminderLogic.ts";
-import type { FormRenewalDue } from "../../src/services/formRenewalLogic.ts";
+import {
+  buildFormReminderCandidates,
+  buildScouterFormReminderCandidates,
+  formReminderCycleKey
+} from "../../src/services/formReminderLogic.ts";
+import type { FormRenewalDue, ScouterFormRenewalDue } from "../../src/services/formRenewalLogic.ts";
 
 const expired: FormRenewalDue = {
   memberId: "child-a",
+  reason: "annual",
+  referenceDate: new Date("2025-09-01T12:00:00Z")
+};
+
+const expiredScouter: ScouterFormRenewalDue = {
+  leaderUid: "leader-a",
   reason: "annual",
   referenceDate: new Date("2025-09-01T12:00:00Z")
 };
@@ -62,4 +72,32 @@ test("renewing a form creates a new reminder cycle", () => {
 
 test("missing forms use a stable unknown cycle until a form is completed", () => {
   assert.equal(formReminderCycleKey({ memberId: "child-a", reason: "missing", referenceDate: null }), "missing:unknown");
+});
+
+test("Scouter renewal routes only to the same active leader identity", () => {
+  assert.deepEqual(buildScouterFormReminderCandidates([expiredScouter], [
+    { uid: "leader-a", active: true },
+    { uid: "leader-b", active: true }
+  ]), [{
+    recipientUid: "leader-a",
+    leaderUid: "leader-a",
+    reason: "annual",
+    cycleKey: "annual:2025-09-01T12:00:00.000Z"
+  }]);
+});
+
+test("disabled leaders never receive Scouter renewal candidates", () => {
+  assert.deepEqual(buildScouterFormReminderCandidates([expiredScouter], [
+    { uid: "leader-a", active: false }
+  ]), []);
+});
+
+test("Scouter reminder deduplication suppresses sent cycles and retries failed cycles", () => {
+  const cycleKey = formReminderCycleKey(expiredScouter);
+  assert.equal(buildScouterFormReminderCandidates([expiredScouter], [
+    { uid: "leader-a", active: true }
+  ], [{ recipientUid: "leader-a", leaderUid: "leader-a", cycleKey, status: "sent" }]).length, 0);
+  assert.equal(buildScouterFormReminderCandidates([expiredScouter], [
+    { uid: "leader-a", active: true }
+  ], [{ recipientUid: "leader-a", leaderUid: "leader-a", cycleKey, status: "failed" }]).length, 1);
 });
