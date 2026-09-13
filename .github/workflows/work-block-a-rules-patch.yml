@@ -14,12 +14,12 @@ jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: work-block-a-parent-family-management
       - name: Patch family relationship rule
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           path = Path("firestore.rules")
@@ -40,6 +40,7 @@ jobs:
           if old not in text:
               raise SystemExit("Expected member update rule not found; refusing broad replacement")
           path.write_text(text.replace(old, new, 1))
+          PY
       - name: Commit rules patch
         run: |
           git config user.name "github-actions[bot]"
