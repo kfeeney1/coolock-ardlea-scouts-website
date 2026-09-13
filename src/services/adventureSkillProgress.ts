@@ -1,14 +1,15 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   serverTimestamp,
+  setDoc,
   writeBatch
 } from "firebase/firestore";
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 
-import { auth, db, functions } from "../firebase";
+import { auth, db } from "../firebase";
 import {
   completionTargetsForRequirement,
   completionTargetsForStage,
@@ -181,9 +182,21 @@ export async function completeStageForMembers(
 }
 
 export async function setStageAwardForMembers(memberIds: string[], skillId: string, stage: number, awarded: boolean): Promise<void> {
-  currentUserId();
-  stageAwardId(skillId, stage);
-  const ids = uniqueMemberIds(memberIds);
-  const setAwards = httpsCallable(functions, "setAdventureSkillAwards");
-  await setAwards({ memberIds: ids, skillId, stage, awarded });
+  const userId = currentUserId();
+  const awardId = stageAwardId(skillId, stage);
+  await Promise.all(uniqueMemberIds(memberIds).map(async (memberId) => {
+    const awardRef = doc(collection(memberProgressRoot(memberId), "awards"), awardId);
+    if (!awarded) {
+      await deleteDoc(awardRef);
+      return;
+    }
+    await setDoc(awardRef, {
+      awardId,
+      memberId,
+      skillId,
+      stage,
+      awardedAt: serverTimestamp(),
+      awardedBy: userId
+    });
+  }));
 }
