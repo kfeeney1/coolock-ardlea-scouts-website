@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, Collapse, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Chip, Collapse, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   OperationalEmptyState,
@@ -9,7 +9,7 @@ import {
 } from "../admin/OperationalStates";
 import ParentConsentEditor from "./ParentConsentEditor";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
-import { loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
+import { createParentConsentDraft, loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
 import type { ParentConsentRecord, ParentLinkedMember } from "../../services/parentConsent";
 
 type Props = { memberIds: string[]; onSaved?: () => Promise<void> | void; };
@@ -106,7 +106,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
   return (
     <Stack spacing={3}>
       <Typography color="text.secondary">
-        Find a linked child, review the consent status, and open only the form you want to update. Identity and leader-only fields remain locked.
+        Find a linked child and select their record to complete or update consent and medical details. Identity and leader-only fields remain locked.
       </Typography>
       <TextField
         fullWidth
@@ -130,37 +130,49 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
             .filter((date): date is Date => Boolean(date))
             .sort((a, b) => b.getTime() - a.getTime())[0] || null;
           const open = openMemberId === member.id;
+          const draft = memberRecords.length === 0 ? createParentConsentDraft(member) : null;
+          const toggle = () => setOpenMemberId(open ? "" : member.id);
+
           return (
-            <Paper key={member.id} variant="outlined" sx={{ p: 2.5 }} data-testid={`parent-consent-tile-${member.id}`}>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{member.displayName}</Typography>
-                {member.section && <Chip size="small" variant="outlined" label={member.section} />}
-                <Chip
-                  size="small"
-                  color={memberRecords.length > 0 ? "success" : "warning"}
-                  label={memberRecords.length > 0 ? "Consent linked" : "Consent not linked"}
-                />
-              </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {memberRecords.length > 0
-                  ? (latest
-                      ? `Last updated by parent ${formatDate(latest)}`
-                      : "Linked consent found. No parent update has been recorded yet.")
-                  : "A leader needs to link this child’s existing youth consent record before it can be edited here."}
-              </Typography>
-              {memberRecords.length > 0 && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  sx={{ mt: 2 }}
-                  aria-expanded={open}
-                  onClick={() => setOpenMemberId(open ? "" : member.id)}
-                >
-                  {open ? "Close Consent" : "Review Consent"}
-                </Button>
-              )}
+            <Paper key={member.id} variant="outlined" sx={{ overflow: "hidden" }} data-testid={`parent-consent-tile-${member.id}`}>
+              <Box
+                role="button"
+                tabIndex={0}
+                aria-expanded={open}
+                aria-label={`${open ? "Close" : memberRecords.length > 0 ? "Review" : "Complete"} consent for ${member.displayName}`}
+                onClick={toggle}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggle();
+                  }
+                }}
+                sx={{
+                  p: 2.5,
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "action.hover" },
+                  "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: -3 }
+                }}
+              >
+                <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{member.displayName}</Typography>
+                  {member.section && <Chip size="small" variant="outlined" label={member.section} />}
+                  <Chip
+                    size="small"
+                    color={memberRecords.length > 0 ? "success" : "warning"}
+                    label={memberRecords.length > 0 ? "Consent linked" : "Consent not started"}
+                  />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {memberRecords.length > 0
+                    ? (latest
+                        ? `Last updated by parent ${formatDate(latest)}`
+                        : "Linked consent found. Select this child to review or update it.")
+                    : "No consent is on file yet. Select this child to complete the consent form."}
+                </Typography>
+              </Box>
               <Collapse in={open} unmountOnExit>
-                <Stack spacing={2} sx={{ mt: 2 }}>
+                <Stack spacing={2} sx={{ px: 2.5, pb: 2.5 }}>
                   {memberRecords.map((record) => (
                     <Box key={record.id}>
                       <Alert severity={record.updatedByParent ? "success" : "info"} sx={{ mb: 1.5 }}>
@@ -171,6 +183,14 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
                       <ParentConsentEditor consent={record} onSaved={handleSaved} />
                     </Box>
                   ))}
+                  {draft && (
+                    <Box>
+                      <Alert severity="info" sx={{ mb: 1.5 }}>
+                        No consent is on file for this child yet. Complete the form below and save it to create the linked consent record.
+                      </Alert>
+                      <ParentConsentEditor consent={draft} onSaved={handleSaved} />
+                    </Box>
+                  )}
                 </Stack>
               </Collapse>
             </Paper>
@@ -181,11 +201,6 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
         <OperationalEmptyState title="No matching linked children">
           No linked children match that search.
         </OperationalEmptyState>
-      )}
-      {records.length === 0 && (
-        <OperationalUnavailableState title="Consent forms not linked yet">
-          No linked youth consent form was found yet. A leader may need to re-save your Parent Access approval so the existing form can be matched to the member record.
-        </OperationalUnavailableState>
       )}
     </Stack>
   );
