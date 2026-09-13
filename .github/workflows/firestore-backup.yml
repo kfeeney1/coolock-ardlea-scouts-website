@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 30
     env:
       PROJECT_ID: coolock-ardlea-scouts
-      BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+      BACKUP_BUCKET: gs://coolock-ardlea-scouts.firebasestorage.app
       TRIGGER_NAME: ${{ github.event_name }}
       CONFIRM_PROJECT: ${{ inputs.confirm_project }}
       MANUAL_NOTE: ${{ inputs.note }}
@@ -46,13 +46,8 @@ jobs:
             exit 1
           fi
 
-          if [[ -z "${BACKUP_BUCKET}" ]]; then
-            echo "FIRESTORE_BACKUP_BUCKET repository variable is not configured." >&2
-            exit 1
-          fi
-
-          if [[ "${BACKUP_BUCKET}" != gs://* ]]; then
-            echo "FIRESTORE_BACKUP_BUCKET must be a gs:// Cloud Storage URI." >&2
+          if [[ "${BACKUP_BUCKET}" != "gs://coolock-ardlea-scouts.firebasestorage.app" ]]; then
+            echo "Backup workflow must use the authoritative production Storage bucket." >&2
             exit 1
           fi
 
@@ -120,6 +115,7 @@ jobs:
             echo "## Firestore backup"
             echo
             printf '%s\n' "- Project: \`${PROJECT_ID}\`"
+            printf '%s\n' "- Backup bucket: \`${BACKUP_BUCKET}\`"
             echo "- Database: \`(default)\`"
             printf '%s\n' "- Destination: \`${DESTINATION:-not-created}\`"
             printf '%s\n' "- Trigger: \`${TRIGGER_NAME}\`"
