@@ -175,9 +175,14 @@ service cloud.firestore {
       allow read: if isSuperAdmin()
         || (isActiveLeader() && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary() || isGroupTreasurer()))
         || isApprovedParentForMember(memberId);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
-        && request.resource.data.status in ["active", "inactive", "left"]
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]);
+      allow update: if (isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+          && request.resource.data.status in ["active", "inactive", "left"]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
+        || (isAdmin()
+          && request.resource.data.familyId is string
+          && request.resource.data.familyUpdatedBy == request.auth.uid
+          && request.resource.data.familyUpdatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));
       allow delete: if false;
     }
 
