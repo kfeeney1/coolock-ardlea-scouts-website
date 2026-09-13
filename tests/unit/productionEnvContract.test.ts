@@ -20,16 +20,16 @@ function runProductionEnvCheck(emailApiUrl: string) {
   });
 }
 
-test("production environment permits email to remain deferred", () => {
+test("production environment requires the email endpoint", () => {
   const result = runProductionEnvCheck("");
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /email endpoint is not configured/i);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Missing required production environment variables: VITE_EMAIL_API_URL/i);
 });
 
 test("production environment rejects an insecure configured email endpoint", () => {
   const result = runProductionEnvCheck("http://email.example.test");
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /valid HTTPS URL when configured/i);
+  assert.match(result.stderr, /valid HTTPS URL/i);
 });
 
 test("production environment accepts a configured HTTPS email endpoint", () => {
