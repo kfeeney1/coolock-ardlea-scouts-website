@@ -1,0 +1,49 @@
+name: Work Block A rules patch
+
+on:
+  push:
+    branches:
+      - work-block-a-parent-family-management
+    paths:
+      - ".github/workflows/work-block-a-rules-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work-block-a-parent-family-management
+      - name: Patch family relationship rule
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("firestore.rules")
+          text = path.read_text()
+          old = '''      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.status in ["active", "inactive", "left"]
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]);'''
+          new = '''      allow update: if (isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+          && request.resource.data.status in ["active", "inactive", "left"]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
+        || (isAdmin()
+          && request.resource.data.familyId is string
+          && request.resource.data.familyUpdatedBy == request.auth.uid
+          && request.resource.data.familyUpdatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));'''
+          if new in text:
+              raise SystemExit("Rule already patched")
+          if old not in text:
+              raise SystemExit("Expected member update rule not found; refusing broad replacement")
+          path.write_text(text.replace(old, new, 1))
+      - name: Commit rules patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules
+          git commit -m "Authorize admin family relationship updates"
+          git push origin HEAD:work-block-a-parent-family-management
