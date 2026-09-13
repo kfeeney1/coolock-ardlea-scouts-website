@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     env:
       PROJECT_ID: coolock-ardlea-scouts
-      BACKUP_BUCKET: ${{ vars.FIRESTORE_BACKUP_BUCKET }}
+      BACKUP_BUCKET: gs://coolock-ardlea-scouts.firebasestorage.app
       MAX_BACKUP_AGE_HOURS: "192"
 
     steps:
@@ -29,12 +29,8 @@ jobs:
             echo "Backup freshness audit is pinned to the authoritative production project." >&2
             exit 1
           fi
-          if [[ -z "${BACKUP_BUCKET}" ]]; then
-            echo "FIRESTORE_BACKUP_BUCKET repository variable is not configured." >&2
-            exit 1
-          fi
-          if [[ "${BACKUP_BUCKET}" != gs://* ]]; then
-            echo "FIRESTORE_BACKUP_BUCKET must be a gs:// Cloud Storage URI." >&2
+          if [[ "${BACKUP_BUCKET}" != "gs://coolock-ardlea-scouts.firebasestorage.app" ]]; then
+            echo "Backup freshness audit must use the authoritative production Storage bucket." >&2
             exit 1
           fi
 
@@ -97,6 +93,7 @@ jobs:
             echo "## Firestore backup freshness"
             echo
             printf '%s\n' "- Project: \`${PROJECT_ID}\`"
+            printf '%s\n' "- Backup bucket: \`${BACKUP_BUCKET}\`"
             printf '%s\n' "- Latest backup: \`${LATEST:-not-found}\`"
             printf '%s\n' "- Age: \`${AGE_HOURS:-unknown} hour(s)\`"
             printf '%s\n' "- Maximum allowed age: \`${MAX_BACKUP_AGE_HOURS} hours\`"
