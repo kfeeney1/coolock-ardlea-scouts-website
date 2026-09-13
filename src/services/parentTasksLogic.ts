@@ -17,9 +17,7 @@ function lifecycleConsent(record: ParentConsentRecord): FormRenewalConsent {
         formType: "youth-activity-consent",
         status: "active",
         consentTo: record.consentTo,
-        // Parent consent records currently expose the explicit parent renewal
-        // timestamp. Generic updatedAt must never be used to extend validity.
-        submittedAt: null,
+        submittedAt: record.submittedAt,
         updatedAt: record.updatedAt,
         parentUpdatedAt: record.parentUpdatedAt
     };
