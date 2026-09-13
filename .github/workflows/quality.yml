@@ -62,5 +62,59 @@ jobs:
             exit 1
           fi
 
-      - name: Run quality gate
-        run: npm run quality:checks
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Email worker tests
+        run: npm run test:email-worker
+
+      - name: Adventure Functions tests
+        run: npm run test:adventure-functions
+
+      - name: Adventure Functions checks
+        run: npm run check:adventure-functions
+
+      - name: Seed contract
+        run: npm run check:seed-contract
+
+      - name: Playwright suite contract
+        run: npm run check:playwright-suite
+
+      - name: Dropdown implementation
+        run: npm run check:dropdown-implementation
+
+      - name: Source complexity
+        run: npm run check:source-complexity
+
+      - name: Hosting configuration
+        run: npm run check:hosting-config
+
+      - name: Firebase deployment configuration
+        run: npm run check:firebase-deploy-config
+
+      - name: Firestore audit coverage
+        run: npm run check:firestore-audit-coverage
+
+      - name: RBAC matrix
+        run: npm run check:rbac-matrix
+
+      - name: RBAC test coverage
+        run: npm run check:rbac-test-coverage
+
+      - name: Workflow permissions
+        run: npm run check:workflow-permissions
+
+      - name: Workflow action pinning
+        run: npm run check:workflow-action-pinning
+
+      - name: Workflow production credentials
+        run: npm run check:workflow-production-credentials
+
+      - name: Smoke script syntax
+        run: npm run check:smoke-script
+
+      - name: Build
+        run: npm run build
