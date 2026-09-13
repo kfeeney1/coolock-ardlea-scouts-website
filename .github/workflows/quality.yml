@@ -31,9 +31,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: |
-          npm ci --no-audit
-          npm --prefix functions install --no-audit --package-lock=false
+        run: npm ci --no-audit
 
       - name: Audit production dependencies
         run: |
@@ -62,72 +60,5 @@ jobs:
             exit 1
           fi
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Unit tests
-        shell: bash
-        run: |
-          set -o pipefail
-          for test_file in tests/unit/*.test.ts; do
-            output_file="$(mktemp)"
-            if ! node --experimental-strip-types --test "$test_file" >"$output_file" 2>&1; then
-              escaped="$(tail -n 60 "$output_file" | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
-              echo "::error file=${test_file}::${escaped}"
-              cat "$output_file"
-              rm -f "$output_file"
-              exit 1
-            fi
-            rm -f "$output_file"
-          done
-
-      - name: Email worker tests
-        run: npm run test:email-worker
-
-      - name: Adventure Functions tests
-        run: npm run test:adventure-functions
-
-      - name: Adventure Functions checks
-        run: npm run check:adventure-functions
-
-      - name: Seed contract
-        run: npm run check:seed-contract
-
-      - name: Playwright suite contract
-        run: npm run check:playwright-suite
-
-      - name: Dropdown implementation
-        run: npm run check:dropdown-implementation
-
-      - name: Source complexity
-        run: npm run check:source-complexity
-
-      - name: Hosting configuration
-        run: npm run check:hosting-config
-
-      - name: Firebase deployment configuration
-        run: npm run check:firebase-deploy-config
-
-      - name: Firestore audit coverage
-        run: npm run check:firestore-audit-coverage
-
-      - name: RBAC matrix
-        run: npm run check:rbac-matrix
-
-      - name: RBAC test coverage
-        run: npm run check:rbac-test-coverage
-
-      - name: Workflow permissions
-        run: npm run check:workflow-permissions
-
-      - name: Workflow action pinning
-        run: npm run check:workflow-action-pinning
-
-      - name: Workflow production credentials
-        run: npm run check:workflow-production-credentials
-
-      - name: Smoke script syntax
-        run: npm run check:smoke-script
-
-      - name: Build
-        run: npm run build
+      - name: Run quality gate
+        run: npm run quality:checks

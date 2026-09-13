@@ -35,7 +35,7 @@ test("production preflight emulator tests are isolated to the demo Firebase proj
 
 test("production deployment target remains the real production Firebase project", () => {
   assert.match(workflow, /^  FIREBASE_PROJECT_ID: coolock-ardlea-scouts$/m);
-  assert.match(workflow, /deploy --only firestore:rules,firestore:indexes,functions:adventure-skills,storage:production-default,hosting --project "\$FIREBASE_PROJECT_ID" --config firebase\.production\.generated\.json --non-interactive/);
+  assert.match(workflow, /deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "\$FIREBASE_PROJECT_ID" --config firebase\.production\.generated\.json --non-interactive/);
 });
 
 test("production Storage rules explicitly target the provisioned firebasestorage.app bucket", () => {

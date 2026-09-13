@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { browserSessionPersistence, connectAuthEmulator, getAuth, setPersistence } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, initializeFirestore } from "firebase/firestore";
-import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 const PRODUCTION_FIREBASE_PROJECT_ID = "coolock-ardlea-scouts";
@@ -55,7 +54,6 @@ if (appEnvironment !== "local" && (
     firestoreEmulator
     || import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST?.trim()
     || import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim()
-    || import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST?.trim()
 )) {
     throw new Error(`${appEnvironment} builds must not reference Firebase emulator hosts`);
 }
@@ -65,7 +63,6 @@ export const db = firestoreEmulator
     : getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app, "europe-west1");
 
 void setPersistence(auth, browserSessionPersistence).catch((error) => {
     console.error("Unable to configure session-only authentication:", error);
@@ -91,13 +88,6 @@ if (storageEmulator) {
     const [host, rawPort] = storageEmulator.split(":");
     const port = Number(rawPort);
     if (host && Number.isInteger(port) && port > 0) connectStorageEmulator(storage, host, port);
-}
-
-const functionsEmulator = import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_HOST?.trim();
-if (functionsEmulator) {
-    const [host, rawPort] = functionsEmulator.split(":");
-    const port = Number(rawPort);
-    if (host && Number.isInteger(port) && port > 0) connectFunctionsEmulator(functions, host, port);
 }
 
 export { appEnvironment };
