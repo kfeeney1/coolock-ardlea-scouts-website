@@ -68,6 +68,12 @@ test("member status change requires review and cancel does not persist it", asyn
 
     await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
     await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();
+
+    const familyPanel = page.getByTestId("member-family-management");
+    await expect(familyPanel).toBeVisible();
+    await expect(familyPanel).toContainText(/do not grant Parent Portal access/i);
+    await expect(familyPanel.getByLabel("Search existing members")).toBeVisible();
+
     const status = page.getByRole("combobox").filter({ hasText: "Active" });
     await status.click();
     await page.getByRole("option", { name: "Left", exact: true }).click();
@@ -78,9 +84,10 @@ test("member status change requires review and cancel does not persist it", asyn
     await expect(confirmation).toContainText(memberName);
     await expect(confirmation).toContainText("Active to Left");
     await expect(confirmation).toContainText("record and lifecycle history are retained");
-    await expect(confirmation.getByRole("button", { name: "Confirm Status Change", exact: true })).toBeVisible();
+    await expect(confirmation).toContainText(/explicit parent-child links only/i);
+    await expect(confirmation.getByRole("button", { name: "Disable member only", exact: true })).toBeVisible();
 
-    await confirmation.getByRole("button", { name: "Cancel status change", exact: true }).click();
+    await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(confirmation).toBeHidden();
     await expect(page.getByRole("combobox").filter({ hasText: "Left" })).toBeVisible();
 
