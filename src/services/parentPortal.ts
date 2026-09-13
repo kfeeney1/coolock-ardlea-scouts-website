@@ -22,6 +22,12 @@ import {
     notifyParentAccessRejected,
     notifyParentRegistration
 } from "./emailNotifications";
+import {
+    dedupeParentChildRequests,
+    isValidParentChildRequest,
+    normalizeParentChildRequest
+} from "./parentChildMatching";
+import type { ParentChildRequest } from "./parentChildMatching";
 
 export type ParentAccessStatus = "pending" | "approved" | "rejected" | "revoked";
 
@@ -33,6 +39,7 @@ export type ParentAccount = {
     status: ParentAccessStatus;
     memberIds: string[];
     linkedSections: string[];
+    requestedChildren: ParentChildRequest[];
 };
 
 function clean(value: string, max: number): string {
@@ -44,6 +51,16 @@ function mapStringArray(value: unknown): string[] | null {
     return [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))];
 }
 
+function mapRequestedChildren(value: unknown): ParentChildRequest[] {
+    if (!Array.isArray(value)) return [];
+    return dedupeParentChildRequests(value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const record = item as Record<string, unknown>;
+        if (typeof record.firstName !== "string" || typeof record.lastName !== "string" || typeof record.dateOfBirth !== "string") return [];
+        return [{ firstName: record.firstName, lastName: record.lastName, dateOfBirth: record.dateOfBirth }];
+    }));
+}
+
 function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAccount | null {
     const email = typeof data.email === "string" ? data.email.trim() : "";
     const displayName = typeof data.displayName === "string" ? data.displayName.trim() : "";
@@ -52,7 +69,15 @@ function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAcc
     const memberIds = mapStringArray(data.memberIds);
     const linkedSections = mapStringArray(data.linkedSections);
     if (!email || !displayName || !mobileNumber || !["pending", "approved", "rejected", "revoked"].includes(status) || !memberIds || !linkedSections) return null;
-    return { uid, email, displayName, mobileNumber, status, memberIds, linkedSections };
+    return { uid, email, displayName, mobileNumber, status, memberIds, linkedSections, requestedChildren: mapRequestedChildren(data.requestedChildren) };
+}
+
+function prepareRequestedChildren(children: ParentChildRequest[]): ParentChildRequest[] {
+    const normalized = dedupeParentChildRequests(children);
+    if (normalized.length === 0 || normalized.length !== children.length || normalized.some((child) => !isValidParentChildRequest(child))) {
+        throw new Error("Enter a valid first name, surname and date of birth for each child.");
+    }
+    return normalized.slice(0, 8).map(normalizeParentChildRequest);
 }
 
 export function observeParentAuth(callback: (user: User | null) => void) {
@@ -63,18 +88,20 @@ export function currentUser(): User | null {
     return auth.currentUser;
 }
 
-export async function registerParent(email: string, password: string, displayName: string, mobileNumber: string): Promise<void> {
+export async function registerParent(email: string, password: string, displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[]): Promise<void> {
+    const children = prepareRequestedChildren(requestedChildren);
     await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-    await createParentAccessForCurrentUser(displayName, mobileNumber);
+    await createParentAccessForCurrentUser(displayName, mobileNumber, children);
 }
 
-export async function createParentAccessForCurrentUser(displayName: string, mobileNumber: string): Promise<void> {
+export async function createParentAccessForCurrentUser(displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[] = []): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in user.");
 
     const existing = await getDoc(doc(db, "parentAccounts", user.uid));
     if (existing.exists()) return;
 
+    const children = requestedChildren.length > 0 ? prepareRequestedChildren(requestedChildren) : [];
     await setDoc(doc(db, "parentAccounts", user.uid), {
         uid: user.uid,
         email: (user.email || "").trim().toLowerCase(),
@@ -83,6 +110,7 @@ export async function createParentAccessForCurrentUser(displayName: string, mobi
         status: "pending",
         memberIds: [],
         linkedSections: [],
+        requestedChildren: children,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     });
