@@ -1,0 +1,196 @@
+name: Leader Auth Stability
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/admin/AdminAuthProvider.tsx'
+      - 'src/components/admin/LeaderDashboardHeader.tsx'
+      - 'src/components/admin/ProtectedAdminRoute.tsx'
+      - 'src/hooks/useBackDismiss.ts'
+      - 'e2e/adventure-skills-badgework.spec.ts'
+      - '.github/workflows/leader-auth-stability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Repeat unit tests without retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Unit-test stability pass ${attempt}/3"
+            npm test
+          done
+
+      - name: Repeat email-worker tests without retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Email-worker stability pass ${attempt}/3"
+            npm run test:email-worker
+          done
+
+  leader-signout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_APP_ENV: local
+      VITE_FIREBASE_API_KEY: demo-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: demo-coolock-ardlea-scouts.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      VITE_FIREBASE_STORAGE_BUCKET: demo-coolock-ardlea-scouts.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+      VITE_FIREBASE_APP_ID: 1:000000000000:web:local
+      VITE_EMAIL_API_URL: http://127.0.0.1:8787
+      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      E2E_BASE_URL: http://127.0.0.1:4173
+      E2E_TEST_USER_PASSWORD: password1
+      E2E_LEADER_JOURNEY_SEEDED: 'true'
+      E2E_PARENT_EMAIL: test.beaver.parent1@example.com
+      E2E_ADMIN_EMAIL: test.webadmin@example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm ci --no-audit
+
+      - name: Build tested application
+        run: npm run build
+
+      - name: Setup Java for Firebase emulators
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install E2E Firebase tooling
+        run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
+
+      - name: Start Firestore, Auth and Storage emulators
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
+          for i in {1..45}; do
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/firebase-emulator.log
+          exit 1
+
+      - name: Create emulator-only Firebase Admin credential
+        run: |
+          node <<'NODE'
+          const { generateKeyPairSync } = require("node:crypto");
+          const { appendFileSync } = require("node:fs");
+          const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            publicKeyEncoding: { type: "spki", format: "pem" },
+            privateKeyEncoding: { type: "pkcs8", format: "pem" },
+          });
+          const projectId = process.env.FIREBASE_PROJECT_ID;
+          const credential = JSON.stringify({
+            type: "service_account",
+            project_id: projectId,
+            private_key_id: "emulator-only",
+            private_key: privateKey,
+            client_email: `firebase-adminsdk-emulator@${projectId}.iam.gserviceaccount.com`,
+            client_id: "000000000000000000000",
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url: "https://example.invalid/emulator-only",
+            universe_domain: "googleapis.com",
+          });
+          const delimiter = `FIREBASE_EMULATOR_CREDENTIAL_${Date.now()}`;
+          appendFileSync(process.env.GITHUB_ENV, `FIREBASE_SERVICE_ACCOUNT_JSON<<${delimiter}\n${credential}\n${delimiter}\n`);
+          NODE
+
+      - name: Seed canonical deterministic E2E dataset
+        run: |
+          node scripts/seed-population-data.mjs seed
+          node scripts/seed-superadmin-login.mjs
+          node scripts/seed-flow-data.mjs
+          node scripts/seed-public-site-content.mjs seed
+          node scripts/seed-playwright-records.mjs
+          node scripts/rebuild-public-leadership.mjs
+          node scripts/verify-test-population.mjs
+          node scripts/verify-flow-data.mjs
+
+      - name: Install pinned Playwright test runner
+        run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
+
+      - name: Install Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Start tested build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
+          for i in {1..30}; do
+            if curl --fail --silent "$E2E_BASE_URL"/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/vite-preview.log
+          exit 1
+
+      - name: Repeat confirmed sign-out journey with zero retries
+        run: >-
+          npx --no-install playwright test e2e/adventure-skills-badgework.spec.ts
+          --project=chromium
+          --grep "saved badgework and award are visible read-only to the linked parent"
+          --retries=0
+          --repeat-each=5
+
+      - name: Collect service logs on failure
+        if: failure()
+        run: |
+          cat /tmp/firebase-emulator.log || true
+          cat /tmp/vite-preview.log || true
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: leader-auth-stability-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
