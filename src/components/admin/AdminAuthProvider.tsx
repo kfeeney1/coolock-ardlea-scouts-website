@@ -3,6 +3,7 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState
 } from "react";
 import type { ReactNode } from "react";
@@ -91,6 +92,7 @@ export function AdminAuthProvider({ children }: Props) {
     const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
     const [sessionSettings, setSessionSettings] = useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const authStateVersion = useRef(0);
 
     const refreshSessionSettings = async () => {
         try {
@@ -103,6 +105,7 @@ export function AdminAuthProvider({ children }: Props) {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+            const version = ++authStateVersion.current;
             setLoading(true);
             setUser(nextUser);
             if (!nextUser) {
@@ -116,6 +119,13 @@ export function AdminAuthProvider({ children }: Props) {
                 loadAdminProfile(nextUser),
                 loadSessionSettings()
             ]);
+
+            // A newer auth event (most importantly sign-out) wins. Do not let an
+            // older signed-in profile/settings read re-authorise or prolong the
+            // loading state after the session has already changed.
+            if (version !== authStateVersion.current || auth.currentUser?.uid !== nextUser.uid) {
+                return;
+            }
 
             if (profileResult.status === "fulfilled") {
                 setAdminProfile(profileResult.value);
@@ -233,10 +243,15 @@ export function AdminAuthProvider({ children }: Props) {
     };
 
     const logout = async () => {
-        await signOut(auth);
+        // Fail closed in application state immediately. The protected route can
+        // leave privileged UI without waiting for Firebase persistence or the
+        // asynchronous auth observer, while signOut still completes normally.
+        ++authStateVersion.current;
         setUser(null);
         setAdminProfile(null);
         setSessionSettings(DEFAULT_SESSION_SETTINGS);
+        setLoading(false);
+        await signOut(auth);
     };
 
     const value = useMemo<AdminAuthContextValue>(() => ({

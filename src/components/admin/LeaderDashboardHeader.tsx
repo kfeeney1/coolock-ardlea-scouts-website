@@ -1,7 +1,7 @@
 import { Box, Button, Collapse, Divider, Paper, Stack, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
@@ -57,7 +57,6 @@ function matchesNavPath(pathname: string, itemPath: string) {
 
 export default function LeaderDashboardHeader() {
  const location = useLocation();
- const navigate = useNavigate();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
  const { adminProfile, logout } = useAdminAuth();
  const activeMobileGroup = navGroups.find((group) => group.items.some((item) => matchesNavPath(location.pathname, item.path)))?.label ?? null;
@@ -79,7 +78,18 @@ export default function LeaderDashboardHeader() {
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
  const menuHistoryReady = useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
- const handleSignOut = async () => { setSigningOut(true); try { await logout(); navigate("/leader/login", { replace: true }); } finally { setSigningOut(false); } };
+ const handleSignOut = async () => {
+  setSigningOut(true);
+  try {
+   // logout() clears the provider state. ProtectedAdminRoute is the single
+   // authority that redirects a signed-out leader to /leader/login. Keeping
+   // navigation in one place avoids racing that redirect against this menu's
+   // transient Back-dismiss history entry.
+   await logout();
+  } finally {
+   setSigningOut(false);
+  }
+ };
  const navButton = (item: NavItem) => {
   const active = matchesNavPath(location.pathname, item.path);
   return <Button key={item.path} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
