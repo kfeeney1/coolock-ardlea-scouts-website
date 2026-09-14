@@ -26,6 +26,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
   const [loadError, setLoadError] = useState<unknown>(null);
   const [search, setSearch] = useState("");
   const [openMemberId, setOpenMemberId] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +50,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
 
   const handleSaved = async () => {
     await load();
+    setSaveMessage("Consent and medical details updated successfully.");
     await onSaved?.();
   };
 
@@ -105,6 +107,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
 
   return (
     <Stack spacing={3}>
+      {saveMessage && <Alert severity="success">{saveMessage}</Alert>}
       <Typography color="text.secondary">
         Find a linked child and select their record to complete or update consent and medical details. Identity and leader-only fields remain locked.
       </Typography>
