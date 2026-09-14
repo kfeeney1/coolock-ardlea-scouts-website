@@ -9,7 +9,7 @@ test("production deployment provisions Java 21 before Firebase emulator release 
   const firestoreTests = workflow.indexOf("- name: Re-run Firestore Rules tests on emulators");
 
   assert.notEqual(setupJava, -1, "production workflow must configure Java for Firebase emulators");
-  assert.match(workflow, /uses: actions\/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6\.0\.0/);
+  assert.match(workflow, /uses: actions\/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6\.0\.1/);
   assert.match(workflow, /java-version: '21'/);
   assert.ok(setupJava < firestoreTests, "Java 21 must be configured before Firestore emulator tests");
 });
