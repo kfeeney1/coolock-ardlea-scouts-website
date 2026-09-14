@@ -40,8 +40,8 @@ test.describe("approved parent journey", () => {
 
     const search = page.getByTestId("parent-consent-search");
     await search.fill(secondMember);
-    await expect(page.getByText(secondMember, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(firstMember, { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId("parent-consent-tile-TEST_member_beaver_02")).toBeVisible();
+    await expect(page.getByTestId("parent-consent-tile-TEST_member_beaver_01")).toHaveCount(0);
 
     await page
       .getByTestId("parent-consent-tile-TEST_member_beaver_02")
