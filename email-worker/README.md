@@ -93,11 +93,13 @@ The identifier is only navigation context. Possession of the URL never authorise
 
 The lifecycle commit writes member history and audit records and applies the established last-active-child Parent behaviour by revoking Parent Portal access while leaving any Leader access untouched. Reusing a stale link after the member is already inactive is idempotent. Relevant section/group leadership are notified through the same Worker after a successful change.
 
-## Android App Links handoff
+## Mobile web email links
 
-Email links deliberately remain ordinary production HTTPS links so Android can claim them with verified App Links while every non-Android client retains a normal web fallback.
+Scout communications use ordinary HTTPS links to the production website. There is no Scout Android app and this project must not add Android package IDs, signing certificates, App Link intent filters or `/.well-known/assetlinks.json` configuration.
 
-The native Android project is not present in this repository, so this repository cannot safely invent the Android application ID, signing certificate SHA-256 fingerprint, manifest intent filter or `/.well-known/assetlinks.json` statement. To complete native verification, the Android application repository/build must supply the real package ID and production signing fingerprint, add an HTTPS App Link intent filter for `coolockardleascouts.ie`, and publish the matching association statement on the production domain. The web route already represents the shared application destination and remains protected when opened in a browser.
+On Android phones and tablets, email actions such as **Open Parent Portal** must open the normal responsive website in the user's browser at the intended route, for example `https://coolockardleascouts.ie/parent`. The same HTTPS route is used on desktop and mobile; the responsive layout controls presentation. Authentication must preserve the intended destination and must not redirect mobile users to a desktop-only experience.
+
+SW-93 is therefore a mobile-web routing and responsive-layout requirement, not a native-app integration.
 
 ## Rollback / disable
 
