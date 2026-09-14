@@ -1,4 +1,5 @@
 import worker from "./index.js";
+import { handleProductionRoute } from "./productionRoutes.js";
 
 const PRODUCTION_HOST = "https://coolockardleascouts.ie";
 const PRODUCTION_DOMAIN = "coolockardleascouts.ie";
@@ -46,8 +47,7 @@ export function privacySafeDiagnostic(args) {
   };
 }
 
-// The underlying worker historically logged Error objects directly. Provider
-// errors can contain response bodies with delivery metadata, recipient details
+// Provider and Firestore errors may contain delivery metadata, recipient details
 // or other personal information. Keep only a bounded label and safe status/code.
 console.error = (...args) => {
   const diagnostic = privacySafeDiagnostic(args);
@@ -140,6 +140,15 @@ async function authoritativeStatusRequest(request, env, body, path) {
   return { body };
 }
 
+const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
+  "/leader-communication",
+  "/event-notification",
+  "/event-consent-processed",
+  "/form-reminder",
+  "/member-inactivation-context",
+  "/member-inactivation"
+]);
+
 export default {
   async fetch(request, env) {
     const configurationError = validateDeliveryEnvironment(env);
@@ -150,14 +159,24 @@ export default {
     if (request.method !== "POST") return worker.fetch(request, env);
 
     const path = new URL(request.url).pathname;
-    if (!["/parent-access-approved", "/parent-access-rejected", "/leader-access-status"].includes(path)) {
-      return worker.fetch(request, env);
-    }
-
     let body;
     try {
       body = await request.clone().json();
     } catch {
+      return worker.fetch(request, env);
+    }
+
+    if (AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
+      try {
+        const response = await handleProductionRoute(request, env, body, path);
+        if (response) return response;
+      } catch (error) {
+        console.error("Authoritative production route error", error);
+        return json(request, env, 500, { ok: false, error: "Unable to complete the requested communication action." });
+      }
+    }
+
+    if (!["/parent-access-approved", "/parent-access-rejected", "/leader-access-status"].includes(path)) {
       return worker.fetch(request, env);
     }
 
