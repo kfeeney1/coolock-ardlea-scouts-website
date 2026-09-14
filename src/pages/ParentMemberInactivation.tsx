@@ -52,7 +52,7 @@ export default function ParentMemberInactivation() {
         }
     };
 
-    const confirm = async () => {
+    const applyInactivation = async () => {
         if (!context || context.member.status !== "active") return;
         setWorking(true);
         setError("");
@@ -99,7 +99,7 @@ export default function ParentMemberInactivation() {
                             </Alert>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                                 <Button component={Link} to="/parent" variant="outlined">Cancel</Button>
-                                <Button variant="contained" color="warning" disabled={working} onClick={() => void confirm()}>
+                                <Button variant="contained" color="warning" disabled={working} onClick={() => void applyInactivation()}>
                                     {working ? "Updating…" : "Confirm inactive"}
                                 </Button>
                             </Stack>
