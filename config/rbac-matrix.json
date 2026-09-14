@@ -10,6 +10,7 @@
     "/activities/consent": "public-form",
     "/event-consent/:token": "public-form",
     "/parent": "parent-entry",
+    "/parent/member/:memberId/inactivate": "parent-or-leader-authoritative-action",
     "/join": "public-form",
     "/contact": "public",
     "/privacy": "public",
