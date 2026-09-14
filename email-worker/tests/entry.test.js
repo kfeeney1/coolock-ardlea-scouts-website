@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
+import entry, { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
@@ -9,6 +9,17 @@ const production = {
   ALLOWED_ORIGINS: "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie",
   TEST_EMAIL_REDIRECT: ""
 };
+
+function productionRequest(path, body = {}) {
+  return new Request(`https://email.example.test${path}`, {
+    method: "POST",
+    headers: {
+      Origin: "https://coolockardleascouts.ie",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+}
 
 test("production delivery requires the Scout domain and no test redirect", () => {
   assert.equal(validateDeliveryEnvironment(production), "");
@@ -28,6 +39,21 @@ test("test delivery requires an explicit redirect recipient", () => {
 test("ambiguous email environment fails closed", () => {
   assert.match(validateDeliveryEnvironment({}), /explicitly set/);
   assert.match(validateDeliveryEnvironment({ EMAIL_DELIVERY_MODE: "staging" }), /explicitly set/);
+});
+
+test("authoritative production communication routes require authentication before Firestore access", async () => {
+  for (const path of [
+    "/leader-communication",
+    "/event-notification",
+    "/event-consent-processed",
+    "/form-reminder",
+    "/member-inactivation-context",
+    "/member-inactivation"
+  ]) {
+    const response = await entry.fetch(productionRequest(path), production);
+    assert.equal(response.status, 401, path);
+    assert.deepEqual(await response.json(), { ok: false, error: "Sign-in required." }, path);
+  }
 });
 
 test("provider diagnostics retain status but discard provider body and personal data", () => {
