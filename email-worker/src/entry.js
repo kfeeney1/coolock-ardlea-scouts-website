@@ -167,6 +167,7 @@ export default {
     }
 
     if (AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
+      if (!bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
       try {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
