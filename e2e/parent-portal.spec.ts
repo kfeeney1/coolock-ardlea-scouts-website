@@ -51,4 +51,15 @@ test.describe("Parent Portal", () => {
     await page.goBack();
     await expect(page).toHaveURL(/\/about$/);
   });
+
+  test("email portal destination opens the responsive website at Android width", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/parent");
+
+    await expect(page).toHaveURL(/\/parent$/);
+    await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).resolves.toBe(true);
+  });
 });
