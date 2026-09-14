@@ -21,6 +21,7 @@ const Activities = lazy(() => import("./pages/Activities"));
 const ConsentForm = lazy(() => import("./pages/ConsentForm"));
 const EventConsent = lazy(() => import("./pages/EventConsent"));
 const ParentPortal = lazy(() => import("./pages/ParentPortal"));
+const ParentMemberInactivation = lazy(() => import("./pages/ParentMemberInactivation"));
 const Join = lazy(() => import("./pages/Join"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="/activities/consent" element={<ConsentForm />} />
               <Route path="/event-consent/:token" element={<EventConsent />} />
               <Route path="/parent" element={<ParentPortal />} />
+              <Route path="/parent/member/:memberId/inactivate" element={<ParentMemberInactivation />} />
               <Route path="/join" element={<Join />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />

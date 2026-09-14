@@ -28,7 +28,23 @@ The worker fails closed if the environment is ambiguous. Production also refuses
 
 `RESEND_API_KEY` is a Cloudflare Worker secret. Never place it in this repository, Wrangler vars, logs or browser configuration. The production secret belongs on the existing `coolock-ardlea-scouts-email` Worker. A deployment using `wrangler.production.toml` updates that Worker while retaining its separately stored Cloudflare secret.
 
-If the secret ever needs to be replaced, update it directly on `coolock-ardlea-scouts-email` in Cloudflare (or use `wrangler secret put RESEND_API_KEY --config wrangler.production.toml`) and paste the value only into Cloudflare/Wrangler when prompted.
+Authoritative Parent recipient resolution and Parent-initiated member lifecycle changes also require a narrowly scoped Firebase service account in the Worker. Configure these values as Cloudflare Worker secrets, not Wrangler vars or repository files:
+
+- `FIREBASE_SERVICE_ACCOUNT_EMAIL`
+- `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`
+
+The service account is used only after the caller's Firebase ID token has been checked against the existing Firestore access boundary. It exists because ordinary section leaders cannot list all `parentAccounts`, and approved Parents are deliberately not allowed to write `members` directly. Do not weaken Firestore Rules to avoid these server credentials.
+
+If the secrets need to be configured or rotated, use Cloudflare/Wrangler secret storage for the existing production Worker, for example:
+
+```bash
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_EMAIL --config wrangler.production.toml
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY --config wrangler.production.toml
+```
+
+The private key may be pasted with normal PEM newlines or escaped `\n`; the Worker normalises either form. Never print the private key in CI logs.
+
+If the Resend secret ever needs to be replaced, update it directly on `coolock-ardlea-scouts-email` in Cloudflare (or use `wrangler secret put RESEND_API_KEY --config wrangler.production.toml`) and paste the value only into Cloudflare/Wrangler when prompted.
 
 ## Production sender/domain prerequisite
 
@@ -44,7 +60,7 @@ DMARC should also be reviewed for the domain. Changes must preserve the existing
 
 After provider verification and before any bulk/member reminders:
 
-1. confirm the Worker production secret is configured;
+1. confirm the Worker production secrets are configured;
 2. deploy explicitly with `npm run deploy:production`;
 3. verify the deployment output shows `coolock-ardlea-scouts-email` (not a suffixed Worker), `SITE_URL=https://coolockardleascouts.ie`, `EMAIL_DELIVERY_MODE=production`, the production sender and production origins, and no `TEST_EMAIL_REDIRECT`;
 4. use one approved controlled recipient;
@@ -57,11 +73,31 @@ Do not validate production by sending to a real section or bulk parent list.
 
 ## Recipient authority and privacy
 
-Frontend flows should pass application identifiers (for example member IDs, parent-account IDs or leader-request IDs), not arbitrary destination addresses, whenever the address is available from Firestore. The Worker re-resolves authoritative records and existing Firebase/Firestore authorization remains the server-side permission boundary.
+Frontend flows pass application identifiers (for example member IDs, parent-account IDs or leader-request IDs), not arbitrary destination addresses, whenever the address is available from Firestore.
 
-Leader parent communications are delivered individually after active-member filtering and recipient deduplication. Do not put parent addresses together in `To` or `Cc`.
+Parent communications resolve recipients from approved `parentAccounts/{uid}` records whose explicit `memberIds` include the target member. `familyId` and sibling membership never grant communication authority. Disabled/revoked Parent accounts are excluded. Members must still be active for routine communications.
 
-Email content should contain only the minimum operational information required. Detailed consent, medical or safeguarding-sensitive information belongs behind authenticated website access, not in email bodies or logs.
+Leader-triggered parent communication first reads the member using the caller's Firebase ID token. This preserves the existing leader section/group RBAC before the privileged service account is used to locate approved Parent recipients. Parent addresses are delivered individually and deduplicated; unrelated recipients are never exposed in `To` or `Cc`.
+
+Dual-role Parent/Leader accounts remain one Firebase UID with independent Parent and Leader records. Recipient deduplication is by destination email for the relevant workflow; one person's dual role does not create an automatic duplicate parent delivery.
+
+Email content contains only the minimum operational information required. Detailed consent, medical or safeguarding-sensitive information belongs behind authenticated website access, not in email bodies or logs. Form-reminder email only says that information requires attention and directs the approved Parent to authenticate.
+
+## Secure member lifecycle links
+
+General Parent communications use HTTPS links on the production domain, including member-specific lifecycle routes such as:
+
+`https://coolockardleascouts.ie/parent/member/<member-id>/inactivate`
+
+The identifier is only navigation context. Possession of the URL never authorises a lifecycle change. The route requires Firebase authentication, re-checks current Parent/member or Leader/member authority, displays the current member and section, requires explicit confirmation, re-reads the authoritative status, then performs the lifecycle update through the Worker.
+
+The lifecycle commit writes member history and audit records and applies the established last-active-child Parent behaviour by revoking Parent Portal access while leaving any Leader access untouched. Reusing a stale link after the member is already inactive is idempotent. Relevant section/group leadership are notified through the same Worker after a successful change.
+
+## Android App Links handoff
+
+Email links deliberately remain ordinary production HTTPS links so Android can claim them with verified App Links while every non-Android client retains a normal web fallback.
+
+The native Android project is not present in this repository, so this repository cannot safely invent the Android application ID, signing certificate SHA-256 fingerprint, manifest intent filter or `/.well-known/assetlinks.json` statement. To complete native verification, the Android application repository/build must supply the real package ID and production signing fingerprint, add an HTTPS App Link intent filter for `coolockardleascouts.ie`, and publish the matching association statement on the production domain. The web route already represents the shared application destination and remains protected when opened in a browser.
 
 ## Rollback / disable
 

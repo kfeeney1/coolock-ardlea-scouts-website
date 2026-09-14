@@ -79,6 +79,10 @@ export async function notifyEventConsentProcessed(eventId: string, memberId: str
     await post("/event-consent-processed", { eventId, memberId }, true);
 }
 
+export async function notifyFormReminder(memberIds: string[], reminderKey: string): Promise<LeaderCommunicationResult> {
+    return await post<LeaderCommunicationResult>("/form-reminder", { memberIds, reminderKey }, true);
+}
+
 export async function notifyEquipmentIncident(incidentId: string): Promise<void> {
     await post("/equipment-incident", { incidentId }, true);
 }
@@ -102,4 +106,30 @@ export async function sendLeaderCommunication(
         { memberIds, subject, message },
         true
     );
+}
+
+export type MemberInactivationContext = {
+    ok: true;
+    member: {
+        id: string;
+        displayName: string;
+        section: string;
+        status: "active" | "inactive" | "left";
+    };
+};
+
+export async function loadMemberInactivationContext(memberId: string): Promise<MemberInactivationContext> {
+    if (!emailApiUrl) throw new Error("VITE_EMAIL_API_URL is not configured.");
+    return await post<MemberInactivationContext>("/member-inactivation-context", { memberId }, true);
+}
+
+export type MemberInactivationResult = {
+    ok: true;
+    alreadyInactive: boolean;
+    status: "inactive" | "left";
+};
+
+export async function confirmMemberInactivation(memberId: string): Promise<MemberInactivationResult> {
+    if (!emailApiUrl) throw new Error("VITE_EMAIL_API_URL is not configured.");
+    return await post<MemberInactivationResult>("/member-inactivation", { memberId, confirm: true }, true);
 }
