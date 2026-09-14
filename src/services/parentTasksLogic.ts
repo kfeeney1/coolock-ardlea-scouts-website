@@ -1,5 +1,6 @@
 import type { ParentConsentRecord, ParentLinkedMember } from "./parentConsent";
 import type { ParentEventConsentLink } from "./parentEvents";
+import { evaluateMemberFormLifecycle, type FormRenewalConsent } from "./formRenewalLogic.ts";
 
 export type ParentTaskSummary = {
     eventConsentCount: number;
@@ -10,22 +11,32 @@ export type ParentTaskSummary = {
     nextConsentEvent: ParentEventConsentLink | null;
 };
 
+function lifecycleConsent(record: ParentConsentRecord): FormRenewalConsent {
+    return {
+        memberId: record.memberId,
+        formType: "youth-activity-consent",
+        status: "active",
+        consentTo: record.consentTo,
+        submittedAt: record.submittedAt,
+        updatedAt: record.updatedAt,
+        parentUpdatedAt: record.parentUpdatedAt
+    };
+}
+
 export function summariseParentTasks(
     events: ParentEventConsentLink[],
     members: ParentLinkedMember[],
-    consents: ParentConsentRecord[]
+    consents: ParentConsentRecord[],
+    asOf: Date = new Date()
 ): ParentTaskSummary {
-    const recordsByMember = new Map<string, ParentConsentRecord[]>();
-    for (const consent of consents) {
-        recordsByMember.set(consent.memberId, [
-            ...(recordsByMember.get(consent.memberId) || []),
-            consent
-        ]);
-    }
-
+    const lifecycleConsents = consents.map(lifecycleConsent);
     const medicalAttentionCount = members.filter((member) => {
-        const records = recordsByMember.get(member.id) || [];
-        return records.length === 0 || records.every((record) => !record.updatedByParent);
+        const lifecycle = evaluateMemberFormLifecycle(
+            { id: member.id, active: true },
+            lifecycleConsents,
+            asOf
+        );
+        return lifecycle !== null && lifecycle.status !== "current";
     }).length;
 
     const sortedEvents = [...events].sort((a, b) => a.startDate.localeCompare(b.startDate));
