@@ -21,9 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Reject production configuration
+        if: ${{ github.actor != 'dependabot[bot]' }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+      - name: Enforce build-only TEST policy for Dependabot
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DEPLOY_ENVIRONMENT" = "test"
+          test "$FIREBASE_PROJECT_ID" = "coolock-ardlea-scouts-test"
+          echo "Dependabot cannot access repository deployment secrets; this run is build-only and cannot deploy."
       - name: Install dependencies
         run: npm ci --no-audit
       - name: Build TEST preview
@@ -39,6 +48,7 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
       - name: Deploy TEST preview
+        if: ${{ github.actor != 'dependabot[bot]' }}
         uses: FirebaseExtended/action-hosting-deploy@500ac625ca2dd40cbd15f7659af953801858032a # v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
