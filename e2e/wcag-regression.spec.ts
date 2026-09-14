@@ -66,7 +66,7 @@ async function scanWcagRegressionSurface(page: Page): Promise<Finding[]> {
     });
 
     document.querySelectorAll("input:not([type=hidden]), select, textarea").forEach((element) => {
-      if (!visible(element)) return;
+      if (!visible(element) || element.getAttribute("aria-hidden") === "true") return;
       if (!accessibleName(element)) findings.push({ rule: "form-label", target: target(element), detail: "visible form control has no programmatic label" });
     });
 

@@ -21,7 +21,7 @@ test.describe("approved parent journey", () => {
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
   });
 
-  test("parent sees searchable consent tiles and refreshes tasks after saving a linked consent form", async ({ page }) => {
+  test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
     await loginParent(page);
 
     const summary = page.getByTestId("parent-things-to-do");
@@ -30,26 +30,28 @@ test.describe("approved parent journey", () => {
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
-    await expect(medicalAttentionCount).toHaveText("2");
+    await expect(medicalAttentionCount).toHaveText("1");
 
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
     await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(secondMember, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Consent linked", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Consent not started", { exact: true }).first()).toBeVisible();
 
     const search = page.getByTestId("parent-consent-search");
-    await search.fill(firstMember);
-    await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(secondMember, { exact: true })).toHaveCount(0);
+    await search.fill(secondMember);
+    await expect(page.getByTestId("parent-consent-tile-TEST_member_beaver_02")).toBeVisible();
+    await expect(page.getByTestId("parent-consent-tile-TEST_member_beaver_01")).toHaveCount(0);
 
     await page
-      .getByTestId("parent-consent-tile-TEST_member_beaver_01")
-      .getByRole("button", { name: "Review Consent" })
+      .getByTestId("parent-consent-tile-TEST_member_beaver_02")
+      .getByRole("button", { name: `Complete consent for ${secondMember}` })
       .click();
     const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
     await expect(save).toBeVisible();
     await save.click();
-    await expect(medicalAttentionCount).toHaveText("1");
+    await expect(page.getByText("Consent and medical details updated successfully.")).toBeVisible();
+    await expect(medicalAttentionCount).toHaveText("0");
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {

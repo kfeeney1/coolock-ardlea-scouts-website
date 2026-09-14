@@ -4,7 +4,7 @@ import {
     serverTimestamp
 } from "firebase/firestore";
 
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 import { getPublicWhosWho } from "./publicWhosWho";
 
 export type YesNo = "Yes" | "No";
@@ -186,6 +186,9 @@ export async function submitYouthConsent(data: YouthConsentData): Promise<string
 }
 
 export async function submitScouterConsent(data: ScouterConsentData): Promise<string> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("An active Leader account is required to submit a Scouter form.");
+
     const { scoutSection, ...canonicalData } = data;
     const ref = await addDoc(collection(db, "consentApplications"), {
         ...canonicalData,
@@ -210,6 +213,7 @@ export async function submitScouterConsent(data: ScouterConsentData): Promise<st
         formVersion: "stage2-2026-08",
         status: "active",
         source: "website",
+        submittedByUid: user.uid,
         submittedAt: serverTimestamp()
     });
     return ref.id;

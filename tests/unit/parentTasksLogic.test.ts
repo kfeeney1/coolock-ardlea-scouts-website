@@ -28,7 +28,7 @@ const member = (id: string): ParentLinkedMember => ({
     dateOfBirth: "2015-01-01"
 });
 
-const consent = (memberId: string, updatedByParent: boolean): ParentConsentRecord => ({
+const consent = (memberId: string, updatedByParent: boolean, overrides: Partial<ParentConsentRecord> = {}): ParentConsentRecord => ({
     id: `consent-${memberId}`,
     memberId,
     childName: memberId,
@@ -62,17 +62,21 @@ const consent = (memberId: string, updatedByParent: boolean): ParentConsentRecor
     additionalInfo: "",
     medicationManagement: {},
     updatedByParent,
+    submittedAt: updatedByParent ? new Date("2026-01-01T12:00:00Z") : null,
     parentUpdatedAt: null,
-    updatedAt: null
+    updatedAt: null,
+    ...overrides
 });
+
+const asOf = new Date("2026-09-14T12:00:00Z");
 
 test("summariseParentTasks counts required consent and upcoming events", () => {
     const summary = summariseParentTasks(
         [event(), event({ token: "token-2", consentRequired: false })],
         [],
-        []
+        [],
+        asOf
     );
-
     assert.equal(summary.eventConsentCount, 1);
     assert.equal(summary.upcomingEventCount, 2);
 });
@@ -81,26 +85,24 @@ test("summariseParentTasks exposes the next event and next consent action in dat
     const laterConsent = event({ token: "token-2", eventId: "event-2", title: "Later Camp", startDate: "2099-02-01" });
     const nextEvent = event({ token: "token-3", eventId: "event-3", title: "Next Hike", startDate: "2099-01-05", consentRequired: false });
     const firstConsent = event({ token: "token-4", eventId: "event-4", title: "Consent Trip", startDate: "2099-01-10" });
-
-    const summary = summariseParentTasks([laterConsent, nextEvent, firstConsent], [], []);
-
+    const summary = summariseParentTasks([laterConsent, nextEvent, firstConsent], [], [], asOf);
     assert.equal(summary.nextEvent?.title, "Next Hike");
     assert.equal(summary.nextConsentEvent?.title, "Consent Trip");
 });
 
-test("summariseParentTasks flags missing and never-reviewed medical records", () => {
+test("summariseParentTasks flags missing and undated legacy medical records", () => {
     const summary = summariseParentTasks(
         [],
         [member("one"), member("two"), member("three")],
-        [consent("two", false), consent("three", true)]
+        [consent("two", false), consent("three", true, { submittedAt: null })],
+        asOf
     );
-
-    assert.equal(summary.medicalAttentionCount, 2);
-    assert.equal(summary.totalAttentionCount, 2);
+    assert.equal(summary.medicalAttentionCount, 3);
+    assert.equal(summary.totalAttentionCount, 3);
 });
 
-test("summariseParentTasks reports no action when parent-reviewed records are current", () => {
-    const summary = summariseParentTasks([], [member("one")], [consent("one", true)]);
+test("summariseParentTasks reports no action when dated records are current", () => {
+    const summary = summariseParentTasks([], [member("one")], [consent("one", true)], asOf);
     assert.deepEqual(summary, {
         eventConsentCount: 0,
         medicalAttentionCount: 0,
@@ -109,4 +111,14 @@ test("summariseParentTasks reports no action when parent-reviewed records are cu
         nextEvent: null,
         nextConsentEvent: null
     });
+});
+
+test("summariseParentTasks flags a consent form after its annual validity period", () => {
+    const summary = summariseParentTasks(
+        [],
+        [member("one")],
+        [consent("one", true, { submittedAt: new Date("2025-09-12T12:00:00Z") })],
+        asOf
+    );
+    assert.equal(summary.medicalAttentionCount, 1);
 });
