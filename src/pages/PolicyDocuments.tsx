@@ -72,24 +72,20 @@ export default function PolicyDocuments() {
       <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>Current approved Group policies and reference documents. Access is controlled by the audience selected when each document is published.</Typography>
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-      {canManage && <Card variant="outlined" sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Publish approved document</Typography>
-          <Typography color="text.secondary" sx={{ mt: .5, mb: 2 }}>Upload only an approved PDF. Uploading here is an explicit publication action; source authoring and review remain outside the website.</Typography>
-          <Stack spacing={2}>
-            <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
-            <TextField label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required helperText="Use the Group's established category name; this does not create a separate category system." />
-            <TextField select label="Audience" value={audience} onChange={(e) => setAudience(e.target.value as PolicyAudience)}>{POLICY_AUDIENCES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-            <TextField label="Effective / version date" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="Source owner / reference" value={sourceOwner} onChange={(e) => setSourceOwner(e.target.value)} />
-            <Button component="label" variant="outlined">{file ? file.name : "Choose PDF"}<input hidden type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></Button>
-            <Box><Button variant="contained" disabled={publishing || !file || !title.trim() || !category.trim()} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish document"}</Button></Box>
-          </Stack>
-        </CardContent>
-      </Card>}
-
+      {canManage && <Card variant="outlined" sx={{ mb: 4 }}><CardContent>
+        <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Publish approved document</Typography>
+        <Typography color="text.secondary" sx={{ mt: .5, mb: 2 }}>Upload only an approved PDF. Uploading here is an explicit publication action; source authoring and review remain outside the website.</Typography>
+        <Stack spacing={2}>
+          <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
+          <TextField label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required helperText="Use the Group's established category name; this does not create a separate category system." />
+          <TextField select label="Audience" value={audience} onChange={(e) => setAudience(e.target.value as PolicyAudience)}>{POLICY_AUDIENCES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
+          <TextField label="Effective / version date" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField label="Source owner / reference" value={sourceOwner} onChange={(e) => setSourceOwner(e.target.value)} />
+          <Button component="label" variant="outlined">{file ? file.name : "Choose PDF"}<input hidden type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></Button>
+          <Box><Button variant="contained" disabled={publishing || !file || !title.trim() || !category.trim()} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish document"}</Button></Box>
+        </Stack>
+      </CardContent></Card>}
       <Divider sx={{ mb: 3 }} />
       {loading ? <Typography aria-live="polite">Loading policy documents…</Typography> : documents.length === 0 ? <Alert severity="info">No policy documents are currently available to you.</Alert> : <Stack spacing={3}>
         {categories.map((group) => <Box key={group}>
@@ -97,7 +93,7 @@ export default function PolicyDocuments() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
             {documents.filter((item) => item.category === group).map((item) => <Card key={item.storagePath} variant="outlined">
               <CardContent>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}><Chip size="small" label="Current" /><Chip size="small" variant="outlined" label={item.audience} /></Stack>
+                <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}><Chip size="small" label="Current" /><Chip size="small" variant="outlined" label={item.audience} /></Stack>
                 <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>{item.title}</Typography>
                 {item.description && <Typography sx={{ mt: 1 }}>{item.description}</Typography>}
                 {item.effectiveDate && <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Effective/version date: {item.effectiveDate}</Typography>}
@@ -108,7 +104,6 @@ export default function PolicyDocuments() {
         </Box>)}
       </Stack>}
     </Container>
-
     <Dialog open={Boolean(removeTarget)} onClose={() => !publishing && setRemoveTarget(null)} aria-labelledby="withdraw-policy-title">
       <DialogTitle id="withdraw-policy-title">Withdraw policy document?</DialogTitle>
       <DialogContent><DialogContentText>This removes “{removeTarget?.title}” from the current catalogue. It does not define the Group's long-term records-retention policy.</DialogContentText></DialogContent>
