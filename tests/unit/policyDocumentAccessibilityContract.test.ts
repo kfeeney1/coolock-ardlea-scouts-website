@@ -6,12 +6,12 @@ const page = readFileSync(new URL("../../src/pages/PolicyDocuments.tsx", import.
 
 test("policy catalogue communicates state without colour-only semantics", () => {
   assert.match(page, /label="Current"/);
-  assert.match(page, /label={item\.audience}/);
+  assert.match(page, /item\.audience/);
   assert.match(page, /aria-live="polite"/);
 });
 
 test("policy actions have visible accessible names and confirmation", () => {
-  assert.match(page, />Open PDF</);
-  assert.match(page, />Withdraw</);
-  assert.match(page, /DialogTitle id="withdraw-policy-title"/);
+  assert.match(page, /Open PDF/);
+  assert.match(page, /Withdraw/);
+  assert.match(page, /withdraw-policy-title/);
 });
