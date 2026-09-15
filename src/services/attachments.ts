@@ -1,4 +1,4 @@
-import { deleteObject, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, ref, uploadBytesResumable } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { financeReceiptStoragePath, validateAttachmentUpload } from "./attachmentLogic";
 
@@ -10,13 +10,23 @@ export interface StoredAttachment {
   size: number;
 }
 
+export interface AttachmentUploadProgress {
+  bytesTransferred: number;
+  totalBytes: number;
+}
+
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("You must be signed in to upload attachments.");
   return uid;
 }
 
-export async function uploadFinanceReceipt(section: string, transactionId: string, file: File): Promise<StoredAttachment> {
+export async function uploadFinanceReceipt(
+  section: string,
+  transactionId: string,
+  file: File,
+  onProgress?: (progress: AttachmentUploadProgress) => void,
+): Promise<StoredAttachment> {
   const uid = currentUid();
   const attachmentId = crypto.randomUUID();
   const validated = validateAttachmentUpload({
@@ -29,7 +39,7 @@ export async function uploadFinanceReceipt(section: string, transactionId: strin
   });
   const path = financeReceiptStoragePath(validated.section, attachmentId, validated.safeFileName);
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, {
+  const task = uploadBytesResumable(storageRef, file, {
     contentType: validated.contentType,
     customMetadata: {
       ownerType: validated.ownerType,
@@ -39,6 +49,16 @@ export async function uploadFinanceReceipt(section: string, transactionId: strin
       originalFileName: validated.fileName,
     },
   });
+
+  await new Promise<void>((resolve, reject) => {
+    task.on(
+      "state_changed",
+      (snapshot) => onProgress?.({ bytesTransferred: snapshot.bytesTransferred, totalBytes: snapshot.totalBytes }),
+      reject,
+      resolve,
+    );
+  });
+
   return {
     id: attachmentId,
     path,
@@ -50,5 +70,10 @@ export async function uploadFinanceReceipt(section: string, transactionId: strin
 
 export async function deleteStoredAttachment(path: string): Promise<void> {
   currentUid();
-  await deleteObject(ref(storage, path));
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "storage/object-not-found") return;
+    throw error;
+  }
 }

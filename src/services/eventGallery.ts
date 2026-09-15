@@ -1,4 +1,4 @@
-import { deleteObject, getDownloadURL, getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
 
 import { auth, storage } from "../firebase";
 import { eventGalleryStoragePath, validateEventGalleryUpload } from "./attachmentLogic";
@@ -25,6 +25,16 @@ function safeStorageSegment(value: string, label: string): string {
   const safe = value.trim().replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   if (!safe) throw new Error(`${label} is required.`);
   return safe;
+}
+
+async function authenticatedObjectUrl(path: string, contentType: string): Promise<string> {
+  const blob = await getBlob(ref(storage, path));
+  const typedBlob = blob.type || !contentType ? blob : blob.slice(0, blob.size, contentType);
+  return URL.createObjectURL(typedBlob);
+}
+
+export function revokeEventGalleryPhotoUrls(photos: EventGalleryPhoto[]): void {
+  for (const photo of photos) URL.revokeObjectURL(photo.downloadUrl);
 }
 
 export async function uploadEventGalleryPhoto(section: string, eventId: string, file: File): Promise<EventGalleryPhoto> {
@@ -60,7 +70,7 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
     contentType: validated.contentType,
     size: validated.size,
     uploadedBy: uid,
-    downloadUrl: await getDownloadURL(storageRef),
+    downloadUrl: await authenticatedObjectUrl(path, validated.contentType),
   };
 }
 
@@ -74,33 +84,44 @@ export async function loadEventGalleryPhotos(section: string, eventId: string): 
     ? (await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)
     : result.items;
 
-  const photos = await Promise.all(files.map(async (item) => {
-    const metadata = await getMetadata(item);
-    if (
-      metadata.customMetadata?.ownerType !== "event-gallery" ||
-      metadata.customMetadata?.ownerId !== eventId.trim() ||
-      metadata.customMetadata?.section !== section.trim()
-    ) return null;
+  const photos: EventGalleryPhoto[] = [];
+  try {
+    for (const item of files) {
+      const metadata = await getMetadata(item);
+      if (
+        metadata.customMetadata?.ownerType !== "event-gallery" ||
+        metadata.customMetadata?.ownerId !== eventId.trim() ||
+        metadata.customMetadata?.section !== section.trim()
+      ) continue;
 
-    const pathParts = item.fullPath.split("/");
-    const attachmentId = pathParts.at(-2) || "";
-    return {
-      id: attachmentId,
-      eventId: metadata.customMetadata.ownerId,
-      section: metadata.customMetadata.section,
-      path: item.fullPath,
-      fileName: metadata.customMetadata.originalFileName || item.name,
-      contentType: metadata.contentType || "",
-      size: metadata.size,
-      uploadedBy: metadata.customMetadata.uploadedBy || "",
-      downloadUrl: await getDownloadURL(item),
-    } satisfies EventGalleryPhoto;
-  }));
-
-  return photos.filter((photo): photo is EventGalleryPhoto => photo !== null);
+      const pathParts = item.fullPath.split("/");
+      const attachmentId = pathParts.at(-2) || "";
+      const contentType = metadata.contentType || "";
+      photos.push({
+        id: attachmentId,
+        eventId: metadata.customMetadata.ownerId,
+        section: metadata.customMetadata.section,
+        path: item.fullPath,
+        fileName: metadata.customMetadata.originalFileName || item.name,
+        contentType,
+        size: metadata.size,
+        uploadedBy: metadata.customMetadata.uploadedBy || "",
+        downloadUrl: await authenticatedObjectUrl(item.fullPath, contentType),
+      });
+    }
+    return photos;
+  } catch (error) {
+    revokeEventGalleryPhotoUrls(photos);
+    throw error;
+  }
 }
 
 export async function deleteEventGalleryPhoto(photo: Pick<EventGalleryPhoto, "path">): Promise<void> {
   currentUid();
-  await deleteObject(ref(storage, photo.path));
+  try {
+    await deleteObject(ref(storage, photo.path));
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "storage/object-not-found") return;
+    throw error;
+  }
 }

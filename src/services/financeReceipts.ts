@@ -1,6 +1,6 @@
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 import { auth, storage } from "../firebase";
-import { deleteStoredAttachment, uploadFinanceReceipt } from "./attachments";
+import { deleteStoredAttachment, uploadFinanceReceipt, type AttachmentUploadProgress } from "./attachments";
 import { recordAuditEvent } from "./auditLog";
 
 export interface FinanceReceipt {
@@ -64,9 +64,14 @@ export async function loadFinanceReceipts(section: string): Promise<FinanceRecei
   }
 }
 
-export async function addFinanceReceipt(transactionId: string, section: string, file: File): Promise<void> {
+export async function addFinanceReceipt(
+  transactionId: string,
+  section: string,
+  file: File,
+  onProgress?: (progress: AttachmentUploadProgress) => void,
+): Promise<void> {
   currentUid();
-  const stored = await uploadFinanceReceipt(section, transactionId, file);
+  const stored = await uploadFinanceReceipt(section, transactionId, file, onProgress);
   void recordAuditEvent({ category: "finance", action: "receipt-uploaded", targetId: transactionId, targetLabel: stored.fileName, description: `Receipt attached to finance transaction ${transactionId}`, section });
 }
 

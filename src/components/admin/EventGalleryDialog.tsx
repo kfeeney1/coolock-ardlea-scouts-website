@@ -2,7 +2,7 @@ import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogCont
 import { useEffect, useRef, useState } from "react";
 
 import type { EventRecord } from "../../services/eventAdmin";
-import { deleteEventGalleryPhoto, loadEventGalleryPhotos, uploadEventGalleryPhoto } from "../../services/eventGallery";
+import { deleteEventGalleryPhoto, loadEventGalleryPhotos, revokeEventGalleryPhotoUrls, uploadEventGalleryPhoto } from "../../services/eventGallery";
 import type { EventGalleryPhoto } from "../../services/eventGallery";
 import { withTimeout } from "../../services/eventGalleryLoadLogic";
 import { recordAuditEvent } from "../../services/auditLog";
@@ -23,6 +23,13 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
     const galleryInput = useRef<HTMLInputElement>(null);
     const cameraInput = useRef<HTMLInputElement>(null);
 
+    const replacePhotos = (next: EventGalleryPhoto[]) => {
+        setPhotos((current) => {
+            revokeEventGalleryPhotoUrls(current);
+            return next;
+        });
+    };
+
     const refresh = async () => {
         if (!event) return;
         setLoading(true);
@@ -34,7 +41,7 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
                 GALLERY_LOAD_TIMEOUT_MS,
                 "Event gallery load timed out."
             );
-            setPhotos(loadedPhotos);
+            replacePhotos(loadedPhotos);
         }
         catch (loadError) {
             console.error("Unable to load event gallery:", loadError);
@@ -44,15 +51,24 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
         finally { setLoading(false); }
     };
 
-    useEffect(() => { if (event) void refresh(); else setPhotos([]); }, [event?.id]);
+    useEffect(() => {
+        if (event) void refresh();
+        else replacePhotos([]);
+        return () => setPhotos((current) => {
+            revokeEventGalleryPhotoUrls(current);
+            return [];
+        });
+    }, [event?.id]);
 
     const uploadFiles = async (files: FileList | null) => {
         if (!event || !files?.length) return;
         setUploading(true); setLoadFailed(false); setError(""); setMessage("");
         const results = await Promise.allSettled(Array.from(files).map((file) => uploadEventGalleryPhoto(event.section, event.id, file)));
-        const uploaded = results.filter((result) => result.status === "fulfilled").length;
+        const uploadedPhotos = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+        const uploaded = uploadedPhotos.length;
         const failed = results.length - uploaded;
         if (uploaded) {
+            revokeEventGalleryPhotoUrls(uploadedPhotos);
             await recordAuditEvent({ category: "event", action: "gallery-photo-uploaded", targetId: event.id, targetLabel: event.title, section: event.section, description: `${uploaded} event gallery photo${uploaded === 1 ? "" : "s"} uploaded.` });
             setMessage(`${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded${failed ? `; ${failed} failed.` : "."}`);
             await refresh();
