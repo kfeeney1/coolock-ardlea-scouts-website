@@ -43,7 +43,7 @@ for (const collectionName of FIRESTORE_ROOT_COLLECTIONS) {
   if (matrix.firestore[collectionName] !== "admin-sdk-only" && !firestoreRules.includes(`match /${collectionName}/{`)) fail(`${collectionName} has no Firestore Rules match.`);
 }
 
-const expectedStorage = new Set(["attachments/finance-receipts", "attachments/event-gallery"]);
+const expectedStorage = new Set(["attachments/finance-receipts", "attachments/event-gallery", "attachments/policy-documents"]);
 compare("Storage RBAC matrix", new Set(Object.keys(matrix.storage || {})), expectedStorage);
 for (const path of expectedStorage) if (!storageRules.includes(`match /${path}/`)) fail(`${path} has no Storage Rules match.`);
 
