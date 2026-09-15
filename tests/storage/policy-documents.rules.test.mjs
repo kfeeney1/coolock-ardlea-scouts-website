@@ -99,4 +99,4 @@ test("attachments/policy-documents rejects malformed publication metadata", asyn
   const storage = testEnv.authenticatedContext("admin-1").storage();
   await assertFails(uploadBytes(policyRef(storage), new Uint8Array([1]), { ...policyMetadata("admin-1"), contentType: "text/plain" }));
   await assertFails(uploadBytes(policyRef(storage, "public", "policy-1", "v2"), new Uint8Array([1]), policyMetadata("admin-1", "public", "policy-1", "wrong-version")));
-}
+});
