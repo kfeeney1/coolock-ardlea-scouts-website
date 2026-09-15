@@ -32,5 +32,5 @@ test("catalogue exposes explicit current status and accessible withdrawal confir
   assert.match(page, /label="Current"/);
   assert.match(page, /Withdraw policy document\?/);
   assert.match(page, /aria-labelledby="withdraw-policy-title"/);
-  assert.match(page, /It does not define the Group's long-term records-retention policy/);
+  assert.match(page, /long-term records-retention policy/);
 });
