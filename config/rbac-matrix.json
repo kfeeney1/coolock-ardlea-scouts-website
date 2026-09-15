@@ -9,6 +9,7 @@
     "/activities": "public",
     "/activities/consent": "public-form",
     "/event-consent/:token": "public-form",
+    "/policies": "public",
     "/parent": "parent-entry",
     "/parent/member/:memberId/inactivate": "parent-or-leader-authoritative-action",
     "/join": "public-form",
@@ -44,6 +45,7 @@
     "/leader/events": "leader",
     "/leader/events/:eventId": "leader",
     "/leader/event-consent": "leader",
+    "/leader/policies": "leader",
     "/leader/parent-access": "admin",
     "/leader/settings": "admin"
   },
@@ -87,6 +89,7 @@
   },
   "storage": {
     "attachments/finance-receipts": "finance-section",
-    "attachments/event-gallery": "parent-projected-or-leader-section"
+    "attachments/event-gallery": "parent-projected-or-leader-section",
+    "attachments/policy-documents": "audience-scoped-public-or-authorised-account"
   }
 }

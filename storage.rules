@@ -3,85 +3,47 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
-    function adminProfilePath() {
-      return /databases/(default)/documents/adminUsers/$(request.auth.uid);
-    }
-    function profile() {
-      return firestore.get(adminProfilePath()).data;
-    }
-    function parentProfilePath() {
-      return /databases/(default)/documents/parentAccounts/$(request.auth.uid);
-    }
-    function parentProfile() {
-      return firestore.get(parentProfilePath()).data;
-    }
+    function adminProfilePath() { return /databases/(default)/documents/adminUsers/$(request.auth.uid); }
+    function profile() { return firestore.get(adminProfilePath()).data; }
+    function parentProfilePath() { return /databases/(default)/documents/parentAccounts/$(request.auth.uid); }
+    function parentProfile() { return firestore.get(parentProfilePath()).data; }
     function isActiveLeader() {
-      return signedIn()
-        && (firestore.exists(adminProfilePath())
-          ? profile().get("active", false) == true
-            && profile().get("role", "") in ["leader", "admin", "super-admin"]
-            && profile().get("sections", []) is list
-            && profile().get("sections", []).size() > 0
-          : false);
+      return signedIn() && (firestore.exists(adminProfilePath())
+        ? profile().get("active", false) == true
+          && profile().get("role", "") in ["leader", "admin", "super-admin"]
+          && profile().get("sections", []) is list
+          && profile().get("sections", []).size() > 0
+        : false);
     }
     function isApprovedParent() {
-      return signedIn()
-        && (firestore.exists(parentProfilePath())
-          ? parentProfile().get("status", "") == "approved"
-            && parentProfile().get("memberIds", []) is list
-            && parentProfile().get("linkedSections", []) is list
-          : false);
+      return signedIn() && (firestore.exists(parentProfilePath())
+        ? parentProfile().get("status", "") == "approved"
+          && parentProfile().get("memberIds", []) is list
+          && parentProfile().get("linkedSections", []) is list
+        : false);
     }
-    function isAdmin() {
-      return isActiveLeader()
-        ? profile().get("role", "") in ["admin", "super-admin"]
-        : false;
-    }
-    function leadershipPath() {
-      return /databases/(default)/documents/organisationLeadership/$(request.auth.uid);
-    }
+    function isAdmin() { return isActiveLeader() ? profile().get("role", "") in ["admin", "super-admin"] : false; }
+    function leadershipPath() { return /databases/(default)/documents/organisationLeadership/$(request.auth.uid); }
     function hasLeadershipRole(role) {
-      return isActiveLeader()
-        && (firestore.exists(leadershipPath())
-          ? firestore.get(leadershipPath()).data.get("active", false) == true
-            && firestore.get(leadershipPath()).data.get("scoutingRole", "") == role
-          : false);
+      return isActiveLeader() && (firestore.exists(leadershipPath())
+        ? firestore.get(leadershipPath()).data.get("active", false) == true
+          && firestore.get(leadershipPath()).data.get("scoutingRole", "") == role
+        : false);
     }
     function hasGroupLeadershipRole() {
-      return isActiveLeader()
-        && (firestore.exists(leadershipPath())
-          ? firestore.get(leadershipPath()).data.get("active", false) == true
-            && firestore.get(leadershipPath()).data.get("scoutingRole", "") in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]
-          : false);
+      return isActiveLeader() && (firestore.exists(leadershipPath())
+        ? firestore.get(leadershipPath()).data.get("active", false) == true
+          && firestore.get(leadershipPath()).data.get("scoutingRole", "") in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]
+        : false);
     }
-    function canViewAllFinance() {
-      return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Treasurer");
-    }
-    function canAccessFinanceSection(section) {
-      return isActiveLeader()
-        ? canViewAllFinance() || section in profile().get("sections", [])
-        : false;
-    }
-    function canAccessGallerySection(section) {
-      return isActiveLeader()
-        ? isAdmin() || hasGroupLeadershipRole() || section in profile().get("sections", [])
-        : false;
-    }
-    function galleryAccessPath(eventId) {
-      return /databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid);
-    }
-    function galleryAccess(eventId) {
-      return firestore.get(galleryAccessPath(eventId)).data;
-    }
-    function galleryConsentId(eventId) {
-      return galleryAccess(eventId).get("consentApplicationId", "__missing__");
-    }
-    function galleryConsent(eventId) {
-      return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data;
-    }
-    function galleryEvent(eventId) {
-      return firestore.get(/databases/(default)/documents/events/$(eventId)).data;
-    }
+    function canViewAllFinance() { return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Treasurer"); }
+    function canAccessFinanceSection(section) { return isActiveLeader() ? canViewAllFinance() || section in profile().get("sections", []) : false; }
+    function canAccessGallerySection(section) { return isActiveLeader() ? isAdmin() || hasGroupLeadershipRole() || section in profile().get("sections", []) : false; }
+    function galleryAccessPath(eventId) { return /databases/(default)/documents/eventGalleryAccess/$(eventId)/parents/$(request.auth.uid); }
+    function galleryAccess(eventId) { return firestore.get(galleryAccessPath(eventId)).data; }
+    function galleryConsentId(eventId) { return galleryAccess(eventId).get("consentApplicationId", "__missing__"); }
+    function galleryConsent(eventId) { return firestore.get(/databases/(default)/documents/consentApplications/$(galleryConsentId(eventId))).data; }
+    function galleryEvent(eventId) { return firestore.get(/databases/(default)/documents/events/$(eventId)).data; }
     function canParentReadProjectedGallery(section, eventId) {
       return galleryAccess(eventId).get("active", false) == true
         && galleryAccess(eventId).get("parentUid", "") == request.auth.uid
@@ -102,75 +64,73 @@ service firebase.storage {
         && galleryConsent(eventId).get("photoConsent", "") == "Yes";
     }
     function canParentReadGallery(section, eventId) {
-      return signedIn()
-        && (firestore.exists(galleryAccessPath(eventId))
-          ? isApprovedParent() && canParentReadProjectedGallery(section, eventId)
-          : false);
+      return signedIn() && (firestore.exists(galleryAccessPath(eventId)) ? isApprovedParent() && canParentReadProjectedGallery(section, eventId) : false);
     }
     function validReceiptWrite(section) {
-      return canAccessFinanceSection(section)
-        && resource == null
-        && request.resource != null
-        && request.resource.size > 0
-        && request.resource.size <= 10 * 1024 * 1024
+      return canAccessFinanceSection(section) && resource == null && request.resource != null
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["image/jpeg", "image/png", "image/webp", "application/pdf"]
         && request.resource.metadata.ownerType == "finance-receipt"
         && request.resource.metadata.section == section
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
     function validEventGalleryWrite(section, eventId) {
-      return canAccessGallerySection(section)
-        && request.resource != null
-        && request.resource.size > 0
-        && request.resource.size <= 10 * 1024 * 1024
+      return canAccessGallerySection(section) && request.resource != null
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType in ["image/jpeg", "image/png", "image/webp"]
         && request.resource.metadata.ownerType == "event-gallery"
         && request.resource.metadata.ownerId == eventId
         && request.resource.metadata.section == section
         && request.resource.metadata.uploadedBy == request.auth.uid;
     }
-
-    match /attachments/finance-receipts/{section}/{allPaths=**} {
-      allow list: if canAccessFinanceSection(section);
+    function canManagePolicies() { return isAdmin() || hasGroupLeadershipRole(); }
+    function canReadPolicyAudience(audience) {
+      return audience == "public"
+        || (audience == "authenticated" && (isActiveLeader() || isApprovedParent()))
+        || (audience == "parent" && isApprovedParent())
+        || (audience == "leader" && isActiveLeader())
+        || (audience == "admin" && canManagePolicies());
+    }
+    function validPolicyWrite(audience, documentId, versionId) {
+      return canManagePolicies() && resource == null && request.resource != null
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType == "application/pdf"
+        && request.resource.metadata.ownerType == "policy-document"
+        && request.resource.metadata.documentId == documentId
+        && request.resource.metadata.versionId == versionId
+        && request.resource.metadata.audience == audience
+        && request.resource.metadata.state == "current"
+        && request.resource.metadata.publishedBy == request.auth.uid;
     }
 
+    match /attachments/finance-receipts/{section}/{allPaths=**} { allow list: if canAccessFinanceSection(section); }
     match /attachments/finance-receipts/{section}/{attachmentId}/{fileName} {
       allow get: if canAccessFinanceSection(section);
       allow create: if validReceiptWrite(section);
       allow update: if false;
-      allow delete: if canAccessFinanceSection(section)
-        && resource.metadata.ownerType == "finance-receipt"
-        && resource.metadata.section == section;
+      allow delete: if canAccessFinanceSection(section) && resource.metadata.ownerType == "finance-receipt" && resource.metadata.section == section;
     }
 
-    // Keep leader section discovery separate from exact event-path listing. A
-    // recursive section match also matches parent event paths under rules v2 and
-    // makes the emulator evaluate unrelated leader access while authorizing a
-    // parent list. Exact matches keep both authorization paths fail-closed.
-    match /attachments/event-gallery/{section} {
-      allow list: if canAccessGallerySection(section);
-    }
-
-    match /attachments/event-gallery/{section}/{eventId} {
-      allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
-    }
-
-    match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} {
-      allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
-    }
-
+    match /attachments/event-gallery/{section} { allow list: if canAccessGallerySection(section); }
+    match /attachments/event-gallery/{section}/{eventId} { allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId); }
+    match /attachments/event-gallery/{section}/{eventId}/{allPaths=**} { allow list: if canAccessGallerySection(section) || canParentReadGallery(section, eventId); }
     match /attachments/event-gallery/{section}/{eventId}/{attachmentId}/{fileName} {
       allow get: if canAccessGallerySection(section) || canParentReadGallery(section, eventId);
       allow create: if validEventGalleryWrite(section, eventId);
       allow update: if false;
-      allow delete: if canAccessGallerySection(section)
-        && resource.metadata.ownerType == "event-gallery"
-        && resource.metadata.ownerId == eventId
-        && resource.metadata.section == section;
+      allow delete: if canAccessGallerySection(section) && resource.metadata.ownerType == "event-gallery" && resource.metadata.ownerId == eventId && resource.metadata.section == section;
     }
 
-    match /{allPaths=**} {
-      allow read, write: if false;
+    match /attachments/policy-documents/current/{audience} { allow list: if canReadPolicyAudience(audience); }
+    match /attachments/policy-documents/current/{audience}/{documentId} { allow list: if canReadPolicyAudience(audience); }
+    match /attachments/policy-documents/current/{audience}/{documentId}/{versionId} { allow list: if canReadPolicyAudience(audience); }
+    match /attachments/policy-documents/current/{audience}/{documentId}/{versionId}/{fileName} {
+      allow get: if canReadPolicyAudience(audience) && resource.metadata.ownerType == "policy-document" && resource.metadata.audience == audience && resource.metadata.state == "current";
+      allow create: if validPolicyWrite(audience, documentId, versionId);
+      allow update: if false;
+      allow delete: if canManagePolicies() && resource.metadata.ownerType == "policy-document";
     }
+
+    match /{allPaths=**} { allow read, write: if false; }
   }
 }
