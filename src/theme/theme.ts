@@ -95,8 +95,50 @@ export const modernTheme = createTheme({
   }
 });
 
+function referenceTheme(
+  style: "irishAdventure" | "ukCampaign" | "programmeLed",
+  options: { page: string; paper: string; radius: number; font: string; headingWeight: number; shadow: string }
+) {
+  const colours = controlColours[style];
+  return createTheme({
+    palette: {
+      primary: { main: colours.primary.background, contrastText: colours.primary.foreground },
+      secondary: { main: colours.secondary.background, contrastText: colours.secondary.foreground },
+      success: { main: colours.success.background, dark: colours.success.background, contrastText: colours.success.foreground },
+      background: { default: options.page, paper: options.paper },
+      text: { primary: brandColours.text, secondary: brandColours.muted },
+      divider: "#D8DEE9"
+    },
+    typography: {
+      fontFamily: options.font,
+      h1: { fontWeight: options.headingWeight }, h2: { fontWeight: options.headingWeight }, h3: { fontWeight: options.headingWeight },
+      h4: { fontWeight: 800 }, h5: { fontWeight: 750 }, button: { fontWeight: 800 }
+    },
+    shape: { borderRadius: options.radius },
+    components: {
+      MuiAppBar: { styleOverrides: { root: { backgroundImage: "none" } } },
+      MuiButton: { styleOverrides: { root: { borderRadius: style === "ukCampaign" ? "4px" : style === "programmeLed" ? "10px" : "999px", textTransform: "none", minHeight: "42px", paddingLeft: "22px", paddingRight: "22px", boxShadow: "none" } } },
+      MuiDialogActions: responsiveDialogActions,
+      MuiPopover: stableTransientPopovers,
+      MuiTextField: stableTextFieldSelect,
+      MuiOutlinedInput: { styleOverrides: { root: { borderRadius: style === "ukCampaign" ? "4px" : `${Math.max(8, options.radius - 4)}px` } } },
+      MuiPaper: { styleOverrides: { rounded: { borderRadius: `${options.radius}px` }, root: { backgroundImage: "none" } } },
+      MuiCard: { styleOverrides: { root: { borderRadius: `${options.radius}px`, border: style === "programmeLed" ? "1px solid #D8DEE9" : "none", boxShadow: options.shadow } } },
+      MuiChip: { styleOverrides: { root: { fontWeight: 700 } } }
+    }
+  });
+}
+
+export const irishAdventureTheme = referenceTheme("irishAdventure", { page: "#F7F3EA", paper: "#FFFFFF", radius: 22, font: '"Trebuchet MS", "Segoe UI", sans-serif', headingWeight: 800, shadow: "0 14px 36px rgba(8,30,103,0.10)" });
+export const ukCampaignTheme = referenceTheme("ukCampaign", { page: "#F2F0F7", paper: "#FFFFFF", radius: 4, font: 'Arial, "Segoe UI", sans-serif', headingWeight: 900, shadow: "8px 8px 0 rgba(8,30,103,0.14)" });
+export const programmeLedTheme = referenceTheme("programmeLed", { page: "#F4F7F5", paper: "#FFFFFF", radius: 14, font: '"Segoe UI", Roboto, sans-serif', headingWeight: 750, shadow: "0 6px 22px rgba(31,41,55,0.07)" });
+
 export function themeForName(name: ThemeName): Theme {
-  return name === "modern" ? modernTheme : defaultTheme;
+  if (name === "modern") return modernTheme;
+  if (name === "irish-adventure") return irishAdventureTheme;
+  if (name === "uk-campaign") return ukCampaignTheme;
+  if (name === "programme-led") return programmeLedTheme;
+  return defaultTheme;
 }
 
 export {

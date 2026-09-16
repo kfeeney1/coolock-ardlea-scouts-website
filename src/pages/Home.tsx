@@ -21,6 +21,7 @@ export default function Home() {
     return (
         <Box>
             <Box
+                data-theme-surface="hero"
                 sx={{
                     background: `linear-gradient(
                         135deg,
@@ -35,7 +36,7 @@ export default function Home() {
                 }}
             >
                 <Container maxWidth="lg">
-                    <Box
+                    <Box data-theme-surface="hero-content"
                         sx={{
                             maxWidth: 820,
                             mx: "auto",
@@ -106,10 +107,11 @@ export default function Home() {
                         {content.home.discoverIntro}
                     </Typography>
 
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
+                    <Box data-theme-surface="feature-grid" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 3 }}>
                         {content.home.featureCards.map((feature) => (
                             <Paper
                                 key={feature.title}
+                                data-theme-surface="feature-card"
                                 elevation={2}
                                 sx={{
                                     p: 4,

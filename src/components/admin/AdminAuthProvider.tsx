@@ -1,5 +1,6 @@
 import {
     createContext,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
@@ -28,6 +29,7 @@ import {
 } from "../../services/siteSettings";
 import type { SessionSettings } from "../../services/siteSettings";
 import { normalizeThemePreference, type ThemeName } from "../../theme/themePreferences";
+import { saveThemePreference } from "../../services/themePreference";
 
 export type SystemRole = "super-admin" | "admin" | "leader";
 
@@ -48,6 +50,7 @@ type AdminAuthContextValue = {
     authorised: boolean;
     sessionSettings: SessionSettings;
     refreshSessionSettings: () => Promise<void>;
+    setUiTheme: (theme: ThemeName) => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
 };
@@ -254,6 +257,12 @@ export function AdminAuthProvider({ children }: Props) {
         await signOut(auth);
     };
 
+    const setUiTheme = useCallback(async (theme: ThemeName) => {
+        if (adminProfile?.role !== "super-admin") throw new Error("Only a Super Admin can change the look and feel.");
+        await saveThemePreference(theme);
+        setAdminProfile((current) => current ? { ...current, uiTheme: theme } : current);
+    }, [adminProfile?.role]);
+
     const value = useMemo<AdminAuthContextValue>(() => ({
         user,
         adminProfile,
@@ -261,9 +270,10 @@ export function AdminAuthProvider({ children }: Props) {
         authorised: Boolean(user) && Boolean(adminProfile),
         sessionSettings,
         refreshSessionSettings,
+        setUiTheme,
         login,
         logout
-    }), [user, adminProfile, loading, sessionSettings]);
+    }), [user, adminProfile, loading, sessionSettings, setUiTheme]);
 
     return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }

@@ -8,6 +8,37 @@ body {
   min-width: 320px;
 }
 
+/* Alternate looks intentionally reuse the group's established red, navy and green. */
+[data-ui-theme="irish-adventure"] [data-theme-surface="hero"] {
+  background: linear-gradient(115deg, rgba(8, 30, 103, .88), rgba(215, 38, 61, .80)), url("/src/assets/hero.png") center/cover !important;
+  min-height: min(70vh, 720px);
+  display: grid;
+  align-items: center;
+}
+[data-ui-theme="irish-adventure"] [data-theme-surface="hero-content"] { text-align: left; margin-left: 0; }
+[data-ui-theme="irish-adventure"] [data-theme-surface="feature-card"] { transform: translateY(-22px); }
+
+[data-ui-theme="uk-campaign"] [data-theme-surface="header"] { border-bottom-width: 8px !important; }
+[data-ui-theme="uk-campaign"] [data-theme-surface="hero"] {
+  background: #081E67 !important;
+  border-bottom: 18px solid #D7263D;
+}
+[data-ui-theme="uk-campaign"] [data-theme-surface="hero-content"] { text-align: left; margin-left: 0; }
+[data-ui-theme="uk-campaign"] [data-theme-surface="hero-content"] h1 { text-transform: uppercase; line-height: .95; letter-spacing: -.04em; }
+[data-ui-theme="uk-campaign"] [data-theme-surface="feature-card"] { border-top-width: 12px !important; }
+
+[data-ui-theme="programme-led"] [data-theme-surface="hero"] {
+  background: linear-gradient(135deg, #081E67 0 62%, #D7263D 62% 100%) !important;
+}
+[data-ui-theme="programme-led"] [data-theme-surface="feature-grid"] { gap: 20px; }
+[data-ui-theme="programme-led"] [data-theme-surface="feature-card"] { border: 1px solid #D8DEE9; border-left: 6px solid #D7263D; border-top-width: 1px !important; }
+
+@media (max-width: 600px) {
+  [data-ui-theme="irish-adventure"] [data-theme-surface="hero-content"],
+  [data-ui-theme="uk-campaign"] [data-theme-surface="hero-content"] { text-align: center; }
+  [data-ui-theme="irish-adventure"] [data-theme-surface="feature-card"] { transform: none; }
+}
+
 .MuiMenu-paper,
 .MuiAutocomplete-paper {
   overscroll-behavior: contain;

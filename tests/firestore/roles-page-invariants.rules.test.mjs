@@ -58,3 +58,10 @@ test("no Super Admin can alter another protected Super Admin through adminUsers"
     updatedBy: "super"
   }));
 });
+
+test("Super Admin can change only their own approved look and feel", async () => {
+  const db = testEnv.authenticatedContext("super").firestore();
+  await assertSucceeds(updateDoc(doc(db, "adminUsers/super"), { uiTheme: "irish-adventure" }));
+  await assertFails(updateDoc(doc(db, "adminUsers/super"), { uiTheme: "unknown-theme" }));
+  await assertFails(updateDoc(doc(db, "adminUsers/other-super"), { uiTheme: "uk-campaign" }));
+});
