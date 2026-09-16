@@ -115,6 +115,9 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(["section"]);
       allow update: if (request.auth.uid == userId && isActiveLeader()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
+        || (request.auth.uid == userId && isSuperAdmin()
+          && request.resource.data.uiTheme in ["default", "modern", "irish-adventure", "uk-campaign", "programme-led"]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["uiTheme"]))
         || ((isAdmin() || canDelegateLeaderTarget(userId)) && resource.data.role == "leader"
           && request.resource.data.role == "leader"
           && request.resource.data.sections is list

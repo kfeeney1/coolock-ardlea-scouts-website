@@ -33,7 +33,7 @@ function assertNormalTextContrast(label: string, foreground: string, background:
   );
 }
 
-test("default and modern contained-control colours meet AA text contrast", () => {
+test("all contained-control theme colours meet AA text contrast", () => {
   for (const [themeName, themeColours] of Object.entries(controlColours)) {
     for (const [role, colours] of Object.entries(themeColours)) {
       assertNormalTextContrast(`${themeName} ${role}`, colours.foreground, colours.background);

@@ -23,7 +23,7 @@ export default function Header() {
     const menuItems = content.navigation;
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
 
-    return <AppBar data-site-sticky-header position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
+    return <AppBar data-site-sticky-header data-theme-surface="header" position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
         <Toolbar sx={{ minHeight: { xs: 72, md: 82 } }}>
             <Box component={Link} to="/" sx={{ display: "flex", alignItems: "center", textDecoration: "none", color: "inherit", flexGrow: 1, minWidth: 0 }}>
                 <Box component="img" src={logo} alt={content.group.name} sx={{ width: { xs: 52, md: 64 }, height: { xs: 52, md: 64 }, objectFit: "contain", mr: { xs: 1.25, md: 2 }, flexShrink: 0 }} />
