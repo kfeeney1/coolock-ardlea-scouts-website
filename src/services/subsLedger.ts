@@ -18,6 +18,7 @@ import {
   type SubsRateCategory,
   type SubsRatePolicy
 } from "./subsLogic";
+import { mapSubsPolicy } from "./subsPolicyCompatibility";
 
 const uid = () => {
   const value = auth.currentUser?.uid;
@@ -32,9 +33,18 @@ const asDate = (value: unknown) => value && typeof value === "object" && "toDate
 export async function loadSubsPolicies(): Promise<SubsRatePolicy[]> {
   const snap = await getDocs(collection(db, "subsRatePolicies"));
   return snap.docs
-    .map((item) => ({ id: item.id, ...item.data() } as SubsRatePolicy))
+    .map((item) => mapSubsPolicy(item.id, item.data()))
+    .filter((policy): policy is SubsRatePolicy => policy !== null)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
 }
+
+/**
+ * Reads both the current immutable policy contract and policies created before
+ * periodStart/periodEnd and family-total tables were introduced. Missing
+ * financial values are never inferred: legacy tables remain empty, which keeps
+ * them readable for payment history while preventing a new family account from
+ * being priced from invented data.
+ */
 
 export async function saveSubsPolicy(input: Omit<SubsRatePolicy, "id">): Promise<string> {
   const actor = uid();
