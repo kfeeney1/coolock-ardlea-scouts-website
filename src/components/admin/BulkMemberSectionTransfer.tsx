@@ -102,7 +102,7 @@ export default function BulkMemberSectionTransfer({ members, visibleMembers, onT
               <Paper key={member.id} variant="outlined" sx={{ px: 1.5, py: 1, opacity: eligible ? 1 : 0.65 }}>
                 <FormControlLabel
                   sx={{ m: 0, width: "100%", minHeight: 44 }}
-                  control={<Checkbox checked={selectedIds.has(member.id)} disabled={!eligible} onChange={() => toggle(member.id)} inputProps={{ "aria-label": `Select ${member.displayName}` }} />}
+                  control={<Checkbox checked={selectedIds.has(member.id)} disabled={!eligible} onChange={() => toggle(member.id)} slotProps={{ input: { "aria-label": `Select ${member.displayName}` } }} />}
                   label={<Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography>{member.displayName}</Typography><Chip size="small" variant="outlined" label={member.section} />{!eligible && <Chip size="small" label={member.status} />}</Stack>}
                 />
               </Paper>
