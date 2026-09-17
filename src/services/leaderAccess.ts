@@ -11,7 +11,7 @@ import {
 } from "../security/leaderDelegationPolicy.ts";
 import { normalizeScoutingAppointment } from "../security/scoutingAppointments.ts";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
-import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
+import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "./publicWhosWhoLogic";
 
 export type LeaderAccessRecord = {
   uid: string;
@@ -61,7 +61,7 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
       organisationSection: typeof org?.organisationSection === "string" ? org.organisationSection : sections[0] || "Group",
       organisationOrder: typeof org?.organisationOrder === "number" ? org.organisationOrder : 999,
       reportsToUid: typeof org?.reportsToUid === "string" ? org.reportsToUid : "",
-      showPublicly: role === "leader" && org?.showPublicly === true,
+      showPublicly: org?.showPublicly === true,
       accessVersion: timestampVersion(data.updatedAt),
       organisationVersion: timestampVersion(org?.updatedAt)
     };
@@ -157,14 +157,14 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         organisationSection: record.organisationSection.trim().slice(0, 80),
         organisationOrder: Math.max(0, Math.min(999, Math.round(record.organisationOrder))),
         reportsToUid: record.reportsToUid.trim().slice(0, 128),
-        showPublicly: record.role === "leader" && record.showPublicly,
+        showPublicly: record.showPublicly,
         active: true,
         updatedAt: serverTimestamp()
       };
       transaction.set(targetOrgRef, safeOrg);
 
       if (adminActor) {
-        if (record.role === "leader" && safeOrg.showPublicly && isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
+        if (shouldPublishLeader({ active: true, showPublicly: safeOrg.showPublicly, scoutingRole: safeAppointment, organisationSection: safeOrg.organisationSection })) {
           transaction.set(publicRef, {
             ...safeOrg,
             showPublicly: true,

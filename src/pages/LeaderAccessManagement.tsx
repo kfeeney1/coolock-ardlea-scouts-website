@@ -54,8 +54,6 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
     changes.push(next.showPublicly
       ? "Name, scouting role, section and hierarchy will be published on the public Who's Who."
       : "The leader will be removed from the public Who's Who.");
-  } else if (previous.role === "leader" && previous.showPublicly && next.role !== "leader") {
-    changes.push("The public Who's Who listing will be removed because the account is no longer a Leader role.");
   }
   return changes;
 }
@@ -150,7 +148,7 @@ export default function LeaderAccessManagement() {
         </Box>
         <FormControlLabel
           sx={{ alignItems: "flex-start", mt: 2 }}
-          control={<Switch checked={record.showPublicly} disabled={!isAdminActor || record.role !== "leader"} onChange={(e) => patch(record.uid, { showPublicly: e.target.checked })} />}
+          control={<Switch checked={record.showPublicly} disabled={!isAdminActor} onChange={(e) => patch(record.uid, { showPublicly: e.target.checked })} />}
           label={<Box><Typography sx={{ fontWeight: 700 }}>Show on public Who's Who</Typography><Typography variant="body2" color="text.secondary">Publishes name, scouting role, section and hierarchy only. Email, phone and account role remain private.</Typography></Box>}
         />
         <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid} onClick={() => requestSave(record)}>Save Leader</Button>
