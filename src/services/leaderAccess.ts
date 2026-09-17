@@ -82,12 +82,14 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const publicRef = doc(db, "publicLeadership", record.uid);
     const auditRef = doc(collection(db, "auditLog"));
 
-    const [actorAccessSnap, actorOrgSnap, targetAccessSnap, targetOrgSnap, publicSnap] = await Promise.all([
+    // Do not read publicLeadership here. Its public-read rule deliberately rejects
+    // missing/non-public projections, which made an otherwise authorised Leader
+    // Access transaction fail before any write when the target was not on Who's Who.
+    const [actorAccessSnap, actorOrgSnap, targetAccessSnap, targetOrgSnap] = await Promise.all([
       transaction.get(actorAccessRef),
       transaction.get(actorOrgRef),
       transaction.get(targetAccessRef),
-      transaction.get(targetOrgRef),
-      transaction.get(publicRef)
+      transaction.get(targetOrgRef)
     ]);
     if (!actorAccessSnap.exists() || !targetAccessSnap.exists()) throw new Error("Leader access record no longer exists.");
 
@@ -146,7 +148,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
 
     if (!record.active) {
       if (targetOrgSnap.exists()) transaction.delete(targetOrgRef);
-      if (adminActor && publicSnap.exists()) transaction.delete(publicRef);
+      if (adminActor) transaction.delete(publicRef);
     } else {
       const safeAppointment = canonicalAppointment || "Scouter";
       const safeOrg = {
@@ -169,10 +171,10 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
             publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
             sourceAccessRole: "leader"
           });
-        } else if (publicSnap.exists()) {
+        } else {
           transaction.delete(publicRef);
         }
-      } else if (publicSnap.exists()) {
+      } else if (currentOrg?.showPublicly === true) {
         if (!isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
           throw new Error("An Administrator must change the appointment of a publicly listed leader when the new appointment is not public-listing compatible.");
         }
