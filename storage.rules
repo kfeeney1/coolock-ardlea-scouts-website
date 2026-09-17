@@ -102,6 +102,16 @@ service firebase.storage {
         && request.resource.metadata.state == "current"
         && request.resource.metadata.publishedBy == request.auth.uid;
     }
+    function canAccessMeetingSection(section) { return isAdmin() || hasGroupLeadershipRole() || hasLeadershipRole("Group Secretary") || section in profile().get("sections", []); }
+    function validMeetingDocumentWrite(section, meetingId) {
+      return isActiveLeader() && canAccessMeetingSection(section) && resource == null && request.resource != null
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"]
+        && request.resource.metadata.ownerType == "meeting-document"
+        && request.resource.metadata.ownerId == meetingId
+        && request.resource.metadata.section == section
+        && request.resource.metadata.uploadedBy == request.auth.uid;
+    }
 
     match /attachments/finance-receipts/{section}/{allPaths=**} { allow list: if canAccessFinanceSection(section); }
     match /attachments/finance-receipts/{section}/{attachmentId}/{fileName} {
@@ -129,6 +139,12 @@ service firebase.storage {
       allow create: if validPolicyWrite(audience, documentId, versionId);
       allow update: if false;
       allow delete: if canManagePolicies() && resource.metadata.ownerType == "policy-document";
+    }
+    match /attachments/meeting-documents/{section}/{meetingId}/{attachmentId}/{fileName} {
+      allow get: if isActiveLeader() && canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
+      allow create: if validMeetingDocumentWrite(section, meetingId);
+      allow update: if false;
+      allow delete: if isActiveLeader() && canAccessMeetingSection(section) && resource.metadata.ownerType == "meeting-document" && resource.metadata.ownerId == meetingId && resource.metadata.section == section;
     }
 
     match /{allPaths=**} { allow read, write: if false; }

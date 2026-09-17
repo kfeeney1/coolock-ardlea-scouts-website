@@ -1,6 +1,7 @@
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import type { DocumentData, DocumentSnapshot, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { removeMeetingDocument, uploadMeetingDocument, type MeetingDocument } from "./meetingDocuments";
 
 export type MeetingType = "group" | "group-leaders" | "leader";
 type StoredMeetingType = "group" | "leader";
@@ -15,6 +16,7 @@ export type MeetingRecord = {
   notes: string;
   decisions: string;
   actions: string;
+  attachment: MeetingDocument | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 };
@@ -69,6 +71,7 @@ function mapMeeting(snapshot: DocumentSnapshot<DocumentData>): MeetingRecord | n
     notes: stringValue(data, "notes"),
     decisions: stringValue(data, "decisions"),
     actions: stringValue(data, "actions"),
+    attachment: data.attachment && typeof data.attachment === "object" ? data.attachment as MeetingDocument : null,
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt)
   };
@@ -87,7 +90,8 @@ function cleanInput(input: MeetingInput): MeetingInput {
     attendees: input.attendees.map((name) => clean(name, 120)).filter(Boolean).slice(0, 60),
     notes: clean(input.notes, 12000),
     decisions: clean(input.decisions, 8000),
-    actions: clean(input.actions, 8000)
+    actions: clean(input.actions, 8000),
+    attachment: input.attachment
   };
 }
 
@@ -100,7 +104,8 @@ function toStoredInput(input: MeetingInput) {
     attendees: input.attendees,
     notes: input.notes,
     decisions: input.decisions,
-    actions: input.actions
+    actions: input.actions,
+    ...(input.attachment ? { attachment: input.attachment } : {})
   };
 }
 
@@ -152,22 +157,24 @@ export async function loadMeetingRecordVersions(meetingId: string): Promise<Meet
   }).sort((a, b) => (b.versionedAt?.getTime() ?? 0) - (a.versionedAt?.getTime() ?? 0));
 }
 
-export async function createMeetingRecord(input: MeetingInput): Promise<string> {
+export async function createMeetingRecord(input: MeetingInput, file?: File | null): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   const cleaned = cleanInput(input);
   if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new Error("Meeting does not match the canonical data contract.");
-  const result = await addDoc(collection(db, "meetingRecords"), {
-    ...toStoredInput(cleaned),
-    createdBy: user.uid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    updatedBy: user.uid
-  });
-  return result.id;
+  const recordRef = doc(collection(db, "meetingRecords"));
+  let uploaded: MeetingDocument | null = null;
+  try {
+    if (file) uploaded = await uploadMeetingDocument(cleaned.section, recordRef.id, file);
+    await setDoc(recordRef, { ...toStoredInput({ ...cleaned, attachment: uploaded ?? cleaned.attachment }), createdBy: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: user.uid });
+    return recordRef.id;
+  } catch (error) {
+    if (uploaded) await removeMeetingDocument(uploaded.path).catch(() => undefined);
+    throw error;
+  }
 }
 
-export async function updateMeetingRecord(id: string, input: MeetingInput): Promise<void> {
+export async function updateMeetingRecord(id: string, input: MeetingInput, file?: File | null): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("Leader authentication is required.");
   const cleaned = cleanInput(input);
@@ -186,13 +193,17 @@ export async function updateMeetingRecord(id: string, input: MeetingInput): Prom
     attendees: current.attendees,
     notes: current.notes,
     decisions: current.decisions,
-    actions: current.actions
+    actions: current.actions,
+    attachment: current.attachment
   };
 
+  let uploaded: MeetingDocument | null = null;
+  if (file) uploaded = await uploadMeetingDocument(cleaned.section, id, file);
+  const next = { ...cleaned, attachment: uploaded ?? cleaned.attachment };
   const auditRef = doc(collection(db, "auditLog"));
   const batch = writeBatch(db);
   batch.update(recordRef, {
-    ...toStoredInput(cleaned),
+    ...toStoredInput(next),
     updatedAt: serverTimestamp(),
     updatedBy: user.uid
   });
@@ -207,5 +218,11 @@ export async function updateMeetingRecord(id: string, input: MeetingInput): Prom
     section: cleaned.section,
     createdAt: serverTimestamp()
   });
-  await batch.commit();
+  try {
+    await batch.commit();
+    if (uploaded && current.attachment?.path && current.attachment.path !== uploaded.path) await removeMeetingDocument(current.attachment.path).catch(() => undefined);
+  } catch (error) {
+    if (uploaded) await removeMeetingDocument(uploaded.path).catch(() => undefined);
+    throw error;
+  }
 }

@@ -5,6 +5,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { isSupportedMeetingImportFile, parseMeetingDocument } from "../services/meetingRecordImport";
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
+import { openMeetingDocument } from "../services/meetingDocuments";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
@@ -19,7 +20,8 @@ const emptyForm: MeetingInput = {
   attendees: [],
   notes: "",
   decisions: "",
-  actions: ""
+  actions: "",
+  attachment: null
 };
 
 function formatMeetingDate(value: string): string {
@@ -50,6 +52,7 @@ export default function MeetingRecords() {
   const [success, setSuccess] = useState("");
   const [importMessage, setImportMessage] = useState("");
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
   const [versionsByMeeting, setVersionsByMeeting] = useState<Record<string, MeetingRecordVersion[]>>({});
   const [versionLoadingId, setVersionLoadingId] = useState<string | null>(null);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
@@ -82,6 +85,7 @@ export default function MeetingRecords() {
     setAttendeesText("");
     setImportMessage("");
     setImportWarnings([]);
+    setSelectedDocument(null);
     setForm({ ...emptyForm, section: sections[0] ?? "" });
   };
 
@@ -100,13 +104,10 @@ export default function MeetingRecords() {
     setImportMessage("");
     setImportWarnings([]);
 
-    if (!isSupportedMeetingImportFile(file.name, file.type)) {
-      setError("This file type cannot be read safely in the browser. Export Word or PDF minutes as .txt, .md or .html and upload that file instead.");
-      return;
-    }
+    setSelectedDocument(file);
+    if (!isSupportedMeetingImportFile(file.name, file.type)) { setImportMessage(`Selected ${file.name}. It will be attached when the meeting is saved.`); return; }
     if (file.size > MAX_IMPORT_BYTES) {
-      setError("The meeting document is too large. Upload a text export smaller than 500 KB.");
-      return;
+      setImportMessage(`Selected ${file.name}. It will be attached without importing its text because it is larger than 500 KB.`); return;
     }
 
     try {
@@ -133,7 +134,8 @@ export default function MeetingRecords() {
         attendees: imported.attendees,
         notes: imported.notes,
         decisions: imported.decisions,
-        actions: imported.actions
+        actions: imported.actions,
+        attachment: null
       });
       setAttendeesText(imported.attendees.join("\n"));
       setImportMessage(`Imported draft from ${file.name}. Review every field below before saving.`);
@@ -162,7 +164,7 @@ export default function MeetingRecords() {
     setSaving(true);
     try {
       if (editingId) {
-        await updateMeetingRecord(editingId, input);
+        await updateMeetingRecord(editingId, input, selectedDocument);
         setVersionsByMeeting((current) => {
           const next = { ...current };
           delete next[editingId];
@@ -170,7 +172,7 @@ export default function MeetingRecords() {
         });
         setSuccess("Meeting record updated. The previous version has been retained in the audit history.");
       } else {
-        await createMeetingRecord(input);
+        await createMeetingRecord(input, selectedDocument);
         setSuccess("Meeting record saved.");
       }
       resetForm();
@@ -195,7 +197,8 @@ export default function MeetingRecords() {
       attendees: record.attendees,
       notes: record.notes,
       decisions: record.decisions,
-      actions: record.actions
+      actions: record.actions,
+      attachment: record.attachment
     });
     setAttendeesText(record.attendees.join("\n"));
     window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -241,9 +244,10 @@ export default function MeetingRecords() {
         <Typography color="text.secondary" sx={{ mb: 2 }}>Upload a text, Markdown or HTML export of meeting minutes. The document is read only in your browser and converted into an editable draft; nothing is saved until you review the fields and press Save Meeting.</Typography>
         <Button variant="outlined" component="label">
           Choose meeting document
-          <input hidden type="file" accept=".txt,.md,.html,.htm,text/plain,text/markdown,text/html" onChange={(event) => void importDocument(event)} />
+          <input hidden type="file" accept=".pdf,.doc,.docx,.odt,.txt,.md,.html,.htm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,text/plain,text/markdown,text/html" onChange={(event) => void importDocument(event)} />
         </Button>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>For Word or PDF minutes, export or save a copy as text/HTML first. Recommended headings: Title, Meeting Type, Section, Date, Attendees, Minutes, Decisions and Action Items.</Typography>
+        {selectedDocument && <Chip sx={{ ml: 1 }} label={selectedDocument.name} onDelete={() => setSelectedDocument(null)} />}
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>PDF, Word and OpenDocument files are attached securely. Text, Markdown and HTML files are also imported into the editable draft.</Typography>
       </Paper>
 
       <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
@@ -292,6 +296,7 @@ export default function MeetingRecords() {
                 </Stack>
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                {record.attachment && <Button variant="text" onClick={() => void openMeetingDocument(record.attachment!)}>Open {record.attachment.fileName}</Button>}
                 {isAdmin && <Button variant="text" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
                 {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
               </Stack>

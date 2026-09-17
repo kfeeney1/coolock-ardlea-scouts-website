@@ -4,15 +4,24 @@ import {
   MAX_ATTACHMENT_BYTES,
   eventGalleryStoragePath,
   financeReceiptStoragePath,
+  meetingDocumentStoragePath,
   sanitiseAttachmentFileName,
   validateAttachmentUpload,
   validateEventGalleryUpload,
+  validateMeetingDocument,
 } from "../../src/services/attachmentLogic.ts";
 
 test("attachment validation accepts supported receipt files and normalises names", () => {
   const result = validateAttachmentUpload({ ownerType: "finance-receipt", ownerId: "tx-1", section: " Cubs ", fileName: " Shop receipt (1).JPG ", contentType: "image/jpeg", size: 1234 });
   assert.equal(result.section, "Cubs");
   assert.equal(result.safeFileName, "Shop-receipt-1-.JPG");
+});
+
+test("meeting documents accept controlled Android picker formats and safe paths", () => {
+  const doc = validateMeetingDocument({ ownerType: "meeting-document", ownerId: "meeting-1", section: "Cubs", fileName: "Council minutes.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 2048 });
+  assert.equal(doc.safeFileName, "Council-minutes.docx");
+  assert.equal(meetingDocumentStoragePath("Cub Scouts", "meeting 1", "file 1", doc.fileName), "attachments/meeting-documents/Cub-Scouts/meeting-1/file-1/Council-minutes.docx");
+  assert.throws(() => validateMeetingDocument({ ownerType: "meeting-document", ownerId: "meeting-1", section: "Cubs", fileName: "bad.exe", contentType: "application/octet-stream", size: 20 }), /PDF, Word/);
 });
 
 test("attachment validation rejects empty, oversized and unsupported files", () => {
