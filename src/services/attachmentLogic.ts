@@ -2,7 +2,7 @@ export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
 export const ALLOWED_EVENT_GALLERY_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
-export type AttachmentOwnerType = "finance-receipt" | "event-gallery";
+export type AttachmentOwnerType = "finance-receipt" | "event-gallery" | "meeting-document";
 
 export interface AttachmentUploadInput {
   ownerType: AttachmentOwnerType;
@@ -70,4 +70,18 @@ export function eventGalleryStoragePath(section: string, eventId: string, attach
   const safeEventId = sanitiseStorageSegment(eventId, "Event gallery event id is required.");
   const safeAttachmentId = sanitiseStorageSegment(attachmentId, "Event gallery attachment id is required.");
   return `attachments/event-gallery/${safeSection}/${safeEventId}/${safeAttachmentId}/${sanitiseAttachmentFileName(fileName)}`;
+}
+
+export const MEETING_DOCUMENT_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"] as const;
+
+export function validateMeetingDocument(input: AttachmentUploadInput): ValidatedAttachmentUpload {
+  if (input.ownerType !== "meeting-document") throw new Error("Meeting documents must use the meeting-document owner type.");
+  if (!input.ownerId.trim() || !input.section.trim()) throw new Error("Meeting and section are required.");
+  if (!Number.isInteger(input.size) || input.size <= 0 || input.size > MAX_ATTACHMENT_BYTES) throw new Error("Meeting document must be between 1 byte and 10 MB.");
+  if (!MEETING_DOCUMENT_TYPES.includes(input.contentType as typeof MEETING_DOCUMENT_TYPES[number])) throw new Error("Choose a PDF, Word, OpenDocument, text, Markdown or HTML document.");
+  return { ...input, ownerId: input.ownerId.trim(), section: input.section.trim(), fileName: input.fileName.trim(), safeFileName: sanitiseAttachmentFileName(input.fileName) };
+}
+
+export function meetingDocumentStoragePath(section: string, meetingId: string, attachmentId: string, fileName: string): string {
+  return `attachments/meeting-documents/${sanitiseStorageSegment(section, "Meeting section is required.")}/${sanitiseStorageSegment(meetingId, "Meeting is required.")}/${sanitiseStorageSegment(attachmentId, "Document attachment id is required.")}/${sanitiseAttachmentFileName(fileName)}`;
 }

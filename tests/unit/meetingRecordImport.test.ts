@@ -47,7 +47,7 @@ test("returns review warnings instead of inventing required values", () => {
   assert.ok(draft.warnings.some((warning) => warning.includes("attendees")));
 });
 
-test("supports only browser-readable text document formats", () => {
+test("imports only browser-readable text formats while binary documents remain attachments", () => {
   assert.equal(isSupportedMeetingImportFile("minutes.txt", "text/plain"), true);
   assert.equal(isSupportedMeetingImportFile("minutes.md", ""), true);
   assert.equal(isSupportedMeetingImportFile("minutes.html", "text/html"), true);

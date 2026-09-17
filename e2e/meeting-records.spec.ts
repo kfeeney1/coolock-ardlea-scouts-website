@@ -89,6 +89,7 @@ test("section leader can import a text meeting document, review it and save it",
   });
 
   await expect(page.getByText(/Imported draft from TEST-imported-meeting\.txt/)).toBeVisible();
+  await expect(page.getByText("TEST-imported-meeting.txt", { exact: true })).toBeVisible();
   await expect(page.getByText(/Review every field below before saving/)).toBeVisible();
   await expect(page.getByLabel("Meeting title")).toHaveValue(title);
   await expect(page.getByLabel("Meeting date and time")).toHaveValue("2026-09-05T19:30");
@@ -101,6 +102,7 @@ test("section leader can import a text meeting document, review it and save it",
   await page.getByRole("button", { name: "Save Meeting" }).click();
   await expect(page.getByText("Meeting record saved.")).toBeVisible();
   await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open TEST-imported-meeting.txt" })).toBeVisible();
   await expect(page.getByText(`${importedMinutes} Reviewed by Playwright.`, { exact: true })).toBeVisible();
 });
 
