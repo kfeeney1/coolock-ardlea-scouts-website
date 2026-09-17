@@ -13,7 +13,7 @@ export function normaliseSubsSection(
   canGroupReport: boolean
 ): string {
   const sections = sortScoutSections(authorisedSections);
-  if (sections.length === 1) return sections[0]!;
+  if (sections.length === 1) return sections[0] as string;
   if (requested && sections.includes(requested)) return requested;
   if (canGroupReport || sections.length > 1) return ALL_AUTHORISED_SECTIONS;
   return sections[0] ?? ALL_AUTHORISED_SECTIONS;
