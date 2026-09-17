@@ -28,7 +28,7 @@ const navGroups: NavGroup[] = [
  { label: "Group Operations", items: [
   { label: "Equipment & Stores", path: "/leader/equipment" },
   { label: "Section Floats", path: "/leader/finance" },
-  { label: "Scout Subs", path: "/leader/subs" },
+  { label: "Subs", path: "/leader/subs" },
   { label: "Meeting Records", path: "/leader/meetings" }
  ] },
  { label: "Insights & Records", items: [
@@ -81,18 +81,7 @@ export default function LeaderDashboardHeader() {
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
  const menuHistoryReady = useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
- const handleSignOut = async () => {
-  setSigningOut(true);
-  try {
-   // logout() clears the provider state. ProtectedAdminRoute is the single
-   // authority that redirects a signed-out leader to /leader/login. Keeping
-   // navigation in one place avoids racing that redirect against this menu's
-   // transient Back-dismiss history entry.
-   await logout();
-  } finally {
-   setSigningOut(false);
-  }
- };
+ const handleSignOut = async () => { setSigningOut(true); try { await logout(); } finally { setSigningOut(false); } };
  const handleThemeChange = async (theme: ThemeName) => {
   if (theme === adminProfile?.uiTheme || themeSaving) return;
   setThemeSaving(theme); setThemeError("");
