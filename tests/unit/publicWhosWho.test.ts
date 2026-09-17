@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isAllowedPublicAppointment, isCurrentPublicProjection, PUBLIC_PROJECTION_VERSION } from "../../src/services/publicWhosWhoLogic.ts";
+import { isAllowedPublicAppointment, isCurrentPublicProjection, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "../../src/services/publicWhosWhoLogic.ts";
 
 describe("public Who's Who role policy", () => {
   it("allows the agreed Group executive roles", () => {
@@ -37,5 +37,12 @@ describe("public Who's Who role policy", () => {
     assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION - 1, sourceAccessRole: "leader" }), false);
     assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION, sourceAccessRole: "admin" }), false);
     assert.equal(isCurrentPublicProjection({ publicProjectionVersion: PUBLIC_PROJECTION_VERSION, sourceAccessRole: "super-admin" }), false);
+  });
+
+  it("publishes from an eligible organisational appointment rather than a technical system role", () => {
+    assert.equal(shouldPublishLeader({ active: true, showPublicly: true, scoutingRole: "Group Leader", organisationSection: "Group" }), true);
+    assert.equal(shouldPublishLeader({ active: true, showPublicly: true, scoutingRole: "Admin", organisationSection: "Group" }), false);
+    assert.equal(shouldPublishLeader({ active: false, showPublicly: true, scoutingRole: "Group Leader", organisationSection: "Group" }), false);
+    assert.equal(shouldPublishLeader({ active: true, showPublicly: false, scoutingRole: "Group Leader", organisationSection: "Group" }), false);
   });
 });

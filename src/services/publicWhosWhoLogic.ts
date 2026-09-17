@@ -40,3 +40,7 @@ export function isCurrentPublicProjection(data: Record<string, unknown>): boolea
   return data.publicProjectionVersion === PUBLIC_PROJECTION_VERSION
     && data.sourceAccessRole === "leader";
 }
+
+export function shouldPublishLeader(input: { active: boolean; showPublicly: boolean; scoutingRole: string; organisationSection: string }): boolean {
+  return input.active && input.showPublicly && isAllowedPublicAppointment(input.scoutingRole, input.organisationSection);
+}
