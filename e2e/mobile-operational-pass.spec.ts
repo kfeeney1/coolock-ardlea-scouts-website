@@ -56,8 +56,20 @@ async function expectMobileViewportSafe(page: Page, route: string) {
 }
 
 async function dismissTopSurfaceWithBack(page: Page, surface: Locator) {
+  // The bridge mirrors a newly opened MUI surface into same-route history on
+  // the next render. Wait for that marker entry before simulating hardware Back;
+  // otherwise Playwright can race the marker push and navigate past it.
+  const routeBeforeBack = new URL(page.url()).pathname + new URL(page.url()).search;
+  await expect.poll(async () => page.evaluate(() => history.state?.usr?.backDismissStack?.length ?? 0), {
+    timeout: 2_000,
+    message: "transient surface should be represented in browser history before Back"
+  }).toBeGreaterThan(0);
   await page.goBack();
   await expect(surface).toBeHidden({ timeout: 1_000 });
+  await expect.poll(() => {
+    const current = new URL(page.url());
+    return current.pathname + current.search;
+  }).toBe(routeBeforeBack);
 }
 
 test.describe("Stage 20.6 mobile operational pass", () => {
