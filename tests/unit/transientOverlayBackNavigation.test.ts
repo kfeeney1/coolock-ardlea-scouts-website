@@ -24,6 +24,13 @@ test("transient overlay Back dismisses directly from popstate instead of waiting
   assert.match(source, /useLayoutEffect/);
 });
 
+test("stable selects close their own open menu on browser Back", async () => {
+  const source = await readFile("src/components/StableSelect.tsx", "utf8");
+  assert.match(source, /menuOpenRef\.current/);
+  assert.match(source, /addEventListener\("popstate", closeOnBrowserBack\)/);
+  assert.match(source, /if \(!menuOpenRef\.current\) return/);
+});
+
 test("explicit Back dismiss hooks arm before paint", async () => {
   const source = await readFile("src/hooks/useBackDismiss.ts", "utf8");
   assert.match(source, /useLayoutEffect/);

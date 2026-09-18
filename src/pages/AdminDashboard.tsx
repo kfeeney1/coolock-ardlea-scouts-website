@@ -120,19 +120,14 @@ export default function AdminDashboard() {
         }
     };
 
-    return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+    return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
             <AdminOverviewPanel />
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+                <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh submissions</Button>
+            </Box>
             {adminProfile?.role === "super-admin" && <OperationalHealthPanel />}
-            <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
-                <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" }, gap: 2 }}>
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Signed in as {adminProfile?.displayName}</Typography>
-                    <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", justifyContent: { xs: "stretch", md: "flex-end" }, width: { xs: "100%", md: "auto" }, "& > .MuiButton-root": { minHeight: 42, flex: { xs: "1 1 100%", sm: "1 1 180px", lg: "0 1 auto" }, whiteSpace: "nowrap" } }}>
-                        <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>
-                    </Stack>
-                </Box>
-            </Paper>
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 

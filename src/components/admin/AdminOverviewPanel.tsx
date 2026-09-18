@@ -75,9 +75,7 @@ export default function AdminOverviewPanel() {
     <Box sx={{ mb: 3 }} data-testid="admin-overview">
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "stretch", md: "center" }, justifyContent: "space-between", gap: 2, mb: 2 }}>
         <Box>
-          <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>Operations Overview</Typography>
-          <Typography color="text.secondary">What needs attention across meetings, joins, members, events and consent.</Typography>
-          <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} sx={{ mt: 1 }} />
+          <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} />
         </Box>
         <Button variant="outlined" color="secondary" onClick={() => void refresh(true)}>Refresh Overview</Button>
       </Box>

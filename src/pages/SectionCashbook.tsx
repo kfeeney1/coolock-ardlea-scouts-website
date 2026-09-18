@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography,
+  FormControl, InputLabel, MenuItem, Paper, Stack, TextField, Typography,
 } from "@mui/material";
+import StableSelect from "../components/StableSelect";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
@@ -80,7 +81,7 @@ export default function SectionCashbook() {
   const [error, setError] = useState("");
   const [type, setType] = useState<FloatAction>("money-out");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState(DEFAULT_FINANCE_CATEGORIES[0]);
+  const [category, setCategory] = useState<string>(DEFAULT_FINANCE_CATEGORIES[0]);
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(today());
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -194,7 +195,7 @@ export default function SectionCashbook() {
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>Section Floats</Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>Track only the physical section float: open it, top it up, record money out, and close it. The float can never go below €0.00.</Typography>
           <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, gap: 2, alignItems: "center" }}>
-            <FormControl fullWidth><InputLabel id="finance-section-label">Section</InputLabel><Select labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(event.target.value)}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth><InputLabel id="finance-section-label">Section</InputLabel><StableSelect labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(String(event.target.value))}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>
             <Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper>
           </Box>
         </Paper>
@@ -203,7 +204,7 @@ export default function SectionCashbook() {
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Float transaction</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
-            <FormControl><InputLabel id="finance-type-label">Transaction</InputLabel><Select labelId="finance-type-label" id="finance-type" label="Transaction" value={type} onChange={(event) => setType(event.target.value as FloatAction)}><MenuItem value="opening-float">Open float</MenuItem><MenuItem value="float-top-up">Float top up</MenuItem><MenuItem value="money-out">Money out</MenuItem><MenuItem value="close-float">Close float</MenuItem></Select></FormControl>
+            <FormControl><InputLabel id="finance-type-label">Transaction</InputLabel><StableSelect labelId="finance-type-label" id="finance-type" label="Transaction" value={type} onChange={(event) => setType(event.target.value as FloatAction)}><MenuItem value="opening-float">Open float</MenuItem><MenuItem value="float-top-up">Float top up</MenuItem><MenuItem value="money-out">Money out</MenuItem><MenuItem value="close-float">Close float</MenuItem></StableSelect></FormControl>
             <TextField
               label="Amount (€)"
               value={isCloseFloat ? (balanceCents / 100).toFixed(2) : amount}
@@ -215,7 +216,7 @@ export default function SectionCashbook() {
               helperText={isCloseFloat ? "Closing the float removes the full remaining balance." : "Maximum two decimal places."}
               slotProps={{ htmlInput: { inputMode: "decimal", pattern: "[0-9]*[.,]?[0-9]{0,2}" } }}
             />
-            {isMoneyOut && <FormControl><InputLabel id="finance-category-label">Outgoing category</InputLabel><Select labelId="finance-category-label" id="finance-category" label="Outgoing category" value={category} onChange={(event) => setCategory(event.target.value)}>{DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</Select></FormControl>}
+            {isMoneyOut && <FormControl><InputLabel id="finance-category-label">Outgoing category</InputLabel><StableSelect labelId="finance-category-label" id="finance-category" label="Outgoing category" value={category} onChange={(event) => setCategory(String(event.target.value))}>{DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>}
             <TextField type="date" label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label={isMoneyOut ? "What was the money spent on?" : "Note (optional)"} value={description} onChange={(event) => setDescription(event.target.value)} sx={{ gridColumn: { md: "1 / -1" } }} />
           </Box>
