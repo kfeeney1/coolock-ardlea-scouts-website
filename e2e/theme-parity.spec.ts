@@ -23,7 +23,7 @@ test.describe("Modern Scout theme parity", () => {
     chromiumOnly(testInfo);
     await loginModern(page);
 
-    await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Operations Overview" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Operational health" })).toBeVisible();
 
     const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
