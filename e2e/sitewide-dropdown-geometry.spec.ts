@@ -118,6 +118,9 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectSelectionPreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
 
   await page.goto("/leader/access");
+  const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(leaderTile).toBeVisible();
+  await leaderTile.click();
   await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Reports to" }).first());
 });
@@ -127,6 +130,9 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/access");
+  const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(leaderTile).toBeVisible();
+  await leaderTile.click();
   await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
 
   const reportsTo = page.getByRole("combobox", { name: "Reports to" });
