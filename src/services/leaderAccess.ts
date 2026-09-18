@@ -124,7 +124,6 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const sectionsChanged = !sameStrings(currentSections, sections);
     const activeChanged = (currentAccess.active === true) !== record.active;
     const currentAppointments = normalizeScoutingAppointmentAssignments(currentOrg?.appointments, currentOrg?.scoutingRole, currentOrg?.organisationSection);
-    const currentAppointment = activeScoutingAppointments(currentAppointments)[0]?.appointment || normalizeScoutingAppointment(currentOrg?.scoutingRole ?? "");
     const appointmentChanged = JSON.stringify(currentAppointments) !== JSON.stringify(appointments);
     const adminActor = actor.systemRole === "admin" || actor.systemRole === "super-admin";
 
