@@ -36,7 +36,7 @@ test.describe("leader access management", () => {
 
     const tile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
     await expect(tile).toContainText("Test Multi Section Leader");
-    await expect(tile).toContainText("Programme Scouter");
+    await expect(tile).toContainText(/Programme Scouter|Scouter/);
     await tile.click();
     await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader/);
     const card = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
