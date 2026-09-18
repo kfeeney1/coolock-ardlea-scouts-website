@@ -102,6 +102,12 @@ service cloud.firestore {
         || (stage == 9 && awardId == skillId + "-stage-9");
     }
 
+    match /consentReminderDeliveries/{reminderId} {
+      // Trusted communications infrastructure writes reminder lifecycle evidence
+      // with a service account. Clients cannot read or forge delivery history.
+      allow read, write: if false;
+    }
+
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
       allow list: if isAdmin() || isGroupLeader();
