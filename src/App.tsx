@@ -83,6 +83,7 @@ export default function App() {
         <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
         <Route path="/leader/requests" element={protectedRoute(<LeaderRequests />)} />
         <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
+        <Route path="/leader/access/:leaderUid" element={protectedRoute(<LeaderAccessManagement />)} />
         <Route path="/leader/roles" element={protectedRoute(<RolesAndPermissions />)} />
         <Route path="/leader/activity" element={protectedRoute(<ActivityLog />)} />
         <Route path="/leader/profile" element={protectedRoute(<LeaderProfile />)} />
