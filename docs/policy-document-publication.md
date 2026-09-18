@@ -1,10 +1,10 @@
 # Policy document publication
 
-SW-77 reuses the existing Firebase Storage attachment boundary. It does not add a live Google Drive dependency or a second generic file service.
+SW-77 reuses the existing Firebase Storage attachment boundary and Firestore/RBAC model. It does not add a live Google Drive dependency or a second generic file service.
 
 ## Authoritative model
 
-Approved PDFs are published beneath `attachments/policy-documents/current/{audience}/{documentId}/{versionId}/{safeFileName}`. Metadata remains attached to the Storage object, matching the existing SW-15 attachment model. Storage Rules are the access-control boundary; React visibility is not relied upon for security.
+Approved PDF bytes are published beneath `attachments/policy-documents/current/{audience}/{documentId}/{versionId}/{safeFileName}`. Authoritative catalogue/lifecycle metadata is stored in `policyDocuments/{documentId}` in Firestore, while security-critical ownership/audience metadata is also attached to the Storage object. Firestore Rules protect catalogue metadata and Storage Rules bind byte reads to the current Firestore version pointer. React visibility is not relied upon for security.
 
 Supported audiences are `public`, `authenticated`, `parent`, `leader`, and `admin`. `authenticated` means an active approved Parent or active Leader, not merely possession of a Firebase session. `admin` includes system admins and active Group/Deputy Group Leaders for this Group-level publication workflow.
 
@@ -18,9 +18,9 @@ No production documents are uploaded by CI or seed jobs.
 
 ## Current version, replacement and withdrawal
 
-The catalogue displays only objects in the `current` namespace with `state=current`. A manager may publish a new approved version and then withdraw the superseded current version. Withdrawal deletes that published Storage object after explicit confirmation and writes a normal system audit event.
+The catalogue queries only Firestore records with `state=current`. Publishing a replacement updates the authoritative Firestore current-version pointer transactionally and records the previous version metadata in `previousVersions`. Superseded Storage bytes remain inaccessible because Storage Rules require the requested version to match the current Firestore pointer. Withdrawal changes the Firestore lifecycle state to `withdrawn` after explicit confirmation and writes a normal system audit event; it does not permanently delete the retained bytes.
 
-SW-80 has not approved a long-term retention duration for superseded policy artefacts. This implementation therefore does not invent an archive-retention period or silently retain withdrawn copies. Organisational source/version history should remain in the approved authoring/records location until SW-80 establishes an authoritative retention rule. If that decision later requires website-side archives, add an admin-only archive namespace and migration deliberately rather than changing current publication semantics silently.
+SW-80 has not approved a long-term retention duration for superseded policy artefacts. This implementation therefore does not invent an archive-retention period. Superseded/withdrawn website copies are retained but made inaccessible through the current catalogue and Storage Rules until SW-80 establishes an authoritative retention/deletion decision. Organisational source/version history should also remain in the approved authoring/records location. If SW-80 later requires deletion or a separately browsable archive, add that lifecycle deliberately rather than changing current publication semantics silently.
 
 ## Access summary
 

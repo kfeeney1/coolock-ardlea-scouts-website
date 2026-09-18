@@ -38,6 +38,17 @@ function policyMetadata(uid, audience = "public", documentId = "policy-1", versi
   };
 }
 
+function policyCatalogueMetadata(audience = "public", documentId = "policy-1", versionId = "v1") {
+  return {
+    documentId, versionId, title: "Synthetic policy", description: "Rules test fixture", category: "governance",
+    audience, effectiveDate: "2026-09-15", sourceOwner: "Synthetic test",
+    storagePath: `attachments/policy-documents/current/${audience}/${documentId}/${versionId}/policy.pdf`,
+    fileName: "policy.pdf", contentType: "application/pdf", size: 1, publishedBy: "admin",
+    publishedAt: new Date("2026-09-15T10:00:00.000Z"), state: "current", previousVersions: [],
+    updatedBy: "admin", updatedAt: new Date("2026-09-15T10:00:00.000Z"),
+  };
+}
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
@@ -54,6 +65,7 @@ beforeEach(async () => {
 after(async () => testEnv.cleanup());
 
 test("attachments/policy-documents allows public reads but denies anonymous restricted reads", async () => {
+  await seedDocuments([["policyDocuments/policy-1", policyCatalogueMetadata("public", "policy-1")], ["policyDocuments/policy-2", policyCatalogueMetadata("leader", "policy-2")]]);
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await uploadBytes(policyRef(context.storage(), "public"), new Uint8Array([1]), policyMetadata("admin", "public"));
     await uploadBytes(policyRef(context.storage(), "leader", "policy-2"), new Uint8Array([1]), policyMetadata("admin", "leader", "policy-2"));
@@ -67,6 +79,8 @@ test("attachments/policy-documents respects parent and leader audience boundarie
   await seedDocuments([
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-1"], linkedSections: ["Cubs"] }],
     ["adminUsers/leader-1", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["policyDocuments/parent-policy", policyCatalogueMetadata("parent", "parent-policy")],
+    ["policyDocuments/leader-policy", policyCatalogueMetadata("leader", "leader-policy")],
   ]);
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await uploadBytes(policyRef(context.storage(), "parent", "parent-policy"), new Uint8Array([1]), policyMetadata("admin", "parent", "parent-policy"));

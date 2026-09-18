@@ -104,7 +104,8 @@
     "subsAssignments": "finance-period-assignment",
     "subsPayments": "finance-section-ledger",
     "subsRatePolicies": "group-finance-policy",
-    "weeklyMeetings": "leader-section-and-group-role"
+    "weeklyMeetings": "leader-section-and-group-role",
+    "policyDocuments": "audience-scoped-current-metadata-manager-write"
   },
   "storage": {
     "attachments/finance-receipts": "finance-section",

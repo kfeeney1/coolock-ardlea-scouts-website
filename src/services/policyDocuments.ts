@@ -1,9 +1,19 @@
-import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
-import { auth, storage } from "../firebase";
+import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { deleteObject, getBlob, ref, uploadBytes } from "firebase/storage";
+import { auth, db, storage } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 
 export const POLICY_AUDIENCES = ["public", "authenticated", "parent", "leader", "admin"] as const;
 export type PolicyAudience = typeof POLICY_AUDIENCES[number];
+
+export interface PolicyVersionSummary {
+  versionId: string;
+  effectiveDate: string;
+  storagePath: string;
+  fileName: string;
+  publishedBy: string;
+  publishedAt: string;
+}
 
 export interface PolicyDocument {
   documentId: string;
@@ -20,6 +30,7 @@ export interface PolicyDocument {
   size: number;
   publishedBy: string;
   publishedAt: string;
+  state: "current";
   viewUrl: string;
 }
 
@@ -36,6 +47,7 @@ export interface PublishPolicyInput {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["application/pdf"]);
+const POLICY_COLLECTION = "policyDocuments";
 
 function safeSegment(value: string, fallback: string): string {
   const cleaned = value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
@@ -71,54 +83,44 @@ export function revokePolicyDocumentUrls(documents: PolicyDocument[]): void {
   for (const document of documents) URL.revokeObjectURL(document.viewUrl);
 }
 
-async function loadAudience(audience: PolicyAudience): Promise<PolicyDocument[]> {
-  const root = ref(storage, rootFor(audience));
+function audienceQueries(): PolicyAudience[] {
+  return auth.currentUser ? ["public", "authenticated", "parent", "leader", "admin"] : ["public"];
+}
+
+export async function loadPolicyDocuments(): Promise<PolicyDocument[]> {
+  const snapshots = await Promise.allSettled(audienceQueries().map((audience) =>
+    getDocs(query(collection(db, POLICY_COLLECTION), where("state", "==", "current"), where("audience", "==", audience))),
+  ));
+  const metadata = snapshots.flatMap((result) => result.status === "fulfilled" ? result.value.docs.map((item) => item.data()) : []);
   const documents: PolicyDocument[] = [];
-  const documentFolders = await listAll(root);
   try {
-    for (const documentFolder of documentFolders.prefixes) {
-      const versionFolders = await listAll(documentFolder);
-      for (const versionFolder of versionFolders.prefixes) {
-        const files = await listAll(versionFolder);
-        for (const item of files.items) {
-          const metadata = await getMetadata(item);
-          const custom = metadata.customMetadata ?? {};
-          if (custom.ownerType !== "policy-document" || custom.audience !== audience || custom.state !== "current") continue;
-          const contentType = metadata.contentType || "application/pdf";
-          documents.push({
-            documentId: custom.documentId || documentFolder.name,
-            versionId: custom.versionId || versionFolder.name,
-            title: custom.title || custom.originalFileName || item.name,
-            description: custom.description || "",
-            category: custom.category || "Policy",
-            audience,
-            effectiveDate: custom.effectiveDate || "",
-            sourceOwner: custom.sourceOwner || "",
-            storagePath: item.fullPath,
-            fileName: custom.originalFileName || item.name,
-            contentType,
-            size: metadata.size,
-            publishedBy: custom.publishedBy || "",
-            publishedAt: custom.publishedAt || "",
-            viewUrl: await objectUrl(item.fullPath, contentType),
-          });
-        }
-      }
+    for (const item of metadata) {
+      if (item.state !== "current" || !POLICY_AUDIENCES.includes(item.audience)) continue;
+      const viewUrl = await objectUrl(item.storagePath, item.contentType || "application/pdf");
+      documents.push({
+        documentId: item.documentId,
+        versionId: item.versionId,
+        title: item.title,
+        description: item.description || "",
+        category: item.category,
+        audience: item.audience,
+        effectiveDate: item.effectiveDate || "",
+        sourceOwner: item.sourceOwner || "",
+        storagePath: item.storagePath,
+        fileName: item.fileName,
+        contentType: item.contentType || "application/pdf",
+        size: item.size,
+        publishedBy: item.publishedBy,
+        publishedAt: item.publishedAt?.toDate?.().toISOString?.() || "",
+        state: "current",
+        viewUrl,
+      });
     }
-    return documents;
+    return documents.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
   } catch (error) {
     revokePolicyDocumentUrls(documents);
     throw error;
   }
-}
-
-export async function loadPolicyDocuments(): Promise<PolicyDocument[]> {
-  const audiences: PolicyAudience[] = auth.currentUser
-    ? ["public", "authenticated", "parent", "leader", "admin"]
-    : ["public"];
-  const settled = await Promise.allSettled(audiences.map(loadAudience));
-  const documents = settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
-  return documents.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
 }
 
 export async function publishPolicyDocument(input: PublishPolicyInput): Promise<void> {
@@ -128,7 +130,7 @@ export async function publishPolicyDocument(input: PublishPolicyInput): Promise<
   const versionId = safeSegment(input.effectiveDate || new Date().toISOString().slice(0, 10), crypto.randomUUID());
   const fileName = safeSegment(input.file.name, "policy.pdf");
   const path = `${rootFor(input.audience)}/${documentId}/${versionId}/${fileName}`;
-  const publishedAt = new Date().toISOString();
+  const metadataRef = doc(db, POLICY_COLLECTION, documentId);
 
   await uploadBytes(ref(storage, path), input.file, {
     contentType: input.file.type,
@@ -144,16 +146,63 @@ export async function publishPolicyDocument(input: PublishPolicyInput): Promise<
       sourceOwner: input.sourceOwner.trim(),
       state: "current",
       publishedBy: uid,
-      publishedAt,
       originalFileName: input.file.name,
     },
   });
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(metadataRef);
+      const prior = existing.exists() ? existing.data() : null;
+      const previousVersions: PolicyVersionSummary[] = Array.isArray(prior?.previousVersions) ? prior.previousVersions : [];
+      if (prior?.state === "current" && prior.versionId && prior.storagePath) {
+        previousVersions.push({
+          versionId: prior.versionId,
+          effectiveDate: prior.effectiveDate || "",
+          storagePath: prior.storagePath,
+          fileName: prior.fileName || "",
+          publishedBy: prior.publishedBy || "",
+          publishedAt: prior.publishedAt?.toDate?.().toISOString?.() || "",
+        });
+      }
+      transaction.set(metadataRef, {
+        documentId,
+        versionId,
+        title: input.title.trim(),
+        description: input.description.trim(),
+        category: input.category.trim(),
+        audience: input.audience,
+        effectiveDate: input.effectiveDate,
+        sourceOwner: input.sourceOwner.trim(),
+        storagePath: path,
+        fileName: input.file.name,
+        contentType: input.file.type,
+        size: input.file.size,
+        publishedBy: uid,
+        publishedAt: serverTimestamp(),
+        state: "current",
+        previousVersions,
+        updatedBy: uid,
+        updatedAt: serverTimestamp(),
+      });
+    });
+  } catch (error) {
+    try { await deleteObject(ref(storage, path)); } catch (cleanupError) { console.error("Unable to clean up unpublished policy upload:", cleanupError); }
+    throw error;
+  }
 
   void recordAuditEvent({ category: "system", action: "policy-published", targetId: documentId, targetLabel: input.title.trim(), description: `Published policy document for ${input.audience} audience.`, section: "group" });
 }
 
 export async function withdrawPolicyDocument(document: PolicyDocument): Promise<void> {
-  currentUid();
-  await deleteObject(ref(storage, document.storagePath));
+  const uid = currentUid();
+  const metadataRef = doc(db, POLICY_COLLECTION, document.documentId);
+  await runTransaction(db, async (transaction) => {
+    const current = await transaction.get(metadataRef);
+    if (!current.exists() || current.data().versionId !== document.versionId || current.data().state !== "current") {
+      throw new Error("This policy version is no longer current. Refresh the catalogue and try again.");
+    }
+    transaction.update(metadataRef, { state: "withdrawn", withdrawnBy: uid, withdrawnAt: serverTimestamp(), updatedBy: uid, updatedAt: serverTimestamp() });
+  });
   void recordAuditEvent({ category: "system", action: "policy-withdrawn", targetId: document.documentId, targetLabel: document.title, description: `Withdrew current policy document ${document.versionId}.`, section: "group" });
 }
