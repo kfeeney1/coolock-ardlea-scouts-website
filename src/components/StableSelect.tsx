@@ -1,5 +1,5 @@
 import Select, { type SelectProps } from "@mui/material/Select";
-import { forwardRef, useRef, useState, type ForwardedRef } from "react";
+import { forwardRef, useEffect, useRef, useState, type ForwardedRef } from "react";
 
 type Placement = { anchorVertical: "top" | "bottom"; transformVertical: "top" | "bottom"; maxHeight: number };
 const DEFAULT_PLACEMENT: Placement = { anchorVertical: "bottom", transformVertical: "top", maxHeight: 320 };
@@ -11,6 +11,7 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
   const { MenuProps, onOpen, onMouseDownCapture, onKeyDownCapture, ...selectProps } = props;
   const rootRef = useRef<HTMLElement | null>(null);
   const openScroll = useRef({ x: 0, y: 0 });
+  const menuOpenRef = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT);
 
@@ -43,6 +44,18 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
   const preserveViewport = () => window.scrollTo(openScroll.current.x, openScroll.current.y);
   const paper = typeof MenuProps?.slotProps?.paper === "function" ? undefined : MenuProps?.slotProps?.paper;
 
+  useEffect(() => {
+    const closeOnBrowserBack = () => {
+      if (!menuOpenRef.current) return;
+      menuOpenRef.current = false;
+      setMenuOpen(false);
+      getTrigger()?.focus({ preventScroll: true });
+      preserveViewport();
+    };
+    window.addEventListener("popstate", closeOnBrowserBack);
+    return () => window.removeEventListener("popstate", closeOnBrowserBack);
+  }, []);
+
   return <Select
     {...selectProps}
     open={menuOpen}
@@ -55,12 +68,14 @@ const StableSelect = forwardRef(function StableSelect<Value = unknown>(
     onKeyDownCapture={(event) => { captureOpen(); onKeyDownCapture?.(event); }}
     onOpen={(event) => {
       preserveViewport();
+      menuOpenRef.current = true;
       setMenuOpen(true);
       onOpen?.(event);
     }}
     onClose={(event) => {
       props.onClose?.(event);
       if (!event.defaultPrevented) {
+        menuOpenRef.current = false;
         setMenuOpen(false);
         getTrigger()?.focus({ preventScroll: true });
         preserveViewport();
