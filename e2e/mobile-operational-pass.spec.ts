@@ -60,7 +60,7 @@ async function dismissTopSurfaceWithBack(page: Page, surface: Locator) {
   // the next render. Wait for that marker entry before simulating hardware Back;
   // otherwise Playwright can race the marker push and navigate past it.
   const routeBeforeBack = new URL(page.url()).pathname + new URL(page.url()).search;
-  await expect.poll(async () => page.evaluate(() => history.state?.usr?.backDismissStack?.length ?? 0), {
+  await expect.poll(async () => page.evaluate(() => history.state?.usr?.["__coolockArdleaBackDismissStack"]?.length ?? 0), {
     timeout: 2_000,
     message: "transient surface should be represented in browser history before Back"
   }).toBeGreaterThan(0);
