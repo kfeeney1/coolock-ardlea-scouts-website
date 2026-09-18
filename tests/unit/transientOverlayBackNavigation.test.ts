@@ -21,6 +21,7 @@ test("transient overlay Back dismisses directly from popstate instead of waiting
   const source = await readFile("src/components/TransientOverlayBackDismissBridge.tsx", "utf8");
   assert.match(source, /addEventListener\("popstate", handlePopState\)/);
   assert.match(source, /dismissSurface\(visibleSurfaces\(\)\.at\(-1\)\)/);
+  assert.doesNotMatch(source, /if \(consumingClose\.current\) \{[\s\S]*?return;[\s\S]*?dismissSurface\(visibleSurfaces\(\)\.at\(-1\)\)/);
   assert.match(source, /useLayoutEffect/);
 });
 
