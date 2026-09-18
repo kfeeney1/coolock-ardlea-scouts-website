@@ -65,11 +65,10 @@ export default function TransientOverlayBackDismissBridge() {
       if (markerCount >= priorMarkerCount) return;
 
       previousMarkerCount.current = markerCount;
-      if (consumingClose.current) {
-        consumingClose.current = false;
-        return;
-      }
-
+      // A browser/hardware Back that removes one of our same-route markers
+      // is always a request to dismiss the top transient surface. Do not let
+      // stale bookkeeping from an earlier programmatic close swallow that POP.
+      consumingClose.current = false;
       dismissSurface(visibleSurfaces().at(-1));
     };
 
