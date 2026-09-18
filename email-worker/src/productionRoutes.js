@@ -88,8 +88,7 @@ function textBase64Url(text) {
 }
 
 async function importServicePrivateKey(pem) {
-  const normalised = String(pem || "").replaceAll("
-", "\n").trim();
+  const normalised = String(pem || "").replaceAll("\\n", "\n").trim();
   const body = normalised
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
