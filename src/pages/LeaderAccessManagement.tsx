@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Container,
   Dialog,
@@ -41,8 +42,8 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
   if (previous.role !== next.role) {
     changes.push(`System role will change from ${previous.role} to ${next.role}.`);
   }
-  if (previous.scoutingRole !== next.scoutingRole) {
-    changes.push(`Scouting appointment will change from ${previous.scoutingRole || "none"} to ${next.scoutingRole || "none"}.`);
+  if (JSON.stringify(previous.appointments) !== JSON.stringify(next.appointments)) {
+    changes.push(`Scouting appointments will change from ${previous.appointments.map((item) => item.appointment).join(", ") || "none"} to ${next.appointments.map((item) => item.appointment).join(", ") || "none"}.`);
   }
   if (previous.active !== next.active) {
     changes.push(next.active ? "Account access will be re-enabled." : "Account access will be disabled.");
@@ -122,6 +123,13 @@ export default function LeaderAccessManagement() {
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
   const toggleSection = (record: LeaderAccessRecord, section: string) => patch(record.uid, { sections: record.sections.includes(section) ? record.sections.filter((value) => value !== section) : [...record.sections, section] });
+  const toggleAppointment = (record: LeaderAccessRecord, appointment: string) => {
+    const existing = record.appointments.find((item) => item.appointment === appointment && item.scope === record.organisationSection);
+    const appointments = existing
+      ? record.appointments.filter((item) => item.id !== existing.id)
+      : [...record.appointments, { id: `${appointment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}--${record.organisationSection.toLowerCase()}`, appointment: appointment as typeof record.appointments[number]["appointment"], scope: record.organisationSection, active: true }];
+    patch(record.uid, { appointments, scoutingRole: appointments[0]?.appointment || "" });
+  };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="xl">
     <LeaderDashboardHeader />
@@ -141,7 +149,16 @@ export default function LeaderAccessManagement() {
         {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box></Box>}
         <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
-          <TextField select label="Scouting appointment" value={record.scoutingRole} disabled={record.role !== "leader" || record.uid === actor.uid} onChange={(e) => patch(record.uid, { scoutingRole: e.target.value })}><MenuItem value="">No appointment</MenuItem>{CANONICAL_SCOUTING_APPOINTMENTS.filter((appointment) => appointmentsActorMayAssign(actor).includes(appointment) || appointment === record.scoutingRole).map((appointment) => <MenuItem key={appointment} value={appointment}>{appointment}</MenuItem>)}</TextField>
+          <Box sx={{ gridColumn: { md: "span 1" } }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700 }}>Scouting appointments</Typography>
+            <Typography variant="caption" color="text.secondary">Active Leaders include the Programme Scouter baseline. Select additional appointments for {record.organisationSection}.</Typography>
+            <Stack role="group" aria-label={`Scouting appointments for ${record.displayName}`} sx={{ mt: 1, maxHeight: 260, overflowY: "auto" }}>
+              {CANONICAL_SCOUTING_APPOINTMENTS.filter((appointment) => appointmentsActorMayAssign(actor).includes(appointment) || record.appointments.some((item) => item.appointment === appointment)).map((appointment) => {
+                const selected = record.appointments.some((item) => item.appointment === appointment && item.scope === record.organisationSection);
+                return <FormControlLabel key={appointment} control={<Checkbox checked={selected} disabled={record.role !== "leader" || record.uid === actor.uid} onChange={() => toggleAppointment(record, appointment)} />} label={appointment} />;
+              })}
+            </Stack>
+          </Box>
           <SectionSelect id={`organisation-section-${record.uid}`} label="Organisation section" value={record.organisationSection} options={sections} disabled={!isAdminActor} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })} />
           <TextField disabled={!isAdminActor} label="Display order" type="number" value={record.organisationOrder} onChange={(e) => patch(record.uid, { organisationOrder: Number(e.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, max: 999 } }} />
           <TextField select disabled={!isAdminActor} label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}><SectionOptionLabel section={leader.organisationSection} label={<>{leader.displayName} · {leader.scoutingRole || "Leader"}</>} /></MenuItem>)}</TextField>
