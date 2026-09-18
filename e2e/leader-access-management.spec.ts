@@ -34,6 +34,11 @@ test.describe("leader access management", () => {
     await page.goto("/leader/access");
     await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
 
+    const tile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+    await expect(tile).toContainText("Test Multi Section Leader");
+    await expect(tile).toContainText("Programme Scouter");
+    await tile.click();
+    await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader/);
     const card = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
     await expect(card).toContainText("Test Multi Section Leader");
 
@@ -75,4 +80,23 @@ test.describe("leader access management", () => {
     await page.getByRole("button", { name: "Refresh" }).click();
     await expect(active).toBeChecked();
   });
+});
+
+
+test("leader access summary tiles filter and direct routes use stable IDs", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+  await loginAdmin(page);
+  await page.goto("/leader/access");
+  const search = page.getByLabel("Search leaders");
+  await search.fill("Test Multi Section Leader");
+  const tile = page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" });
+  await expect(tile).toHaveCount(1);
+  await tile.press("Enter");
+  await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader/);
+  await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
+  await page.getByRole("button", { name: "Back to leaders" }).click();
+  await expect(search).toHaveValue("Test Multi Section Leader");
+  await page.goto("/leader/access/not-a-real-leader");
+  await expect(page.getByText("Leader record not found or is not available to you.")).toBeVisible();
 });
