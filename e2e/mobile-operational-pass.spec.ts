@@ -56,20 +56,23 @@ async function expectMobileViewportSafe(page: Page, route: string) {
 }
 
 async function dismissTopSurfaceWithBack(page: Page, surface: Locator) {
-  // The bridge mirrors a newly opened MUI surface into same-route history on
-  // the next render. Wait for that marker entry before simulating hardware Back;
-  // otherwise Playwright can race the marker push and navigate past it.
-  const routeBeforeBack = new URL(page.url()).pathname + new URL(page.url()).search;
-  await expect.poll(async () => page.evaluate(() => history.state?.usr?.["__coolockArdleaBackDismissStack"]?.length ?? 0), {
+  // React Router writes application location state to history.state.usr. Wait
+  // until the canonical transient marker is present, then use native history
+  // traversal so this exercises the same popstate path as browser/hardware Back.
+  await expect.poll(async () => page.evaluate(() => {
+    const usr = history.state?.usr;
+    return Array.isArray(usr?.["__coolockArdleaBackDismissStack"])
+      ? usr["__coolockArdleaBackDismissStack"].length
+      : 0;
+  }), {
     timeout: 2_000,
     message: "transient surface should be represented in browser history before Back"
   }).toBeGreaterThan(0);
-  await page.goBack();
+
+  const routeBeforeBack = await page.evaluate(() => location.pathname + location.search);
+  await page.evaluate(() => history.back());
   await expect(surface).toBeHidden({ timeout: 1_000 });
-  await expect.poll(() => {
-    const current = new URL(page.url());
-    return current.pathname + current.search;
-  }).toBe(routeBeforeBack);
+  await expect.poll(() => page.evaluate(() => location.pathname + location.search)).toBe(routeBeforeBack);
 }
 
 test.describe("Stage 20.6 mobile operational pass", () => {
