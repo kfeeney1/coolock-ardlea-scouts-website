@@ -19,7 +19,8 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -61,12 +62,18 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
 
 export default function LeaderAccessManagement() {
   const { user, adminProfile } = useAdminAuth();
+  const navigate = useNavigate();
+  const { leaderUid } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [records, setRecords] = useState<LeaderAccessRecord[]>([]);
   const [baselineByUid, setBaselineByUid] = useState<Record<string, LeaderAccessRecord>>({});
   const [pendingSave, setPendingSave] = useState<{ record: LeaderAccessRecord; changes: string[] } | null>(null);
   const [workingUid, setWorkingUid] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const search = searchParams.get("q") || "";
+  const sectionFilter = searchParams.get("section") || "";
+  const activeFilter = searchParams.get("active") || "active";
 
   const refresh = async () => {
     try {
@@ -80,6 +87,21 @@ export default function LeaderAccessManagement() {
     }
   };
   useEffect(() => { void refresh(); }, []);
+
+  const selectedRecord = leaderUid ? records.find((record) => record.uid === leaderUid) : undefined;
+  const filteredRecords = useMemo(() => records.filter((record) => {
+    const term = search.trim().toLowerCase();
+    const matchesSearch = !term || [record.displayName, record.email, ...record.sections, ...record.appointments.map((item) => item.appointment)].some((value) => value.toLowerCase().includes(term));
+    const matchesSection = !sectionFilter || record.sections.includes(sectionFilter) || record.organisationSection === sectionFilter;
+    const matchesActive = activeFilter === "all" || (activeFilter === "active" ? record.active : !record.active);
+    return matchesSearch && matchesSection && matchesActive;
+  }).sort((a, b) => a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid)), [records, search, sectionFilter, activeFilter]);
+
+  const updateFilter = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
 
   const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole, scoutingAppointments: adminProfile.appointments } : null;
   if (!actor || !canOpenLeaderAccess(actor)) {
@@ -136,8 +158,27 @@ export default function LeaderAccessManagement() {
     <LeaderPageHeader title="Leader Access & Organisation" description="Manage permitted leader assignments. System access roles remain Super Admin-only; Group Leadership can delegate ordinary operational appointments and section scope only." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
-    <Stack spacing={2}>
-      {records.map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
+    {!leaderUid && <>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr" }, gap: 2, mb: 2 }}>
+        <TextField label="Search leaders" value={search} onChange={(e) => updateFilter("q", e.target.value)} />
+        <SectionSelect id="leader-access-section-filter" label="Filter by section" value={sectionFilter} options={["", ...sections]} onChange={(e) => updateFilter("section", e.target.value)} />
+        <TextField select label="Status" value={activeFilter} onChange={(e) => updateFilter("active", e.target.value)}><MenuItem value="active">Active</MenuItem><MenuItem value="inactive">Inactive</MenuItem><MenuItem value="all">All</MenuItem></TextField>
+      </Box>
+      <Stack spacing={1.5} data-testid="leader-access-summary-list">
+        {filteredRecords.map((record) => <Paper key={record.uid} component="button" type="button" data-testid={`leader-access-tile-${record.uid}`} onClick={() => navigate(`/leader/access/${encodeURIComponent(record.uid)}?${searchParams.toString()}`)} aria-label={`Edit leader access for ${record.displayName}`} variant="outlined" sx={[{ p: 2, borderRadius: 2, width: "100%", textAlign: "left", cursor: "pointer", color: "text.primary", backgroundColor: "background.paper", font: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }, sectionCardSx(record.organisationSection)]}>
+          <Box sx={{ display: "flex", gap: 1.5, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
+            <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography variant="body2" color="text.secondary">{record.sections.join(", ") || record.organisationSection}</Typography><Typography variant="body2">{record.appointments.map((item) => `${item.appointment} · ${item.scope}`).join(", ") || "Programme Scouter baseline"}</Typography></Box>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}><SectionIdentityChip section={record.organisationSection} /><Chip size="small" label={record.active ? "Active" : "Inactive"} /><Chip size="small" label={record.showPublicly ? "Public" : "Not public"} /></Stack>
+          </Box>
+        </Paper>)}
+        {filteredRecords.length === 0 && <Alert severity="info">No authorised leaders match these filters.</Alert>}
+      </Stack>
+    </>}
+    {leaderUid && !selectedRecord && records.length > 0 && <Alert severity="warning" action={<Button onClick={() => navigate("/leader/access")}>Back to leaders</Button>}>Leader record not found or is not available to you.</Alert>}
+    {selectedRecord && <>
+      <Button sx={{ mb: 2 }} onClick={() => navigate({ pathname: "/leader/access", search: searchParams.toString() ? `?${searchParams.toString()}` : "" })}>Back to leaders</Button>
+      <Stack spacing={2}>
+      {[selectedRecord].map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between" }}>
           <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography color="text.secondary">{record.email}</Typography></Box>
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><SectionIdentityChip section={record.organisationSection} /><Chip label={record.role} /></Stack>
@@ -170,7 +211,8 @@ export default function LeaderAccessManagement() {
         />
         <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid} onClick={() => requestSave(record)}>Save Leader</Button>
       </Paper>)}
-    </Stack>
+      </Stack>
+    </>}
   </Container>
 
   <Dialog
