@@ -24,7 +24,7 @@ for (const [role, email] of [
 
     await login(page, email);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Operations Overview" })).toHaveCount(0);
 
     const overview = page.getByTestId("admin-overview");
     await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
@@ -80,7 +80,7 @@ test("section leader sees a scoped operations overview with linked tiles", async
 
   await login(page, leaderEmail!);
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Operations Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Operations Overview" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Operational health" })).toHaveCount(0);
 
   const overview = page.getByTestId("admin-overview");
