@@ -104,3 +104,16 @@ SW-93 is therefore a mobile-web routing and responsive-layout requirement, not a
 ## Rollback / disable
 
 The safest immediate disable is to deploy the default test configuration with `npm run deploy` (or otherwise set `EMAIL_DELIVERY_MODE = "test"` with an explicit controlled `TEST_EMAIL_REDIRECT`) so genuine recipients cannot receive messages. Do not remove the fail-closed validation to work around configuration problems.
+
+
+## Deliverability investigation (SW-108)
+
+Delivery success from Resend is not proof of inbox placement. When investigating spam placement, collect a representative received message without storing recipient addresses or message contents in Jira/repository evidence. Record the message type and approximate send time, recipient provider, provider event/message ID, delivery/bounce/complaint state, and the received Authentication-Results values for SPF, DKIM and DMARC. Also record whether the message reached inbox, promotions or spam.
+
+Validate the actual production sending domain in Resend and DNS before changing records. There must be only one SPF policy for a hostname; use only the exact provider-generated DKIM/SPF records for this account. Confirm DMARC alignment before considering a stricter DMARC policy. Preserve Firebase Hosting, MX and unrelated mail records. Do not claim inbox placement can be guaranteed.
+
+All worker-generated messages provide both HTML and a plain-text alternative. Production continues to require the stable `coolockardleascouts.ie` sender and TEST remains redirected/fail-closed. Hard bounces, complaints, suppressions, provider webhook health and aggregate delivery metrics should be contributed to the shared operational monitoring work under SW-114 rather than creating a second operator dashboard.
+
+### Manual evidence checklist
+
+In Resend, open Domains → `coolockardleascouts.ie` and record verification state plus the exact expected DNS records. Compare those with the live DNS zone without editing it. For one controlled production message, open the provider event timeline and the recipient's received-message headers and record only authentication outcomes and provider IDs/statuses. If remediation is needed, document the exact existing record, proposed record, expected effect, validation and rollback before requesting a DNS change.
