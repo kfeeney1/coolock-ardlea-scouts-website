@@ -88,7 +88,8 @@ function textBase64Url(text) {
 }
 
 async function importServicePrivateKey(pem) {
-  const normalised = String(pem || "").replaceAll("\\n", "\n").trim();
+  const normalised = String(pem || "").replaceAll("
+", "\n").trim();
   const body = normalised
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
@@ -185,7 +186,14 @@ function validEmail(value) {
   return email.includes("@") && !/[\s,;]/.test(email) ? email : "";
 }
 
-function plainTextFromHtml(html) {\n  return String(html || "")\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")\n    .replace(/<br\\s*\\/?\s*>/gi, "\\n")\n    .replace(/<\\/p>|<\\/div>|<\\/h[1-6]>/gi, "\\n")\n    .replace(/<[^>]+>/g, " ")\n    .replace(/&nbsp;/gi, " ")\n    .replace(/&amp;/gi, "&")\n    .replace(/&lt;/gi, "<")\n    .replace(/&gt;/gi, ">")\n    .replace(/&#039;/gi, "'")\n    .replace(/&quot;/gi, "\"")\n    .replace(/[ \\t]+\\n/g, "\\n")\n    .replace(/\\n{3,}/g, "\\n\\n")\n    .replace(/[ \\t]{2,}/g, " ")\n    .trim();\n}\n\nasync function sendEmail(env, to, subject, html, idempotencyKey = "") {
+function plainTextFromHtml(html) {\n  return String(html || "")\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")\n    .replace(/<br\\s*\\/?\s*>/gi, "
+")\n    .replace(/<\\/p>|<\\/div>|<\\/h[1-6]>/gi, "
+")\n    .replace(/<[^>]+>/g, " ")\n    .replace(/&nbsp;/gi, " ")\n    .replace(/&amp;/gi, "&")\n    .replace(/&lt;/gi, "<")\n    .replace(/&gt;/gi, ">")\n    .replace(/&#039;/gi, "'")\n    .replace(/&quot;/gi, "\"")\n    .replace(/[ \\t]+
+/g, "
+")\n    .replace(/
+{3,}/g, "
+
+")\n    .replace(/[ \\t]{2,}/g, " ")\n    .trim();\n}\n\nasync function sendEmail(env, to, subject, html, idempotencyKey = "") {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
   const intended = [...new Set((Array.isArray(to) ? to : [to]).map(validEmail).filter(Boolean))];
   if (!intended.length) return { sent: 0 };
