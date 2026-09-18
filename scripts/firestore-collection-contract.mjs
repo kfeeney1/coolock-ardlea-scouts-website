@@ -26,6 +26,7 @@ export const FIRESTORE_ROOT_COLLECTIONS = Object.freeze([
   "parentAccounts",
   "parentGalleryEvents",
   "parentWeeklyMeetings",
+  "policyDocuments",
   "programmeLibrary",
   "publicEvents",
   "publicLeadership",
