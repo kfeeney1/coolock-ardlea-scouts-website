@@ -9,7 +9,7 @@ import {
   type LeaderDelegationActor,
   type LeaderDelegationTarget
 } from "../security/leaderDelegationPolicy.ts";
-import { normalizeScoutingAppointment } from "../security/scoutingAppointments.ts";
+import { activeScoutingAppointments, normalizeScoutingAppointment, normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../security/scoutingAppointments.ts";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
 import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "./publicWhosWhoLogic";
 
@@ -21,6 +21,7 @@ export type LeaderAccessRecord = {
   active: boolean;
   sections: string[];
   scoutingRole: string;
+  appointments: ScoutingAppointmentAssignment[];
   organisationSection: string;
   organisationOrder: number;
   reportsToUid: string;
@@ -58,6 +59,7 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
       active: data.active === true,
       sections,
       scoutingRole: typeof org?.scoutingRole === "string" ? org.scoutingRole : "",
+      appointments: normalizeScoutingAppointmentAssignments(org?.appointments, org?.scoutingRole, org?.organisationSection),
       organisationSection: typeof org?.organisationSection === "string" ? org.organisationSection : sections[0] || "Group",
       organisationOrder: typeof org?.organisationOrder === "number" ? org.organisationOrder : 999,
       reportsToUid: typeof org?.reportsToUid === "string" ? org.reportsToUid : "",
@@ -71,8 +73,11 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string, actorEmail: string): Promise<void> {
   const sections = [...new Set(record.sections.map((section) => section.trim()).filter(Boolean))];
   if (sections.length === 0) throw new Error("Leader access requires at least one canonical section.");
-  const canonicalAppointment = normalizeScoutingAppointment(record.scoutingRole);
-  if (record.scoutingRole.trim() && !canonicalAppointment) throw new Error("Unsupported Scouting appointment.");
+  const appointments = normalizeScoutingAppointmentAssignments(record.appointments, record.scoutingRole, record.organisationSection);
+  const activeAppointments = activeScoutingAppointments(appointments);
+  const canonicalAppointment = activeAppointments[0]?.appointment || normalizeScoutingAppointment(record.scoutingRole);
+  if (record.role === "leader" && appointments.some((item) => !normalizeScoutingAppointment(item.appointment))) throw new Error("Unsupported Scouting appointment.");
+  if (new Set(appointments.map((item) => item.id)).size !== appointments.length) throw new Error("Duplicate Scouting appointment scope.");
 
   await runTransaction(db, async (transaction) => {
     const actorAccessRef = doc(db, "adminUsers", actorUid);
@@ -117,17 +122,19 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const roleChanged = currentRole !== record.role;
     const sectionsChanged = !sameStrings(currentSections, sections);
     const activeChanged = (currentAccess.active === true) !== record.active;
-    const currentAppointment = normalizeScoutingAppointment(currentOrg?.scoutingRole ?? "");
-    const appointmentChanged = currentAppointment !== canonicalAppointment;
+    const currentAppointments = normalizeScoutingAppointmentAssignments(currentOrg?.appointments, currentOrg?.scoutingRole, currentOrg?.organisationSection);
+    const currentAppointment = activeScoutingAppointments(currentAppointments)[0]?.appointment || normalizeScoutingAppointment(currentOrg?.scoutingRole ?? "");
+    const appointmentChanged = JSON.stringify(currentAppointments) !== JSON.stringify(appointments);
     const adminActor = actor.systemRole === "admin" || actor.systemRole === "super-admin";
 
     if (roleChanged && !canChangeSystemRole(actor, target)) throw new Error("Only a Super Admin can change this system role.");
     if (sectionsChanged && !canManageSectionScope(actor, target)) throw new Error("You cannot change this leader's section scope.");
     if (appointmentChanged) {
-      const allowed = canonicalAppointment
-        ? canAssignScoutingAppointment(actor, target, canonicalAppointment)
-        : canClearScoutingAppointment(actor, target);
-      if (!allowed) throw new Error("You cannot assign or remove this Scouting appointment.");
+      const currentKeys = new Set(currentAppointments.map((item) => item.id));
+      const added = appointments.filter((item) => !currentKeys.has(item.id));
+      const allowed = added.every((item) => canAssignScoutingAppointment(actor, target, item.appointment))
+        && (appointments.length > 0 || canClearScoutingAppointment(actor, target));
+      if (!allowed) throw new Error("You cannot assign or remove one or more Scouting appointments.");
     }
     if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new Error("You cannot change this account's active state.");
 
@@ -154,6 +161,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       const safeOrg = {
         displayName: record.displayName.trim().slice(0, 120),
         scoutingRole: safeAppointment,
+        appointments,
         organisationSection: record.organisationSection.trim().slice(0, 80),
         organisationOrder: Math.max(0, Math.min(999, Math.round(record.organisationOrder))),
         reportsToUid: record.reportsToUid.trim().slice(0, 128),
@@ -192,7 +200,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       actorEmail,
       targetId: record.uid,
       targetLabel: record.displayName || record.email,
-      description: `System role ${currentRole} -> ${record.role}; appointment ${currentAppointment || "none"} -> ${canonicalAppointment || "none"}; sections ${currentSections.join(", ")} -> ${sections.join(", ")}.`,
+      description: `System role ${currentRole} -> ${record.role}; appointments ${currentAppointments.map((item) => item.appointment + "@" + item.scope).join(", ") || "none"} -> ${appointments.map((item) => item.appointment + "@" + item.scope).join(", ") || "none"}; sections ${currentSections.join(", ")} -> ${sections.join(", ")}.`,
       section: record.organisationSection,
       createdAt: serverTimestamp()
     });
