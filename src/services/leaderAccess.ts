@@ -102,7 +102,8 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const actor: LeaderDelegationActor = {
       uid: actorUid,
       systemRole: normalizeLeaderRole(actorAccess.role),
-      scoutingAppointment: actorOrgSnap.exists() ? actorOrgSnap.data().scoutingRole : ""
+      scoutingAppointment: actorOrgSnap.exists() ? actorOrgSnap.data().scoutingRole : "",
+      scoutingAppointments: actorOrgSnap.exists() ? actorOrgSnap.data().appointments : []
     };
     const currentAccess = targetAccessSnap.data();
     const currentRole = normalizeLeaderRole(currentAccess.role);
@@ -174,8 +175,14 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       if (adminActor) {
         if (shouldPublishLeader({ active: true, showPublicly: safeOrg.showPublicly, scoutingRole: safeAppointment, organisationSection: safeOrg.organisationSection })) {
           transaction.set(publicRef, {
-            ...safeOrg,
+            displayName: safeOrg.displayName,
+            scoutingRole: safeOrg.scoutingRole,
+            organisationSection: safeOrg.organisationSection,
+            organisationOrder: safeOrg.organisationOrder,
+            reportsToUid: safeOrg.reportsToUid,
             showPublicly: true,
+            active: true,
+            updatedAt: serverTimestamp(),
             publicProjectionVersion: PUBLIC_PROJECTION_VERSION,
             sourceAccessRole: "leader"
           });
