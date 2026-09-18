@@ -87,7 +87,7 @@ export default function ConsentRecordPage() {
           {record.type === "youth" && !record.memberId && <Alert severity="warning">This youth consent record is not linked to a member ID. Re-save the parent’s approved Parent Access links to match it before Parent Portal editing can be used.</Alert>}
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             {Object.entries(record.data).filter(([key]) => key !== "submittedAt" && key !== "authorisedScouters").map(([key, value]) => {
-              if (key === "medicationManagement" && value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).enabled === true) return <MedicationManagementPanel key={key} value={value as Record<string, unknown>} />;
+              if (key === "medicationManagement" && value && typeof value === "object" && !Array.isArray(value)) return <MedicationManagementPanel key={key} value={value as Record<string, unknown>} />;
               const text = displayValue(value);
               if (!text) return null;
               return <Paper key={key} variant="outlined" sx={{ p: 2.5, gridColumn: typeof value === "object" && value !== null ? { md: "1 / -1" } : undefined }}>

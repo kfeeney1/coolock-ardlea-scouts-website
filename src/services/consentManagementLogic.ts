@@ -23,6 +23,8 @@ export function formatFieldName(key: string): string {
     return key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+export const MEDICATION_EMPTY_STATE = "No medication management information recorded";
+
 export function displayValue(value: unknown): string {
     if (value === null || value === undefined) return "";
     if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -30,9 +32,18 @@ export function displayValue(value: unknown): string {
     if (Array.isArray(value)) return value.map(displayValue).filter(Boolean).join(", ");
     if (typeof value === "object") {
         if ("seconds" in value || "nanoseconds" in value) return "";
-        return JSON.stringify(value, null, 2);
+        return "";
     }
     return String(value);
+}
+
+export function isMedicationManagementValue(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+export function medicationManagementHasInformation(value: unknown): boolean {
+    if (!isMedicationManagementValue(value)) return false;
+    return Object.entries(value).some(([key, item]) => key !== "enabled" && displayValue(item).trim().length > 0);
 }
 
 export function objectField(data: Record<string, unknown>, key: string): string {
