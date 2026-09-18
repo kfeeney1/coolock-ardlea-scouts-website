@@ -65,11 +65,11 @@ export default function TransientOverlayBackDismissBridge() {
       if (markerCount >= priorMarkerCount) return;
 
       previousMarkerCount.current = markerCount;
-      // The POP itself is authoritative: removing one of our same-route
-      // markers means the user pressed Back while a transient surface was
-      // open. A close consumed on the previous route can leave this flag set,
-      // but must not swallow Back for the next route's dropdown.
-      consumingClose.current = false;
+      if (consumingClose.current) {
+        consumingClose.current = false;
+        return;
+      }
+
       dismissSurface(visibleSurfaces().at(-1));
     };
 
