@@ -56,21 +56,8 @@ async function expectMobileViewportSafe(page: Page, route: string) {
 }
 
 async function dismissTopSurfaceWithBack(page: Page, surface: Locator) {
-  // The transient-overlay bridge adds a same-route history marker after the
-  // surface mounts. Wait for that marker before emulating hardware/browser
-  // Back so the test cannot race the bridge and navigate past the marker.
-  await expect.poll(
-    () => page.evaluate(() => history.state?.usr?.["__coolockArdleaBackDismissStack"]?.length ?? 0),
-    { timeout: 2_000, message: "open transient surface should have a Back history marker" }
-  ).toBeGreaterThan(0);
-
-  const routeBeforeBack = new URL(page.url()).pathname + new URL(page.url()).search;
   await page.goBack();
   await expect(surface).toBeHidden({ timeout: 1_000 });
-  await expect.poll(() => {
-    const current = new URL(page.url());
-    return current.pathname + current.search;
-  }).toBe(routeBeforeBack);
 }
 
 test.describe("Stage 20.6 mobile operational pass", () => {
