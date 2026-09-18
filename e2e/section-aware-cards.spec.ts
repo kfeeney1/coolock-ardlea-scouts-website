@@ -111,6 +111,10 @@ test("member, child and leader cards keep a textual section identity alongside t
   await expect(page.getByTestId("badgework-overview-member-TEST_member_beaver_01")).toBeHidden();
 
   await page.goto("/leader/access");
+  const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(leaderTile).toBeVisible();
+  await expect(leaderTile).toHaveAttribute("data-section", "Beavers");
+  await leaderTile.click();
   const leaderCard = page.getByTestId("leader-access-TEST_uid_multi_section_leader");
   await expect(leaderCard).toBeVisible();
   const leaderSection = await leaderCard.getAttribute("data-section");

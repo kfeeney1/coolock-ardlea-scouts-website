@@ -65,7 +65,8 @@
     "/leader/event-consent": "leader",
     "/leader/policies": "leader",
     "/leader/parent-access": "admin",
-    "/leader/settings": "admin"
+    "/leader/settings": "admin",
+    "/leader/access/:leaderUid": "admin"
   },
   "firestore": {
     "adminUsers": "system-role",

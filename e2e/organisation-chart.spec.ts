@@ -169,6 +169,9 @@ test("administrator sees organisation controls in Leader Access", async ({ page 
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/access");
   await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
+  const tile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(tile).toBeVisible();
+  await tile.click();
   await expect(page.getByText("Organisational chart").first()).toBeVisible();
   await expect(page.getByText("Show on public Who's Who").first()).toBeVisible();
 });

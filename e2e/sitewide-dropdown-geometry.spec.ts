@@ -118,6 +118,9 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectSelectionPreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
 
   await page.goto("/leader/access");
+  const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(leaderTile).toBeVisible();
+  await leaderTile.click();
   await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Reports to" }).first());
 });
@@ -127,23 +130,25 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/access");
+  const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
+  await expect(leaderTile).toBeVisible();
+  await leaderTile.click();
   await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
 
   const reportsTo = page.getByRole("combobox", { name: "Reports to" });
-  expect(await reportsTo.count()).toBeGreaterThanOrEqual(2);
-  const first = reportsTo.nth(0);
-  const second = reportsTo.nth(1);
+  await expect(reportsTo).toHaveCount(1);
+  const organisationSection = page.getByRole("combobox", { name: "Organisation section" });
 
-  const { listbox: firstListbox } = await openAttachedDropdown(page, first);
+  const { listbox: firstListbox } = await openAttachedDropdown(page, reportsTo);
   await page.keyboard.press("Escape");
   await expect(firstListbox).toBeHidden();
 
-  const { listbox: secondListbox } = await openAttachedDropdown(page, second);
+  const { listbox: secondListbox } = await openAttachedDropdown(page, organisationSection);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
 
-  const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, first);
+  const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, reportsTo);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(reopenedFirstListbox).toBeHidden();
