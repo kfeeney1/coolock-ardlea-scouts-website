@@ -91,6 +91,16 @@ service firebase.storage {
         || (audience == "leader" && isActiveLeader())
         || (audience == "admin" && canManagePolicies());
     }
+    function policyMetadataPath(documentId) { return /databases/(default)/documents/policyDocuments/$(documentId); }
+    function policyMetadata(documentId) { return firestore.get(policyMetadataPath(documentId)).data; }
+    function canReadCurrentPolicy(audience, documentId, versionId) {
+      return canReadPolicyAudience(audience)
+        && firestore.exists(policyMetadataPath(documentId))
+        && policyMetadata(documentId).get("state", "") == "current"
+        && policyMetadata(documentId).get("audience", "") == audience
+        && policyMetadata(documentId).get("documentId", "") == documentId
+        && policyMetadata(documentId).get("versionId", "") == versionId;
+    }
     function validPolicyWrite(audience, documentId, versionId) {
       return canManagePolicies() && resource == null && request.resource != null
         && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
@@ -131,11 +141,14 @@ service firebase.storage {
       allow delete: if canAccessGallerySection(section) && resource.metadata.ownerType == "event-gallery" && resource.metadata.ownerId == eventId && resource.metadata.section == section;
     }
 
-    match /attachments/policy-documents/current/{audience} { allow list: if canReadPolicyAudience(audience); }
-    match /attachments/policy-documents/current/{audience}/{documentId} { allow list: if canReadPolicyAudience(audience); }
-    match /attachments/policy-documents/current/{audience}/{documentId}/{versionId} { allow list: if canReadPolicyAudience(audience); }
+    match /attachments/policy-documents/current/{audience} { allow list: if false; }
+    match /attachments/policy-documents/current/{audience}/{documentId} { allow list: if false; }
+    match /attachments/policy-documents/current/{audience}/{documentId}/{versionId} { allow list: if false; }
     match /attachments/policy-documents/current/{audience}/{documentId}/{versionId}/{fileName} {
-      allow get: if canReadPolicyAudience(audience) && resource.metadata.ownerType == "policy-document" && resource.metadata.audience == audience && resource.metadata.state == "current";
+      allow get: if canReadCurrentPolicy(audience, documentId, versionId)
+        && resource.metadata.ownerType == "policy-document"
+        && resource.metadata.audience == audience
+        && resource.metadata.state == "current";
       allow create: if validPolicyWrite(audience, documentId, versionId);
       allow update: if false;
       allow delete: if canManagePolicies() && resource.metadata.ownerType == "policy-document";
