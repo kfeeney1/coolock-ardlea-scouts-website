@@ -56,14 +56,21 @@ async function requireAdministrator(request, env) {
   return leader && (leader.role === "admin" || leader.role === "super-admin") ? leader : null;
 }
 
-function plainTextFromHtml(html) { return String(html || "").replace(/<br\\s*\\/?\s*>/gi, "
-").replace(/<\\/p>|<\\/div>|<\\/h[1-6]>/gi, "
-").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&#039;/gi, "'").replace(/&quot;/gi, "\"").replace(/[ \\t]+
-/g, "
-").replace(/
-{3,}/g, "
+function plainTextFromHtml(html) {
+  return String(html || "")
+    .replace(/<br[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#039;/gi, "'")
+    .replace(/&quot;/gi, String.fromCharCode(34))
+    .replace(/ +/g, " ")
+    .trim();
+}
 
-").replace(/[ \\t]{2,}/g, " ").trim(); }\nasync function sendEmail(env, to, subject, html) {
+async function sendEmail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
   const intended = (Array.isArray(to) ? to : [to]).filter(Boolean);
   if (!intended.length) return;
