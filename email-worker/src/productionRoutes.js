@@ -185,6 +185,20 @@ function validEmail(value) {
   return email.includes("@") && !/[\s,;]/.test(email) ? email : "";
 }
 
+function plainTextFromHtml(html) {
+  return String(html || "")
+    .replace(/<br[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#039;/gi, "'")
+    .replace(/&quot;/gi, String.fromCharCode(34))
+    .replace(/ +/g, " ")
+    .trim();
+}
+
 async function sendEmail(env, to, subject, html, idempotencyKey = "") {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
   const intended = [...new Set((Array.isArray(to) ? to : [to]).map(validEmail).filter(Boolean))];

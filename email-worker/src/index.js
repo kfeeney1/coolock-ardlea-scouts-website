@@ -56,6 +56,20 @@ async function requireAdministrator(request, env) {
   return leader && (leader.role === "admin" || leader.role === "super-admin") ? leader : null;
 }
 
+function plainTextFromHtml(html) {
+  return String(html || "")
+    .replace(/<br[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#039;/gi, "'")
+    .replace(/&quot;/gi, String.fromCharCode(34))
+    .replace(/ +/g, " ")
+    .trim();
+}
+
 async function sendEmail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
   const intended = (Array.isArray(to) ? to : [to]).filter(Boolean);
@@ -63,7 +77,7 @@ async function sendEmail(env, to, subject, html) {
   const redirect = clean(env.TEST_EMAIL_REDIRECT, 254);
   const recipients = redirect ? [redirect] : intended;
   const finalSubject = redirect ? `[TEST for ${intended.join(", ")}] ${subject}` : subject;
-  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: env.EMAIL_FROM, to: recipients, subject: finalSubject, html }) });
+  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: env.EMAIL_FROM, to: recipients, subject: finalSubject, text: plainTextFromHtml(html), html }) });
   if (!response.ok) throw new Error(`Resend returned ${response.status}: ${await response.text()}`);
 }
 function adminRecipients(env) { return String(env.ADMIN_EMAILS || "").split(",").map(v => v.trim()).filter(Boolean); }
