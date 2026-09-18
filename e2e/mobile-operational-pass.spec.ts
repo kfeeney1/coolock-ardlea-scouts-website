@@ -60,7 +60,7 @@ async function dismissTopSurfaceWithBack(page: Page, surface: Locator) {
   // surface mounts. Wait for that marker before emulating hardware/browser
   // Back so the test cannot race the bridge and navigate past the marker.
   await expect.poll(
-    () => page.evaluate(() => history.state?.usr?.backDismissStack?.length ?? 0),
+    () => page.evaluate(() => history.state?.usr?.["__coolockArdleaBackDismissStack"]?.length ?? 0),
     { timeout: 2_000, message: "open transient surface should have a Back history marker" }
   ).toBeGreaterThan(0);
 
