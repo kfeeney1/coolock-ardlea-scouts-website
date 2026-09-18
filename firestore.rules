@@ -25,6 +25,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
     }
+    function isApprovedParent() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+        && parentProfile().status == "approved";
+    }
+    function canManagePolicies() { return isAdmin() || isGroupLeader(); }
+    function canReadPolicyAudience(audience) {
+      return audience == "public"
+        || (audience == "authenticated" && (isActiveLeader() || isApprovedParent()))
+        || (audience == "parent" && isApprovedParent())
+        || (audience == "leader" && isActiveLeader())
+        || (audience == "admin" && canManagePolicies());
+    }
+
     function isGroupSecretary() {
       return isActiveLeader()
         && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
@@ -100,6 +114,36 @@ service cloud.firestore {
         || (stage == 7 && awardId == skillId + "-stage-7")
         || (stage == 8 && awardId == skillId + "-stage-8")
         || (stage == 9 && awardId == skillId + "-stage-9");
+    }
+
+    match /policyDocuments/{documentId} {
+      allow get, list: if resource.data.state == "current" && canReadPolicyAudience(resource.data.audience);
+      allow create, update: if canManagePolicies()
+        && request.resource.data.documentId == documentId
+        && request.resource.data.versionId is string
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.category is string
+        && request.resource.data.audience in ["public", "authenticated", "parent", "leader", "admin"]
+        && request.resource.data.effectiveDate is string
+        && request.resource.data.sourceOwner is string
+        && request.resource.data.storagePath is string
+        && request.resource.data.fileName is string
+        && request.resource.data.contentType == "application/pdf"
+        && request.resource.data.size is number
+        && request.resource.data.size > 0
+        && request.resource.data.size <= 10 * 1024 * 1024
+        && request.resource.data.publishedBy == request.auth.uid
+        && request.resource.data.previousVersions is list
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.state == "current" && request.resource.data.publishedAt == request.time)
+          || (resource != null
+            && resource.data.state == "current"
+            && request.resource.data.state == "withdrawn"
+            && request.resource.data.withdrawnBy == request.auth.uid
+            && request.resource.data.withdrawnAt == request.time));
+      allow delete: if false;
     }
 
     match /consentReminderDeliveries/{reminderId} {
