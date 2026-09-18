@@ -1005,16 +1005,14 @@ service cloud.firestore {
       allow read: if isActiveLeader();
       allow create, update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && request.resource.data.scoutingRole is string
-          && request.resource.data.appointments is list
-          && request.resource.data.appointments.size() <= 12
+          && (!("appointments" in request.resource.data) || (request.resource.data.appointments is list && request.resource.data.appointments.size() <= 12))
           && ((request.resource.data.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole))
             || isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole))
           && request.resource.data.updatedAt == request.time
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "appointments", "updatedAt"])))
         && request.resource.data.displayName is string
         && request.resource.data.scoutingRole is string
-        && request.resource.data.appointments is list
-        && request.resource.data.appointments.size() <= 12
+        && (!("appointments" in request.resource.data) || (request.resource.data.appointments is list && request.resource.data.appointments.size() <= 12))
         && request.resource.data.organisationSection is string
         && request.resource.data.organisationOrder is number
         && request.resource.data.reportsToUid is string
