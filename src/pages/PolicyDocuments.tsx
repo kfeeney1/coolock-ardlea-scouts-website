@@ -15,6 +15,7 @@ export default function PolicyDocuments() {
   const [publishing, setPublishing] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<PolicyDocument | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [replaceDocumentId, setReplaceDocumentId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -44,9 +45,9 @@ export default function PolicyDocuments() {
     if (!file) { setError("Choose a PDF to publish."); return; }
     setPublishing(true); setError(""); setMessage("");
     try {
-      await publishPolicyDocument({ title, description, category, audience, effectiveDate, sourceOwner, file });
+      await publishPolicyDocument({ documentId: replaceDocumentId || undefined, title, description, category, audience, effectiveDate, sourceOwner, file });
       setMessage("Policy document published. It is now visible only to the selected audience.");
-      setFile(null); setTitle(""); setDescription(""); setCategory(""); setEffectiveDate(""); setSourceOwner("");
+      setFile(null); setReplaceDocumentId(""); setTitle(""); setDescription(""); setCategory(""); setEffectiveDate(""); setSourceOwner("");
       await refresh();
     } catch (publishError) {
       setError(publishError instanceof Error ? publishError.message : "Unable to publish policy document.");
@@ -76,6 +77,18 @@ export default function PolicyDocuments() {
         <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Publish approved document</Typography>
         <Typography color="text.secondary" sx={{ mt: .5, mb: 2 }}>Upload only an approved PDF. Uploading here is an explicit publication action; source authoring and review remain outside the website.</Typography>
         <Stack spacing={2}>
+          <TextField select label="Publication mode" value={replaceDocumentId} onChange={(e) => {
+            const id = e.target.value;
+            setReplaceDocumentId(id);
+            const existing = documents.find((item) => item.documentId === id);
+            if (existing) {
+              setTitle(existing.title); setDescription(existing.description); setCategory(existing.category);
+              setAudience(existing.audience); setSourceOwner(existing.sourceOwner);
+            }
+          }} helperText="Choose an existing policy to publish a controlled replacement, or create a new catalogue entry.">
+            <MenuItem value="">New policy document</MenuItem>
+            {documents.map((item) => <MenuItem key={item.documentId} value={item.documentId}>Replace: {item.title}</MenuItem>)}
+          </TextField>
           <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
           <TextField label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required helperText="Use the Group's established category name; this does not create a separate category system." />
