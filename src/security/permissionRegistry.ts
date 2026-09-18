@@ -1,4 +1,4 @@
-import { isGroupLeadershipAppointment } from "./scoutingAppointments.ts";
+import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "./scoutingAppointments.ts";
 
 export type PermissionScope = "own" | "linked-members" | "assigned-section" | "group-wide" | "system";
 export type PermissionArea =
@@ -102,6 +102,11 @@ const grantMatches = (grant: PermissionGrant, role: string, scoutingRole: string
   return grant === scoutingRole;
 };
 
-export function effectivePermissionsFor(role: string, scoutingRole: string): PermissionDefinition[] {
-  return PERMISSION_REGISTRY.filter((permission) => permission.grantedBy.some((grant) => grantMatches(grant, role, scoutingRole)));
+export function effectivePermissionsFor(role: string, scoutingRole: string, appointments?: unknown): PermissionDefinition[] {
+  const activeAppointments = activeScoutingAppointments(normalizeScoutingAppointmentAssignments(appointments, scoutingRole))
+    .map((item) => item.appointment);
+  const appointmentNames = activeAppointments.length > 0 ? activeAppointments : [scoutingRole];
+  return PERMISSION_REGISTRY.filter((permission) => permission.grantedBy.some((grant) =>
+    appointmentNames.some((appointment) => grantMatches(grant, role, appointment))
+  ));
 }
