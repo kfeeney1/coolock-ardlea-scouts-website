@@ -186,14 +186,21 @@ function validEmail(value) {
   return email.includes("@") && !/[\s,;]/.test(email) ? email : "";
 }
 
-function plainTextFromHtml(html) {\n  return String(html || "")\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")\n    .replace(/<br\\s*\\/?\s*>/gi, "
-")\n    .replace(/<\\/p>|<\\/div>|<\\/h[1-6]>/gi, "
-")\n    .replace(/<[^>]+>/g, " ")\n    .replace(/&nbsp;/gi, " ")\n    .replace(/&amp;/gi, "&")\n    .replace(/&lt;/gi, "<")\n    .replace(/&gt;/gi, ">")\n    .replace(/&#039;/gi, "'")\n    .replace(/&quot;/gi, "\"")\n    .replace(/[ \\t]+
-/g, "
-")\n    .replace(/
-{3,}/g, "
+function plainTextFromHtml(html) {
+  return String(html || "")
+    .replace(/<br[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#039;/gi, "'")
+    .replace(/&quot;/gi, String.fromCharCode(34))
+    .replace(/ +/g, " ")
+    .trim();
+}
 
-")\n    .replace(/[ \\t]{2,}/g, " ")\n    .trim();\n}\n\nasync function sendEmail(env, to, subject, html, idempotencyKey = "") {
+async function sendEmail(env, to, subject, html, idempotencyKey = "") {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured.");
   const intended = [...new Set((Array.isArray(to) ? to : [to]).map(validEmail).filter(Boolean))];
   if (!intended.length) return { sent: 0 };
