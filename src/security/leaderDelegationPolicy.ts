@@ -1,6 +1,7 @@
 import type { SystemRole } from "../components/admin/AdminAuthProvider.ts";
 import {
   CANONICAL_SCOUTING_APPOINTMENTS,
+  hasGroupLeadershipAppointment,
   isGroupLeadershipAppointment,
   normalizeScoutingAppointment,
   type CanonicalScoutingAppointment
@@ -19,6 +20,7 @@ export type LeaderDelegationActor = {
   uid: string;
   systemRole: SystemRole;
   scoutingAppointment?: unknown;
+  scoutingAppointments?: unknown;
 };
 
 export type LeaderDelegationTarget = {
@@ -30,7 +32,7 @@ export type LeaderDelegationTarget = {
 export function canOpenLeaderAccess(actor: LeaderDelegationActor): boolean {
   return actor.systemRole === "admin"
     || actor.systemRole === "super-admin"
-    || (actor.systemRole === "leader" && isGroupLeadershipAppointment(actor.scoutingAppointment));
+    || (actor.systemRole === "leader" && (isGroupLeadershipAppointment(actor.scoutingAppointment) || hasGroupLeadershipAppointment(actor.scoutingAppointments, actor.scoutingAppointment)));
 }
 
 export function canChangeSystemRole(actor: LeaderDelegationActor, target: LeaderDelegationTarget): boolean {
@@ -50,7 +52,7 @@ export function appointmentsActorMayAssign(actor: LeaderDelegationActor): readon
   if (actor.systemRole === "admin" || actor.systemRole === "super-admin") {
     return CANONICAL_SCOUTING_APPOINTMENTS;
   }
-  if (actor.systemRole === "leader" && isGroupLeadershipAppointment(actor.scoutingAppointment)) {
+  if (actor.systemRole === "leader" && (isGroupLeadershipAppointment(actor.scoutingAppointment) || hasGroupLeadershipAppointment(actor.scoutingAppointments, actor.scoutingAppointment))) {
     return GROUP_LEADERSHIP_DELEGABLE_APPOINTMENTS;
   }
   return [];
