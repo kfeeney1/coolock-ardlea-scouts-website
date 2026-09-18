@@ -8,7 +8,8 @@ import {
     displayValue,
     filterConsentRecords,
     filtersForSummary,
-    formatFieldName
+    formatFieldName,
+    medicationManagementHasInformation
 } from "../../src/services/consentManagementLogic.ts";
 
 const records = [
@@ -48,4 +49,14 @@ test("print HTML escapes record values", () => {
     assert.match(html, /&lt;Alex&gt;/);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+});
+
+
+test("structured medication values never fall through to raw JSON", () => {
+    assert.equal(displayValue({}), "");
+    assert.equal(displayValue({ medicineName: "Synthetic medicine" }), "");
+    assert.equal(medicationManagementHasInformation({}), false);
+    assert.equal(medicationManagementHasInformation({ enabled: false }), false);
+    assert.equal(medicationManagementHasInformation({ enabled: true, medicineName: "Synthetic medicine" }), true);
+    assert.equal(medicationManagementHasInformation({ enabled: true, medicineName: "", dosage: null }), false);
 });
