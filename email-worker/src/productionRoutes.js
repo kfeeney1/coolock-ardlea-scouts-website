@@ -1,3 +1,4 @@
+import { reminderDocumentId, reminderRecord, shouldAttemptReminder } from "./reminderPersistence.js";
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
   navy: "#17324D",
@@ -377,10 +378,27 @@ async function handleEventConsentProcessed(request, env, body) {
   return json(request, env, 200, { ok: true, sent: recipients.length });
 }
 
+async function persistReminderState(env, id, record, existing = null) {
+  const token = await serviceAccessToken(env);
+  const url = `${firestoreBase(env)}/consentReminderDeliveries/${encodeURIComponent(id)}`;
+  const fields = Object.fromEntries(Object.entries(record).map(([key, value]) =>
+    typeof value === "number" ? [key, { integerValue: String(value) }] : [key, { stringValue: String(value) }]
+  ));
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (!response.ok) throw new Error(`Reminder persistence failed with ${response.status}.`);
+  return response.json();
+}
+
 async function handleFormReminder(request, env, body) {
   const memberIds = Array.isArray(body.memberIds)
     ? [...new Set(body.memberIds.map((value) => clean(value, 100)).filter(Boolean))].slice(0, 100)
     : [];
+  const cycleKey = clean(body.reminderKey, 500) || "missing:unknown";
+  const reason = cycleKey.startsWith("expired:") || cycleKey.startsWith("annual:") ? "expired" : "missing";
   if (!memberIds.length) return json(request, env, 400, { ok: false, error: "Members are required." });
   let sent = 0;
   let skipped = 0;
@@ -391,16 +409,29 @@ async function handleFormReminder(request, env, body) {
     if (!recipients.length) { skipped += 1; continue; }
     const memberName = fieldString(authorised.member, "displayName") || "your linked member";
     for (const recipient of recipients) {
-      await sendEmail(env, recipient.email, "Parent Portal information requires attention – Coolock Ardlea Scouts", brandedEmail({
-        heading: "Information requires attention",
-        intro: `Hello ${recipient.displayName}, information for ${memberName} in the Parent Portal needs to be reviewed or renewed.`,
-        bodyHtml: `<p style="font-size:16px;line-height:1.6">For privacy, this email does not include medical, consent or other sensitive details. Sign in to the Parent Portal to see what needs attention.</p>`,
-        actions: [
-          { label: "Open Parent Portal", url: parentPortalUrl(env) },
-          { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
-        ]
-      }), `form-reminder:${memberId}:${recipient.uid}:${clean(body.reminderKey, 120) || "current"}`);
-      sent += 1;
+      const id = reminderDocumentId({ memberId, recipientUid: recipient.uid, cycleKey });
+      const existing = await privilegedDocument(env, "consentReminderDeliveries", id);
+      const existingStatus = fieldString(existing, "status");
+      if (!shouldAttemptReminder(existing ? { status: existingStatus } : null)) { skipped += 1; continue; }
+      const previousAttempts = Number(existing?.fields?.attemptCount?.integerValue || 0);
+      const attemptCount = previousAttempts + 1;
+      await persistReminderState(env, id, reminderRecord({ memberId, recipientUid: recipient.uid, cycleKey, reason, status: "sending", attemptCount }), existing);
+      try {
+        await sendEmail(env, recipient.email, "Parent Portal information requires attention – Coolock Ardlea Scouts", brandedEmail({
+          heading: "Information requires attention",
+          intro: `Hello ${recipient.displayName}, information for ${memberName} in the Parent Portal needs to be reviewed or renewed.`,
+          bodyHtml: `<p style="font-size:16px;line-height:1.6">For privacy, this email does not include medical, consent or other sensitive details. Sign in to the Parent Portal to see what needs attention.</p>`,
+          actions: [
+            { label: "Open Parent Portal", url: parentPortalUrl(env) },
+            { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
+          ]
+        }), `form-reminder:${id}`);
+        await persistReminderState(env, id, reminderRecord({ memberId, recipientUid: recipient.uid, cycleKey, reason, status: "sent", attemptCount }));
+        sent += 1;
+      } catch (error) {
+        await persistReminderState(env, id, reminderRecord({ memberId, recipientUid: recipient.uid, cycleKey, reason, status: "failed", attemptCount }));
+        throw error;
+      }
     }
   }
   return json(request, env, 200, { ok: true, sent, skipped });

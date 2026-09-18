@@ -2,6 +2,7 @@ export const FIRESTORE_ROOT_COLLECTIONS = Object.freeze([
   "adminUsers",
   "auditLog",
   "consentApplications",
+  "consentReminderDeliveries",
   "equipmentCategories",
   "equipmentHistory",
   "equipmentIncidents",
