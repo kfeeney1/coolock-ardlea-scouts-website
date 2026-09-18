@@ -202,3 +202,29 @@ test("unknown collections remain denied by the default rule", async () => {
   const db = testEnv.authenticatedContext("someone").firestore();
   await assertFails(setDoc(doc(db, "unexpectedCollection/doc-1"), { value: true }));
 });
+
+test("consentReminderDeliveries are server-only and cannot be forged by clients", async () => {
+  await seedDocuments([
+    ["consentReminderDeliveries/reminder-1", { memberId: "member-cub", recipientUid: "parent-1", status: "sent" }],
+    ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-cub"], linkedSections: ["Cubs"] }],
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+  ]);
+
+  for (const db of [
+    testEnv.unauthenticatedContext().firestore(),
+    testEnv.authenticatedContext("parent-1", { email: "parent@example.com" }).firestore(),
+    testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore(),
+  ]) {
+    const ref = doc(db, "consentReminderDeliveries/reminder-1");
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(doc(db, "consentReminderDeliveries/forged-reminder"), {
+      memberId: "member-cub", recipientUid: "parent-1", status: "sent"
+    }));
+    await assertFails(updateDoc(ref, { status: "failed" }));
+  }
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await assertSucceeds(getDoc(doc(db, "consentReminderDeliveries/reminder-1")));
+  });
+});
