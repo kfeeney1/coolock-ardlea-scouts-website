@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Chip, Collapse, Divider, Paper, Stack, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
@@ -58,7 +58,6 @@ function matchesNavPath(pathname: string, itemPath: string) {
 
 export default function LeaderDashboardHeader() {
  const location = useLocation();
- const navigate = useNavigate();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
  const { adminProfile, logout, setUiTheme } = useAdminAuth();
  const activeMobileGroup = navGroups.find((group) => group.items.some((item) => matchesNavPath(location.pathname, item.path)))?.label ?? null;
@@ -82,15 +81,7 @@ export default function LeaderDashboardHeader() {
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
  const menuHistoryReady = useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
- const handleSignOut = async () => {
-  setSigningOut(true);
-  try {
-   await logout();
-   navigate("/leader/login", { replace: true });
-  } finally {
-   setSigningOut(false);
-  }
- };
+ const handleSignOut = async () => { setSigningOut(true); try { await logout(); } finally { setSigningOut(false); } };
  const handleThemeChange = async (theme: ThemeName) => {
   if (theme === adminProfile?.uiTheme || themeSaving) return;
   setThemeSaving(theme); setThemeError("");
