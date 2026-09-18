@@ -209,11 +209,15 @@ export default function LeaderRequests() {
                                             label={request.status}
                                             color={request.status === "approved" ? "success" : request.status === "rejected" ? "error" : "warning"}
                                         />
-                                        {request.status === "pending" && (
+                                        {request.status === "pending" ? (
                                             <Button variant="contained" color="success" onClick={() => { setDecision(null); setSelected(request); }}>
                                                 Review Request
                                             </Button>
-                                        )}
+                                        ) : request.status === "approved" ? (
+                                            <Button component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} variant="outlined" color="secondary" aria-label={`Open Leader Access for ${request.fullName}`}>
+                                                Open Leader Access
+                                            </Button>
+                                        ) : null}
                                     </Stack>
                                 </Box>
                             </Paper>
