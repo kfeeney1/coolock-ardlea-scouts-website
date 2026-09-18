@@ -81,7 +81,7 @@ export default function LeaderAccessManagement() {
   };
   useEffect(() => { void refresh(); }, []);
 
-  const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole } : null;
+  const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole, scoutingAppointments: adminProfile.appointments } : null;
   if (!actor || !canOpenLeaderAccess(actor)) {
     return <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}><Alert severity="error">Group Leadership or Administrator access is required.</Alert></Container>;
   }
