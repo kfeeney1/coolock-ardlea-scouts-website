@@ -39,20 +39,13 @@ export default function TransientOverlayBackDismissBridge() {
   const [surfaces, setSurfaces] = useState<HTMLElement[]>([]);
   const previousMarkerCount = useRef(0);
   const consumingClose = useRef(false);
-  const locationStateRef = useRef(location.state);
-  const visibleSurfaceCountRef = useRef(0);
-  locationStateRef.current = location.state;
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
   );
 
   useLayoutEffect(() => {
-    const refresh = () => {
-      const nextSurfaces = visibleSurfaces();
-      visibleSurfaceCountRef.current = nextSurfaces.length;
-      setSurfaces(nextSurfaces);
-    };
+    const refresh = () => setSurfaces(visibleSurfaces());
     refresh();
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, {
@@ -68,14 +61,8 @@ export default function TransientOverlayBackDismissBridge() {
     const handlePopState = (event: PopStateEvent) => {
       const markerCount = backDismissStack(locationStateFromHistoryState(event.state))
         .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
-      const currentMarkerCount = backDismissStack(locationStateRef.current)
-        .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
-      const priorMarkerCount = Math.max(previousMarkerCount.current, currentMarkerCount);
-      // A Back can race the React render that observes the marker pushed for a
-      // just-opened MUI surface. If a surface is visibly open, a POP to a state
-      // with fewer markers than visible surfaces still represents a dismiss.
-      const dismissingVisibleSurface = visibleSurfaceCountRef.current > markerCount;
-      if (markerCount >= priorMarkerCount && !dismissingVisibleSurface) return;
+      const priorMarkerCount = previousMarkerCount.current;
+      if (markerCount >= priorMarkerCount) return;
 
       previousMarkerCount.current = markerCount;
       if (consumingClose.current) {
