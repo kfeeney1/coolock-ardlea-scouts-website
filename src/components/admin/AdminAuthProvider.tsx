@@ -18,6 +18,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
 import { normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
+import { normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../../security/scoutingAppointments";
 import {
     remainingInactivityMs,
     SESSION_LAST_ACTIVITY_KEY,
@@ -40,6 +41,7 @@ export type AdminProfile = {
     role: SystemRole;
     sections: string[];
     scoutingRole: string;
+    appointments: ScoutingAppointmentAssignment[];
     uiTheme: ThemeName;
 };
 
@@ -84,6 +86,7 @@ async function loadAdminProfile(user: User): Promise<AdminProfile | null> {
         role,
         sections,
         scoutingRole: typeof organisationData?.scoutingRole === "string" ? organisationData.scoutingRole : "",
+        appointments: normalizeScoutingAppointmentAssignments(organisationData?.appointments, organisationData?.scoutingRole, organisationData?.organisationSection),
         uiTheme: normalizeThemePreference(data.uiTheme)
     };
 }
