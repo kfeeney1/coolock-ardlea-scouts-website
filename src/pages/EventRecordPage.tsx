@@ -15,7 +15,7 @@ import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { loadEvents, updateEvent, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord } from "../services/eventAdmin";
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel, isDuplicateEventIdentity } from "../services/eventManagementLogic";
+import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel, isDuplicateEventIdentity, resolveEventAudience } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -98,7 +98,10 @@ export default function EventRecordPage() {
         setSaving(true);
         setError("");
         try {
-            await updateEvent(event.id, draft);
+            const sectionIds = draft.audience?.sectionIds ?? [];
+            const memberIds = draft.audience?.memberIds ?? [];
+            const audience = draft.audience ? { ...draft.audience, resolvedMemberIds: resolveEventAudience(sectionIds, memberIds, members) } : null;
+            await updateEvent(event.id, { ...draft, audience });
             setEditing(false);
             setMessage(draft.status === "completed" ? "Event completed and moved to history." : "Event updated.");
             await load();
