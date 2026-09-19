@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isAllowedPublicAppointment, isCurrentPublicProjection, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "../../src/services/publicWhosWhoLogic.ts";
+import { buildPublicLeadershipAppointments, isAllowedPublicAppointment, isCurrentPublicProjection, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "../../src/services/publicWhosWhoLogic.ts";
 
 describe("public Who's Who role policy", () => {
   it("allows the agreed Group executive roles", () => {
@@ -44,5 +44,45 @@ describe("public Who's Who role policy", () => {
     assert.equal(shouldPublishLeader({ active: true, showPublicly: true, scoutingRole: "Admin", organisationSection: "Group" }), false);
     assert.equal(shouldPublishLeader({ active: false, showPublicly: true, scoutingRole: "Group Leader", organisationSection: "Group" }), false);
     assert.equal(shouldPublishLeader({ active: true, showPublicly: false, scoutingRole: "Group Leader", organisationSection: "Group" }), false);
+  });
+
+  it("projects group appointments to Group even when organisation placement is section-scoped", () => {
+    assert.deepEqual(
+      buildPublicLeadershipAppointments({
+        appointments: [{ appointment: "Group Chairperson", scope: "Scouts", active: true }],
+        organisationSection: "Scouts",
+        accountSections: ["Scouts"]
+      }),
+      [{ role: "Group Chairperson", section: "Group" }]
+    );
+  });
+
+  it("projects multi-section Programme Scouters across authorised youth sections without exposing account data", () => {
+    assert.deepEqual(
+      buildPublicLeadershipAppointments({
+        appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }],
+        organisationSection: "Cubs",
+        accountSections: ["Cubs", "Scouts", "Group"]
+      }),
+      [
+        { role: "Programme Scouter", section: "Cubs" },
+        { role: "Programme Scouter", section: "Scouts" }
+      ]
+    );
+  });
+
+  it("projects multiple appointments without excluding a mixed Group and section leader", () => {
+    assert.deepEqual(
+      buildPublicLeadershipAppointments({
+        appointments: [
+          { appointment: "Group Leader", scope: "Cubs", active: true },
+          { appointment: "Section Leader", scope: "Cubs", active: true },
+          { appointment: "Programme Scouter", scope: "Cubs", active: true }
+        ],
+        organisationSection: "Cubs",
+        accountSections: ["Beavers", "Cubs", "Ventures", "Group"]
+      }).map((item) => item.section),
+      ["Group", "Cubs", "Beavers", "Ventures", "Cubs", "Beavers", "Ventures"]
+    );
   });
 });
