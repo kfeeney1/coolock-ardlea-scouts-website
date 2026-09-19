@@ -8,7 +8,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
 import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
-import { EMPTY_EVENT, filterEvents, isDuplicateEventIdentity } from "../services/eventManagementLogic";
+import { EMPTY_EVENT, filterEvents, isDuplicateEventIdentity, resolveEventAudience } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -65,7 +65,9 @@ export default function EventsManagement() {
         setSaving(true);
         setError("");
         try {
-            const eventId = await createEvent(draft);
+            const sectionIds = draft.section === "All Sections" ? [...new Set(members.filter((member) => member.status === "active").map((member) => member.section))] : [draft.section];
+            const audience = { version: 1 as const, sectionIds, memberIds: [], resolvedMemberIds: resolveEventAudience(sectionIds, [], members) };
+            const eventId = await createEvent({ ...draft, audience });
             setEventDialogOpen(false);
             setMessage("Event created.");
             navigate(`/leader/events/${encodeURIComponent(eventId)}`);
