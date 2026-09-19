@@ -11,13 +11,21 @@ function decodeEntities(value: string): string {
   return value.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
 }
 function xmlText(xml: string): string {
-  return decodeEntities(xml.replace(/<w:tab\s*\/>|<text:tab[^>]*\/>/gi, " ").replace(/<w:br\s*\/>|<text:line-break[^>]*\/>/gi, "\n").replace(/<\/w:p>|<\/text:(?:p|h)>/gi, "\n").replace(/<[^>]+>/g, " "))
-    .replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return decodeEntities(xml.replace(/<w:tab\s*\/>|<text:tab[^>]*\/>/gi, " ").replace(/<w:br\s*\/>|<text:line-break[^>]*\/>/gi, "
+").replace(/<\/w:p>|<\/text:(?:p|h)>/gi, "
+").replace(/<[^>]+>/g, " "))
+    .replace(/[ \t]+/g, " ").replace(/ *
+ */g, "
+").replace(/
+{3,}/g, "
+
+").trim();
 }
 function utf8(bytes: Uint8Array): string { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") throw new Error("Compressed document extraction is not supported by this browser.");
-  const copy = Uint8Array.from(data);\n  const stream = new Blob([copy.buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const copy = Uint8Array.from(data);
+  const stream = new Blob([copy.buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 async function findZipText(bytes: Uint8Array, entryName: string): Promise<string> {
@@ -47,7 +55,9 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
   const source = new TextDecoder("latin1").decode(bytes);
   if (/\/Encrypt\b/.test(source)) throw new Error("Password-protected or encrypted PDFs cannot be parsed.");
   const chunks: string[] = [];
-  for (const stream of source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+  for (const stream of source.matchAll(/stream\r?
+([\s\S]*?)\r?
+endstream/g)) {
     let body = stream[1];
     const dictionary = source.slice(Math.max(0, stream.index! - 500), stream.index);
     if (/\/FlateDecode/.test(dictionary)) {
@@ -55,7 +65,9 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
     } else if (/\/LZWDecode|\/DCTDecode|\/JPXDecode/.test(dictionary)) continue;
     for (const match of body.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj|\[(.*?)\]\s*TJ/gs)) {
       const segment = match[0];
-      for (const literal of segment.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) chunks.push(literal[1].replace(/\\([\\()])/g, "$1").replace(/\\n/g, "\n"));
+      for (const literal of segment.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) chunks.push(literal[1].replace(/\\([\\()])/g, "$1").replace(/\
+/g, "
+"));
     }
   }
   const text = chunks.join(" ").replace(/\s+/g, " ").trim();
