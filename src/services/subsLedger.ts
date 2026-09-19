@@ -40,9 +40,13 @@ export async function loadSubsPolicies(): Promise<SubsRatePolicy[]> {
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
 }
 
-export async function loadSubsMembers(): Promise<MemberRecord[]> {
-  const snap = await getDocs(collection(db, "members"));
-  return snap.docs.map((item) => mapSubsMember(item.id, item.data()))
+export async function loadSubsMembers(sections?: string[]): Promise<MemberRecord[]> {
+  const docs = sections
+    ? (await Promise.all([...new Set(sections.filter(Boolean))].map((section) =>
+        getDocs(query(collection(db, "members"), where("section", "==", section)))
+      ))).flatMap((snapshot) => snapshot.docs)
+    : (await getDocs(collection(db, "members"))).docs;
+  return docs.map((item) => mapSubsMember(item.id, item.data()))
     .filter((member): member is MemberRecord => member !== null && member.status === "active")
     .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
 }
