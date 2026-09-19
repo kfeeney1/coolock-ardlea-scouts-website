@@ -18,7 +18,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
@@ -36,7 +36,7 @@ import {
   loadEquipmentItems,
   loadEquipmentOptions,
   setEquipmentArchived,
-  updateEquipmentItem
+  updateEquipmentOption
 } from "../services/equipment";
 import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
 import { loadEquipmentIncidents } from "../services/equipmentIncidents";
@@ -71,6 +71,7 @@ type InventoryStatusFilter = EquipmentDashboardFilter;
 
 export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
+  const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<EquipmentItem[]>([]);
@@ -88,6 +89,9 @@ export default function EquipmentManagement() {
   const [saving, setSaving] = useState(false);
   const [manageLocationsOpen, setManageLocationsOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
+  const [optionName, setOptionName] = useState("");
+  const [optionDrafts, setOptionDrafts] = useState<Record<string, string>>({});
+  const [archiveTarget, setArchiveTarget] = useState<EquipmentItem | null>(null);
 
   const search = searchParams.get("q") ?? "";
   const categoryFilter = searchParams.get("category") ?? "all";
@@ -175,32 +179,14 @@ export default function EquipmentManagement() {
     setNewLocation("");
   };
 
-  const openEdit = (item: EquipmentItem) => {
-    setEditing(item);
-    setForm({
-      name: item.name,
-      category: item.category,
-      trackingMode: item.trackingMode,
-      totalQuantity: item.totalQuantity,
-      location: item.location,
-      condition: item.condition,
-      notes: item.notes,
-      replacementValue: item.replacementValue
-    });
-    setNewCategory("");
-    setNewLocation("");
-  };
-
   const save = async () => {
     setError("");
     const name = normaliseEquipmentLabel(form.name);
     if (!name) return setError("Enter an equipment name.");
-    if (isDuplicateEquipmentItemName(name, items, editing?.id)) {
+    if (isDuplicateEquipmentItemName(name, items)) {
       return setError("An equipment item with that name already exists. Edit or restore the existing record instead.");
     }
     if (form.totalQuantity === null || !Number.isInteger(form.totalQuantity) || form.totalQuantity < 0) return setError("Quantity must be a whole number of zero or more.");
-    const committedQuantity = editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0;
-    if (editing && form.totalQuantity < committedQuantity) return setError(`At least ${committedQuantity} are currently checked out or unavailable. Resolve stock before reducing the total below that number.`);
     if (form.replacementValue !== null && (!Number.isFinite(form.replacementValue) || form.replacementValue < 0)) return setError("Replacement value cannot be negative.");
 
     setSaving(true);
@@ -223,8 +209,7 @@ export default function EquipmentManagement() {
       if (!category || !location) throw new Error("Choose a category and Store.");
 
       const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
-      if (editing) await updateEquipmentItem(editing.id, payload);
-      else await createEquipmentItem(payload);
+      await createEquipmentItem(payload);
       setEditing(undefined);
       await refresh();
     } catch (saveError) {
@@ -251,6 +236,7 @@ export default function EquipmentManagement() {
     setError("");
     try {
       await setEquipmentArchived(item, !item.archived);
+      setArchiveTarget(null);
       await refresh();
     } catch (archiveError) {
       console.error("Unable to update equipment archive state:", archiveError);
