@@ -113,7 +113,7 @@ export default function ReportDownloadExperience() {
       const link = target.closest("a[download]");
       if (!(link instanceof HTMLAnchorElement)) return;
       const path = window.location.pathname;
-      if (path !== "/leader/reports" && path !== "/leader/equipment") return;
+      if (path !== "/leader/reports" && path !== "/leader/equipment" && path !== "/leader/finance") return;
       const filename = link.download;
       if (!filename.toLowerCase().endsWith(".csv")) return;
       const blob = generatedBlobs.get(link.href);
