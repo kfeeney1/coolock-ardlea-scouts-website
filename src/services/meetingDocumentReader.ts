@@ -15,7 +15,12 @@ function xmlText(xml: string): string {
     .replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 function utf8(bytes: Uint8Array): string { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
-function findZipText(bytes: Uint8Array, entryName: string): string {
+async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream === "undefined") throw new Error("Compressed document extraction is not supported by this browser.");
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function findZipText(bytes: Uint8Array, entryName: string): Promise<string> {
   // DOCX/ODT are ZIP containers. This dependency-free reader accepts stored (method 0)
   // XML entries and fails safely for compressed entries rather than executing content.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -29,8 +34,10 @@ function findZipText(bytes: Uint8Array, entryName: string): string {
     const name = utf8(bytes.subarray(nameStart, nameStart + nameLength));
     const dataStart = nameStart + nameLength + extraLength;
     if (name === entryName) {
-      if (method !== 0) throw new Error("This document uses compressed XML that this browser cannot safely extract. Enter the meeting details manually.");
-      return utf8(bytes.subarray(dataStart, dataStart + compressedSize));
+      const data = bytes.subarray(dataStart, dataStart + compressedSize);
+      if (method === 0) return utf8(data);
+      if (method === 8) return utf8(await inflateRaw(data));
+      throw new Error("This document uses an unsupported ZIP compression method. Enter the meeting details manually.");
     }
     offset = dataStart + compressedSize;
   }
@@ -68,7 +75,7 @@ export async function readMeetingDocument(file: File): Promise<MeetingDocumentRe
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (file.type === "application/pdf" || ext === "pdf") return { text: extractPdfText(bytes), warnings: [] };
-  if (file.type.includes("wordprocessingml") || ext === "docx") return { text: xmlText(findZipText(bytes, "word/document.xml")), warnings: [] };
-  if (file.type.includes("opendocument.text") || ext === "odt") return { text: xmlText(findZipText(bytes, "content.xml")), warnings: [] };
+  if (file.type.includes("wordprocessingml") || ext === "docx") return { text: xmlText(await findZipText(bytes, "word/document.xml")), warnings: [] };
+  if (file.type.includes("opendocument.text") || ext === "odt") return { text: xmlText(await findZipText(bytes, "content.xml")), warnings: [] };
   throw new Error("This document type can be attached but cannot be parsed. Enter the meeting details manually.");
 }
