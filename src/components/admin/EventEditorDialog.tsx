@@ -1,4 +1,4 @@
-import { Alert, Autocomplete, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 import type { EventInput, EventRecord, EventStatus } from "../../services/eventAdmin";
@@ -86,15 +86,20 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                     <TextField required label="Event title" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                     <FormControl><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => onChange({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select></FormControl>
                                     <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 1, sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
-<Autocomplete
-                                        multiple
-                                        options={members.filter((member) => member.status === "active")}
-                                        getOptionLabel={(member) => `${member.displayName} · ${member.section}`}
-                                        value={members.filter((member) => draft.audience?.memberIds.includes(member.id))}
-                                        onChange={(_, selected) => onChange({ ...draft, audience: { version: 1, sectionIds: draft.audience?.sectionIds ?? [], memberIds: selected.map((member) => member.id), resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}
-                                        renderInput={(params) => <TextField {...params} label="Selected members" helperText="Optional: invite individual members without inviting their whole section." />}
-                                        sx={{ gridColumn: { md: "1 / -1" } }}
-                                    />
+<Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                                        <Typography variant="subtitle2" gutterBottom>Selected members</Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Optional: invite individual members without inviting their whole section.</Typography>
+                                        <Stack direction="row" flexWrap="wrap" gap={1}>
+                                            {members.filter((member) => member.status === "active").map((member) => {
+                                                const selected = draft.audience?.memberIds.includes(member.id) ?? false;
+                                                return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} variant={selected ? "filled" : "outlined"} clickable onClick={() => {
+                                                    const current = draft.audience?.memberIds ?? [];
+                                                    const memberIds = selected ? current.filter((id) => id !== member.id) : [...current, member.id];
+                                                    onChange({ ...draft, audience: { version: 1, sectionIds: draft.audience?.sectionIds ?? [], memberIds, resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } });
+                                                }} />;
+                                            })}
+                                        </Stack>
+                                    </Box>
                                     <TextField required type="date" label="Start date" value={draft.startDate} onChange={(event) => onChange({ ...draft, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
                                     <TextField type="date" label="End date" value={draft.endDate} onChange={(event) => onChange({ ...draft, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
                                     <TextField label="Location" value={draft.location} onChange={(event) => onChange({ ...draft, location: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
