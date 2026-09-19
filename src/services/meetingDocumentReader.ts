@@ -17,7 +17,7 @@ function xmlText(xml: string): string {
 function utf8(bytes: Uint8Array): string { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") throw new Error("Compressed document extraction is not supported by this browser.");
-  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const copy = Uint8Array.from(data);\n  const stream = new Blob([copy.buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 async function findZipText(bytes: Uint8Array, entryName: string): Promise<string> {
