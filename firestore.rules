@@ -725,8 +725,8 @@ service cloud.firestore {
         return !request.resource.data.keys().hasAny(["accountId", "accountAmountDueCents", "accountChildCount"]);
       }
       allow get, list: if isActiveLeader()
-        && resource.data.section is string
-        && (canViewAllFinance() || hasSection(resource.data.section));
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
       allow create: if canManageSubsPolicy()
         && request.resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
@@ -776,8 +776,8 @@ service cloud.firestore {
           && request.resource.data.method == original.method;
       }
       allow get, list: if isActiveLeader()
-        && resource.data.section is string
-        && (canViewAllFinance() || hasSection(resource.data.section));
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
       allow create: if canAccessFinanceSection(request.resource.data.section)
         && request.resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
