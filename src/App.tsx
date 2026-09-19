@@ -42,6 +42,7 @@ const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
 const WeeklySectionTracker = lazy(() => import("./pages/WeeklySectionTracker"));
 const BadgeworkTracking = lazy(() => import("./pages/BadgeworkTracking"));
 const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
+const EquipmentRecordPage = lazy(() => import("./pages/EquipmentRecordPage"));
 const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
 const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
 const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
         <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
+        <Route path="/leader/equipment/:equipmentId" element={protectedRoute(<EquipmentRecordPage />)} />
         <Route path="/leader/finance" element={protectedRoute(<SectionCashbook />)} />
         <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
         <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
