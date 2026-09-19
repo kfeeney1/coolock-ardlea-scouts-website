@@ -64,9 +64,11 @@ function publicAppointmentsFor(source, access) {
       continue;
     }
     if (!SECTION_ROLES.has(roleKey(item.role))) continue;
-    for (const section of [item.scope, text(source?.organisationSection), ...accountSections]) {
+    const explicit = [item.scope, text(source?.organisationSection)].filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
+    const candidates = explicit.length ? explicit : accountSections;
+    for (const section of candidates) {
       if (!YOUTH_SECTIONS.has(text(section).toLowerCase())) continue;
-      const key = roleKey(item.role) + "\u0000" + text(section).toLowerCase();
+      const key = roleKey(item.role) + "\\u0000" + text(section).toLowerCase();
       if (!seen.has(key)) { seen.add(key); result.push({ role: item.role, section: text(section) }); }
     }
   }
