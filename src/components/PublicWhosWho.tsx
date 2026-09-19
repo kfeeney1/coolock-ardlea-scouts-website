@@ -236,7 +236,7 @@ export default function PublicWhosWho() {
                   ]}
                 >
                   <Typography component="h4" variant="h6" sx={{ fontWeight: 800 }}>{leader.displayName}</Typography>
-                  <Typography color="text.secondary" sx={{ mt: .5, fontWeight: 700 }}>{leader.scoutingRole}</Typography>
+                  <Typography color="text.secondary" sx={{ mt: .5, fontWeight: 700 }}>{leader.publicAppointments.filter((item) => item.section === section).map((item) => item.role).join(" · ") || leader.scoutingRole}</Typography>
                   <Box sx={{ mt: 1.5 }}><SectionIdentityChip section={section} /></Box>
                 </Paper>
               ))}
