@@ -86,7 +86,7 @@ export default function EventsManagement() {
             {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} />
-            <EventEditorDialog open={eventDialogOpen} editing={null} draft={draft} saving={saving} onClose={() => setEventDialogOpen(false)} onChange={setDraft} onSave={() => void saveEvent()} />
+            <EventEditorDialog open={eventDialogOpen} editing={null} draft={draft} saving={saving} members={members} onClose={() => setEventDialogOpen(false)} onChange={setDraft} onSave={() => void saveEvent()} />
         </Container>
     </Box>;
 }
