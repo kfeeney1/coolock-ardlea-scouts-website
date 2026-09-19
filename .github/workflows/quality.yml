@@ -36,7 +36,9 @@ jobs:
       - name: Audit production dependencies
         run: |
           for attempt in 1 2; do
-            if timeout 180s npm audit --omit=dev --audit-level=high; then
+            # npm audit can reject an otherwise npm-ci-valid tree when optional/dev peer metadata is present.
+            # --package-lock-only asks npm to normalise the in-memory audit tree without changing the committed lockfile.
+            if timeout 180s npm audit --package-lock-only --omit=dev --audit-level=high; then
               exit 0
             fi
             if [ "$attempt" -lt 2 ]; then
