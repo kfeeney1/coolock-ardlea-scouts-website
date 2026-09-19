@@ -1,7 +1,8 @@
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 import type { EventInput, EventRecord, EventStatus } from "../../services/eventAdmin";
+import type { MemberRecord } from "../../services/memberAdmin";
 import { EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, eventStatusLabel } from "../../services/eventManagementLogic";
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
     editing: EventRecord | null;
     draft: EventInput;
     saving: boolean;
+    members?: MemberRecord[];
     onClose: () => void;
     onChange: (draft: EventInput) => void;
     onSave: () => void;
@@ -16,7 +18,7 @@ type Props = {
 
 type EventEditorStep = "details" | "settings";
 
-export default function EventEditorDialog({ open, editing, draft, saving, onClose, onChange, onSave }: Props) {
+export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onSave }: Props) {
     const [step, setStep] = useState<EventEditorStep>("details");
     const [confirmCompletion, setConfirmCompletion] = useState(false);
 
@@ -84,6 +86,15 @@ export default function EventEditorDialog({ open, editing, draft, saving, onClos
                                     <TextField required label="Event title" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                     <FormControl><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => onChange({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select></FormControl>
                                     <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+<Autocomplete
+                                        multiple
+                                        options={members.filter((member) => member.status === "active")}
+                                        getOptionLabel={(member) => `${member.displayName} · ${member.section}`}
+                                        value={members.filter((member) => draft.audience?.memberIds.includes(member.id))}
+                                        onChange={(_, selected) => onChange({ ...draft, audience: { version: 1, sectionIds: draft.audience?.sectionIds ?? [], memberIds: selected.map((member) => member.id), resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}
+                                        renderInput={(params) => <TextField {...params} label="Selected members" helperText="Optional: invite individual members without inviting their whole section." />}
+                                        sx={{ gridColumn: { md: "1 / -1" } }}
+                                    />
                                     <TextField required type="date" label="Start date" value={draft.startDate} onChange={(event) => onChange({ ...draft, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
                                     <TextField type="date" label="End date" value={draft.endDate} onChange={(event) => onChange({ ...draft, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
                                     <TextField label="Location" value={draft.location} onChange={(event) => onChange({ ...draft, location: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
