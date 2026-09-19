@@ -11,7 +11,7 @@ import {
 } from "../security/leaderDelegationPolicy.ts";
 import { activeScoutingAppointments, normalizeScoutingAppointment, normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../security/scoutingAppointments.ts";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
-import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION, shouldPublishLeader } from "./publicWhosWhoLogic";
+import { buildPublicLeadershipAppointments, isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION, shouldPublishLeaderAppointments } from "./publicWhosWhoLogic";
 
 export type LeaderAccessRecord = {
   uid: string;
@@ -172,11 +172,20 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       transaction.set(targetOrgRef, safeOrg);
 
       if (adminActor) {
-        if (shouldPublishLeader({ active: true, showPublicly: safeOrg.showPublicly, scoutingRole: safeAppointment, organisationSection: safeOrg.organisationSection })) {
+        const publicAppointments = buildPublicLeadershipAppointments({
+          appointments,
+          scoutingRole: safeAppointment,
+          organisationSection: safeOrg.organisationSection,
+          accountSections: sections
+        });
+        if (shouldPublishLeaderAppointments({ active: true, showPublicly: safeOrg.showPublicly, appointments, scoutingRole: safeAppointment, organisationSection: safeOrg.organisationSection, accountSections: sections })) {
+          const primaryPublicAppointment = publicAppointments[0];
           transaction.set(publicRef, {
             displayName: safeOrg.displayName,
-            scoutingRole: safeOrg.scoutingRole,
-            organisationSection: safeOrg.organisationSection,
+            scoutingRole: primaryPublicAppointment.role,
+            organisationSection: primaryPublicAppointment.section,
+            organisationSections: [...new Set(publicAppointments.map((item) => item.section))],
+            publicAppointments,
             organisationOrder: safeOrg.organisationOrder,
             reportsToUid: safeOrg.reportsToUid,
             showPublicly: true,
