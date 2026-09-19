@@ -3,14 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
-import { isSupportedMeetingImportFile, parseMeetingDocument } from "../services/meetingRecordImport";
+import { extractMeetingCandidates, type MeetingCandidate, type MeetingCandidateKey } from "../services/meetingRecordImport";
+import { isParseableMeetingDocument, readMeetingDocument } from "../services/meetingDocumentReader";
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
 import { openMeetingDocument } from "../services/meetingDocuments";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const FULL_MEETING_HISTORY_ROLES = new Set(["Group Secretary"]);
-const MAX_IMPORT_BYTES = 500_000;
 
 const emptyForm: MeetingInput = {
   title: "",
@@ -53,6 +53,9 @@ export default function MeetingRecords() {
   const [importMessage, setImportMessage] = useState("");
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
+  const [parseBusy, setParseBusy] = useState(false);
+  const [parseCandidates, setParseCandidates] = useState<MeetingCandidate[]>([]);
+  const [acceptedCandidates, setAcceptedCandidates] = useState<Set<MeetingCandidateKey>>(new Set());
   const [versionsByMeeting, setVersionsByMeeting] = useState<Record<string, MeetingRecordVersion[]>>({});
   const [versionLoadingId, setVersionLoadingId] = useState<string | null>(null);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
@@ -86,6 +89,8 @@ export default function MeetingRecords() {
     setImportMessage("");
     setImportWarnings([]);
     setSelectedDocument(null);
+    setParseCandidates([]);
+    setAcceptedCandidates(new Set());
     setForm({ ...emptyForm, section: sections[0] ?? "" });
   };
 
@@ -103,48 +108,73 @@ export default function MeetingRecords() {
     setSuccess("");
     setImportMessage("");
     setImportWarnings([]);
-
+    setParseCandidates([]);
+    setAcceptedCandidates(new Set());
     setSelectedDocument(file);
-    if (!isSupportedMeetingImportFile(file.name, file.type)) { setImportMessage(`Selected ${file.name}. It will be attached when the meeting is saved.`); return; }
-    if (file.size > MAX_IMPORT_BYTES) {
-      setImportMessage(`Selected ${file.name}. It will be attached without importing its text because it is larger than 500 KB.`); return;
+
+    if (!isParseableMeetingDocument(file.name, file.type)) {
+      setImportMessage(`Selected ${file.name}. It will remain attached; enter the meeting details manually.`);
+      return;
     }
 
+    setParseBusy(true);
     try {
-      const imported = parseMeetingDocument(await file.text());
-      const warnings = [...imported.warnings];
-      let meetingType = imported.meetingType;
-      if (!isAdmin && meetingType !== "leader") {
-        meetingType = "leader";
-        warnings.push("This account cannot create Group Council or Group Leaders records, so the imported draft was changed to a section leader meeting.");
-      }
-
-      let section = meetingType === "leader" ? imported.section : "";
-      if (meetingType === "leader" && (!section || !availableSections.includes(section))) {
-        if (imported.section && !availableSections.includes(imported.section)) warnings.push(`The imported section ${imported.section} is outside your permitted sections.`);
-        section = availableSections[0] ?? "";
-      }
-
-      setEditingId(null);
-      setForm({
-        title: imported.title,
-        meetingType,
-        section,
-        meetingDate: imported.meetingDate,
-        attendees: imported.attendees,
-        notes: imported.notes,
-        decisions: imported.decisions,
-        actions: imported.actions,
-        attachment: null
-      });
-      setAttendeesText(imported.attendees.join("\n"));
-      setImportMessage(`Imported draft from ${file.name}. Review every field below before saving.`);
-      setImportWarnings(warnings);
+      const extracted = await readMeetingDocument(file);
+      const mapped = extractMeetingCandidates(extracted.text);
+      setParseCandidates(mapped.candidates);
+      setImportWarnings([...extracted.warnings, ...mapped.warnings]);
+      setImportMessage(mapped.candidates.length
+        ? `Parsed ${file.name}. Review the proposed values below; nothing has been applied or saved.`
+        : `No recognisable meeting information was found in ${file.name}. You can continue manually.`);
       window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (importError) {
-      console.error("Unable to import meeting document:", importError);
-      setError("Unable to read this meeting document. Check that it is a valid text, Markdown or HTML export and try again.");
+      console.error("Unable to parse meeting document:", importError);
+      setImportMessage(`Selected ${file.name}. The original file can still be attached when the meeting is saved.`);
+      setError(importError instanceof Error ? importError.message : "Unable to parse this meeting document. Enter the meeting details manually.");
+    } finally {
+      setParseBusy(false);
     }
+  };
+
+  const currentCandidateValue = (key: MeetingCandidateKey): string => {
+    if (key === "attendees") return attendeesText;
+    const value = form[key];
+    return Array.isArray(value) ? value.join("\n") : String(value ?? "");
+  };
+
+  const proposedCandidateValue = (candidate: MeetingCandidate): string =>
+    Array.isArray(candidate.proposed) ? candidate.proposed.join("\n") : candidate.proposed;
+
+  const updateCandidate = (key: MeetingCandidateKey, value: string) => {
+    setParseCandidates((current) => current.map((candidate) => candidate.key === key
+      ? { ...candidate, proposed: key === "attendees" ? value.split(/\n|,/).map((item) => item.trim()).filter(Boolean) : value }
+      : candidate));
+  };
+
+  const applyCandidates = () => {
+    if (acceptedCandidates.size === 0) return;
+    const next = { ...form };
+    let nextAttendees = attendeesText;
+    for (const candidate of parseCandidates) {
+      if (!acceptedCandidates.has(candidate.key)) continue;
+      if (candidate.key === "attendees") {
+        next.attendees = Array.isArray(candidate.proposed) ? candidate.proposed : candidate.proposed.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+        nextAttendees = next.attendees.join("\n");
+      } else if (candidate.key === "meetingType") {
+        next.meetingType = candidate.proposed as MeetingType;
+      } else {
+        (next as unknown as Record<string, unknown>)[candidate.key] = candidate.proposed;
+      }
+    }
+    if (next.meetingType !== "leader") next.section = "";
+    else if (next.section && !availableSections.includes(next.section)) {
+      setImportWarnings((warnings) => [...warnings, `The proposed section ${next.section} is outside your permitted sections and was not applied.`]);
+      next.section = form.section;
+    }
+    setForm(next);
+    setAttendeesText(nextAttendees);
+    setAcceptedCandidates(new Set());
+    setImportMessage("Selected document values applied to the editable meeting form. Review them before saving.");
   };
 
   const save = async () => {
@@ -241,19 +271,39 @@ export default function MeetingRecords() {
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Import a meeting document</Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>Upload a text, Markdown or HTML export of meeting minutes. The document is read only in your browser and converted into an editable draft; nothing is saved until you review the fields and press Save Meeting.</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Choose a PDF, DOCX, ODT or text meeting document. Supported files are parsed locally into proposed values; nothing is applied or saved until you explicitly review it.</Typography>
         <Button variant="outlined" component="label">
           Choose meeting document
           <input hidden type="file" accept=".pdf,.doc,.docx,.odt,.txt,.md,.html,.htm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,text/plain,text/markdown,text/html" onChange={(event) => void importDocument(event)} />
         </Button>
-        {selectedDocument && <Chip sx={{ ml: 1 }} label={selectedDocument.name} onDelete={() => setSelectedDocument(null)} />}
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>PDF, Word and OpenDocument files are attached securely. Text, Markdown and HTML files are also imported into the editable draft.</Typography>
+        {selectedDocument && <Chip sx={{ ml: 1 }} label={selectedDocument.name} onDelete={() => { setSelectedDocument(null); setParseCandidates([]); setAcceptedCandidates(new Set()); }} />}
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>{parseBusy ? "Parsing document…" : "The original document remains the source attachment. Parsed values are only suggestions."}</Typography>
       </Paper>
 
       <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
         {importMessage && <Alert severity="success" sx={{ mb: 2 }}>{importMessage}</Alert>}
         {importWarnings.length > 0 && <Alert severity="warning" sx={{ mb: 2 }}><Typography sx={{ fontWeight: 700, mb: 0.5 }}>Check the imported draft</Typography>{importWarnings.map((warning) => <Typography key={warning} variant="body2">• {warning}</Typography>)}</Alert>}
+        {parseCandidates.length > 0 && <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="meeting-document-preview">
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Review document suggestions</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Existing populated values are preserved unless you explicitly select their replacement.</Typography>
+          <Stack spacing={1.5}>
+            {parseCandidates.map((candidate) => {
+              const existing = currentCandidateValue(candidate.key);
+              const proposed = proposedCandidateValue(candidate);
+              const conflict = Boolean(existing.trim()) && existing.trim() !== proposed.trim();
+              return <Paper key={candidate.key} variant="outlined" sx={{ p: 1.5 }}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ alignItems: { md: "center" } }}>
+                  <Box sx={{ minWidth: { md: 180 } }}><Typography sx={{ fontWeight: 700 }}>{candidate.label}</Typography>{conflict && <Typography variant="caption" color="warning.main">Differs from existing value</Typography>}</Box>
+                  <TextField label="Existing value" value={existing} size="small" multiline disabled sx={{ flex: 1 }} />
+                  <TextField label="Proposed value" value={proposed} size="small" multiline sx={{ flex: 1 }} onChange={(event) => updateCandidate(candidate.key, event.target.value)} />
+                  <Button variant={acceptedCandidates.has(candidate.key) ? "contained" : "outlined"} onClick={() => setAcceptedCandidates((current) => { const next = new Set(current); if (next.has(candidate.key)) next.delete(candidate.key); else next.add(candidate.key); return next; })}>{acceptedCandidates.has(candidate.key) ? "Selected" : "Use value"}</Button>
+                </Stack>
+              </Paper>;
+            })}
+          </Stack>
+          <Button sx={{ mt: 2 }} variant="contained" disabled={acceptedCandidates.size === 0} onClick={applyCandidates}>Apply selected values</Button>
+        </Paper>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
