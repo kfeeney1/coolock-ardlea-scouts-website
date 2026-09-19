@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle } from "../../src/services/eventManagementLogic.ts";
+import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -77,4 +77,14 @@ test("event roster exports preserve operational fields and escape print HTML", (
 test("event roster filename remains stable", () => {
     assert.equal(eventRosterFilename("Cub Weekend Camp 2026!"), "cub-weekend-camp-2026-roster.csv");
     assert.equal(eventRosterFilename("---"), "event-roster.csv");
+});
+
+
+test("resolveEventAudience deduplicates section and individual targeting and excludes inactive members", () => {
+    assert.deepEqual(resolveEventAudience(["Cubs"], ["m1", "m4", "m3"], members), ["m1", "m2", "m4"]);
+});
+
+test("eventMembers uses the persisted resolved audience for new events and preserves historical invitees", () => {
+    const targeted = { ...event, audience: { version: 1, sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"] } };
+    assert.deepEqual(eventMembers(targeted as any, members).map((member) => member.id), ["m4"]);
 });

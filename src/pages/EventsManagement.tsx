@@ -8,7 +8,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
 import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
-import { EMPTY_EVENT, filterEvents, isDuplicateEventIdentity } from "../services/eventManagementLogic";
+import { EMPTY_EVENT, filterEvents, isDuplicateEventIdentity, resolveEventAudience } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -65,7 +65,10 @@ export default function EventsManagement() {
         setSaving(true);
         setError("");
         try {
-            const eventId = await createEvent(draft);
+            const selectedIds = draft.audience?.memberIds ?? [];
+            const sectionIds = draft.audience ? draft.audience.sectionIds : (draft.section === "All Sections" ? [...new Set(members.filter((member) => member.status === "active").map((member) => member.section))] : [draft.section]);
+            const audience = { version: 1 as const, sectionIds, memberIds: selectedIds, resolvedMemberIds: resolveEventAudience(sectionIds, selectedIds, members) };
+            const eventId = await createEvent({ ...draft, audience });
             setEventDialogOpen(false);
             setMessage("Event created.");
             navigate(`/leader/events/${encodeURIComponent(eventId)}`);
@@ -84,7 +87,7 @@ export default function EventsManagement() {
             {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} />
-            <EventEditorDialog open={eventDialogOpen} editing={null} draft={draft} saving={saving} onClose={() => setEventDialogOpen(false)} onChange={setDraft} onSave={() => void saveEvent()} />
+            <EventEditorDialog open={eventDialogOpen} editing={null} draft={draft} saving={saving} members={members} onClose={() => setEventDialogOpen(false)} onChange={setDraft} onSave={() => void saveEvent()} />
         </Container>
     </Box>;
 }
