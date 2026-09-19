@@ -34,7 +34,8 @@ function incident(uid, section = "Scouts", loanId = "loan-1") {
     resolutionType: "",
     resolutionNotes: "",
     resolvedBy: "",
-    resolvedAt: null
+    resolvedAt: null,
+    stockAdjusted: loanId !== ""
   };
 }
 
