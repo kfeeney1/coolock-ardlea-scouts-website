@@ -47,10 +47,7 @@
     "firebase-admin": "^14.3.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.2",
-    "mammoth": "^1.10.0",
-    "pdfjs-dist": "^5.4.149",
-    "fflate": "^0.8.2"
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
