@@ -22,6 +22,7 @@ import { normalizeLeaderSections } from "./leaderAccessLogic";
 export type EventStatus = "draft" | "open" | "closed" | "completed";
 export type AttendanceStatus = "invited" | "attending" | "not-attending";
 export type EventConsentStatus = "not-required" | "required" | "received";
+export type EventAudience = { version: 1; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
 
 export type EventRecord = {
     id: string;
@@ -39,6 +40,7 @@ export type EventRecord = {
     consentRequired: boolean;
     attendance: Record<string, AttendanceStatus>;
     consent: Record<string, EventConsentStatus>;
+    audience: EventAudience | null;
     createdAt: Date | null;
     updatedAt: Date | null;
 };
@@ -46,7 +48,7 @@ export type EventRecord = {
 export type EventInput = Pick<EventRecord,
     "title" | "description" | "eventType" | "section" | "location" | "meetingPoint" | "returnDetails" |
     "leaderNotes" | "startDate" | "endDate" | "status" | "consentRequired"
->;
+> & { audience: EventAudience | null };
 
 const EVENT_STATUSES = ["draft", "open", "closed", "completed"] as const;
 
@@ -80,6 +82,16 @@ function mapConsent(value: unknown): Record<string, EventConsentStatus> {
     return result;
 }
 
+function mapAudience(value: unknown): EventAudience | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const data = value as Record<string, unknown>;
+    const ids = (item: unknown) => Array.isArray(item)
+        ? [...new Set(item.filter((entry): entry is string => typeof entry === "string" && Boolean(entry.trim())).map((entry) => entry.trim()))]
+        : [];
+    if (data.version !== 1) return null;
+    return { version: 1, sectionIds: ids(data.sectionIds), memberIds: ids(data.memberIds), resolvedMemberIds: ids(data.resolvedMemberIds) };
+}
+
 function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | null {
     const data = snapshot.data();
     const title = stringValue(data, "title");
@@ -106,6 +118,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | 
         consentRequired: data.consentRequired === true,
         attendance: mapAttendance(data.attendance),
         consent: mapConsent(data.consent),
+        audience: mapAudience(data.audience),
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt)
     };
@@ -201,8 +214,9 @@ export async function createEvent(input: EventInput): Promise<string> {
         endDate: clean(input.endDate, 30),
         status: input.status,
         consentRequired: input.consentRequired,
-        attendance: {},
-        consent: {},
+        audience: input.audience,
+        attendance: Object.fromEntries((input.audience?.resolvedMemberIds ?? []).map((id) => [id, "invited"])),
+        consent: Object.fromEntries((input.audience?.resolvedMemberIds ?? []).map((id) => [id, input.consentRequired ? "required" : "not-required"])),
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         updatedAt: serverTimestamp(),
@@ -257,6 +271,7 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         endDate: clean(input.endDate, 30),
         status: input.status,
         consentRequired: input.consentRequired,
+        audience: input.audience,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     });
