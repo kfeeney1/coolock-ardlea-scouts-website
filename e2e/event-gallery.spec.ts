@@ -57,6 +57,8 @@ test("legacy event deep links open the full event record", async ({ page }, test
     await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
     await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
     await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
+    const dates = page.getByTestId("event-record-TEST_flow_event_beavers_open").getByText(/^\d{2}-\d{2}-\d{4}( to \d{2}-\d{2}-\d{4})?$/);
+    await expect(dates).toBeVisible();
 });
 
 test("leader opens the gallery from the full event record", async ({ page }, testInfo) => {
