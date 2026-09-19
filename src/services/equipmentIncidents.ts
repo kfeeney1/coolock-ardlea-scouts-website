@@ -148,7 +148,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
       loanRef = doc(db, "equipmentLoans", loanId);
       loanSnapshot = await transaction.get(loanRef);
       if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
-      const loanData = loanSnapshot.data();
+      const loanData = loanSnapshot.data() as Record<string, unknown>;
       if (loanData.status !== "open" || text(loanData.section) !== section || !Array.isArray(loanData.lines)) {
         throw new Error("That checkout is not open for the selected section.");
       }
