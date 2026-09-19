@@ -3,34 +3,38 @@ export type MeetingDocumentReadResult = { text: string; warnings: string[] };
 const MAX_PARSE_BYTES = 10 * 1024 * 1024;
 
 function extension(name: string): string { return name.toLowerCase().split(".").pop() ?? ""; }
+
 function assertSafeSize(file: File): void {
   if (file.size <= 0) throw new Error("The meeting document is empty.");
   if (file.size > MAX_PARSE_BYTES) throw new Error("The meeting document is too large to parse safely.");
 }
+
 function decodeEntities(value: string): string {
   return value.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
 }
-function xmlText(xml: string): string {
-  return decodeEntities(xml.replace(/<w:tab\s*\/>|<text:tab[^>]*\/>/gi, " ").replace(/<w:br\s*\/>|<text:line-break[^>]*\/>/gi, "
-").replace(/<\/w:p>|<\/text:(?:p|h)>/gi, "
-").replace(/<[^>]+>/g, " "))
-    .replace(/[ \t]+/g, " ").replace(/ *
- */g, "
-").replace(/
-{3,}/g, "
 
-").trim();
+function xmlText(xml: string): string {
+  return decodeEntities(xml
+    .replace(/<w:tab\s*\/>|<text:tab[^>]*\/>/gi, " ")
+    .replace(/<w:br\s*\/>|<text:line-break[^>]*\/>/gi, " ")
+    .replace(/<\/w:p>|<\/text:(?:p|h)>/gi, " ")
+    .replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
 }
-function utf8(bytes: Uint8Array): string { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+
+function utf8(bytes: Uint8Array): string {
+  return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+}
+
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream === "undefined") throw new Error("Compressed document extraction is not supported by this browser.");
   const copy = Uint8Array.from(data);
   const stream = new Blob([copy.buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
+
 async function findZipText(bytes: Uint8Array, entryName: string): Promise<string> {
-  // DOCX/ODT are ZIP containers. This dependency-free reader accepts stored (method 0)
-  // XML entries and fails safely for compressed entries rather than executing content.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   for (let offset = 0; offset + 30 < bytes.length;) {
     if (view.getUint32(offset, true) !== 0x04034b50) { offset += 1; continue; }
@@ -51,23 +55,25 @@ async function findZipText(bytes: Uint8Array, entryName: string): Promise<string
   }
   throw new Error("This document is malformed or missing its main content.");
 }
+
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
   const source = new TextDecoder("latin1").decode(bytes);
-  if (/\/Encrypt\b/.test(source)) throw new Error("Password-protected or encrypted PDFs cannot be parsed.");
+  if (source.includes("/Encrypt")) throw new Error("Password-protected or encrypted PDFs cannot be parsed.");
   const chunks: string[] = [];
-  for (const stream of source.matchAll(/stream\r?
-([\s\S]*?)\r?
-endstream/g)) {
+  for (const stream of source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     let body = stream[1];
     const dictionary = source.slice(Math.max(0, stream.index! - 500), stream.index);
-    if (/\/FlateDecode/.test(dictionary)) {
-      try { body = new TextDecoder("latin1").decode(await inflateRaw(Uint8Array.from(body, (char) => char.charCodeAt(0) & 255))); } catch { continue; }
-    } else if (/\/LZWDecode|\/DCTDecode|\/JPXDecode/.test(dictionary)) continue;
-    for (const match of body.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj|\[(.*?)\]\s*TJ/gs)) {
-      const segment = match[0];
-      for (const literal of segment.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) chunks.push(literal[1].replace(/\\([\\()])/g, "$1").replace(/\
-/g, "
-"));
+    if (dictionary.includes("/FlateDecode")) {
+      try {
+        body = new TextDecoder("latin1").decode(await inflateRaw(Uint8Array.from(body, (char) => char.charCodeAt(0) & 255)));
+      } catch {
+        continue;
+      }
+    } else if (dictionary.includes("/LZWDecode") || dictionary.includes("/DCTDecode") || dictionary.includes("/JPXDecode")) {
+      continue;
+    }
+    for (const match of body.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) {
+      chunks.push(match[1].replace(/\\([\\()])/g, "$1").replace(/\\n/g, " "));
     }
   }
   const text = chunks.join(" ").replace(/\s+/g, " ").trim();
@@ -77,7 +83,8 @@ endstream/g)) {
 
 export function isParseableMeetingDocument(fileName: string, mimeType: string): boolean {
   const ext = extension(fileName);
-  return mimeType === "application/pdf" || mimeType.includes("wordprocessingml") || mimeType.includes("opendocument.text") || mimeType.startsWith("text/") || ["pdf", "docx", "odt", "txt", "md", "html", "htm"].includes(ext);
+  return mimeType === "application/pdf" || mimeType.includes("wordprocessingml") || mimeType.includes("opendocument.text")
+    || mimeType.startsWith("text/") || ["pdf", "docx", "odt", "txt", "md", "html", "htm"].includes(ext);
 }
 
 export async function readMeetingDocument(file: File): Promise<MeetingDocumentReadResult> {
