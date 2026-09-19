@@ -48,6 +48,35 @@ Current Firestore rules generally keep broad client deletion closed. Preserve th
 
 Reviewed after PRs #497 and #498 merged. Production communications continue to use the existing Cloudflare Worker and Resend system. The new production paths resolve recipients from authoritative Parent/member relationships, exclude non-active members and revoked/disabled Parent accounts, and use the authenticated HTTPS member-lifecycle route rather than treating possession of a URL as authority. The lifecycle operation preserves independent Leader access for dual-role accounts. Email destinations remain responsive HTTPS web routes; this repository does not introduce a Scout Android native data flow. No second email, inactivation or privacy-specific delivery system is introduced.
 
+## September 2026 implementation reconciliation
+
+The approval baseline has been reconciled with the subsequently merged application work. This does **not** approve the policy choices below.
+
+- Consent currency/reminders use the existing member/parent relationships and must not turn expired medical/consent details into email payloads or audit content.
+- Secure communication links revalidate authenticated authority before lifecycle actions; possession of an email link is not sufficient authority.
+- Controlled policy documents and attachment lifecycle work continue to use Firebase Storage plus Firestore metadata/RBAC rather than a second document store.
+- Event audience management persists explicit audience/resolution data; retention of historical event participation remains a Group decision.
+- Equipment incident and Section Float reporting add operational/audit records; finance retention and identity minimisation remain Group decisions.
+- Operational monitoring now documents Firebase, Google Cloud backup/export, Resend, Cloudflare, GitHub Actions and Hosting Ireland/domain administration. Provider quota data is not treated as authoritative unless obtained from an approved source.
+- Production backup freshness monitoring is pinned to the production Firebase project/bucket and requires protected Google Cloud credentials/IAM. Backup/deletion interaction remains a retention-policy decision.
+- Android/web deep-link handling does not remove the requirement for normal authentication/authorisation and does not create a separate data store.
+
+## Approval record
+
+Complete this section only when the responsible Group body has actually reviewed the decisions.
+
+| Decision | Required owner | Decision / evidence |
+| --- | --- | --- |
+| Public privacy wording (SW-79) | Group-designated data/privacy owner | Pending |
+| Retention outcome and duration by data category (SW-80) | Group-designated data/privacy owner | Pending |
+| Processor/DPA/transfer review (SW-86) | Group-designated data/privacy owner | Pending |
+| Backup treatment after approved deletion | Same governance owner, with technical operator input | Pending |
+| Review cadence and named owner | Group | Pending |
+
+Approval date: **Pending**  
+Approved by / meeting reference: **Pending**  
+Next review date: **Pending**
+
 ## Processor inventory
 
 | Service | Repository-evidenced purpose | Organisational review |
@@ -56,7 +85,7 @@ Reviewed after PRs #497 and #498 merged. Production communications continue to u
 | Cloudflare Workers | Server-side production email API/orchestration and the data needed to authorise/deliver those requests | Group review required: processor terms, account owner, location/transfer information and log/retention settings |
 | Resend | Outbound email delivery using recipient address and message content/metadata needed for delivery | Group review required: processor terms/DPA, account owner, location/transfer information and delivery/log retention |
 | GitHub | Source code and CI/deployment automation | Do not use as a production Scout-record store. Continue to prevent production personal data appearing in fixtures, logs, screenshots, PRs or docs |
-| Other DNS/hosting administration | Presence as an infrastructure vendor does not prove application personal data is processed there | Review only where evidence shows production traffic/personal data passes through that service |
+| Hosting Ireland / domain administration | Domain/DNS administration is used for the production domain. This fact alone does not prove Scout-record storage there. | Confirm account owner, renewal/DNS responsibilities and whether any personal-data processing beyond DNS/domain administration occurs |
 
 ### Group confirmation checklist
 
