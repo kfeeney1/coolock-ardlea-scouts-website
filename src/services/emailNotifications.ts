@@ -91,6 +91,7 @@ export type LeaderCommunicationResult = {
     ok: true;
     sent: number;
     skipped: number;
+    skippedReasons?: Record<string, number>;
 };
 
 export async function sendLeaderCommunication(

@@ -236,18 +236,29 @@ function brandedEmail({ heading, intro, bodyHtml = "", actions = [] }) {
   return `<!doctype html><html><body style="margin:0;background:${BRAND.background};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;background:${BRAND.background}"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border-radius:10px;overflow:hidden"><tr><td style="padding:28px;background:${BRAND.navy};color:#fff;text-align:center"><div style="font-size:24px;font-weight:800">${BRAND.groupName}</div><div style="font-size:14px;margin-top:6px;opacity:.92">Scout Group Communications</div></td></tr><tr><td style="padding:32px"><h1 style="margin:0 0 16px;font-size:26px;color:${BRAND.navy}">${escapeHtml(heading)}</h1><p style="font-size:16px;line-height:1.6;margin:0 0 16px">${escapeHtml(intro)}</p>${bodyHtml}${actionHtml}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:${BRAND.muted};font-size:12px;line-height:1.5">This message was sent by the Coolock Ardlea Scout Group website. Protected information is only available after sign-in.</td></tr></table></td></tr></table></body></html>`;
 }
 
-async function authoritativeParentRecipients(env, memberId) {
-  const accounts = await privilegedDocuments(env, "parentAccounts");
-  const recipients = accounts.flatMap((account) => {
-    if (fieldString(account, "status") !== "approved") return [];
-    if (!fieldStringArray(account, "memberIds").includes(memberId)) return [];
+export function resolveParentRecipientCandidates(accounts, memberId) {
+  const linked = accounts.filter((account) => fieldStringArray(account, "memberIds").includes(memberId));
+  const approved = linked.filter((account) => fieldString(account, "status") === "approved");
+  const recipients = approved.flatMap((account) => {
     const email = validEmail(fieldString(account, "email"));
     if (!email) return [];
     return [{ uid: documentId(account), email, displayName: fieldString(account, "displayName") || "Parent / Guardian" }];
   });
   const byEmail = new Map();
   for (const recipient of recipients) if (!byEmail.has(recipient.email)) byEmail.set(recipient.email, recipient);
-  return [...byEmail.values()];
+  const unique = [...byEmail.values()];
+  const reason = unique.length > 0
+    ? ""
+    : linked.length === 0
+      ? "no-eligible-linked-parent"
+      : approved.length === 0
+        ? "parent-inactive"
+        : "email-missing-or-invalid";
+  return { recipients: unique, reason };
+}
+
+async function authoritativeParentRecipients(env, memberId) {
+  return resolveParentRecipientCandidates(await privilegedDocuments(env, "parentAccounts"), memberId);
 }
 
 async function authenticatedLeaderMember(request, env, memberId) {
@@ -293,17 +304,23 @@ async function handleLeaderCommunication(request, env, body) {
 
   let sent = 0;
   let skipped = 0;
+  const skippedReasons = {};
   const delivered = new Set();
+  const skip = (reason) => {
+    skipped += 1;
+    skippedReasons[reason] = (skippedReasons[reason] || 0) + 1;
+  };
   for (const memberId of memberIds) {
     const authorised = await authenticatedLeaderMember(request, env, memberId);
-    if (!authorised || fieldString(authorised.member, "status") !== "active") { skipped += 1; continue; }
-    const recipients = await authoritativeParentRecipients(env, memberId);
-    if (!recipients.length) { skipped += 1; continue; }
+    if (!authorised) { skip("sender-not-authorised"); continue; }
+    if (fieldString(authorised.member, "status") !== "active") { skip("member-inactive"); continue; }
+    const resolution = await authoritativeParentRecipients(env, memberId);
+    if (!resolution.recipients.length) { skip(resolution.reason || "no-eligible-linked-parent"); continue; }
     const memberName = fieldString(authorised.member, "displayName") || "your linked member";
     const messageHtml = escapeHtml(message).replaceAll("\n", "<br/>");
-    for (const recipient of recipients) {
-      const duplicateKey = `${recipient.email}|${subject}|${memberId}`;
-      if (delivered.has(duplicateKey)) continue;
+    let deliveredForMember = false;
+    for (const recipient of resolution.recipients) {
+      if (delivered.has(recipient.email)) continue;
       await sendEmail(env, recipient.email, subject, brandedEmail({
         heading: subject,
         intro: `Hello ${recipient.displayName},`,
@@ -313,11 +330,13 @@ async function handleLeaderCommunication(request, env, body) {
           { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
         ]
       }), `leader-communication:${memberId}:${recipient.uid}:${subject}`);
-      delivered.add(duplicateKey);
+      delivered.add(recipient.email);
+      deliveredForMember = true;
       sent += 1;
     }
+    if (!deliveredForMember) skip("duplicate-recipient");
   }
-  return json(request, env, 200, { ok: true, sent, skipped });
+  return json(request, env, 200, { ok: true, sent, skipped, skippedReasons });
 }
 
 async function handleEventNotification(request, env, body) {

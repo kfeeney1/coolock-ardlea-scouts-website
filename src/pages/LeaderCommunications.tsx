@@ -143,7 +143,19 @@ export default function LeaderCommunications() {
                 subject.trim(),
                 body.trim()
             );
-            setMessage(`Communication sent to ${result.sent} parent${result.sent === 1 ? "" : "s"}${result.skipped ? `; ${result.skipped} recipient${result.skipped === 1 ? " was" : "s were"} skipped` : ""}.`);
+            const reasonLabels: Record<string, string> = {
+                "no-eligible-linked-parent": "no eligible linked parent",
+                "parent-inactive": "linked parent inactive",
+                "email-missing-or-invalid": "parent email missing or invalid",
+                "sender-not-authorised": "sender not authorised",
+                "member-inactive": "member inactive",
+                "duplicate-recipient": "duplicate recipient"
+            };
+            const reasonSummary = Object.entries(result.skippedReasons || {})
+                .filter(([, count]) => count > 0)
+                .map(([reason, count]) => `${count} ${reasonLabels[reason] || "recipient unavailable"}`)
+                .join(", ");
+            setMessage(`Communication sent to ${result.sent} parent${result.sent === 1 ? "" : "s"}${result.skipped ? `; ${result.skipped} recipient${result.skipped === 1 ? " was" : "s were"} skipped${reasonSummary ? ` (${reasonSummary})` : ""}` : ""}.`);
             await recordAuditEvent({
                 category: "member",
                 action: "Parent communication sent",
