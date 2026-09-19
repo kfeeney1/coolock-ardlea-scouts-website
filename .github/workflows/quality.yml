@@ -35,9 +35,14 @@ jobs:
 
       - name: Audit production dependencies
         run: |
-          # npm audit can reject an otherwise npm-ci-valid tree when optional/dev peer metadata is present.
-          # Normalise package metadata after npm ci, then audit production dependencies.
-          npm install --package-lock-only --ignore-scripts --no-audit
+          set -euo pipefail
+          # npm's legacy quick-audit endpoint can reject a valid npm-ci tree as "Invalid package tree".
+          # Generate a production-only lock/tree in an isolated temp directory so the audit input matches --omit=dev.
+          audit_dir="$(mktemp -d)"
+          trap 'rm -rf "$audit_dir"' EXIT
+          cp package.json package-lock.json "$audit_dir/"
+          cd "$audit_dir"
+          npm install --package-lock-only --omit=dev --ignore-scripts --no-audit
           for attempt in 1 2; do
             if timeout 180s npm audit --omit=dev --audit-level=high; then
               exit 0
