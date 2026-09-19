@@ -70,6 +70,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const [saving, setSaving] = useState(false);
 
   const manager = canManageEquipment(profile);
+  const scopedSections = useMemo(() => [...new Set(profile?.sections ?? [])].filter(Boolean).sort(), [profile]);
   const sources = useMemo<SourceOption[]>(() => {
     const result: SourceOption[] = [];
     loans.filter((loan) => loan.status === "open" && canUseEquipmentForSection(profile, loan.section)).forEach((loan) => {
@@ -87,23 +88,21 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
         });
       });
     });
-    if (manager) {
-      items.filter((item) => !item.archived).forEach((item) => {
+    items.filter((item) => !item.archived).forEach((item) => {
         const available = Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
         if (available <= 0) return;
         result.push({
           id: `store:${item.id}`,
           itemId: item.id,
           itemName: item.name,
-          section: "Group",
+          section: manager ? "Group" : (scopedSections[0] ?? ""),
           loanId: "",
           maximum: available,
-          label: `Store · ${item.name} · ${available} available`
+          label: `${manager ? "Store" : "Stored equipment"} · ${item.name} · ${available} available`
         });
       });
-    }
-    return result.sort((a, b) => a.label.localeCompare(b.label));
-  }, [items, loans, manager, profile]);
+    return result.filter((source) => Boolean(source.section)).sort((a, b) => a.label.localeCompare(b.label));
+  }, [items, loans, manager, profile, scopedSections]);
 
   const visibleIncidents = useMemo(() => {
     if (manager) return incidents.filter((incident) => incident.status !== "resolved");
