@@ -1052,7 +1052,11 @@ service cloud.firestore {
         && request.resource.data.active == true
         && request.resource.data.publicProjectionVersion == 2
         && request.resource.data.sourceAccessRole == "leader"
-        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationOrder", "reportsToUid", "showPublicly", "active", "publicProjectionVersion", "sourceAccessRole", "updatedAt"]);
+        && request.resource.data.organisationSections is list
+        && request.resource.data.organisationSections.size() <= 6
+        && request.resource.data.publicAppointments is list
+        && request.resource.data.publicAppointments.size() <= 24
+        && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "organisationSection", "organisationSections", "publicAppointments", "organisationOrder", "reportsToUid", "showPublicly", "active", "publicProjectionVersion", "sourceAccessRole", "updatedAt"]);
       allow update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && request.resource.data.scoutingRole is string
           && isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole)
@@ -1065,7 +1069,13 @@ service cloud.firestore {
         && request.resource.data.showPublicly == true
         && request.resource.data.active == true
         && request.resource.data.publicProjectionVersion == 2
-        && request.resource.data.sourceAccessRole == "leader";
+        && request.resource.data.sourceAccessRole == "leader"
+        && (!isAdmin() || (
+          request.resource.data.organisationSections is list
+          && request.resource.data.organisationSections.size() <= 6
+          && request.resource.data.publicAppointments is list
+          && request.resource.data.publicAppointments.size() <= 24
+        ));
       allow delete: if isAdmin();
     }
 

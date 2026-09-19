@@ -48,6 +48,32 @@ function isPublicRole(role, section) {
   if (YOUTH_SECTIONS.has(sectionKey)) return SECTION_ROLES.has(roleKey(role));
   return sectionKey === "group" && GROUP_ROLES.has(roleKey(role));
 }
+function publicAppointmentsFor(source, access) {
+  const accountSections = Array.isArray(access?.sections)
+    ? access.sections.map(text).filter(Boolean)
+    : [text(access?.sections || access?.section)].filter(Boolean);
+  const raw = Array.isArray(source?.appointments) && source.appointments.length
+    ? source.appointments.filter((item) => item && item.active !== false).map((item) => ({ role: text(item.appointment), scope: text(item.scope) }))
+    : [{ role: text(source?.scoutingRole), scope: text(source?.organisationSection) }];
+  const result = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (GROUP_ROLES.has(roleKey(item.role))) {
+      const key = roleKey(item.role) + "\u0000group";
+      if (!seen.has(key)) { seen.add(key); result.push({ role: item.role, section: "Group" }); }
+      continue;
+    }
+    if (!SECTION_ROLES.has(roleKey(item.role))) continue;
+    const explicit = [item.scope, text(source?.organisationSection)].filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
+    const candidates = explicit.length ? explicit : accountSections;
+    for (const section of candidates) {
+      if (!YOUTH_SECTIONS.has(text(section).toLowerCase())) continue;
+      const key = roleKey(item.role) + "\\u0000" + text(section).toLowerCase();
+      if (!seen.has(key)) { seen.add(key); result.push({ role: item.role, section: text(section) }); }
+    }
+  }
+  return result;
+}
 function isCanonicalSeedRecord(record) {
   return record?.testData === true
     && CANONICAL_TEST_SEEDS.has(text(record.testSeed))
@@ -87,7 +113,8 @@ for (const doc of organisationSnapshot.docs) {
   const registration = registrationByUid.get(doc.id);
   if (!access || text(access.role).toLowerCase() !== "leader" || access.active !== true) continue;
   if (source.active !== true || source.showPublicly !== true) continue;
-  if (!isPublicRole(source.scoutingRole, source.organisationSection)) continue;
+  const publicAppointments = publicAppointmentsFor(source, access);
+  if (publicAppointments.length === 0) continue;
 
   if (!text(source.displayName) || !text(source.scoutingRole) || !text(source.organisationSection)) {
     rejected.push(`${doc.id}: missing required public organisation fields`);
@@ -106,10 +133,13 @@ for (const doc of organisationSnapshot.docs) {
     ? { testData: true, testSeed: source.testSeed, createdBySeed: "TEST_SEED" }
     : {};
 
+  const primaryPublicAppointment = publicAppointments[0];
   desired.set(doc.id, {
     displayName: text(source.displayName),
-    scoutingRole: text(source.scoutingRole),
-    organisationSection: text(source.organisationSection),
+    scoutingRole: primaryPublicAppointment.role,
+    organisationSection: primaryPublicAppointment.section,
+    organisationSections: [...new Set(publicAppointments.map((item) => item.section))],
+    publicAppointments,
     organisationOrder: source.organisationOrder,
     reportsToUid: text(source.reportsToUid),
     showPublicly: true,

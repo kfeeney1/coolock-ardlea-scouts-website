@@ -20,10 +20,14 @@ test("normalizeLeaderSections keeps valid canonical multi-section assignments in
     );
 });
 
-test("normalizeLeaderSections rejects legacy singular section data", () => {
-    assert.deepEqual(normalizeLeaderSections({ section: "Scouts" } as never), []);
+test("normalizeLeaderSections reads legacy singular section data as a one-item scope", () => {
+    assert.deepEqual(normalizeLeaderSections({ section: "Scouts" }), ["Scouts"]);
+});
+
+test("normalizeLeaderSections reads legacy scalar sections data as a one-item scope", () => {
+    assert.deepEqual(normalizeLeaderSections({ sections: "Cubs" }), ["Cubs"]);
 });
 
 test("normalizeLeaderSections returns an empty list for invalid assignments", () => {
-    assert.deepEqual(normalizeLeaderSections({ sections: "Beavers" }), []);
+    assert.deepEqual(normalizeLeaderSections({ sections: 42 }), []);
 });
