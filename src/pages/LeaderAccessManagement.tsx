@@ -128,12 +128,10 @@ export default function LeaderAccessManagement() {
   };
 
   const requestSave = (record: LeaderAccessRecord) => {
+    if (workingUid === record.uid) return;
     const changes = accessChangeSummary(baselineByUid[record.uid], record);
-    if (changes.length > 0) {
-      setPendingSave({ record, changes });
-      return;
-    }
-    void save(record);
+    if (changes.length === 0) return;
+    setPendingSave({ record, changes });
   };
 
   const confirmSave = () => {
@@ -142,6 +140,8 @@ export default function LeaderAccessManagement() {
     setPendingSave(null);
     void save(record);
   };
+
+  const isDirty = (record: LeaderAccessRecord) => accessChangeSummary(baselineByUid[record.uid], record).length > 0;
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
   const toggleSection = (record: LeaderAccessRecord, section: string) => patch(record.uid, { sections: record.sections.includes(section) ? record.sections.filter((value) => value !== section) : [...record.sections, section] });
@@ -209,7 +209,7 @@ export default function LeaderAccessManagement() {
           control={<Switch checked={record.showPublicly} disabled={!isAdminActor} onChange={(e) => patch(record.uid, { showPublicly: e.target.checked })} />}
           label={<Box><Typography sx={{ fontWeight: 700 }}>Show on public Who's Who</Typography><Typography variant="body2" color="text.secondary">Publishes name, scouting role, section and hierarchy only. Email, phone and account role remain private.</Typography></Box>}
         />
-        <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid} onClick={() => requestSave(record)}>Save Leader</Button>
+        <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid || !isDirty(record)} onClick={() => requestSave(record)}>{workingUid === record.uid ? "Saving…" : "Save Leader"}</Button>
       </Paper>)}
       </Stack>
     </>}
