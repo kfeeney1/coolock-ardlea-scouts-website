@@ -43,13 +43,16 @@ async function findZipText(bytes: Uint8Array, entryName: string): Promise<string
   }
   throw new Error("This document is malformed or missing its main content.");
 }
-function extractPdfText(bytes: Uint8Array): string {
+async function extractPdfText(bytes: Uint8Array): Promise<string> {
   const source = new TextDecoder("latin1").decode(bytes);
   if (/\/Encrypt\b/.test(source)) throw new Error("Password-protected or encrypted PDFs cannot be parsed.");
   const chunks: string[] = [];
   for (const stream of source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
-    const body = stream[1];
-    if (/\/FlateDecode|\/LZWDecode|\/DCTDecode|\/JPXDecode/.test(source.slice(Math.max(0, stream.index! - 300), stream.index))) continue;
+    let body = stream[1];
+    const dictionary = source.slice(Math.max(0, stream.index! - 500), stream.index);
+    if (/\/FlateDecode/.test(dictionary)) {
+      try { body = new TextDecoder("latin1").decode(await inflateRaw(Uint8Array.from(body, (char) => char.charCodeAt(0) & 255))); } catch { continue; }
+    } else if (/\/LZWDecode|\/DCTDecode|\/JPXDecode/.test(dictionary)) continue;
     for (const match of body.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj|\[(.*?)\]\s*TJ/gs)) {
       const segment = match[0];
       for (const literal of segment.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) chunks.push(literal[1].replace(/\\([\\()])/g, "$1").replace(/\\n/g, "\n"));
@@ -74,7 +77,7 @@ export async function readMeetingDocument(file: File): Promise<MeetingDocumentRe
     return { text, warnings: [] };
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (file.type === "application/pdf" || ext === "pdf") return { text: extractPdfText(bytes), warnings: [] };
+  if (file.type === "application/pdf" || ext === "pdf") return { text: await extractPdfText(bytes), warnings: [] };
   if (file.type.includes("wordprocessingml") || ext === "docx") return { text: xmlText(await findZipText(bytes, "word/document.xml")), warnings: [] };
   if (file.type.includes("opendocument.text") || ext === "odt") return { text: xmlText(await findZipText(bytes, "content.xml")), warnings: [] };
   throw new Error("This document type can be attached but cannot be parsed. Enter the meeting details manually.");
