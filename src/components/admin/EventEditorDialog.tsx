@@ -89,7 +89,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
 <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                                         <Typography variant="subtitle2" gutterBottom>Selected members</Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Optional: invite individual members without inviting their whole section.</Typography>
-                                        <Stack direction="row" gap={1} sx={{ flexWrap: "wrap" }}>
+                                        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
                                             {members.filter((member) => member.status === "active").map((member) => {
                                                 const selected = draft.audience?.memberIds.includes(member.id) ?? false;
                                                 return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} variant={selected ? "filled" : "outlined"} clickable onClick={() => {
