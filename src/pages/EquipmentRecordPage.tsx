@@ -28,7 +28,6 @@ export default function EquipmentRecordPage() {
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
   const [item, setItem] = useState<EquipmentItem | null>(null);
-  const [allItems, setAllItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
   const [incidents, setIncidents] = useState<EquipmentIncident[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -50,7 +49,6 @@ export default function EquipmentRecordPage() {
         loadEquipmentOptions("categories"), loadEquipmentOptions("locations")
       ]);
       setItem(nextItem);
-      setAllItems(nextItems);
       setLoans(nextLoans);
       setIncidents(nextIncidents);
       setCategories(Array.from(new Set([...DEFAULT_EQUIPMENT_CATEGORIES.filter((x) => x !== "Other"), ...categoryOptions.map((x) => x.name)])).sort());
