@@ -3,6 +3,7 @@ import {
   DialogContentText, DialogTitle, Paper, Stack, TextField, Typography
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 import { familySearchResults } from "../../services/familyRelationshipLogic";
 import { linkSibling, unlinkFromFamily } from "../../services/familyRelationships";
@@ -19,6 +20,7 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [unlinkConfirmOpen, setUnlinkConfirmOpen] = useState(false);
+  const location = useLocation();
   const siblings = useMemo(
     () => member.familyId ? members.filter((candidate) => candidate.id !== member.id && candidate.familyId === member.familyId) : [],
     [member, members]
@@ -58,7 +60,16 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
       <Box>
         <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Current family</Typography>
         {siblings.length === 0 ? <Typography color="text.secondary">No siblings are linked.</Typography> : <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1 }}>
-          {siblings.map((sibling) => <Chip key={sibling.id} label={`${sibling.displayName} · ${sibling.section} · ${sibling.status}`} />)}
+          {siblings.map((sibling) => <Chip
+            key={sibling.id}
+            component={Link}
+            clickable
+            to={`/leader/members/${encodeURIComponent(sibling.id)}`}
+            state={{ familyReturnTo: location.pathname }}
+            aria-label={`Open member record for ${sibling.displayName}`}
+            label={`${sibling.displayName} · ${sibling.section} · ${sibling.status}`}
+            sx={{ minHeight: 44, height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 1 } }}
+          />)}
         </Stack>}
       </Box>
       {member.familyId && <Box><Button variant="outlined" color="error" disabled={working} onClick={() => setUnlinkConfirmOpen(true)}>{working ? "Updating..." : "Remove from family"}</Button></Box>}
