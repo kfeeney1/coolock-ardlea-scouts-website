@@ -3,6 +3,7 @@ import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, Eve
 
 export const EVENT_SECTIONS = ["All Sections", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 export const EVENT_TYPES = ["Weekly Meeting", "Activity", "Day Trip", "Camp", "Hike", "Fundraiser", "Other"];
+export const EVENT_AUDIENCE_VERSION = 1 as const;
 export const EVENT_STATUSES: EventStatus[] = ["draft", "open", "closed", "completed"];
 
 export const EMPTY_EVENT: EventInput = {
