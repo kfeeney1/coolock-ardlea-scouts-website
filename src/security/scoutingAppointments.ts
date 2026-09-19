@@ -107,3 +107,8 @@ export function hasGroupLeadershipAppointment(value: unknown, legacyAppointment:
   const assignments = normalizeScoutingAppointmentAssignments(value, legacyAppointment);
   return activeScoutingAppointments(assignments).some((item) => isGroupLeadershipAppointment(item.appointment));
 }
+
+export function hasGroupFinanceAppointment(value: unknown, legacyAppointment: unknown = ""): boolean {
+  return activeScoutingAppointments(normalizeScoutingAppointmentAssignments(value, legacyAppointment))
+    .some((item) => isGroupLeadershipAppointment(item.appointment) || item.appointment === "Group Treasurer");
+}

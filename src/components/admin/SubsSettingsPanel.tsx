@@ -1,8 +1,8 @@
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
-import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
-import { loadMembers, type MemberRecord } from "../../services/memberAdmin";
-import { loadSubsAssignments, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
+import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
+import type { MemberRecord } from "../../services/memberAdmin";
+import { loadSubsAssignments, loadSubsMembers, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
 import { AGREED_SUBS_2026_27, parseEuroToCents, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
 import { useAdminAuth } from "./AdminAuthProvider";
 import SubsFamilyAccountPanel from "./SubsFamilyAccountPanel";
@@ -13,8 +13,7 @@ export default function SubsSettingsPanel() {
   const { adminProfile } = useAdminAuth();
   const canManage = adminProfile?.role === "admin"
     || adminProfile?.role === "super-admin"
-    || adminProfile?.scoutingRole === "Group Treasurer"
-    || isGroupLeadershipAppointment(adminProfile?.scoutingRole);
+    || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
   const [assignments, setAssignments] = useState<SubsAssignment[]>([]);
@@ -34,7 +33,7 @@ export default function SubsSettingsPanel() {
     setLoading(true);
     setError("");
     try {
-      const [memberRows, policyRows, assignmentRows] = await Promise.all([loadMembers(), loadSubsPolicies(), loadSubsAssignments()]);
+      const [memberRows, policyRows, assignmentRows] = await Promise.all([loadSubsMembers(), loadSubsPolicies(), loadSubsAssignments()]);
       setMembers(memberRows.filter((member) => member.status === "active"));
       setPolicies(policyRows);
       setAssignments(assignmentRows);

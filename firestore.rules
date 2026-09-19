@@ -64,7 +64,19 @@ service cloud.firestore {
         && (profile().role in ["super-admin", "admin"]
           || (exists(organisationPath)
             && get(organisationPath).data.active == true
-            && get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]));
+            && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+              || hasFinanceAppointment(get(organisationPath).data))));
+    }
+    function financeAppointmentAt(data, index) {
+      return data.keys().hasAny(["appointments"])
+        && data.appointments is list && data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+    }
+    function hasFinanceAppointment(data) {
+      return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+        || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
     }
     function canManageSubsPolicy() { return canViewAllFinance(); }
     function isOrdinaryLeaderTarget(userId) {
@@ -226,7 +238,7 @@ service cloud.firestore {
         && request.resource.data.status in ["active", "inactive", "left"]
         && ((request.resource.data.source == "join-application" && request.resource.data.status == "active") || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
-        || (isActiveLeader() && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary() || isGroupTreasurer()))
+        || (isActiveLeader() && (hasSection(resource.data.section) || canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
       allow update: if (isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
           && request.resource.data.status in ["active", "inactive", "left"]
@@ -713,8 +725,8 @@ service cloud.firestore {
         return !request.resource.data.keys().hasAny(["accountId", "accountAmountDueCents", "accountChildCount"]);
       }
       allow get, list: if isActiveLeader()
-        && resource.data.section is string
-        && (canViewAllFinance() || hasSection(resource.data.section));
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
       allow create: if canManageSubsPolicy()
         && request.resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
@@ -764,8 +776,8 @@ service cloud.firestore {
           && request.resource.data.method == original.method;
       }
       allow get, list: if isActiveLeader()
-        && resource.data.section is string
-        && (canViewAllFinance() || hasSection(resource.data.section));
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
       allow create: if canAccessFinanceSection(request.resource.data.section)
         && request.resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))

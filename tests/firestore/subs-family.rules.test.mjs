@@ -110,6 +110,11 @@ async function seedBase() {
     ["organisationLeadership/gl", { active: true, scoutingRole: "Group Leader" }],
     ["adminUsers/dgl", { active: true, role: "leader", sections: ["Group"] }],
     ["organisationLeadership/dgl", { active: true, scoutingRole: "Deputy Group Leader" }],
+    ["adminUsers/multi-role-treasurer", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["organisationLeadership/multi-role-treasurer", { active: true, scoutingRole: "Section Leader", appointments: [
+      { appointment: "Section Leader", scope: "Cubs", active: true },
+      { appointment: "Group Treasurer", scope: "Group", active: true }
+    ] }],
     ["adminUsers/cub-leader", { active: true, role: "leader", sections: ["Cubs"] }],
     ["subsRatePolicies/2026-v1", policy],
     ...members,
@@ -140,6 +145,14 @@ test("Group Leader and Deputy Group Leader can access family finance while secti
   await assertSucceeds(getDoc(doc(dgl, `subsAccounts/${accountId}`)));
   await assertFails(getDoc(doc(cubLeader, `subsAccounts/${accountId}`)));
   await assertFails(getDocs(collection(cubLeader, "subsAccounts")));
+});
+
+test("an active secondary Group Treasurer appointment receives group finance access", async () => {
+  await seedBase();
+  const db = testEnv.authenticatedContext("multi-role-treasurer", { email: "multi@example.com" }).firestore();
+  await assertSucceeds(getDocs(collection(db, "members")));
+  await assertSucceeds(getDocs(collection(db, "subsRatePolicies")));
+  await assertSucceeds(getDocs(collection(db, "subsAssignments")));
 });
 
 test("family account rejects a missing configured rate and malformed membership snapshots", async () => {

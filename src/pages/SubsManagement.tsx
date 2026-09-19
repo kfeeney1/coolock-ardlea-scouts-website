@@ -4,9 +4,9 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import SubsBalancesReport from "../components/admin/SubsBalancesReport";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
-import { loadMembers,type MemberRecord } from "../services/memberAdmin";
-import { loadSubsAssignments,loadSubsPayments,loadSubsPolicies,recordSubsPayment,reverseSubsPayment } from "../services/subsLedger";
+import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
+import type { MemberRecord } from "../services/memberAdmin";
+import { loadSubsAssignments,loadSubsMembers,loadSubsPayments,loadSubsPolicies,recordSubsPayment,reverseSubsPayment } from "../services/subsLedger";
 import { balanceFor,familyTypeLabel,formatEuro,parseEuroToCents,paymentMethodLabel,paymentsForAssignment,rateCategoryLabel,SUBS_PAYMENT_METHODS,type SubsAssignment,type SubsPayment,type SubsPaymentMethod,type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS,authorisedSubsSections,isMemberInSubsScope,normaliseSubsSection } from "../services/subsScope";
 
@@ -17,7 +17,7 @@ const uniquePayments=(rows:SubsPayment[])=>[...new Map(rows.map(row=>[row.id,row
 
 export default function SubsManagement(){
  const {adminProfile}=useAdminAuth();
- const canGroupReport=Boolean(adminProfile?.role==="admin"||adminProfile?.role==="super-admin"||adminProfile?.scoutingRole==="Group Treasurer"||isGroupLeadershipAppointment(adminProfile?.scoutingRole));
+ const canGroupReport=Boolean(adminProfile?.role==="admin"||adminProfile?.role==="super-admin"||hasGroupFinanceAppointment(adminProfile?.appointments,adminProfile?.scoutingRole));
  const authorisedSections=useMemo(()=>authorisedSubsSections(adminProfile?.sections??[],canGroupReport),[adminProfile?.sections,canGroupReport]);
  const [tab,setTab]=useState(0); const [members,setMembers]=useState<MemberRecord[]>([]); const [policies,setPolicies]=useState<SubsRatePolicy[]>([]); const [assignments,setAssignments]=useState<SubsAssignment[]>([]); const [payments,setPayments]=useState<SubsPayment[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(""); const [message,setMessage]=useState("");
  const [section,setSection]=useState(()=>new URLSearchParams(window.location.search).get("section")??ALL_AUTHORISED_SECTIONS);
@@ -25,7 +25,7 @@ export default function SubsManagement(){
  const effectiveSection=normaliseSubsSection(section,authorisedSections,canGroupReport);
  useEffect(()=>{if(section!==effectiveSection)setSection(effectiveSection);},[effectiveSection,section]);
  useEffect(()=>{const url=new URL(window.location.href);if(effectiveSection===ALL_AUTHORISED_SECTIONS)url.searchParams.delete("section");else url.searchParams.set("section",effectiveSection);window.history.replaceState(window.history.state,"",`${url.pathname}${url.search}${url.hash}`);},[effectiveSection]);
- const load=useCallback(async()=>{setLoading(true);setError("");try{const assignmentRows=canGroupReport?await loadSubsAssignments():(await Promise.all(authorisedSections.map(value=>loadSubsAssignments(value)))).flat();const paymentRows=canGroupReport?await loadSubsPayments():(await Promise.all(authorisedSections.map(value=>loadSubsPayments(value)))).flat();const [m,p]=await Promise.all([loadMembers(),loadSubsPolicies()]);setMembers(m);setPolicies(p);setAssignments(assignmentRows);setPayments(uniquePayments(paymentRows));setPeriod(current=>current||p[0]?.period||"");}catch(e){console.error(e);setError("Unable to load Subs data. Try again.");}finally{setLoading(false);}},[authorisedSections,canGroupReport]);
+ const load=useCallback(async()=>{setLoading(true);setError("");try{const assignmentRows=canGroupReport?await loadSubsAssignments():(await Promise.all(authorisedSections.map(value=>loadSubsAssignments(value)))).flat();const paymentRows=canGroupReport?await loadSubsPayments():(await Promise.all(authorisedSections.map(value=>loadSubsPayments(value)))).flat();const [m,p]=await Promise.all([loadSubsMembers(canGroupReport?undefined:authorisedSections),loadSubsPolicies()]);setMembers(m);setPolicies(p);setAssignments(assignmentRows);setPayments(uniquePayments(paymentRows));setPeriod(current=>current||p[0]?.period||"");}catch(e){console.error(e);setError(e instanceof Error?`Unable to load Subs data: ${e.message}`:"Unable to load Subs data. Try again.");}finally{setLoading(false);}},[authorisedSections,canGroupReport]);
  useEffect(()=>{void load();},[load]);
  const visibleMembers=useMemo(()=>members.filter(member=>isMemberInSubsScope(member.section,effectiveSection,authorisedSections)),[authorisedSections,effectiveSection,members]);
  const visibleAssignments=useMemo(()=>assignments.filter(assignment=>isMemberInSubsScope(assignment.section,effectiveSection,authorisedSections)),[assignments,authorisedSections,effectiveSection]);
