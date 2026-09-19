@@ -132,6 +132,7 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
+  await expect(incidentDialog).toBeHidden();
   await expect(page.getByText(damageNote, { exact: true })).toBeVisible();
 
   await page.getByTestId("export-all-equipment-csv").click();
