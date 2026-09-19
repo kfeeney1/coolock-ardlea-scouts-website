@@ -374,6 +374,14 @@ export default function EquipmentManagement() {
         <DialogActions><Button onClick={() => setEditing(undefined)} disabled={saving}>Cancel</Button><Button variant="contained" color="success" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save equipment"}</Button></DialogActions>
       </Dialog>
 
+      <Dialog open={Boolean(archiveTarget)} onClose={() => !saving && setArchiveTarget(null)}>
+        <DialogTitle>{archiveTarget?.archived ? `Restore ${archiveTarget?.name}?` : `Archive ${archiveTarget?.name}?`}</DialogTitle>
+        <DialogContent><Typography>{archiveTarget?.archived ? "Restore this existing record to active inventory with its history intact?" : "Archive this item? It will leave normal inventory but remain available in the archived view for restoration."}</Typography></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setArchiveTarget(null)} disabled={saving}>Cancel</Button>
+          <Button variant="contained" color={archiveTarget?.archived ? "success" : "warning"} disabled={saving} onClick={() => archiveTarget && void toggleArchived(archiveTarget)}>{archiveTarget?.archived ? "Restore equipment" : "Archive equipment"}</Button>
+        </DialogActions>
+      </Dialog>
       <EquipmentHistoryDialog item={historyItem} locations={locationNames} canManage={canManage} onClose={() => setHistoryItem(null)} onChanged={refresh} onError={setError} />
       {optionManager("locations", locations, manageLocationsOpen, () => setManageLocationsOpen(false))}
       {optionManager("categories", categories, manageCategoriesOpen, () => setManageCategoriesOpen(false))}
