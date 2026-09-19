@@ -65,8 +65,9 @@ export default function EventsManagement() {
         setSaving(true);
         setError("");
         try {
-            const sectionIds = draft.section === "All Sections" ? [...new Set(members.filter((member) => member.status === "active").map((member) => member.section))] : [draft.section];
-            const audience = { version: 1 as const, sectionIds, memberIds: [], resolvedMemberIds: resolveEventAudience(sectionIds, [], members) };
+            const selectedIds = draft.audience?.memberIds ?? [];
+            const sectionIds = draft.audience ? draft.audience.sectionIds : (draft.section === "All Sections" ? [...new Set(members.filter((member) => member.status === "active").map((member) => member.section))] : [draft.section]);
+            const audience = { version: 1 as const, sectionIds, memberIds: selectedIds, resolvedMemberIds: resolveEventAudience(sectionIds, selectedIds, members) };
             const eventId = await createEvent({ ...draft, audience });
             setEventDialogOpen(false);
             setMessage("Event created.");
