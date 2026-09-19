@@ -105,7 +105,7 @@ function mapIncident(id: string, data: Record<string, unknown>): EquipmentIncide
     resolutionNotes: text(data.resolutionNotes),
     resolvedBy: text(data.resolvedBy),
     resolvedAt: data.resolvedAt instanceof Timestamp ? data.resolvedAt.toDate() : null,
-    stockAdjusted: data.stockAdjusted !== false
+    stockAdjusted: data.stockAdjusted === true || Boolean(text(data.loanId))
   };
 }
 
@@ -292,7 +292,7 @@ export async function resolveEquipmentIncident(
     if (incidentData.status === "resolved") throw new Error("This equipment issue has already been resolved.");
     const quantity = integer(incidentData.quantity);
     const itemData = itemSnapshot.data();
-    const stockAdjusted = incidentData.stockAdjusted !== false;
+    const stockAdjusted = incidentData.stockAdjusted === true || Boolean(text(incidentData.loanId));
     const next = resolvedEquipmentQuantities({
       totalQuantity: integer(itemData.totalQuantity),
       checkedOutQuantity: integer(itemData.checkedOutQuantity),
