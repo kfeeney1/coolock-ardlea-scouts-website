@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import entry, { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
+import { resolveParentRecipientCandidates } from "../src/productionRoutes.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
@@ -79,4 +80,49 @@ test("non-provider diagnostics do not expose raw error messages", () => {
     detail: { code: "email-worker-error" }
   });
   assert.doesNotMatch(JSON.stringify(diagnostic), /api-key-123/);
+});
+
+
+function firestoreParent(id, { status = "approved", memberIds = [], email = "", displayName = "Parent" } = {}) {
+  return {
+    name: `projects/test/databases/(default)/documents/parentAccounts/${id}`,
+    fields: {
+      status: { stringValue: status },
+      memberIds: { arrayValue: { values: memberIds.map((value) => ({ stringValue: value })) } },
+      email: { stringValue: email },
+      displayName: { stringValue: displayName }
+    }
+  };
+}
+
+test("SW-117 resolves only approved parents explicitly linked to the selected member", () => {
+  const accounts = [
+    firestoreParent("parent-a", { memberIds: ["member-1"], email: "parent@example.com" }),
+    firestoreParent("parent-b", { memberIds: ["member-2"], email: "unrelated@example.com" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1");
+  assert.deepEqual(result.recipients.map((item) => item.email), ["parent@example.com"]);
+  assert.equal(result.reason, "");
+});
+
+test("SW-117 deduplicates duplicate linked-parent paths by normalized email", () => {
+  const accounts = [
+    firestoreParent("parent-a", { memberIds: ["member-1"], email: "Parent@Example.com" }),
+    firestoreParent("parent-b", { memberIds: ["member-1"], email: "parent@example.com" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1");
+  assert.equal(result.recipients.length, 1);
+  assert.equal(result.recipients[0].email, "parent@example.com");
+});
+
+test("SW-117 reports privacy-safe skip categories for inactive and invalid linked parents", () => {
+  assert.equal(resolveParentRecipientCandidates([
+    firestoreParent("parent-a", { status: "revoked", memberIds: ["member-1"], email: "parent@example.com" })
+  ], "member-1").reason, "parent-inactive");
+  assert.equal(resolveParentRecipientCandidates([
+    firestoreParent("parent-a", { memberIds: ["member-1"], email: "not-an-email" })
+  ], "member-1").reason, "email-missing-or-invalid");
+  assert.equal(resolveParentRecipientCandidates([
+    firestoreParent("parent-a", { memberIds: ["member-2"], email: "parent@example.com" })
+  ], "member-1").reason, "no-eligible-linked-parent");
 });
