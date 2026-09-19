@@ -142,9 +142,11 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
     const unavailableQuantity = integer(itemData.unavailableQuantity);
     if (itemData.archived === true) throw new Error(`${itemName} is archived and cannot have a new issue reported.`);
 
+    let loanSnapshot: Awaited<ReturnType<typeof transaction.get>> | null = null;
+    let loanRef: ReturnType<typeof doc> | null = null;
     if (loanId) {
-      const loanRef = doc(db, "equipmentLoans", loanId);
-      const loanSnapshot = await transaction.get(loanRef);
+      loanRef = doc(db, "equipmentLoans", loanId);
+      loanSnapshot = await transaction.get(loanRef);
       if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
       const loanData = loanSnapshot.data();
       if (loanData.status !== "open" || text(loanData.section) !== section || !Array.isArray(loanData.lines)) {
@@ -172,7 +174,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
         const line = rawLine as Record<string, unknown>;
         return integer(line.quantity) - integer(line.returnedQuantity) - integer(line.incidentQuantity) <= 0;
       });
-      transaction.update(loanRef, {
+      transaction.update(loanRef!, {
         lines: nextLines,
         status: complete ? "returned" : "open",
         updatedBy: uid,
