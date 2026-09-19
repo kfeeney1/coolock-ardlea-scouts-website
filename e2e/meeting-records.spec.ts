@@ -234,7 +234,7 @@ test("unusable meeting document leaves manual workflow available", async ({ page
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 corrupt")
   });
-  await expect(page.getByText(/corrupt|cannot be parsed|no extractable text/i)).toBeVisible();
+  await expect(page.getByText(/corrupt|cannot be parsed|no .*extractable text/i)).toBeVisible();
   await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure ${Date.now()}`);
   await expect(page.getByRole("button", { name: "Save Meeting" })).toBeEnabled();
 });
