@@ -57,17 +57,14 @@ describe("public Who's Who role policy", () => {
     );
   });
 
-  it("projects multi-section Programme Scouters across authorised youth sections without exposing account data", () => {
+  it("does not confuse multi-section account scope with public organisation placement", () => {
     assert.deepEqual(
       buildPublicLeadershipAppointments({
         appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }],
         organisationSection: "Cubs",
         accountSections: ["Cubs", "Scouts", "Group"]
       }),
-      [
-        { role: "Programme Scouter", section: "Cubs" },
-        { role: "Programme Scouter", section: "Scouts" }
-      ]
+      [{ role: "Programme Scouter", section: "Cubs" }]
     );
   });
 
@@ -82,7 +79,7 @@ describe("public Who's Who role policy", () => {
         organisationSection: "Cubs",
         accountSections: ["Beavers", "Cubs", "Ventures", "Group"]
       }).map((item) => item.section),
-      ["Group", "Cubs", "Beavers", "Ventures", "Cubs", "Beavers", "Ventures"]
+      ["Group", "Cubs", "Cubs"]
     );
   });
 });
