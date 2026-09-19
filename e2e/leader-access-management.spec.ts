@@ -60,12 +60,15 @@ test.describe("leader access management", () => {
     // Wait for that transition to finish so it cannot intercept the following switch click.
     await expect(page.locator('[role="presentation"].MuiMenu-root')).toHaveCount(0);
 
+    const saveLeader = card.getByRole("button", { name: "Save Leader" });
+    await expect(saveLeader).toBeDisabled();
     const active = card.getByRole("switch", { name: "Active" });
     await expect(active).toBeChecked();
     await active.click();
     await expect(active).not.toBeChecked();
+    await expect(saveLeader).toBeEnabled();
 
-    await card.getByRole("button", { name: "Save Leader" }).click();
+    await saveLeader.click();
 
     const dialog = page.getByRole("dialog", { name: "Confirm leader access changes?" });
     await expect(dialog).toBeVisible();
@@ -76,6 +79,10 @@ test.describe("leader access management", () => {
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(dialog).toBeHidden();
     await expect(active).not.toBeChecked();
+
+    await active.click();
+    await expect(active).toBeChecked();
+    await expect(saveLeader).toBeDisabled();
 
     await page.getByRole("button", { name: "Refresh" }).click();
     await expect(active).toBeChecked();
