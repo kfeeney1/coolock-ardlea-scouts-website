@@ -76,11 +76,7 @@ service cloud.firestore {
     }
     function hasFinanceAppointment(data) {
       return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
-        || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3)
-        || financeAppointmentAt(data, 4) || financeAppointmentAt(data, 5)
-        || financeAppointmentAt(data, 6) || financeAppointmentAt(data, 7)
-        || financeAppointmentAt(data, 8) || financeAppointmentAt(data, 9)
-        || financeAppointmentAt(data, 10) || financeAppointmentAt(data, 11);
+        || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
     }
     function canManageSubsPolicy() { return canViewAllFinance(); }
     function isOrdinaryLeaderTarget(userId) {
