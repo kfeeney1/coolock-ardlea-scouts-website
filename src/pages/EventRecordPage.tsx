@@ -17,6 +17,7 @@ import { loadEvents, updateEvent, updateEventRoster } from "../services/eventAdm
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord } from "../services/eventAdmin";
 import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel, isDuplicateEventIdentity, resolveEventAudience } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
+import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
 
 function statusColor(status: EventRecord["status"]): "default" | "success" | "warning" | "secondary" {
@@ -195,7 +196,7 @@ export default function EventRecordPage() {
                         {event.consentRequired && <Chip label="Consent required" color="warning" variant="outlined" />}
                     </Stack>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
-                        <Box><Typography variant="overline" color="text.secondary">Dates</Typography><Typography>{event.startDate}{event.endDate && event.endDate !== event.startDate ? ` to ${event.endDate}` : ""}</Typography></Box>
+                        <Box><Typography variant="overline" color="text.secondary">Dates</Typography><Typography>{formatSiteDate(event.startDate)}{event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}</Typography></Box>
                         <Box><Typography variant="overline" color="text.secondary">Location</Typography><Typography>{event.location || "Not set"}</Typography></Box>
                         <Box><Typography variant="overline" color="text.secondary">Meeting point</Typography><Typography>{event.meetingPoint || "Not set"}</Typography></Box>
                         <Box><Typography variant="overline" color="text.secondary">Return details</Typography><Typography>{event.returnDetails || "Not set"}</Typography></Box>
