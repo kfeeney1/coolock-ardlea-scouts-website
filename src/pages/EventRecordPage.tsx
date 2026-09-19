@@ -222,7 +222,7 @@ export default function EventRecordPage() {
                     </Box>
                 </Paper>
 
-                <EventEditorDialog open={editing} editing={event} draft={draft ?? eventInput(event)} saving={saving} onClose={() => setEditing(false)} onChange={setDraft} onSave={() => void saveEvent()} />
+                <EventEditorDialog open={editing} editing={event} draft={draft ?? eventInput(event)} saving={saving} members={members} onClose={() => setEditing(false)} onChange={setDraft} onSave={() => void saveEvent()} />
                 <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
                 <EventGalleryDialog event={galleryOpen ? event : null} onClose={() => setGalleryOpen(false)} />
                 {equipmentOpen && <ProgrammeEquipmentDialog open sourceType={event.eventType.toLowerCase().includes("activity") ? "activity" : "event"} sourceId={event.id} sourceLabel={event.title} section={event.section} date={event.startDate} items={equipmentItems} loans={equipmentLoans} readOnly={event.status === "completed"} onClose={() => setEquipmentOpen(false)} onChanged={load} />}
