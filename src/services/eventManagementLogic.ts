@@ -18,7 +18,8 @@ export const EMPTY_EVENT: EventInput = {
     startDate: "",
     endDate: "",
     status: "draft",
-    consentRequired: false
+    consentRequired: false,
+    audience: null
 };
 
 export function eventStatusLabel(status: EventStatus): string {
@@ -67,12 +68,25 @@ export function eventInput(record: EventRecord): EventInput {
         startDate: record.startDate,
         endDate: record.endDate,
         status: record.status,
-        consentRequired: record.consentRequired
+        consentRequired: record.consentRequired,
+        audience: record.audience
     };
 }
 
 export function eventMembers(event: EventRecord, members: MemberRecord[]): MemberRecord[] {
+    if (event.audience) {
+        const invited = new Set(event.audience.resolvedMemberIds);
+        return members.filter((member) => invited.has(member.id));
+    }
     return members.filter((member) => member.status === "active" && (event.section === "All Sections" || member.section === event.section));
+}
+
+export function resolveEventAudience(sectionIds: string[], memberIds: string[], members: MemberRecord[]): string[] {
+    const sections = new Set(sectionIds);
+    const selected = new Set(memberIds);
+    return members
+        .filter((member) => member.status === "active" && (sections.has(member.section) || selected.has(member.id)))
+        .map((member) => member.id);
 }
 
 export function eventCounts(event: EventRecord, members: MemberRecord[]) {
