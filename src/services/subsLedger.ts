@@ -19,6 +19,8 @@ import {
   type SubsRatePolicy
 } from "./subsLogic";
 import { mapSubsPolicy } from "./subsPolicyCompatibility";
+import { mapSubsMember } from "./subsMemberCompatibility";
+import type { MemberRecord } from "./memberAdmin";
 
 const uid = () => {
   const value = auth.currentUser?.uid;
@@ -36,6 +38,13 @@ export async function loadSubsPolicies(): Promise<SubsRatePolicy[]> {
     .map((item) => mapSubsPolicy(item.id, item.data()))
     .filter((policy): policy is SubsRatePolicy => policy !== null)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
+}
+
+export async function loadSubsMembers(): Promise<MemberRecord[]> {
+  const snap = await getDocs(collection(db, "members"));
+  return snap.docs.map((item) => mapSubsMember(item.id, item.data()))
+    .filter((member): member is MemberRecord => member !== null && member.status === "active")
+    .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
 }
 
 /**
