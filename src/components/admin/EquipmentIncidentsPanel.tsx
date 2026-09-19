@@ -142,16 +142,15 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       const incidentId = await reportEquipmentIncident(request);
       setOpen(false);
       setSaving(false);
-      await onChanged();
       if (incidentRequiresUrgentNotification(type)) {
         try {
           await sendEquipmentIncidentNotification(incidentId);
-          await onChanged();
         } catch (notificationError) {
           console.error("Unable to send equipment incident email:", notificationError);
           onError("The equipment issue was recorded and is visible on the dashboard, but the email notification could not be sent.");
         }
       }
+      await onChanged();
     } catch (error) {
       console.error("Unable to report equipment issue:", error);
       onError(error instanceof Error ? error.message : "Unable to report the equipment issue.");
