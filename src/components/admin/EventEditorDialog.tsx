@@ -85,7 +85,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
                                     <TextField required label="Event title" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                     <FormControl><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => onChange({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select></FormControl>
-                                    <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+                                    <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 1, sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
 <Autocomplete
                                         multiple
                                         options={members.filter((member) => member.status === "active")}
