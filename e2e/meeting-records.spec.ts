@@ -88,9 +88,16 @@ test("section leader can import a text meeting document, review it and save it",
     buffer: Buffer.from(documentText)
   });
 
-  await expect(page.getByText(/Imported draft from TEST-imported-meeting\.txt/)).toBeVisible();
+  await expect(page.getByText(/Parsed TEST-imported-meeting\.txt/)).toBeVisible();
   await expect(page.getByText("TEST-imported-meeting.txt", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Review every field below before saving/)).toBeVisible();
+  const preview = page.getByTestId("meeting-document-preview");
+  await expect(preview).toBeVisible();
+  await expect(page.getByLabel("Meeting title")).toHaveValue("");
+  for (const label of ["Meeting title", "Meeting date and time", "Attendees", "Notes / Minutes", "Decisions", "Action Items"]) {
+    const row = preview.getByText(label, { exact: true }).locator("..").locator("..");
+    await row.getByRole("button", { name: "Use value" }).click();
+  }
+  await preview.getByRole("button", { name: "Apply selected values" }).click();
   await expect(page.getByLabel("Meeting title")).toHaveValue(title);
   await expect(page.getByLabel("Meeting date and time")).toHaveValue("2026-09-05T19:30");
   await expect(page.getByLabel("Attendees")).toHaveValue("Test Scout Leader\nTest Assistant Leader");
@@ -214,4 +221,20 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await recordCard.getByRole("button", { name: "Version History" }).click();
   await expect(recordCard.getByText("Previous versions", { exact: true })).toBeVisible();
   await expect(recordCard.getByText(originalMinutes, { exact: true })).toBeVisible();
+});
+
+
+test("unusable meeting document leaves manual workflow available", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  await login(page, leaderEmail!);
+  await page.goto("/leader/meetings");
+  await page.locator('input[type="file"][accept*=".pdf"]').setInputFiles({
+    name: "TEST-empty.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 corrupt")
+  });
+  await expect(page.getByText(/corrupt|cannot be parsed|no extractable text/i)).toBeVisible();
+  await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure ${Date.now()}`);
+  await expect(page.getByRole("button", { name: "Save Meeting" })).toBeEnabled();
 });
