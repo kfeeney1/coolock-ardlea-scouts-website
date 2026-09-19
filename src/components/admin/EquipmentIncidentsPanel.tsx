@@ -141,6 +141,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
     try {
       const incidentId = await reportEquipmentIncident(request);
       setOpen(false);
+      setSaving(false);
       await onChanged();
       if (incidentRequiresUrgentNotification(type)) {
         try {
