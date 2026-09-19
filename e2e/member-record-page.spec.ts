@@ -41,3 +41,23 @@ test("legacy Member History route folds back into Member Management", async ({ p
   await expect(page).toHaveURL(/\/leader\/members$/);
   await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
 });
+
+
+test("SW-116 linked family member opens the canonical member record and Back returns to the family view", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_family_two_member_01");
+
+  const familyPanel = page.getByTestId("member-family-management");
+  await expect(familyPanel).toBeVisible();
+  const sibling = familyPanel.getByRole("link", { name: "Open member record for TEST 2-Sibling Family Member 2" });
+  await expect(sibling).toBeVisible();
+  await sibling.click();
+
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_family_two_member_02$/);
+  await expect(page.getByRole("heading", { name: "TEST 2-Sibling Family Member 2", level: 1 })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_family_two_member_01$/);
+  await expect(page.getByTestId("member-family-management")).toBeVisible();
+});
