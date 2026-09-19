@@ -9,7 +9,8 @@ import {
 } from "firebase/firestore";
 import type { DocumentData, QuerySnapshot } from "firebase/firestore";
 import { db } from "../firebase";
-import { isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
+import { buildPublicLeadershipAppointments, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type OrganisationLeader = {
   uid: string;
@@ -88,16 +89,25 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
 
   const accessSnapshot = await getDoc(doc(db, "adminUsers", leader.uid));
   const access = accessSnapshot.exists() ? accessSnapshot.data() : null;
-  const leaderAccess = access?.role === "leader" && access?.active === true && Array.isArray(access?.sections) && access.sections.length > 0;
-  if (!leaderAccess || !leader.showPublicly || !isAllowedPublicAppointment(safe.scoutingRole, safe.organisationSection)) {
+  const accountSections = access ? normalizeLeaderSections(access) : [];
+  const leaderAccess = access?.role === "leader" && access?.active === true && accountSections.length > 0;
+  const publicAppointments = buildPublicLeadershipAppointments({
+    scoutingRole: safe.scoutingRole,
+    organisationSection: safe.organisationSection,
+    accountSections
+  });
+  if (!leaderAccess || !leader.showPublicly || publicAppointments.length === 0) {
     await deleteDoc(publicRef);
     return;
   }
+  const primaryPublicAppointment = publicAppointments[0];
 
   await setDoc(publicRef, {
     displayName: safe.displayName,
-    scoutingRole: safe.scoutingRole,
-    organisationSection: safe.organisationSection,
+    scoutingRole: primaryPublicAppointment.role,
+    organisationSection: primaryPublicAppointment.section,
+    organisationSections: [...new Set(publicAppointments.map((item) => item.section))],
+    publicAppointments,
     organisationOrder: safe.organisationOrder,
     reportsToUid: safe.reportsToUid,
     showPublicly: true,
