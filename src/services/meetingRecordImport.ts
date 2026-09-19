@@ -77,6 +77,14 @@ function toLocalDateTime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function dateMatches(value: string): string[] {
+  const matches = [
+    ...value.matchAll(/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2})?/g),
+    ...value.matchAll(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{4}(?:\s+\d{1,2}:\d{2})?/g)
+  ].map((match) => match[0]);
+  return [...new Set(matches)];
+}
+
 function parseDate(value: string): string {
   const trimmed = value.trim();
   const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/);
@@ -124,12 +132,15 @@ export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
   const title = first("title") || cleanLine(unheaded[0] ?? "");
   const meetingType = parseMeetingType(first("type")) ?? "leader";
   const section = parseSection(first("section"));
-  const meetingDate = parseDate(first("date"));
+  const dateSource = first("date");
+  const explicitDates = dateMatches(dateSource);
+  const meetingDate = explicitDates.length <= 1 ? parseDate(dateSource) : "";
   const attendees = splitAttendees(first("attendees"));
   const warnings: string[] = [];
 
   if (!title) warnings.push("No meeting title was found.");
-  if (!meetingDate) warnings.push("No recognisable meeting date was found.");
+  if (explicitDates.length > 1) warnings.push("Several dates were found in the meeting date field; choose the correct date manually.");
+  else if (!meetingDate) warnings.push("No recognisable meeting date was found.");
   if (meetingType === "leader" && !section) warnings.push("No youth section was found for this leader meeting.");
   if (attendees.length === 0) warnings.push("No attendees were found.");
 
@@ -149,4 +160,29 @@ export function parseMeetingDocument(raw: string): ImportedMeetingDraft {
 export function isSupportedMeetingImportFile(fileName: string, mimeType: string): boolean {
   const lower = fileName.toLowerCase();
   return mimeType.startsWith("text/") || lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".html") || lower.endsWith(".htm");
+}
+
+
+export type MeetingCandidateKey = "title" | "meetingType" | "section" | "meetingDate" | "attendees" | "notes" | "decisions" | "actions";
+export type MeetingCandidate = { key: MeetingCandidateKey; label: string; proposed: string | string[]; confidence: "high" | "review" };
+
+export function extractMeetingCandidates(raw: string): { candidates: MeetingCandidate[]; warnings: string[] } {
+  const draft = parseMeetingDocument(raw);
+  const labels: Record<MeetingCandidateKey, string> = {
+    title: "Meeting title", meetingType: "Meeting type", section: "Section", meetingDate: "Meeting date and time",
+    attendees: "Attendees", notes: "Notes / Minutes", decisions: "Decisions", actions: "Action Items"
+  };
+  const candidates: MeetingCandidate[] = [];
+  const add = (key: MeetingCandidateKey, proposed: string | string[], confidence: "high" | "review" = "high") => {
+    if (Array.isArray(proposed) ? proposed.length > 0 : Boolean(proposed.trim())) candidates.push({ key, label: labels[key], proposed, confidence });
+  };
+  add("title", draft.title);
+  add("meetingType", draft.meetingType, "review");
+  add("section", draft.section, "review");
+  add("meetingDate", draft.meetingDate, "review");
+  add("attendees", draft.attendees, "review");
+  add("notes", draft.notes);
+  add("decisions", draft.decisions);
+  add("actions", draft.actions);
+  return { candidates, warnings: draft.warnings };
 }
