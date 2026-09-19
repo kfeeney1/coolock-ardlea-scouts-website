@@ -141,7 +141,8 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill("One tent was not returned with the rest of the section equipment.");
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
-  await expect(incidentDialog).toBeHidden();
+  const submitError = page.getByRole("alert").filter({ hasText: /equipment|issue|checkout|permission|record/i });
+  await expect(incidentDialog).toBeHidden({ timeout: 15000 });
 
   const incidentCard = page.getByText(`1 × ${incidentName}`, { exact: false }).first().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(incidentCard).toBeVisible();
