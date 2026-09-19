@@ -34,7 +34,8 @@ function incident(uid, section = "Scouts", loanId = "loan-1") {
     resolutionType: "",
     resolutionNotes: "",
     resolvedBy: "",
-    resolvedAt: null
+    resolvedAt: null,
+    stockAdjusted: loanId !== ""
   };
 }
 
@@ -65,13 +66,13 @@ test("section leader can report an incident from their own section checkout", as
   }));
 });
 
-test("section leader cannot report a direct-store issue or another section checkout", async () => {
+test("section leader can report a scoped catalogue issue but not another section checkout", async () => {
   await seed([
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
     ["equipmentLoans/cubs-loan", { section: "Cubs", status: "open" }]
   ]);
   const db = testEnv.authenticatedContext("scout-leader", { email: "scout@example.test" }).firestore();
-  await assertFails(setDoc(doc(db, "equipmentIncidents/direct"), incident("scout-leader", "Scouts", "")));
+  await assertSucceeds(setDoc(doc(db, "equipmentIncidents/direct"), incident("scout-leader", "Scouts", "")));
   await assertFails(setDoc(doc(db, "equipmentIncidents/cubs"), incident("scout-leader", "Cubs", "cubs-loan")));
 });
 

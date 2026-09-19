@@ -8,6 +8,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
+import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import { addFinanceReceipt } from "../services/financeReceipts";
 import { createFinanceTransaction, loadFinanceTransactions, reverseFinanceTransaction } from "../services/financeLedger";
 import { createFinanceReconciliation, loadFinanceReconciliations } from "../services/financeReconciliations";
@@ -90,6 +91,7 @@ export default function SectionCashbook() {
   const [correction, setCorrection] = useState<FinanceTransaction | null>(null);
   const [correctionDate, setCorrectionDate] = useState(today());
   const [correctionReason, setCorrectionReason] = useState("");
+  const [reportsOpen, setReportsOpen] = useState(false);
 
   useEffect(() => { if (!section && sections.length) setSection(sections[0]); }, [section, sections]);
 
@@ -196,10 +198,11 @@ export default function SectionCashbook() {
           <Typography color="text.secondary" sx={{ mt: 1 }}>Track only the physical section float: open it, top it up, record money out, and close it. The float can never go below €0.00.</Typography>
           <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, gap: 2, alignItems: "center" }}>
             <FormControl fullWidth><InputLabel id="finance-section-label">Section</InputLabel><StableSelect labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(String(event.target.value))}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>
-            <Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper><Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button></Stack>
           </Box>
         </Paper>
         {error && <Alert severity="error">{error}</Alert>}
+        {reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
 
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Float transaction</Typography>

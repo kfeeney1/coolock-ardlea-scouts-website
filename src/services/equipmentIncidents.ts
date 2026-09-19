@@ -46,6 +46,7 @@ export type EquipmentIncident = {
   resolutionNotes: string;
   resolvedBy: string;
   resolvedAt: Date | null;
+  stockAdjusted: boolean;
 };
 
 export type ReportEquipmentIncidentRequest = {
@@ -103,7 +104,8 @@ function mapIncident(id: string, data: Record<string, unknown>): EquipmentIncide
     resolutionType,
     resolutionNotes: text(data.resolutionNotes),
     resolvedBy: text(data.resolvedBy),
-    resolvedAt: data.resolvedAt instanceof Timestamp ? data.resolvedAt.toDate() : null
+    resolvedAt: data.resolvedAt instanceof Timestamp ? data.resolvedAt.toDate() : null,
+    stockAdjusted: data.stockAdjusted === true || Boolean(text(data.loanId))
   };
 }
 
@@ -140,11 +142,13 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
     const unavailableQuantity = integer(itemData.unavailableQuantity);
     if (itemData.archived === true) throw new Error(`${itemName} is archived and cannot have a new issue reported.`);
 
+    let loanSnapshot: Awaited<ReturnType<typeof transaction.get>> | null = null;
+    let loanRef: ReturnType<typeof doc> | null = null;
     if (loanId) {
-      const loanRef = doc(db, "equipmentLoans", loanId);
-      const loanSnapshot = await transaction.get(loanRef);
+      loanRef = doc(db, "equipmentLoans", loanId);
+      loanSnapshot = await transaction.get(loanRef);
       if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
-      const loanData = loanSnapshot.data();
+      const loanData = loanSnapshot.data() as Record<string, unknown>;
       if (loanData.status !== "open" || text(loanData.section) !== section || !Array.isArray(loanData.lines)) {
         throw new Error("That checkout is not open for the selected section.");
       }
@@ -170,7 +174,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
         const line = rawLine as Record<string, unknown>;
         return integer(line.quantity) - integer(line.returnedQuantity) - integer(line.incidentQuantity) <= 0;
       });
-      transaction.update(loanRef, {
+      transaction.update(loanRef!, {
         lines: nextLines,
         status: complete ? "returned" : "open",
         updatedBy: uid,
@@ -183,13 +187,8 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
         updatedAt: serverTimestamp()
       });
     } else {
-      const available = Math.max(0, totalQuantity - checkedOutQuantity - unavailableQuantity);
-      if (request.quantity > available) throw new Error(`Only ${available} × ${itemName} are currently available to report from the store.`);
-      transaction.update(itemRef, {
-        unavailableQuantity: unavailableQuantity + request.quantity,
-        updatedBy: uid,
-        updatedAt: serverTimestamp()
-      });
+      const catalogueQuantity = Math.max(0, totalQuantity - checkedOutQuantity);
+      if (request.quantity > catalogueQuantity) throw new Error(`Only ${catalogueQuantity} × ${itemName} are recorded outside current checkouts.`);
     }
 
     transaction.set(incidentRef, {
@@ -212,7 +211,8 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
       resolutionType: "",
       resolutionNotes: "",
       resolvedBy: "",
-      resolvedAt: null
+      resolvedAt: null,
+      stockAdjusted: Boolean(loanId)
     });
   });
 
@@ -294,18 +294,21 @@ export async function resolveEquipmentIncident(
     if (incidentData.status === "resolved") throw new Error("This equipment issue has already been resolved.");
     const quantity = integer(incidentData.quantity);
     const itemData = itemSnapshot.data();
+    const stockAdjusted = incidentData.stockAdjusted === true || Boolean(text(incidentData.loanId));
     const next = resolvedEquipmentQuantities({
       totalQuantity: integer(itemData.totalQuantity),
       checkedOutQuantity: integer(itemData.checkedOutQuantity),
       unavailableQuantity: integer(itemData.unavailableQuantity)
     }, quantity, resolution);
 
-    transaction.update(itemRef, {
-      totalQuantity: next.totalQuantity,
-      unavailableQuantity: next.unavailableQuantity,
-      updatedBy: uid,
-      updatedAt: serverTimestamp()
-    });
+    if (stockAdjusted) {
+      transaction.update(itemRef, {
+        totalQuantity: next.totalQuantity,
+        unavailableQuantity: next.unavailableQuantity,
+        updatedBy: uid,
+        updatedAt: serverTimestamp()
+      });
+    }
     transaction.update(incidentRef, {
       status: "resolved",
       resolutionType: resolution,

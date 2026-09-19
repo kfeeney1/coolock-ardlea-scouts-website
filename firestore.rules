@@ -950,12 +950,15 @@ service cloud.firestore {
         && request.resource.data.resolutionNotes == ""
         && request.resource.data.resolvedBy == ""
         && request.resource.data.resolvedAt == null
+        && request.resource.data.stockAdjusted is bool
         && (canManageEquipment()
-          || (request.resource.data.loanId != ""
-            && hasSection(request.resource.data.section)
-            && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
-            && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section))
-        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt"]);
+          || (hasSection(request.resource.data.section)
+            && ((request.resource.data.loanId != ""
+              && request.resource.data.stockAdjusted == true
+              && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
+              && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section)
+              || (request.resource.data.loanId == "" && request.resource.data.stockAdjusted == false))))
+        && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "stockAdjusted"]);
       allow update: if (isActiveLeader()
           && resource.data.reportedBy == request.auth.uid
           && request.resource.data.reportedBy == resource.data.reportedBy

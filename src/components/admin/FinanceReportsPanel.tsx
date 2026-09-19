@@ -26,18 +26,22 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function FinanceReportsPanel() {
+type Props = { initialSection?: string };
+
+export default function FinanceReportsPanel({ initialSection = "" }: Props) {
   const { adminProfile } = useAdminAuth();
   const allFinance = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Treasurer";
   const permittedSections = useMemo(() => allFinance ? GROUP_SECTIONS : (adminProfile?.sections ?? []), [adminProfile, allFinance]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);
-  const [section, setSection] = useState("");
+  const [section, setSection] = useState(initialSection);
   const [category, setCategory] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => { if (initialSection && permittedSections.includes(initialSection)) setSection(initialSection); }, [initialSection, permittedSections]);
 
   useEffect(() => {
     let cancelled = false;
