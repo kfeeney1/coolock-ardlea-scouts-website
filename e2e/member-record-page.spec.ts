@@ -41,3 +41,32 @@ test("legacy Member History route folds back into Member Management", async ({ p
   await expect(page).toHaveURL(/\/leader\/members$/);
   await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
 });
+
+
+test("SW-116 linked family member opens the canonical member record and Back returns to the family view", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_scout_01");
+
+  const familyPanel = page.getByTestId("member-family-management");
+  await expect(familyPanel).toBeVisible();
+
+  // Build the relationship through the supported UI using canonical seeded members.
+  // This keeps the regression independent of invented fixture IDs and also proves
+  // the resulting family link is immediately navigable.
+  await familyPanel.getByLabel("Search existing members").fill("Cubs 01");
+  const candidate = familyPanel.getByText(/Cubs 01/).first();
+  await expect(candidate).toBeVisible();
+  await candidate.locator("xpath=ancestor::*[.//button[normalize-space()='Link sibling']][1]").getByRole("button", { name: "Link sibling" }).click();
+
+  const sibling = familyPanel.locator('a[href="/leader/members/TEST_member_cub_01"]');
+  await expect(sibling).toBeVisible();
+  await sibling.click();
+
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_cub_01$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_scout_01$/);
+  await expect(page.getByTestId("member-family-management")).toBeVisible();
+});
