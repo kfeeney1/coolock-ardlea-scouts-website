@@ -71,5 +71,6 @@ test("ambiguous meeting-date headings are not confidently mapped", () => {
 
 test("untrusted HTML is reduced to text rather than returned as executable markup", () => {
   const draft = parseMeetingDocument("<script>alert(1)</script><p>Title: Safe title</p><p>Section: Scouts</p><p>Date: 20/09/2026</p><p>Attendees: Alex</p>");
-  assert.match(draft.title, /Safe title/);\n  assert.doesNotMatch(JSON.stringify(draft), /<script/i);
+  assert.match(draft.title, /Safe title/);
+  assert.doesNotMatch(JSON.stringify(draft), /<script/i);
 });
