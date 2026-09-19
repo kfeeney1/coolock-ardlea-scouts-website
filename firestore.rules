@@ -1058,10 +1058,12 @@ service cloud.firestore {
         && request.resource.data.active == true
         && request.resource.data.publicProjectionVersion == 2
         && request.resource.data.sourceAccessRole == "leader"
-        && request.resource.data.organisationSections is list
-        && request.resource.data.organisationSections.size() <= 6
-        && request.resource.data.publicAppointments is list
-        && request.resource.data.publicAppointments.size() <= 24;
+        && (!isAdmin() || (
+          request.resource.data.organisationSections is list
+          && request.resource.data.organisationSections.size() <= 6
+          && request.resource.data.publicAppointments is list
+          && request.resource.data.publicAppointments.size() <= 24
+        ));
       allow delete: if isAdmin();
     }
 
