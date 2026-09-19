@@ -332,7 +332,7 @@ export default function EquipmentManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
           {visibleItems.map((item) => {
             const available = availableEquipmentQuantity(item);
-            return <Paper key={item.id} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
+            return <Paper key={item.id} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
               <Stack spacing={1.25}>
                 <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
@@ -346,9 +346,9 @@ export default function EquipmentManagement() {
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                  <Button size="small" onClick={() => setHistoryItem(item)}>History{canManage && !item.archived && available > 0 ? " / move Store" : ""}</Button>
-                  {canManage && <Button size="small" onClick={() => openEdit(item)}>Edit</Button>}
-                  {canManage && <Button size="small" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => void toggleArchived(item)}>{item.archived ? "Restore" : "Archive"}</Button>}
+                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History{canManage && !item.archived && available > 0 ? " / move Store" : ""}</Button>
+                  {canManage && <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${item.id}`); }}>Edit</Button>}
+                  {canManage && <Button size="small" variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={(e) => { e.stopPropagation(); setArchiveTarget(item); }}>{item.archived ? "Restore" : "Archive"}</Button>}
                 </Stack>
               </Stack>
             </Paper>;
@@ -357,16 +357,16 @@ export default function EquipmentManagement() {
       )}
 
       <Dialog open={editing !== undefined} onClose={() => !saving && setEditing(undefined)} fullWidth maxWidth="sm">
-        <DialogTitle>{editing ? "Edit equipment" : "Add equipment"}</DialogTitle>
+        <DialogTitle>Add equipment</DialogTitle>
         <DialogContent dividers><Stack spacing={2} sx={{ pt: 0.5 }}>
           <TextField label="Equipment name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
           <FormControl><InputLabel>Category</InputLabel><Select label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
-          <FormControl disabled={Boolean(editing)}><InputLabel>Store</InputLabel><Select label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
+          <FormControl><InputLabel>Store</InputLabel><Select label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use History / move Store so the stock movement remains auditable.</Typography>}
           {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
-          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: editing ? editing.checkedOutQuantity + editing.unavailableQuantity : 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
+          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
           <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="not-recorded">Not recorded</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>
           <TextField label="Replacement value (€)" type="number" slotProps={{ htmlInput: { min: 0, step: "0.01" } }} value={form.replacementValue ?? ""} onChange={(event) => setForm({ ...form, replacementValue: event.target.value === "" ? null : Number(event.target.value) })} />
           <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
