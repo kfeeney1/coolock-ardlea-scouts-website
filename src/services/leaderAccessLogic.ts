@@ -5,6 +5,7 @@ export type NormalizedLeaderRole = "leader" | "admin" | "super-admin";
 export type LeaderAccessSource = {
     role?: unknown;
     sections?: unknown;
+    section?: unknown;
 };
 
 export function normalizeLeaderRole(value: unknown): NormalizedLeaderRole {
@@ -13,10 +14,15 @@ export function normalizeLeaderRole(value: unknown): NormalizedLeaderRole {
 }
 
 export function normalizeLeaderSections(data: LeaderAccessSource): string[] {
-    if (!Array.isArray(data.sections)) return [];
+    const source = Array.isArray(data.sections)
+        ? data.sections
+        : typeof data.sections === "string"
+          ? [data.sections]
+          : typeof data.section === "string"
+            ? [data.section]
+            : [];
 
     return sortScoutSections(
-        data.sections
-            .filter((value): value is string => typeof value === "string")
+        source.filter((value): value is string => typeof value === "string")
     );
 }
