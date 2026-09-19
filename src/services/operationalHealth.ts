@@ -1,7 +1,7 @@
 export type OperationalHealthStatus = "healthy" | "warning" | "unavailable";
 
 export type OperationalHealthItem = {
-    id: "release" | "firestore" | "email" | "storage" | "data-integrity";
+    id: "release" | "firestore" | "email" | "storage" | "data-integrity" | "provider-limits";
     label: string;
     status: OperationalHealthStatus;
     detail: string;
@@ -103,6 +103,12 @@ export async function loadOperationalHealth(): Promise<OperationalHealthItem[]> 
             emailApiUrl: String(import.meta.env.VITE_EMAIL_API_URL || "").trim(),
             storageBucket: String(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "").trim()
         }),
+        {
+            id: "provider-limits",
+            label: "External service limits",
+            status: "unavailable",
+            detail: "Provider quota usage is not exposed to this client. Check provider consoles or approved server-side monitoring; unknown values are never estimated."
+        },
         {
             id: "data-integrity",
             label: "Operational data integrity",
