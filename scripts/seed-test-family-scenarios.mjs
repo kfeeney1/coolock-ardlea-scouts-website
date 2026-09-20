@@ -97,6 +97,7 @@ async function seedScenario(scenario) {
       status: "active",
       source: "manual",
       sourceJoinApplicationId: "",
+      familyId: `TEST_family_${scenario.key}`,
       createdBy: "TEST_SEED",
       testFamilyType: scenario.label,
       siblingGroupSize: scenario.size,
@@ -110,7 +111,7 @@ async function seedScenario(scenario) {
     displayName: parentName,
     mobileNumber: `0870${scenario.phoneSuffix}`,
     status: "approved",
-    memberIds: ids,
+    memberIds: scenario.key === "two" ? [ids[0]] : ids,
     linkedSections: [scenario.section],
     reviewedBy: "TEST_SEED",
     reviewedAt: FieldValue.serverTimestamp(),
@@ -126,7 +127,7 @@ async function seed() {
   await prune("members", expectedMembers);
   await prune("parentAccounts", expectedParents);
   for (const scenario of scenarios) await seedScenario(scenario);
-  console.log("Seeded deterministic TEST sibling-family scenarios: 2, 3 and 4 siblings.");
+  console.log("Seeded deterministic TEST sibling-family scenarios: 2, 3 and 4 siblings, including a production-shaped family with a parent projection linked to only one sibling.");
 }
 
 async function cleanup() {
