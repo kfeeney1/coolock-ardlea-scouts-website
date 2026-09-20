@@ -24,6 +24,7 @@ import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel
 import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import EquipmentOperationsDashboard from "../components/admin/EquipmentOperationsDashboard";
+import EquipmentOptionManager from "../components/admin/EquipmentOptionManager";
 import type { EquipmentDashboardFilter } from "../components/admin/EquipmentOperationsDashboard";
 import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -36,7 +37,6 @@ import {
   loadEquipmentItems,
   loadEquipmentOptions,
   setEquipmentArchived,
-  updateEquipmentOption
 } from "../services/equipment";
 import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
 import { loadEquipmentIncidents } from "../services/equipmentIncidents";
