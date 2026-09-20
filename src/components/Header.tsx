@@ -9,7 +9,7 @@ import {
     Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import logo from "../assets/logo.png";
@@ -26,19 +26,12 @@ export default function Header() {
     const content = usePublicSiteContent();
     const menuItems = content.navigation;
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
-    const pendingSignOutDestination = signingOut
-        ? (window.location.pathname.startsWith("/leader") ? "/leader/login" : "/")
-        : null;
-    useEffect(() => {
-        if (pendingSignOutDestination && !user) {
-            setAnchorEl(null);
-            setSigningOut(false);
-            navigate(pendingSignOutDestination, { replace: true });
-        }
-    }, [navigate, pendingSignOutDestination, user]);
     const handleSignOut = async () => {
         if (signingOut) return;
+        const destination = window.location.pathname.startsWith("/leader") ? "/leader/login" : "/";
         setSigningOut(true);
+        setAnchorEl(null);
+        navigate(destination, { replace: true });
         try {
             await logout();
         } catch (error) {
