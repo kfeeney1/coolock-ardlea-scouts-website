@@ -243,16 +243,20 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   const card = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await expect(card.getByText("0 total", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Edit" }).click();
-  const editDialog = page.getByRole("dialog", { name: "Edit equipment" });
-  const editQuantity = editDialog.getByTestId("equipment-total-quantity");
+  await expect(page).toHaveURL(/\/leader\/equipment\/[^/]+$/);
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const editQuantity = page.getByLabel("Total quantity");
   await expect(editQuantity).toHaveValue("0");
   await editQuantity.fill("");
   await expect(editQuantity).toHaveValue("");
   await editQuantity.fill("5");
   await expect(editQuantity).toHaveValue("5");
-  await editDialog.getByRole("button", { name: "Save equipment" }).click();
-
-  await expect(card.getByText("5 total", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Save equipment" }).click();
+  await expect(page.getByText("Equipment record saved.", { exact: true })).toBeVisible();
+  await expect(page.getByText("5 total", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/equipment$/);
+  await expect(page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").getByText("5 total", { exact: true })).toBeVisible();
   await page.goto("/leader");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/equipment");
