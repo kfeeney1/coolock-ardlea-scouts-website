@@ -89,8 +89,6 @@ export default function EquipmentManagement() {
   const [saving, setSaving] = useState(false);
   const [manageLocationsOpen, setManageLocationsOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
-  const [optionName, setOptionName] = useState("");
-  const [optionDrafts, setOptionDrafts] = useState<Record<string, string>>({});
   const [archiveTarget, setArchiveTarget] = useState<EquipmentItem | null>(null);
 
   const search = searchParams.get("q") ?? "";
@@ -244,52 +242,7 @@ export default function EquipmentManagement() {
     }
   };
 
-  const optionManager = (
-    kind: "categories" | "locations",
-    options: EquipmentOption[],
-    open: boolean,
-    close: () => void
-  ) => {
-    const label = kind === "categories" ? "custom category" : "Store";
-    const values = activeItems.map((item) => kind === "categories" ? item.category : item.location);
-    const addOption = async () => {
-      const safe = normaliseEquipmentLabel(optionName);
-      if (!safe) return setError(`Enter a ${label} name.`);
-      const existing = [...options.map((x) => x.name), ...(kind === "categories" ? DEFAULT_EQUIPMENT_CATEGORIES : [])];
-      if (isDuplicateEquipmentLabel(safe, existing)) return setError(`That ${label} already exists.`);
-      try { await addEquipmentOption(kind, safe); setOptionName(""); await refresh(); }
-      catch (e) { setError(e instanceof Error ? e.message : `Unable to add that ${label}.`); }
-    };
-    const renameOption = async (option: EquipmentOption) => {
-      const safe = normaliseEquipmentLabel(optionDrafts[option.id] ?? option.name);
-      if (!safe || safe === option.name) return;
-      const duplicates = options.filter((x) => x.id !== option.id).map((x) => x.name);
-      if (isDuplicateEquipmentLabel(safe, duplicates)) return setError(`That ${label} already exists.`);
-      try { await updateEquipmentOption(kind, option, safe); await refresh(); }
-      catch (e) { setError(e instanceof Error ? e.message : `Unable to rename that ${label}.`); }
-    };
-    return <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
-      <DialogTitle>Manage {kind === "categories" ? "custom categories" : "Stores"}</DialogTitle>
-      <DialogContent dividers><Stack spacing={2}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <TextField fullWidth label={`New ${label}`} value={optionName} onChange={(e) => setOptionName(e.target.value)} />
-          <Button variant="contained" onClick={() => void addOption()}>Add</Button>
-        </Stack>
-        {options.length === 0 ? <Alert severity="info">No saved {kind === "categories" ? "custom categories" : "Stores"} yet.</Alert> : options.map((option) => {
-          const usage = values.filter((value) => value.toLowerCase() === option.name.toLowerCase()).length;
-          return <Paper key={option.id} variant="outlined" sx={{ p: 1.5 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
-              <TextField fullWidth size="small" label={kind === "categories" ? "Category name" : "Store name"} value={optionDrafts[option.id] ?? option.name} onChange={(e) => setOptionDrafts({ ...optionDrafts, [option.id]: e.target.value })} helperText={usage ? `${usage} equipment record${usage === 1 ? "" : "s"} use this ${label}` : "Unused"} />
-              <Button variant="outlined" onClick={() => void renameOption(option)}>Save</Button>
-              <Button variant="outlined" color="error" disabled={!canDeleteEquipmentOption(option.name, values)} onClick={() => void removeOption(kind, option)}>Delete</Button>
-            </Stack>
-            {usage > 0 && <Typography variant="caption" color="text.secondary">Delete is disabled while equipment uses this {label}. Renaming preserves those assignments and records history.</Typography>}
-          </Paper>;
-        })}
-      </Stack></DialogContent>
-      <DialogActions><Button onClick={close}>Close</Button></DialogActions>
-    </Dialog>;
-  };
+
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
@@ -383,8 +336,8 @@ export default function EquipmentManagement() {
         </DialogActions>
       </Dialog>
       <EquipmentHistoryDialog item={historyItem} locations={locationNames} canManage={canManage} onClose={() => setHistoryItem(null)} onChanged={refresh} onError={setError} />
-      {optionManager("locations", locations, manageLocationsOpen, () => setManageLocationsOpen(false))}
-      {optionManager("categories", categories, manageCategoriesOpen, () => setManageCategoriesOpen(false))}
+      <EquipmentOptionManager kind="locations" options={locations} activeItems={activeItems} open={manageLocationsOpen} onClose={() => setManageLocationsOpen(false)} onChanged={refresh} onError={setError} />
+      <EquipmentOptionManager kind="categories" options={categories} activeItems={activeItems} open={manageCategoriesOpen} onClose={() => setManageCategoriesOpen(false)} onChanged={refresh} onError={setError} />
     </Container>
   </Box>;
 }
