@@ -63,9 +63,9 @@ async function assertSectionDropdownBehaviour(page: Page, alignTriggerAtBottom =
   const cubsOption = page.getByRole("option", { name: "Cubs", exact: true });
   const scoutsOption = page.getByRole("option", { name: "Scouts", exact: true });
   await expect(cubsOption).toHaveAttribute("data-section", "Cubs");
-  await expect(cubsOption.getByTestId("section-swatch-cubs")).toBeVisible();
+  await expect(cubsOption.getByTestId("section-icon-cubs")).toBeVisible();
   await expect(scoutsOption).toHaveAttribute("data-section", "Scouts");
-  await expect(scoutsOption.getByTestId("section-swatch-scouts")).toBeVisible();
+  await expect(scoutsOption.getByTestId("section-icon-scouts")).toBeVisible();
   const [cubsBackground, scoutsBackground] = await Promise.all([
     cubsOption.evaluate((element) => getComputedStyle(element).backgroundColor),
     scoutsOption.evaluate((element) => getComputedStyle(element).backgroundColor)
@@ -82,7 +82,7 @@ async function assertSectionDropdownBehaviour(page: Page, alignTriggerAtBottom =
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
   await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
-  await expect(sectionFilter.getByTestId("section-swatch-cubs")).toBeVisible();
+  await expect(sectionFilter.getByTestId("section-icon-cubs")).toBeVisible();
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 }
 
@@ -104,7 +104,7 @@ test("member, child and leader cards keep a textual section identity alongside t
   const childCard = page.getByTestId("badgework-overview-member-TEST_member_beaver_01");
   await expect(childCard).toBeVisible();
   await expect(childCard).toHaveAttribute("data-section", "Beavers");
-  await expect(childCard.getByTestId("section-swatch-beavers")).toBeVisible();
+  await expect(childCard.getByTestId("section-icon-beavers")).toBeVisible();
   await expect(childCard).toContainText("Beavers");
 
   await assertSectionDropdownBehaviour(page);
