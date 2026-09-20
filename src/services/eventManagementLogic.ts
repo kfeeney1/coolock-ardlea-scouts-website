@@ -1,4 +1,4 @@
-import { formatSiteDate } from "./siteDateFormat";
+import { formatSiteDate } from "./siteDateFormat.ts";
 import type { MemberRecord } from "./memberAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, EventStatus } from "./eventAdmin";
 
