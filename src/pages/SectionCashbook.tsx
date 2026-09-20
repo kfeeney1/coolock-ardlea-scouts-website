@@ -91,7 +91,13 @@ export default function SectionCashbook() {
   const [correction, setCorrection] = useState<FinanceTransaction | null>(null);
   const [correctionDate, setCorrectionDate] = useState(today());
   const [correctionReason, setCorrectionReason] = useState("");
-  const [reportsOpen, setReportsOpen] = useState(false);\n  const [newFloatOpen, setNewFloatOpen] = useState(false);\n  const [newFloatSection, setNewFloatSection] = useState("");\n  const [newFloatAmount, setNewFloatAmount] = useState("");\n  const [newFloatDate, setNewFloatDate] = useState(today());\n  const [newFloatNote, setNewFloatNote] = useState("");\n  const [success, setSuccess] = useState("");
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [newFloatOpen, setNewFloatOpen] = useState(false);
+  const [newFloatSection, setNewFloatSection] = useState("");
+  const [newFloatAmount, setNewFloatAmount] = useState("");
+  const [newFloatDate, setNewFloatDate] = useState(today());
+  const [newFloatNote, setNewFloatNote] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => { if (!section && sections.length) setSection(sections[0]); }, [section, sections]);
 
@@ -232,7 +238,8 @@ export default function SectionCashbook() {
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Button variant="contained" color="success" onClick={openNewFloat} disabled={sections.length === 0} sx={{ minHeight: 44, whiteSpace: "nowrap" }}>New Float</Button><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper><Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button></Stack>
           </Box>
         </Paper>
-        {success && <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>}\n        {error && <Alert severity="error">{error}</Alert>}
+        {success && <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>}
+        {error && <Alert severity="error">{error}</Alert>}
         {reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
         <Dialog open={newFloatOpen} onClose={() => { if (!saving) setNewFloatOpen(false); }} fullWidth maxWidth="sm" aria-labelledby="new-float-title">
           <DialogTitle id="new-float-title">New section float</DialogTitle>
