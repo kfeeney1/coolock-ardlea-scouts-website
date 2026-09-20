@@ -43,7 +43,9 @@ for (const scenario of expected) {
   const parentData = parent.data();
   if (parentData.testData !== true || parentData.createdBySeed !== "TEST_SEED") fail(`${uid} is missing TEST safety markers`);
   if (parentData.testFamilyType !== scenario.label) fail(`${uid} has the wrong family label`);
-  if (JSON.stringify(parentData.memberIds) !== JSON.stringify(expectedIds)) fail(`${uid} does not link exactly ${scenario.size} sibling members`);
+  const expectedParentMemberIds = scenario.key === "two" ? [expectedIds[0]] : expectedIds;
+  if (JSON.stringify(parentData.memberIds) !== JSON.stringify(expectedParentMemberIds)) fail(`${uid} has the wrong parent projection memberIds`);
+  const familyId = `TEST_family_${scenario.key}`;
   if (JSON.stringify(parentData.linkedSections) !== JSON.stringify([scenario.section])) fail(`${uid} has the wrong section`);
 
   for (const id of expectedIds) {
@@ -52,6 +54,7 @@ for (const scenario of expected) {
     const data = member.data();
     if (data.siblingGroupSize !== scenario.size || data.testFamilyType !== scenario.label) fail(`${id} has the wrong sibling scenario metadata`);
     if (data.section !== scenario.section || data.status !== "active") fail(`${id} has the wrong section/status`);
+    if (data.familyId !== familyId) fail(`${id} has the wrong canonical familyId`);
     if (!String(data.displayName || "").includes(scenario.label)) fail(`${id} does not visibly identify its scenario`);
   }
 
@@ -65,7 +68,7 @@ for (const scenario of expected) {
 }
 
 console.log("TEST sibling-family scenarios verified successfully.");
-console.log("- 2 siblings: Beavers");
+console.log("- 2 siblings: Beavers (production-shaped parent projection links only the first sibling; canonical familyId links both)");
 console.log("- 3 siblings: Cubs");
 console.log("- 4 siblings: Scouts");
 console.log("- All scenario records are synthetic, stable-ID and TEST-marked");
