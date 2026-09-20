@@ -31,7 +31,8 @@ export default function Header() {
         setSigningOut(true);
         try {
             await logout();
-            navigate("/", { replace: true });
+            const destination = window.location.pathname.startsWith("/leader") ? "/leader/login" : "/";
+            navigate(destination, { replace: true });
         } catch (error) {
             console.error("Unable to sign out:", error);
         } finally {
