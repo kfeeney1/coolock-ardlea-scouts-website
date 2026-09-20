@@ -95,9 +95,16 @@ test("approved parent can sign out globally and must authenticate again", async 
   test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
 
   await loginParent(page);
-  const globalSignOut = page.getByRole("button", { name: "Sign Out", exact: true }).first();
-  await expect(globalSignOut).toBeVisible();
-  await globalSignOut.click();
+  const desktopSignOut = page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    const mobileSignOut = page.getByRole("menuitem", { name: "Sign Out", exact: true });
+    await expect(mobileSignOut).toBeVisible();
+    await mobileSignOut.click();
+  } else {
+    await expect(desktopSignOut).toBeVisible();
+    await desktopSignOut.click();
+  }
 
   await expect(page).toHaveURL(/\/$/);
   await page.goto("/parent");
