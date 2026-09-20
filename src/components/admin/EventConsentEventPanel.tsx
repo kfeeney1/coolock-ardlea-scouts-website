@@ -17,6 +17,7 @@ import type { MemberRecord } from "../../services/memberAdmin";
 import type { EventConsentResponse, PublicEventLink } from "../../services/eventConsent";
 import type { EventNotificationKind } from "../../services/emailNotifications";
 import { eventConsentSummary } from "../../services/eventConsentManagementLogic";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 function formatDate(value: Date | null): string {
     if (!value) return "Unknown";
@@ -89,7 +90,7 @@ export default function EventConsentEventPanel({
                     </Stack>
 
                     <Typography sx={{ mt: 1 }}>
-                        {event.startDate}{event.location ? ` · ${event.location}` : ""}
+                        {formatSiteDate(event.startDate)}{event.location ? ` · ${event.location}` : ""}
                     </Typography>
 
                     {link && (
