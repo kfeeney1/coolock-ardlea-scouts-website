@@ -28,6 +28,21 @@ test("section leader sees the constrained Section Floats workflow", async ({ pag
   await expect(sectionSelect).toContainText("Scouts");
   await expect(page.getByText("Current float")).toBeVisible();
 
+  const newFloat = page.getByRole("button", { name: "New Float" });
+  await expect(newFloat).toBeVisible();
+  await newFloat.click();
+  const dialog = page.getByRole("dialog", { name: "New section float" });
+  await expect(dialog).toBeVisible();
+  const newFloatSection = dialog.getByRole("combobox", { name: "Section" });
+  await expect(newFloatSection).toContainText("Scouts");
+  const openingAmount = dialog.getByLabel("Opening amount (€)");
+  await openingAmount.fill("12.345");
+  await expect(openingAmount).toHaveValue("");
+  await openingAmount.fill("25.00");
+  await expect(dialog.getByRole("button", { name: "Create float" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+
   const transactionSelect = page.getByRole("combobox", { name: "Transaction" });
   await transactionSelect.click();
   await expect(page.getByRole("option", { name: "Open float" })).toBeVisible();

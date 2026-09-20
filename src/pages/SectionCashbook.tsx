@@ -9,6 +9,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
+import NewSectionFloatDialog from "../components/finance/NewSectionFloatDialog";
 import { addFinanceReceipt } from "../services/financeReceipts";
 import { createFinanceTransaction, loadFinanceTransactions, reverseFinanceTransaction } from "../services/financeLedger";
 import { createFinanceReconciliation, loadFinanceReconciliations } from "../services/financeReconciliations";
@@ -92,8 +93,45 @@ export default function SectionCashbook() {
   const [correctionDate, setCorrectionDate] = useState(today());
   const [correctionReason, setCorrectionReason] = useState("");
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [newFloatOpen, setNewFloatOpen] = useState(false);
+  const [newFloatSection, setNewFloatSection] = useState("");
+  const [newFloatAmount, setNewFloatAmount] = useState("");
+  const [newFloatDate, setNewFloatDate] = useState(today());
+  const [newFloatNote, setNewFloatNote] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => { if (!section && sections.length) setSection(sections[0]); }, [section, sections]);
+
+  const openNewFloat = () => {
+    setNewFloatSection(section || sections[0] || "");
+    setNewFloatAmount("");
+    setNewFloatDate(today());
+    setNewFloatNote("");
+    setError("");
+    setSuccess("");
+    setNewFloatOpen(true);
+  };
+
+  const createNewFloat = async () => {
+    const amountCents = eurosToCents(newFloatAmount);
+    if (!newFloatSection) { setError("Select the section that owns this float."); return; }
+    if (amountCents === null || amountCents <= 0) { setError("Enter an opening amount greater than zero with no more than two decimal places."); return; }
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      await createFinanceTransaction({
+        section: newFloatSection, type: "opening-float", amountCents, category: FLOAT_OPEN_CATEGORY,
+        description: newFloatNote.trim() || "Open float", transactionDate: newFloatDate,
+        sourceTransactionId: "", reversalOfTransactionId: ""
+      });
+      const createdSection = newFloatSection;
+      setNewFloatOpen(false); setNewFloatAmount(""); setNewFloatNote("");
+      setSuccess("New " + createdSection + " float created with an opening balance of " + formatEuro(amountCents) + ".");
+      if (section === createdSection) await refresh(); else setSection(createdSection);
+    } catch (creationError) {
+      console.error("Unable to create section float:", creationError);
+      setError(creationError instanceof Error ? creationError.message : "Unable to create this section float.");
+    } finally { setSaving(false); }
+  };
 
   const refresh = async () => {
     if (!section) return;
@@ -198,11 +236,13 @@ export default function SectionCashbook() {
           <Typography color="text.secondary" sx={{ mt: 1 }}>Track only the physical section float: open it, top it up, record money out, and close it. The float can never go below €0.00.</Typography>
           <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, gap: 2, alignItems: "center" }}>
             <FormControl fullWidth><InputLabel id="finance-section-label">Section</InputLabel><StableSelect labelId="finance-section-label" id="finance-section" label="Section" value={section} onChange={(event) => setSection(String(event.target.value))}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper><Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button></Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Button variant="contained" color="success" onClick={openNewFloat} disabled={sections.length === 0} sx={{ minHeight: 44, whiteSpace: "nowrap" }}>New Float</Button><Paper variant="outlined" sx={{ px: 3, py: 2, minWidth: 190 }}><Typography variant="caption" color="text.secondary">Current float</Typography><Typography variant="h5" sx={{ fontWeight: 800 }}>{formatEuro(balanceCents)}</Typography></Paper><Button variant="outlined" color="secondary" onClick={() => setReportsOpen((value) => !value)} aria-expanded={reportsOpen} aria-controls="section-float-reports" sx={{ minHeight: 44 }}>{reportsOpen ? "Hide reports" : "Generate report"}</Button></Stack>
           </Box>
         </Paper>
+        {success && <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
+        <NewSectionFloatDialog open={newFloatOpen} saving={saving} sections={sections} section={newFloatSection} amount={newFloatAmount} date={newFloatDate} note={newFloatNote} onSectionChange={setNewFloatSection} onAmountChange={setNewFloatAmount} onDateChange={setNewFloatDate} onNoteChange={setNewFloatNote} onClose={() => setNewFloatOpen(false)} onCreate={() => void createNewFloat()} />
 
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Float transaction</Typography>
