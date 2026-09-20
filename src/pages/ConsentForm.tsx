@@ -23,9 +23,11 @@ export default function ConsentForm() {
     const sectionOptions = content.sections.filter((option) => option.youth);
     const [section, setSection] = useState<ScoutSection | null>(null);
     const pendingScrollY = useRef<number | null>(null);
+    const preservedPageHeight = useRef<number | null>(null);
 
     const changeSection = (nextSection: ScoutSection | null) => {
         pendingScrollY.current = window.scrollY;
+        preservedPageHeight.current = document.documentElement.scrollHeight;
         setSection(nextSection);
     };
 
@@ -40,7 +42,7 @@ export default function ConsentForm() {
 
     if (section) {
         return (
-            <Box data-testid="consent-form-view" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 }, overflowAnchor: "none" }}>
+            <Box data-testid="consent-form-view" sx={{ minHeight: preservedPageHeight.current ? `${preservedPageHeight.current}px` : "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 }, overflowAnchor: "none" }}>
                 <Container maxWidth="md">
                     <YouthConsentForm section={section as YouthScoutSection} onChangeSection={() => changeSection(null)} />
                 </Container>
