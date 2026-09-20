@@ -4,6 +4,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   eventGalleryStoragePath,
   financeReceiptStoragePath,
+  meetingDocumentContentType,
   meetingDocumentStoragePath,
   sanitiseAttachmentFileName,
   validateAttachmentUpload,
@@ -22,6 +23,16 @@ test("meeting documents accept controlled Android picker formats and safe paths"
   assert.equal(doc.safeFileName, "Council-minutes.docx");
   assert.equal(meetingDocumentStoragePath("Cub Scouts", "meeting 1", "file 1", doc.fileName), "attachments/meeting-documents/Cub-Scouts/meeting-1/file-1/Council-minutes.docx");
   assert.throws(() => validateMeetingDocument({ ownerType: "meeting-document", ownerId: "meeting-1", section: "Cubs", fileName: "bad.exe", contentType: "application/octet-stream", size: 20 }), /PDF, Word/);
+});
+
+test("meeting documents normalise Android generic or missing MIME types from allow-listed extensions", () => {
+  assert.equal(meetingDocumentContentType("minutes.pdf", ""), "application/pdf");
+  assert.equal(meetingDocumentContentType("minutes.DOCX", "application/octet-stream"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  assert.equal(meetingDocumentContentType("minutes.odt", "application/octet-stream"), "application/vnd.oasis.opendocument.text");
+  assert.equal(meetingDocumentContentType("minutes.exe", "application/octet-stream"), "");
+  assert.equal(meetingDocumentContentType("minutes.pdf", "application/x-msdownload"), "");
+  const androidDoc = validateMeetingDocument({ ownerType: "meeting-document", ownerId: "meeting-android", section: "Scouts", fileName: "Android minutes.docx", contentType: "", size: 4096 });
+  assert.equal(androidDoc.contentType, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 });
 
 test("attachment validation rejects empty, oversized and unsupported files", () => {
