@@ -6,64 +6,50 @@ import {
     Paper,
     Typography
 } from "@mui/material";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import YouthConsentForm from "../components/consent/YouthConsentForm";
 import { brandColours } from "../theme/theme";
 import { sectionVisualTokens } from "../theme/sectionColours";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
+import { OfficialSectionIcon } from "../components/SectionIdentityControls";
 import type {
     ScoutSection,
     YouthScoutSection
 } from "../services/consentApplications";
 
-const OFFICIAL_SECTION_SYMBOL_POSITION: Partial<Record<ScoutSection, string>> = {
-    Beavers: "0% 50%",
-    Cubs: "25% 50%",
-    Scouts: "50% 50%",
-    Ventures: "75% 50%",
-    Rovers: "100% 50%"
-};
-
-function SectionSymbol({ section }: { section: ScoutSection }) {
-    const position = OFFICIAL_SECTION_SYMBOL_POSITION[section];
-    if (!position) return null;
-
-    return (
-        <Box
-            aria-hidden="true"
-            data-testid={`official-section-symbol-${section.toLowerCase()}`}
-            sx={{
-                width: 112,
-                height: 106,
-                mx: "auto",
-                backgroundImage: "url('/scouting-ireland-one-programme-sections.webp')",
-                backgroundRepeat: "no-repeat",
-                backgroundSize: "500% 100%",
-                backgroundPosition: position,
-                borderRadius: 1
-            }}
-        />
-    );
-}
-
 export default function ConsentForm() {
     const content = usePublicSiteContent();
     const sectionOptions = content.sections.filter((option) => option.youth);
     const [section, setSection] = useState<ScoutSection | null>(null);
+    const pendingScrollY = useRef<number | null>(null);
+
+    const changeSection = (nextSection: ScoutSection | null) => {
+        pendingScrollY.current = window.scrollY;
+        setSection(nextSection);
+    };
+
+    useLayoutEffect(() => {
+        if (pendingScrollY.current === null) return;
+        const scrollY = pendingScrollY.current;
+        pendingScrollY.current = null;
+        // Replacing the chooser with the form removes the clicked DOM anchor. Preserve
+        // the user\'s viewport instead of allowing browser scroll anchoring to jump.
+        if (Math.abs(window.scrollY - scrollY) > 1) window.scrollTo({ top: scrollY, behavior: "auto" });
+    }, [section]);
 
     if (section) {
         return (
-            <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
+            <Box data-testid="consent-form-view" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 }, overflowAnchor: "none" }}>
                 <Container maxWidth="md">
-                    <YouthConsentForm section={section as YouthScoutSection} onChangeSection={() => setSection(null)} />
+                    <YouthConsentForm section={section as YouthScoutSection} onChangeSection={() => changeSection(null)} />
                 </Container>
             </Box>
         );
     }
 
     return (
-        <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}>
+        <Box data-testid="consent-section-chooser" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 }, overflowAnchor: "none" }}>
             <Container maxWidth="lg">
                 <Paper elevation={4} sx={{ overflow: "hidden" }}>
                     <Box
@@ -98,7 +84,7 @@ export default function ConsentForm() {
                                         key={option.value}
                                         type="button"
                                         aria-label={`Open ${option.label} consent form`}
-                                        onClick={() => setSection(option.value as ScoutSection)}
+                                        onClick={() => changeSection(option.value as ScoutSection)}
                                         sx={{
                                             p: 0,
                                             display: "block",
@@ -126,7 +112,7 @@ export default function ConsentForm() {
                                             }}
                                         >
                                             {option.youth ? (
-                                                <SectionSymbol section={option.value as ScoutSection} />
+                                                <OfficialSectionIcon section={option.value} size={112} testId={`official-section-symbol-${option.value.toLowerCase()}`} />
                                             ) : (
                                                 <Typography aria-hidden="true" sx={{ fontSize: "2rem" }}>{option.icon}</Typography>
                                             )}
