@@ -10,19 +10,14 @@ import {
   OperationalUnavailableState
 } from "../admin/OperationalStates";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import type { ParentEventConsentLink } from "../../services/parentEvents";
 import ParentEventGallerySection from "./ParentEventGallerySection";
 
 type Props = { sections: string[] };
 
-function formatDate(value: string): string {
-  if (!value) return "Date not set";
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
-}
+
 
 export default function ParentEventConsentSection({ sections }: Props) {
   const [events, setEvents] = useState<ParentEventConsentLink[]>([]);
@@ -132,7 +127,7 @@ export default function ParentEventConsentSection({ sections }: Props) {
                 <Chip size="small" color="warning" label="Consent required" />
               </Stack>
               <Typography sx={{ mt: 1, fontWeight: 700 }}>
-                {formatDate(event.startDate)}{event.endDate && event.endDate !== event.startDate ? ` – ${formatDate(event.endDate)}` : ""}
+                {formatSiteDate(event.startDate)}{event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}
               </Typography>
               {event.location && <Typography color="text.secondary">{event.location}</Typography>}
               {event.description && <Typography sx={{ mt: 1 }}>{event.description}</Typography>}
