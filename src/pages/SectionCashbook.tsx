@@ -9,6 +9,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
+import NewSectionFloatDialog from "../components/finance/NewSectionFloatDialog";
 import { addFinanceReceipt } from "../services/financeReceipts";
 import { createFinanceTransaction, loadFinanceTransactions, reverseFinanceTransaction } from "../services/financeLedger";
 import { createFinanceReconciliation, loadFinanceReconciliations } from "../services/financeReconciliations";
@@ -241,19 +242,7 @@ export default function SectionCashbook() {
         {success && <Alert severity="success" onClose={() => setSuccess("")}>{success}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {reportsOpen && <Box id="section-float-reports"><FinanceReportsPanel initialSection={section} /></Box>}
-        <Dialog open={newFloatOpen} onClose={() => { if (!saving) setNewFloatOpen(false); }} fullWidth maxWidth="sm" aria-labelledby="new-float-title">
-          <DialogTitle id="new-float-title">New section float</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Typography color="text.secondary">Assign the float to a section you are permitted to manage and record its opening balance. It will then use the normal section transaction, reconciliation and reporting workflow.</Typography>
-              <FormControl fullWidth required><InputLabel id="new-float-section-label">Section</InputLabel><StableSelect labelId="new-float-section-label" id="new-float-section" label="Section" value={newFloatSection} onChange={(event) => setNewFloatSection(String(event.target.value))}>{sections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>
-              <TextField required label="Opening amount (€)" value={newFloatAmount} onChange={(event) => { const next = currencyInputValue(event.target.value); if (next !== null) setNewFloatAmount(next); }} helperText="Maximum two decimal places." slotProps={{ htmlInput: { inputMode: "decimal", pattern: "[0-9]*[.,]?[0-9]{0,2}" } }} />
-              <TextField required type="date" label="Opening date" value={newFloatDate} onChange={(event) => setNewFloatDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-              <TextField label="Opening note (optional)" value={newFloatNote} onChange={(event) => setNewFloatNote(event.target.value)} />
-            </Stack>
-          </DialogContent>
-          <DialogActions><Button onClick={() => setNewFloatOpen(false)} disabled={saving}>Cancel</Button><Button variant="contained" color="success" onClick={() => void createNewFloat()} disabled={saving || !newFloatSection || !newFloatDate || eurosToCents(newFloatAmount) === null || (eurosToCents(newFloatAmount) ?? 0) <= 0}>{saving ? "Creating…" : "Create float"}</Button></DialogActions>
-        </Dialog>
+        <NewSectionFloatDialog open={newFloatOpen} saving={saving} sections={sections} section={newFloatSection} amount={newFloatAmount} date={newFloatDate} note={newFloatNote} onSectionChange={setNewFloatSection} onAmountChange={setNewFloatAmount} onDateChange={setNewFloatDate} onNoteChange={setNewFloatNote} onClose={() => setNewFloatOpen(false)} onCreate={() => void createNewFloat()} />
 
         <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Float transaction</Typography>
