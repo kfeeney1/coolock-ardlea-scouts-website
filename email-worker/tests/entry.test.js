@@ -126,3 +126,43 @@ test("SW-117 reports privacy-safe skip categories for inactive and invalid linke
     firestoreParent("parent-a", { memberIds: ["member-2"], email: "parent@example.com" })
   ], "member-1").reason, "no-eligible-linked-parent");
 });
+
+
+test("SW-117 resolves an approved parent linked through a sibling in the canonical family", () => {
+  const accounts = [
+    firestoreParent("parent-a", { memberIds: ["sibling-1"], email: "family@example.com" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1", ["member-1", "sibling-1"]);
+  assert.deepEqual(result.recipients.map((item) => item.email), ["family@example.com"]);
+  assert.equal(result.reason, "");
+});
+
+test("SW-117 canonical family fallback does not cross unrelated families", () => {
+  const accounts = [
+    firestoreParent("parent-a", { memberIds: ["unrelated-member"], email: "unrelated@example.com" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1", ["member-1", "sibling-1"]);
+  assert.equal(result.recipients.length, 0);
+  assert.equal(result.reason, "no-eligible-linked-parent");
+});
+
+test("SW-117 canonical family fallback preserves revoked, invalid-email and deduplication rules", () => {
+  const accounts = [
+    firestoreParent("revoked", { status: "revoked", memberIds: ["sibling-1"], email: "revoked@example.com" }),
+    firestoreParent("parent-a", { memberIds: ["sibling-1"], email: "Family@Example.com" }),
+    firestoreParent("parent-b", { memberIds: ["member-1"], email: "family@example.com" }),
+    firestoreParent("invalid", { memberIds: ["sibling-1"], email: "not-an-email" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1", ["member-1", "sibling-1"]);
+  assert.equal(result.recipients.length, 1);
+  assert.equal(result.recipients[0].email, "family@example.com");
+});
+
+test("SW-117 supports two approved parents linked across the same canonical family", () => {
+  const accounts = [
+    firestoreParent("parent-a", { memberIds: ["member-1"], email: "first@example.com" }),
+    firestoreParent("parent-b", { memberIds: ["sibling-1"], email: "second@example.com" })
+  ];
+  const result = resolveParentRecipientCandidates(accounts, "member-1", ["member-1", "sibling-1"]);
+  assert.deepEqual(result.recipients.map((item) => item.email).sort(), ["first@example.com", "second@example.com"]);
+});
