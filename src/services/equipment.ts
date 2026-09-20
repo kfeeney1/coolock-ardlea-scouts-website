@@ -90,6 +90,11 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
   };
 }
 
+export async function loadEquipmentItem(itemId: string): Promise<EquipmentItem | null> {
+  const snapshot = await getDoc(doc(db, "equipmentItems", itemId));
+  return snapshot.exists() ? mapItem(snapshot.id, snapshot.data()) : null;
+}
+
 export async function loadEquipmentItems(): Promise<EquipmentItem[]> {
   const snapshot = await getDocs(collection(db, "equipmentItems"));
   return snapshot.docs
@@ -123,6 +128,49 @@ export async function addEquipmentOption(kind: "categories" | "locations", name:
     section: "Group"
   });
   return { id: result.id, name: safeName };
+}
+
+export async function updateEquipmentOption(kind: "categories" | "locations", option: EquipmentOption, name: string): Promise<EquipmentOption> {
+  const safeName = normaliseEquipmentLabel(name);
+  if (!safeName) throw new Error(`Enter a ${kind === "categories" ? "category" : "Store"} name.`);
+  const uid = currentUid();
+  const items = await loadEquipmentItems();
+  const affected = items.filter((item) => (kind === "categories" ? item.category : item.location).toLowerCase() === option.name.toLowerCase());
+  await updateDoc(doc(db, kind === "categories" ? "equipmentCategories" : "equipmentLocations", option.id), {
+    name: safeName,
+    updatedBy: uid,
+    updatedAt: serverTimestamp()
+  });
+  for (const item of affected) {
+    await updateDoc(doc(db, "equipmentItems", item.id), {
+      [kind === "categories" ? "category" : "location"]: safeName,
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
+    await recordEquipmentHistory({
+      itemId: item.id,
+      itemName: item.name,
+      type: "item-updated",
+      quantity: item.totalQuantity,
+      section: "Group",
+      fromLocation: item.location,
+      toLocation: kind === "locations" ? safeName : item.location,
+      details: kind === "locations"
+        ? `Store renamed from ${option.name} to ${safeName}; equipment assignment preserved.`
+        : `Category renamed from ${option.name} to ${safeName}; equipment assignment preserved.`,
+      sourceId: option.id,
+      linkedItemId: ""
+    });
+  }
+  await recordAuditEvent({
+    category: "equipment",
+    action: `${kind === "categories" ? "category" : "location"}-updated`,
+    targetId: option.id,
+    targetLabel: safeName,
+    description: `Renamed equipment ${kind === "categories" ? "category" : "Store"} ${option.name} to ${safeName}; updated ${affected.length} equipment record(s).`,
+    section: "Group"
+  });
+  return { ...option, name: safeName };
 }
 
 export async function deleteEquipmentOption(kind: "categories" | "locations", option: EquipmentOption): Promise<void> {
