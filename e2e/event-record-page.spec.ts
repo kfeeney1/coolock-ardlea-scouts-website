@@ -30,8 +30,8 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
   const eventRecord = page.getByTestId("event-record-TEST_flow_event_beavers_open");
   await expect(eventRecord).toBeVisible();
-  await expect(eventRecord).toContainText(/\b\d{2}-\d{2}-\d{4}\b/);
-  await expect(eventRecord).not.toContainText(/\b\d{4}-\d{2}-\d{2}\b/);
+  await expect(eventRecord).toContainText(/\d{2}-\d{2}-\d{4}/);
+  await expect(eventRecord).not.toContainText(/\d{4}-\d{2}-\d{2}/);
   await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Manage Consent", exact: true })).toBeVisible();
