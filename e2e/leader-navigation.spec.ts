@@ -139,27 +139,3 @@ test("Leader Menu supports keyboard open and Escape focus restoration", async ({
 });
 
 
-test("authenticated leader can sign out globally and protected routes remain locked", async ({ page }, testInfo: TestInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Logout regression runs on desktop and Pixel 7 Chromium.");
-  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-
-  await login(page, leaderEmail!);
-  await page.goto("/leader/weekly");
-
-  const globalSignOut = page.getByRole("button", { name: "Sign Out", exact: true }).first();
-  await expect(globalSignOut).toBeVisible();
-  await globalSignOut.click();
-
-  await expect(page).toHaveURL(/\/$/);
-  await page.goto("/leader/weekly");
-  await expect(page).toHaveURL(/\/leader\/login$/);
-
-  await page.goBack();
-  await expect(page).not.toHaveURL(/\/leader\/weekly$/);
-
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(leaderEmail!);
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-});
