@@ -8,18 +8,18 @@ const reconcile = readFileSync("scripts/reconcile-leadership-provenance.mjs", "u
 const deploy = readFileSync(".github/workflows/firebase-hosting-merge.yml", "utf8");
 const playwright = readFileSync(".github/workflows/playwright-e2e.yml", "utf8");
 
-test("public leadership requires current canonical seed or approved registration provenance", () => {
-  assert.match(rebuild, /isApprovedManualRegistration/);
-  assert.match(rebuild, /leaderRegistrationRequests/);
-  assert.doesNotMatch(rebuild, /approvedBy\) \|\| text\(access\.updatedBy/);
-  assert.match(rebuild, /excludedUnprovenanced/);
+test("public leadership rebuild follows explicit public opt-in and eligible appointments", () => {
+  assert.match(rebuild, /source\.showPublicly !== true/);
+  assert.match(rebuild, /access\.active !== true/);
+  assert.match(rebuild, /publicAppointmentsFor/);
+  assert.doesNotMatch(rebuild, /text\(access\.role\)\.toLowerCase\(\) !== "leader"/);
 });
 
-test("public leadership verifier enforces the same provenance and approved section roles", () => {
-  assert.match(verify, /isApprovedManualRegistration/);
-  assert.match(verify, /leaderRegistrationRequests/);
+test("public leadership verifier enforces the same explicit opt-in and appointment projection", () => {
+  assert.match(verify, /source\.showPublicly !== true/);
+  assert.match(verify, /publicAppointmentsFor/);
   assert.match(verify, /SECTION_ROLES/);
-  assert.doesNotMatch(verify, /if \(YOUTH_SECTIONS\.has\(sectionKey\)\) return Boolean\(text\(role\)\)/);
+  assert.match(verify, /sameAppointments/);
 });
 
 test("leadership cleanup remains explicit and canonical seed restoration stays non-production", () => {
