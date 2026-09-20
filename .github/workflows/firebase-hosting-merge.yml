@@ -171,7 +171,7 @@ jobs:
           FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts
           FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
-          FIREBASE_STORAGE_ENABLED: ${{ vars.FIREBASE_STORAGE_ENABLED }}
+          FIREBASE_STORAGE_ENABLED: 'true'
           EXPECTED_BUILD_SHA: ${{ steps.release.outputs.sha }}
       - name: Record release evidence
         if: always()

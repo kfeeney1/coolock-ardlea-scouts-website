@@ -69,6 +69,7 @@ requireContract(productionWorkflow.includes("npm run check:workflow-production-c
 requireContract(!productionWorkflow.includes("npm run check:workflow-credentials"), "Production does not call the obsolete workflow credential-check script name.");
 requireContract(productionWorkflow.includes("npm run check:production-env"), "Production validates required public configuration before building.");
 requireContract(productionWorkflow.includes("smoke:live"), "Production performs a read-only post-deployment smoke check.");
+requireContract(productionWorkflow.includes("FIREBASE_STORAGE_ENABLED: 'true'"), "Production release verification must probe Firebase Storage availability.");
 requireContract(productionWorkflow.includes("SITE_URL: ${{ env.PRODUCTION_URL }}"), "Production post-deploy verification exercises the custom apex hostname.");
 requireContract(productionWorkflow.includes("EXPECTED_BUILD_SHA: ${{ steps.release.outputs.sha }}"), "Production verifies the exact resolved release SHA after deployment.");
 requireContract(!productionWorkflow.includes("continue-on-error: true"), "Production deployment fails closed.");
