@@ -25,6 +25,42 @@ if (execute) {
 initializeApp({ credential: cert(JSON.parse(rawCredentials)), projectId });
 const db = getFirestore();
 const PUBLIC_PROJECTION_VERSION = 2;
+const GROUP_ROLES = new Set([
+  "group leader", "deputy group leader", "group chairperson", "group secretary",
+  "group treasurer", "group quartermaster", "group quartermaster/bo'sun",
+  "group bo'sun", "group youth champion"
+]);
+const SECTION_ROLES = new Set(["section leader", "assistant section leader", "programme scouter", "scouter"]);
+const YOUTH_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
+
+function text(value) { return typeof value === "string" ? value.trim() : ""; }
+function roleKey(value) { return text(value).toLowerCase().replace(/[’‘]/g, "'").replace(/\\s*\\/\\s*/g, "/").replace(/\\s+/g, " "); }
+function publicAppointmentsFor(source, access) {
+  const accountSections = Array.isArray(access?.sections)
+    ? access.sections.map(text).filter(Boolean)
+    : [text(access?.sections || access?.section)].filter(Boolean);
+  const raw = Array.isArray(source?.appointments) && source.appointments.length
+    ? source.appointments.filter((item) => item && item.active !== false).map((item) => ({ role: text(item.appointment), scope: text(item.scope) }))
+    : [{ role: text(source?.scoutingRole), scope: text(source?.organisationSection) }];
+  const result = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (GROUP_ROLES.has(roleKey(item.role))) {
+      const key = roleKey(item.role) + "\\u0000group";
+      if (!seen.has(key)) { seen.add(key); result.push({ role: item.role, section: "Group" }); }
+      continue;
+    }
+    if (!SECTION_ROLES.has(roleKey(item.role))) continue;
+    const explicit = [item.scope, text(source?.organisationSection)].filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
+    const candidates = explicit.length ? explicit : accountSections;
+    for (const section of candidates) {
+      if (!YOUTH_SECTIONS.has(text(section).toLowerCase())) continue;
+      const key = roleKey(item.role) + "\\u0000" + text(section).toLowerCase();
+      if (!seen.has(key)) { seen.add(key); result.push({ role: item.role, section: text(section) }); }
+    }
+  }
+  return result;
+}
 
 
 const [organisationSnapshot, adminSnapshot, existingPublicSnapshot] = await Promise.all([
