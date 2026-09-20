@@ -23,6 +23,7 @@ import {
     submitEventConsentResponse
 } from "../services/eventConsent";
 import type { PublicEventLink } from "../services/eventConsent";
+import { formatSiteDate } from "../services/siteDateFormat";
 
 export default function EventConsent() {
     const { token = "" } = useParams();
@@ -164,8 +165,8 @@ export default function EventConsent() {
                             </Typography>
 
                             <Typography sx={{ mt: 1 }}>
-                                {event.startDate}
-                                {event.endDate && event.endDate !== event.startDate ? ` to ${event.endDate}` : ""}
+                                {formatSiteDate(event.startDate)}
+                                {event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}
                                 {event.location ? ` · ${event.location}` : ""}
                             </Typography>
 

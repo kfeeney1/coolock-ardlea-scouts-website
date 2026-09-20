@@ -21,6 +21,7 @@ import {
     OperationalUnavailableState
 } from "../admin/OperationalStates";
 import { classifyFirestoreFailure } from "../../services/firestoreErrors";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import {
     loadParentEventGalleries,
     revokeParentEventGalleryUrls
@@ -34,13 +35,7 @@ type Props = {
     sections: string[];
 };
 
-function formatDate(value: string): string {
-    if (!value) return "Date not set";
-    const date = new Date(`${value}T12:00:00`);
-    return Number.isNaN(date.getTime())
-        ? value
-        : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
-}
+
 
 function errorCode(error: unknown): string {
     if (!error || typeof error !== "object" || !("code" in error)) return "";
@@ -180,7 +175,7 @@ export default function ParentEventGallerySection({ sections }: Props) {
                         <Stack spacing={0.5} sx={{ mb: 2 }}>
                             <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{gallery.title}</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {formatDate(gallery.startDate)}{gallery.endDate && gallery.endDate !== gallery.startDate ? ` – ${formatDate(gallery.endDate)}` : ""} · {gallery.section}
+                                {formatSiteDate(gallery.startDate)}{gallery.endDate && gallery.endDate !== gallery.startDate ? ` to ${formatSiteDate(gallery.endDate)}` : ""} · {gallery.section}
                             </Typography>
                             {gallery.location && <Typography variant="body2" color="text.secondary">{gallery.location}</Typography>}
                         </Stack>
