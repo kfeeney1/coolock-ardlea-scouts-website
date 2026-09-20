@@ -37,7 +37,7 @@ import {
   loadEquipmentOptions,
   setEquipmentArchived,
 } from "../services/equipment";
-import type { EquipmentItem, EquipmentItemInput } from "../services/equipment";
+import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
 import { loadEquipmentIncidents } from "../services/equipmentIncidents";
 import type { EquipmentIncident } from "../services/equipmentIncidents";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
