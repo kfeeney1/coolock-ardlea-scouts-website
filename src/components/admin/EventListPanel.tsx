@@ -5,6 +5,7 @@ import type { MemberRecord } from "../../services/memberAdmin";
 import type { EventRecord, EventStatus } from "../../services/eventAdmin";
 import { EVENT_SECTIONS, EVENT_STATUSES, eventCounts, eventStatusLabel } from "../../services/eventManagementLogic";
 import { moveToUiTargetAfterRender } from "../../services/uiTargeting";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
     events: EventRecord[];
@@ -73,7 +74,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                             <Typography variant="h5" color="secondary">{event.title}</Typography><Chip label={eventStatusLabel(event.status)} color={statusColor(event.status)} size="small" /><Chip label={event.section} variant="outlined" size="small" /><Chip label={event.eventType} variant="outlined" size="small" />{completed && <Chip label="Read-only history" size="small" variant="outlined" />}
                         </Stack>
-                        <Typography sx={{ mt: 1.25 }}>{event.startDate || "No date"}{event.endDate && event.endDate !== event.startDate ? ` to ${event.endDate}` : ""}{event.location ? ` · ${event.location}` : ""}</Typography>
+                        <Typography sx={{ mt: 1.25 }}>{event.startDate ? formatSiteDate(event.startDate) : "No date"}{event.endDate && event.endDate !== event.startDate ? ` to ${formatSiteDate(event.endDate)}` : ""}{event.location ? ` · ${event.location}` : ""}</Typography>
                         {event.description && <Typography color="text.secondary" sx={{ mt: 0.75 }}>{event.description}</Typography>}
                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mt: 1.5 }}>
                             <Chip label={`${summary.attending} attending`} size="small" color="success" /><Chip label={`${summary.notAttending} not attending`} size="small" variant="outlined" /><Chip label={`${summary.invited} invited`} size="small" variant="outlined" />
