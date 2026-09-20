@@ -34,7 +34,7 @@ const SECTION_ROLES = new Set(["section leader", "assistant section leader", "pr
 const YOUTH_SECTIONS = new Set(["beavers", "cubs", "scouts", "ventures", "rovers"]);
 
 function text(value) { return typeof value === "string" ? value.trim() : ""; }
-function roleKey(value) { return text(value).toLowerCase().replace(/[’‘]/g, "'").replace(/\\s*\\/\\s*/g, "/").replace(/\\s+/g, " "); }
+function roleKey(value) { return text(value).toLowerCase().replace(/[’‘]/g, "'").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " "); }
 function publicAppointmentsFor(source, access) {
   const accountSections = Array.isArray(access?.sections)
     ? access.sections.map(text).filter(Boolean)
