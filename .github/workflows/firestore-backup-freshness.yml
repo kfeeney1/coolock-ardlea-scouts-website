@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   audit:
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
