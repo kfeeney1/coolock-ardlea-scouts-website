@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { MemberRecord } from "../../services/memberAdmin";
 import { createSubsFamilyAccount } from "../../services/subsLedger";
 import { familyTotalFor, familyTypeLabel, formatEuro, type SubsAssignment, type SubsFamilyType, type SubsRatePolicy } from "../../services/subsLogic";
@@ -21,7 +21,15 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
   const [policyId, setPolicyId] = useState(defaultPolicyId);
   const [familyType, setFamilyType] = useState<SubsFamilyType>("standard");
   const [classificationNote, setClassificationNote] = useState("");
-  const selectedPolicy = policies.find((policy) => policy.id === (policyId || defaultPolicyId));
+  const effectivePolicyId = policyId && policies.some((policy) => policy.id === policyId)
+    ? policyId
+    : defaultPolicyId && policies.some((policy) => policy.id === defaultPolicyId)
+      ? defaultPolicyId
+      : policies[0]?.id ?? "";
+  const selectedPolicy = policies.find((policy) => policy.id === effectivePolicyId);
+  useEffect(() => {
+    if (effectivePolicyId && policyId !== effectivePolicyId) setPolicyId(effectivePolicyId);
+  }, [effectivePolicyId, policyId]);
   const selectedMembers = useMemo(
     () => memberIds.map((id) => members.find((member) => member.id === id)).filter((member): member is MemberRecord => Boolean(member)),
     [memberIds, members]
@@ -74,7 +82,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
       </FormControl>
       <FormControl>
         <InputLabel>Scout year policy</InputLabel>
-        <Select label="Scout year policy" value={policyId || defaultPolicyId} onChange={(event) => setPolicyId(event.target.value)}>
+        <Select label="Scout year policy" value={effectivePolicyId} onChange={(event) => setPolicyId(event.target.value)}>
           {policies.map((policy) => <MenuItem key={policy.id} value={policy.id}>{policy.period} · v{policy.version}</MenuItem>)}
         </Select>
       </FormControl>
@@ -93,7 +101,8 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
       <Chip label={`Shared family total ${formatEuro(total)}`} />
       {[...new Set(selectedMembers.map((member) => member.section))].map((section) => <Chip key={section} label={section} />)}
     </Stack>}
-    {rateError && <Alert severity="warning" sx={{ mt: 2 }}>{rateError}</Alert>}
+    {policies.length === 0 && <Alert severity="error" sx={{ mt: 2 }}>No Scout year policy is available. Configure a Subs policy before creating a family billing account.</Alert>}
+    {selectedPolicy && selectedMembers.length > 0 && rateError && <Alert severity="warning" sx={{ mt: 2 }}>The selected Scout year policy cannot price this family: {rateError}. Check the configured family rates.</Alert>}
     {existingAssignments.length > 0 && <Alert severity="warning" sx={{ mt: 2 }}>
       One or more selected members already has an immutable classification for this Scout year. Existing financial history is not overwritten.
     </Alert>}
