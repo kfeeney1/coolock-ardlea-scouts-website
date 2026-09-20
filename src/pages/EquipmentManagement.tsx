@@ -33,19 +33,17 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
   addEquipmentOption,
   createEquipmentItem,
-  deleteEquipmentOption,
   loadEquipmentItems,
   loadEquipmentOptions,
   setEquipmentArchived,
 } from "../services/equipment";
-import type { EquipmentItem, EquipmentItemInput, EquipmentOption } from "../services/equipment";
+import type { EquipmentItem, EquipmentItemInput } from "../services/equipment";
 import { loadEquipmentIncidents } from "../services/equipmentIncidents";
 import type { EquipmentIncident } from "../services/equipmentIncidents";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { availableEquipmentQuantity } from "../services/equipmentLoanLogic";
 import {
-  canDeleteEquipmentOption,
   canManageEquipment,
   DEFAULT_EQUIPMENT_CATEGORIES,
   isDuplicateEquipmentItemName,
@@ -215,18 +213,6 @@ export default function EquipmentManagement() {
       setError(saveError instanceof Error ? saveError.message : "Unable to save the equipment item.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const removeOption = async (kind: "categories" | "locations", option: EquipmentOption) => {
-    const inUse = activeItems.map((item) => kind === "categories" ? item.category : item.location);
-    if (!canDeleteEquipmentOption(option.name, inUse)) return;
-    try {
-      await deleteEquipmentOption(kind, option);
-      await refresh();
-    } catch (deleteError) {
-      console.error(`Unable to delete equipment ${kind}:`, deleteError);
-      setError(`Unable to delete that ${kind === "categories" ? "category" : "Store"}.`);
     }
   };
 
