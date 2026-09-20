@@ -7,6 +7,15 @@ export function authorisedSubsSections(sections: readonly string[], canGroupRepo
   return canGroupReport ? sectionRows : sectionRows;
 }
 
+export function selectableSubsSections(
+  authorisedSections: readonly string[],
+  canGroupReport: boolean,
+  memberSections: readonly string[]
+): string[] {
+  return sortScoutSections((canGroupReport ? memberSections : authorisedSections)
+    .filter((section) => section && section !== "Group"));
+}
+
 export function normaliseSubsSection(
   requested: string | null | undefined,
   authorisedSections: readonly string[],
@@ -19,7 +28,12 @@ export function normaliseSubsSection(
   return sections[0] ?? ALL_AUTHORISED_SECTIONS;
 }
 
-export function isMemberInSubsScope(section: string, selectedSection: string, authorisedSections: readonly string[]): boolean {
-  if (!authorisedSections.includes(section)) return false;
+export function isMemberInSubsScope(
+  section: string,
+  selectedSection: string,
+  authorisedSections: readonly string[],
+  canGroupReport = false
+): boolean {
+  if (!canGroupReport && !authorisedSections.includes(section)) return false;
   return selectedSection === ALL_AUTHORISED_SECTIONS || section === selectedSection;
 }
