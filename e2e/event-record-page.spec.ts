@@ -23,10 +23,15 @@ test("clicking an event tile opens its full record with a clear list action", as
   const card = page.getByTestId("event-card-TEST_flow_event_beavers_open");
   await expect(card).toHaveAttribute("href", "/leader/events/TEST_flow_event_beavers_open");
   await expect(card.getByRole("button", { name: "Open event", exact: true })).toBeVisible();
+  await expect(card).toContainText(/\b\d{2}-\d{2}-\d{4}\b/);
+  await expect(card).not.toContainText(/\b\d{4}-\d{2}-\d{2}\b/);
   await card.click();
 
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
-  await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
+  const eventRecord = page.getByTestId("event-record-TEST_flow_event_beavers_open");
+  await expect(eventRecord).toBeVisible();
+  await expect(eventRecord).toContainText(/\b\d{2}-\d{2}-\d{4}\b/);
+  await expect(eventRecord).not.toContainText(/\b\d{4}-\d{2}-\d{2}\b/);
   await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Manage Consent", exact: true })).toBeVisible();
