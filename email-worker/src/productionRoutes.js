@@ -236,8 +236,9 @@ function brandedEmail({ heading, intro, bodyHtml = "", actions = [] }) {
   return `<!doctype html><html><body style="margin:0;background:${BRAND.background};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;background:${BRAND.background}"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border-radius:10px;overflow:hidden"><tr><td style="padding:28px;background:${BRAND.navy};color:#fff;text-align:center"><div style="font-size:24px;font-weight:800">${BRAND.groupName}</div><div style="font-size:14px;margin-top:6px;opacity:.92">Scout Group Communications</div></td></tr><tr><td style="padding:32px"><h1 style="margin:0 0 16px;font-size:26px;color:${BRAND.navy}">${escapeHtml(heading)}</h1><p style="font-size:16px;line-height:1.6;margin:0 0 16px">${escapeHtml(intro)}</p>${bodyHtml}${actionHtml}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:${BRAND.muted};font-size:12px;line-height:1.5">This message was sent by the Coolock Ardlea Scout Group website. Protected information is only available after sign-in.</td></tr></table></td></tr></table></body></html>`;
 }
 
-export function resolveParentRecipientCandidates(accounts, memberId) {
-  const linked = accounts.filter((account) => fieldStringArray(account, "memberIds").includes(memberId));
+export function resolveParentRecipientCandidates(accounts, memberId, familyMemberIds = []) {
+  const eligibleMemberIds = new Set([memberId, ...familyMemberIds].filter(Boolean));
+  const linked = accounts.filter((account) => fieldStringArray(account, "memberIds").some((id) => eligibleMemberIds.has(id)));
   const approved = linked.filter((account) => fieldString(account, "status") === "approved");
   const recipients = approved.flatMap((account) => {
     const email = validEmail(fieldString(account, "email"));
@@ -258,7 +259,19 @@ export function resolveParentRecipientCandidates(accounts, memberId) {
 }
 
 async function authoritativeParentRecipients(env, memberId) {
-  return resolveParentRecipientCandidates(await privilegedDocuments(env, "parentAccounts"), memberId);
+  const [accounts, selectedMember] = await Promise.all([
+    privilegedDocuments(env, "parentAccounts"),
+    privilegedDocument(env, "members", memberId)
+  ]);
+  const familyId = fieldString(selectedMember, "familyId");
+  if (!familyId) return resolveParentRecipientCandidates(accounts, memberId);
+
+  const members = await privilegedDocuments(env, "members");
+  const familyMemberIds = members
+    .filter((member) => fieldString(member, "familyId") === familyId)
+    .map(documentId)
+    .filter(Boolean);
+  return resolveParentRecipientCandidates(accounts, memberId, familyMemberIds);
 }
 
 async function authenticatedLeaderMember(request, env, memberId) {
