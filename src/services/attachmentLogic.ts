@@ -74,12 +74,36 @@ export function eventGalleryStoragePath(section: string, eventId: string, attach
 
 export const MEETING_DOCUMENT_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"] as const;
 
+const MEETING_DOCUMENT_EXTENSION_TYPES: Record<string, typeof MEETING_DOCUMENT_TYPES[number]> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".html": "text/html",
+  ".htm": "text/html",
+};
+
+export function meetingDocumentContentType(fileName: string, reportedContentType: string): typeof MEETING_DOCUMENT_TYPES[number] | "" {
+  const reported = reportedContentType.trim().toLowerCase();
+  if (MEETING_DOCUMENT_TYPES.includes(reported as typeof MEETING_DOCUMENT_TYPES[number])) return reported as typeof MEETING_DOCUMENT_TYPES[number];
+  // Android document providers may return an empty or generic MIME type. Only infer a
+  // type for an explicitly allow-listed extension; never use the extension to override
+  // a specific unsupported MIME type.
+  if (reported && reported !== "application/octet-stream") return "";
+  const lowerName = fileName.trim().toLowerCase();
+  const extension = Object.keys(MEETING_DOCUMENT_EXTENSION_TYPES).find((item) => lowerName.endsWith(item));
+  return extension ? MEETING_DOCUMENT_EXTENSION_TYPES[extension] : "";
+}
+
 export function validateMeetingDocument(input: AttachmentUploadInput): ValidatedAttachmentUpload {
   if (input.ownerType !== "meeting-document") throw new Error("Meeting documents must use the meeting-document owner type.");
   if (!input.ownerId.trim() || !input.section.trim()) throw new Error("Meeting and section are required.");
   if (!Number.isInteger(input.size) || input.size <= 0 || input.size > MAX_ATTACHMENT_BYTES) throw new Error("Meeting document must be between 1 byte and 10 MB.");
-  if (!MEETING_DOCUMENT_TYPES.includes(input.contentType as typeof MEETING_DOCUMENT_TYPES[number])) throw new Error("Choose a PDF, Word, OpenDocument, text, Markdown or HTML document.");
-  return { ...input, ownerId: input.ownerId.trim(), section: input.section.trim(), fileName: input.fileName.trim(), safeFileName: sanitiseAttachmentFileName(input.fileName) };
+  const contentType = meetingDocumentContentType(input.fileName, input.contentType);
+  if (!contentType) throw new Error("Choose a PDF, Word, OpenDocument, text, Markdown or HTML document.");
+  return { ...input, contentType, ownerId: input.ownerId.trim(), section: input.section.trim(), fileName: input.fileName.trim(), safeFileName: sanitiseAttachmentFileName(input.fileName) };
 }
 
 export function meetingDocumentStoragePath(section: string, meetingId: string, attachmentId: string, fileName: string): string {
