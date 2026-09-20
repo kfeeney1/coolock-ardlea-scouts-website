@@ -92,7 +92,7 @@ test("public Who's Who uses accessible collapsed Group and section disclosures w
   await expect(beaverLeader).toHaveAttribute("data-visual-treatment", "section");
   await expect(beaverLeader.getByRole("heading", { name: "Beavers Section Leader", exact: true })).toBeVisible();
   await expect(beaverLeader.getByText("Section Leader", { exact: true })).toBeVisible();
-  await expect(beaverLeader.getByTestId("section-swatch-beavers")).toBeVisible();
+  await expect(beaverLeader.getByTestId("section-icon-beavers")).toBeVisible();
   await expect(beaverLeader.getByText("Beavers", { exact: true })).toBeVisible();
   await beaversToggle.click();
   await expect(beaversToggle).toHaveAttribute("aria-expanded", "false");

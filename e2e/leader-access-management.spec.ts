@@ -46,7 +46,7 @@ test.describe("leader access management", () => {
     await expect(cubsSection).toBeVisible();
     await expect(cubsSection).toHaveAttribute("data-section", "Cubs");
     await expect(cubsSection).toHaveAttribute("aria-pressed", /true|false/);
-    await expect(cubsSection.getByTestId("section-swatch-cubs")).toBeVisible();
+    await expect(cubsSection.getByTestId("section-icon-cubs")).toBeVisible();
 
     const organisationSection = card.getByRole("combobox", { name: "Organisation section" });
     await organisationSection.scrollIntoViewIfNeeded();

@@ -6,6 +6,39 @@ import type { ReactNode } from "react";
 import { sectionVisualTokens } from "../theme/sectionColours";
 import StableSelect from "./StableSelect";
 
+const OFFICIAL_SECTION_SYMBOL_POSITION: Readonly<Record<string, string>> = {
+  Beavers: "0% 50%",
+  Cubs: "25% 50%",
+  Scouts: "50% 50%",
+  Ventures: "75% 50%",
+  Rovers: "100% 50%"
+};
+
+export function OfficialSectionIcon({ section, size = 20, testId }: { section: string | null | undefined; size?: number; testId?: string }) {
+  const normalized = section?.trim() ?? "";
+  const spritePosition = OFFICIAL_SECTION_SYMBOL_POSITION[normalized];
+  if (!spritePosition) return null;
+  return (
+    <Box
+      component="span"
+      aria-hidden="true"
+      data-testid={testId ?? `official-section-icon-${normalized.toLowerCase()}`}
+      data-icon-id={`official-one-programme-${normalized.toLowerCase()}`}
+      sx={{
+        display: "inline-block",
+        width: size,
+        height: Math.round(size * 0.946),
+        flex: "0 0 auto",
+        backgroundImage: "url('/scouting-ireland-one-programme-sections.webp')",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "500% 100%",
+        backgroundPosition: spritePosition,
+        borderRadius: 0.5
+      }}
+    />
+  );
+}
+
 function sectionControlSx(section: string | null | undefined): SxProps<Theme> {
   const tokens = sectionVisualTokens(section);
   return {
@@ -48,12 +81,16 @@ export function SectionOptionLabel({ section, label }: { section: string | null 
   const tokens = sectionVisualTokens(section);
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-      <Box
-        component="span"
-        aria-hidden="true"
-        data-testid={tokens.section ? `section-swatch-${tokens.section.toLowerCase()}` : undefined}
-        sx={{ width: 10, height: 10, borderRadius: "50%", flex: "0 0 auto", backgroundColor: tokens.accent, border: "1px solid", borderColor: tokens.border }}
-      />
+      {tokens.section && OFFICIAL_SECTION_SYMBOL_POSITION[tokens.section] ? (
+        <OfficialSectionIcon section={tokens.section} size={20} testId={`section-icon-${tokens.section.toLowerCase()}`} />
+      ) : (
+        <Box
+          component="span"
+          aria-hidden="true"
+          data-testid={tokens.section ? `section-swatch-${tokens.section.toLowerCase()}` : undefined}
+          sx={{ width: 10, height: 10, borderRadius: "50%", flex: "0 0 auto", backgroundColor: tokens.accent, border: "1px solid", borderColor: tokens.border }}
+        />
+      )}
       <Box component="span" sx={{ minWidth: 0 }}>{label ?? section ?? "All sections"}</Box>
     </Box>
   );
