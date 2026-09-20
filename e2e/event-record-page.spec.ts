@@ -23,8 +23,8 @@ test("clicking an event tile opens its full record with a clear list action", as
   const card = page.getByTestId("event-card-TEST_flow_event_beavers_open");
   await expect(card).toHaveAttribute("href", "/leader/events/TEST_flow_event_beavers_open");
   await expect(card.getByRole("button", { name: "Open event", exact: true })).toBeVisible();
-  await expect(card).toContainText(/\b\d{2}-\d{2}-\d{4}\b/);
-  await expect(card).not.toContainText(/\b\d{4}-\d{2}-\d{2}\b/);
+  await expect(card).toContainText(/\d{2}-\d{2}-\d{4}/);
+  await expect(card).not.toContainText(/\d{4}-\d{2}-\d{2}/);
   await card.click();
 
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
