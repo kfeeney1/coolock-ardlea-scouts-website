@@ -102,7 +102,7 @@ export default function ConsentRecordPage() {
               </Paper>)}
             </Box>
           </Box>)}
-          {record.data.medicationManagement && typeof record.data.medicationManagement === "object" && !Array.isArray(record.data.medicationManagement) && <Box component="section" aria-labelledby="medication-management-heading">
+          {Boolean(record.data.medicationManagement) && typeof record.data.medicationManagement === "object" && !Array.isArray(record.data.medicationManagement) && <Box component="section" aria-labelledby="medication-management-heading">
             <Typography id="medication-management-heading" variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Medication administration</Typography>
             <MedicationManagementPanel value={record.data.medicationManagement as Record<string, unknown>} />
           </Box>}
