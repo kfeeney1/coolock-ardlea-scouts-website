@@ -85,12 +85,14 @@ export function buildPublicLeadershipAppointments(input: {
       continue;
     }
     if (!SECTION_ROLES.has(roleKey(item.role))) continue;
-    const explicitCandidates = [item.scope, organisationSection]
-      .map((section) => section.trim())
-      .filter((section) => YOUTH_SECTIONS.has(section.toLowerCase()));
-    const candidates = explicitCandidates.length > 0
-      ? explicitCandidates
-      : accountSections.filter((section) => YOUTH_SECTIONS.has(section.toLowerCase()));
+    const canonicalSections = accountSections.filter((section) => YOUTH_SECTIONS.has(section.toLowerCase()));
+    const explicitScope = item.scope.trim();
+    const scopedSection = canonicalSections.find((section) => section.toLowerCase() === explicitScope.toLowerCase());
+    const candidates = scopedSection
+      ? [scopedSection]
+      : canonicalSections.length > 0
+        ? canonicalSections
+        : [organisationSection].filter((section) => YOUTH_SECTIONS.has(section.toLowerCase()));
     for (const section of candidates) {
       const key = `${roleKey(item.role)}\u0000${section.toLowerCase()}`;
       if (seen.has(key)) continue;
