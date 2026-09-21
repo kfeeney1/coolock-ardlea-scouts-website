@@ -11,7 +11,9 @@ function fromBase64Url(value) {
   const normalised = String(value || "").replaceAll("-", "+").replaceAll("_", "/");
   const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "=");
   const binary = atob(padded);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  if (base64Url(bytes) !== String(value || "")) throw new Error("Non-canonical base64url encoding.");
+  return bytes;
 }
 
 async function actionKey(secret) {
