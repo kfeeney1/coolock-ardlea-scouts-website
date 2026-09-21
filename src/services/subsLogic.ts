@@ -121,6 +121,28 @@ export function validateIsoDate(value: string, label = "date"): string {
   return value;
 }
 
+export function scoutYearPeriodForDate(dateIso: string): string {
+  validateIsoDate(dateIso, "reference date");
+  const year = Number(dateIso.slice(0, 4));
+  const month = Number(dateIso.slice(5, 7));
+  const startYear = month >= 9 ? year : year - 1;
+  return `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`;
+}
+
+export function resolveCurrentSubsPolicy(policies: SubsRatePolicy[], dateIso = new Date().toISOString().slice(0, 10)): SubsRatePolicy | null {
+  const period = scoutYearPeriodForDate(dateIso);
+  const candidates = policies.filter((policy) => {
+    if (policy.period !== period) return false;
+    if (policy.effectiveFrom && policy.effectiveFrom > dateIso) return false;
+    if (policy.periodStart && policy.periodStart > dateIso) return false;
+    if (policy.periodEnd && policy.periodEnd < dateIso) return false;
+    return true;
+  });
+  return candidates.sort((a, b) =>
+    b.version - a.version || b.effectiveFrom.localeCompare(a.effectiveFrom) || b.id.localeCompare(a.id)
+  )[0] ?? null;
+}
+
 export function isFamilyRatePolicy(policy: SubsRatePolicy): boolean {
   return Array.isArray(policy.standardFamilyRatesCents) && policy.standardFamilyRatesCents.length > 0
     && Array.isArray(policy.leaderFamilyRatesCents) && policy.leaderFamilyRatesCents.length > 0;
