@@ -309,7 +309,7 @@ function parentPortalUrl(env) {
   return `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent`;
 }
 
-async function communicationIdempotencyKey(memberId, recipientUid, subject, message) {
+export async function communicationIdempotencyKey(memberId, recipientUid, subject, message) {
   const payload = `${memberId}\n${recipientUid}\n${subject}\n${message}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return `leader-communication:${base64Url(new Uint8Array(digest))}`;
