@@ -257,6 +257,7 @@ export function AdminAuthProvider({ children }: Props) {
         setAdminProfile(null);
         setSessionSettings(DEFAULT_SESSION_SETTINGS);
         setLoading(false);
+        window.localStorage.removeItem(SESSION_LAST_ACTIVITY_KEY);
         await signOut(auth);
     };
 
