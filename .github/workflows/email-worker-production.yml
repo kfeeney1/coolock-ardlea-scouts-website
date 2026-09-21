@@ -66,16 +66,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: email-worker/package-lock.json
 
       - name: Install Worker dependencies
         working-directory: email-worker
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run Worker tests
         working-directory: email-worker
-        run: npm test
+        run: node --test tests/*.test.js
 
       - name: Validate required deployment credentials
         env:
