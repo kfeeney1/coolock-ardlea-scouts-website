@@ -11,7 +11,7 @@ import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMetho
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\\r\\n");
+const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\r\n");
 const download = (name: string, body: string) => {
   const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
