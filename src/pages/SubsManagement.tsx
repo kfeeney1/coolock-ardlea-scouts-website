@@ -7,7 +7,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import type { MemberRecord } from "../services/memberAdmin";
 import { loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
-import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
+import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -76,7 +76,7 @@ export default function SubsManagement() {
       setPolicies(p);
       setAssignments(assignmentRows);
       setPayments(uniquePayments(paymentRows));
-      setPeriod((current) => current || p[0]?.period || "");
+      const currentPolicy = resolveCurrentSubsPolicy(p);\n      setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? `Unable to load Subs data: ${e.message}` : "Unable to load Subs data. Try again.");
