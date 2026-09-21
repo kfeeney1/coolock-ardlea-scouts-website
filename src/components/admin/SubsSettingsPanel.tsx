@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
 import type { MemberRecord } from "../../services/memberAdmin";
 import { loadSubsAssignments, loadSubsMembers, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
-import { AGREED_SUBS_2026_27, parseEuroToCents, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
+import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
 import { useAdminAuth } from "./AdminAuthProvider";
 import SubsFamilyAccountPanel from "./SubsFamilyAccountPanel";
 
@@ -78,6 +78,8 @@ export default function SubsSettingsPanel() {
     } finally { setSaving(false); }
   };
 
+  const currentPolicy = resolveCurrentSubsPolicy(policies);
+
   if (!canManage) return null;
   return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rates &amp; classification</Typography>
@@ -112,6 +114,6 @@ export default function SubsSettingsPanel() {
       <Alert severity="warning" sx={{ mt: 2 }}>If a family has more active members than this policy defines, no amount is inferred. Add the exact approved family-size rate before classification.</Alert>
       <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving} onClick={() => void savePolicy()}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>
     </Box>
-    {loading ? <Typography color="text.secondary" sx={{ mt: 5 }}>Loading subs settings…</Typography> : <SubsFamilyAccountPanel members={members} policies={policies} assignments={assignments} defaultPolicyId={policies[0]?.id ?? ""} saving={saving} onSaving={setSaving} onMessage={setMessage} onError={setError} onReload={load} />}
+    {loading ? <Typography color="text.secondary" sx={{ mt: 5 }}>Loading subs settings…</Typography> : <SubsFamilyAccountPanel members={members} policies={policies} assignments={assignments} defaultPolicyId={currentPolicy?.id ?? ""} saving={saving} onSaving={setSaving} onMessage={setMessage} onError={setError} onReload={load} />}
   </Paper>;
 }
