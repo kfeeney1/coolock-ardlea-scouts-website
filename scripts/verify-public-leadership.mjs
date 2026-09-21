@@ -32,8 +32,9 @@ function publicAppointmentsFor(source, access) {
       continue;
     }
     if (!SECTION_ROLES.has(roleKey(item.role))) continue;
-    const explicit = [item.scope, text(source?.organisationSection)].filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
-    const candidates = explicit.length ? explicit : accountSections;
+    const canonicalSections = accountSections.filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
+    const scoped = canonicalSections.find((section) => text(section).toLowerCase() === text(item.scope).toLowerCase());
+    const candidates = scoped ? [scoped] : canonicalSections.length ? canonicalSections : [text(source?.organisationSection)].filter((section) => YOUTH_SECTIONS.has(text(section).toLowerCase()));
     for (const section of candidates) {
       if (!YOUTH_SECTIONS.has(text(section).toLowerCase())) continue;
       const key = roleKey(item.role) + "\u0000" + text(section).toLowerCase();

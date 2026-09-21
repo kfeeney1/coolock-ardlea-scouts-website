@@ -68,6 +68,20 @@ describe("public Who's Who role policy", () => {
     );
   });
 
+  it("uses all canonical Account sections when a legacy appointment scope is no longer authoritative", () => {
+    assert.deepEqual(
+      buildPublicLeadershipAppointments({
+        appointments: [{ appointment: "Programme Scouter", scope: "Legacy Organisation", active: true }],
+        organisationSection: "Legacy Organisation",
+        accountSections: ["Cubs", "Scouts"]
+      }),
+      [
+        { role: "Programme Scouter", section: "Cubs" },
+        { role: "Programme Scouter", section: "Scouts" }
+      ]
+    );
+  });
+
   it("projects multiple appointments without excluding a mixed Group and section leader", () => {
     assert.deepEqual(
       buildPublicLeadershipAppointments({
