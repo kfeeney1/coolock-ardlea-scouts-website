@@ -109,12 +109,28 @@ function escapeHtml(value: string): string {
 }
 
 export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
-    const rows = Object.entries(record.data)
-        .filter(([key]) => key !== "submittedAt")
-        .map(([key, value]) => {
-            const text = displayValue(value);
-            return text ? `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>` : "";
-        })
-        .join("");
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${escapeHtml(record.memberName || "Consent Record")} - Consent Record</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:32px;color:#1f2937;background:white}h1,h2{color:#081E67}h1{border-bottom:5px solid #F52D45;padding-bottom:14px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;background:#f8f9fa;border:1px solid #ddd;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #d1d5db;padding:10px;text-align:left;vertical-align:top}th{width:34%;background:#EEF1FA;color:#081E67}pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.controls{margin-bottom:20px}button{padding:10px 18px;margin-right:10px;cursor:pointer}@media print{.controls{display:none}body{padding:0}@page{margin:15mm}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div><h1>Consent Record</h1><h2>${escapeHtml(record.memberName || "Unknown member")}</h2><div class="summary"><div><strong>Section:</strong> ${escapeHtml(record.section || "Not provided")}</div><div><strong>Type:</strong> ${escapeHtml(record.type === "youth" ? "Youth" : "Scouter ES3")}</div><div><strong>Submitted:</strong> ${escapeHtml(formatDate(record.submittedAt))}</div><div><strong>Expiry:</strong> ${escapeHtml(expiryLabel(record))}</div></div><table><tbody>${rows}</tbody></table></body></html>`;
+    const priority = [
+        ["Immediate warnings and emergency action", ["seriousIllness", "medAllergies", "allergies", "epilepsy", "diabetes", "asthma", "heartDisease", "skinAllergies"]],
+        ["Medication administration", ["regularMeds", "onMedication"]],
+        ["Ongoing conditions and support", ["dietaryReqs", "medicalFurtherInfo", "hearingDifficulties", "highBloodPressure", "additionalInfo"]],
+        ["Supporting and administrative information", ["gpName", "gpTel", "gpAddress", "lastCheckup", "vaccinated"]]
+    ] as const;
+    const used = new Set<string>();
+    const sections = priority.map(([heading, keys]) => {
+        const rows = keys.map((key) => {
+            const text = displayValue(record.data[key]);
+            if (!text) return "";
+            used.add(key);
+            return `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>`;
+        }).join("");
+        return rows ? `<h2>${escapeHtml(heading)}</h2><table><tbody>${rows}</tbody></table>` : "";
+    }).join("");
+    const excluded = new Set(["submittedAt", "authorisedScouters", "medicationManagement", "formType", "status", "section", "memberId", "childName", "childDOB", "name", "consentFrom", "consentTo"]);
+    const supportingRows = Object.entries(record.data).map(([key, value]) => {
+        if (used.has(key) || excluded.has(key)) return "";
+        const text = displayValue(value);
+        return text ? `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>` : "";
+    }).join("");
+    const supporting = supportingRows ? `<h2>Other recorded information</h2><table><tbody>${supportingRows}</tbody></table>` : "";
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${escapeHtml(record.memberName || "Consent Record")} - Consent Record</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:32px;color:#1f2937;background:white}h1,h2{color:#081E67}h1{border-bottom:5px solid #F52D45;padding-bottom:14px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;background:#f8f9fa;border:1px solid #ddd;margin-bottom:24px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}th,td{border:1px solid #d1d5db;padding:10px;text-align:left;vertical-align:top}th{width:34%;background:#EEF1FA;color:#081E67}pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.controls{margin-bottom:20px}button{padding:10px 18px;margin-right:10px;cursor:pointer}@media print{.controls{display:none}body{padding:0}@page{margin:15mm}}</style></head><body><div class="controls"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div><h1>Consent Record</h1><h2>${escapeHtml(record.memberName || "Unknown member")}</h2><div class="summary"><div><strong>Section:</strong> ${escapeHtml(record.section || "Not provided")}</div><div><strong>Type:</strong> ${escapeHtml(record.type === "youth" ? "Youth" : "Scouter ES3")}</div><div><strong>Submitted:</strong> ${escapeHtml(formatDate(record.submittedAt))}</div><div><strong>Expiry:</strong> ${escapeHtml(expiryLabel(record))}</div></div>${sections}${supporting}</body></html>`;
 }
