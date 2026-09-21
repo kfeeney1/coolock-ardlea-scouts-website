@@ -137,17 +137,21 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
 
   const reportsTo = page.getByRole("combobox", { name: "Reports to" });
   await expect(reportsTo).toHaveCount(1);
-  const organisationSection = page.getByRole("combobox", { name: "Organisation section" });
+  const sectionFilter = page.getByRole("combobox", { name: "Filter by section" });
 
   const { listbox: firstListbox } = await openAttachedDropdown(page, reportsTo);
   await page.keyboard.press("Escape");
   await expect(firstListbox).toBeHidden();
 
-  const { listbox: secondListbox } = await openAttachedDropdown(page, organisationSection);
+  await page.getByRole("button", { name: "Back to leaders" }).click();
+  await expect(sectionFilter).toBeVisible();
+  const { listbox: secondListbox } = await openAttachedDropdown(page, sectionFilter);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
 
+  await leaderTile.click();
+  await expect(reportsTo).toBeVisible();
   const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, reportsTo);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
