@@ -11,7 +11,8 @@ import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMetho
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\r\n");
+const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\r
+");
 const download = (name: string, body: string) => {
   const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
@@ -76,7 +77,8 @@ export default function SubsManagement() {
       setPolicies(p);
       setAssignments(assignmentRows);
       setPayments(uniquePayments(paymentRows));
-      const currentPolicy = resolveCurrentSubsPolicy(p);\n      setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
+      const currentPolicy = resolveCurrentSubsPolicy(p);
+      setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? `Unable to load Subs data: ${e.message}` : "Unable to load Subs data. Try again.");
