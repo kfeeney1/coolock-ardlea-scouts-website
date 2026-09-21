@@ -48,17 +48,9 @@ test.describe("leader access management", () => {
     await expect(cubsSection).toHaveAttribute("aria-pressed", /true|false/);
     await expect(cubsSection.getByTestId("section-icon-cubs")).toBeVisible();
 
-    const organisationSection = card.getByRole("combobox", { name: "Organisation section" });
-    await organisationSection.scrollIntoViewIfNeeded();
-    const beforeSelect = await viewportState(page);
-    await organisationSection.click();
-    await expect(page.getByRole("listbox")).toBeVisible();
-    await expect.poll(() => viewportState(page)).toEqual(beforeSelect);
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("listbox")).toBeHidden();
-    // MUI keeps the closing Menu/Backdrop mounted briefly after the listbox is hidden.
-    // Wait for that transition to finish so it cannot intercept the following switch click.
-    await expect(page.locator('[role="presentation"].MuiMenu-root')).toHaveCount(0);
+    await expect(card.getByRole("combobox", { name: "Organisation section" })).toHaveCount(0);
+    await expect(card.getByText("Appointment scope follows the leader's Account sections.")).toBeVisible();
+
 
     const saveLeader = card.getByRole("button", { name: "Save Leader" });
     await expect(saveLeader).toBeDisabled();
