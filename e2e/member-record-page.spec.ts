@@ -76,7 +76,7 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Medical indicator regression runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
-  await page.goto("/leader/members/TEST_member_scout_01");
+  await page.goto("/leader/members/TEST_member_beaver_01");
 
   const indicators = page.getByRole("heading", { name: "Consent & Medical Indicators" }).locator("xpath=following-sibling::*[1]");
   await expect(indicators).toBeVisible();
@@ -93,6 +93,6 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
   await expect(page.getByRole("heading", { name: "Important medical information" })).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_scout_01$/);
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
   await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
 });
