@@ -90,6 +90,8 @@ export async function notifyEquipmentIncident(incidentId: string): Promise<void>
 export type LeaderCommunicationResult = {
     ok: true;
     sent: number;
+    accepted?: number;
+    deliveryState?: "accepted" | "queued";
     skipped: number;
     skippedReasons?: Record<string, number>;
 };

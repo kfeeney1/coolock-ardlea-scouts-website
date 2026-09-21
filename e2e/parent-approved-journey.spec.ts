@@ -89,3 +89,29 @@ test.describe("approved parent journey", () => {
     await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
 });
+
+test("approved parent can sign out globally and must authenticate again", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent logout regression runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+
+  await loginParent(page);
+  const desktopSignOut = page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    const mobileSignOut = page.getByRole("menuitem", { name: "Sign Out", exact: true });
+    await expect(mobileSignOut).toBeVisible();
+    await mobileSignOut.click();
+  } else {
+    await expect(desktopSignOut).toBeVisible();
+    await desktopSignOut.click();
+  }
+
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/parent");
+  await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+
+  await page.getByLabel("Email").fill(parentEmail!);
+  await page.getByLabel("Password").fill(password!);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
+});

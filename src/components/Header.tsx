@@ -16,12 +16,28 @@ import logo from "../assets/logo.png";
 import { useBackDismiss } from "../hooks/useBackDismiss";
 import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "./PublicSiteContentProvider";
+import { useAdminAuth } from "./admin/AdminAuthProvider";
 
 export default function Header() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [signingOut, setSigningOut] = useState(false);
+    const { user, logout } = useAdminAuth();
     const content = usePublicSiteContent();
     const menuItems = content.navigation;
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
+    const handleSignOut = async () => {
+        if (signingOut) return;
+        const destination = window.location.pathname.startsWith("/leader") ? "/leader/login" : "/";
+        setSigningOut(true);
+        try {
+            await logout();
+            window.location.replace(destination);
+        } catch (error) {
+            console.error("Unable to sign out:", error);
+            setSigningOut(false);
+            setAnchorEl(null);
+        }
+    };
 
     return <AppBar data-site-sticky-header data-theme-surface="header" position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
         <Toolbar sx={{ minHeight: { xs: 72, md: 82 } }}>
@@ -33,9 +49,9 @@ export default function Header() {
                 {menuItems.map((item) => <Button key={item.path} component={Link} to={item.path} color="inherit" sx={{ color: "white", px: 1.25, "&:hover": { backgroundColor: "secondary.main" } }}>{item.label}</Button>)}
                 <Button component={Link} to="/join" variant="contained" color="success" sx={{ ml: 1, boxShadow: "none" }}>Join Us</Button>
                 <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 700 }}>Parent Login</Button>
-                <Button component={Link} to="/leader/login" variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>Leader Login</Button>
+                {user && !window.location.pathname.startsWith("/leader") ? <Button onClick={() => void handleSignOut()} disabled={signingOut} variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>{signingOut ? "Signing Out…" : "Sign Out"}</Button> : !user ? <Button component={Link} to="/leader/login" variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>Leader Login</Button> : null}
             </Box>
-            <Box sx={{ display: { xs: "flex", md: "none" } }}><IconButton color="inherit" onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Open navigation menu"><MenuIcon /></IconButton><Menu anchorEl={anchorEl} open={Boolean(anchorEl) && menuHistoryReady} onClose={() => setAnchorEl(null)}>{menuItems.map((item) => <MenuItem key={item.path} component={Link} to={item.path} replace>{item.label}</MenuItem>)}<MenuItem component={Link} to="/join" replace sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem><MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Login</MenuItem><MenuItem component={Link} to="/leader/login" replace sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem></Menu></Box>
+            <Box sx={{ display: { xs: "flex", md: "none" } }}><IconButton color="inherit" onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Open navigation menu"><MenuIcon /></IconButton><Menu anchorEl={anchorEl} open={Boolean(anchorEl) && menuHistoryReady} onClose={() => setAnchorEl(null)}>{menuItems.map((item) => <MenuItem key={item.path} component={Link} to={item.path} replace>{item.label}</MenuItem>)}<MenuItem component={Link} to="/join" replace sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem><MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Login</MenuItem>{user ? <MenuItem component="button" disabled={signingOut} onClick={() => void handleSignOut()} sx={{ color: "secondary.main", fontWeight: 800, width: "100%" }}>{signingOut ? "Signing Out…" : "Sign Out"}</MenuItem> : <MenuItem component={Link} to="/leader/login" replace sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem>}</Menu></Box>
         </Toolbar>
     </AppBar>;
 }
