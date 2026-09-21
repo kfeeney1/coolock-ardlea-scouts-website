@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import logo from "../assets/logo.png";
 import { useBackDismiss } from "../hooks/useBackDismiss";
@@ -22,7 +22,6 @@ export default function Header() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [signingOut, setSigningOut] = useState(false);
     const { user, logout } = useAdminAuth();
-    const navigate = useNavigate();
     const content = usePublicSiteContent();
     const menuItems = content.navigation;
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
@@ -30,10 +29,9 @@ export default function Header() {
         if (signingOut) return;
         const destination = window.location.pathname.startsWith("/leader") ? "/leader/login" : "/";
         setSigningOut(true);
-        setAnchorEl(null);
-        navigate(destination, { replace: true });
         try {
             await logout();
+            window.location.replace(destination);
         } catch (error) {
             console.error("Unable to sign out:", error);
             setSigningOut(false);
