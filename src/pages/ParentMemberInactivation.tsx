@@ -11,6 +11,9 @@ function errorMessage(error: unknown, fallback: string): string {
     if (error instanceof Error && /403|not authorised/i.test(error.message)) {
         return "This signed-in account is not authorised to manage the member in this link. Sign in with an approved Parent account or an authorised Leader account.";
     }
+    if (error instanceof Error && /410/.test(error.message)) {
+        return "This secure action link is invalid, expired or has already been used. Request a new message if the member still needs to be updated.";
+    }
     if (error instanceof Error && /409/.test(error.message)) {
         return "The member status changed while this page was open. Reload the page to review the current state.";
     }
@@ -18,7 +21,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export default function ParentMemberInactivation() {
-    const { memberId = "" } = useParams();
+    const { actionToken = "" } = useParams();
     const { user, loading: authLoading } = useAdminAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -29,16 +32,16 @@ export default function ParentMemberInactivation() {
     const [complete, setComplete] = useState(false);
 
     useEffect(() => {
-        if (authLoading || !user || !memberId) return;
+        if (authLoading || !user || !actionToken) return;
         let cancelled = false;
         setLoading(true);
         setError("");
-        void loadMemberInactivationContext(memberId)
+        void loadMemberInactivationContext(actionToken)
             .then((result) => { if (!cancelled) setContext(result); })
             .catch((loadError) => { if (!cancelled) setError(errorMessage(loadError, "Unable to load the member lifecycle action.")); })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [authLoading, memberId, user]);
+    }, [actionToken, authLoading, user]);
 
     const signIn = async () => {
         setWorking(true);
@@ -57,7 +60,7 @@ export default function ParentMemberInactivation() {
         setWorking(true);
         setError("");
         try {
-            await confirmMemberInactivation(context.member.id);
+            await confirmMemberInactivation(actionToken);
             setComplete(true);
             setContext({ ...context, member: { ...context.member, status: "inactive" } });
         } catch (actionError) {
