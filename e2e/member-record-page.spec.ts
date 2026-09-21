@@ -70,3 +70,29 @@ test("SW-116 linked family member opens the canonical member record and Back ret
   await expect(page).toHaveURL(/\/leader\/members\/TEST_member_scout_01$/);
   await expect(page.getByTestId("member-family-management")).toBeVisible();
 });
+
+
+test("SW-134/135 medical indicators reflow and open the stable protected consent record", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Medical indicator regression runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_scout_01");
+
+  const indicators = page.getByRole("heading", { name: "Consent & Medical Indicators" }).locator("xpath=following-sibling::*[1]");
+  await expect(indicators).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+
+  const medicalLink = page.getByRole("link", { name: /Open consent and medical details/ }).first();
+  await expect(medicalLink).toBeVisible();
+  const href = await medicalLink.getAttribute("href");
+  expect(href).toMatch(/^\/leader\/consents\/.+/);
+  await medicalLink.focus();
+  await expect(medicalLink).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^\${}()|[\\]\\\\]/g, "\\\\$&")}$`));
+  await expect(page.getByRole("heading", { name: "Important medical information" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_scout_01$/);
+  await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
+});
