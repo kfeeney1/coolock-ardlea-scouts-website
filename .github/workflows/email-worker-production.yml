@@ -1,0 +1,120 @@
+name: Email Worker PRODUCTION Manual Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: email-worker-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate_and_deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve current main release SHA
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          TARGET_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git rev-parse origin/main)"
+          test "$TARGET_SHA" = "$REMOTE_MAIN_SHA" || {
+            echo '::error::Checked-out release does not match current origin/main.'
+            exit 1
+          }
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploying email Worker from reviewed main SHA: $TARGET_SHA"
+
+      - name: Wait for required CI evidence for exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 2700))
+          for required_check in quality e2e; do
+            echo "Waiting for ${required_check} on ${TARGET_SHA}..."
+            while (( SECONDS < deadline )); do
+              latest="$(
+                gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/check-runs?per_page=100" \
+                  --jq ".check_runs | map(select(.name == \"${required_check}\")) | sort_by(.id) | last | if . == null then \"missing\\t\" else [.status, (.conclusion // \"\")] | @tsv end"
+              )"
+              status="${latest%%$'\t'*}"
+              conclusion="${latest#*$'\t'}"
+              if [[ "$status" == completed && "$conclusion" == success ]]; then break; fi
+              if [[ "$status" == completed && -n "$conclusion" && "$conclusion" != success ]]; then
+                echo "::error::Required check ${required_check} completed with ${conclusion}."
+                exit 1
+              fi
+              sleep 30
+            done
+            (( SECONDS < deadline )) || { echo "::error::Timed out waiting for ${required_check}."; exit 1; }
+          done
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: email-worker/package-lock.json
+
+      - name: Install Worker dependencies
+        working-directory: email-worker
+        run: npm ci
+
+      - name: Run Worker tests
+        working-directory: email-worker
+        run: npm test
+
+      - name: Validate required deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ACTION_LINK_SECRET: ${{ secrets.ACTION_LINK_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo '::error::Missing production secret CLOUDFLARE_API_TOKEN'; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo '::error::Missing production secret CLOUDFLARE_ACCOUNT_ID'; exit 1; }
+          test "${#ACTION_LINK_SECRET}" -ge 32 || { echo '::error::ACTION_LINK_SECRET must be at least 32 characters'; exit 1; }
+
+      - name: Install ACTION_LINK_SECRET in production Worker
+        working-directory: email-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ACTION_LINK_SECRET: ${{ secrets.ACTION_LINK_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$ACTION_LINK_SECRET" | npx wrangler secret put ACTION_LINK_SECRET --config wrangler.production.toml
+
+      - name: Deploy production email Worker
+        working-directory: email-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy:production
+
+      - name: Record deployment evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Email Worker production deployment evidence'
+            echo "- Actor: $GITHUB_ACTOR"
+            echo "- SHA: ${{ steps.release.outputs.sha }}"
+            echo '- Worker: coolock-ardlea-scouts-email'
+            echo "- Workflow run: $GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
