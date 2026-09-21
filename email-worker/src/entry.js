@@ -175,7 +175,22 @@ export default {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
       } catch (error) {
-        console.error("Authoritative production route error", error);
+        const message = error instanceof Error ? error.message : String(error || "");
+        const diagnosticCode =
+          message.startsWith("Firebase service-account credentials") ? "firebase-service-credentials-missing" :
+          message.startsWith("Firebase service-account token request failed with ") ? "firebase-service-token-failed" :
+          message.startsWith("Firebase service-account token response") ? "firebase-service-token-incomplete" :
+          message.startsWith("Firestore list ") ? "firestore-list-failed" :
+          message.startsWith("Resend returned ") ? "resend-submit-failed" :
+          /ACTION_LINK_SECRET|secure action/i.test(message) ? "secure-action-link-failed" :
+          "authoritative-route-unclassified";
+        const statusMatch = message.match(/(?:failed with|returned)\s+(\d{3})/i);
+        console.error(JSON.stringify({
+          code: "email-worker-error",
+          diagnosticCode,
+          ...(statusMatch ? { upstreamStatus: Number(statusMatch[1]) } : {}),
+          route: path
+        }));
         return json(request, env, 500, { ok: false, error: "Unable to complete the requested communication action." });
       }
     }
