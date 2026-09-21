@@ -78,7 +78,9 @@ export default function SubsSettingsPanel() {
     } finally { setSaving(false); }
   };
 
-  const currentPolicy = resolveCurrentSubsPolicy(policies);\n\n  if (!canManage) return null;
+  const currentPolicy = resolveCurrentSubsPolicy(policies);
+
+  if (!canManage) return null;
   return <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mt: 3 }} data-testid="subs-settings-panel">
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Subs rates &amp; classification</Typography>
     <Typography color="text.secondary" sx={{ mt: 0.75 }}>Configure Scout-year family rates and create one billing account for each family. Access is restricted to the Treasurer, Group Leader, Deputy Group Leader and admins.</Typography>
