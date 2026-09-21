@@ -182,7 +182,7 @@ async function privilegedDocuments(env, collection) {
 
 function validEmail(value) {
   const email = clean(value, 254).toLowerCase();
-  return email.includes("@") && !/[\s,;]/.test(email) ? email : "";
+  return /^[^\\s@,;]+@[^\\s@,;]+\\.[^\\s@,;]+$/.test(email) ? email : "";
 }
 
 function plainTextFromHtml(html) {
@@ -221,11 +221,13 @@ async function sendEmail(env, to, subject, html, idempotencyKey = "") {
       ...(validEmail(env.EMAIL_REPLY_TO) ? { reply_to: validEmail(env.EMAIL_REPLY_TO) } : {}),
       to: recipients,
       subject: finalSubject,
+      text: plainTextFromHtml(html),
       html
     })
   });
   if (!response.ok) throw new Error(`Resend returned ${response.status}.`);
-  return { sent: intended.length };
+  const provider = await response.json().catch(() => ({}));
+  return { sent: intended.length, state: "accepted", providerRef: clean(provider?.id, 200) };
 }
 
 function brandedEmail({ heading, intro, bodyHtml = "", actions = [] }) {
@@ -307,6 +309,12 @@ function parentPortalUrl(env) {
   return `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent`;
 }
 
+async function communicationIdempotencyKey(memberId, recipientUid, subject, message) {
+  const payload = `${memberId}\n${recipientUid}\n${subject}\n${message}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+  return `leader-communication:${base64Url(new Uint8Array(digest))}`;
+}
+
 async function handleLeaderCommunication(request, env, body) {
   const subject = clean(body.subject, 120);
   const message = clean(body.message, 2500);
@@ -334,6 +342,7 @@ async function handleLeaderCommunication(request, env, body) {
     let deliveredForMember = false;
     for (const recipient of resolution.recipients) {
       if (delivered.has(recipient.email)) continue;
+      const idempotencyKey = await communicationIdempotencyKey(memberId, recipient.uid, subject, message);
       await sendEmail(env, recipient.email, subject, brandedEmail({
         heading: subject,
         intro: `Hello ${recipient.displayName},`,
@@ -342,14 +351,14 @@ async function handleLeaderCommunication(request, env, body) {
           { label: "Open Parent Portal", url: parentPortalUrl(env) },
           { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
         ]
-      }), `leader-communication:${memberId}:${recipient.uid}:${subject}`);
+      }), idempotencyKey);
       delivered.add(recipient.email);
       deliveredForMember = true;
       sent += 1;
     }
     if (!deliveredForMember) skip("duplicate-recipient");
   }
-  return json(request, env, 200, { ok: true, sent, skipped, skippedReasons });
+  return json(request, env, 200, { ok: true, sent, accepted: sent, deliveryState: "accepted", skipped, skippedReasons });
 }
 
 async function handleEventNotification(request, env, body) {
