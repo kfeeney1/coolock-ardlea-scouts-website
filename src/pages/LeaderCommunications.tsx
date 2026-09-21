@@ -155,14 +155,14 @@ export default function LeaderCommunications() {
                 .filter(([, count]) => count > 0)
                 .map(([reason, count]) => `${count} ${reasonLabels[reason] || "recipient unavailable"}`)
                 .join(", ");
-            setMessage(`Communication sent to ${result.sent} parent${result.sent === 1 ? "" : "s"}${result.skipped ? `; ${result.skipped} recipient${result.skipped === 1 ? " was" : "s were"} skipped${reasonSummary ? ` (${reasonSummary})` : ""}` : ""}.`);
+            setMessage(`Communication accepted by the email service for ${result.accepted ?? result.sent} parent${(result.accepted ?? result.sent) === 1 ? "" : "s"}${result.skipped ? `; ${result.skipped} recipient${result.skipped === 1 ? " was" : "s were"} skipped${reasonSummary ? ` (${reasonSummary})` : ""}` : ""}. Inbox delivery is confirmed separately by the email provider.`);
             await recordAuditEvent({
                 category: "member",
-                action: "Parent communication sent",
+                action: "Parent communication submitted",
                 targetId: "leader-communication",
                 targetLabel: subject.trim().slice(0, 120),
                 section: sectionFilter === "all" ? scopeLabel : sectionFilter,
-                description: `Sent a parent communication to ${result.sent} recipient${result.sent === 1 ? "" : "s"}; ${result.skipped} skipped. Message content is not stored in the audit log.`
+                description: `Email provider accepted a parent communication for ${result.accepted ?? result.sent} recipient${(result.accepted ?? result.sent) === 1 ? "" : "s"}; ${result.skipped} skipped. Inbox delivery is not inferred from provider acceptance. Message content is not stored in the audit log.`
             });
             setSelectedIds([]);
         } catch (sendError) {
