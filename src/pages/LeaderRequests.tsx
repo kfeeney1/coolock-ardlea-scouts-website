@@ -17,7 +17,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     approveLeaderRegistration,
@@ -39,6 +39,7 @@ type ReviewDecision = "approve" | "reject";
 
 export default function LeaderRequests() {
     const { user, adminProfile } = useAdminAuth();
+    const navigate = useNavigate();
     const [requests, setRequests] = useState<LeaderRegistrationRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -184,11 +185,33 @@ export default function LeaderRequests() {
                     <Stack spacing={2}>
                         {visible.length === 0 && <Alert severity="info">No leader registration requests match this view.</Alert>}
                         {visible.map((request) => (
-                            <Paper key={request.uid} variant="outlined" sx={{ p: 2.5 }}>
+                            <Paper
+                                key={request.uid}
+                                variant="outlined"
+                                component={request.status === "approved" ? "button" : "div"}
+                                type={request.status === "approved" ? "button" : undefined}
+                                onClick={request.status === "approved" ? () => navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : undefined}
+                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : undefined}
+                                sx={{
+                                    p: { xs: 2, sm: 2.5 },
+                                    width: "100%",
+                                    maxWidth: "100%",
+                                    minWidth: 0,
+                                    textAlign: "left",
+                                    color: "text.primary",
+                                    backgroundColor: "background.paper",
+                                    font: "inherit",
+                                    borderRadius: 2,
+                                    overflow: "hidden",
+                                    ...(request.status === "approved" ? {
+                                        cursor: "pointer",
+                                        "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
+                                    } : {})
+                                }}>
                                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{request.fullName}</Typography>
-                                        <Typography>{request.email}</Typography>
+                                        <Typography sx={{ overflowWrap: "anywhere" }}>{request.email}</Typography>
                                         <Typography color="text.secondary">
                                             {request.requestedRole} · {request.requestedSection}
                                         </Typography>
@@ -204,7 +227,7 @@ export default function LeaderRequests() {
                                             </Typography>
                                         )}
                                     </Box>
-                                    <Stack spacing={1} sx={{ alignItems: "flex-end" }}>
+                                    <Stack spacing={1} sx={{ alignItems: { xs: "stretch", sm: "flex-end" }, width: { xs: "100%", sm: "auto" }, minWidth: 0 }}>
                                         <Chip
                                             label={request.status}
                                             color={request.status === "approved" ? "success" : request.status === "rejected" ? "error" : "warning"}
@@ -214,7 +237,7 @@ export default function LeaderRequests() {
                                                 Review Request
                                             </Button>
                                         ) : request.status === "approved" ? (
-                                            <Button component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} variant="outlined" color="secondary" aria-label={`Open Leader Access for ${request.fullName}`}>
+                                            <Button component="span" variant="outlined" color="secondary" aria-hidden="true" tabIndex={-1}>
                                                 Open Leader Access
                                             </Button>
                                         ) : null}
