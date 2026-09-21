@@ -182,7 +182,7 @@ async function privilegedDocuments(env, collection) {
 
 function validEmail(value) {
   const email = clean(value, 254).toLowerCase();
-  return /^[^\\s@,;]+@[^\\s@,;]+\\.[^\\s@,;]+$/.test(email) ? email : "";
+  return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email) ? email : "";
 }
 
 function plainTextFromHtml(html) {
