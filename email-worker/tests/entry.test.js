@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import entry, { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
-import { resolveParentRecipientCandidates } from "../src/productionRoutes.js";
+import { communicationIdempotencyKey, resolveParentRecipientCandidates } from "../src/productionRoutes.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
@@ -165,4 +165,14 @@ test("SW-117 supports two approved parents linked across the same canonical fami
   ];
   const result = resolveParentRecipientCandidates(accounts, "member-1", ["member-1", "sibling-1"]);
   assert.deepEqual(result.recipients.map((item) => item.email).sort(), ["first@example.com", "second@example.com"]);
+});
+
+
+test("SW-108 leader communication idempotency is stable for a retry and changes with message content", async () => {
+  const first = await communicationIdempotencyKey("member-1", "parent-1", "Subject", "Message");
+  const retry = await communicationIdempotencyKey("member-1", "parent-1", "Subject", "Message");
+  const changed = await communicationIdempotencyKey("member-1", "parent-1", "Subject", "Different message");
+  assert.equal(first, retry);
+  assert.notEqual(first, changed);
+  assert.match(first, /^leader-communication:[A-Za-z0-9_-]+$/);
 });
