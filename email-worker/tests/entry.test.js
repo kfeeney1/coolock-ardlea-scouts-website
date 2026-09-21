@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import entry, { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
 import { communicationIdempotencyKey, resolveParentRecipientCandidates } from "../src/productionRoutes.js";
+import { issueMemberInactivationToken, verifyMemberInactivationToken } from "../src/secureActionLinks.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
   EMAIL_FROM: "80th 160th Coolock Ardlea Scout Group <noreply@coolockardleascouts.ie>",
   SITE_URL: "https://coolockardleascouts.ie",
   ALLOWED_ORIGINS: "https://coolockardleascouts.ie,https://www.coolockardleascouts.ie",
-  TEST_EMAIL_REDIRECT: ""
+  TEST_EMAIL_REDIRECT: "",
+  ACTION_LINK_SECRET: "test-action-link-secret-at-least-32-characters"
 };
 
 function productionRequest(path, body = {}) {
@@ -32,9 +34,10 @@ test("production delivery requires the Scout domain and no test redirect", () =>
 test("test delivery requires an explicit redirect recipient", () => {
   assert.equal(validateDeliveryEnvironment({
     EMAIL_DELIVERY_MODE: "test",
-    TEST_EMAIL_REDIRECT: "safe-test-inbox@example.com"
+    TEST_EMAIL_REDIRECT: "safe-test-inbox@example.com",
+    ACTION_LINK_SECRET: "test-action-link-secret-at-least-32-characters"
   }), "");
-  assert.match(validateDeliveryEnvironment({ EMAIL_DELIVERY_MODE: "test" }), /TEST email requires/);
+  assert.match(validateDeliveryEnvironment({ EMAIL_DELIVERY_MODE: "test", ACTION_LINK_SECRET: "test-action-link-secret-at-least-32-characters" }), /TEST email requires/);
 });
 
 test("ambiguous email environment fails closed", () => {
@@ -175,4 +178,24 @@ test("SW-108 leader communication idempotency is stable for a retry and changes 
   assert.equal(first, retry);
   assert.notEqual(first, changed);
   assert.match(first, /^leader-communication:[A-Za-z0-9_-]+$/);
+});
+
+
+test("SW-45 action tokens are opaque, purpose-bound and expire safely", async () => {
+  const env = { ACTION_LINK_SECRET: "test-action-link-secret-at-least-32-characters" };
+  const token = await issueMemberInactivationToken(env, "member-sensitive-id", 60);
+  assert.doesNotMatch(token, /member-sensitive-id/);
+  const verified = await verifyMemberInactivationToken(env, token);
+  assert.equal(verified.memberId, "member-sensitive-id");
+  assert.equal(verified.purpose, "member-inactivation");
+
+  const tampered = token.slice(0, -1) + (token.endsWith("A") ? "B" : "A");
+  assert.equal(await verifyMemberInactivationToken(env, tampered), null);
+  const expired = await issueMemberInactivationToken(env, "member-sensitive-id", -1);
+  assert.equal(await verifyMemberInactivationToken(env, expired), null);
+});
+
+test("SW-45 production configuration fails closed without an action-link secret", () => {
+  const { ACTION_LINK_SECRET: _removed, ...unsafe } = production;
+  assert.match(validateDeliveryEnvironment(unsafe), /ACTION_LINK_SECRET/);
 });

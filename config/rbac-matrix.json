@@ -29,7 +29,7 @@
     "/event-consent/:token": "public-form",
     "/policies": "public",
     "/parent": "parent-entry",
-    "/parent/member/:memberId/inactivate": "parent-or-leader-authoritative-action",
+    "/parent/member-action/:actionToken": "parent-or-leader-authoritative-action",
     "/join": "public-form",
     "/contact": "public",
     "/privacy": "public",

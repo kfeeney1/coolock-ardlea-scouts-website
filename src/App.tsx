@@ -74,7 +74,7 @@ export default function App() {
         <Route path="/activities/consent" element={<ConsentForm />} />
         <Route path="/event-consent/:token" element={<EventConsent />} />
         <Route path="/parent" element={<ParentPortal />} />
-        <Route path="/parent/member/:memberId/inactivate" element={<ParentMemberInactivation />} />
+        <Route path="/parent/member-action/:actionToken" element={<ParentMemberInactivation />} />
         <Route path="/join" element={<Join />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<Privacy />} />

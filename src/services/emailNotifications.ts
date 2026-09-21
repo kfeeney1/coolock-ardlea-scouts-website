@@ -121,9 +121,9 @@ export type MemberInactivationContext = {
     };
 };
 
-export async function loadMemberInactivationContext(memberId: string): Promise<MemberInactivationContext> {
+export async function loadMemberInactivationContext(actionToken: string): Promise<MemberInactivationContext> {
     if (!emailApiUrl) throw new Error("VITE_EMAIL_API_URL is not configured.");
-    return await post<MemberInactivationContext>("/member-inactivation-context", { memberId }, true);
+    return await post<MemberInactivationContext>("/member-inactivation-context", { actionToken }, true);
 }
 
 export type MemberInactivationResult = {
@@ -132,7 +132,7 @@ export type MemberInactivationResult = {
     status: "inactive" | "left";
 };
 
-export async function confirmMemberInactivation(memberId: string): Promise<MemberInactivationResult> {
+export async function confirmMemberInactivation(actionToken: string): Promise<MemberInactivationResult> {
     if (!emailApiUrl) throw new Error("VITE_EMAIL_API_URL is not configured.");
-    return await post<MemberInactivationResult>("/member-inactivation", { memberId, confirm: true }, true);
+    return await post<MemberInactivationResult>("/member-inactivation", { actionToken, confirm: true }, true);
 }

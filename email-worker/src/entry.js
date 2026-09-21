@@ -60,8 +60,10 @@ export function validateDeliveryEnvironment(env) {
   const sender = clean(env.EMAIL_FROM, 320).toLowerCase();
   const siteUrl = clean(env.SITE_URL, 400).replace(/\/$/, "");
   const origins = allowedOrigins(env);
+  const actionLinkSecret = String(env.ACTION_LINK_SECRET || "");
 
   if (mode === "production") {
+    if (actionLinkSecret.length < 32) return "ACTION_LINK_SECRET must be configured with at least 32 characters.";
     if (redirect) return "Production email cannot use TEST_EMAIL_REDIRECT.";
     if (!sender.includes(`@${PRODUCTION_DOMAIN}`)) return `Production EMAIL_FROM must use ${PRODUCTION_DOMAIN}.`;
     if (siteUrl !== PRODUCTION_HOST) return `Production SITE_URL must be ${PRODUCTION_HOST}.`;
@@ -70,6 +72,7 @@ export function validateDeliveryEnvironment(env) {
   }
 
   if (mode === "test") {
+    if (actionLinkSecret.length < 32) return "ACTION_LINK_SECRET must be configured with at least 32 characters.";
     if (!redirect || !redirect.includes("@")) return "TEST email requires a valid TEST_EMAIL_REDIRECT.";
     return "";
   }

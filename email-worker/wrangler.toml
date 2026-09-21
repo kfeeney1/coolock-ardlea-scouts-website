@@ -11,6 +11,8 @@ compatibility_date = "2026-08-01"
 # Do not add a named [env.production] here: modern Wrangler deploys named
 # environments as separate Workers such as `coolock-ardlea-scouts-email-production`.
 [vars]
+# Non-production secret used only for local/TEST action-link encryption.
+ACTION_LINK_SECRET = "test-only-action-link-secret-rotate-freely"
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
 SITE_URL = "https://coolock-ardlea-scouts.web.app"
 EMAIL_DELIVERY_MODE = "test"

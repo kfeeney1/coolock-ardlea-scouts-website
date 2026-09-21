@@ -1,3 +1,4 @@
+import { issueMemberInactivationToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
 import { reminderDocumentId, reminderRecord, shouldAttemptReminder } from "./reminderPersistence.js";
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
@@ -301,8 +302,9 @@ async function authenticatedParentMember(request, env, memberId) {
   return { token, uid, email: validEmail(claims.email), account, member };
 }
 
-function memberActionUrl(env, memberId) {
-  return `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent/member/${encodeURIComponent(memberId)}/inactivate`;
+async function memberActionUrl(env, memberId) {
+  const token = await issueMemberInactivationToken(env, memberId);
+  return `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent/member-action/${encodeURIComponent(token)}`;
 }
 
 function parentPortalUrl(env) {
@@ -349,7 +351,7 @@ async function handleLeaderCommunication(request, env, body) {
         bodyHtml: `<p style="font-size:16px;line-height:1.7">${messageHtml}</p><p style="font-size:14px;line-height:1.6;color:${BRAND.muted};margin-top:22px">This message relates to <strong>${escapeHtml(memberName)}</strong>.</p>`,
         actions: [
           { label: "Open Parent Portal", url: parentPortalUrl(env) },
-          { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
+          { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
         ]
       }), idempotencyKey);
       delivered.add(recipient.email);
@@ -397,7 +399,7 @@ async function handleEventNotification(request, env, body) {
         actions: [
           { label: "Respond to event", url: actionUrl },
           { label: "Open Parent Portal", url: parentPortalUrl(env) },
-          { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
+          { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
         ]
       }), `event:${eventId}:${kind}:${memberId}:${recipient.uid}`);
       sent += 1;
@@ -426,7 +428,7 @@ async function handleEventConsentProcessed(request, env, body) {
       bodyHtml: `<p style="font-size:16px;line-height:1.6">Open the secure Parent Portal to review the current event status.</p>`,
       actions: [
         { label: "Open Parent Portal", url: parentPortalUrl(env) },
-        { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
+        { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
       ]
     }), `event-processed:${eventId}:${memberId}:${recipient.uid}`);
   }
@@ -478,7 +480,7 @@ async function handleFormReminder(request, env, body) {
           bodyHtml: `<p style="font-size:16px;line-height:1.6">For privacy, this email does not include medical, consent or other sensitive details. Sign in to the Parent Portal to see what needs attention.</p>`,
           actions: [
             { label: "Open Parent Portal", url: parentPortalUrl(env) },
-            { label: `${memberName} is no longer active`, url: memberActionUrl(env, memberId) }
+            { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
           ]
         }), `form-reminder:${id}`);
         await persistReminderState(env, id, reminderRecord({ memberId, recipientUid: recipient.uid, cycleKey, reason, status: "sent", attemptCount }));
@@ -493,8 +495,9 @@ async function handleFormReminder(request, env, body) {
 }
 
 async function handleMemberInactivationContext(request, env, body) {
-  const memberId = clean(body.memberId, 100);
-  if (!memberId) return json(request, env, 400, { ok: false, error: "Member is required." });
+  const action = await verifyMemberInactivationToken(env, clean(body.actionToken, 4096));
+  if (!action) return json(request, env, 410, { ok: false, error: "This secure action link is invalid or has expired." });
+  const memberId = clean(action.memberId, 100);
   const parent = await authenticatedParentMember(request, env, memberId);
   const leader = parent ? null : await authenticatedLeaderMember(request, env, memberId);
   const authorised = parent || leader;
@@ -557,13 +560,25 @@ async function leadershipRecipients(env, section) {
   return [...new Set(recipients)];
 }
 
-async function commitMemberInactivation(env, actor, memberId, member, parentAccounts) {
+async function commitMemberInactivation(env, actor, memberId, member, parentAccounts, actionLinkId) {
   const serviceToken = await serviceAccessToken(env);
   const historyId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const section = fieldString(member, "section");
   const memberName = fieldString(member, "displayName") || "Member";
   const writes = [
+    {
+      update: {
+        name: documentName(env, "consumedActionLinks", actionLinkId),
+        fields: {
+          purpose: stringField("member-inactivation"),
+          memberId: stringField(memberId),
+          consumedBy: stringField(actor.uid)
+        }
+      },
+      updateTransforms: [{ fieldPath: "consumedAt", setToServerValue: "REQUEST_TIME" }],
+      currentDocument: { exists: false }
+    },
     {
       update: {
         name: documentName(env, "members", memberId),
@@ -635,21 +650,27 @@ async function commitMemberInactivation(env, actor, memberId, member, parentAcco
 }
 
 async function handleMemberInactivation(request, env, body) {
-  const memberId = clean(body.memberId, 100);
-  if (!memberId || body.confirm !== true) return json(request, env, 400, { ok: false, error: "Explicit confirmation is required." });
+  const action = await verifyMemberInactivationToken(env, clean(body.actionToken, 4096));
+  if (!action) return json(request, env, 410, { ok: false, error: "This secure action link is invalid or has expired." });
+  const memberId = clean(action.memberId, 100);
+  if (body.confirm !== true) return json(request, env, 400, { ok: false, error: "Explicit confirmation is required." });
   const parent = await authenticatedParentMember(request, env, memberId);
   const leader = parent ? null : await authenticatedLeaderMember(request, env, memberId);
   const authorised = parent || leader;
   if (!authorised) return json(request, env, 403, { ok: false, error: "You are not authorised to manage this member." });
 
-  const current = await privilegedDocument(env, "members", memberId);
+  const [current, consumed] = await Promise.all([
+    privilegedDocument(env, "members", memberId),
+    privilegedDocument(env, "consumedActionLinks", action.jti)
+  ]);
   if (!current) return json(request, env, 404, { ok: false, error: "Member not found." });
+  if (consumed && fieldString(current, "status") === "active") return json(request, env, 410, { ok: false, error: "This secure action link has already been used." });
   const currentStatus = fieldString(current, "status");
   if (currentStatus !== "active") return json(request, env, 200, { ok: true, alreadyInactive: true, status: currentStatus });
 
   const parents = await linkedApprovedParents(env, memberId);
   const actor = { uid: authorised.uid, email: authorised.email || "" };
-  const committed = await commitMemberInactivation(env, actor, memberId, current, parents);
+  const committed = await commitMemberInactivation(env, actor, memberId, current, parents, action.jti);
   if (committed.stale) return json(request, env, 409, { ok: false, error: "Member status changed while this page was open. Refresh and try again." });
 
   const section = fieldString(current, "section");
