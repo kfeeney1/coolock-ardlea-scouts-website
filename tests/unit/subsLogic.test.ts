@@ -38,6 +38,16 @@ test("authoritative 2026/27 totals cover September to June",()=>{
  assert.deepEqual([...AGREED_SUBS_2026_27.standardFamilyRatesCents],[26400,41900,52400,62900]);
  assert.deepEqual([...AGREED_SUBS_2026_27.leaderFamilyRatesCents],[20500,34300,46500]);
 });
+test("resolves the Scout year and current policy deterministically",()=>{
+ assert.equal(scoutYearPeriodForDate("2026-09-21"),"2026/27");
+ assert.equal(scoutYearPeriodForDate("2027-02-01"),"2026/27");
+ assert.equal(scoutYearPeriodForDate("2027-09-01"),"2027/28");
+ const historical={...policy,id:"2025-v9",period:"2025/26",periodStart:"2025-09-01",periodEnd:"2026-06-30",effectiveFrom:"2025-09-01",version:9};
+ const future={...policy,id:"2026-v3",effectiveFrom:"2026-10-01",version:3};
+ const currentV2={...policy,id:"2026-v2",effectiveFrom:"2026-09-15",version:2};
+ assert.equal(resolveCurrentSubsPolicy([future,historical,policy,currentV2],"2026-09-21")?.id,"2026-v2");
+ assert.equal(resolveCurrentSubsPolicy([future,historical],"2026-09-21"),null);
+});
 test("family totals are allocated as deterministic child increments",()=>{
  assert.equal(familyTotalFor(policy,"standard",4),62900);
  assert.equal(familyIncrementFor(policy,"standard",1),26400);
