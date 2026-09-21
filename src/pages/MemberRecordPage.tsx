@@ -1,7 +1,7 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Alert, Box, Button, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -20,6 +20,7 @@ const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-I
 
 export default function MemberRecordPage() {
   const { memberId = "" } = useParams();
+  const location = useLocation();
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [member, setMember] = useState<MemberRecord | null>(null);
   const [draft, setDraft] = useState<MemberRecord | null>(null);
@@ -177,7 +178,7 @@ export default function MemberRecordPage() {
 
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Consent & Medical Indicators</Typography>
-          {consents.length === 0 ? <Alert severity="info">No linked consent records were found for this member.</Alert> : <Stack spacing={1.5}>{consents.map((consent) => <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{consent.consentTo || "General consent"}</Typography><Typography color="text.secondary">Submitted {formatDate(consent.submittedAt)}</Typography><Stack direction="row" spacing={1} sx={{ mt: 1 }}><Chip size="small" label={consent.hasMedicalAlert ? "Medical information recorded" : "No medical alert"} color={consent.hasMedicalAlert ? "warning" : "default"} /><Chip size="small" label={consent.hasMedicationManagement ? "Medication management" : "No medication management"} color={consent.hasMedicationManagement ? "warning" : "default"} /></Stack></Paper>)}</Stack>}
+          {consents.length === 0 ? <Alert severity="info">No linked consent records were found for this member.</Alert> : <Stack spacing={1.5}>{consents.map((consent) => <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{consent.consentTo || "General consent"}</Typography><Typography color="text.secondary">Submitted {formatDate(consent.submittedAt)}</Typography><Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: "wrap", minWidth: 0 }}><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicalAlert ? "Medical information recorded" : "No medical alert"} color={consent.hasMedicalAlert ? "warning" : "default"} aria-label={`Open consent and medical details${consent.consentTo ? ` valid to ${consent.consentTo}` : ""}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 32, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicationManagement ? "Medication management" : "No medication management"} color={consent.hasMedicationManagement ? "warning" : "default"} aria-label={`Open medication and consent details${consent.consentTo ? ` valid to ${consent.consentTo}` : ""}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 32, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /></Stack></Paper>)}</Stack>}
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">

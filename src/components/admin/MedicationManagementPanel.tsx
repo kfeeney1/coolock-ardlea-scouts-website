@@ -10,15 +10,13 @@ const mobileCell = {
 
 export default function MedicationManagementPanel({ value }: { value: Record<string, unknown> }) {
   const rows = [
-    ["Member", objectField(value, "memberName")],
-    ["Date of Birth", formatDateOnly(objectField(value, "dateOfBirth"))],
-    ["Address", objectField(value, "address")],
     ["Medicine", objectField(value, "medicineName")],
     ["Dosage", objectField(value, "dosage")],
     ["Frequency", objectField(value, "frequency")],
     ["Method", objectField(value, "method")],
-    ["Quantity Supplied", objectField(value, "quantitySupplied")],
     ["Self Administration", objectField(value, "selfAdmin")],
+    ["Additional Information", objectField(value, "otherInfo")],
+    ["Quantity Supplied", objectField(value, "quantitySupplied")],
     ["Authorised From", formatDateOnly(objectField(value, "authFrom"))],
     ["Authorised Until", formatDateOnly(objectField(value, "authTo"))],
     ["Doctor", objectField(value, "doctorName")],
@@ -27,7 +25,9 @@ export default function MedicationManagementPanel({ value }: { value: Record<str
     ["Pharmacy Telephone", objectField(value, "pharmacyTel")],
     ["Scouter 1", objectField(value, "scouter1")],
     ["Scouter 2", objectField(value, "scouter2")],
-    ["Additional Information", objectField(value, "otherInfo")],
+    ["Member", objectField(value, "memberName")],
+    ["Date of Birth", formatDateOnly(objectField(value, "dateOfBirth"))],
+    ["Address", objectField(value, "address")],
     ["Signed By", objectField(value, "signature")],
     ["Signature Date", formatDateOnly(objectField(value, "signatureDate"))]
   ];
