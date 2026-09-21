@@ -119,6 +119,7 @@ export default function LeaderAccessManagement() {
       await updateLeaderAccess(record, user.uid, actorEmail);
       setMessage(`${record.displayName} updated.`);
       await refresh();
+      navigate({ pathname: "/leader/access", search: searchParams.toString() ? `?${searchParams.toString()}` : "" });
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : "Unable to update this leader. Check that your role permits this change.");
@@ -145,12 +146,14 @@ export default function LeaderAccessManagement() {
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
   const toggleSection = (record: LeaderAccessRecord, section: string) => patch(record.uid, { sections: record.sections.includes(section) ? record.sections.filter((value) => value !== section) : [...record.sections, section] });
+  const appointmentScope = (record: LeaderAccessRecord) => record.sections.find((section) => section !== "Group") || record.sections[0] || "Group";
   const toggleAppointment = (record: LeaderAccessRecord, appointment: string) => {
-    const existing = record.appointments.find((item) => item.appointment === appointment && item.scope === record.organisationSection);
+    const scope = appointmentScope(record);
+    const existing = record.appointments.find((item) => item.appointment === appointment && item.scope === scope);
     const appointments = existing
       ? record.appointments.filter((item) => item.id !== existing.id)
-      : [...record.appointments, { id: `${appointment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}--${record.organisationSection.toLowerCase()}`, appointment: appointment as typeof record.appointments[number]["appointment"], scope: record.organisationSection, active: true }];
-    patch(record.uid, { appointments, scoutingRole: appointments[0]?.appointment || "" });
+      : [...record.appointments, { id: `${appointment.toLowerCase().replace(/[^a-z0-9]+/g, "-")}--${scope.toLowerCase()}`, appointment: appointment as typeof record.appointments[number]["appointment"], scope, active: true }];
+    patch(record.uid, { appointments, scoutingRole: appointments[0]?.appointment || "", organisationSection: scope });
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="xl">
@@ -192,15 +195,14 @@ export default function LeaderAccessManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <Box sx={{ gridColumn: { md: "span 1" } }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700 }}>Scouting appointments</Typography>
-            <Typography variant="caption" color="text.secondary">Active Leaders include the Programme Scouter baseline. Select additional appointments for {record.organisationSection}.</Typography>
+            <Typography variant="caption" color="text.secondary">Active Leaders include the Programme Scouter baseline. Appointment scope follows the leader&apos;s Account sections.</Typography>
             <Stack role="group" aria-label={`Scouting appointments for ${record.displayName}`} sx={{ mt: 1, maxHeight: 260, overflowY: "auto" }}>
               {CANONICAL_SCOUTING_APPOINTMENTS.filter((appointment) => appointmentsActorMayAssign(actor).includes(appointment) || record.appointments.some((item) => item.appointment === appointment)).map((appointment) => {
-                const selected = record.appointments.some((item) => item.appointment === appointment && item.scope === record.organisationSection);
+                const selected = record.appointments.some((item) => item.appointment === appointment && item.scope === appointmentScope(record));
                 return <FormControlLabel key={appointment} control={<Checkbox checked={selected} disabled={record.role !== "leader" || record.uid === actor.uid} onChange={() => toggleAppointment(record, appointment)} />} label={appointment} />;
               })}
             </Stack>
           </Box>
-          <SectionSelect id={`organisation-section-${record.uid}`} label="Organisation section" value={record.organisationSection} options={sections} disabled={!isAdminActor} onChange={(e) => patch(record.uid, { organisationSection: e.target.value })} />
           <TextField disabled={!isAdminActor} label="Display order" type="number" value={record.organisationOrder} onChange={(e) => patch(record.uid, { organisationOrder: Number(e.target.value) || 0 })} slotProps={{ htmlInput: { min: 0, max: 999 } }} />
           <TextField select disabled={!isAdminActor} label="Reports to" value={record.reportsToUid} onChange={(e) => patch(record.uid, { reportsToUid: e.target.value })}><MenuItem value="">Top level / none</MenuItem>{records.filter((leader) => leader.uid !== record.uid && leader.active).map((leader) => <MenuItem key={leader.uid} value={leader.uid}><SectionOptionLabel section={leader.organisationSection} label={<>{leader.displayName} · {leader.scoutingRole || "Leader"}</>} /></MenuItem>)}</TextField>
         </Box>
