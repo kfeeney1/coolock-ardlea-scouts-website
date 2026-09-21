@@ -63,7 +63,7 @@ export async function verifyMemberInactivationToken(env, token) {
       typeof payload.jti !== "string" ||
       !payload.jti ||
       !Number.isFinite(payload.exp) ||
-      payload.exp < now
+      payload.exp <= now
     ) return null;
     return payload;
   } catch {
