@@ -32,6 +32,7 @@ Authoritative Parent recipient resolution and Parent-initiated member lifecycle 
 
 - `FIREBASE_SERVICE_ACCOUNT_EMAIL`
 - `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`
+- `ACTION_LINK_SECRET` — at least 32 random characters; encrypts opaque, expiring member lifecycle links
 
 The service account is used only after the caller's Firebase ID token has been checked against the existing Firestore access boundary. It exists because ordinary section leaders cannot list all `parentAccounts`, and approved Parents are deliberately not allowed to write `members` directly. Do not weaken Firestore Rules to avoid these server credentials.
 
@@ -40,6 +41,7 @@ If the secrets need to be configured or rotated, use Cloudflare/Wrangler secret 
 ```bash
 npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_EMAIL --config wrangler.production.toml
 npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY --config wrangler.production.toml
+npx wrangler secret put ACTION_LINK_SECRET --config wrangler.production.toml
 ```
 
 The private key may be pasted with normal PEM newlines or escaped `\n`; the Worker normalises either form. Never print the private key in CI logs.
@@ -87,9 +89,9 @@ Email content contains only the minimum operational information required. Detail
 
 General Parent communications use HTTPS links on the production domain, including member-specific lifecycle routes such as:
 
-`https://coolockardleascouts.ie/parent/member/<member-id>/inactivate`
+`https://coolockardleascouts.ie/parent/member-action/<opaque-action-token>`
 
-The identifier is only navigation context. Possession of the URL never authorises a lifecycle change. The route requires Firebase authentication, re-checks current Parent/member or Leader/member authority, displays the current member and section, requires explicit confirmation, re-reads the authoritative status, then performs the lifecycle update through the Worker.
+The action token is encrypted, purpose-bound and expires after seven days, so raw member identifiers are not exposed in email URLs. Possession of the URL never authorises a lifecycle change. Successful use is recorded atomically with the member status change so an action token cannot be used to perform a second active-member transition. The route requires Firebase authentication, re-checks current Parent/member or Leader/member authority, displays the current member and section, requires explicit confirmation, re-reads the authoritative status, then performs the lifecycle update through the Worker.
 
 The lifecycle commit writes member history and audit records and applies the established last-active-child Parent behaviour by revoking Parent Portal access while leaving any Leader access untouched. Reusing a stale link after the member is already inactive is idempotent. Relevant section/group leadership are notified through the same Worker after a successful change.
 
