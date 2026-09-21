@@ -60,6 +60,9 @@ export function validateDeliveryEnvironment(env) {
   const sender = clean(env.EMAIL_FROM, 320).toLowerCase();
   const siteUrl = clean(env.SITE_URL, 400).replace(/\/$/, "");
   const origins = allowedOrigins(env);
+  const actionLinkSecret = String(env.ACTION_LINK_SECRET || "");
+
+  if (actionLinkSecret.length < 32) return "ACTION_LINK_SECRET must be configured with at least 32 characters.";
 
   if (mode === "production") {
     if (redirect) return "Production email cannot use TEST_EMAIL_REDIRECT.";
