@@ -89,6 +89,7 @@ export default function SubsManagement() {
   useEffect(() => {
     void load();
   }, [load]);
+  const currentPolicy = useMemo(() => resolveCurrentSubsPolicy(policies), [policies]);
   const visibleMembers = useMemo(() => members.filter((member) => isMemberInSubsScope(member.section, effectiveSection, authorisedSections, canGroupReport)), [authorisedSections, canGroupReport, effectiveSection, members]);
   const visibleAssignments = useMemo(() => assignments.filter((assignment) => isMemberInSubsScope(assignment.section, effectiveSection, authorisedSections, canGroupReport)), [assignments, authorisedSections, canGroupReport, effectiveSection]);
   const visiblePayments = useMemo(() => (effectiveSection === ALL_AUTHORISED_SECTIONS ? payments : payments.filter((payment) => payment.section === effectiveSection || visibleAssignments.some((assignment) => assignment.accountId && assignment.accountId === payment.accountId))), [effectiveSection, payments, visibleAssignments]);
@@ -202,6 +203,7 @@ export default function SubsManagement() {
             {message}
           </Alert>
         )}
+        {!currentPolicy && <Alert severity="error" sx={{ mb: 2 }} data-testid="subs-current-policy-error">No valid Subs policy is active for the current Scout year. Payments require an explicit historical Scout year with an existing classification; configure the current policy before recording current-year finance.</Alert>}
         <Paper sx={{ p: { xs: 2, md: 2.5 }, mb: 3 }}>
           <FormControl fullWidth sx={{ maxWidth: 360 }}>
             <InputLabel id="subs-section-label">Section</InputLabel>
