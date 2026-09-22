@@ -11,7 +11,8 @@ describe("public Who's Who role policy", () => {
       "Group Secretary",
       "Group Treasurer",
       "Group Quartermaster / Bo'sun",
-      "Group Youth Champion"
+      "Group Youth Champion",
+      "Group Trainer"
     ]) {
       assert.equal(isAllowedPublicAppointment(role, "Group"), true);
     }
