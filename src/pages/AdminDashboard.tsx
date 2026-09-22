@@ -124,9 +124,6 @@ export default function AdminDashboard() {
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
             <AdminOverviewPanel />
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-                <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh submissions</Button>
-            </Box>
             {adminProfile?.role === "super-admin" && <OperationalHealthPanel />}
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
