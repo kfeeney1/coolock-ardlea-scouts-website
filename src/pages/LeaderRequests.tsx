@@ -194,10 +194,10 @@ export default function LeaderRequests() {
                             <Paper
                                 key={request.uid}
                                 variant="outlined"
-                                component={request.status === "approved" ? "button" : "div"}
-                                type={request.status === "approved" ? "button" : undefined}
-                                onClick={request.status === "approved" ? () => navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : undefined}
-                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => request.status === "approved" ? navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : request.status === "pending" ? (setDecision(null), setSelected(request)) : undefined}
+                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : request.status === "pending" ? `Review leader request for ${request.fullName}` : `Leader request for ${request.fullName}`}
                                 sx={{
                                     p: { xs: 2, sm: 2.5 },
                                     width: "100%",
@@ -209,7 +209,7 @@ export default function LeaderRequests() {
                                     font: "inherit",
                                     borderRadius: 2,
                                     overflow: "hidden",
-                                    ...(request.status === "approved" ? {
+                                    ...(request.status !== "rejected" ? {
                                         cursor: "pointer",
                                         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
                                     } : {})
@@ -239,7 +239,7 @@ export default function LeaderRequests() {
                                             color={request.status === "approved" ? "success" : request.status === "rejected" ? "error" : "warning"}
                                         />
                                         {request.status === "pending" ? (
-                                            <Button variant="contained" color="success" onClick={() => { setDecision(null); setSelected(request); }}>
+                                            <Button component="span" variant="contained" color="success" aria-hidden="true" tabIndex={-1}>
                                                 Review Request
                                             </Button>
                                         ) : request.status === "approved" ? (
