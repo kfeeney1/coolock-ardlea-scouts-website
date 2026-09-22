@@ -210,7 +210,7 @@ service cloud.firestore {
         && request.resource.data.linkedSections.size() == 0;
       allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow list: if isAdmin();
-      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberIds", "linkedSections", "reviewedBy", "reviewedAt", "updatedAt"]);
+      allow update: if isAdmin()\n        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberIds", "linkedSections", "reviewedBy", "reviewedAt", "updatedAt"])\n        && (request.resource.data.status != "approved" || (request.resource.data.memberIds is list && request.resource.data.memberIds.size() > 0));
       allow delete: if false;
     }
 
