@@ -758,9 +758,6 @@ service cloud.firestore {
 
     match /subsPayments/{paymentId} {
       function accountIdFor(data) { return data.get("accountId", ""); }
-      function isClientOperationPaymentId() {
-        return paymentId.size() >= 8 && paymentId.size() <= 128;
-      }
       function hasValidSubsAccountLink() {
         let accountId = accountIdFor(request.resource.data);
         let accountPath = /databases/$(database)/documents/subsAccounts/$(accountId);
@@ -790,7 +787,6 @@ service cloud.firestore {
         && (canViewAllFinance()
           || (resource.data.section is string && hasSection(resource.data.section)));
       allow create: if canAccessFinanceSection(request.resource.data.section)
-        && isClientOperationPaymentId()
         && request.resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
         && request.resource.data.memberName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
