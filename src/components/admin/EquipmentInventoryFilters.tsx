@@ -63,7 +63,6 @@ export default function EquipmentInventoryFilters({
   onRefresh
 }: Props) {
   return <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-inventory-controls">
-    <Typography variant="h5" sx={{ fontWeight: 800 }}>Detailed inventory</Typography>
     <Typography color="text.secondary" sx={{ mb: 2 }}>
       Search and combine status, category and Store filters. Filters are kept in the URL so this view can be bookmarked and revisited.
     </Typography>
