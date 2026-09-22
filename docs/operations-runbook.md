@@ -22,6 +22,10 @@ For normal changes:
 
 The Firebase Hosting PR workflow builds a TEST-project preview. A merge to `main` triggers the stable TEST deployment only. Production deployment is a separate, protected `workflow_dispatch` action requiring the exact production project ID and a full commit SHA from `main`; a merge never deploys production automatically.
 
+After every merge to `main`, the exact merge SHA must produce all three post-merge signals: **Quality** (`quality`), **Playwright E2E** (`e2e`) and **Firebase TEST Deploy** (`deploy_test`). The **Post-merge CI Guard** starts when the TEST deployment completes and waits for the other exact-SHA checks. It also runs hourly so a failure where none of the expected push workflows starts is still surfaced. A missing, failed or cancelled required workflow/check makes the guard fail; do not continue release work until the missing evidence is explained or repaired.
+
+Expected release path: **PR checks → merge to main → exact-SHA Quality + E2E + TEST deploy/smoke → Post-merge CI Guard → manual production deployment**. The production workflow independently re-checks successful exact-SHA `quality` and `e2e` evidence and therefore remains fail-closed even if the guard is unavailable.
+
 Do not use a successful preview as evidence that Firestore authorization changes are safe; use the emulator-backed rules test workflow for that boundary.
 
 ## 3. Standard local validation
