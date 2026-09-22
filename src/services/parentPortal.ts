@@ -12,8 +12,7 @@ import {
     getDocs,
     runTransaction,
     serverTimestamp,
-    setDoc,
-    updateDoc
+    setDoc
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
