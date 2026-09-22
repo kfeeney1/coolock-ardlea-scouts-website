@@ -10,9 +10,9 @@ import {
     doc,
     getDoc,
     getDocs,
+    runTransaction,
     serverTimestamp,
-    setDoc,
-    updateDoc
+    setDoc
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -200,24 +200,36 @@ export async function updateParentAccess(uid: string, status: ParentAccessStatus
     if (!leader) throw new Error("No signed-in leader.");
 
     const accountRef = doc(db, "parentAccounts", uid);
-    const beforeSnapshot = await getDoc(accountRef);
-    const beforeAccount = beforeSnapshot.exists() ? mapParentAccount(uid, beforeSnapshot.data()) : null;
-    if (beforeSnapshot.exists() && !beforeAccount) throw new Error("Parent account does not match the canonical data contract.");
-
     const uniqueMemberIds = [...new Set(memberIds.map((id) => id.trim()).filter(Boolean))];
     const uniqueSections = [...new Set(linkedSections.map((section) => section.trim()).filter(Boolean))];
-    const preserveExistingLinks = status === "revoked" && beforeAccount;
+    if (status === "approved" && uniqueMemberIds.length === 0) {
+        throw new Error("At least one linked child is required before approving parent access.");
+    }
 
-    await updateDoc(accountRef, {
-        status,
-        memberIds: preserveExistingLinks ? beforeAccount.memberIds : status === "approved" ? uniqueMemberIds : [],
-        linkedSections: preserveExistingLinks ? beforeAccount.linkedSections : status === "approved" ? uniqueSections : [],
-        reviewedBy: leader.uid,
-        reviewedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+    const beforeAccount = await runTransaction(db, async (transaction): Promise<ParentAccount> => {
+        const beforeSnapshot = await transaction.get(accountRef);
+        if (!beforeSnapshot.exists()) throw new Error("Parent account no longer exists.");
+        const account = mapParentAccount(uid, beforeSnapshot.data());
+        if (!account) throw new Error("Parent account does not match the canonical data contract.");
+        if (status === "approved") {
+            const memberSnapshots = await Promise.all(uniqueMemberIds.map((memberId) => transaction.get(doc(db, "members", memberId))));
+            if (memberSnapshots.some((snapshot) => !snapshot.exists())) {
+                throw new Error("A linked child record changed or no longer exists. Refresh and review the links before approving access.");
+            }
+        }
+        const preserveExistingLinks = status === "revoked";
+        transaction.update(accountRef, {
+            status,
+            memberIds: preserveExistingLinks ? account.memberIds : status === "approved" ? uniqueMemberIds : [],
+            linkedSections: preserveExistingLinks ? account.linkedSections : status === "approved" ? uniqueSections : [],
+            reviewedBy: leader.uid,
+            reviewedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+        return account;
     });
 
-    if (!beforeAccount || beforeAccount.status === status) return;
+    if (beforeAccount.status === status) return;
     try {
         if (status === "approved") {
             await notifyParentAccessApproved({ ...beforeAccount, status: "approved", memberIds: uniqueMemberIds, linkedSections: uniqueSections }, uniqueMemberIds.length);

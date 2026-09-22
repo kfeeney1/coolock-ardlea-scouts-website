@@ -7,7 +7,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const PUBLIC_PROJECTION_VERSION = 2;
-const GROUP_ROLES = new Set(["group leader","deputy group leader","group chairperson","group secretary","group treasurer","group quartermaster","group quartermaster/bo'sun","group bo'sun","group youth champion"]);
+const GROUP_ROLES = new Set(["group leader","deputy group leader","group chairperson","group secretary","group treasurer","group quartermaster","group quartermaster/bo'sun","group bo'sun","group youth champion","group trainer"]);
 const SECTION_ROLES = new Set(["section leader","assistant section leader","programme scouter","scouter"]);
 const YOUTH_SECTIONS = new Set(["beavers","cubs","scouts","ventures","rovers"]);
 
