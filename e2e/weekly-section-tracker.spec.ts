@@ -19,7 +19,7 @@ async function openOrCreateLifecycleMeeting(page: Page): Promise<LifecycleMeetin
   if (await existing.count()) { await existing.first().click(); return "open"; }
   const closed = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" });
   if (await closed.count()) { await closed.first().getByRole("button", { name: "View / Edit" }).click(); return "closed"; }
-  await page.getByLabel("Meeting date").fill(lifecycleDate); await page.getByRole("button", { name: "Create Meeting" }).click(); await expect(page.getByText(/Meeting created with 2 activity\/game rows and 1 badgework row\./)).toBeVisible(); return "created";
+  await page.getByRole("link", { name: "Create Meeting" }).click(); await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible(); await page.getByLabel("Meeting date").fill(lifecycleDate); await page.getByRole("button", { name: "Create Meeting" }).click(); await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/); return "created";
 }
 
 async function normalizePlanner(page: Page) {
@@ -56,7 +56,7 @@ test("weekly meetings reject unauthenticated users", async ({ page }) => { await
 
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByLabel("Section", { exact: true })).toHaveText(/Scouts/);
+  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByRole("link", { name: "Create Meeting" })).toBeVisible();
   const lifecycleState = await openOrCreateLifecycleMeeting(page);
   if (lifecycleState === "closed") { await expectSectionLeaderHistoryRestrictions(page); return; }
   const created = lifecycleState === "created";
