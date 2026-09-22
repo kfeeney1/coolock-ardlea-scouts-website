@@ -60,7 +60,11 @@ export default function MemberManagement() {
   const visibleMembers = useMemo(() => members.filter((member) => { if (sectionFilter !== "all" && member.section !== sectionFilter) return false; if (statusFilter !== "all" && member.status !== statusFilter) return false; const query = search.trim().toLowerCase(); return !query || [member.displayName, member.parentName, member.emailAddress, member.mobileNumber, member.section, member.emergencyContactName, member.emergencyContactPhone].join(" ").toLowerCase().includes(query); }), [members, sectionFilter, statusFilter, search]);
   const counts = useMemo(() => ({ total: members.length, active: members.filter((m) => m.status === "active").length, inactive: members.filter((m) => m.status === "inactive").length, left: members.filter((m) => m.status === "left").length }), [members]);
   const summary: Array<[string, number, MemberStatus | "all"]> = [["Total", counts.total, "all"], ["Active", counts.active, "active"], ["Inactive", counts.inactive, "inactive"], ["Left", counts.left, "left"]];
-  const selectStatus = (status: MemberStatus | "all") => { setStatusFilter(status); moveToUiTargetAfterRender("member-results", { focus: true }); };
+  const selectStatus = (status: MemberStatus | "all") => {
+    setStatusFilter(status);
+    moveToUiTargetAfterRender("member-results", { focus: true });
+    window.setTimeout(() => moveToUiTargetAfterRender("member-results", { focus: true }), 100);
+  };
   const loadMemberConsents = async (member: MemberRecord) => { setLoadingConsents(true); setConsentLoadError(null); try { setConsents(await loadMemberConsentSummaries(member)); } catch (error) { console.error("Unable to load linked consents:", error); setConsentLoadError(error); } finally { setLoadingConsents(false); } };
   const closeMember = () => { setStatusConfirmationOpen(false); setLifecycleCandidates([]); setSelected(null); setDraft(null); };
   const openMember = async (member: MemberRecord) => { setSelected(member); setDraft({ ...member }); setConsents([]); setSaveError(""); setMessage(""); await loadMemberConsents(member); };
