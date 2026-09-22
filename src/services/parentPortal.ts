@@ -207,12 +207,11 @@ export async function updateParentAccess(uid: string, status: ParentAccessStatus
         throw new Error("At least one linked child is required before approving parent access.");
     }
 
-    let beforeAccount: ParentAccount | null = null;
-    await runTransaction(db, async (transaction) => {
+    const beforeAccount = await runTransaction(db, async (transaction): Promise<ParentAccount> => {
         const beforeSnapshot = await transaction.get(accountRef);
-        beforeAccount = beforeSnapshot.exists() ? mapParentAccount(uid, beforeSnapshot.data()) : null;
         if (!beforeSnapshot.exists()) throw new Error("Parent account no longer exists.");
-        if (!beforeAccount) throw new Error("Parent account does not match the canonical data contract.");
+        const account = mapParentAccount(uid, beforeSnapshot.data());
+        if (!account) throw new Error("Parent account does not match the canonical data contract.");
         if (status === "approved") {
             const memberSnapshots = await Promise.all(uniqueMemberIds.map((memberId) => transaction.get(doc(db, "members", memberId))));
             if (memberSnapshots.some((snapshot) => !snapshot.exists())) {
@@ -222,15 +221,16 @@ export async function updateParentAccess(uid: string, status: ParentAccessStatus
         const preserveExistingLinks = status === "revoked";
         transaction.update(accountRef, {
             status,
-            memberIds: preserveExistingLinks ? beforeAccount.memberIds : status === "approved" ? uniqueMemberIds : [],
-            linkedSections: preserveExistingLinks ? beforeAccount.linkedSections : status === "approved" ? uniqueSections : [],
+            memberIds: preserveExistingLinks ? account.memberIds : status === "approved" ? uniqueMemberIds : [],
+            linkedSections: preserveExistingLinks ? account.linkedSections : status === "approved" ? uniqueSections : [],
             reviewedBy: leader.uid,
             reviewedAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         });
+        return account;
     });
 
-    if (!beforeAccount || beforeAccount.status === status) return;
+    if (beforeAccount.status === status) return;
     try {
         if (status === "approved") {
             await notifyParentAccessApproved({ ...beforeAccount, status: "approved", memberIds: uniqueMemberIds, linkedSections: uniqueSections }, uniqueMemberIds.length);
