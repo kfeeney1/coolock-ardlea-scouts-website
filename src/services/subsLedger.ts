@@ -279,18 +279,23 @@ export async function recordSubsPayment(input: {
   method: SubsPaymentMethod;
   paymentDate: string;
   note: string;
+  operationId?: string;
 }): Promise<string> {
   const actor = uid();
-  const valid = validatePayment({ ...input, accountId: input.accountId ?? "", reversalOfPaymentId: "" });
-  const id = doc(collection(db, "subsPayments")).id;
-  await setDoc(doc(db, "subsPayments", id), { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
+  const { operationId, ...paymentInput } = input;
+  const valid = validatePayment({ ...paymentInput, accountId: paymentInput.accountId ?? "", reversalOfPaymentId: "" });
+  const id = operationId ?? doc(collection(db, "subsPayments")).id;
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
+  const paymentRef = doc(db, "subsPayments", id);
+  if ((await getDoc(paymentRef)).exists()) return id;
+  await setDoc(paymentRef, { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
     category: "finance",
     action: "subs-payment-recorded",
     targetId: id,
-    targetLabel: input.memberName,
-    description: `Subs payment recorded for ${input.period}${input.accountId ? " against the shared family account" : ""}.`,
-    section: input.section
+    targetLabel: paymentInput.memberName,
+    description: `Subs payment recorded for ${paymentInput.period}${paymentInput.accountId ? " against the shared family account" : ""}.`,
+    section: paymentInput.section
   });
   return id;
 }
