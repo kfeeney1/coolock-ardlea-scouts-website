@@ -118,7 +118,7 @@ test.describe("leader journey", () => {
 
     await login(page, leaderEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-    await expect(page.getByText(/Scouts Programme Scouter · leader · Scouts/i)).toBeVisible();
+    await expect(page.getByTestId("authenticated-header-identity")).toContainText("Scouts Programme Scouter");
 
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Leader Requests", exact: true })).toHaveCount(0);
