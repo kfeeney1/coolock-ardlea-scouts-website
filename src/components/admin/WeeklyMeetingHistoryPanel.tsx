@@ -77,7 +77,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button fullWidth onClick={() => onOpen(record)}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
-                {canEditPast && !readOnly && <Button fullWidth onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth onClick={() => onCopy(record)}>Copy Meeting</Button>}
+                {!readOnly && <Button fullWidth onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth onClick={() => onCopy(record)}>Copy Meeting</Button>}
               </Stack>
             </Stack>
           </Paper>;
