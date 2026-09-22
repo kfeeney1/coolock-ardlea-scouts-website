@@ -14,7 +14,7 @@ export function mapSubsMember(id: string, data: DocumentData): MemberRecord | nu
   return {
     id, firstName: text(data, "firstName") || parts[0] || "",
     lastName: text(data, "lastName") || (parts.length > 1 ? parts.at(-1)! : ""),
-    displayName, dateOfBirth: text(data, "dateOfBirth"), section,
+    displayName, displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto", dateOfBirth: text(data, "dateOfBirth"), section,
     parentName: text(data, "parentName"), emailAddress: text(data, "emailAddress"),
     mobileNumber: text(data, "mobileNumber"), emergencyContactName: text(data, "emergencyContactName"),
     emergencyContactPhone: text(data, "emergencyContactPhone"), status,
