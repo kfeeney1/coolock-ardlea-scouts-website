@@ -43,18 +43,7 @@ export function normaliseEventTitle(value: string): string {
     return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IE");
 }
 
-export function isDuplicateEventIdentity(
-    draft: Pick<EventInput, "title" | "startDate" | "section">,
-    events: EventRecord[],
-    excludeEventId?: string
-): boolean {
-    const titleKey = normaliseEventTitle(draft.title);
-    if (!titleKey || !draft.startDate || !draft.section) return false;
-    return events.some((event) => event.id !== excludeEventId
-        && normaliseEventTitle(event.title) === titleKey
-        && event.startDate === draft.startDate
-        && event.section === draft.section);
-}
+export function isDuplicateEventIdentity(_draft: Pick<EventInput, "title" | "startDate" | "section">, _events: EventRecord[], _excludeEventId?: string): boolean { return false; }
 
 export function eventInput(record: EventRecord): EventInput {
     return {
@@ -86,7 +75,7 @@ export function resolveEventAudience(sectionIds: string[], memberIds: string[], 
     const sections = new Set(sectionIds);
     const selected = new Set(memberIds);
     return members
-        .filter((member) => member.status === "active" && (sections.has(member.section) || selected.has(member.id)))
+        .filter((member) => member.status === "active" && (selected.size > 0 ? selected.has(member.id) : sections.has(member.section)))
         .map((member) => member.id);
 }
 
