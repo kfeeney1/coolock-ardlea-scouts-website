@@ -109,6 +109,13 @@ test("display name follows member name until deliberately customised", async ({ 
     const originalFirst = await firstName.inputValue();
     const originalLast = await lastName.inputValue();
 
+    // The canonical fixture intentionally has a legacy/custom display label.
+    // Reset it first so this test exercises the automatic-name lifecycle rather
+    // than incorrectly assuming every existing member is already automatic.
+    const reset = page.getByRole("button", { name: "Reset to automatic" });
+    if (await reset.isVisible()) await reset.click();
+    await expect(displayName).toHaveValue(`${originalFirst} ${originalLast}`);
+
     await firstName.fill(originalFirst + " Test");
     await expect(displayName).toHaveValue(`${originalFirst} Test ${originalLast}`);
 
