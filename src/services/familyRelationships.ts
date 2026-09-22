@@ -42,7 +42,31 @@ async function applyAssignments(members: readonly MemberRecord[], assignments: A
   });
 }
 
+export async function linkSiblings(members: readonly MemberRecord[], memberId: string, siblingIds: readonly string[]): Promise<void> {
+  await requireAdmin();
+  const uniqueSiblingIds = [...new Set(siblingIds.filter((id) => id && id !== memberId))];
+  if (!uniqueSiblingIds.length) throw new Error("Choose at least one different member to link as a sibling.");
+  let plannedMembers = members.map((member) => ({ ...member }));
+  const assignmentsById = new Map<string, string>();
+  for (const siblingId of uniqueSiblingIds) {
+    const assignments = planFamilyLink(plannedMembers, memberId, siblingId, nextFamilyId());
+    assignments.forEach(({ memberId: id, familyId }) => {
+      assignmentsById.set(id, familyId);
+      plannedMembers = plannedMembers.map((member) => member.id === id ? { ...member, familyId } : member);
+    });
+  }
+  const assignments = [...assignmentsById].map(([memberId, familyId]) => ({ memberId, familyId }));
+  if (!assignments.length) return;
+  await applyAssignments(members, assignments);
+  const member = members.find((item) => item.id === memberId);
+  await recordAuditEvent({ category: "member", action: "Family relationships linked", targetId: memberId, targetLabel: member?.displayName || memberId, section: member?.section || "", description: `Linked ${uniqueSiblingIds.length} sibling${uniqueSiblingIds.length === 1 ? "" : "s"} in one atomic family update.` });
+}
+
 export async function linkSibling(members: readonly MemberRecord[], memberId: string, siblingId: string): Promise<void> {
+  return linkSiblings(members, memberId, [siblingId]);
+}
+
+async function legacyLinkSibling(members: readonly MemberRecord[], memberId: string, siblingId: string): Promise<void> {
   await requireAdmin();
   const assignments = planFamilyLink(members, memberId, siblingId, nextFamilyId());
   if (!assignments.length) return;
