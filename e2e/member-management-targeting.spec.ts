@@ -95,3 +95,34 @@ test("member status change requires review and cancel does not persist it", asyn
     await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();
     await expect(page.getByRole("combobox").filter({ hasText: "Active" })).toBeVisible();
 });
+
+
+test("display name follows member name until deliberately customised", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/members/TEST_member_beaver_01");
+
+    const firstName = page.getByLabel("First name");
+    const lastName = page.getByLabel("Last name");
+    const displayName = page.getByLabel("Display name");
+    const originalFirst = await firstName.inputValue();
+    const originalLast = await lastName.inputValue();
+
+    await firstName.fill(originalFirst + " Test");
+    await expect(displayName).toHaveValue(`${originalFirst} Test ${originalLast}`);
+
+    await displayName.fill("Preferred Test Name");
+    await expect(page.getByRole("button", { name: "Reset to automatic" })).toBeVisible();
+    await lastName.fill(originalLast + " Changed");
+    await expect(displayName).toHaveValue("Preferred Test Name");
+
+    await page.getByRole("button", { name: "Reset to automatic" }).click();
+    await expect(displayName).toHaveValue(`${originalFirst} Test ${originalLast} Changed`);
+    await expect(page.getByRole("button", { name: "Reset to automatic" })).toBeHidden();
+
+    // Do not persist fixture mutations; reload proves the editor-only lifecycle is reversible.
+    await page.reload();
+    await expect(firstName).toHaveValue(originalFirst);
+    await expect(lastName).toHaveValue(originalLast);
+});
