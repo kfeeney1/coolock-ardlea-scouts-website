@@ -22,7 +22,7 @@ import { normalizeLeaderSections } from "./leaderAccessLogic";
 export type EventStatus = "draft" | "open" | "closed" | "completed";
 export type AttendanceStatus = "invited" | "attending" | "not-attending";
 export type EventConsentStatus = "not-required" | "required" | "received";
-export type EventAudience = { version: 1; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
+export type EventAudience = { version: 1; mode: "sections" | "members"; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
 
 export type EventRecord = {
     id: string;
@@ -89,7 +89,7 @@ function mapAudience(value: unknown): EventAudience | null {
         ? [...new Set(item.filter((entry): entry is string => typeof entry === "string" && Boolean(entry.trim())).map((entry) => entry.trim()))]
         : [];
     if (data.version !== 1) return null;
-    return { version: 1, sectionIds: ids(data.sectionIds), memberIds: ids(data.memberIds), resolvedMemberIds: ids(data.resolvedMemberIds) };
+    const memberIds=ids(data.memberIds); return { version: 1, mode: data.mode === "members" || (data.mode !== "sections" && memberIds.length > 0) ? "members" : "sections", sectionIds: ids(data.sectionIds), memberIds, resolvedMemberIds: ids(data.resolvedMemberIds) };
 }
 
 function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | null {
@@ -258,6 +258,12 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         if (issues.length > 0) throw new Error(issues.join(" "));
     }
 
+    const nextAudienceIds = input.audience?.resolvedMemberIds ?? [];
+    const previousAttendance = mapAttendance(current.attendance);
+    const previousConsent = mapConsent(current.consent);
+    const reconciledAttendance = Object.fromEntries(nextAudienceIds.map((id) => [id, previousAttendance[id] ?? "invited"]));
+    const reconciledConsent = Object.fromEntries(nextAudienceIds.map((id) => [id, previousConsent[id] ?? (input.consentRequired ? "required" : "not-required")]));
+
     await updateDoc(eventRef, {
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
@@ -272,6 +278,8 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         status: input.status,
         consentRequired: input.consentRequired,
         audience: input.audience,
+        attendance: reconciledAttendance,
+        consent: reconciledConsent,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     });

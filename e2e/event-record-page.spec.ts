@@ -40,10 +40,10 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(page.getByRole("button", { name: "Equipment", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Report", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export CSV", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Edit Event", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeVisible();
 });
 
-test("event completion requires explicit confirmation and cancel does not persist it", async ({ page }, testInfo) => {
+test("event editor uses a dedicated page and cancel does not persist changes", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -52,26 +52,15 @@ test("event completion requires explicit confirmation and cancel does not persis
   const record = page.getByTestId("event-record-TEST_flow_event_beavers_open");
   await expect(record.getByText("Open", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Edit Event", exact: true }).click();
-  const editor = page.getByRole("dialog", { name: "Edit Event" });
-  await expect(editor).toBeVisible();
-  await editor.getByRole("combobox").filter({ hasText: "Open" }).click();
-  await page.getByRole("option", { name: "Completed", exact: true }).click();
-  await editor.getByRole("button", { name: "Save Event", exact: true }).click();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open\/edit$/);
+  await expect(page.getByRole("heading", { name: /Edit event · TEST Beavers Open Day Trip/ })).toBeVisible();
+  await page.getByLabel("Event title").fill("Unsaved event title");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
 
-  const confirmation = page.getByRole("dialog", { name: "Complete this event?" });
-  await expect(confirmation).toBeVisible();
-  await expect(confirmation).toContainText("TEST Beavers Open Day Trip");
-  await expect(confirmation).toContainText("read-only event history");
-  await expect(confirmation.getByRole("button", { name: "Complete Event", exact: true })).toBeVisible();
-
-  await confirmation.getByRole("button", { name: "Cancel completion", exact: true }).click();
-  await expect(editor).toBeVisible();
-  await editor.getByRole("button", { name: "Cancel", exact: true }).click();
-
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(record.getByText("Open", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Edit Event", exact: true })).toBeEnabled();
+  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
+  await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
+  await expect(page.getByText("Unsaved event title")).toHaveCount(0);
 });
 
 test("blocked event report pop-ups use in-page error feedback", async ({ page }, testInfo) => {

@@ -44,7 +44,7 @@ test("mobile Back dismisses the public menu promptly before leaving the current 
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("mobile Back promptly closes a select, then its dialog, then returns to the previously seen record list", async ({ page }, testInfo) => {
+test("mobile Back leaves the full-page event editor and returns to the record, then the list", async ({ page }, testInfo) => {
   mobileOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -55,19 +55,11 @@ test("mobile Back promptly closes a select, then its dialog, then returns to the
   await card.click();
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
 
-  await page.getByRole("button", { name: "Edit Event", exact: true }).click();
-  const editor = page.getByRole("dialog", { name: "Edit Event" });
-  await expect(editor).toBeVisible();
-
-  await editor.getByRole("combobox").first().click();
-  await expect(page.getByRole("listbox")).toBeVisible();
-  await page.goBack();
-  await expect(page.getByRole("listbox")).toBeHidden({ timeout: BACK_RESPONSE_TIMEOUT_MS });
-  await expect(editor).toBeVisible();
-  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open\/edit$/);
+  await expect(page.getByRole("heading", { name: /Edit event · TEST Beavers Open Day Trip/ })).toBeVisible();
 
   await page.goBack();
-  await expect(editor).toBeHidden({ timeout: BACK_RESPONSE_TIMEOUT_MS });
   await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
 

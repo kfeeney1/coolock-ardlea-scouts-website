@@ -27,6 +27,7 @@ test("section leader Weekly Meeting update is visible in the Activity Log", asyn
 
   await login(page, leaderEmail!);
   await page.goto("/leader/weekly");
+  await page.getByRole("link", { name: "Create Meeting" }).click();
   await page.getByLabel("Meeting date").fill(auditDate);
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();

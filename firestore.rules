@@ -337,7 +337,7 @@ service cloud.firestore {
         && request.resource.data.status in ["draft", "open", "closed", "completed"];
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "attendance", "consent", "updatedAt", "updatedBy"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
       allow delete: if false;
     }
 

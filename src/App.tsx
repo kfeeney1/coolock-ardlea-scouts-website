@@ -40,6 +40,8 @@ const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
 const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
 const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
 const WeeklySectionTracker = lazy(() => import("./pages/WeeklySectionTracker"));
+const CreateWeeklyMeetingPage = lazy(() => import("./pages/CreateWeeklyMeetingPage"));
+const EventEditPage = lazy(() => import("./pages/EventEditPage"));
 const BadgeworkTracking = lazy(() => import("./pages/BadgeworkTracking"));
 const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
 const EquipmentRecordPage = lazy(() => import("./pages/EquipmentRecordPage"));
@@ -94,6 +96,7 @@ export default function App() {
         <Route path="/leader/communications" element={protectedRoute(<LeaderCommunications />)} />
         <Route path="/leader/meetings" element={protectedRoute(<MeetingRecords />)} />
         <Route path="/leader/weekly" element={protectedRoute(<WeeklySectionTracker />)} />
+        <Route path="/leader/weekly/create" element={protectedRoute(<CreateWeeklyMeetingPage />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
         <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
         <Route path="/leader/equipment/:equipmentId" element={protectedRoute(<EquipmentRecordPage />)} />
@@ -110,6 +113,7 @@ export default function App() {
         <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
         <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
         <Route path="/leader/events/:eventId" element={protectedRoute(<EventRecordPage />)} />
+        <Route path="/leader/events/:eventId/edit" element={protectedRoute(<EventEditPage />)} />
         <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
         <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
         <Route path="/leader/policies" element={protectedRoute(<PolicyDocuments />)} />

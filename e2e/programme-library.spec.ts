@@ -20,6 +20,7 @@ async function openOrCreate(page: Page) {
   const existing = page.getByRole("button", { name: /6 May 2099 · Scouts/ });
   if (await existing.count()) await existing.first().click();
   else {
+    await page.getByRole("link", { name: "Create Meeting" }).click();
     await page.getByLabel("Meeting date").fill("2099-05-06");
     await page.getByRole("button", { name: "Create Meeting" }).click();
   }

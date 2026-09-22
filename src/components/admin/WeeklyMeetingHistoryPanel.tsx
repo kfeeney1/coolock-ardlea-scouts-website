@@ -13,6 +13,7 @@ type Props = {
   readOnly: boolean;
   onOpen: (record: WeeklyMeetingRecord) => void;
   onCopy: (record: WeeklyMeetingRecord) => void;
+  onReopen: (record: WeeklyMeetingRecord) => void;
 };
 
 const displayDate = (value: string) => {
@@ -20,7 +21,7 @@ const displayDate = (value: string) => {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
 };
 
-export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onOpen, onCopy }: Props) {
+export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onOpen, onCopy, onReopen }: Props) {
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -76,7 +77,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button fullWidth onClick={() => onOpen(record)}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
-                {!readOnly && <Button fullWidth onClick={() => onCopy(record)}>Copy Meeting</Button>}
+                {!readOnly && <Button fullWidth onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth onClick={() => onCopy(record)}>Copy Meeting</Button>}
               </Stack>
             </Stack>
           </Paper>;

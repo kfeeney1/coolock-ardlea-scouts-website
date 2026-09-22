@@ -2,7 +2,6 @@ import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Ty
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import EventEditorDialog from "../components/admin/EventEditorDialog";
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
 import EventRosterDialog from "../components/admin/EventRosterDialog";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -13,9 +12,9 @@ import { loadEquipmentItems } from "../services/equipment";
 import type { EquipmentItem } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
-import { loadEvents, updateEvent, updateEventRoster } from "../services/eventAdmin";
-import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord } from "../services/eventAdmin";
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel, isDuplicateEventIdentity, resolveEventAudience } from "../services/eventManagementLogic";
+import { loadEvents, updateEventRoster } from "../services/eventAdmin";
+import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../services/eventAdmin";
+import { eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
@@ -31,16 +30,12 @@ export default function EventRecordPage() {
     const { eventId = "" } = useParams();
     const navigate = useNavigate();
     const [event, setEvent] = useState<EventRecord | null>(null);
-    const [events, setEvents] = useState<EventRecord[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>([]);
     const [equipmentLoans, setEquipmentLoans] = useState<EquipmentLoan[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState<EventInput | null>(null);
-    const [saving, setSaving] = useState(false);
     const [rosterOpen, setRosterOpen] = useState(false);
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [consent, setConsent] = useState<Record<string, EventConsentStatus>>({});
@@ -57,7 +52,6 @@ export default function EventRecordPage() {
             ]);
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
             setEvent(requested);
-            setEvents(loadedEvents);
             setMembers(loadedMembers);
             setEquipmentItems(loadedItems);
             setEquipmentLoans(loadedLoans);
@@ -81,38 +75,6 @@ export default function EventRecordPage() {
         memberIds: attendingMemberIds,
         returnTo: `/leader/events/${encodeURIComponent(event.id)}`
     }) : "/leader/badgework";
-
-    const openEdit = () => {
-        if (!event || event.status === "completed") return;
-        setDraft(eventInput(event));
-        setEditing(true);
-        setMessage("");
-        setError("");
-    };
-
-    const saveEvent = async () => {
-        if (!event || !draft) return;
-        if (!draft.title.trim()) return setError("Event title is required.");
-        if (!draft.startDate) return setError("Start date is required.");
-        if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
-        if (isDuplicateEventIdentity(draft, events, event.id)) return setError("Another event with this title, start date and section already exists. Update the existing event instead.");
-        setSaving(true);
-        setError("");
-        try {
-            const sectionIds = draft.audience?.sectionIds ?? [];
-            const memberIds = draft.audience?.memberIds ?? [];
-            const audience = draft.audience ? { ...draft.audience, resolvedMemberIds: resolveEventAudience(sectionIds, memberIds, members) } : null;
-            await updateEvent(event.id, { ...draft, audience });
-            setEditing(false);
-            setMessage(draft.status === "completed" ? "Event completed and moved to history." : "Event updated.");
-            await load();
-        } catch (saveError) {
-            console.error("Unable to save event:", saveError);
-            setError("Unable to save the event.");
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const openRoster = () => {
         if (!event) return;
@@ -222,11 +184,10 @@ export default function EventRecordPage() {
                         <Button variant="outlined" color="primary" onClick={() => setEquipmentOpen(true)}>Equipment</Button>
                         <Button variant="outlined" color="secondary" onClick={printRoster}>Report</Button>
                         <Button variant="outlined" color="secondary" onClick={exportRoster}>Export CSV</Button>
-                        <Button variant="outlined" color="secondary" disabled={event.status === "completed"} onClick={openEdit}>Edit Event</Button>
+                        <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>
                     </Box>
                 </Paper>
 
-                <EventEditorDialog open={editing} editing={event} draft={draft ?? eventInput(event)} saving={saving} members={members} onClose={() => setEditing(false)} onChange={setDraft} onSave={() => void saveEvent()} />
                 <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
                 <EventGalleryDialog event={galleryOpen ? event : null} onClose={() => setGalleryOpen(false)} />
                 {equipmentOpen && <ProgrammeEquipmentDialog open sourceType={event.eventType.toLowerCase().includes("activity") ? "activity" : "event"} sourceId={event.id} sourceLabel={event.title} section={event.section} date={event.startDate} items={equipmentItems} loans={equipmentLoans} readOnly={event.status === "completed"} onClose={() => setEquipmentOpen(false)} onChanged={load} />}
