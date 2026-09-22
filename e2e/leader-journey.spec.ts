@@ -83,7 +83,7 @@ test.describe("leader journey", () => {
       await expect(page.getByText("Pending Scouter")).toBeVisible();
       await expect(page.getByText("test_flow_leader_request_pending@example.com")).toBeVisible();
       await expect(page.getByText(/Scouter · Beavers/)).toBeVisible();
-      await expect(page.getByRole("button", { name: "Review Request" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /Review leader request for Pending Scouter/i })).toBeVisible();
     }
   });
 
