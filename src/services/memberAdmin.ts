@@ -342,7 +342,10 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
     if (data.formType !== "youth-activity-consent") return [];
     const childName = stringValue(data, "childName");
     const childDOB = stringValue(data, "childDOB");
-    if (!childName || !childDOB || childName.toLowerCase() !== memberName || childDOB !== memberDob) return [];
+    const linkedMemberId = stringValue(data, "memberId");
+    const stableIdMatch = linkedMemberId === member.id;
+    const legacyIdentityMatch = !linkedMemberId && childName && childDOB && childName.toLowerCase() === memberName && childDOB === memberDob;
+    if (!stableIdMatch && !legacyIdentityMatch) return [];
     return [{
       consentId: consentSnapshot.id,
       memberName: childName,
