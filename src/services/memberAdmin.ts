@@ -193,12 +193,14 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 
   const automaticName = automaticDisplayName(input.firstName, input.lastName);
   const requestedName = clean(input.displayName, 200);
-  const displayName = requestedName && requestedName !== automaticName ? requestedName : automaticName;
+  const displayNameMode = input.displayNameMode === "custom" ? "custom" : "auto";
+  const displayName = displayNameMode === "custom" ? requestedName : automaticName;
+  if (displayNameMode === "custom" && !displayName) throw new Error("Custom display name is required.");
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
     lastName: clean(input.lastName, 100),
     displayName,
-    displayNameMode: displayName === automaticName ? "auto" : "custom",
+    displayNameMode,
     dateOfBirth: clean(input.dateOfBirth, 20),
     section: clean(input.section, 40),
     parentName: clean(input.parentName, 200),
