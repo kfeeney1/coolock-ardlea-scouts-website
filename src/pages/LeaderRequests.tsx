@@ -17,7 +17,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     approveLeaderRegistration,
@@ -40,11 +40,12 @@ type ReviewDecision = "approve" | "reject";
 export default function LeaderRequests() {
     const { user, adminProfile } = useAdminAuth();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [requests, setRequests] = useState<LeaderRegistrationRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
-    const [search, setSearch] = useState("");
+    const search = searchParams.get("q") || "";
     const [selected, setSelected] = useState<LeaderRegistrationRequest | null>(null);
     const [reviewNote, setReviewNote] = useState("");
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
@@ -167,7 +168,12 @@ export default function LeaderRequests() {
                             fullWidth
                             label="Search requests"
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                const next = new URLSearchParams(searchParams);
+                                if (event.target.value) next.set("q", event.target.value);
+                                else next.delete("q");
+                                setSearchParams(next, { replace: true });
+                            }}
                         />
                         <Chip
                             label={`${pendingCount} pending`}

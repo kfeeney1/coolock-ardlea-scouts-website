@@ -10,7 +10,7 @@ import {
   type LeaderDelegationTarget
 } from "../security/leaderDelegationPolicy.ts";
 import { activeScoutingAppointments, normalizeScoutingAppointment, normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../security/scoutingAppointments.ts";
-import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
+import { canonicalLeaderAppointments, canonicalOrganisationSection, normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
 import { buildPublicLeadershipAppointments, isAllowedPublicAppointment, PUBLIC_PROJECTION_VERSION, shouldPublishLeaderAppointments } from "./publicWhosWhoLogic";
 
 export type LeaderAccessRecord = {
@@ -51,6 +51,7 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
     const role: SystemRole = normalizeLeaderRole(data.role);
     const sections = normalizeLeaderSections(data);
     const org = byUid.get(item.id);
+    const organisationSection = canonicalOrganisationSection(sections, org?.organisationSection);
     return {
       uid: item.id,
       displayName: typeof data.displayName === "string" ? data.displayName : "Leader",
@@ -59,8 +60,8 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
       active: data.active === true,
       sections,
       scoutingRole: typeof org?.scoutingRole === "string" ? org.scoutingRole : "",
-      appointments: normalizeScoutingAppointmentAssignments(org?.appointments, org?.scoutingRole, org?.organisationSection),
-      organisationSection: typeof org?.organisationSection === "string" ? org.organisationSection : sections[0] || "Group",
+      appointments: canonicalLeaderAppointments(org?.appointments, sections, org?.scoutingRole, organisationSection),
+      organisationSection,
       organisationOrder: typeof org?.organisationOrder === "number" ? org.organisationOrder : 999,
       reportsToUid: typeof org?.reportsToUid === "string" ? org.reportsToUid : "",
       showPublicly: org?.showPublicly === true,
@@ -73,7 +74,8 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string, actorEmail: string): Promise<void> {
   const sections = [...new Set(record.sections.map((section) => section.trim()).filter(Boolean))];
   if (sections.length === 0) throw new Error("Leader access requires at least one canonical section.");
-  const appointments = normalizeScoutingAppointmentAssignments(record.appointments, record.scoutingRole, record.organisationSection);
+  const organisationSection = canonicalOrganisationSection(sections, record.organisationSection);
+  const appointments = canonicalLeaderAppointments(record.appointments, sections, record.scoutingRole, organisationSection);
   const activeAppointments = activeScoutingAppointments(appointments);
   const canonicalAppointment = activeAppointments[0]?.appointment || normalizeScoutingAppointment(record.scoutingRole);
   if (record.role === "leader" && appointments.some((item) => !normalizeScoutingAppointment(item.appointment))) throw new Error("Unsupported Scouting appointment.");
@@ -138,7 +140,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     }
     if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new Error("You cannot change this account's active state.");
 
-    const orgChanged = currentOrg?.organisationSection !== record.organisationSection
+    const orgChanged = currentOrg?.organisationSection !== organisationSection
       || currentOrg?.organisationOrder !== record.organisationOrder
       || (currentOrg?.reportsToUid ?? "") !== record.reportsToUid
       || (currentOrg?.showPublicly === true) !== record.showPublicly;
@@ -162,7 +164,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         displayName: record.displayName.trim().slice(0, 120),
         scoutingRole: safeAppointment,
         appointments,
-        organisationSection: record.organisationSection.trim().slice(0, 80),
+        organisationSection: organisationSection.slice(0, 80),
         organisationOrder: Math.max(0, Math.min(999, Math.round(record.organisationOrder))),
         reportsToUid: record.reportsToUid.trim().slice(0, 128),
         showPublicly: record.showPublicly,
@@ -216,7 +218,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       targetId: record.uid,
       targetLabel: record.displayName || record.email,
       description: `System role ${currentRole} -> ${record.role}; appointments ${currentAppointments.map((item) => item.appointment + "@" + item.scope).join(", ") || "none"} -> ${appointments.map((item) => item.appointment + "@" + item.scope).join(", ") || "none"}; sections ${currentSections.join(", ")} -> ${sections.join(", ")}.`,
-      section: record.organisationSection,
+      section: organisationSection,
       createdAt: serverTimestamp()
     });
   });
