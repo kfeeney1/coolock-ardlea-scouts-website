@@ -50,6 +50,17 @@ export function isGroupLeadershipAppointment(value: unknown): boolean {
   return canonical === "Group Leader" || canonical === "Deputy Group Leader";
 }
 
+export function isGroupScopedAppointment(value: unknown): boolean {
+  const canonical = normalizeScoutingAppointment(value);
+  return canonical === "Group Leader"
+    || canonical === "Deputy Group Leader"
+    || canonical === "Group Secretary"
+    || canonical === "Group Treasurer"
+    || canonical === "Group Quartermaster / Bo'sun"
+    || canonical === "Group Chairperson"
+    || canonical === "Group Youth Champion";
+}
+
 
 export type ScoutingAppointmentAssignment = {
   id: string;
