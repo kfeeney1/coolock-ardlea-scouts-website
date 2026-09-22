@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
@@ -287,22 +287,29 @@ export async function recordSubsPayment(input: {
   const id = operationId ?? doc(collection(db, "subsPayments")).id;
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
   const paymentRef = doc(db, "subsPayments", id);
-  const existing = await getDoc(paymentRef);
-  if (existing.exists()) {
-    const data = existing.data();
-    const sameOperation = data.recordedBy === actor
-      && data.memberId === valid.memberId
-      && data.period === valid.period
-      && data.accountId === valid.accountId
-      && data.amountCents === valid.amountCents
-      && data.method === valid.method
-      && data.paymentDate === valid.paymentDate
-      && data.note === valid.note
-      && data.reversalOfPaymentId === "";
-    if (!sameOperation) throw new Error("This payment operation identifier has already been used.");
-    return id;
-  }
-  await setDoc(paymentRef, { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
+  let created = false;
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(paymentRef);
+    if (existing.exists()) {
+      const data = existing.data();
+      const sameOperation = data.recordedBy === actor
+        && data.memberId === valid.memberId
+        && data.memberName === valid.memberName
+        && data.section === valid.section
+        && data.period === valid.period
+        && data.accountId === valid.accountId
+        && data.amountCents === valid.amountCents
+        && data.method === valid.method
+        && data.paymentDate === valid.paymentDate
+        && data.note === valid.note
+        && data.reversalOfPaymentId === "";
+      if (!sameOperation) throw new Error("This payment operation identifier has already been used.");
+      return;
+    }
+    transaction.set(paymentRef, { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
+    created = true;
+  });
+  if (!created) return id;
   void recordAuditEvent({
     category: "finance",
     action: "subs-payment-recorded",
