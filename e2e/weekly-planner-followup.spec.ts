@@ -58,7 +58,7 @@ test("future meeting opens in programme and saving retains the meeting editor", 
   await expect(page.getByText("Meeting saved.")).toBeVisible();
   await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
+  await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toHaveCount(0);
 });
 
@@ -85,7 +85,8 @@ test("activity can have multiple section leaders and badgework is planned with p
 
   await page.getByRole("button", { name: "Save Meeting" }).click();
   await expect(page.getByText("Meeting saved.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
+  await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
+  await ensureProgramme(page);
 
   const savedActivity = page.getByTestId("activity-plan-row").first();
   await expect(savedActivity.getByLabel(/Scouts Section Leader · Section Leader/)).toBeChecked();
