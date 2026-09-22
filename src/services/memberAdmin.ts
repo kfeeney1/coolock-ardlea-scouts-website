@@ -31,7 +31,7 @@ export type MemberRecord = {
   firstName: string;
   lastName: string;
   displayName: string;
-  displayNameMode: "auto" | "custom";
+  displayNameMode?: "auto" | "custom";
   dateOfBirth: string;
   section: string;
   parentName: string;
@@ -247,7 +247,7 @@ export async function updateMember(
   );
 
   const automaticName = automaticDisplayName(updates.firstName, updates.lastName);
-  const requestedDisplayName = nextDisplayName;
+  const requestedDisplayName = clean(updates.displayName, 200);
   const displayNameMode = requestedDisplayName && requestedDisplayName !== automaticName ? "custom" : "auto";
   const nextDisplayName = displayNameMode === "auto" ? automaticName : requestedDisplayName;
 
