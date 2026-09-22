@@ -85,7 +85,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
                                     <TextField required label="Event title" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                     <FormControl><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => onChange({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select></FormControl>
-                                    <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 1, sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+                                    <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 1, mode: "sections", sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
 <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                                         <Typography variant="subtitle2" gutterBottom>Selected members</Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Optional: invite individual members without inviting their whole section.</Typography>
@@ -95,7 +95,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                                 return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} variant={selected ? "filled" : "outlined"} clickable onClick={() => {
                                                     const current = draft.audience?.memberIds ?? [];
                                                     const memberIds = selected ? current.filter((id) => id !== member.id) : [...current, member.id];
-                                                    onChange({ ...draft, audience: { version: 1, sectionIds: draft.audience?.sectionIds ?? [], memberIds, resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } });
+                                                    onChange({ ...draft, audience: { version: 1, mode: memberIds.length ? "members" : "sections", sectionIds: draft.audience?.sectionIds ?? [], memberIds, resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } });
                                                 }} />;
                                             })}
                                         </Stack>
