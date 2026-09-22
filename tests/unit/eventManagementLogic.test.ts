@@ -51,17 +51,15 @@ test("eventInput strips roster data and keeps editable fields", () => {
     assert.equal("consent" in draft, false);
 });
 
-test("event identity duplicate checks normalize title and preserve date and section scope", () => {
+test("event identity is stable-ID based and does not reject same-date records", () => {
     assert.equal(normaliseEventTitle("  CUB   Camp "), "cub camp");
-    assert.equal(isDuplicateEventIdentity({ title: " cub camp ", startDate: "2026-10-02", section: "Cubs" }, [event]), true);
+    assert.equal(isDuplicateEventIdentity({ title: " cub camp ", startDate: "2026-10-02", section: "Cubs" }, [event]), false);
     assert.equal(isDuplicateEventIdentity({ title: "Cub Camp", startDate: "2026-10-03", section: "Cubs" }, [event]), false);
-    assert.equal(isDuplicateEventIdentity({ title: "Cub Camp", startDate: "2026-10-02", section: "Scouts" }, [event]), false);
 });
 
-test("event identity duplicate checks exclude the record being edited", () => {
+test("same-date same-title events remain independent records", () => {
     const another = { ...event, id: "event-2" };
-    assert.equal(isDuplicateEventIdentity(eventInput(event), [event], "event-1"), false);
-    assert.equal(isDuplicateEventIdentity(eventInput(event), [event, another], "event-1"), true);
+    assert.equal(isDuplicateEventIdentity(eventInput(event), [event, another], "event-1"), false);
 });
 
 test("event roster exports preserve operational fields and escape print HTML", () => {
@@ -80,8 +78,9 @@ test("event roster filename remains stable", () => {
 });
 
 
-test("resolveEventAudience deduplicates section and individual targeting and excludes inactive members", () => {
-    assert.deepEqual(resolveEventAudience(["Cubs"], ["m1", "m4", "m3"], members), ["m1", "m2", "m4"]);
+test("resolveEventAudience uses selected members when present and excludes inactive members", () => {
+    assert.deepEqual(resolveEventAudience(["Cubs"], ["m1", "m4", "m3"], members), ["m1", "m4"]);
+    assert.deepEqual(resolveEventAudience(["Cubs"], [], members), ["m1", "m2"]);
 });
 
 test("eventMembers uses the persisted resolved audience for new events and preserves historical invitees", () => {
