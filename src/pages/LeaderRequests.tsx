@@ -194,10 +194,10 @@ export default function LeaderRequests() {
                             <Paper
                                 key={request.uid}
                                 variant="outlined"
-                                component="button"
-                                type="button"
+                                component={request.status === "rejected" ? "div" : "button"}
+                                type={request.status === "rejected" ? undefined : "button"}
                                 onClick={() => request.status === "approved" ? navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : request.status === "pending" ? (setDecision(null), setSelected(request)) : undefined}
-                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : request.status === "pending" ? `Review leader request for ${request.fullName}` : `Leader request for ${request.fullName}`}
+                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : request.status === "pending" ? `Review leader request for ${request.fullName}` : undefined}
                                 sx={{
                                     p: { xs: 2, sm: 2.5 },
                                     width: "100%",
