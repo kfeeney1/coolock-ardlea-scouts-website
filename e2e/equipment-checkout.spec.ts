@@ -244,8 +244,8 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await expect(card.getByText("0 total", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Edit" }).click();
   await expect(page).toHaveURL(/\/leader\/equipment\/[^/]+$/);
-  const record = page.getByRole("heading", { name: itemName, exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiContainer-root')][1]");
-  await record.getByRole("button", { name: "Edit", exact: true }).click();
+  const summary = page.getByText("0 total", { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  await summary.getByRole("button", { name: "Edit", exact: true }).click();
   const editQuantity = page.getByLabel("Total quantity");
   await expect(editQuantity).toHaveValue("0");
   await editQuantity.fill("");
