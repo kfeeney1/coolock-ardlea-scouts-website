@@ -21,6 +21,7 @@ const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-I
 export default function MemberRecordPage() {
   const { memberId = "" } = useParams();
   const location = useLocation();
+  const returnTo = typeof (location.state as { familyReturnTo?: unknown } | null)?.familyReturnTo === "string" ? (location.state as { familyReturnTo: string }).familyReturnTo : "/leader/members";
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [member, setMember] = useState<MemberRecord | null>(null);
   const [draft, setDraft] = useState<MemberRecord | null>(null);
@@ -151,7 +152,7 @@ export default function MemberRecordPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <Button component={Link} to="/leader/members" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>Back to Member Management</Button>
+      <Button component={Link} to={returnTo} startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>Back to Member Management</Button>
       <LeaderPageHeader title={member?.displayName || "Member Record"} description="Member details, consent indicators and membership history in one record." />
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
