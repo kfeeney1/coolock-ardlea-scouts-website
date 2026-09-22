@@ -31,6 +31,7 @@ export type MemberRecord = {
   firstName: string;
   lastName: string;
   displayName: string;
+  displayNameMode?: "auto" | "custom";
   dateOfBirth: string;
   section: string;
   parentName: string;
@@ -110,6 +111,7 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
   return {
     id: snapshot.id,
     ...required,
+    displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto",
     parentName: stringValue(data, "parentName"),
     emailAddress: stringValue(data, "emailAddress"),
     mobileNumber: stringValue(data, "mobileNumber"),
@@ -139,6 +141,10 @@ function hasMedicalAlert(data: DocumentData): boolean {
 
 function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
+}
+
+export function automaticDisplayName(firstName: string, lastName: string): string {
+  return [clean(firstName, 100), clean(lastName, 100)].filter(Boolean).join(" ");
 }
 
 export async function loadMembers(): Promise<MemberRecord[]> {
@@ -179,11 +185,14 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
   const canonicalError = canonicalMemberFieldError(input);
   if (canonicalError) throw new Error(canonicalError);
 
-  const displayName = clean(input.displayName, 200);
+  const automaticName = automaticDisplayName(input.firstName, input.lastName);
+  const requestedName = clean(input.displayName, 200);
+  const displayName = requestedName && requestedName !== automaticName ? requestedName : automaticName;
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
     lastName: clean(input.lastName, 100),
     displayName,
+    displayNameMode: displayName === automaticName ? "auto" : "custom",
     dateOfBirth: clean(input.dateOfBirth, 20),
     section: clean(input.section, 40),
     parentName: clean(input.parentName, 200),
@@ -237,10 +246,16 @@ export async function updateMember(
     { section: nextSection, status: updates.status }
   );
 
+  const automaticName = automaticDisplayName(updates.firstName, updates.lastName);
+  const requestedDisplayName = clean(updates.displayName, 200);
+  const displayNameMode = requestedDisplayName && requestedDisplayName !== automaticName ? "custom" : "auto";
+  const nextDisplayName = displayNameMode === "auto" ? automaticName : requestedDisplayName;
+
   const memberUpdate = {
     firstName: clean(updates.firstName, 100),
     lastName: clean(updates.lastName, 100),
-    displayName: clean(updates.displayName, 200),
+    displayName: nextDisplayName,
+    displayNameMode,
     dateOfBirth: clean(updates.dateOfBirth, 20),
     section: nextSection,
     parentName: clean(updates.parentName, 200),
@@ -259,7 +274,7 @@ export async function updateMember(
     batch.update(memberRef, memberUpdate);
     batch.set(historyRef, {
       memberId,
-      memberName: clean(updates.displayName, 200),
+      memberName: nextDisplayName,
       changeType,
       fromSection: previousSection,
       toSection: nextSection,
@@ -274,7 +289,7 @@ export async function updateMember(
       category: "member",
       action: lifecycleChangeLabel(changeType),
       targetId: memberId,
-      targetLabel: clean(updates.displayName, 200),
+      targetLabel: nextDisplayName,
       section: nextSection,
       description: `${previousSection} / ${previousStatus} → ${nextSection} / ${updates.status}.`
     });
@@ -286,7 +301,7 @@ export async function updateMember(
     category: "member",
     action: "Member updated",
     targetId: memberId,
-    targetLabel: clean(updates.displayName, 200),
+    targetLabel: nextDisplayName,
     section: nextSection,
     description: `Updated member record; status is ${updates.status}.`
   });
@@ -327,7 +342,10 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
     if (data.formType !== "youth-activity-consent") return [];
     const childName = stringValue(data, "childName");
     const childDOB = stringValue(data, "childDOB");
-    if (!childName || !childDOB || childName.toLowerCase() !== memberName || childDOB !== memberDob) return [];
+    const linkedMemberId = stringValue(data, "memberId");
+    const stableIdMatch = linkedMemberId === member.id;
+    const legacyIdentityMatch = !linkedMemberId && childName && childDOB && childName.toLowerCase() === memberName && childDOB === memberDob;
+    if (!stableIdMatch && !legacyIdentityMatch) return [];
     return [{
       consentId: consentSnapshot.id,
       memberName: childName,

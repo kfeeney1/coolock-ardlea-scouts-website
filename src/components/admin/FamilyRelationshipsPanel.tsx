@@ -2,11 +2,11 @@ import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogContentText, DialogTitle, Paper, Stack, TextField, Typography
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { familySearchResults } from "../../services/familyRelationshipLogic";
-import { linkSibling, unlinkFromFamily } from "../../services/familyRelationships";
+import { linkSiblings, unlinkFromFamily } from "../../services/familyRelationships";
 import type { MemberRecord } from "../../services/memberAdmin";
 
 type Props = {
@@ -16,7 +16,8 @@ type Props = {
 };
 
 export default function FamilyRelationshipsPanel({ member, members, onChanged }: Props) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(member.lastName.trim());
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [unlinkConfirmOpen, setUnlinkConfirmOpen] = useState(false);
@@ -26,16 +27,19 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
     [member, members]
   );
   const results = useMemo(() => familySearchResults(members, member, search), [members, member, search]);
+  useEffect(() => { setSearch(member.lastName.trim()); setSelectedIds([]); }, [member.id, member.lastName]);
 
-  const link = async (siblingId: string) => {
+  const linkSelected = async () => {
+    if (!selectedIds.length) return;
     setWorking(true); setError("");
     try {
-      await linkSibling(members, member.id, siblingId);
-      setSearch("");
+      await linkSiblings(members, member.id, selectedIds);
+      setSelectedIds([]);
+      setSearch(member.lastName.trim());
       await onChanged();
     } catch (linkError) {
-      console.error("Unable to link sibling:", linkError);
-      setError(linkError instanceof Error ? linkError.message : "Unable to link this sibling.");
+      console.error("Unable to link siblings:", linkError);
+      setError(linkError instanceof Error ? linkError.message : "Unable to link these siblings.");
     } finally { setWorking(false); }
   };
 
@@ -75,15 +79,16 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
       {member.familyId && <Box><Button variant="outlined" color="error" disabled={working} onClick={() => setUnlinkConfirmOpen(true)}>{working ? "Updating..." : "Remove from family"}</Button></Box>}
       <Box>
         <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Link sibling</Typography>
-        <TextField fullWidth label="Search existing members" value={search} disabled={working} onChange={(event) => setSearch(event.target.value)} placeholder="Member name or section" />
+        <TextField fullWidth label="Search existing members" value={search} disabled={working} onChange={(event) => setSearch(event.target.value)} placeholder="Member name or section" helperText={member.lastName.trim() ? "Started with this member’s surname; you can clear or replace it." : undefined} />
         {working && <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}><CircularProgress size={18} /><Typography color="text.secondary">Updating family relationship…</Typography></Box>}
         {search.trim() && results.length === 0 && <Alert severity="info" sx={{ mt: 1.5 }}>No eligible members match. Current family members are excluded.</Alert>}
         {results.length > 0 && <Stack spacing={1} sx={{ mt: 1.5 }}>
           {results.map((candidate) => <Paper key={candidate.id} variant="outlined" sx={{ p: 1.5, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1, justifyContent: "space-between", alignItems: { sm: "center" } }}>
             <Box><Typography sx={{ fontWeight: 700 }}>{candidate.displayName}</Typography><Typography variant="body2" color="text.secondary">{candidate.section} · {candidate.status}{candidate.familyId ? " · already in another family (groups will merge)" : ""}</Typography></Box>
-            <Button variant="contained" color="secondary" disabled={working} onClick={() => void link(candidate.id)}>Link sibling</Button>
+            <Button variant={selectedIds.includes(candidate.id) ? "contained" : "outlined"} color="secondary" disabled={working} aria-pressed={selectedIds.includes(candidate.id)} onClick={() => setSelectedIds((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id])}>{selectedIds.includes(candidate.id) ? "Selected" : "Select"}</Button>
           </Paper>)}
         </Stack>}
+        {selectedIds.length > 0 && <Stack direction="row" spacing={1} sx={{ mt: 2, alignItems: "center", flexWrap: "wrap" }}><Typography>{selectedIds.length} sibling{selectedIds.length === 1 ? "" : "s"} selected</Typography><Button variant="contained" color="success" disabled={working} onClick={() => void linkSelected()}>Link selected siblings</Button><Button disabled={working} onClick={() => setSelectedIds([])}>Clear selection</Button></Stack>}
       </Box>
       <Typography variant="caption" color="text.secondary">Family membership updates are transactional and each completed change is recorded in the audit trail.</Typography>
     </Stack>
