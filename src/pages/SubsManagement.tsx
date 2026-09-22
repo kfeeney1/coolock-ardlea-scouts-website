@@ -46,6 +46,7 @@ export default function SubsManagement() {
   const [correction, setCorrection] = useState<SubsPayment | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
   const paymentSubmission = useRef(false);
+  const paymentOperationId = useRef("");
   const selectableSections = useMemo(
     () =>
       selectableSubsSections(
@@ -121,10 +122,12 @@ export default function SubsManagement() {
         method,
         paymentDate,
         note,
+        operationId: paymentOperationId.current || undefined,
       });
       setConfirmOpen(false);
       setAmount("");
       setNote("");
+      paymentOperationId.current = "";
       setMessage(selectedAssignment.accountId ? "Family subs payment recorded. Group finance can view the complete shared balance." : "Subs payment recorded.");
       await load();
     } catch (e) {
@@ -153,6 +156,7 @@ export default function SubsManagement() {
     try {
       parseEuroToCents(amount);
       setError("");
+      if (!paymentOperationId.current) paymentOperationId.current = crypto.randomUUID();
       setConfirmOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Enter a valid amount.");
@@ -234,7 +238,7 @@ export default function SubsManagement() {
             >
               <FormControl required>
                 <InputLabel id="subs-member-label">Member</InputLabel>
-                <Select labelId="subs-member-label" label="Member" value={memberId} onChange={(e) => setMemberId(e.target.value)} data-testid="subs-member-select">
+                <Select labelId="subs-member-label" label="Member" value={memberId} onChange={(e) => { setMemberId(e.target.value); paymentOperationId.current = ""; }} data-testid="subs-member-select">
                   {visibleMembers.map((m) => (
                     <MenuItem key={m.id} value={m.id}>
                       {m.displayName} · {m.section}
@@ -244,7 +248,7 @@ export default function SubsManagement() {
               </FormControl>
               <FormControl required>
                 <InputLabel id="subs-period-label">Scout year</InputLabel>
-                <Select labelId="subs-period-label" label="Scout year" value={period} onChange={(e) => setPeriod(e.target.value)}>
+                <Select labelId="subs-period-label" label="Scout year" value={period} onChange={(e) => { setPeriod(e.target.value); paymentOperationId.current = ""; }}>
                   {policies.map((p) => (
                     <MenuItem key={p.id} value={p.period}>
                       {p.period}
@@ -252,10 +256,10 @@ export default function SubsManagement() {
                   ))}
                 </Select>
               </FormControl>
-              <TextField required label="Amount (EUR)" value={amount} onChange={(e) => setAmount(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+              <TextField required label="Amount (EUR)" value={amount} onChange={(e) => { setAmount(e.target.value); paymentOperationId.current = ""; }} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
               <FormControl required>
                 <InputLabel id="subs-method-label">Payment method</InputLabel>
-                <Select labelId="subs-method-label" label="Payment method" value={method} onChange={(e) => setMethod(e.target.value as SubsPaymentMethod)}>
+                <Select labelId="subs-method-label" label="Payment method" value={method} onChange={(e) => { setMethod(e.target.value as SubsPaymentMethod); paymentOperationId.current = ""; }}>
                   {SUBS_PAYMENT_METHODS.map((m) => (
                     <MenuItem key={m} value={m}>
                       {paymentMethodLabel(m)}
@@ -263,8 +267,8 @@ export default function SubsManagement() {
                   ))}
                 </Select>
               </FormControl>
-              <TextField required type="date" label="Payment date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-              <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
+              <TextField required type="date" label="Payment date" value={paymentDate} onChange={(e) => { setPaymentDate(e.target.value); paymentOperationId.current = ""; }} slotProps={{ inputLabel: { shrink: true } }} />
+              <TextField label="Note (optional)" value={note} onChange={(e) => { setNote(e.target.value); paymentOperationId.current = ""; }} slotProps={{ htmlInput: { maxLength: 200 } }} />
             </Box>
             {!error && visibleMembers.length === 0 && (
               <Alert severity="info" sx={{ mt: 2 }}>
