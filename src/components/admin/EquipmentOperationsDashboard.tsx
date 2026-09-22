@@ -1,5 +1,6 @@
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentIncident } from "../../services/equipmentIncidents";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -21,6 +22,8 @@ type Activity = {
   title: string;
   detail: string;
   tone: "default" | "warning" | "success";
+  itemId?: string;
+  incidentId?: string;
 };
 
 function formatDate(value: Date) {
@@ -28,6 +31,7 @@ function formatDate(value: Date) {
 }
 
 export default function EquipmentOperationsDashboard({ items, loans, incidents, onFilterInventory }: Props) {
+  const navigate = useNavigate();
   const activeItems = useMemo(() => items.filter((item) => !item.archived), [items]);
   const totalUnits = useMemo(() => activeItems.reduce((sum, item) => sum + item.totalQuantity, 0), [activeItems]);
   const availableUnits = useMemo(() => activeItems.reduce((sum, item) => sum + availableEquipmentQuantity(item), 0), [activeItems]);
@@ -45,7 +49,9 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents, 
         at: incident.reportedAt,
         title: incident.type === "damaged" ? `Damage reported · ${incident.itemName}` : `${incident.type.replace("-", " ")} · ${incident.itemName}`,
         detail: `${incident.quantity} affected${incident.section ? ` · ${incident.section}` : ""}${incident.description ? ` · ${incident.description}` : ""}`,
-        tone: incident.status === "resolved" ? "success" : "warning"
+        tone: incident.status === "resolved" ? "success" : "warning",
+        itemId: incident.itemId,
+        incidentId: incident.id
       });
     }
     for (const loan of loans) {
@@ -117,7 +123,7 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents, 
           {openDamage.length > 0 && <Chip size="small" color="warning" label={`${openDamage.length} damage issue${openDamage.length === 1 ? "" : "s"} open`} />}
         </Stack>
         {activity.length === 0 ? <Typography color="text.secondary">No recent equipment activity has been recorded yet.</Typography> : <Stack spacing={1}>
-          {activity.map((entry) => <Paper key={entry.key} variant="outlined" sx={{ p: 1.5 }}>
+          {activity.map((entry) => <Paper key={entry.key} variant="outlined" component={entry.itemId ? "button" : "div"} type={entry.itemId ? "button" : undefined} aria-label={entry.itemId ? `Open equipment record for ${entry.title.split(" · ").pop()}` : undefined} onClick={entry.itemId ? () => navigate(`/leader/equipment/${entry.itemId}?issue=${entry.incidentId}`) : undefined} sx={{ p: 1.5, width: "100%", textAlign: "left", font: "inherit", color: "inherit", backgroundColor: "background.paper", cursor: entry.itemId ? "pointer" : "default", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
               <Box>
                 <Typography sx={{ fontWeight: 700 }}>{entry.title}</Typography>
