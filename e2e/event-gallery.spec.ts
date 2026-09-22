@@ -91,6 +91,6 @@ test("completed event history keeps gallery access on its record page", async ({
     if (count > 0) {
         await completedCards.first().click();
         await expect(page.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
-        await expect(page.getByRole("button", { name: "Edit Event", exact: true })).toBeDisabled();
+        await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeDisabled();
     }
 });
