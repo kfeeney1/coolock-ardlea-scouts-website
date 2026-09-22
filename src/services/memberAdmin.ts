@@ -31,7 +31,7 @@ export type MemberRecord = {
   firstName: string;
   lastName: string;
   displayName: string;
-  displayNameMode?: "auto" | "custom";
+  displayNameMode: "auto" | "custom";
   dateOfBirth: string;
   section: string;
   parentName: string;
@@ -111,7 +111,13 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
   return {
     id: snapshot.id,
     ...required,
-    displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto",
+    displayNameMode: data.displayNameMode === "custom"
+      ? "custom"
+      : data.displayNameMode === "auto"
+        ? "auto"
+        : stringValue(data, "displayName") === automaticDisplayName(stringValue(data, "firstName"), stringValue(data, "lastName"))
+          ? "auto"
+          : "custom",
     parentName: stringValue(data, "parentName"),
     emailAddress: stringValue(data, "emailAddress"),
     mobileNumber: stringValue(data, "mobileNumber"),
@@ -223,7 +229,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 export async function updateMember(
   memberId: string,
   updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" |
-    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status">
+    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode">
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -248,8 +254,9 @@ export async function updateMember(
 
   const automaticName = automaticDisplayName(updates.firstName, updates.lastName);
   const requestedDisplayName = clean(updates.displayName, 200);
-  const displayNameMode = requestedDisplayName && requestedDisplayName !== automaticName ? "custom" : "auto";
+  const displayNameMode = updates.displayNameMode === "custom" ? "custom" : "auto";
   const nextDisplayName = displayNameMode === "auto" ? automaticName : requestedDisplayName;
+  if (displayNameMode === "custom" && !nextDisplayName) throw new Error("Custom display name is required.");
 
   const memberUpdate = {
     firstName: clean(updates.firstName, 100),
