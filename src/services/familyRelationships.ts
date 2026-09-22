@@ -66,24 +66,6 @@ export async function linkSibling(members: readonly MemberRecord[], memberId: st
   return linkSiblings(members, memberId, [siblingId]);
 }
 
-async function legacyLinkSibling(members: readonly MemberRecord[], memberId: string, siblingId: string): Promise<void> {
-  await requireAdmin();
-  const assignments = planFamilyLink(members, memberId, siblingId, nextFamilyId());
-  if (!assignments.length) return;
-  await applyAssignments(members, assignments);
-
-  const member = members.find((item) => item.id === memberId);
-  const sibling = members.find((item) => item.id === siblingId);
-  await recordAuditEvent({
-    category: "member",
-    action: "Family relationship linked",
-    targetId: memberId,
-    targetLabel: member?.displayName || memberId,
-    section: member?.section || "",
-    description: `Linked ${member?.displayName || memberId} and ${sibling?.displayName || siblingId} in the canonical family relationship. ${assignments.length} member record${assignments.length === 1 ? "" : "s"} were updated atomically.`
-  });
-}
-
 export async function unlinkFromFamily(members: readonly MemberRecord[], memberId: string): Promise<void> {
   await requireAdmin();
   const assignments = planFamilyUnlink(members, memberId);
