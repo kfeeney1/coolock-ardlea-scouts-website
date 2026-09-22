@@ -104,7 +104,7 @@ export default function LeaderAccessManagement() {
   const updateFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value); else next.delete(key);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
   };
 
   const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole, scoutingAppointments: adminProfile.appointments } : null;
@@ -196,7 +196,7 @@ export default function LeaderAccessManagement() {
       <Stack spacing={2}>
       {[selectedRecord].map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between" }}>
-          <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography color="text.secondary">{record.email}</Typography></Box>
+          <Box sx={{ minWidth: 0, maxWidth: "100%" }}><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography color="text.secondary" sx={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{record.email}</Typography></Box>
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><SectionIdentityChip section={record.organisationSection} /><Chip label={record.role} /></Stack>
         </Box>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, flexWrap: "wrap", mt: 2 }}>
