@@ -82,14 +82,6 @@ export default function EventRecordPage() {
         returnTo: `/leader/events/${encodeURIComponent(event.id)}`
     }) : "/leader/badgework";
 
-    const openEdit = () => {
-        if (!event || event.status === "completed") return;
-        setDraft(eventInput(event));
-        setEditing(true);
-        setMessage("");
-        setError("");
-    };
-
     const saveEvent = async () => {
         if (!event || !draft) return;
         if (!draft.title.trim()) return setError("Event title is required.");
