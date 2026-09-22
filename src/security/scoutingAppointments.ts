@@ -6,6 +6,7 @@ export const CANONICAL_SCOUTING_APPOINTMENTS = [
   "Group Quartermaster / Bo'sun",
   "Group Chairperson",
   "Group Youth Champion",
+  "Group Trainer",
   "Section Leader",
   "Assistant Section Leader",
   "Programme Scouter",
@@ -28,6 +29,7 @@ const APPOINTMENT_ALIASES: Record<string, CanonicalScoutingAppointment> = {
   "group bo'sun": "Group Quartermaster / Bo'sun",
   "group chairperson": "Group Chairperson",
   "group youth champion": "Group Youth Champion",
+  "group trainer": "Group Trainer",
   "section leader": "Section Leader",
   "assistant section leader": "Assistant Section Leader",
   "programme scouter": "Programme Scouter",
@@ -58,7 +60,8 @@ export function isGroupScopedAppointment(value: unknown): boolean {
     || canonical === "Group Treasurer"
     || canonical === "Group Quartermaster / Bo'sun"
     || canonical === "Group Chairperson"
-    || canonical === "Group Youth Champion";
+    || canonical === "Group Youth Champion"
+    || canonical === "Group Trainer";
 }
 
 

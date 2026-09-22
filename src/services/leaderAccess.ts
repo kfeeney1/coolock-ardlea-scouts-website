@@ -23,6 +23,7 @@ export type LeaderAccessRecord = {
   scoutingRole: string;
   appointments: ScoutingAppointmentAssignment[];
   organisationSection: string;
+  primarySection: string;
   organisationOrder: number;
   reportsToUid: string;
   showPublicly: boolean;
@@ -62,6 +63,7 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
       scoutingRole: typeof org?.scoutingRole === "string" ? org.scoutingRole : "",
       appointments: canonicalLeaderAppointments(org?.appointments, sections, org?.scoutingRole, organisationSection),
       organisationSection,
+      primarySection: canonicalOrganisationSection(sections, org?.primarySection ?? org?.organisationSection),
       organisationOrder: typeof org?.organisationOrder === "number" ? org.organisationOrder : 999,
       reportsToUid: typeof org?.reportsToUid === "string" ? org.reportsToUid : "",
       showPublicly: org?.showPublicly === true,
@@ -74,7 +76,8 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string, actorEmail: string): Promise<void> {
   const sections = [...new Set(record.sections.map((section) => section.trim()).filter(Boolean))];
   if (sections.length === 0) throw new Error("Leader access requires at least one canonical section.");
-  const organisationSection = canonicalOrganisationSection(sections, record.organisationSection);
+  const primarySection = canonicalOrganisationSection(sections, record.primarySection || record.organisationSection);
+  const organisationSection = primarySection;
   const appointments = canonicalLeaderAppointments(record.appointments, sections, record.scoutingRole, organisationSection);
   const activeAppointments = activeScoutingAppointments(appointments);
   const canonicalAppointment = activeAppointments[0]?.appointment || normalizeScoutingAppointment(record.scoutingRole);
@@ -141,6 +144,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new Error("You cannot change this account's active state.");
 
     const orgChanged = currentOrg?.organisationSection !== organisationSection
+      || (currentOrg?.primarySection ?? currentOrg?.organisationSection) !== primarySection
       || currentOrg?.organisationOrder !== record.organisationOrder
       || (currentOrg?.reportsToUid ?? "") !== record.reportsToUid
       || (currentOrg?.showPublicly === true) !== record.showPublicly;
@@ -165,6 +169,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         scoutingRole: safeAppointment,
         appointments,
         organisationSection: organisationSection.slice(0, 80),
+        primarySection: primarySection.slice(0, 80),
         organisationOrder: Math.max(0, Math.min(999, Math.round(record.organisationOrder))),
         reportsToUid: record.reportsToUid.trim().slice(0, 128),
         showPublicly: record.showPublicly,

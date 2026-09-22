@@ -53,6 +53,9 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
   if (JSON.stringify(sortedSections(previous.sections)) !== JSON.stringify(sortedSections(next.sections))) {
     changes.push(`Permitted account sections will change from ${previous.sections.join(", ")} to ${next.sections.join(", ")}.`);
   }
+  if (previous.primarySection !== next.primarySection) {
+    changes.push(`Primary section will change from ${previous.primarySection || "none"} to ${next.primarySection || "none"}.`);
+  }
   if (previous.showPublicly !== next.showPublicly) {
     changes.push(next.showPublicly
       ? "Name, scouting role, section and hierarchy will be published on the public Who's Who."
@@ -152,7 +155,8 @@ export default function LeaderAccessManagement() {
       : [...record.sections, section];
     patch(record.uid, {
       sections: nextSections,
-      organisationSection: canonicalOrganisationSection(nextSections, record.organisationSection)
+      organisationSection: canonicalOrganisationSection(nextSections, record.primarySection || record.organisationSection),
+      primarySection: canonicalOrganisationSection(nextSections, record.primarySection || record.organisationSection)
     });
   };
   const appointmentScope = (record: LeaderAccessRecord) => record.sections.find((section) => section !== "Group") || record.sections[0] || "Group";
@@ -179,7 +183,7 @@ export default function LeaderAccessManagement() {
       <Stack spacing={1.5} data-testid="leader-access-summary-list">
         {filteredRecords.map((record) => <Paper key={record.uid} component="button" type="button" data-testid={`leader-access-tile-${record.uid}`} data-section={record.organisationSection} onClick={() => navigate(`/leader/access/${encodeURIComponent(record.uid)}?${searchParams.toString()}`)} aria-label={`Edit leader access for ${record.displayName}`} variant="outlined" sx={[{ p: 2, borderRadius: 2, width: "100%", textAlign: "left", cursor: "pointer", color: "text.primary", backgroundColor: "background.paper", font: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }, sectionCardSx(record.organisationSection)]}>
           <Box sx={{ display: "flex", gap: 1.5, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
-            <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography variant="body2" color="text.secondary">{record.sections.join(", ") || record.organisationSection}</Typography><Typography variant="body2">{record.appointments.map((item) => `${item.appointment} · ${item.scope}`).join(", ") || "Programme Scouter baseline"}</Typography></Box>
+            <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography variant="body2" color="text.secondary">{record.sections.join(", ") || record.organisationSection}{record.primarySection ? ` · Primary: ${record.primarySection}` : ""}</Typography><Typography variant="body2">{record.appointments.map((item) => `${item.appointment} · ${item.scope}`).join(", ") || "Programme Scouter baseline"}</Typography></Box>
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}><SectionIdentityChip section={record.organisationSection} /><Chip size="small" label={record.active ? "Active" : "Inactive"} /><Chip size="small" label={record.showPublicly ? "Public" : "Not public"} /></Stack>
           </Box>
         </Paper>)}
@@ -199,7 +203,10 @@ export default function LeaderAccessManagement() {
           <Select size="small" value={record.role} disabled={!canChangeSystemRole(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onChange={(e) => patch(record.uid, { role: e.target.value as SystemRole })} sx={{ minWidth: 180 }}><MenuItem value="leader">Leader</MenuItem><MenuItem value="admin">Admin</MenuItem>{record.role === "super-admin" && <MenuItem value="super-admin">Super Admin</MenuItem>}</Select>
           <FormControlLabel control={<Switch checked={record.active} disabled={!isAdminActor || record.role === "super-admin"} onChange={(e) => patch(record.uid, { active: e.target.checked })} />} label="Active" />
         </Box>
-        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box></Box>}
+        {record.role === "leader" && <Box sx={{ mt: 2 }}><Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Account sections</Typography><Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(6, 1fr)" }, gap: 1 }}>{sections.map((section) => <SectionToggleButton key={section} section={section} selected={record.sections.includes(section)} size="small" disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole })} onClick={() => toggleSection(record, section)}>{section}</SectionToggleButton>)}</Box>
+        <TextField select size="small" sx={{ mt: 1.5, minWidth: 220 }} label="Primary section" value={record.primarySection || canonicalOrganisationSection(record.sections, record.organisationSection)} disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole }) || record.sections.length <= 1} onChange={(e) => patch(record.uid, { primarySection: e.target.value, organisationSection: e.target.value })}>
+          {record.sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+        </TextField></Box>}
         <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <Box sx={{ gridColumn: { md: "span 1" } }}>
