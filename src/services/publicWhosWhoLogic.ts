@@ -9,7 +9,8 @@ const GROUP_ROLES = new Set([
   "group quartermaster",
   "group quartermaster/bo'sun",
   "group bo'sun",
-  "group youth champion"
+  "group youth champion",
+  "group trainer"
 ]);
 
 const SECTION_ROLES = new Set([
