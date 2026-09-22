@@ -165,7 +165,7 @@ export default function EquipmentManagement() {
     if (filter === "all") next.delete("status");
     else next.set("status", filter);
     setSearchParams(next);
-    requestAnimationFrame(() => document.querySelector('[data-testid="equipment-inventory-controls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    requestAnimationFrame(() => document.querySelector('[data-testid="equipment-inventory-section"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const openCreate = () => {
@@ -242,6 +242,8 @@ export default function EquipmentManagement() {
       {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
+      <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Detailed inventory</Typography>
       <EquipmentInventoryFilters
         search={search}
         status={statusFilter}
@@ -266,6 +268,7 @@ export default function EquipmentManagement() {
         onReset={resetFilters}
         onRefresh={() => void refresh()}
       />
+      </Box>
 
       {loading ? <Alert severity="info">Loading equipment…</Alert> : items.length === 0 ? <Alert severity="info">No equipment has been added yet.</Alert> : visibleItems.length === 0 ? <Alert severity="info">No equipment matches the current filters.</Alert> : (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>

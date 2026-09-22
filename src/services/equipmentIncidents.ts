@@ -295,13 +295,14 @@ export async function resolveEquipmentIncident(
     const quantity = integer(incidentData.quantity);
     const itemData = itemSnapshot.data();
     const stockAdjusted = incidentData.stockAdjusted === true || Boolean(text(incidentData.loanId));
-    const next = resolvedEquipmentQuantities({
-      totalQuantity: integer(itemData.totalQuantity),
-      checkedOutQuantity: integer(itemData.checkedOutQuantity),
-      unavailableQuantity: integer(itemData.unavailableQuantity)
-    }, quantity, resolution);
-
+    // Catalogue-only reports deliberately do not mutate stock when reported (SW-103).
+    // Only reverse/write off stock here when this incident previously moved stock to unavailable.
     if (stockAdjusted) {
+      const next = resolvedEquipmentQuantities({
+        totalQuantity: integer(itemData.totalQuantity),
+        checkedOutQuantity: integer(itemData.checkedOutQuantity),
+        unavailableQuantity: integer(itemData.unavailableQuantity)
+      }, quantity, resolution);
       transaction.update(itemRef, {
         totalQuantity: next.totalQuantity,
         unavailableQuantity: next.unavailableQuantity,

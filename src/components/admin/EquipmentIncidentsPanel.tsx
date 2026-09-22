@@ -16,7 +16,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -44,6 +44,7 @@ type Props = {
   items: EquipmentItem[];
   loans: EquipmentLoan[];
   incidents: EquipmentIncident[];
+  highlightedIncidentId?: string | null;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
 };
@@ -58,7 +59,7 @@ type SourceOption = {
   label: string;
 };
 
-export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, onChanged, onError }: Props) {
+export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, highlightedIncidentId, onChanged, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [type, setType] = useState<EquipmentIncidentType>("damaged");
@@ -70,6 +71,10 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const [saving, setSaving] = useState(false);
 
   const manager = canManageEquipment(profile);
+  useEffect(() => {
+    if (!highlightedIncidentId) return;
+    requestAnimationFrame(() => document.getElementById(`equipment-issue-${highlightedIncidentId}`)?.scrollIntoView({ block: "center" }));
+  }, [highlightedIncidentId, incidents]);
   const scopedSections = useMemo(() => [...new Set(profile?.sections ?? [])].filter(Boolean).sort(), [profile]);
   const sources = useMemo<SourceOption[]>(() => {
     const result: SourceOption[] = [];
@@ -208,7 +213,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       </Stack>
 
       {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
-        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" sx={{ p: 1.75 }}>
+        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>

@@ -3,7 +3,7 @@ import {
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
@@ -25,6 +25,7 @@ type FormState = Omit<EquipmentItemInput, "totalQuantity"> & { totalQuantity: nu
 export default function EquipmentRecordPage() {
   const { equipmentId = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
   const [item, setItem] = useState<EquipmentItem | null>(null);
@@ -66,6 +67,7 @@ export default function EquipmentRecordPage() {
 
   useEffect(() => { void refresh(); }, [equipmentId]);
   const itemIncidents = useMemo(() => incidents.filter((x) => x.itemId === equipmentId), [incidents, equipmentId]);
+  const highlightedIssueId = searchParams.get("issue");
 
   const save = async () => {
     if (!item || !form || !canManage) return;
@@ -101,18 +103,19 @@ export default function EquipmentRecordPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
     <LeaderPageHeader title={item.name} description="Equipment record, condition, history, Store movement and issue reporting." />
-    <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 2, flexWrap: "wrap" }}>
-      <Button variant="outlined" onClick={() => navigate(-1)}>Back</Button>
-      <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History / move Store</Button>
-      {canManage && !item.archived && <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>}
-      {canManage && <Button variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => setConfirmArchive(true)}>{item.archived ? "Restore" : "Archive"}</Button>}
-    </Stack>
+    <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
 
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
+          <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History</Button>
+          {canManage && !item.archived && <Button variant="outlined" onClick={() => setHistoryOpen(true)}>Move Store</Button>}
+          {canManage && !item.archived && <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>}
+          {canManage && <Button variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => setConfirmArchive(true)}>{item.archived ? "Restore" : "Archive"}</Button>}
+        </Stack>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
           <Chip label={item.category} /><Chip label={`Store: ${item.location || "Unassigned"}`} />
           <Chip label={`${item.totalQuantity} total`} color="primary" />
@@ -140,7 +143,7 @@ export default function EquipmentRecordPage() {
       </Stack>
     </Paper>
 
-    {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} onChanged={refresh} onError={setError} />}
+    {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
     <EquipmentHistoryDialog item={historyOpen ? item : null} locations={locations} canManage={canManage && !item.archived} onClose={() => setHistoryOpen(false)} onChanged={refresh} onError={setError} />
 
     <Dialog open={confirmArchive} onClose={() => !saving && setConfirmArchive(false)}>
