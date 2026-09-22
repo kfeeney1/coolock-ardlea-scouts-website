@@ -188,7 +188,7 @@ export default function EventRecordPage() {
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
                 {event.status === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed event history is read-only. Attendance, reports, exports and gallery access remain available.</Alert>}
 
-                <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3 }} data-testid={`event-record-${event.id}`}>
+                <Paper component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} aria-label={`Edit event ${event.title}`} variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, mb: 3, display:"block", color:"inherit", textDecoration:"none", "&:focus-visible":{outline:"3px solid",outlineColor:"primary.main",outlineOffset:2} }} data-testid={`event-record-${event.id}`}>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 2 }}>
                         <Chip label={eventStatusLabel(event.status)} color={statusColor(event.status)} />
                         <Chip label={event.section} variant="outlined" />
@@ -222,7 +222,7 @@ export default function EventRecordPage() {
                         <Button variant="outlined" color="primary" onClick={() => setEquipmentOpen(true)}>Equipment</Button>
                         <Button variant="outlined" color="secondary" onClick={printRoster}>Report</Button>
                         <Button variant="outlined" color="secondary" onClick={exportRoster}>Export CSV</Button>
-                        <Button variant="outlined" color="secondary" disabled={event.status === "completed"} onClick={openEdit}>Edit Event</Button>
+                        <Button component={Link} to={`/leader/events/${encodeURIComponent(event.id)}/edit`} variant="outlined" color="secondary" disabled={event.status === "completed"}>Edit Event</Button>
                     </Box>
                 </Paper>
 
