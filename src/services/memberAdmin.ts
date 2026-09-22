@@ -31,7 +31,7 @@ export type MemberRecord = {
   firstName: string;
   lastName: string;
   displayName: string;
-  displayNameMode?: "auto" | "custom";
+  displayNameMode: "auto" | "custom";
   dateOfBirth: string;
   section: string;
   parentName: string;
@@ -50,7 +50,7 @@ export type MemberRecord = {
 export type CreateMemberInput = Pick<
   MemberRecord,
   "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" |
-  "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status"
+  "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"
 >;
 
 export type MemberConsentSummary = {
@@ -111,7 +111,13 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
   return {
     id: snapshot.id,
     ...required,
-    displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto",
+    displayNameMode: data.displayNameMode === "custom"
+      ? "custom"
+      : data.displayNameMode === "auto"
+        ? "auto"
+        : stringValue(data, "displayName") === automaticDisplayName(stringValue(data, "firstName"), stringValue(data, "lastName"))
+          ? "auto"
+          : "custom",
     parentName: stringValue(data, "parentName"),
     emailAddress: stringValue(data, "emailAddress"),
     mobileNumber: stringValue(data, "mobileNumber"),
@@ -187,12 +193,14 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 
   const automaticName = automaticDisplayName(input.firstName, input.lastName);
   const requestedName = clean(input.displayName, 200);
-  const displayName = requestedName && requestedName !== automaticName ? requestedName : automaticName;
+  const displayNameMode = input.displayNameMode === "custom" ? "custom" : "auto";
+  const displayName = displayNameMode === "custom" ? requestedName : automaticName;
+  if (displayNameMode === "custom" && !displayName) throw new Error("Custom display name is required.");
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
     lastName: clean(input.lastName, 100),
     displayName,
-    displayNameMode: displayName === automaticName ? "auto" : "custom",
+    displayNameMode,
     dateOfBirth: clean(input.dateOfBirth, 20),
     section: clean(input.section, 40),
     parentName: clean(input.parentName, 200),
@@ -223,7 +231,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 export async function updateMember(
   memberId: string,
   updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" |
-    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status">
+    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode">
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -248,8 +256,9 @@ export async function updateMember(
 
   const automaticName = automaticDisplayName(updates.firstName, updates.lastName);
   const requestedDisplayName = clean(updates.displayName, 200);
-  const displayNameMode = requestedDisplayName && requestedDisplayName !== automaticName ? "custom" : "auto";
+  const displayNameMode = updates.displayNameMode === "custom" ? "custom" : "auto";
   const nextDisplayName = displayNameMode === "auto" ? automaticName : requestedDisplayName;
+  if (displayNameMode === "custom" && !nextDisplayName) throw new Error("Custom display name is required.");
 
   const memberUpdate = {
     firstName: clean(updates.firstName, 100),
@@ -337,7 +346,7 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
   const memberName = member.displayName.trim().toLowerCase();
   const memberDob = member.dateOfBirth.trim();
 
-  return snapshot.docs.flatMap((consentSnapshot) => {
+  const summaries = snapshot.docs.flatMap((consentSnapshot) => {
     const data = consentSnapshot.data();
     if (data.formType !== "youth-activity-consent") return [];
     const childName = stringValue(data, "childName");
@@ -357,4 +366,31 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
       hasMedicationManagement: medicationEnabled(data)
     }];
   }).sort((a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0));
+
+  // Legacy consent records pre-date stable member IDs. Only persist a link when
+  // the existing strict name + DOB + section identity match resolves uniquely.
+  const legacyMatches = snapshot.docs.filter((consentSnapshot) => {
+    const data = consentSnapshot.data();
+    return data.formType === "youth-activity-consent"
+      && !stringValue(data, "memberId")
+      && stringValue(data, "childName").toLowerCase() === memberName
+      && stringValue(data, "childDOB") === memberDob;
+  });
+  if (legacyMatches.length === 1 && summaries.some((item) => item.consentId === legacyMatches[0].id)) {
+    await updateDoc(legacyMatches[0].ref, {
+      memberId: member.id,
+      linkedAt: serverTimestamp(),
+      linkedBy: auth.currentUser?.uid || ""
+    });
+    await recordAuditEvent({
+      category: "member",
+      action: "Consent linked to member",
+      targetId: member.id,
+      targetLabel: member.displayName,
+      section: member.section,
+      description: `Linked legacy consent ${legacyMatches[0].id} using exact name, date of birth and section identity.`
+    });
+  }
+
+  return summaries;
 }
