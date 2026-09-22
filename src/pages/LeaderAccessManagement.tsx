@@ -28,6 +28,7 @@ import type { SystemRole } from "../components/admin/AdminAuthProvider";
 import { SectionIdentityChip, SectionOptionLabel, SectionSelect, SectionToggleButton, sectionCardSx } from "../components/SectionIdentityControls";
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
+import { canonicalOrganisationSection } from "../services/leaderAccessLogic";
 import { CANONICAL_SCOUTING_APPOINTMENTS } from "../security/scoutingAppointments";
 import { appointmentsActorMayAssign, canChangeSystemRole, canManageSectionScope, canOpenLeaderAccess } from "../security/leaderDelegationPolicy";
 
@@ -145,7 +146,15 @@ export default function LeaderAccessManagement() {
   const isDirty = (record: LeaderAccessRecord) => accessChangeSummary(baselineByUid[record.uid], record).length > 0;
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
-  const toggleSection = (record: LeaderAccessRecord, section: string) => patch(record.uid, { sections: record.sections.includes(section) ? record.sections.filter((value) => value !== section) : [...record.sections, section] });
+  const toggleSection = (record: LeaderAccessRecord, section: string) => {
+    const nextSections = record.sections.includes(section)
+      ? record.sections.filter((value) => value !== section)
+      : [...record.sections, section];
+    patch(record.uid, {
+      sections: nextSections,
+      organisationSection: canonicalOrganisationSection(nextSections, record.organisationSection)
+    });
+  };
   const appointmentScope = (record: LeaderAccessRecord) => record.sections.find((section) => section !== "Group") || record.sections[0] || "Group";
   const toggleAppointment = (record: LeaderAccessRecord, appointment: string) => {
     const scope = appointmentScope(record);
