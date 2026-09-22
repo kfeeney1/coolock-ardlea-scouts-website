@@ -38,7 +38,8 @@ test("member management search opens the permitted member record with integrated
   await expect(page.getByRole("heading", { name: "Member History" })).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/leader\/members$/);
+  await expect(page).toHaveURL(/\/leader\/members\?q=Casey\+OBrien\+Scouts\+01$/);
+  await expect(page.getByLabel("Search members")).toHaveValue("Casey OBrien Scouts 01");
   await page.getByLabel("Search members").fill("member that does not exist");
   await expect(page.getByRole("alert").filter({ hasText: "No matching members" })).toContainText(
     "No members match the current search and filters."

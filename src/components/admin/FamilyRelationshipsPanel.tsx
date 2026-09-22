@@ -69,7 +69,7 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
             component={Link}
             clickable
             to={`/leader/members/${encodeURIComponent(sibling.id)}`}
-            state={{ familyReturnTo: location.pathname }}
+            state={{ familyReturnTo: `${location.pathname}${location.search}` }}
             aria-label={`Open member record for ${sibling.displayName}`}
             label={`${sibling.displayName} · ${sibling.section} · ${sibling.status}`}
             sx={{ minHeight: 44, height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 1 } }}

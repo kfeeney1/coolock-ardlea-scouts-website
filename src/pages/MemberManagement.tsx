@@ -6,7 +6,7 @@ import BulkMemberSectionTransfer from "../components/admin/BulkMemberSectionTran
 import { OperationalEmptyState, OperationalErrorState, OperationalLoading, OperationalPermissionState } from "../components/admin/OperationalStates";
 import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { createMember, loadMemberConsentSummaries, loadMembers, updateMember } from "../services/memberAdmin";
 import type { CreateMemberInput, MemberConsentSummary, MemberRecord, MemberStatus } from "../services/memberAdmin";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
@@ -25,14 +25,16 @@ const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-I
 const consentExpired = (value: string) => Boolean(value && value < new Date().toISOString().slice(0, 10));
 
 export default function MemberManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialStatus = searchParams.get("status");
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberLoadError, setMemberLoadError] = useState<unknown>(null);
   const [saveError, setSaveError] = useState("");
   const [message, setMessage] = useState("");
-  const [search, setSearch] = useState("");
-  const [sectionFilter, setSectionFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">("active");
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [sectionFilter, setSectionFilter] = useState(searchParams.get("section") || "all");
+  const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">(initialStatus === "all" || memberStatuses.includes(initialStatus as MemberStatus) ? initialStatus as MemberStatus | "all" : "active");
   const [selected, setSelected] = useState<MemberRecord | null>(null);
   const [draft, setDraft] = useState<MemberRecord | null>(null);
   const [saving, setSaving] = useState(false);
@@ -48,10 +50,21 @@ export default function MemberManagement() {
 
   const load = useCallback(async () => { setLoading(true); setMemberLoadError(null); try { setMembers(await loadMembers()); } catch (error) { console.error("Unable to load members:", error); setMemberLoadError(error); } finally { setLoading(false); } }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search.trim()) next.set("q", search);
+    if (sectionFilter !== "all") next.set("section", sectionFilter);
+    if (statusFilter !== "active") next.set("status", statusFilter);
+    setSearchParams(next, { replace: true });
+  }, [search, sectionFilter, statusFilter, setSearchParams]);
   const visibleMembers = useMemo(() => members.filter((member) => { if (sectionFilter !== "all" && member.section !== sectionFilter) return false; if (statusFilter !== "all" && member.status !== statusFilter) return false; const query = search.trim().toLowerCase(); return !query || [member.displayName, member.parentName, member.emailAddress, member.mobileNumber, member.section, member.emergencyContactName, member.emergencyContactPhone].join(" ").toLowerCase().includes(query); }), [members, sectionFilter, statusFilter, search]);
   const counts = useMemo(() => ({ total: members.length, active: members.filter((m) => m.status === "active").length, inactive: members.filter((m) => m.status === "inactive").length, left: members.filter((m) => m.status === "left").length }), [members]);
   const summary: Array<[string, number, MemberStatus | "all"]> = [["Total", counts.total, "all"], ["Active", counts.active, "active"], ["Inactive", counts.inactive, "inactive"], ["Left", counts.left, "left"]];
-  const selectStatus = (status: MemberStatus | "all") => { setStatusFilter(status); moveToUiTargetAfterRender("member-results", { focus: true }); };
+  const selectStatus = (status: MemberStatus | "all") => {
+    setStatusFilter(status);
+    moveToUiTargetAfterRender("member-results", { focus: true });
+    window.setTimeout(() => moveToUiTargetAfterRender("member-results", { focus: true }), 100);
+  };
   const loadMemberConsents = async (member: MemberRecord) => { setLoadingConsents(true); setConsentLoadError(null); try { setConsents(await loadMemberConsentSummaries(member)); } catch (error) { console.error("Unable to load linked consents:", error); setConsentLoadError(error); } finally { setLoadingConsents(false); } };
   const closeMember = () => { setStatusConfirmationOpen(false); setLifecycleCandidates([]); setSelected(null); setDraft(null); };
   const openMember = async (member: MemberRecord) => { setSelected(member); setDraft({ ...member }); setConsents([]); setSaveError(""); setMessage(""); await loadMemberConsents(member); };
