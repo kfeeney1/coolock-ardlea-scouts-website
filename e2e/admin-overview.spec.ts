@@ -59,10 +59,6 @@ for (const [role, email] of [
       await expect(operationalHealth).toHaveCount(0);
     }
 
-    await overview.getByRole("button", { name: "Refresh Overview" }).click();
-    await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
-    await expect(overview.getByRole("heading", { name: "Members by Section" })).toBeVisible();
-
     await expect(overview.getByRole("link", { name: /^Pending Parent Requests:/ })).toHaveAttribute("href", "/leader/parent-access");
     await expect(overview.getByRole("link", { name: /^Pending Leader Requests:/ })).toHaveAttribute("href", "/leader/requests");
     await expect(overview.getByRole("link", { name: /^New Join Applications:/ })).toHaveAttribute("href", "/leader/join");

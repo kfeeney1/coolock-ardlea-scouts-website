@@ -7,7 +7,7 @@ import { isGroupLeadershipAppointment } from "../../security/scoutingAppointment
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 
-type NavItem = { label: string; path: string; adminOnly?: boolean; leaderAccessOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; };
+type NavItem = { label: string; path: string; adminOnly?: boolean; leaderAccessOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; appointments?: string[]; };
 type NavGroup = { label: string; items: NavItem[]; };
 
 const dashboardItem: NavItem = { label: "Dashboard", path: "/leader" };
@@ -23,7 +23,21 @@ const navGroups: NavGroup[] = [
   { label: "Join Us Management", path: "/leader/join" },
   { label: "Consent Management", path: "/leader/consents" },
   { label: "Event Consent", path: "/leader/event-consent" },
-  { label: "Parent Communications", path: "/leader/communications" }
+  { label: "Parent Communications", path: "/leader/communications" },
+  { label: "Family Billing Accounts", path: "/leader/subs#family-billing" }
+ ] },
+ { label: "Secretary", items: [
+  { label: "Subs", path: "/leader/subs", appointments: ["Group Secretary"] },
+  { label: "Floats", path: "/leader/finance", appointments: ["Group Secretary"] },
+  { label: "Secretary Reports", path: "/leader/reports", appointments: ["Group Secretary", "Group Chairperson"] },
+  { label: "Secretary Settings", path: "/leader/settings", appointments: ["Group Secretary"] },
+  { label: "Meeting Records", path: "/leader/meetings", appointments: ["Group Secretary", "Group Chairperson"] }
+ ] },
+ { label: "Quartermaster / Bo’sun", items: [
+  { label: "Equipment", path: "/leader/equipment", appointments: ["Group Quartermaster", "Group Bo'sun", "Group Bosun"] },
+  { label: "Stores", path: "/leader/equipment", appointments: ["Group Quartermaster", "Group Bo'sun", "Group Bosun"] },
+  { label: "QM Reports", path: "/leader/reports", appointments: ["Group Quartermaster", "Group Bo'sun", "Group Bosun"] },
+  { label: "QM Settings", path: "/leader/settings", appointments: ["Group Quartermaster", "Group Bo'sun", "Group Bosun"] }
  ] },
  { label: "Group Operations", items: [
   { label: "Equipment & Stores", path: "/leader/equipment" },
@@ -72,7 +86,9 @@ export default function LeaderDashboardHeader() {
  const canViewActivityLog = isAdmin || isGroupOfficer;
  const canViewSettings = isAdmin || isGroupLeadership || adminProfile?.scoutingRole === "Group Treasurer";
  const canViewLeaderAccess = isAdmin || isGroupLeadership;
- const canView = (item: NavItem) => (!item.adminOnly || isAdmin) && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
+ const appointments = new Set([adminProfile?.scoutingRole, ...(adminProfile?.appointments.map((item) => item.appointment) ?? [])].filter(Boolean));
+ const hasAppointment = (required?: string[]) => !required || isAdmin || required.some((appointment) => appointments.has(appointment));
+ const canView = (item: NavItem) => hasAppointment(item.appointments) && (!item.adminOnly || isAdmin) && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [dashboardItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
@@ -94,7 +110,7 @@ export default function LeaderDashboardHeader() {
   return <Button key={item.path} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
  };
  return <Paper data-testid="leader-dashboard-header" elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: { xs: "calc(100vw - 32px)", md: "calc(100vw - 48px)" }, maxWidth: 1536, position: "relative", left: "50%", transform: "translateX(-50%)", boxSizing: "border-box" }}>
-  <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 0.5, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography><Typography color="text.secondary" sx={{ mb: 1 }}>{adminProfile?.displayName} · {adminProfile?.role}{adminProfile?.role === "leader" && adminProfile.sections.length ? ` · ${adminProfile.sections.join(", ")}` : ""}</Typography></Box>
+  <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>
   <Button ref={menuButtonRef} fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
   <Collapse in={menuOpen && menuHistoryReady} timeout="auto" unmountOnExit><Box id="leader-navigation" component="nav" aria-label="Leader navigation" onKeyDown={(event) => { if (event.key === "Escape") closeMenuAndRestoreFocus(); }} sx={{ mt: 1.5 }}>
    <Box sx={{ mb: 1.5 }}>{navButton(dashboardItem)}</Box>
