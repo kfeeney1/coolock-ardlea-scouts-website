@@ -33,12 +33,12 @@ export default function AdminOverviewPanel() {
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
-  const refresh = useCallback(async (force = false) => {
+  const refresh = useCallback(async () => {
     if (!adminProfile) return;
     setLoading(true);
     setError("");
     try {
-      setOverview(await loadAdminOverview(adminProfile, force));
+      setOverview(await loadAdminOverview(adminProfile));
     } catch (overviewError) {
       console.error("Unable to load operations overview:", overviewError);
       setError("Unable to load the operations overview right now.");
