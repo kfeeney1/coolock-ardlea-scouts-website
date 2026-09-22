@@ -53,6 +53,9 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
   if (JSON.stringify(sortedSections(previous.sections)) !== JSON.stringify(sortedSections(next.sections))) {
     changes.push(`Permitted account sections will change from ${previous.sections.join(", ")} to ${next.sections.join(", ")}.`);
   }
+  if (previous.primarySection !== next.primarySection) {
+    changes.push(`Primary section will change from ${previous.primarySection || "none"} to ${next.primarySection || "none"}.`);
+  }
   if (previous.showPublicly !== next.showPublicly) {
     changes.push(next.showPublicly
       ? "Name, scouting role, section and hierarchy will be published on the public Who's Who."
