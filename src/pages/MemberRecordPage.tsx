@@ -7,7 +7,7 @@ import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPan
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
-import { loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
+import { automaticDisplayName, loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates, type ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
@@ -95,7 +95,7 @@ export default function MemberRecordPage() {
 
   const save = async (statusConfirmed = false, disableParents = false) => {
     if (!member || !draft) return;
-    if (!draft.displayName.trim()) return setError("Member name is required.");
+    if (draft.displayNameMode === "custom" && !draft.displayName.trim()) return setError("Custom display name is required.");
     if (!statusConfirmed && draft.status !== member.status) {
       setError("");
       setMessage("");
@@ -112,7 +112,7 @@ export default function MemberRecordPage() {
         dateOfBirth: draft.dateOfBirth, section: draft.section, parentName: draft.parentName,
         emailAddress: draft.emailAddress, mobileNumber: draft.mobileNumber,
         emergencyContactName: draft.emergencyContactName, emergencyContactPhone: draft.emergencyContactPhone,
-        status: draft.status
+        status: draft.status, displayNameMode: draft.displayNameMode
       });
       const updated = { ...draft };
       setMember(updated);
@@ -164,7 +164,10 @@ export default function MemberRecordPage() {
             {draft.section && <Chip label={draft.section} variant="outlined" />}
           </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-            {field("firstName", "First name")}{field("lastName", "Last name")}{field("displayName", "Display name")}{field("dateOfBirth", "Date of birth", "date")}
+            <TextField label="First name" value={draft.firstName} onChange={(event) => { const firstName = event.target.value; setDraft({ ...draft, firstName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(firstName, draft.lastName) : draft.displayName }); }} />
+            <TextField label="Last name" value={draft.lastName} onChange={(event) => { const lastName = event.target.value; setDraft({ ...draft, lastName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, lastName) : draft.displayName }); }} />
+            <Box><TextField fullWidth label="Display name" value={draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, draft.lastName) : draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value, displayNameMode: "custom" })} helperText={draft.displayNameMode === "auto" ? "Automatically follows First name + Last name." : "Custom display name."} />{draft.displayNameMode === "custom" && <Button size="small" onClick={() => setDraft({ ...draft, displayName: automaticDisplayName(draft.firstName, draft.lastName), displayNameMode: "auto" })}>Reset to automatic</Button>}</Box>
+            {field("dateOfBirth", "Date of birth", "date")}
             <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => setDraft({ ...draft, section: event.target.value })}>{sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
