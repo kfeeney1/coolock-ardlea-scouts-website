@@ -87,6 +87,31 @@ test.describe("leader journey", () => {
     }
   });
 
+  test("approved Leader Request tile is a stable, keyboard-accessible mobile route", async ({ page }) => {
+    test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+
+    await login(page, adminEmail!);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await page.goto("/leader/requests");
+    await page.getByLabel("Search requests").fill("Approved Section Leader");
+
+    const tile = page.getByRole("button", { name: "Open Leader Access for Approved Section Leader" });
+    await expect(tile).toHaveCount(1);
+    await expect(tile).toBeVisible();
+    await expect(page.getByText("test_flow_leader_request_approved@example.com", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    const box = await tile.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+
+    await tile.press("Space");
+    await expect(page).toHaveURL(/\/leader\/access\/TEST_flow_leader_request_approved/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/leader\/requests\?q=Approved\+Section\+Leader$/);
+    await expect(page.getByLabel("Search requests")).toHaveValue("Approved Section Leader");
+    await expect(tile).toBeVisible();
+  });
+
   test("approved programme scouter can move through members events and consent", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
