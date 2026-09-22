@@ -82,6 +82,9 @@ test.describe("parent access management", () => {
     await expect(pendingCard).toBeVisible();
     await expect(pendingCard.getByText("pending", { exact: true })).toBeVisible();
     await expect(pendingCard).toContainText("0 linked children");
+    const approveBeforeLink = pendingCard.getByRole("button", { name: /Approve( & Merge)? Access/, exact: true });
+    await expect(approveBeforeLink).toBeDisabled();
+    await expect(pendingCard.getByText("Link at least one child before approving access.")).toBeVisible();
 
     await pendingCard.getByRole("button", { name: "Manage Linked Children", exact: true }).click();
     const search = page.getByLabel("Search members for Test Pending Parent");
@@ -89,8 +92,9 @@ test.describe("parent access management", () => {
     const child = page.getByText(/Riley Nolan Beavers 01 \(Beavers · active\)/);
     await expect(child).toBeVisible();
     await page.getByRole("checkbox").check();
+    await expect(approveBeforeLink).toBeEnabled();
 
-    await pendingCard.getByRole("button", { name: "Approve Access", exact: true }).click();
+    await approveBeforeLink.click();
     const approveDialog = page.getByRole("dialog", { name: "Approve parent access?" });
     await expect(approveDialog).toBeVisible();
     await expect(approveDialog).toContainText("Test Pending Parent");
