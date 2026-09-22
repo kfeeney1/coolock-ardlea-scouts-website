@@ -16,7 +16,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -71,6 +71,10 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
   const [saving, setSaving] = useState(false);
 
   const manager = canManageEquipment(profile);
+  useEffect(() => {
+    if (!highlightedIncidentId) return;
+    requestAnimationFrame(() => document.getElementById(`equipment-issue-${highlightedIncidentId}`)?.scrollIntoView({ block: "center" }));
+  }, [highlightedIncidentId, incidents]);
   const scopedSections = useMemo(() => [...new Set(profile?.sections ?? [])].filter(Boolean).sort(), [profile]);
   const sources = useMemo<SourceOption[]>(() => {
     const result: SourceOption[] = [];
