@@ -50,8 +50,6 @@ export default function WeeklySectionTracker() {
   const [selected,setSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [savedSelected,setSavedSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [step,setStep]=useState<Step>("attendance");
-  const [createDate,setCreateDate]=useState(today);
-  const [createSection,setCreateSection]=useState("");
   const [copyDate,setCopyDate]=useState(today);
   const [copySource,setCopySource]=useState<WeeklyMeetingRecord|null>(null);
   const [injuryMemberId,setInjuryMemberId]=useState("");
@@ -67,13 +65,11 @@ export default function WeeklySectionTracker() {
   const editorTopRef=useRef<HTMLDivElement|null>(null);
 
   const viewAll=isAdmin||access.canViewAll;
-  const editableAll=isAdmin||access.canEditAll;
   const readOnly=!isAdmin&&access.readOnly;
   const canEditPast=canEditPastWeeklyMeeting(access.scoutingRole,Boolean(isAdmin));
   const editMode=weeklyMeetingEditMode(selected?.status??"open",access.scoutingRole,Boolean(isAdmin),readOnly);
   const operationalReadOnly=!editMode.canEditOperationalFields;
   const planningReadOnly=!editMode.canEditPlanningFields;
-  const availableSections=useMemo(()=>viewAll?GROUP_SECTIONS:adminProfile?.sections??[],[adminProfile?.sections,viewAll]);
   const selectedSectionLeaders=useMemo(()=>selected?leaders.filter(leader=>leader.organisationSection===selected.section):[],[leaders,selected]);
   const programmeDuration=selected?totalProgrammeDuration(selected.activities,selected.badgeworkPlan):0;
   const whatsappUrl=selected?buildWeeklyMeetingWhatsAppUrl(buildParentWeeklyMeetingProgramme(selected)):"";
@@ -97,8 +93,6 @@ export default function WeeklySectionTracker() {
       const requested=requestedMeetingId?r.find(x=>x.id===requestedMeetingId):null;
       if(requested){setSelected(requested);setSavedSelected(requested);setStep("badgework");}
       else if(selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
-      const sections=all?GROUP_SECTIONS:adminProfile?.sections??[];
-      if(!createSection&&sections.length)setCreateSection(sections[0]);
     } catch(e){console.error(e);setError("Unable to load weekly meetings for your permitted scope.");}
     finally{setLoading(false);}
   };
@@ -109,18 +103,6 @@ export default function WeeklySectionTracker() {
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
   const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{const editingPast=selected?.id===next.id&&selected.status==="closed";if(editingPast&&!editMode.canEditOperationalFields)return false;if(!editingPast&&readOnly)return false;setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;if(editingPast)await updatePastWeeklyMeeting(id,{entries:next.entries,injuries:next.injuries,notes:next.notes});else await updateWeeklyMeeting(id,input);await auditWeeklyMeeting(next,action,message);setSelected(next);setSavedSelected(next);setSuccess(message);await refresh(access);return true;}catch(e){console.error(e);setError("Unable to save this meeting.");return false;}finally{setSaving(false);} };
   const save=async()=>{if(!selected)return; if(await persist(selected,"Meeting saved.")){requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));}};
-
-  const createMeeting=async()=>{
-    setError("");setSuccess("");
-    if(!createSection||!createDate)return setError("Choose a section and meeting date.");
-    const roster=members.filter(m=>m.section===createSection).map(m=>newWeeklyEntry(m.id,m.displayName));
-    if(!roster.length)return setError("No active members are available for that section.");
-    setSaving(true);
-    try{
-      const input={section:createSection,meetingDate:createDate,status:"open" as const,location:"",theme:"",activities:defaultActivityPlans(),badgeworkPlan:defaultBadgeworkPlans(),programmeNotes:"",notes:"",entries:roster,injuries:[]};
-      const id=await createWeeklyMeeting(input); const created={id,...input}; await auditWeeklyMeeting(created,"weekly-meeting-create","Created weekly meeting."); setSelected(created); setSavedSelected(created); setStep(initialStepForDate(createDate)); setSuccess("Meeting created with 2 activity/game rows and 1 badgework row."); await refresh(access);
-    }catch(e){console.error(e);setError("Unable to create this meeting.");}finally{setSaving(false);}
-  };
 
   const copyMeeting=async()=>{
     if(!copySource||!copyDate)return;
