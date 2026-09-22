@@ -58,7 +58,8 @@ test("SW-116 linked family member opens the canonical member record and Back ret
   await familyPanel.getByLabel("Search existing members").fill("Cubs 01");
   const candidate = familyPanel.getByText(/Cubs 01/).first();
   await expect(candidate).toBeVisible();
-  await candidate.locator("xpath=ancestor::*[.//button[normalize-space()='Link sibling']][1]").getByRole("button", { name: "Link sibling" }).click();
+  await candidate.locator("xpath=ancestor::*[.//button[normalize-space()='Select' or normalize-space()='Selected']][1]").getByRole("button", { name: "Select" }).click();
+  await familyPanel.getByRole("button", { name: "Link selected siblings" }).click();
 
   const sibling = familyPanel.locator('a[href="/leader/members/TEST_member_cub_01"]');
   await expect(sibling).toBeVisible();
