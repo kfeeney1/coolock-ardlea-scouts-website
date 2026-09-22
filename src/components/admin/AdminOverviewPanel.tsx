@@ -77,7 +77,6 @@ export default function AdminOverviewPanel() {
         <Box>
           <Chip size="small" variant="outlined" label={`Scope: ${scopeLabel}`} />
         </Box>
-        <Button variant="outlined" color="secondary" onClick={() => void refresh(true)}>Refresh Overview</Button>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
