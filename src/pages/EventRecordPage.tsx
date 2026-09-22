@@ -101,7 +101,7 @@ export default function EventRecordPage() {
         try {
             const sectionIds = draft.audience?.sectionIds ?? [];
             const memberIds = draft.audience?.memberIds ?? [];
-            const audience = draft.audience ? { ...draft.audience, resolvedMemberIds: resolveEventAudience(sectionIds, memberIds, members) } : null;
+            const audience = draft.audience ? { ...draft.audience, mode: (memberIds.length ? "members" : "sections") as "members" | "sections", resolvedMemberIds: resolveEventAudience(sectionIds, memberIds, members) } : null;
             await updateEvent(event.id, { ...draft, audience });
             setEditing(false);
             setMessage(draft.status === "completed" ? "Event completed and moved to history." : "Event updated.");
