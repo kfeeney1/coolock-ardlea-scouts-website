@@ -205,7 +205,7 @@ test.describe("admin permissions", () => {
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
-    await expect(page.getByText(/· admin/i).first()).toBeVisible();
+    await expect(page.getByTestId("authenticated-header-identity")).toContainText("Admin");
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
@@ -226,7 +226,7 @@ test.describe("super-admin permissions", () => {
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginLeader(page, account!);
 
-    await expect(page.getByText(/· super-admin/i).first()).toBeVisible();
+    await expect(page.getByTestId("authenticated-header-identity")).toContainText("Super Admin");
     await openLeaderMenu(page);
     await expect(page.getByRole("link", { name: "Member Management" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Member History" })).toHaveCount(0);
