@@ -50,7 +50,7 @@ export type MemberRecord = {
 export type CreateMemberInput = Pick<
   MemberRecord,
   "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" |
-  "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status"
+  "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"
 >;
 
 export type MemberConsentSummary = {
