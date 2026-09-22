@@ -287,7 +287,21 @@ export async function recordSubsPayment(input: {
   const id = operationId ?? doc(collection(db, "subsPayments")).id;
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
   const paymentRef = doc(db, "subsPayments", id);
-  if ((await getDoc(paymentRef)).exists()) return id;
+  const existing = await getDoc(paymentRef);
+  if (existing.exists()) {
+    const data = existing.data();
+    const sameOperation = data.recordedBy === actor
+      && data.memberId === valid.memberId
+      && data.period === valid.period
+      && data.accountId === valid.accountId
+      && data.amountCents === valid.amountCents
+      && data.method === valid.method
+      && data.paymentDate === valid.paymentDate
+      && data.note === valid.note
+      && data.reversalOfPaymentId === "";
+    if (!sameOperation) throw new Error("This payment operation identifier has already been used.");
+    return id;
+  }
   await setDoc(paymentRef, { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
     category: "finance",
