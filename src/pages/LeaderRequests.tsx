@@ -150,13 +150,7 @@ export default function LeaderRequests() {
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Leader Requests"
-                    description="Review pending leader registrations. Matching Parent registrations are highlighted, but matching never grants access until an administrator explicitly confirms approval."
-                    actions={
-                        <>
-                            <Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>
-                            <Button component={Link} to="/leader/access" variant="outlined" color="secondary">Leader Access</Button>
-                        </>
-                    }
+                    actions={<Button component={Link} to="/leader/access" variant="outlined" color="secondary">Leader Access</Button>}
                 />
 
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
