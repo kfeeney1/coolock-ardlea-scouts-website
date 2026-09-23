@@ -16,6 +16,7 @@ jobs:
     env:
       PROJECT_ID: coolock-ardlea-scouts
       BACKUP_BUCKET: gs://coolock-ardlea-scouts.firebasestorage.app
+      WARNING_BACKUP_AGE_HOURS: "168"
       MAX_BACKUP_AGE_HOURS: "192"
 
     steps:
@@ -77,11 +78,34 @@ jobs:
           echo "Backup age: ${AGE_HOURS} hour(s); maximum allowed: ${MAX_BACKUP_AGE_HOURS}."
           echo "latest=${LATEST}" >> "${GITHUB_OUTPUT}"
           echo "age_hours=${AGE_HOURS}" >> "${GITHUB_OUTPUT}"
+          if (( AGE_HOURS > MAX_BACKUP_AGE_HOURS )); then STATE="Critical"; elif (( AGE_HOURS > WARNING_BACKUP_AGE_HOURS )); then STATE="Warning"; else STATE="Healthy"; fi
+          echo "state=${STATE}" >> "${GITHUB_OUTPUT}"
 
           if (( AGE_HOURS > MAX_BACKUP_AGE_HOURS )); then
             echo "Firestore backup is stale. Run the Firestore Backup workflow before a release or migration." >&2
             exit 1
           fi
+
+      - name: Publish privacy-safe monitoring observation
+        if: always()
+        shell: bash
+        env:
+          LATEST: ${{ steps.freshness.outputs.latest }}
+          AGE_HOURS: ${{ steps.freshness.outputs.age_hours }}
+          STATE: ${{ steps.freshness.outputs.state }}
+        run: |
+          set -euo pipefail
+          TOKEN="$(gcloud auth print-access-token)"
+          OBSERVED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          SAFE_STATE="${STATE:-Unknown}"
+          SAFE_AGE="${AGE_HOURS:-}"
+          REASON="Independent scheduled backup freshness assurance"
+          if [[ -z "${LATEST:-}" ]]; then
+            SAFE_STATE="Missing"
+            REASON="No verifiable backup reference was produced by the freshness check"
+          fi
+          FIELDS=$(jq -n --arg service "Firestore Backup" --arg env "PRODUCTION" --arg metric "backup freshness" --arg state "$SAFE_STATE" --arg observed "$OBSERVED_AT" --arg source "Firestore Backup Freshness GitHub Actions workflow" --arg sourceType "authoritative-live" --arg reason "$REASON" --arg recovery "Inspect Firestore Backup and Firestore Backup Freshness workflows; run a protected manual backup if required." --arg management "https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions" --arg age "$SAFE_AGE" '{fields:{service:{stringValue:$service},environment:{stringValue:$env},metric:{stringValue:$metric},state:{stringValue:$state},observedAt:{stringValue:$observed},source:{stringValue:$source},sourceType:{stringValue:$sourceType},reason:{stringValue:$reason},recovery:{stringValue:$recovery},managementUrl:{stringValue:$management},current:{integerValue:(if $age=="" then "0" else $age end)},unit:{stringValue:"hours old"},warningThreshold:{integerValue:"168"},criticalThreshold:{integerValue:"192"}}}')
+          curl --fail-with-body --silent --show-error -X PATCH             -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json"             --data "$FIELDS"             "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production" >/dev/null
 
       - name: Write job summary
         if: always()
