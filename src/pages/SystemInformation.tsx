@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Container, Link, Paper, Stack, Typography } from "@mui/material";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { SYSTEM_INFORMATION as info, buildAiHandoverPrompt } from "../operations/systemInformation";
@@ -35,6 +35,19 @@ export default function SystemInformation() {
     <Section title="AI development handover"><Typography sx={{mb:1}}>Copy this prompt when handing development to another authorised developer or AI agent. It contains no credentials and requires live-state verification.</Typography><Button variant="contained" color="secondary" onClick={()=>void copyPrompt()} aria-label="Copy AI development handover prompt">Copy prompt</Button><Box aria-live="polite" sx={{my:1}}>{copyState==="success"&&<Alert severity="success">Complete handover prompt copied.</Alert>}{copyState==="error"&&<Alert severity="error">Clipboard access is unavailable. The prompt remains readable below for manual copying.</Alert>}</Box><Paper component="pre" variant="outlined" tabIndex={0} sx={{p:2,whiteSpace:"pre-wrap",overflowWrap:"anywhere",wordBreak:"break-word",maxWidth:"100%",overflowX:"hidden"}}>{prompt}</Paper></Section>
   </Container></Box>;
 }
-function Section({title,children}:{title:string;children:React.ReactNode}) { return <Paper component="section" variant="outlined" sx={{p:{xs:2,md:3},mb:2}}><Typography component="h2" variant="h5" sx={{mb:1.5,fontWeight:800}}>{title}</Typography>{children}</Paper>; }
-function External({href,children}:{href:string;children:React.ReactNode}) { return <Link href={href} target="_blank" rel="noreferrer" sx={{display:"inline-block",mt:1,overflowWrap:"anywhere"}}>{children} ↗</Link>; }
-function BuildInfo(){ const [text,setText]=useState("Build revision: check /build-info.json"); return <Button size="small" sx={{mt:1}} onClick={async()=>{try{const r=await fetch("/build-info.json",{cache:"no-store"});const d=await r.json();setText(`Build: ${d.environment} · ${d.commit}`)}catch{setText("Build revision unavailable — verify deployment evidence.")}}>{text}</Button>; }
+function Section({title,children}:{title:string;children:ReactNode}) { return <Paper component="section" variant="outlined" sx={{p:{xs:2,md:3},mb:2}}><Typography component="h2" variant="h5" sx={{mb:1.5,fontWeight:800}}>{title}</Typography>{children}</Paper>; }
+function External({href,children}:{href:string;children:ReactNode}) { return <Link href={href} target="_blank" rel="noreferrer" sx={{display:"inline-block",mt:1,overflowWrap:"anywhere"}}>{children} ↗</Link>; }
+function BuildInfo() {
+  const [text, setText] = useState("Build revision: check /build-info.json");
+  const checkBuild = async () => {
+    try {
+      const response = await fetch("/build-info.json", { cache: "no-store" });
+      if (!response.ok) throw new Error("Build metadata unavailable");
+      const data = await response.json() as { environment?: string; commit?: string };
+      setText(`Build: ${data.environment ?? "unknown"} · ${data.commit ?? "unknown"}`);
+    } catch {
+      setText("Build revision unavailable — verify deployment evidence.");
+    }
+  };
+  return <Button size="small" sx={{ mt: 1 }} onClick={() => void checkBuild()}>{text}</Button>;
+}
