@@ -99,10 +99,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  const addComboboxes = addDialog.getByRole("combobox");
-  await addComboboxes.nth(0).click();
+  await addDialog.getByRole("combobox", { name: "Category" }).click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await addComboboxes.nth(1).click();
+  await addDialog.getByRole("combobox", { name: "Store" }).click();
   await page.getByRole("option", { name: "TEST Checkout Store", exact: true }).click();
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
@@ -112,17 +111,15 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
-  await checkoutRow.getByLabel("Qty").fill("1");
+  await checkoutDialog.getByRole("spinbutton", { name: "Qty" }).filter({ visible: true }).fill("1");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(page.getByText(`1 × ${itemName}`, { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Report issue" }).click();
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
-  const incidentComboboxes = incidentDialog.getByRole("combobox");
-  await incidentComboboxes.nth(0).click();
+  await incidentDialog.getByRole("combobox", { name: "Equipment / checkout" }).click();
   await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${itemName} · 1 out`) }).click();
-  await incidentComboboxes.nth(1).click();
+  await incidentDialog.getByRole("combobox", { name: "Issue type" }).click();
   await page.getByRole("option", { name: "Damaged" }).click();
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
