@@ -28,15 +28,18 @@ compare("Route matrix", new Set(Object.keys(matrix.routes || {})), appRoutes);
 for (const route of appRoutes) {
   const gate = matrix.routes[route];
   const routeSource = app.match(new RegExp(`<Route\\s+path="${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]+`))?.[0] || "";
-  if (route.startsWith("/leader/") && !["/leader/login", "/leader/register"].includes(route) && !gate.startsWith("leader") && !["admin", "group-audit-role"].includes(gate)) fail(`${route} has invalid leader-area gate ${JSON.stringify(gate)}.`);
-  const usesLeaderGuard = routeSource.includes("protectedRoute") || (route === "/leader/settings" && routeSource.includes("protectedSettingsRoute"));
-  if (["leader", "admin", "group-audit-role"].includes(gate) && !usesLeaderGuard) fail(`${route} must use a leader authentication guard.`);
+  if (route.startsWith("/leader/") && !["/leader/login", "/leader/register"].includes(route) && !gate.startsWith("leader") && !["admin", "super-admin", "group-audit-role"].includes(gate)) fail(`${route} has invalid leader-area gate ${JSON.stringify(gate)}.`);
+  const usesLeaderGuard = routeSource.includes("protectedRoute") || routeSource.includes("protectedSettingsRoute") || routeSource.includes("protectedSuperAdminRoute");
+  if (["leader", "admin", "super-admin", "group-audit-role"].includes(gate) && !usesLeaderGuard) fail(`${route} must use a leader authentication guard.`);
 }
 for (const route of ["/leader/requests", "/leader/access", "/leader/parent-access", "/leader/settings"]) {
   if (matrix.routes[route] !== "admin") fail(`${route} must remain admin-gated in the RBAC matrix.`);
 }
 if (!app.includes('path="/leader/settings" element={protectedSettingsRoute(')) fail("Site Settings must retain its dedicated admin route guard.");
 else pass("Site Settings retains its dedicated admin route guard.");
+if (matrix.routes["/leader/system"] !== "super-admin") fail("/leader/system must remain Super Admin-gated in the RBAC matrix.");
+if (!app.includes('path="/leader/system" element={protectedSuperAdminRoute(')) fail("System Information must retain its dedicated Super Admin route guard.");
+else pass("System Information retains its dedicated Super Admin route guard.");
 
 compare("Firestore RBAC matrix", new Set(Object.keys(matrix.firestore || {})), new Set(FIRESTORE_ROOT_COLLECTIONS));
 for (const collectionName of FIRESTORE_ROOT_COLLECTIONS) {

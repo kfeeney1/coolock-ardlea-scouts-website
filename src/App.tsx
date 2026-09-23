@@ -7,6 +7,7 @@ import LeaderRecordRoutePreloader from "./components/admin/LeaderRecordRoutePrel
 import MemberCardNavigation from "./components/admin/MemberCardNavigation";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedSiteSettingsRoute from "./components/admin/ProtectedSiteSettingsRoute";
+import ProtectedSuperAdminRoute from "./components/admin/ProtectedSuperAdminRoute";
 import DropdownBackgroundScrollLockBridge from "./components/DropdownBackgroundScrollLockBridge";
 import Layout from "./components/Layout";
 import { PublicSiteContentProvider } from "./components/PublicSiteContentProvider";
@@ -60,9 +61,11 @@ const EventRecordPage = lazy(() => import("./pages/EventRecordPage"));
 const EventConsentManagement = lazy(() => import("./pages/EventConsentManagement"));
 const ParentAccessManagement = lazy(() => import("./pages/ParentAccessManagement"));
 const SiteSettings = lazy(() => import("./pages/SiteSettings"));
+const SystemInformation = lazy(() => import("./pages/SystemInformation"));
 
 function protectedRoute(element: ReactNode) { return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>; }
 function protectedSettingsRoute(element: ReactNode) { return protectedRoute(<ProtectedSiteSettingsRoute>{element}</ProtectedSiteSettingsRoute>); }
+function protectedSuperAdminRoute(element: ReactNode) { return protectedRoute(<ProtectedSuperAdminRoute>{element}</ProtectedSuperAdminRoute>); }
 
 export default function App() {
   return (
@@ -118,6 +121,7 @@ export default function App() {
         <Route path="/leader/parent-access" element={protectedRoute(<ParentAccessManagement />)} />
         <Route path="/leader/policies" element={protectedRoute(<PolicyDocuments />)} />
         <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
+        <Route path="/leader/system" element={protectedSuperAdminRoute(<SystemInformation />)} />
       </Route></Routes>
     </ThemeExperienceProvider></AdminAuthProvider></PublicSiteContentProvider>
   );
