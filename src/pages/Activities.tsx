@@ -51,10 +51,6 @@ export default function Activities() {
                 <Typography component="h1" variant="h3" color="secondary" sx={{ fontWeight: 800 }}>
                     {content.activities.title}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1, mb: 4 }}>
-                    {content.activities.intro}
-                </Typography>
-
                 {loading && <Box sx={{ minHeight: 220, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>}
                 {error && <Alert severity="error">{error}</Alert>}
                 {!loading && !error && events.length === 0 && <Alert severity="info">{content.activities.emptyMessage}</Alert>}
