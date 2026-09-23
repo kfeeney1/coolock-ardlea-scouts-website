@@ -76,8 +76,8 @@ test.describe("leader access management", () => {
     await expect(active).toBeChecked();
     await expect(saveLeader).toBeDisabled();
 
-    await page.getByRole("button", { name: "Refresh" }).click();
-    await expect(active).toBeChecked();
+    await page.reload();
+    await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader").getByRole("switch", { name: "Active" })).toBeChecked();
   });
 });
 
