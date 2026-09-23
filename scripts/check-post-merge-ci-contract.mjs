@@ -25,7 +25,9 @@ requireMatch(quality, /jobs:\s*\n\s*quality:/m, "Quality must publish the qualit
 requireMatch(e2e, /jobs:\s*\n\s*e2e:/m, "Playwright E2E must publish the e2e job/check.");
 requireMatch(testDeploy, /jobs:\s*\n\s*deploy_test:/m, "Firebase TEST Deploy must publish the deploy_test job/check.");
 
-requireMatch(guard, /workflow_run:\s*\n\s*workflows:\s*\["Firebase TEST Deploy"\]/m, "Post-merge guard must react to TEST deployment completion.");
+requireMatch(guard, /push:\s*\n\s*branches:\s*(?:\[main\]|\n\s*- main)/m, "Post-merge guard must start directly on pushes to main.");
+requireMatch(guard, /workflow_run:\s*\n\s*workflows:\s*\["Firebase TEST Deploy"\]/m, "Post-merge guard must also react to TEST deployment completion.");
+requireMatch(guard, /GITHUB_EVENT_NAME.*push[\s\S]*TARGET_SHA="\$\{GITHUB_SHA\}"/m, "Post-merge guard must bind a push-triggered run to the exact pushed SHA.");
 requireMatch(guard, /schedule:\s*\n\s*- cron:/m, "Post-merge guard must have a scheduled fallback for completely missing push workflows.");
 for (const expected of ["Quality", "Playwright E2E", "Firebase TEST Deploy", "quality", "e2e", "deploy_test"]) {
   if (!guard.includes(`"${expected}"`)) failures.push(`Post-merge guard does not require ${expected}.`);

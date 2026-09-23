@@ -1,6 +1,8 @@
 name: Post-merge CI Guard
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["Firebase TEST Deploy"]
     types: [completed]
@@ -33,6 +35,8 @@ jobs:
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
             TARGET_SHA="${WORKFLOW_RUN_SHA}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TARGET_SHA="${GITHUB_SHA}"
           else
             TARGET_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
           fi
