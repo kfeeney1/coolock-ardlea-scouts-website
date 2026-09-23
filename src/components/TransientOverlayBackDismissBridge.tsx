@@ -38,6 +38,7 @@ export default function TransientOverlayBackDismissBridge() {
   const navigate = useNavigate();
   const [surfaces, setSurfaces] = useState<HTMLElement[]>([]);
   const previousMarkerCount = useRef(0);
+  const latestMarkerCount = useRef(0);
   const consumingClose = useRef(false);
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
@@ -61,7 +62,7 @@ export default function TransientOverlayBackDismissBridge() {
     const handlePopState = (event: PopStateEvent) => {
       const markerCount = backDismissStack(locationStateFromHistoryState(event.state))
         .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
-      const priorMarkerCount = previousMarkerCount.current;
+      const priorMarkerCount = Math.max(previousMarkerCount.current, latestMarkerCount.current);
       if (markerCount >= priorMarkerCount) return;
 
       previousMarkerCount.current = markerCount;
@@ -90,6 +91,7 @@ export default function TransientOverlayBackDismissBridge() {
     }
 
     previousMarkerCount.current = markerCount;
+    latestMarkerCount.current = markerCount;
 
     if (surfaces.length > markerCount) {
       const marker = `${MARKER_PREFIX}${markerCount + 1}`;
