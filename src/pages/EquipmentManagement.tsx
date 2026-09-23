@@ -17,7 +17,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
@@ -88,6 +88,7 @@ export default function EquipmentManagement() {
   const [manageLocationsOpen, setManageLocationsOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<EquipmentItem | null>(null);
+  const inventoryHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const search = searchParams.get("q") ?? "";
   const categoryFilter = searchParams.get("category") ?? "all";
@@ -165,7 +166,10 @@ export default function EquipmentManagement() {
     if (filter === "all") next.delete("status");
     else next.set("status", filter);
     setSearchParams(next);
-    requestAnimationFrame(() => document.querySelector('[data-testid="equipment-inventory-section"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    requestAnimationFrame(() => {
+      inventoryHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      inventoryHeadingRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const openCreate = () => {
@@ -243,7 +247,7 @@ export default function EquipmentManagement() {
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Detailed inventory</Typography>
+        <Typography ref={inventoryHeadingRef} tabIndex={-1} variant="h5" sx={{ fontWeight: 800, mb: 1, scrollMarginTop: { xs: "104px", md: "120px" }, "&:focus": { outline: "none" } }}>Detailed inventory</Typography>
       <EquipmentInventoryFilters
         search={search}
         status={statusFilter}
