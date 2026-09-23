@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
