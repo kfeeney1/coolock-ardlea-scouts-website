@@ -94,6 +94,7 @@ export default function TransientOverlayBackDismissBridge() {
     latestMarkerCount.current = markerCount;
 
     if (surfaces.length > markerCount) {
+      latestMarkerCount.current = surfaces.length;
       const marker = `${MARKER_PREFIX}${markerCount + 1}`;
       navigate(`${location.pathname}${location.search}${location.hash}`, {
         state: withBackDismissMarker(location.state, marker)
