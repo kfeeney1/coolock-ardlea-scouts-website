@@ -106,6 +106,25 @@ jobs:
           gcloud storage ls "${DESTINATION}/" >/dev/null
           echo "Verified Firestore export at ${DESTINATION}"
 
+      - name: Publish backup attempt observation
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          DESTINATION: ${{ steps.backup.outputs.destination }}
+        run: |
+          set -euo pipefail
+          TOKEN="$(gcloud auth print-access-token)"
+          OBSERVED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          if [[ "$JOB_STATUS" == "success" && -n "${DESTINATION:-}" ]]; then
+            STATE="Healthy"; REASON="Scheduled or authorised manual Firestore export completed and destination files were verified."
+          else
+            STATE="Critical"; REASON="Most recent Firestore backup attempt failed; an older successful export must not mask this failure."
+          fi
+          FIELDS=$(jq -n --arg service "Firestore Backup" --arg env "PRODUCTION" --arg metric "backup execution" --arg state "$STATE" --arg observed "$OBSERVED_AT" --arg source "Firestore Backup GitHub Actions workflow" --arg sourceType "authoritative-live" --arg reason "$REASON" --arg recovery "Inspect this workflow run and repair authentication, export or destination access before relying on older backups." --arg management "https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions" '{fields:{service:{stringValue:$service},environment:{stringValue:$env},metric:{stringValue:$metric},state:{stringValue:$state},observedAt:{stringValue:$observed},source:{stringValue:$source},sourceType:{stringValue:$sourceType},reason:{stringValue:$reason},recovery:{stringValue:$recovery},managementUrl:{stringValue:$management}}}')
+          curl --fail-with-body --silent --show-error -X PATCH             -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json"             --data "$FIELDS"             "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production" >/dev/null
+
       - name: Write job summary
         if: always()
         shell: bash

@@ -177,3 +177,18 @@ Backups contain the same sensitive data as Firestore. Treat the backup bucket as
 - do not put production backup contents in GitHub artifacts;
 - rotate credentials if a service-account key is exposed;
 - review cross-project bucket grants carefully.
+
+
+## Restore-readiness control
+
+Routine recovery testing must never import into or overwrite production. The authorised operator must select an isolated TEST or temporary recovery project, confirm it contains no production personal data, and record the source backup, destination project, aggregate collection/document counts, validation time and cleanup result. Authentication, Storage and Authentication recovery are separate from a Firestore managed import and must not be described as recovered merely because Firestore data imported.
+
+A managed restore is **unverified** until an isolated managed import has actually completed. Missing permission, billing, compatible location, credentials or organisational approval is a blocker to record, not a pass. The monthly emulator drill proves only the synthetic recovery harness.
+
+For an incident requiring production restoration, obtain incident approval, stop the damaging write path, select a verified pre-incident backup, document the intended scope, and preserve rollback/evidence. Production overwrite is prohibited during routine testing.
+
+## Work Block H freshness policy
+
+The current technical default is Warning when the latest verified backup is older than 168 hours and Critical after 192 hours. Monitoring evidence itself is stale after 26 hours. These are technical defaults pending organisational approval, not a formal retention policy. Unknown, missing, malformed, future-dated or unavailable observations are never Healthy.
+
+The independent Firestore Backup Freshness workflow is the authoritative freshness check. A prior successful export must not be used to conceal a newer failed attempt. Operators should use the workflow run and its timestamped summary as audit evidence and follow the recovery action shown by the Super Admin System Information view.
