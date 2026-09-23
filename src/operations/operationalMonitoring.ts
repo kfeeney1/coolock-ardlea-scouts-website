@@ -1,6 +1,3 @@
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
-
 export type MonitorState = "Healthy" | "Warning" | "Critical" | "Missing" | "Unknown" | "Unavailable" | "Not applicable";
 
 export type OperationalObservation = {
@@ -61,6 +58,7 @@ export function aggregateOperationalState(states: MonitorState[]): MonitorState 
 }
 
 export async function loadOperationalObservations(): Promise<OperationalObservation[]> {
+  const [{ collection, getDocs }, { db }] = await Promise.all([import("firebase/firestore"), import("../firebase")]);
   const snapshot = await getDocs(collection(db, "operationalMonitoring"));
   return snapshot.docs.map((entry) => {
     const data = entry.data() as Partial<OperationalObservation>;
