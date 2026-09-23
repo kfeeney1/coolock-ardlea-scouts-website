@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
@@ -12,17 +13,18 @@ function visibleSurfaces(): HTMLElement[] {
 
 function dismissSurface(surface: HTMLElement | undefined) {
   if (!surface) return;
-  // MUI Menu/Select listens for Escape at the document/modal layer. Dispatching
-  // only on the listbox can be swallowed by the list's own keyboard handler.
-  const event = new KeyboardEvent("keydown", {
+  // Native Escape is the normal MUI close path. Dispatch it from the focused
+  // popup first (matching a real keyboard event), then fall back to document.
+  const init: KeyboardEventInit = {
     key: "Escape",
     code: "Escape",
     keyCode: 27,
     which: 27,
     bubbles: true,
     cancelable: true
-  });
-  document.dispatchEvent(event);
+  };
+  surface.dispatchEvent(new KeyboardEvent("keydown", init));
+  if (surface.getClientRects().length > 0) document.dispatchEvent(new KeyboardEvent("keydown", init));
 }
 
 function locationStateFromHistoryState(historyState: unknown): unknown {
@@ -51,7 +53,13 @@ export default function TransientOverlayBackDismissBridge() {
   );
 
   useLayoutEffect(() => {
-    const refresh = () => setSurfaces(visibleSurfaces());
+    const refresh = () => {
+      const next = visibleSurfaces();
+      // Arm the same-route history entry synchronously with the portal mutation.
+      // This prevents Playwright/hardware Back from racing a deferred React state
+      // update between MUI painting the listbox and this bridge pushing its marker.
+      flushSync(() => setSurfaces(next));
+    };
     refresh();
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, {
