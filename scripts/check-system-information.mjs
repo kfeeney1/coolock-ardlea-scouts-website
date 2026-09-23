@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { access, readFile } from "node:fs/promises";
+const source=await readFile("src/operations/systemInformation.ts","utf8");
+const page=await readFile("src/pages/SystemInformation.tsx","utf8");
+const app=await readFile("src/App.tsx","utf8");
+const nav=await readFile("src/components/admin/LeaderDashboardHeader.tsx","utf8");
+for(const required of ["kfeeney1/coolock-ardlea-scouts-website","coolock-ardlea-scouts-test","coolock-ardlea-scouts","Production deployment is manual","SW-164 Hall Hire","synthetic data only","verify current Jira","exact-SHA"]) assert.ok(source.toLowerCase().includes(required.toLowerCase()),`Missing ${required}`);
+for(const marker of ["BEGIN PRIVATE KEY","private_key","service_account","ghp_"]) assert.ok(!source.includes(marker),`Unsafe marker ${marker}`);
+for(const url of source.match(/https:\/\/[^"\\s]+/g)??[]) new URL(url);
+const workflowMatches=[...source.matchAll(/file: "([^"]+\\.yml)"/g)].map(x=>x[1]);
+assert.equal(new Set(workflowMatches).size,workflowMatches.length);
+for(const file of workflowMatches) await access(file);
+assert.match(page,/SYSTEM_INFORMATION as info, buildAiHandoverPrompt/); assert.match(page,/navigator\\.clipboard/); assert.match(page,/aria-live="polite"/); assert.match(app,/ProtectedSuperAdminRoute/); assert.match(nav,/superAdminOnly/);
+console.log("System Information documentation contract passed.");
