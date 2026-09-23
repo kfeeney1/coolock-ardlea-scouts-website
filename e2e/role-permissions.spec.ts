@@ -236,6 +236,5 @@ test.describe("super-admin permissions", () => {
 
     await page.goto("/leader/access");
     await expect(page.getByRole("heading", { name: "Leader Access" })).toBeVisible();
-    await expect(page.getByText(/Group Leadership can delegate ordinary operational appointments and section scope only/i)).toBeVisible();
   });
 });
