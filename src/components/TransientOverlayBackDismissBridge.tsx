@@ -1,5 +1,4 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
@@ -13,8 +12,6 @@ function visibleSurfaces(): HTMLElement[] {
 
 function dismissSurface(surface: HTMLElement | undefined) {
   if (!surface) return;
-  // Native Escape is the normal MUI close path. Dispatch it from the focused
-  // popup first (matching a real keyboard event), then fall back to document.
   const init: KeyboardEventInit = {
     key: "Escape",
     code: "Escape",
@@ -24,7 +21,6 @@ function dismissSurface(surface: HTMLElement | undefined) {
     cancelable: true
   };
   surface.dispatchEvent(new KeyboardEvent("keydown", init));
-  if (surface.getClientRects().length > 0) document.dispatchEvent(new KeyboardEvent("keydown", init));
 }
 
 function locationStateFromHistoryState(historyState: unknown): unknown {
@@ -53,13 +49,7 @@ export default function TransientOverlayBackDismissBridge() {
   );
 
   useLayoutEffect(() => {
-    const refresh = () => {
-      const next = visibleSurfaces();
-      // Arm the same-route history entry synchronously with the portal mutation.
-      // This prevents Playwright/hardware Back from racing a deferred React state
-      // update between MUI painting the listbox and this bridge pushing its marker.
-      flushSync(() => setSurfaces(next));
-    };
+    const refresh = () => setSurfaces(visibleSurfaces());
     refresh();
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, {
@@ -75,16 +65,23 @@ export default function TransientOverlayBackDismissBridge() {
     const handlePopState = (event: PopStateEvent) => {
       const markerCount = backDismissStack(locationStateFromHistoryState(event.state))
         .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
+      const visible = visibleSurfaces();
       const priorMarkerCount = Math.max(previousMarkerCount.current, latestMarkerCount.current);
-      if (markerCount >= priorMarkerCount) return;
 
-      previousMarkerCount.current = markerCount;
-      if (consumingClose.current) {
-        consumingClose.current = false;
+      // A real browser/hardware Back is also the authoritative signal to dismiss
+      // the top transient surface. Do not require React Router's marker state to
+      // have committed first: MUI portals can become interactive before that
+      // navigation is observable, which is exactly the Stage 20.6 race.
+      if (visible.length > 0 && !consumingClose.current) {
+        previousMarkerCount.current = markerCount;
+        latestMarkerCount.current = markerCount;
+        dismissSurface(visible.at(-1));
         return;
       }
 
-      dismissSurface(visibleSurfaces().at(-1));
+      if (markerCount >= priorMarkerCount) return;
+      previousMarkerCount.current = markerCount;
+      if (consumingClose.current) consumingClose.current = false;
     };
 
     window.addEventListener("popstate", handlePopState);
