@@ -191,10 +191,10 @@ export default function AttendanceInsights() {
 
                         <Paper variant="outlined" sx={{ p: 2.5 }}>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
-                                <Button variant={historyType === "meetings" ? "contained" : "outlined"} onClick={() => setHistoryType("meetings")}>
+                                <Button aria-pressed={historyType === "meetings"} variant={historyType === "meetings" ? "contained" : "outlined"} onClick={() => setHistoryType("meetings")}>
                                     Meetings ({selectedHistory.meetings.length})
                                 </Button>
-                                <Button variant={historyType === "events" ? "contained" : "outlined"} onClick={() => setHistoryType("events")}>
+                                <Button aria-pressed={historyType === "events"} variant={historyType === "events" ? "contained" : "outlined"} onClick={() => setHistoryType("events")}>
                                     Events ({selectedHistory.events.length})
                                 </Button>
                             </Stack>

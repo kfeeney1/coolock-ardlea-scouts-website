@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const webkitCriticalPath = /webkit-critical-path\.spec\.ts/;
+const stableEnvironmentSmoke = /test-environment-smoke\.spec\.ts/;
+const runStableEnvironmentSmoke = process.env.E2E_STABLE_ENVIRONMENT_SMOKE === "true";
 const configuredWorkers = Number.parseInt(process.env.E2E_WORKERS || "1", 10);
 const workers = Number.isFinite(configuredWorkers) && configuredWorkers > 0 ? configuredWorkers : 1;
 
@@ -13,12 +15,16 @@ export default defineConfig({
   workers,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
+  // Retries retain the trace from an intermittent failure, but a test that only
+  // passes on retry is still a failed quality gate. This prevents green CI from
+  // hiding timing and shared-state defects.
+  failOnFlakyTests: Boolean(process.env.CI),
   timeout: 45_000,
   expect: {
     timeout: 10_000
   },
   reporter: process.env.CI
-    ? [["github"], ["html", { outputFolder: "playwright-report", open: "never" }]]
+    ? [["github"], ["html", { outputFolder: "playwright-report", open: "never" }], ["./scripts/playwright-assurance-reporter.mjs"]]
     : "list",
   use: {
     // Fail away from production by default. Any non-local target must be supplied
@@ -29,8 +35,16 @@ export default defineConfig({
     video: "retain-on-failure"
   },
   projects: [
-    { name: "chromium", testIgnore: webkitCriticalPath, use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-chromium", testIgnore: webkitCriticalPath, use: { ...devices["Pixel 7"] } },
+    {
+      name: "chromium",
+      testIgnore: [webkitCriticalPath, ...(!runStableEnvironmentSmoke ? [stableEnvironmentSmoke] : [])],
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      name: "mobile-chromium",
+      testIgnore: [webkitCriticalPath, ...(!runStableEnvironmentSmoke ? [stableEnvironmentSmoke] : [])],
+      use: { ...devices["Pixel 7"] }
+    },
     {
       name: "webkit-critical",
       testMatch: webkitCriticalPath,

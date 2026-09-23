@@ -33,8 +33,8 @@ for (const [theme, email] of accounts) {
     await pendingCard.getByRole("button", { name: "Approve Access", exact: true }).click();
 
     const dialog = page.getByRole("dialog", { name: "Approve parent access?" });
-    const actions = dialog.locator(".MuiDialogActions-root");
-    const back = actions.getByRole("button", { name: "Back to review", exact: true });
+    const back = dialog.getByRole("button", { name: "Back to review", exact: true });
+    const actions = back.locator("..");
     const approve = actions.getByRole("button", { name: "Approve Access", exact: true });
     await expect(actions).toBeVisible();
     await expect(back).toBeVisible();

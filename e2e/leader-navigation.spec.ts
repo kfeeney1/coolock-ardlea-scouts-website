@@ -22,12 +22,11 @@ test("admin sees grouped desktop navigation with administration tools", async ({
 
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
   const desktopNavigation = navigation.getByTestId("leader-navigation-desktop");
-  const desktopGroups = desktopNavigation.locator(".MuiTypography-overline");
-  await expect(desktopGroups.filter({ hasText: /^Programme$/ })).toBeVisible();
-  await expect(desktopGroups.filter({ hasText: /^People & Parents$/ })).toBeVisible();
-  await expect(desktopGroups.filter({ hasText: /^Group Operations$/ })).toBeVisible();
-  await expect(desktopGroups.filter({ hasText: /^Insights & Records$/ })).toBeVisible();
-  await expect(desktopGroups.filter({ hasText: /^Administration$/ })).toBeVisible();
+  await expect(desktopNavigation.getByText("Programme", { exact: true })).toBeVisible();
+  await expect(desktopNavigation.getByText("People & Parents", { exact: true })).toBeVisible();
+  await expect(desktopNavigation.getByText("Group Operations", { exact: true })).toBeVisible();
+  await expect(desktopNavigation.getByText("Insights & Records", { exact: true })).toBeVisible();
+  await expect(desktopNavigation.getByText("Administration", { exact: true })).toBeVisible();
   await expect(navigation.getByText("Account & Help", { exact: true })).toBeVisible();
 
   await expect(desktopNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
@@ -137,5 +136,4 @@ test("Leader Menu supports keyboard open and Escape focus restoration", async ({
   await expect(menuToggle).toBeFocused();
   await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
 });
-
 
