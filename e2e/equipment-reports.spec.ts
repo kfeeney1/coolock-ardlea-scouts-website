@@ -99,9 +99,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  await addDialog.getByRole("combobox", { name: "Category" }).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await addDialog.getByRole("combobox", { name: "Store" }).click();
+  await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "TEST Checkout Store", exact: true }).click();
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
@@ -117,9 +117,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
 
   await page.getByRole("button", { name: "Report issue" }).click();
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
-  await incidentDialog.getByRole("combobox", { name: "Equipment / checkout" }).click();
+  await incidentDialog.getByLabel("Equipment / checkout").click();
   await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${itemName} · 1 out`) }).click();
-  await incidentDialog.getByRole("combobox", { name: "Issue type" }).click();
+  await incidentDialog.getByLabel("Issue type").click();
   await page.getByRole("option", { name: "Damaged" }).click();
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
