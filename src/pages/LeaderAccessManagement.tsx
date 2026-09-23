@@ -29,7 +29,7 @@ import { SectionIdentityChip, SectionOptionLabel, SectionSelect, SectionToggleBu
 import { loadLeaderAccessRecords, updateLeaderAccess } from "../services/leaderAccess";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
 import { canonicalOrganisationSection } from "../services/leaderAccessLogic";
-import { CANONICAL_SCOUTING_APPOINTMENTS } from "../security/scoutingAppointments";
+import { CANONICAL_SCOUTING_APPOINTMENTS, isGroupScopedAppointment } from "../security/scoutingAppointments";
 import { appointmentsActorMayAssign, canChangeSystemRole, canManageSectionScope, canOpenLeaderAccess } from "../security/leaderDelegationPolicy";
 
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group"];
@@ -161,7 +161,7 @@ export default function LeaderAccessManagement() {
   };
   const appointmentScope = (record: LeaderAccessRecord) => record.sections.find((section) => section !== "Group") || record.sections[0] || "Group";
   const toggleAppointment = (record: LeaderAccessRecord, appointment: string) => {
-    const scope = appointmentScope(record);
+    const scope = isGroupScopedAppointment(appointment) ? "Group" : appointmentScope(record);
     const existing = record.appointments.find((item) => item.appointment === appointment && item.scope === scope);
     const appointments = existing
       ? record.appointments.filter((item) => item.id !== existing.id)

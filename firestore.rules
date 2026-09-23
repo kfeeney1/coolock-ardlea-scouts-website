@@ -1046,18 +1046,19 @@ service cloud.firestore {
           && ((request.resource.data.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole))
             || isGroupLeadershipDelegableAppointment(request.resource.data.scoutingRole))
           && request.resource.data.updatedAt == request.time
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "appointments", "updatedAt"])))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["scoutingRole", "appointments", "organisationSection", "primarySection", "updatedAt"])))
         && request.resource.data.displayName is string
         && request.resource.data.scoutingRole is string
         && (!("appointments" in request.resource.data) || (request.resource.data.appointments is list && request.resource.data.appointments.size() <= 12))
         && request.resource.data.organisationSection is string
+        && request.resource.data.organisationSection in getAfter(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
         && request.resource.data.organisationOrder is number
         && request.resource.data.reportsToUid is string
         && request.resource.data.showPublicly is bool
         && request.resource.data.active == true
         && (!("primarySection" in request.resource.data) || (
           request.resource.data.primarySection is string
-          && request.resource.data.primarySection in get(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
+          && request.resource.data.primarySection in getAfter(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
         ))
         && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "appointments", "organisationSection", "primarySection", "organisationOrder", "reportsToUid", "showPublicly", "active", "updatedAt"]);
       allow delete: if isAdmin();

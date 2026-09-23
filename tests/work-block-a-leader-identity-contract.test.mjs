@@ -11,7 +11,7 @@ test("Block A keeps Account sections multi-select and persists Primary separatel
   assert.match(leaderPage, /Account sections/);
   assert.match(leaderPage, /Primary section/);
   assert.match(leaderService, /primarySection:/);
-  assert.match(rules, /primarySection in get\(\/databases\/\$\(database\)\/documents\/adminUsers\/\$\(leaderId\)\)\.data\.sections/);
+  assert.match(rules, /primarySection in getAfter\(\/databases\/\$\(database\)\/documents\/adminUsers\/\$\(leaderId\)\)\.data\.sections/);
 });
 
 test("Block A supports Group-only without inventing a second section model", () => {
