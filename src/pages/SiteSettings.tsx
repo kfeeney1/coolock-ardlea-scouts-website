@@ -85,10 +85,7 @@ export default function SiteSettings() {
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-                <LeaderPageHeader
-                    title="Settings"
-                    description="Manage the settings available to your role. Subs rates and member classifications are available to the Treasurer, Group Leader, Deputy Group Leader and admins; platform settings remain admin-only."
-                />
+                <LeaderPageHeader title="Settings" />
 
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
