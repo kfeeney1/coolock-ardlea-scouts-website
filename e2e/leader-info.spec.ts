@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
-const leaderPassword = process.env.E2E_LEADER_PASSWORD;
+const leaderPassword = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
 
 async function signInAndOpenInfo(page: import("@playwright/test").Page) {
   await page.goto("/leader/login");
