@@ -6,7 +6,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import { createWeeklyMeeting, defaultActivityPlans, defaultBadgeworkPlans, loadWeeklyAccess } from "../services/weeklyTracker";
-import { newWeeklyEntry } from "../services/weeklyTrackerLogic";
+import { reconcileOpenWeeklyRoster } from "../services/weeklyTrackerLogic";
 import { recordAuditEvent } from "../services/auditLog";
 
 const GROUP_SECTIONS=["Beavers","Cubs","Scouts","Ventures","Rovers"];
@@ -22,7 +22,7 @@ export default function CreateWeeklyMeetingPage(){
  useEffect(()=>{if(!section&&sections.length)setSection(sections[0]);},[section,sections]);
  const save=async()=>{if(saving)return;if(!section||!date){setError("Choose a section and meeting date.");return;}setSaving(true);setError("");
   try{const members=await loadAttendanceInsightMembers({isAdmin:Boolean(isAdmin||canViewAll),sections:adminProfile?.sections??[]});
-   const roster=members.filter(m=>m.status==="active"&&m.section===section).map(m=>newWeeklyEntry(m.id,m.displayName));
+   const roster=reconcileOpenWeeklyRoster([],members,section);
    if(!roster.length)throw new Error("No active members are available for that section.");
    const input={section,meetingDate:date,status:"open" as const,location,theme,activities:defaultActivityPlans(),badgeworkPlan:defaultBadgeworkPlans(),programmeNotes,notes:"",entries:roster,injuries:[]};
    const id=await createWeeklyMeeting(input);
