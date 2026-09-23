@@ -92,7 +92,8 @@ test("completed event history keeps gallery access on its record page", async ({
     await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_ventures_completed$/);
     const record = page.getByTestId("event-record-TEST_flow_event_ventures_completed");
     await expect(record).toBeVisible();
-    await expect(record.getByRole("heading", { name: "TEST Ventures Completed Activity" })).toBeVisible();
-    await expect(record.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
-    await expect(record.getByRole("link", { name: "Edit Event", exact: true })).toBeDisabled();
+    await expect(page.getByRole("heading", { name: "TEST Ventures Completed Activity" })).toBeVisible();
+    await expect(page.getByText("Completed event history is read-only. Attendance, reports, exports and gallery access remain available.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeDisabled();
 });
