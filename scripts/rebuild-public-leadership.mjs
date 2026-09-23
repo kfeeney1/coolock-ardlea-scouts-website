@@ -3,7 +3,6 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 const execute = process.argv.includes("--execute");
 const environment = String(process.env.DEPLOY_ENVIRONMENT || process.env.VITE_APP_ENV || "").trim();
 const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
@@ -22,7 +21,7 @@ if (execute) {
   });
 }
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)), projectId });
+initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault(), projectId });
 const db = getFirestore();
 const PUBLIC_PROJECTION_VERSION = 2;
 const GROUP_ROLES = new Set([
