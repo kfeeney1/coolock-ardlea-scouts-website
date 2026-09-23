@@ -12,7 +12,7 @@ Backup technical defaults are Warning after 168 hours, Critical after 192 hours,
 
 | Service | Scope | Purpose | Owner | Metrics/source | Limits/thresholds | Refresh | Impact / recovery | Secret names |
 |---|---|---|---|---|---|---|---|---|
-| Firestore Backup | PROD | managed export/recovery | repository maintainers | backup workflow + independent freshness workflow | 168h warning / 192h critical; 26h monitor freshness | backup weekly; assurance daily | data-recovery exposure; inspect workflows/runbook | FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP |
+| Firestore Backup | PROD | managed export/recovery | repository maintainers | backup workflow + independent freshness workflow via unattended `production-monitoring` environment | 168h warning / 192h critical; 26h monitor freshness | backup weekly; assurance daily | data-recovery exposure; inspect workflows/runbook | FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP |
 | Firestore | TEST+PROD | application database | owner not recorded | Google Cloud/Firebase usage API when authorised | provider/plan dependent; otherwise Unknown | provider dependent | availability/data writes; Firebase console/runbook | deployment service-account credential names only |
 | Firebase Auth | TEST+PROD | authentication | owner not recorded | provider quota/status where authorised | provider dependent | provider dependent | sign-in failure; Firebase console | deployment service-account credential names only |
 | Firebase Storage | TEST+PROD | attachments/assets | owner not recorded | provider usage where authorised | provider dependent | provider dependent | attachment failure; Firebase console | deployment service-account credential names only |
@@ -29,6 +29,11 @@ Management links are defined once in `src/operations/systemInformation.ts`. Do n
 ## Collection architecture
 
 Privileged provider credentials never enter the browser. The `operationalMonitoring` Firestore collection contains only allowlisted aggregate observations and is client-readable only by Super Admin. Trusted service accounts may write through provider APIs; Firestore Rules deny client writes. The backup and freshness workflows publish privacy-safe observations after authenticating server-side. If authentication itself is unavailable, the observation eventually becomes stale and the UI reports Unknown/Unavailable rather than Healthy.
+
+The backup credential is stored only in the `production-monitoring` GitHub
+environment. That environment has no required reviewers and no application
+deployment credential, so schedules run unattended without weakening the
+manual approval on the separate `production` deployment environment.
 
 Other providers remain documented/static until a supported least-privilege server-side collection path is justified. Their missing live usage is intentionally Unknown rather than fabricated. Do not scrape provider HTML.
 
