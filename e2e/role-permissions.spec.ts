@@ -213,8 +213,12 @@ test.describe("admin permissions", () => {
     await expect(page.getByRole("link", { name: "Parent Access" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toBeVisible();
 
-    await page.getByRole("link", { name: "Leader Access" }).click();
-    await expect(page.getByRole("heading", { name: "Leader Access" })).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Leader navigation" })
+      .getByRole("link", { name: "Leader Access", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/leader\/access$/);
+    await expect(page.getByRole("heading", { name: "Leader Access", exact: true })).toBeVisible();
   });
 });
 
