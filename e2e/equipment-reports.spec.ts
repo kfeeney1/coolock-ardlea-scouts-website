@@ -88,8 +88,8 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = `TEST Report Damage ${testInfo.retry}`;
-  const damageNote = `Bent frame regression ${testInfo.retry}`;
+  const itemName = "TEST Report Damage";
+  const damageNote = "Bent frame regression";
   await page.route("**/equipment-incident", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 1 }) });
   });
