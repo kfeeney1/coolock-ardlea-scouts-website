@@ -25,7 +25,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
     ? policyId
     : defaultPolicyId && policies.some((policy) => policy.id === defaultPolicyId)
       ? defaultPolicyId
-      : policies[0]?.id ?? "";
+      : "";
   const selectedPolicy = policies.find((policy) => policy.id === effectivePolicyId);
   useEffect(() => {
     if (effectivePolicyId && policyId !== effectivePolicyId) setPolicyId(effectivePolicyId);
@@ -102,6 +102,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
       {[...new Set(selectedMembers.map((member) => member.section))].map((section) => <Chip key={section} label={section} />)}
     </Stack>}
     {policies.length === 0 && <Alert severity="error" sx={{ mt: 2 }}>No Scout year policy is available. Configure a Subs policy before creating a family billing account.</Alert>}
+    {policies.length > 0 && !defaultPolicyId && !policyId && <Alert severity="error" sx={{ mt: 2 }}>No valid policy is active for the current Scout year. Select a historical policy only when intentionally working on that historical year, or configure the current Scout-year policy.</Alert>}
     {selectedPolicy && selectedMembers.length > 0 && rateError && <Alert severity="warning" sx={{ mt: 2 }}>The selected Scout year policy cannot price this family: {rateError}. Check the configured family rates.</Alert>}
     {existingAssignments.length > 0 && <Alert severity="warning" sx={{ mt: 2 }}>
       One or more selected members already has an immutable classification for this Scout year. Existing financial history is not overwritten.

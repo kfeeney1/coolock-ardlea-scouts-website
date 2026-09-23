@@ -279,18 +279,28 @@ export async function recordSubsPayment(input: {
   method: SubsPaymentMethod;
   paymentDate: string;
   note: string;
+  operationId?: string;
 }): Promise<string> {
   const actor = uid();
-  const valid = validatePayment({ ...input, accountId: input.accountId ?? "", reversalOfPaymentId: "" });
-  const id = doc(collection(db, "subsPayments")).id;
+  const { operationId, ...paymentInput } = input;
+  const valid = validatePayment({ ...paymentInput, accountId: paymentInput.accountId ?? "", reversalOfPaymentId: "" });
+  const generatedId = doc(collection(db, "subsPayments")).id;
+  const id = operationId ?? generatedId;
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
+  // Firestore transactions must read before writing. A section-scoped leader cannot
+  // read a payment document that does not exist yet under the finance rules, so a
+  // transaction-based create fails before the create rule is evaluated. Use a
+  // deterministic create instead; Firestore retries the write idempotently at the
+  // transport layer, while a later reuse of the same operation id is rejected by
+  // the immutable payment rules rather than risking a duplicate payment.
   await setDoc(doc(db, "subsPayments", id), { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
     category: "finance",
     action: "subs-payment-recorded",
     targetId: id,
-    targetLabel: input.memberName,
-    description: `Subs payment recorded for ${input.period}${input.accountId ? " against the shared family account" : ""}.`,
-    section: input.section
+    targetLabel: paymentInput.memberName,
+    description: `Subs payment recorded for ${paymentInput.period}${paymentInput.accountId ? " against the shared family account" : ""}.`,
+    section: paymentInput.section
   });
   return id;
 }
