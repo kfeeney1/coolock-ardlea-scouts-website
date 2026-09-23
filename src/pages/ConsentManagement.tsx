@@ -41,7 +41,7 @@ export default function ConsentManagement() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
-            <LeaderPageHeader title="Consent Management" description="Youth consent, Scouter ES3 and medication information." actions={<Button variant="contained" color="success" onClick={() => void load()}>Refresh</Button>} />
+            <LeaderPageHeader title="Consent Management" />
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <ConsentOverviewPanel records={records} filteredRecords={filteredRecords} loading={loading} search={search} typeFilter={typeFilter} sectionFilter={sectionFilter} alertFilter={alertFilter} onSearchChange={setSearch} onTypeFilterChange={setTypeFilter} onSectionFilterChange={setSectionFilter} onAlertFilterChange={setAlertFilter} />
         </Container>
