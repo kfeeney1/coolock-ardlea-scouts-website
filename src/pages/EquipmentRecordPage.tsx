@@ -35,7 +35,7 @@ export default function EquipmentRecordPage() {
   const [locations, setLocations] = useState<string[]>([]);
   const [form, setForm] = useState<FormState | null>(null);
   const [editing, setEditing] = useState(false);
-  const [historyMode, setHistoryMode] = useState<"history" | "move" | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -111,8 +111,8 @@ export default function EquipmentRecordPage() {
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-          <Button variant="outlined" onClick={() => setHistoryMode("history")} aria-label={`Open history for ${item.name}`}>History</Button>
-          {canManage && !item.archived && <Button variant="outlined" onClick={() => setHistoryMode("move")} aria-label={`Move ${item.name} to another Store`}>Move Store</Button>}
+          <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History</Button>
+          {canManage && !item.archived && <Button variant="outlined" onClick={() => setHistoryOpen(true)}>Move Store</Button>}
           {canManage && !item.archived && <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>}
           {canManage && <Button variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => setConfirmArchive(true)}>{item.archived ? "Restore" : "Archive"}</Button>}
         </Stack>
@@ -144,7 +144,7 @@ export default function EquipmentRecordPage() {
     </Paper>
 
     {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
-    <EquipmentHistoryDialog item={historyMode ? item : null} locations={locations} canManage={canManage && !item.archived} mode={historyMode ?? "history"} onClose={() => setHistoryMode(null)} onChanged={refresh} onError={setError} />
+    <EquipmentHistoryDialog item={historyOpen ? item : null} locations={locations} canManage={canManage && !item.archived} onClose={() => setHistoryOpen(false)} onChanged={refresh} onError={setError} />
 
     <Dialog open={confirmArchive} onClose={() => !saving && setConfirmArchive(false)}>
       <DialogTitle>{item.archived ? `Restore ${item.name}?` : `Archive ${item.name}?`}</DialogTitle>
