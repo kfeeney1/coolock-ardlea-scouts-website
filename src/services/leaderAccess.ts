@@ -143,13 +143,13 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     }
     if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new Error("You cannot change this account's active state.");
 
-    const orgChanged = currentOrg?.organisationSection !== organisationSection
-      || (currentOrg?.primarySection ?? currentOrg?.organisationSection) !== primarySection
-      || currentOrg?.organisationOrder !== record.organisationOrder
+    const sectionIdentityChanged = currentOrg?.organisationSection !== organisationSection
+      || (currentOrg?.primarySection ?? currentOrg?.organisationSection) !== primarySection;
+    const restrictedOrganisationChanged = currentOrg?.organisationOrder !== record.organisationOrder
       || (currentOrg?.reportsToUid ?? "") !== record.reportsToUid
       || (currentOrg?.showPublicly === true) !== record.showPublicly;
-    if (orgChanged && !adminActor) throw new Error("Only an Administrator can change organisation-chart or public-listing settings.");
-    if (!roleChanged && !sectionsChanged && !activeChanged && !appointmentChanged && !orgChanged) return;
+    if (restrictedOrganisationChanged && !adminActor) throw new Error("Only an Administrator can change organisation-chart or public-listing settings.");
+    if (!roleChanged && !sectionsChanged && !activeChanged && !appointmentChanged && !sectionIdentityChanged && !restrictedOrganisationChanged) return;
 
     transaction.update(targetAccessRef, {
       role: record.role,
