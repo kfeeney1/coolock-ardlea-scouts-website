@@ -73,7 +73,13 @@ jobs:
       E2E_TEST_USER_PASSWORD: password1
       E2E_LEADER_JOURNEY_SEEDED: 'true'
       E2E_PARENT_EMAIL: test.beaver.parent1@example.com
+      E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
+      E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
+      E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
+      E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
       E2E_ADMIN_EMAIL: test.webadmin@example.com
+      E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
+      E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
