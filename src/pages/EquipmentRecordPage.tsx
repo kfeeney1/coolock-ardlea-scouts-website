@@ -103,6 +103,7 @@ export default function EquipmentRecordPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
     <LeaderPageHeader title={item.name} description="Equipment record, condition, history, Store movement and issue reporting." />
+    <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
