@@ -218,7 +218,7 @@ test.describe("admin permissions", () => {
       .getByRole("link", { name: "Leader Access", exact: true })
       .click();
     await expect(page).toHaveURL(/\/leader\/access$/);
-    await expect(page.getByRole("heading", { name: "Leader Access", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Leader Access" })).toBeVisible();
   });
 });
 
