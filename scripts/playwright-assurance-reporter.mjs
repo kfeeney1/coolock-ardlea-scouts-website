@@ -15,8 +15,10 @@ function skipReason(test) {
 }
 
 function isIntentionalProjectSkip(reason) {
-  return /\b(project|Chromium|Pixel 7|desktop|mobile|WebKit)\b/i.test(reason)
-    && /\b(run|runs|only|once|coverage|covered|exercised|check|checks|journey|regression|scanner)\b/i.test(reason);
+  const target = /\b(project|Chromium|Pixel 7|desktop|mobile|WebKit)\b/i.test(reason);
+  const selection = /\b(run|runs|only|once|coverage|covered|exercised|check|checks|journey|regression|scanner)\b/i.test(reason);
+  const environmentDependency = /\b(configure|credential|credentials|password|seed|seeded|data|required|environment|deployment)\b/i.test(reason);
+  return target && selection && !environmentDependency;
 }
 
 function label(test) {
