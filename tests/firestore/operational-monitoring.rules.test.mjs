@@ -40,7 +40,7 @@ after(async () => testEnv.cleanup());
 
 test("Super Admin can read operationalMonitoring", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), "adminUsers/super-1"), { active: true, role: "super-admin" });
+    await setDoc(doc(context.firestore(), "adminUsers/super-1"), { active: true, role: "super-admin", sections: ["Group"] });
   });
   const db = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
   await assertSucceeds(getDoc(doc(db, "operationalMonitoring/firestore-backup-production")));
@@ -65,7 +65,7 @@ test("parents and unauthenticated users cannot read operationalMonitoring", asyn
 
 test("clients cannot write operationalMonitoring, including Super Admin", async () => {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), "adminUsers/super-1"), { active: true, role: "super-admin" });
+    await setDoc(doc(context.firestore(), "adminUsers/super-1"), { active: true, role: "super-admin", sections: ["Group"] });
   });
   const db = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
   await assertFails(setDoc(doc(db, "operationalMonitoring/client-write"), { state: "Healthy" }));
