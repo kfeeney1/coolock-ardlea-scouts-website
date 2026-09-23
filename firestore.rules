@@ -1057,7 +1057,7 @@ service cloud.firestore {
         && request.resource.data.active == true
         && (!("primarySection" in request.resource.data) || (
           request.resource.data.primarySection is string
-          && request.resource.data.primarySection in get(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
+          && request.resource.data.primarySection in getAfter(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
         ))
         && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "appointments", "organisationSection", "primarySection", "organisationOrder", "reportsToUid", "showPublicly", "active", "updatedAt"]);
       allow delete: if isAdmin();
