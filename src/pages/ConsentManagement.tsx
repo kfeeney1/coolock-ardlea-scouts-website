@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Container } from "@mui/material";
+import { Alert, Box, Container } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
 import ConsentOverviewPanel from "../components/admin/ConsentOverviewPanel";
