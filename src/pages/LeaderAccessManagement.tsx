@@ -171,7 +171,7 @@ export default function LeaderAccessManagement() {
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}><Container maxWidth="xl">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title="Leader Access & Organisation" description="Manage permitted leader assignments. System access roles remain Super Admin-only; Group Leadership can delegate ordinary operational appointments and section scope only." actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>} />
+    <LeaderPageHeader title="Leader Access & Organisation" />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
     {!leaderUid && <>
