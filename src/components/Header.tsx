@@ -3,7 +3,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../assets/logo.png";
 import { useBackDismiss } from "../hooks/useBackDismiss";
@@ -24,6 +24,7 @@ export default function Header() {
     const [signingOut, setSigningOut] = useState(false);
     const { user, adminProfile, authorised, loading, logout } = useAdminAuth();
     const { pathname } = useLocation();
+    const navigate = useNavigate();
     const content = usePublicSiteContent();
     const menuItems = content.navigation;
     const isPublicRoute = !pathname.startsWith("/leader");
@@ -37,7 +38,7 @@ export default function Header() {
         setSigningOut(true);
         try {
             await logout();
-            window.location.replace(destination);
+            navigate(destination, { replace: true });
         } catch (error) {
             console.error("Unable to sign out:", error);
             setSigningOut(false);
