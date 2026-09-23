@@ -37,8 +37,10 @@ test.describe("Leader portal information", () => {
     await page.getByText("How does Adventure Skills progress work?", { exact: true }).click();
     await expect(page.getByText(/Progress belongs to the member/i)).toBeVisible();
 
-    await page.getByText("How do receipts work?", { exact: true }).click();
-    await expect(page.getByText(/Where storage-backed attachments are available/i)).toBeVisible();
+    const receiptsQuestion = page.getByText("How do receipts work?", { exact: true });
+    await receiptsQuestion.click();
+    const receiptsAccordion = receiptsQuestion.locator("xpath=ancestor::*[contains(@class,'MuiAccordion-root')][1]");
+    await expect(receiptsAccordion.getByText(/Where storage-backed attachments are available/i)).toBeVisible();
   });
 
   test("keeps current Info and FAQ usable on a phone viewport", async ({ page }) => {
