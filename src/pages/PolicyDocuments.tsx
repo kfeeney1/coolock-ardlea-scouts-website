@@ -70,7 +70,6 @@ export default function PolicyDocuments() {
   return <Box sx={{ minHeight: "100vh", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="lg">
       <Typography component="h1" variant="h3" sx={{ fontWeight: 800 }}>Policy documents</Typography>
-      <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>Current approved Group policies and reference documents. Access is controlled by the audience selected when each document is published.</Typography>
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {canManage && <Card variant="outlined" sx={{ mb: 4 }}><CardContent>

@@ -179,7 +179,6 @@ export default function LeaderCommunications() {
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Parent Communications"
-                    description="Compose the message first, then choose recipients and send it. WhatsApp sharing remains available directly from the message step."
                 />
 
                 <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 2, flexWrap: "wrap" }}>

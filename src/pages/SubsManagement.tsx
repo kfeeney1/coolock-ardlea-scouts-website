@@ -192,7 +192,7 @@ export default function SubsManagement() {
     >
       <Container maxWidth="xl">
         <LeaderDashboardHeader />
-        <LeaderPageHeader title="Subs" description="Record auditable payments and review Scout-year balances. Family classifications are managed from Settings by authorised group finance users." />
+        <LeaderPageHeader title="Subs" />
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}

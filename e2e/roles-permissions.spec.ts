@@ -86,7 +86,6 @@ test.describe("Deputy Group Leader parity", () => {
     await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
     await page.goto("/leader/access");
     await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
-    await expect(page.getByText(/System access roles remain Super Admin-only/i)).toBeVisible();
   });
 
   test("Deputy Group Leader has usable mobile Roles and Leader Access navigation", async ({ page }, testInfo) => {
