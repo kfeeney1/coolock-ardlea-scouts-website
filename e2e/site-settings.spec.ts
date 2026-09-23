@@ -11,7 +11,10 @@ async function login(page: Page, email: string) {
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password!);
+  const leaderNavigation = page.waitForURL((url) => url.pathname === "/leader");
   await page.getByRole("button", { name: "Sign In" }).click();
+  await leaderNavigation;
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
 test("admin can open and save site inactivity settings", async ({ page }, testInfo) => {
