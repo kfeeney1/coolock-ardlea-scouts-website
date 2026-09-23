@@ -160,7 +160,7 @@ export default function LeaderReports() {
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-                <LeaderPageHeader title="Reports & Exports" description="Review operational insights and download reports limited to the records your leader account is permitted to access." />
+                <LeaderPageHeader title="Reports & Exports" />
 
                 <Alert severity="info" sx={{ mb: 3 }}>Report scope: <strong>{scopeLabel}</strong>. Default exports deliberately exclude medical details, date of birth and emergency-contact information.</Alert>
                 {!isAdmin && sections.length === 0 && <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned, so no report data can be loaded.</Alert>}
