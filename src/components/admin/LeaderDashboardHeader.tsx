@@ -7,7 +7,7 @@ import { isGroupLeadershipAppointment } from "../../security/scoutingAppointment
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 
-type NavItem = { label: string; path: string; adminOnly?: boolean; leaderAccessOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; appointments?: string[]; };
+type NavItem = { label: string; path: string; adminOnly?: boolean; superAdminOnly?: boolean; leaderAccessOnly?: boolean; activityLogOnly?: boolean; settingsOnly?: boolean; appointments?: string[]; };
 type NavGroup = { label: string; items: NavItem[]; };
 
 const dashboardItem: NavItem = { label: "Dashboard", path: "/leader" };
@@ -55,7 +55,8 @@ const navGroups: NavGroup[] = [
   { label: "Leader Requests", path: "/leader/requests", adminOnly: true },
   { label: "Parent Access", path: "/leader/parent-access", adminOnly: true },
   { label: "Leader Access", path: "/leader/access", leaderAccessOnly: true },
-  { label: "Settings", path: "/leader/settings", settingsOnly: true }
+  { label: "Settings", path: "/leader/settings", settingsOnly: true },
+  { label: "System Information", path: "/leader/system", superAdminOnly: true }
  ] }
 ];
 
@@ -88,7 +89,7 @@ export default function LeaderDashboardHeader() {
  const canViewLeaderAccess = isAdmin || isGroupLeadership;
  const appointments = new Set([adminProfile?.scoutingRole, ...(adminProfile?.appointments.map((item) => item.appointment) ?? [])].filter(Boolean));
  const hasAppointment = (required?: string[]) => !required || isAdmin || required.some((appointment) => appointments.has(appointment));
- const canView = (item: NavItem) => hasAppointment(item.appointments) && (!item.adminOnly || isAdmin) && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
+ const canView = (item: NavItem) => hasAppointment(item.appointments) && (!item.adminOnly || isAdmin) && (!item.superAdminOnly || adminProfile?.role === "super-admin") && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings);
  const visibleGroups = navGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountItems.filter(canView);
  const visibleItems = [dashboardItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
