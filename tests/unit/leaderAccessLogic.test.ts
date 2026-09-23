@@ -61,3 +61,25 @@ test("canonical appointments remap stale section scope without converting group 
         ]
     );
 });
+
+
+test("canonical appointments keep Group Trainer group-scoped for section and Group-only leaders", () => {
+    assert.deepEqual(
+        canonicalLeaderAppointments(
+            [{ appointment: "Group Trainer", scope: "Cubs", active: true }],
+            ["Cubs", "Scouts"],
+            "",
+            "Cubs"
+        ),
+        [{ id: "group-trainer--group", appointment: "Group Trainer", scope: "Group", active: true }]
+    );
+    assert.deepEqual(
+        canonicalLeaderAppointments(
+            [{ appointment: "Group Trainer", scope: "Group", active: true }],
+            ["Group"],
+            "",
+            "Group"
+        ),
+        [{ id: "group-trainer--group", appointment: "Group Trainer", scope: "Group", active: true }]
+    );
+});
