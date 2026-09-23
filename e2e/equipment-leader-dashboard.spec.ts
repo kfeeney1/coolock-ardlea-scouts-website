@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
-const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+const adminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
 
 test.describe("Equipment & Stores leader navigation", () => {
   test.skip(!adminEmail || !adminPassword, "Admin E2E credentials are required.");
