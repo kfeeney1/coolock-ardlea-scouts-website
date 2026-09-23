@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
@@ -30,4 +30,18 @@ test("filterWeeklyMeetingHistory combines section, date and programme search fil
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "pioneering", section: "Scouts", fromDate: "2026-08-10", toDate: "2026-08-20" }), [scouts]);
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "scout den", section: "all", fromDate: "", toDate: "" }), [cubs]);
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "", section: "all", fromDate: "", toDate: "" }), history);
+});
+
+test("open roster reconciliation adds newly eligible members once and preserves historical entries", () => {
+  const existing=[{memberId:"old",memberName:"Zoe O'Neill",attendance:"present" as const,subsPaid:true,subsAmount:3,badges:["Stage 1"]}];
+  const members=[{id:"new",displayName:"Áine Scout",section:"Cubs",status:"active"},{id:"old",displayName:"Zoe O'Neill",section:"Cubs",status:"left"},{id:"other",displayName:"Other Scout",section:"Scouts",status:"active"}];
+  const roster=reconcileOpenWeeklyRoster(existing,members,"Cubs");
+  assert.deepEqual(roster.map(x=>x.memberId),["new","old"]);
+  assert.equal(roster.find(x=>x.memberId==="old")?.attendance,"present");
+  assert.deepEqual(roster.find(x=>x.memberId==="old")?.badges,["Stage 1"]);
+});
+
+test("weekly attendance ordering is human-friendly with stable member-id tie break",()=>{
+ const entries=[newWeeklyEntry("b","zoe scout"),newWeeklyEntry("c","Áine Scout"),newWeeklyEntry("a","Zoe Scout")];
+ assert.deepEqual(sortWeeklyEntries(entries).map(x=>x.memberId),["c","a","b"]);
 });
