@@ -12,12 +12,15 @@ function visibleSurfaces(): HTMLElement[] {
 
 function dismissSurface(surface: HTMLElement | undefined) {
   if (!surface) return;
-  surface.dispatchEvent(new KeyboardEvent("keydown", {
+  const init: KeyboardEventInit = {
     key: "Escape",
     code: "Escape",
+    keyCode: 27,
+    which: 27,
     bubbles: true,
     cancelable: true
-  }));
+  };
+  surface.dispatchEvent(new KeyboardEvent("keydown", init));
 }
 
 function locationStateFromHistoryState(historyState: unknown): unknown {
@@ -38,6 +41,7 @@ export default function TransientOverlayBackDismissBridge() {
   const navigate = useNavigate();
   const [surfaces, setSurfaces] = useState<HTMLElement[]>([]);
   const previousMarkerCount = useRef(0);
+  const latestMarkerCount = useRef(0);
   const consumingClose = useRef(false);
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
@@ -61,16 +65,23 @@ export default function TransientOverlayBackDismissBridge() {
     const handlePopState = (event: PopStateEvent) => {
       const markerCount = backDismissStack(locationStateFromHistoryState(event.state))
         .filter((marker) => marker.startsWith(MARKER_PREFIX)).length;
-      const priorMarkerCount = previousMarkerCount.current;
-      if (markerCount >= priorMarkerCount) return;
+      const visible = visibleSurfaces();
+      const priorMarkerCount = Math.max(previousMarkerCount.current, latestMarkerCount.current);
 
-      previousMarkerCount.current = markerCount;
-      if (consumingClose.current) {
-        consumingClose.current = false;
+      // A real browser/hardware Back is also the authoritative signal to dismiss
+      // the top transient surface. Do not require React Router's marker state to
+      // have committed first: MUI portals can become interactive before that
+      // navigation is observable, which is exactly the Stage 20.6 race.
+      if (visible.length > 0 && !consumingClose.current) {
+        previousMarkerCount.current = markerCount;
+        latestMarkerCount.current = markerCount;
+        dismissSurface(visibleSurfaces().at(-1));
         return;
       }
 
-      dismissSurface(visibleSurfaces().at(-1));
+      if (markerCount >= priorMarkerCount) return;
+      previousMarkerCount.current = markerCount;
+      if (consumingClose.current) consumingClose.current = false;
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -90,8 +101,10 @@ export default function TransientOverlayBackDismissBridge() {
     }
 
     previousMarkerCount.current = markerCount;
+    latestMarkerCount.current = markerCount;
 
     if (surfaces.length > markerCount) {
+      latestMarkerCount.current = surfaces.length;
       const marker = `${MARKER_PREFIX}${markerCount + 1}`;
       navigate(`${location.pathname}${location.search}${location.hash}`, {
         state: withBackDismissMarker(location.state, marker)
