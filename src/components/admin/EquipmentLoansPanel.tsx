@@ -91,8 +91,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
         notes,
         lines: requested.map(({ item, quantity }) => ({ itemId: item.id, quantity }))
       });
-      setCheckoutOpen(false);
       await onChanged();
+      setCheckoutOpen(false);
     } catch (error) {
       console.error("Unable to check out equipment:", error);
       onError(error instanceof Error ? error.message : "Unable to check out equipment.");
@@ -115,8 +115,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
         loanId: returningLoan.id,
         quantities: Object.fromEntries(Object.entries(returnQuantities).map(([itemId, quantity]) => [itemId, quantity ?? 0]))
       });
-      setReturningLoan(null);
       await onChanged();
+      setReturningLoan(null);
     } catch (error) {
       console.error("Unable to return equipment:", error);
       onError(error instanceof Error ? error.message : "Unable to return equipment.");

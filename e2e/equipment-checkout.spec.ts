@@ -60,6 +60,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
   await checkoutRow.getByLabel("Qty").fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeHidden();
 
   await expect(page.getByText(`2 × ${itemName}`, { exact: false })).toBeVisible();
   const inventoryCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
@@ -71,6 +72,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   const returnDialog = page.getByRole("dialog", { name: /Return equipment/ });
   await expect(returnDialog.getByText("2 currently checked out")).toBeVisible();
   await returnDialog.getByRole("button", { name: "Confirm return" }).click();
+  await expect(returnDialog).toBeHidden();
 
   await expect(page.getByText("No equipment is currently checked out.")).toBeVisible();
   const returnedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
