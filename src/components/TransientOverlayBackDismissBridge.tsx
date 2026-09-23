@@ -12,12 +12,17 @@ function visibleSurfaces(): HTMLElement[] {
 
 function dismissSurface(surface: HTMLElement | undefined) {
   if (!surface) return;
-  surface.dispatchEvent(new KeyboardEvent("keydown", {
+  // MUI Menu/Select listens for Escape at the document/modal layer. Dispatching
+  // only on the listbox can be swallowed by the list's own keyboard handler.
+  const event = new KeyboardEvent("keydown", {
     key: "Escape",
     code: "Escape",
+    keyCode: 27,
+    which: 27,
     bubbles: true,
     cancelable: true
-  }));
+  });
+  document.dispatchEvent(event);
 }
 
 function locationStateFromHistoryState(historyState: unknown): unknown {
