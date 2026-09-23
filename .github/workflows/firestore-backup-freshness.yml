@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   audit:
-    environment: production
+    # Freshness assurance must run unattended. This environment contains only
+    # the purpose-scoped backup credential and has no deployment capability.
+    # Do not use the reviewer-protected `production` deploy environment here.
+    environment: production-monitoring
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
