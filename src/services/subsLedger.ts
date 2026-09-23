@@ -284,32 +284,16 @@ export async function recordSubsPayment(input: {
   const actor = uid();
   const { operationId, ...paymentInput } = input;
   const valid = validatePayment({ ...paymentInput, accountId: paymentInput.accountId ?? "", reversalOfPaymentId: "" });
-  const id = operationId ?? doc(collection(db, "subsPayments")).id;
+  const generatedId = doc(collection(db, "subsPayments")).id;
+  const id = operationId ?? generatedId;
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
-  const paymentRef = doc(db, "subsPayments", id);
-  let created = false;
-  await runTransaction(db, async (transaction) => {
-    const existing = await transaction.get(paymentRef);
-    if (existing.exists()) {
-      const data = existing.data();
-      const sameOperation = data.recordedBy === actor
-        && data.memberId === valid.memberId
-        && data.memberName === valid.memberName
-        && data.section === valid.section
-        && data.period === valid.period
-        && data.accountId === valid.accountId
-        && data.amountCents === valid.amountCents
-        && data.method === valid.method
-        && data.paymentDate === valid.paymentDate
-        && data.note === valid.note
-        && data.reversalOfPaymentId === "";
-      if (!sameOperation) throw new Error("This payment operation identifier has already been used.");
-      return;
-    }
-    transaction.set(paymentRef, { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
-    created = true;
-  });
-  if (!created) return id;
+  // Firestore transactions must read before writing. A section-scoped leader cannot
+  // read a payment document that does not exist yet under the finance rules, so a
+  // transaction-based create fails before the create rule is evaluated. Use a
+  // deterministic create instead; Firestore retries the write idempotently at the
+  // transport layer, while a later reuse of the same operation id is rejected by
+  // the immutable payment rules rather than risking a duplicate payment.
+  await setDoc(doc(db, "subsPayments", id), { ...valid, recordedBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
     category: "finance",
     action: "subs-payment-recorded",
