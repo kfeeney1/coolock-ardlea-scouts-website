@@ -75,7 +75,7 @@ export default function TransientOverlayBackDismissBridge() {
       if (visible.length > 0 && !consumingClose.current) {
         previousMarkerCount.current = markerCount;
         latestMarkerCount.current = markerCount;
-        dismissSurface(visible.at(-1));
+        dismissSurface(visibleSurfaces().at(-1));
         return;
       }
 
