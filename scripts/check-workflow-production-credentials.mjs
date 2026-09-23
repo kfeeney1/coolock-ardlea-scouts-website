@@ -140,6 +140,15 @@ for (const name of entries) {
     }
   }
 
+  if (["firestore-backup.yml", "firestore-backup-freshness.yml"].includes(name)) {
+    if (!source.includes("environment: production-monitoring")) {
+      fail(`${name} must use the unattended, purpose-scoped production-monitoring environment.`);
+    }
+    if (source.includes("environment: production\n")) {
+      fail(`${name} must not use the reviewer-protected production deployment environment.`);
+    }
+  }
+
   if (usesTestSecret) {
     testCredentialWorkflowCount += 1;
     if (source.includes("environment: production")) {

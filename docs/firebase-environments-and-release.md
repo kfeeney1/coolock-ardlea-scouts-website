@@ -55,6 +55,23 @@ The production workflow is deliberately one-click but remains manual. A maintain
 
 A green merge never triggers production deployment.
 
+### `production-monitoring`
+
+Create a separate GitHub environment named `production-monitoring` for the
+scheduled Firestore backup and daily freshness workflows. It must not require a
+human reviewer: scheduled assurance cannot remain queued for approval.
+
+Store only
+`FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP` in this
+environment. The credential must remain limited to the production Firestore
+export and backup-bucket inspection permissions documented in the recovery
+runbook. Do not add Firebase deployment, operations, email or general
+production credentials or public application variables.
+
+Restrict deployment branches to `main` where supported. This environment does
+not deploy application code and does not weaken the separately protected
+`production` environment used by `Firebase PRODUCTION Manual Deploy`.
+
 Normal PR/push Quality and Playwright workflows receive no production service-account credential and no production email-delivery configuration. Quality uses the local/demo Firebase identity; Playwright uses Firebase emulators and deterministic synthetic data.
 
 ## Firebase TEST project owner setup

@@ -4,7 +4,7 @@ Stage 18.9 turns the production-readiness requirement for a recent backup into a
 
 ## What the audit checks
 
-`.github/workflows/firestore-backup-freshness.yml` runs daily and can also be started manually. It authenticates to the production Google Cloud project, lists the existing Firestore export destinations under `FIRESTORE_BACKUP_BUCKET`, identifies the latest timestamped export created by the canonical `Firestore Backup` workflow, and fails when that export is older than 192 hours (8 days).
+`.github/workflows/firestore-backup-freshness.yml` runs daily and can also be started manually. It uses the unattended, purpose-scoped `production-monitoring` GitHub environment, authenticates to the production Google Cloud project, lists the existing Firestore export destinations under `FIRESTORE_BACKUP_BUCKET`, identifies the latest timestamped export created by the canonical `Firestore Backup` workflow, and fails when that export is older than 192 hours (8 days). The separate `production` environment remains reviewer-protected for application deployments and operational mutations.
 
 The eight-day threshold is intentionally slightly wider than the weekly backup cadence so normal scheduler drift does not generate false failures while still detecting a missed weekly backup promptly.
 

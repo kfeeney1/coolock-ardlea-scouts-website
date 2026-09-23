@@ -23,7 +23,11 @@ concurrency:
 
 jobs:
   export:
-    environment: production
+    # Backup uses a purpose-scoped, non-deploying environment without required
+    # reviewers so the weekly schedule cannot remain stuck awaiting approval.
+    # Production application deployment remains protected by the separate
+    # `production` environment.
+    environment: production-monitoring
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
