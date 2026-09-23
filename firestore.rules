@@ -1106,6 +1106,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /operationalMonitoring/{monitorId} {
+      // Normalised, privacy-safe operational metrics are written only by trusted service accounts.
+      // Client access is read-only and restricted to Super Admin.
+      allow get, list: if isSuperAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /siteSettings/{settingsId} {
       allow get: if signedIn() && settingsId == "session";
       allow list: if false;
