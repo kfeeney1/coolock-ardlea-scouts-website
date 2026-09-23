@@ -52,7 +52,7 @@ export default function EquipmentRecordPage() {
       setItem(nextItem);
       setLoans(nextLoans);
       setIncidents(nextIncidents);
-      setCategories(Array.from(new Set([...DEFAULT_EQUIPMENT_CATEGORIES.filter((x) => x !== "Other"), ...categoryOptions.map((x) => x.name)])).sort());
+      setCategories(Array.from(new Set([...DEFAULT_EQUIPMENT_CATEGORIES.filter((x) => x !== "Other"), ...categoryOptions.map((x) => x.name), ...nextItems.map((x) => normaliseEquipmentLabel(x.category)).filter(Boolean)])).sort());
       setLocations(Array.from(new Set([...locationOptions.map((x) => x.name), ...nextItems.map((x) => x.location).filter(Boolean)])).sort());
       if (nextItem && !editing) setForm({
         name: nextItem.name, category: nextItem.category, trackingMode: nextItem.trackingMode,
