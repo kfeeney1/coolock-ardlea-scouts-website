@@ -103,12 +103,7 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await addComboboxes.nth(0).click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addComboboxes.nth(1).click();
-  const existingStore = page.getByRole("option", { name: "TEST Checkout Store", exact: true });
-  if (await existingStore.count()) await existingStore.click();
-  else {
-    await page.getByRole("option", { name: "Other…" }).click();
-    await addDialog.getByLabel("New storage location").fill("TEST Checkout Store");
-  }
+  await page.getByRole("option", { name: "TEST Checkout Store", exact: true }).click();
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText(itemName, { exact: true })).toBeVisible();
