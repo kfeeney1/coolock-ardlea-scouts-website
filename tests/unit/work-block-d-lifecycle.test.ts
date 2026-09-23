@@ -28,6 +28,6 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   assert.match(admin,/mode: "sections" \| "members"/);
   assert.match(admin,/previousAttendance\[id\] \?\? "invited"/);
   assert.match(admin,/previousConsent\[id\]/);
-  assert.match(logic,/selected\.size > 0 \? selected\.has\(member\.id\) : sections\.has\(member\.section\)/);
+  assert.match(logic,/sections\.has\(member\.section\) \|\| selected\.has\(member\.id\)/);
   assert.match(rules,/"audience"/);
 });

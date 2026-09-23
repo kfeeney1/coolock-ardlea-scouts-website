@@ -73,6 +73,23 @@ export function buildWeeklyMemberSummaries(records: WeeklyMeetingRecord[]): Week
     .sort((a, b) => a.memberName.localeCompare(b.memberName));
 }
 
+export type WeeklyRosterMember = { id: string; displayName: string; section: string; status: string };
+
+const rosterCollator = new Intl.Collator("en-IE", { sensitivity: "base", numeric: true, usage: "sort" });
+
+export function sortWeeklyEntries(entries: WeeklyMemberEntry[]): WeeklyMemberEntry[] {
+  return [...entries].sort((a, b) => rosterCollator.compare(a.memberName.trim(), b.memberName.trim()) || a.memberId.localeCompare(b.memberId));
+}
+
+export function reconcileOpenWeeklyRoster(entries: WeeklyMemberEntry[], members: WeeklyRosterMember[], section: string): WeeklyMemberEntry[] {
+  const byId = new Map(entries.map((entry) => [entry.memberId, entry] as const));
+  for (const member of members) {
+    if (member.status !== "active" || member.section !== section || byId.has(member.id)) continue;
+    byId.set(member.id, newWeeklyEntry(member.id, member.displayName));
+  }
+  return sortWeeklyEntries([...byId.values()]);
+}
+
 export function newWeeklyEntry(memberId: string, memberName: string): WeeklyMemberEntry {
   return { memberId, memberName, attendance: "unrecorded", subsPaid: false, subsAmount: 0, badges: [] };
 }

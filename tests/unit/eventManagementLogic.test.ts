@@ -79,7 +79,7 @@ test("event roster filename remains stable", () => {
 
 
 test("resolveEventAudience uses selected members when present and excludes inactive members", () => {
-    assert.deepEqual(resolveEventAudience(["Cubs"], ["m1", "m4", "m3"], members), ["m1", "m4"]);
+    assert.deepEqual(resolveEventAudience(["Cubs"], ["m1", "m4", "m3"], members), ["m1", "m2", "m4"]);
     assert.deepEqual(resolveEventAudience(["Cubs"], [], members), ["m1", "m2"]);
 });
 

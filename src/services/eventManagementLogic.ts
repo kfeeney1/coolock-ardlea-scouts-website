@@ -75,7 +75,7 @@ export function resolveEventAudience(sectionIds: string[], memberIds: string[], 
     const sections = new Set(sectionIds);
     const selected = new Set(memberIds);
     return members
-        .filter((member) => member.status === "active" && (selected.size > 0 ? selected.has(member.id) : sections.has(member.section)))
+        .filter((member) => member.status === "active" && (sections.has(member.section) || selected.has(member.id)))
         .map((member) => member.id);
 }
 
