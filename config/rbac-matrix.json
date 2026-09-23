@@ -69,7 +69,8 @@
     "/leader/access/:leaderUid": "admin",
     "/leader/equipment/:equipmentId": "leader",
     "/leader/weekly/create": "leader",
-    "/leader/events/:eventId/edit": "leader"
+    "/leader/events/:eventId/edit": "leader",
+    "/leader/system": "super-admin"
   },
   "firestore": {
     "adminUsers": "system-role",
