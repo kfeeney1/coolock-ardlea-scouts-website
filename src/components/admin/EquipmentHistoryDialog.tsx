@@ -28,6 +28,7 @@ type Props = {
   item: EquipmentItem | null;
   locations: string[];
   canManage: boolean;
+  mode?: "history" | "move";
   onClose: () => void;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
@@ -38,7 +39,7 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function EquipmentHistoryDialog({ item, locations, canManage, onClose, onChanged, onError }: Props) {
+export default function EquipmentHistoryDialog({ item, locations, canManage, mode = "history", onClose, onChanged, onError }: Props) {
   const [history, setHistory] = useState<EquipmentHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [destination, setDestination] = useState("");
@@ -80,10 +81,10 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
   };
 
   return <Dialog open={Boolean(item)} onClose={() => !moving && onClose()} fullWidth maxWidth="md">
-    <DialogTitle>{item ? `${item.name} history` : "Equipment history"}</DialogTitle>
+    <DialogTitle>{item ? (mode === "move" ? `Move ${item.name} to another Store` : `${item.name} history`) : "Equipment history"}</DialogTitle>
     <DialogContent dividers>
       {item && <Stack spacing={2.5}>
-        {canManage && !item.archived && available > 0 && destinations.length > 0 && <Paper variant="outlined" sx={{ p: 2 }}>
+        {mode === "move" && canManage && !item.archived && available > 0 && destinations.length > 0 && <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Move stock</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Move available stock from {item.location}. Partial moves create a separate stock record at the destination so each location keeps an accurate quantity.</Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -93,7 +94,7 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
           </Stack>
         </Paper>}
 
-        <Box>
+        {mode === "history" && <Box>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Timeline</Typography>
           {loading ? <Alert severity="info">Loading equipment history…</Alert> : history.length === 0 ? <Alert severity="info">No item history has been recorded yet. New stock changes, checkouts, returns, issues and movements will appear here.</Alert> : <Stack spacing={1.25}>
             {history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
@@ -111,7 +112,8 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
               {(entry.fromLocation || entry.toLocation) && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>{entry.fromLocation && entry.toLocation ? `${entry.fromLocation} → ${entry.toLocation}` : entry.toLocation || entry.fromLocation}</Typography>}
             </Paper>)}
           </Stack>}
-        </Box>
+        </Box>}
+        {mode === "move" && canManage && available > 0 && destinations.length === 0 && <Alert severity="info">Create another Store before moving this equipment.</Alert>}
       </Stack>}
     </DialogContent>
     <DialogActions><Button onClick={onClose} disabled={moving}>Close</Button></DialogActions>
