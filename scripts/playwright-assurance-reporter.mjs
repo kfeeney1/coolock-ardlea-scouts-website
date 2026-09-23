@@ -2,8 +2,8 @@
  * Makes Playwright's green state meaningful in CI.
  *
  * Project-targeting skips are intentional: many state-changing journeys run in
- * one browser while responsive journeys run on Pixel 7. Configuration-gated
- * skips are not intentional in CI; they mean a required journey did not run.
+ * one browser while responsive journeys run on Pixel 7. Required CI
+ * configuration is validated before discovery in playwright.config.ts.
  */
 export default class PlaywrightAssuranceReporter {
   problems = [];
@@ -20,14 +20,6 @@ export default class PlaywrightAssuranceReporter {
       this.problems.push(`${test.parent.project()?.name ?? "unknown project"} › ${test.titlePath().join(" › ")}: passed only after retry`);
     }
 
-    if (result.status !== "skipped") return;
-    const reason = test.annotations
-      .filter((annotation) => annotation.type === "skip")
-      .map((annotation) => annotation.description ?? "")
-      .join(" ");
-    if (/configure|required|credential|seed data/i.test(reason)) {
-      this.problems.push(`${test.parent.project()?.name ?? "unknown project"} › ${test.titlePath().join(" › ")}: configuration-gated skip (${reason || "no reason"})`);
-    }
   }
 
   onEnd() {

@@ -6,6 +6,25 @@ const runStableEnvironmentSmoke = process.env.E2E_STABLE_ENVIRONMENT_SMOKE === "
 const configuredWorkers = Number.parseInt(process.env.E2E_WORKERS || "1", 10);
 const workers = Number.isFinite(configuredWorkers) && configuredWorkers > 0 ? configuredWorkers : 1;
 
+if (process.env.CI) {
+  const required = runStableEnvironmentSmoke
+    ? ["E2E_TEST_USER_PASSWORD"]
+    : [
+        "E2E_TEST_USER_PASSWORD",
+        "E2E_LEADER_JOURNEY_SEEDED",
+        "E2E_PARENT_EMAIL",
+        "E2E_PARENT_LEADER_EMAIL",
+        "E2E_LEADER_EMAIL",
+        "E2E_MULTI_SECTION_LEADER_EMAIL",
+        "E2E_MULTI_SECTION_LEADER_SECTIONS",
+        "E2E_ADMIN_EMAIL",
+        "E2E_SUPER_ADMIN_EMAIL",
+        "E2E_MODERN_SUPER_ADMIN_EMAIL"
+      ];
+  const missing = required.filter((name) => !process.env[name]?.trim());
+  if (missing.length > 0) throw new Error(`Playwright CI configuration is incomplete: ${missing.join(", ")}`);
+}
+
 export default defineConfig({
   testDir: "./e2e",
   // Most authenticated specs share one deterministic Firebase emulator dataset.
