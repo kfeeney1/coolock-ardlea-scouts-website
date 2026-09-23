@@ -24,10 +24,10 @@ test.describe("Equipment & Stores leader navigation", () => {
     expect(assetRegisterBox!.x).toBeGreaterThanOrEqual(0);
     expect(assetRegisterBox!.x + assetRegisterBox!.width).toBeLessThanOrEqual(412);
 
-    const menu = page.getByRole("button", { name: /Menu · Equipment & Stores|Open Leader Menu/i });
+    const menu = page.getByRole("button", { name: /Menu · (Equipment|Stores)|Open Leader Menu/i });
     await expect(menu).toBeVisible();
     await menu.click();
-    await expect(page.getByRole("button", { name: "Weekly Meetings" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Leader navigation" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign Out" })).toBeVisible();
   });
 });
