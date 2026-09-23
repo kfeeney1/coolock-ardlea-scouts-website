@@ -135,8 +135,9 @@ export default function EquipmentManagement() {
 
   const categoryNames = useMemo(() => Array.from(new Set([
     ...DEFAULT_EQUIPMENT_CATEGORIES.filter((item) => item !== "Other"),
-    ...categories.map((item) => item.name)
-  ])).sort((a, b) => a.localeCompare(b)), [categories]);
+    ...categories.map((item) => item.name),
+    ...items.map((item) => normaliseEquipmentLabel(item.category)).filter(Boolean)
+  ])).sort((a, b) => a.localeCompare(b)), [categories, items]);
   const locationNames = useMemo(() => Array.from(new Set([
     ...locations.map((item) => item.name),
     ...items.map((item) => item.location.trim()).filter(Boolean)
