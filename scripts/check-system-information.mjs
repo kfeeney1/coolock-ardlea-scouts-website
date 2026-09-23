@@ -10,5 +10,5 @@ for(const url of source.match(/https:\/\/[^"\\s]+/g)??[]) new URL(url);
 const workflowMatches=[...source.matchAll(/file: "([^"]+\\.yml)"/g)].map(x=>x[1]);
 assert.equal(new Set(workflowMatches).size,workflowMatches.length);
 for(const file of workflowMatches) await access(file);
-assert.match(page,/SYSTEM_INFORMATION as info, buildAiHandoverPrompt/); assert.match(page,/navigator\\.clipboard/); assert.match(page,/aria-live="polite"/); assert.match(app,/ProtectedSuperAdminRoute/); assert.match(nav,/superAdminOnly/);
+assert.match(page,/SYSTEM_INFORMATION as info, buildAiHandoverPrompt/); assert.ok(page.includes("navigator.clipboard")); assert.match(page,/aria-live="polite"/); assert.match(app,/ProtectedSuperAdminRoute/); assert.match(nav,/superAdminOnly/);
 console.log("System Information documentation contract passed.");
