@@ -9,8 +9,8 @@ const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
 if (!environment || !projectId) {
   throw new Error("Explicit DEPLOY_ENVIRONMENT/VITE_APP_ENV and FIREBASE_PROJECT_ID are required.");
 }
-const credentialProjectId = String(JSON.parse(rawCredentials)?.project_id || "").trim();
-if (!credentialProjectId || credentialProjectId !== projectId) {
+const credentialProjectId = rawCredentials ? String(JSON.parse(rawCredentials)?.project_id || "").trim() : projectId;
+if (credentialProjectId !== projectId) {
   throw new Error("Service-account project_id must exactly match FIREBASE_PROJECT_ID.");
 }
 if (execute) {
