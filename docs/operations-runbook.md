@@ -136,6 +136,12 @@ The workflow:
 
 The backup workflow uses the purpose-scoped `FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION_BACKUP` secret. The service account that starts the export must have permission to run Firestore import/export operations, and the Firestore service agent must be able to access the backup bucket.
 
+The secret belongs in the dedicated `production-monitoring` GitHub
+environment. That environment must not require reviewers and must contain no
+application deployment credential. Weekly backup and daily freshness schedules
+therefore run unattended, while the separate `production` environment
+continues to protect application releases and destructive/manual operations.
+
 Production restore is intentionally **not** automated as a one-click workflow. Firestore imports can overwrite existing documents, so an incident must be scoped and reviewed before an import is started.
 
 Before significant bulk edits, destructive migrations, cleanup tools or manual production repair:
