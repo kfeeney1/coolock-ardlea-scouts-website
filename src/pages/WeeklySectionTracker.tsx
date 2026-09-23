@@ -12,7 +12,7 @@ import type { AttendanceInsightMember } from "../services/attendanceInsightsLogi
 import { createWeeklyMeeting, loadWeeklyAccess, loadWeeklyLeaders, loadWeeklyMeetings, newActivityPlan, newBadgeworkPlan, reopenWeeklyMeeting, updatePastWeeklyMeeting, updateWeeklyMeeting } from "../services/weeklyTracker";
 import type { InjurySeverity, WeeklyAccess, WeeklyActivityPlan, WeeklyBadgeworkPlan, WeeklyInjury, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
-import { newWeeklyEntry, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
+import { newWeeklyEntry, reconcileOpenWeeklyRoster, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
 import { buildParentWeeklyMeetingProgramme, buildWeeklyMeetingWhatsAppUrl } from "../services/weeklyMeetingProgramme";
 import { recordAuditEvent } from "../services/auditLog";
 import { badgeworkSourceHref } from "../services/adventureSkillSourceContext";
@@ -98,16 +98,16 @@ export default function WeeklySectionTracker() {
     finally{setLoading(false);}
   };
   useEffect(()=>{void refresh();},[adminProfile?.sections,isAdmin,requestedMeetingId]);
-  useEffect(()=>{if(!hasUnsavedChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[hasUnsavedChanges]);
+  useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);\n  useEffect(()=>{if(!hasUnsavedChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[hasUnsavedChanges]);
 
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
-  const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{const editingPast=selected?.id===next.id&&selected.status==="closed";if(editingPast&&!editMode.canEditOperationalFields)return false;if(!editingPast&&readOnly)return false;setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;if(editingPast)await updatePastWeeklyMeeting(id,{entries:next.entries,injuries:next.injuries,notes:next.notes});else await updateWeeklyMeeting(id,input);await auditWeeklyMeeting(next,action,message);setSelected(next);setSavedSelected(next);setSuccess(message);await refresh(access);return true;}catch(e){console.error(e);setError("Unable to save this meeting.");return false;}finally{setSaving(false);} };
+  const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{const editingPast=selected?.id===next.id&&selected.status==="closed";if(editingPast&&!editMode.canEditOperationalFields)return false;if(!editingPast&&readOnly)return false;setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;if(editingPast)await updatePastWeeklyMeeting(id,{entries:sortWeeklyEntries(next.entries),injuries:next.injuries,notes:next.notes});else await updateWeeklyMeeting(id,input);await auditWeeklyMeeting(next,action,message);setSelected(next);setSavedSelected(next);setSuccess(message);await refresh(access);return true;}catch(e){console.error(e);setError("Unable to save this meeting.");return false;}finally{setSaving(false);} };
   const save=async()=>{if(!selected)return; if(await persist(selected,"Meeting saved.")){requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));}};
 
   const copyMeeting=async()=>{
     if(!copySource||!copyDate)return;
-    const roster=members.filter(m=>m.section===copySource.section).map(m=>newWeeklyEntry(m.id,m.displayName));
+    const roster=reconcileOpenWeeklyRoster([],members,copySource.section);
     const fallback=copySource.entries.map(e=>newWeeklyEntry(e.memberId,e.memberName));
     setSaving(true);
     try{
