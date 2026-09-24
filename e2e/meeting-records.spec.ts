@@ -64,7 +64,7 @@ test("section leader can import a text meeting document, review it and save it",
   await login(page, leaderEmail!);
   await page.goto("/leader/meetings");
 
-  const title = `TEST E2E Imported Meeting ${Date.now()}`;
+  const title = `TEST E2E Imported Meeting retry-${testInfo.retry}`;
   const importedMinutes = "TEST imported minutes remain editable before save.";
   const documentText = [
     `Title: ${title}`,
@@ -170,7 +170,7 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
   await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toBeVisible();
   await page.getByRole("option", { name: "Group Council Meeting", exact: true }).click();
 
-  const title = `TEST E2E Group Council ${Date.now()}`;
+  const title = `TEST E2E Group Council retry-${testInfo.retry}`;
   await page.getByLabel("Meeting title").fill(title);
   await page.getByLabel("Meeting date and time").fill("2026-08-24T19:30");
   await page.getByLabel("Attendees").fill("Test Web Admin\nTest Group Leader");
@@ -200,7 +200,7 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await page.getByRole("option", { name: "Group Leaders Meeting", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Meeting type" })).toHaveText(/Group Leaders Meeting/);
 
-  const title = `TEST E2E Group Leaders ${Date.now()}`;
+  const title = `TEST E2E Group Leaders retry-${testInfo.retry}`;
   const originalMinutes = "TEST original Group Leaders minutes retained for audit.";
   const revisedMinutes = "TEST revised Group Leaders minutes.";
   await page.getByLabel("Meeting title").fill(title);
@@ -241,6 +241,6 @@ test("unusable meeting document leaves manual workflow available", async ({ page
     buffer: Buffer.from("%PDF-1.4 corrupt")
   });
   await expect(page.getByText(/corrupt|cannot be parsed|no .*extractable text/i)).toBeVisible();
-  await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure ${Date.now()}`);
+  await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure retry-${testInfo.retry}`);
   await expect(page.getByRole("button", { name: "Save Meeting" })).toBeEnabled();
 });
