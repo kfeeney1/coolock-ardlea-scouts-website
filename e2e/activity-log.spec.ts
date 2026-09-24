@@ -39,7 +39,7 @@ for (const [role, email] of [
     await link.click();
     await expect(page).toHaveURL(/\/leader\/activity$/);
     await expect(page.getByRole("heading", { name: "Activity Log" })).toBeVisible();
-    await expect(page.getByText(/Read-only history of important administrative and leader actions/i)).toBeVisible();
+    await expect(page.getByText(/Read-only history of important administrative and leader actions/i)).toHaveCount(0);
     await expect(page.getByText("Unable to load the activity log.")).toHaveCount(0);
   });
 }
