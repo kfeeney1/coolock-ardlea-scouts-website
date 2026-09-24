@@ -206,7 +206,7 @@ export default function MeetingRecords() {
         setSuccess("Meeting record saved.");
       }
       resetForm();
-      await refresh();
+      void refresh();
     } catch (saveError) {
       console.error("Unable to save meeting record:", saveError);
       setError("Unable to save this meeting record. Check your permissions and try again.");
