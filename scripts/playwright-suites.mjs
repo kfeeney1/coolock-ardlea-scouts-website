@@ -4,6 +4,7 @@ export const suiteSpecs = {
     "leader-journey.spec.ts",
     "leader-navigation-info.spec.ts",
     "leader-navigation.spec.ts",
+    "navigation-recovery.spec.ts",
     "loading-shell.spec.ts",
     "logout.spec.ts"
   ],

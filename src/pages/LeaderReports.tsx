@@ -157,7 +157,7 @@ export default function LeaderReports() {
     };
 
     return (
-        <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+        <Box data-testid="page-secretary-reports" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader title="Reports & Exports" />

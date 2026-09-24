@@ -43,6 +43,7 @@
     "/leader/profile": "leader",
     "/leader/profile/consent": "leader",
     "/leader/reports": "leader",
+    "/leader/qm-reports": "leader",
     "/leader/attendance": "leader",
     "/leader/communications": "leader",
     "/leader/meetings": "leader",

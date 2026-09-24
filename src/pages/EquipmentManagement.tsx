@@ -235,7 +235,7 @@ export default function EquipmentManagement() {
 
 
 
-  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
+  return <Box data-testid="page-equipment-stores" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Equipment & Stores" />
