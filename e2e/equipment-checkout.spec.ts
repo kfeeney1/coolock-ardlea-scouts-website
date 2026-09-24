@@ -37,10 +37,9 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await expect(addDialog).toBeVisible();
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  const addComboboxes = addDialog.getByRole("combobox");
-  await addComboboxes.nth(0).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await addComboboxes.nth(1).click();
+  await addDialog.getByLabel("Store").click();
   const existingStore = page.getByRole("option", { name: storeName, exact: true });
   if (await existingStore.count()) {
     await existingStore.click();
@@ -58,7 +57,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
   const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
-  await checkoutRow.getByLabel("Qty").fill("2");
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
 
@@ -116,10 +115,9 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(incidentName);
-  const addComboboxes = addDialog.getByRole("combobox");
-  await addComboboxes.nth(0).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await addComboboxes.nth(1).click();
+  await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "TEST Checkout Store" }).click();
   await addDialog.getByLabel("Total quantity").fill("3");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
@@ -130,15 +128,14 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
   const checkoutRow = checkoutDialog.getByText(incidentName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
-  await checkoutRow.getByLabel("Qty").fill("2");
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
 
   await page.getByRole("button", { name: "Report issue" }).click();
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
-  const incidentComboboxes = incidentDialog.getByRole("combobox");
-  await incidentComboboxes.nth(0).click();
+  await incidentDialog.getByLabel("Equipment / checkout").click();
   await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${incidentName} · 2 out`) }).click();
-  await incidentComboboxes.nth(1).click();
+  await incidentDialog.getByLabel("Issue type").click();
   await page.getByRole("option", { name: "Missing" }).click();
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill("One tent was not returned with the rest of the section equipment.");
@@ -182,10 +179,9 @@ test("admin can partially move stock and see the movement in item history", asyn
   await page.getByRole("button", { name: "Add equipment" }).click();
   let addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(markerName);
-  let comboboxes = addDialog.getByRole("combobox");
-  await comboboxes.nth(0).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await comboboxes.nth(1).click();
+  await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "Other…" }).click();
   await addDialog.getByLabel("New Store").fill(destination);
   await addDialog.getByLabel("Total quantity").fill("1");
@@ -195,10 +191,9 @@ test("admin can partially move stock and see the movement in item history", asyn
   await page.getByRole("button", { name: "Add equipment" }).click();
   addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  comboboxes = addDialog.getByRole("combobox");
-  await comboboxes.nth(0).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await comboboxes.nth(1).click();
+  await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "TEST Checkout Store" }).click();
   await addDialog.getByLabel("Total quantity").fill("4");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
@@ -233,10 +228,9 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  const comboboxes = addDialog.getByRole("combobox");
-  await comboboxes.nth(0).click();
+  const await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await comboboxes.nth(1).click();
+  await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "TEST Checkout Store" }).click();
   const quantity = addDialog.getByTestId("equipment-total-quantity");
   await quantity.fill("0");
