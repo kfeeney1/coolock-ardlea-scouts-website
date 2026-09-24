@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
@@ -42,6 +43,9 @@ function meetingTypeLabel(type: MeetingType): string {
 
 export default function MeetingRecords() {
   const { adminProfile } = useAdminAuth();
+  const [searchParams] = useSearchParams();
+  const navigationView = searchParams.get("view");
+  const pageIdentity = navigationView === "secretary" ? "secretary-meeting-records" : navigationView === "group-operations" ? "group-meeting-records" : "meeting-records";
   const [records, setRecords] = useState<MeetingRecord[]>([]);
   const [form, setForm] = useState<MeetingInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -258,7 +262,7 @@ export default function MeetingRecords() {
     }
   };
 
-  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+  return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 }, mb: 3 }}>
