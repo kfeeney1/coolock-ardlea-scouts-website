@@ -17,9 +17,8 @@ async function login(page: Page) {
 
 async function ensureProgramme(page: Page) {
   const planner = page.getByRole("heading", { name: "Programme Planner" });
-  if (!(await planner.isVisible().catch(() => false))) {
-    await page.getByRole("button", { name: "Programme", exact: true }).click();
-  }
+  const programmeButton = page.getByRole("button", { name: "Programme", exact: true });
+  if (await programmeButton.isVisible()) await programmeButton.click();
   await expect(planner).toBeVisible();
 }
 
@@ -30,9 +29,9 @@ async function openOrCreate(page: Page, date: string, displayDate: RegExp) {
     await existingOpen.first().click();
   } else if (await existingClosed.count()) {
     await existingClosed.first().getByRole("button", { name: "View / Edit" }).click();
-    if (await page.getByRole("button", { name: "Reopen Meeting" }).count()) {
-      await page.getByRole("button", { name: "Reopen Meeting" }).click();
-    }
+    const reopenMeeting = page.getByRole("button", { name: "Reopen Meeting" });
+    await expect(reopenMeeting).toBeVisible();
+    await reopenMeeting.click();
   } else {
     await page.getByRole("link", { name: "Create Meeting" }).click();
     await page.getByLabel("Meeting date").fill(date);
