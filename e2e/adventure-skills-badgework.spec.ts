@@ -43,7 +43,6 @@ async function selectMember(page: Page, name: string) {
   await expect(memberCheckbox).toBeVisible();
   await memberCheckbox.check();
 }
-}
 
 async function openRecordBadgework(page: Page) {
   await page.getByRole("button", { name: "Record badgework", exact: true }).first().click();
