@@ -95,10 +95,9 @@ test("activity can have multiple section leaders and badgework is planned with p
 });
 
 test("weekly planner fits a phone viewport without horizontal overflow", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile weekly planner regression runs once on the canonical Pixel 7 project.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-15", /15 Apr 2099 · Scouts/);
