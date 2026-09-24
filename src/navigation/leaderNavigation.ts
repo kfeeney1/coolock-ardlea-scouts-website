@@ -34,7 +34,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   { id: "secretary", label: "Secretary", items: [
     { id: "secretary-subs", label: "Subs", path: "/leader/subs", pageId: "subs", appointments: ["Group Secretary"] },
     { id: "secretary-floats", label: "Floats", path: "/leader/finance", pageId: "section-floats", appointments: ["Group Secretary"] },
-    { id: "secretary-reports", label: "Secretary Reports", path: "/leader/reports", pageId: "secretary-reports", appointments: ["Group Secretary", "Group Chairperson"] },
+    { id: "secretary-reports", label: "Secretary Reports", path: "/leader/reports?view=secretary", pageId: "secretary-reports", appointments: ["Group Secretary", "Group Chairperson"] },
     { id: "secretary-settings", label: "Secretary Settings", path: "/leader/settings?view=secretary", pageId: "secretary-settings", appointments: ["Group Secretary"] },
     { id: "secretary-meeting-records", label: "Meeting Records", path: "/leader/meetings?view=secretary", pageId: "secretary-meeting-records", appointments: ["Group Secretary", "Group Chairperson"] }
   ]},
@@ -51,7 +51,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   ]},
   { id: "insights-records", label: "Insights & Records", items: [
     { id: "attendance-insights", label: "Attendance Insights", path: "/leader/attendance", pageId: "attendance-insights" },
-    { id: "reports-exports", label: "Reports & Exports", path: "/leader/reports", pageId: "secretary-reports" },
+    { id: "reports-exports", label: "Reports & Exports", path: "/leader/reports?view=insights", pageId: "reports-exports" },
     { id: "activity-log", label: "Activity Log", path: "/leader/activity", pageId: "activity-log", activityLogOnly: true }
   ]},
   { id: "administration", label: "Administration", items: [
