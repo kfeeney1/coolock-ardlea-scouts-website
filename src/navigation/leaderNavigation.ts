@@ -35,16 +35,16 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     { id: "secretary-subs", label: "Subs", path: "/leader/subs", pageId: "subs", appointments: ["Group Secretary"] },
     { id: "secretary-floats", label: "Floats", path: "/leader/finance", pageId: "section-floats", appointments: ["Group Secretary"] },
     { id: "secretary-reports", label: "Secretary Reports", path: "/leader/reports", pageId: "secretary-reports", appointments: ["Group Secretary", "Group Chairperson"] },
-    { id: "secretary-settings", label: "Secretary Settings", path: "/leader/settings", pageId: "secretary-settings", appointments: ["Group Secretary"] },
+    { id: "secretary-settings", label: "Secretary Settings", path: "/leader/settings?view=secretary", pageId: "secretary-settings", appointments: ["Group Secretary"] },
     { id: "secretary-meeting-records", label: "Meeting Records", path: "/leader/meetings", pageId: "meeting-records", appointments: ["Group Secretary", "Group Chairperson"] }
   ]},
   { id: "quartermaster", label: "Quartermaster / Bo’sun", items: [
-    { id: "qm-equipment-stores", label: "Equipment and Stores", path: "/leader/equipment", pageId: "equipment-stores", appointments: quartermasterAppointments },
+    { id: "qm-equipment-stores", label: "Equipment and Stores", path: "/leader/equipment?view=quartermaster", pageId: "qm-equipment-stores", appointments: quartermasterAppointments },
     { id: "qm-reports", label: "QM Reports", path: "/leader/qm-reports", pageId: "qm-reports", appointments: quartermasterAppointments },
-    { id: "qm-settings", label: "QM Settings", path: "/leader/settings", pageId: "qm-settings", appointments: quartermasterAppointments }
+    { id: "qm-settings", label: "QM Settings", path: "/leader/settings?view=quartermaster", pageId: "qm-settings", appointments: quartermasterAppointments }
   ]},
   { id: "group-operations", label: "Group Operations", items: [
-    { id: "group-equipment-stores", label: "Equipment & Stores", path: "/leader/equipment", pageId: "equipment-stores" },
+    { id: "group-equipment-stores", label: "Equipment & Stores", path: "/leader/equipment?view=group-operations", pageId: "group-equipment-stores" },
     { id: "group-section-floats", label: "Section Floats", path: "/leader/finance", pageId: "section-floats" },
     { id: "group-subs", label: "Subs", path: "/leader/subs", pageId: "subs" },
     { id: "group-meeting-records", label: "Meeting Records", path: "/leader/meetings", pageId: "meeting-records" }

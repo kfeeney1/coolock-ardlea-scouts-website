@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+
+const root = process.cwd();
+const read = (file: string) => readFile(path.join(root, file), "utf8");
+
+test("leader navigation contract declares unique IDs and destination page identities", async () => {
+  const nav = await read("src/navigation/leaderNavigation.ts");
+  const itemLines = nav.split("\n").filter((line) => line.includes("path:") && line.includes("pageId:"));
+  const ids = itemLines.flatMap((line) => [...line.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(itemLines.length, ids.length);
+  for (const line of itemLines) assert.match(line, /id: "[^"]+".*path: "[^"]+".*pageId: "[^"]+"/);
+});
+
+test("role-labelled destinations do not silently alias another role workspace", async () => {
+  const nav = await read("src/navigation/leaderNavigation.ts");
+  assert.match(nav, /id: "secretary-settings"[^\n]+path: "\/leader\/settings\?view=secretary"/);
+  assert.match(nav, /id: "qm-settings"[^\n]+path: "\/leader\/settings\?view=quartermaster"/);
+  assert.match(nav, /id: "qm-equipment-stores"[^\n]+path: "\/leader\/equipment\?view=quartermaster"/);
+  assert.match(nav, /id: "group-equipment-stores"[^\n]+path: "\/leader\/equipment\?view=group-operations"/);
+});

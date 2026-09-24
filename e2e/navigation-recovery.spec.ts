@@ -45,8 +45,8 @@ test.describe("SW-178 canonical role navigation", () => {
     const equipment = navigation.getByTestId("leader-nav-qm-equipment-stores");
     await expect(equipment).toBeVisible();
     await equipment.click();
-    await expect(page).toHaveURL(/\/leader\/equipment$/);
-    await expect(page.getByTestId("page-equipment-stores")).toBeVisible();
+    await expect(page).toHaveURL(/\/leader\/equipment\?view=quartermaster$/);
+    await expect(page.getByTestId("page-qm-equipment-stores")).toBeVisible();
     await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
 
     navigation = await exposeQuartermaster(page, testInfo);
@@ -75,6 +75,41 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page).toHaveURL(/\/leader\/reports$/);
     await expect(page.getByTestId("page-secretary-reports")).toBeVisible();
     await expect(page.getByTestId("page-qm-reports")).toHaveCount(0);
+  });
+
+
+  test("role-specific settings and equipment destinations retain their own identity", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+
+    let navigation = await exposeQuartermaster(page, testInfo);
+    const qmSettings = navigation.getByTestId("leader-nav-qm-settings");
+    await expect(qmSettings).toBeVisible();
+    await qmSettings.click();
+    await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
+    await expect(page.getByTestId("page-qm-settings")).toBeVisible();
+    await expect(page.getByTestId("page-secretary-settings")).toHaveCount(0);
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation).toBeVisible();
+    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) {
+      await navigation.getByRole("button", { name: "Secretary" }).click();
+    }
+    await navigation.getByTestId("leader-nav-secretary-settings").click();
+    await expect(page).toHaveURL(/\/leader\/settings\?view=secretary$/);
+    await expect(page.getByTestId("page-secretary-settings")).toBeVisible();
+    await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation).toBeVisible();
+    if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) {
+      await navigation.getByRole("button", { name: "Group Operations" }).click();
+    }
+    await navigation.getByTestId("leader-nav-group-equipment-stores").click();
+    await expect(page).toHaveURL(/\/leader\/equipment\?view=group-operations$/);
+    await expect(page.getByTestId("page-group-equipment-stores")).toBeVisible();
+    await expect(page.getByTestId("page-qm-equipment-stores")).toHaveCount(0);
   });
 
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {

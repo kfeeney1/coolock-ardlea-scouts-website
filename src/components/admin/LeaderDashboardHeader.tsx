@@ -8,9 +8,11 @@ import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
 
+function itemPathname(itemPath: string) { return itemPath.split(/[?#]/, 1)[0]; }
 function matchesNavPath(pathname: string, itemPath: string) {
- if (itemPath === "/leader") return pathname === "/leader";
- return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+ const target = itemPathname(itemPath);
+ if (target === "/leader") return pathname === "/leader";
+ return pathname === target || pathname.startsWith(`${target}/`);
 }
 
 export default function LeaderDashboardHeader() {
