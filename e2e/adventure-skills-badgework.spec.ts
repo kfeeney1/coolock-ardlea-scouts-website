@@ -217,7 +217,7 @@ test.describe("Adventure Skills badgework", () => {
     const hillwalking = page.getByTestId("parent-adventure-skill-hillwalking");
     await hillwalking.getByRole("button", { name: /Stage 1/ }).click();
     const hillwalkingStageOne = hillwalking.getByRole("region", { name: /Stage 1/ });
-    const buddyRow = hillwalkingStageOne.locator(\'[data-testid^="parent-adventure-requirement-"]\').filter({ hasText: /Buddy System/i }).first();
+    const buddyRow = hillwalkingStageOne.locator('[data-testid^="parent-adventure-requirement-"]').filter({ hasText: /Buddy System/i }).first();
     await expect(buddyRow).toContainText(/Buddy System/i);
     await expect(buddyRow.getByText("Completed", { exact: true })).toBeVisible();
 
