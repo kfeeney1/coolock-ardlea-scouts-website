@@ -24,8 +24,11 @@ async function openOrCreate(page: Page) {
     await page.getByLabel("Meeting date").fill("2099-05-06");
     await page.getByRole("button", { name: "Create Meeting" }).click();
   }
-  if (!(await page.getByRole("heading", { name: "Programme Planner" }).isVisible().catch(() => false))) {
-    await page.getByRole("button", { name: "Programme", exact: true }).click();
+  const planner = page.getByRole("heading", { name: "Programme Planner" });
+  if (!(await planner.isVisible())) {
+    const programmeButton = page.getByRole("button", { name: "Programme", exact: true });
+    await expect(programmeButton).toBeVisible();
+    await programmeButton.click();
   }
 }
 
