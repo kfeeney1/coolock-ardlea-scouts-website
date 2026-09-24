@@ -57,7 +57,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
   const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
-  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
 
