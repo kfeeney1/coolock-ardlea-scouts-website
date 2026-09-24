@@ -108,7 +108,7 @@ export default function EquipmentRecordPage() {
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
 
-    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+    <Paper data-testid="equipment-record-summary" variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
           <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History</Button>
