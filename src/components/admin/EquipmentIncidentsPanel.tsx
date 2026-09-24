@@ -240,14 +240,14 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       <DialogContent dividers>
         <Stack spacing={2}>
           <FormControl fullWidth>
-            <InputLabel>Equipment / checkout</InputLabel>
-            <Select label="Equipment / checkout" value={sourceId} onChange={(event) => { setSourceId(event.target.value); setQuantity(1); }}>
+            <InputLabel id="equipment-incident-source-label">Equipment / checkout</InputLabel>
+            <Select labelId="equipment-incident-source-label" label="Equipment / checkout" value={sourceId} onChange={(event) => { setSourceId(event.target.value); setQuantity(1); }}>
               {sources.map((source) => <MenuItem key={source.id} value={source.id}>{source.label}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl fullWidth>
-            <InputLabel>Issue type</InputLabel>
-            <Select label="Issue type" value={type} onChange={(event) => setType(event.target.value as EquipmentIncidentType)}>
+            <InputLabel id="equipment-incident-type-label">Issue type</InputLabel>
+            <Select labelId="equipment-incident-type-label" label="Issue type" value={type} onChange={(event) => setType(event.target.value as EquipmentIncidentType)}>
               <MenuItem value="damaged">Broken / damaged</MenuItem>
               <MenuItem value="lost">Lost</MenuItem>
               <MenuItem value="missing">Missing</MenuItem>
