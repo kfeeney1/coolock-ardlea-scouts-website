@@ -10,7 +10,7 @@ test.describe("SW-121 / SW-120 section consent experience", () => {
     const sectionNames = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
     for (const section of sectionNames) {
       const button = page.getByRole("button", { name: `Open ${section} consent form` });
-      if (await button.count() === 0) continue;
+      await expect(button).toHaveCount(1);
       await expect(button).toBeVisible();
       await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toBeVisible();
       await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toHaveAttribute(
