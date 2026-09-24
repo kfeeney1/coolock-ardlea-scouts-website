@@ -238,7 +238,7 @@ export default function EquipmentManagement() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Equipment & Stores" />
+      <Box data-testid="page-equipment-stores"><LeaderPageHeader title="Equipment & Stores" /></Box>
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
