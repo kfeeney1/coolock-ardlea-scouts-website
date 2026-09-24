@@ -6,7 +6,7 @@ import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
-import { accountLeaderNavItems, dashboardLeaderNavItem, leaderNavGroups, type LeaderLeaderNavItem } from "../../navigation/leaderNavigation";
+import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
 
 function matchesNavPath(pathname: string, itemPath: string) {
  if (itemPath === "/leader") return pathname === "/leader";
