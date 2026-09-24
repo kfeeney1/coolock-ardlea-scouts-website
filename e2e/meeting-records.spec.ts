@@ -205,6 +205,8 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await page.getByLabel("Notes / Minutes").fill(originalMinutes);
   await page.getByRole("button", { name: "Save Meeting" }).click();
 
+  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
   const heading = page.getByText(title, { exact: true });
   await expect(heading).toBeVisible();
   let recordCard = heading.locator("..").locator("..").locator("..");
