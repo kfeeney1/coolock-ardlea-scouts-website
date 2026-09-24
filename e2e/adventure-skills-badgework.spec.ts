@@ -39,10 +39,12 @@ async function loginParent(page: Page) {
 }
 
 async function selectMember(page: Page, name: string) {
-  const memberName = page.getByText(name, { exact: true });
+  const memberCheckbox = page.getByRole("checkbox", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  const memberName = page.getByText(name, { exact: true });
   await expect(memberName).toBeVisible();
   const label = memberName.locator("xpath=ancestor::label");
-  await label.getByRole("checkbox").check();
+  await label.getByRole("checkbox").check();")}`) });
+  await expect(memberCheckbox).toBeVisible();
+  await memberCheckbox.check();
 }
 
 async function openRecordBadgework(page: Page) {
