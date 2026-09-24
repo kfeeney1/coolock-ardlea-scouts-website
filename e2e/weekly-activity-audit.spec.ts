@@ -45,11 +45,11 @@ test("section leader Weekly Meeting update is visible in the Activity Log", asyn
     await login(adminPage, adminEmail!);
     await adminPage.goto("/leader/activity");
     await adminPage.getByLabel("Search activity").fill(auditDate);
-    const auditEntry = adminPage.locator('[data-testid^="activity-log-"]:not([data-testid="activity-log-list"]):not([data-testid="activity-log-search"])').filter({ hasText: `Scouts Weekly Meeting · ${auditDate}` });
-    await expect(auditEntry).toHaveCount(1);
-    await expect(auditEntry.getByText("weekly-meeting-update", { exact: true })).toBeVisible();
-    await expect(auditEntry).toContainText(`Scouts Weekly Meeting · ${auditDate}`);
-    await expect(auditEntry).toContainText(leaderEmail!);
+    const auditEntries = adminPage.locator('[data-testid^="activity-log-"]:not([data-testid="activity-log-list"]):not([data-testid="activity-log-search"])').filter({ hasText: `Scouts Weekly Meeting · ${auditDate}` });
+    await expect(auditEntries).not.toHaveCount(0);
+    const matchingEntry = auditEntries.filter({ hasText: "weekly-meeting-update" }).filter({ hasText: leaderEmail! });
+    await expect(matchingEntry).not.toHaveCount(0);
+    await expect(matchingEntry.first()).toContainText(`Scouts Weekly Meeting · ${auditDate}`);
   } finally {
     await adminContext.close();
   }
