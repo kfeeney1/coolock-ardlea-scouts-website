@@ -17,8 +17,10 @@ async function login(page: Page) {
 
 async function ensureProgramme(page: Page) {
   const planner = page.getByRole("heading", { name: "Programme Planner" });
+  if (await planner.isVisible()) return;
   const programmeButton = page.getByRole("button", { name: "Programme", exact: true });
-  if (await programmeButton.isVisible()) await programmeButton.click();
+  await expect(programmeButton).toBeVisible();
+  await programmeButton.click();
   await expect(planner).toBeVisible();
 }
 
