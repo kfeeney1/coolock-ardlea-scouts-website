@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
 const adminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
@@ -6,8 +6,8 @@ const adminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USE
 test.describe("Equipment & Stores leader navigation", () => {
   test.skip(!adminEmail || !adminPassword, "Admin E2E credentials are required.");
 
-  test("shows the Leader Dashboard and expandable menu on Android-sized mobile", async ({ page }) => {
-    await page.setViewportSize({ width: 412, height: 915 });
+  test("shows the Leader Dashboard and expandable menu on Android-sized mobile", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile equipment navigation runs once on the canonical Pixel 7 project.");
     await page.goto("/leader/login");
     await page.getByLabel(/email/i).fill(adminEmail!);
     await page.getByLabel(/password/i).fill(adminPassword!);
