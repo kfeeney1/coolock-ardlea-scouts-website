@@ -30,7 +30,7 @@ test("SW-146 keeps operational headers compact and retains meaningful safety gui
     ["src/pages/ConsentManagement.tsx", /<LeaderPageHeader title="Consent Management" \/>/],
     ["src/pages/SubsManagement.tsx", /<LeaderPageHeader title="Subs" \/>/],
     ["src/pages/LeaderReports.tsx", /<LeaderPageHeader title="Reports & Exports" \/>/],
-    ["src/pages/EquipmentManagement.tsx", /<LeaderPageHeader title="Equipment & Stores" \/>/]
+    ["src/pages/EquipmentManagement.tsx", /<LeaderPageHeader title=\\{pageTitle\\} \\/>/]
   ] as const;
   for (const [file, pattern] of expectations) assert.match(await read(file), pattern);
 
