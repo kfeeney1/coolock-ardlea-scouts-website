@@ -5,7 +5,7 @@ type Props = { title: string; description?: string; actions?: ReactNode; };
 
 export default function LeaderPageHeader({ title, actions }: Props) {
     return <>
-        <Box component="h1" sx={{ position: "absolute", width: 1, height: 1, p: 0, m: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}>{title}</Box>
+        <Box component="h1" sx={{ position: "absolute", width: "1px", height: "1px", p: 0, m: "-1px", overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}>{title}</Box>
         {actions && <Box
             data-testid="leader-page-actions"
             aria-label="Page actions"

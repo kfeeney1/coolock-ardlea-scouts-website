@@ -9,6 +9,10 @@ test("authenticated page headers remove the visual title tile and description", 
   assert.doesNotMatch(source, /\{description\}/);
   assert.match(source, /component="h1"/);
   assert.match(source, /position: "absolute"/);
+  assert.match(source, /width: "1px"/);
+  assert.match(source, /height: "1px"/);
+  assert.doesNotMatch(source, /width: 1[,}]/);
+  assert.doesNotMatch(source, /height: 1[,}]/);
 });
 
 test("authenticated page actions remain in a compact responsive row", () => {
