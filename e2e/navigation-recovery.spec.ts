@@ -74,6 +74,10 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("leader-nav-qm-equipment-stores")).toHaveCount(0);
     await expect(page.getByTestId("leader-nav-qm-reports")).toHaveCount(0);
     await expect(page.getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
+
+    await page.goto("/leader/qm-reports");
+    await expect(page.getByText("Quartermaster / Bo’sun equipment-management access is required.")).toBeVisible();
+    await expect(page.getByTestId("qm-report-content")).toHaveCount(0);
   });
 
   test("redundant Join Us and Event Consent Refresh controls are absent", async ({ page }) => {
