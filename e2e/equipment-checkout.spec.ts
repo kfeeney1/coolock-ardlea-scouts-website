@@ -26,7 +26,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = `TEST Checkout Tent ${testInfo.retry}`;
+  const itemName = "TEST Checkout Tent";
   const storeName = "TEST Checkout Store";
   await loginLeader(page, account!);
 
@@ -103,7 +103,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const incidentName = `TEST Incident Tent ${testInfo.retry}`;
+  const incidentName = "TEST Incident Tent";
   let notificationCalls = 0;
   await page.route("**/equipment-incident", async (route) => {
     notificationCalls += 1;
@@ -170,9 +170,9 @@ test("admin can partially move stock and see the movement in item history", asyn
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const destination = `TEST Move Store ${testInfo.retry}`;
-  const markerName = `TEST Move Marker ${testInfo.retry}`;
-  const itemName = `TEST Move Tents ${testInfo.retry}`;
+  const destination = "TEST Move Store";
+  const markerName = "TEST Move Marker";
+  const itemName = "TEST Move Tents";
   await loginLeader(page, account!);
   await page.goto("/leader/equipment");
 
@@ -221,7 +221,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = `TEST Zero Quantity ${testInfo.retry}`;
+  const itemName = "TEST Zero Quantity";
   await loginLeader(page, account!);
   await page.goto("/leader/equipment");
 
