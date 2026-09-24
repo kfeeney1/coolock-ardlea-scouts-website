@@ -234,6 +234,55 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("qm-report-content")).toHaveCount(0);
   });
 
+
+  test("ordinary leader canonical Programme navigation works and officer menus stay absent", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_LEADER"));
+    for (const [itemId, route] of [
+      ["weekly-meetings", "/leader/weekly"],
+      ["events-activities", "/leader/events"],
+      ["badgework", "/leader/badgework"],
+    ] as const) {
+      await openMenu(page);
+      const navigation = projectNavigation(page, testInfo);
+      if ((await navigation.getByRole("button", { name: "Programme" }).count()) > 0) await navigation.getByRole("button", { name: "Programme" }).click();
+      await navigation.getByTestId("leader-nav-" + itemId).click();
+      await expect(page).toHaveURL(new RegExp(route.replaceAll("/", "\\/") + "$"));
+      await openMenu(page);
+      const currentNavigation = projectNavigation(page, testInfo);
+      await expect(currentNavigation.getByTestId("leader-nav-" + itemId)).toHaveAttribute("aria-current", "page");
+      await expect(currentNavigation.getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
+      await expect(currentNavigation.getByTestId("leader-nav-qm-reports")).toHaveCount(0);
+    }
+  });
+
+  test("role-specific direct routes cannot be claimed by sibling navigation identities", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    for (const [route, currentId, siblingIds] of [
+      ["/leader/settings", "settings", ["secretary-settings", "qm-settings"]],
+      ["/leader/settings?view=secretary", "secretary-settings", ["settings", "qm-settings"]],
+      ["/leader/settings?view=quartermaster", "qm-settings", ["settings", "secretary-settings"]],
+      ["/leader/reports?view=secretary", "secretary-reports", ["reports-exports"]],
+      ["/leader/reports?view=insights", "reports-exports", ["secretary-reports"]],
+      ["/leader/equipment?view=quartermaster", "qm-equipment-stores", ["group-equipment-stores"]],
+      ["/leader/equipment?view=group-operations", "group-equipment-stores", ["qm-equipment-stores"]],
+      ["/leader/meetings?view=secretary", "secretary-meeting-records", ["group-meeting-records"]],
+      ["/leader/meetings?view=group-operations", "group-meeting-records", ["secretary-meeting-records"]],
+      ["/leader/finance?view=secretary", "secretary-floats", ["group-section-floats"]],
+      ["/leader/finance?view=group-operations", "group-section-floats", ["secretary-floats"]],
+      ["/leader/subs?view=secretary", "secretary-subs", ["group-subs", "family-billing"]],
+      ["/leader/subs?view=group-operations", "group-subs", ["secretary-subs", "family-billing"]],
+      ["/leader/subs#family-billing", "family-billing", ["secretary-subs", "group-subs"]],
+    ] as const) {
+      await page.goto(route);
+      await openMenu(page);
+      const navigation = projectNavigation(page, testInfo);
+      await expect(navigation.getByTestId("leader-nav-" + currentId)).toHaveAttribute("aria-current", "page");
+      for (const siblingId of siblingIds) {
+        await expect(navigation.getByTestId("leader-nav-" + siblingId)).not.toHaveAttribute("aria-current", "page");
+      }
+    }
+  });
+
   test("redundant Join Us and Event Consent Refresh controls are absent", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await page.goto("/leader/join");
