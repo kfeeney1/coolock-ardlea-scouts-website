@@ -45,7 +45,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
   const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
   await expect(fixtureHeading).toBeVisible();
   await expect(page.getByText(groupFixtureTitle, { exact: true })).toHaveCount(0);
-  const fixtureHeader = fixtureHeading.locator("..").locator("..");
+  const fixtureHeader = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle });
   await fixtureHeader.getByRole("button", { name: "Edit" }).click();
 
   await expect(page.getByLabel("Meeting title")).toHaveValue(fixtureTitle);
@@ -122,7 +122,7 @@ test("editing a meeting on mobile scrolls the edit form into view instead of the
   const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
   await expect(fixtureHeading).toBeVisible();
   await fixtureHeading.scrollIntoViewIfNeeded();
-  await fixtureHeading.locator("..").locator("..").getByRole("button", { name: "Edit" }).click();
+  await page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle }).getByRole("button", { name: "Edit" }).click();
 
   const form = page.getByTestId("meeting-record-form");
   await expect(form).toBeInViewport();
@@ -150,8 +150,8 @@ for (const officer of [
     await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
-    const scoutRecord = page.getByText(fixtureTitle, { exact: true }).locator("..").locator("..");
-    const groupRecord = page.getByText(groupFixtureTitle, { exact: true }).locator("..").locator("..");
+    const scoutRecord = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle });
+    const groupRecord = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: groupFixtureTitle });
     await expect(scoutRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
     await expect(groupRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
     await expect(scoutRecord.getByRole("button", { name: "Version History" })).toHaveCount(0);
@@ -213,7 +213,7 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
   const heading = page.getByText(title, { exact: true });
   await expect(heading).toBeVisible();
-  let recordCard = heading.locator("..").locator("..").locator("..");
+  let recordCard = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: title });
   await expect(recordCard.getByText("Group Leaders Meeting", { exact: true })).toBeVisible();
   await expect(recordCard.getByText("Group Leaders", { exact: true })).toBeVisible();
   await recordCard.getByRole("button", { name: "Edit" }).click();
@@ -223,7 +223,7 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await expect(page.getByText(/previous version has been retained/i)).toBeVisible();
   await expect(page.getByText(revisedMinutes, { exact: true })).toBeVisible();
 
-  recordCard = page.getByText(title, { exact: true }).locator("..").locator("..").locator("..");
+  recordCard = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: title });
   await recordCard.getByRole("button", { name: "Version History" }).click();
   await expect(recordCard.getByText("Previous versions", { exact: true })).toBeVisible();
   await expect(recordCard.getByText(originalMinutes, { exact: true })).toBeVisible();
