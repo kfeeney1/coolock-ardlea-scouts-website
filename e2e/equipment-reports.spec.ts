@@ -111,7 +111,7 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  await checkoutDialog.getByRole("spinbutton", { name: "Qty" }).filter({ visible: true }).fill("1");
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("1");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(page.getByText(`1 × ${itemName}`, { exact: false })).toBeVisible();
 
