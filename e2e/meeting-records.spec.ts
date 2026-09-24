@@ -176,9 +176,11 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
   await page.getByLabel("Meeting date and time").fill("2026-08-24T19:30");
   await page.getByLabel("Attendees").fill("Test Web Admin\nTest Group Leader");
   await page.getByLabel("Notes / Minutes").fill("TEST admin meeting persistence check.");
-  await page.getByRole("button", { name: "Save Meeting" }).click();
+  const saveButton = page.getByRole("button", { name: "Save Meeting" });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
 
-  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText("Meeting record saved.")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(title, { exact: true })).toBeVisible();
 
   await page.reload();
@@ -192,9 +194,12 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/meetings");
+  await expect(page.getByRole("heading", { name: "Meeting Records" })).toBeVisible();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
 
   await openMeetingType(page);
   await page.getByRole("option", { name: "Group Leaders Meeting", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Meeting type" })).toHaveText(/Group Leaders Meeting/);
 
   const title = `TEST E2E Group Leaders ${Date.now()}`;
   const originalMinutes = "TEST original Group Leaders minutes retained for audit.";
