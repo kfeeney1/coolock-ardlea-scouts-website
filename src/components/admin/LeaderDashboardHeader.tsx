@@ -8,18 +8,23 @@ import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
 
-function itemPathname(itemPath: string) { return itemPath.split(/[?#]/, 1)[0]; }
-function matchesNavPath(pathname: string, itemPath: string) {
- const target = itemPathname(itemPath);
- if (target === "/leader") return pathname === "/leader";
- return pathname === target || pathname.startsWith(`${target}/`);
+function matchesNavPath(locationPath: string, itemPath: string) {
+ const current = new URL(locationPath, window.location.origin);
+ const target = new URL(itemPath, window.location.origin);
+ if (target.pathname === "/leader") return current.pathname === "/leader" && !target.search && !target.hash;
+ if (current.pathname !== target.pathname && !current.pathname.startsWith(`${target.pathname}/`)) return false;
+ if (target.search && current.search !== target.search) return false;
+ if (target.hash && current.hash !== target.hash) return false;
+ if (!target.search && current.search) return false;
+ if (!target.hash && current.hash && current.pathname === target.pathname) return false;
+ return true;
 }
 
 export default function LeaderDashboardHeader() {
  const location = useLocation();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
  const { adminProfile, logout, setUiTheme } = useAdminAuth();
- const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(location.pathname, item.path)))?.label ?? null;
+ const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path)))?.label ?? null;
  const [menuOpen, setMenuOpen] = useState(false);
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
  const [signingOut, setSigningOut] = useState(false);
@@ -37,7 +42,7 @@ export default function LeaderDashboardHeader() {
  const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const visibleItems = [dashboardNavItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
- const currentItem = visibleItems.find((item) => matchesNavPath(location.pathname, item.path));
+ const currentItem = visibleItems.find((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path));
  useEffect(() => { setMobileGroupOpen(activeMobileGroup); }, [activeMobileGroup]);
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
@@ -51,7 +56,7 @@ export default function LeaderDashboardHeader() {
   finally { setThemeSaving(null); }
  };
  const navButton = (item: LeaderNavItem) => {
-  const active = matchesNavPath(location.pathname, item.path);
+  const active = matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path);
   return <Button key={item.id} data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
  };
  return <Paper data-testid="leader-dashboard-header" elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: { xs: "calc(100vw - 32px)", md: "calc(100vw - 48px)" }, maxWidth: 1536, position: "relative", left: "50%", transform: "translateX(-50%)", boxSizing: "border-box" }}>
