@@ -32,8 +32,8 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     { id: "family-billing", label: "Family Billing Accounts", path: "/leader/subs#family-billing", pageId: "family-billing" }
   ]},
   { id: "secretary", label: "Secretary", items: [
-    { id: "secretary-subs", label: "Subs", path: "/leader/subs", pageId: "subs", appointments: ["Group Secretary"] },
-    { id: "secretary-floats", label: "Floats", path: "/leader/finance", pageId: "section-floats", appointments: ["Group Secretary"] },
+    { id: "secretary-subs", label: "Subs", path: "/leader/subs?view=secretary", pageId: "secretary-subs", appointments: ["Group Secretary"] },
+    { id: "secretary-floats", label: "Floats", path: "/leader/finance?view=secretary", pageId: "secretary-floats", appointments: ["Group Secretary"] },
     { id: "secretary-reports", label: "Secretary Reports", path: "/leader/reports?view=secretary", pageId: "secretary-reports", appointments: ["Group Secretary", "Group Chairperson"] },
     { id: "secretary-settings", label: "Secretary Settings", path: "/leader/settings?view=secretary", pageId: "secretary-settings", appointments: ["Group Secretary"] },
     { id: "secretary-meeting-records", label: "Meeting Records", path: "/leader/meetings?view=secretary", pageId: "secretary-meeting-records", appointments: ["Group Secretary", "Group Chairperson"] }
@@ -45,8 +45,8 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   ]},
   { id: "group-operations", label: "Group Operations", items: [
     { id: "group-equipment-stores", label: "Equipment & Stores", path: "/leader/equipment?view=group-operations", pageId: "group-equipment-stores" },
-    { id: "group-section-floats", label: "Section Floats", path: "/leader/finance", pageId: "section-floats" },
-    { id: "group-subs", label: "Subs", path: "/leader/subs", pageId: "subs" },
+    { id: "group-section-floats", label: "Section Floats", path: "/leader/finance?view=group-operations", pageId: "group-section-floats" },
+    { id: "group-subs", label: "Subs", path: "/leader/subs?view=group-operations", pageId: "group-subs" },
     { id: "group-meeting-records", label: "Meeting Records", path: "/leader/meetings?view=group-operations", pageId: "group-meeting-records" }
   ]},
   { id: "insights-records", label: "Insights & Records", items: [
