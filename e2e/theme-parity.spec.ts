@@ -40,8 +40,7 @@ test.describe("Modern Scout theme parity", () => {
   });
 
   test("keeps Modern Scout responsive and usable on a phone viewport", async ({ page }, testInfo) => {
-    chromiumOnly(testInfo);
-    await page.setViewportSize({ width: 390, height: 844 });
+    test.skip(testInfo.project.name !== "mobile-chromium", "Modern Scout mobile parity runs once on the canonical Pixel 7 project.");
     await loginModern(page);
 
     const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
