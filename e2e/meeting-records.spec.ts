@@ -45,7 +45,7 @@ test("section leader sees only section meeting type and can persist edits", asyn
   const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
   await expect(fixtureHeading).toBeVisible();
   await expect(page.getByText(groupFixtureTitle, { exact: true })).toHaveCount(0);
-  const fixtureHeader = fixtureHeading.locator("..").locator("..");
+  const fixtureHeader = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle });
   await fixtureHeader.getByRole("button", { name: "Edit" }).click();
 
   await expect(page.getByLabel("Meeting title")).toHaveValue(fixtureTitle);
@@ -64,7 +64,7 @@ test("section leader can import a text meeting document, review it and save it",
   await login(page, leaderEmail!);
   await page.goto("/leader/meetings");
 
-  const title = `TEST E2E Imported Meeting ${Date.now()}`;
+  const title = `TEST E2E Imported Meeting retry-${testInfo.retry}`;
   const importedMinutes = "TEST imported minutes remain editable before save.";
   const documentText = [
     `Title: ${title}`,
@@ -93,9 +93,8 @@ test("section leader can import a text meeting document, review it and save it",
   const preview = page.getByTestId("meeting-document-preview");
   await expect(preview).toBeVisible();
   await expect(page.getByLabel("Meeting title")).toHaveValue("");
-  for (const label of ["Meeting title", "Meeting date and time", "Attendees", "Notes / Minutes", "Decisions", "Action Items"]) {
-    const row = preview.getByText(label, { exact: true }).locator("..").locator("..");
-    await row.getByRole("button", { name: "Use value" }).click();
+  for (const key of ["title", "meetingDate", "attendees", "notes", "decisions", "actions"]) {
+    await preview.getByTestId(`meeting-import-candidate-${key}`).getByRole("button", { name: "Use value" }).click();
   }
   await preview.getByRole("button", { name: "Apply selected values" }).click();
   await expect(page.getByLabel("Meeting title")).toHaveValue(title);
@@ -114,16 +113,15 @@ test("section leader can import a text meeting document, review it and save it",
 });
 
 test("editing a meeting on mobile scrolls the edit form into view instead of the page top", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "Mobile edit-scroll regression runs once on Chromium.");
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile edit-scroll regression runs once on the canonical Pixel 7 project.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await page.setViewportSize({ width: 390, height: 844 });
   await login(page, leaderEmail!);
   await page.goto("/leader/meetings");
 
   const fixtureHeading = page.getByText(fixtureTitle, { exact: true });
   await expect(fixtureHeading).toBeVisible();
   await fixtureHeading.scrollIntoViewIfNeeded();
-  await fixtureHeading.locator("..").locator("..").getByRole("button", { name: "Edit" }).click();
+  await page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle }).getByRole("button", { name: "Edit" }).click();
 
   const form = page.getByTestId("meeting-record-form");
   await expect(form).toBeInViewport();
@@ -151,8 +149,8 @@ for (const officer of [
     await expect(page.getByRole("option", { name: "Group Council Meeting", exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
-    const scoutRecord = page.getByText(fixtureTitle, { exact: true }).locator("..").locator("..");
-    const groupRecord = page.getByText(groupFixtureTitle, { exact: true }).locator("..").locator("..");
+    const scoutRecord = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: fixtureTitle });
+    const groupRecord = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: groupFixtureTitle });
     await expect(scoutRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
     await expect(groupRecord.getByRole("button", { name: "Edit" })).toHaveCount(0);
     await expect(scoutRecord.getByRole("button", { name: "Version History" })).toHaveCount(0);
@@ -171,14 +169,16 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
   await expect(page.getByRole("option", { name: "Group Leaders Meeting", exact: true })).toBeVisible();
   await page.getByRole("option", { name: "Group Council Meeting", exact: true }).click();
 
-  const title = `TEST E2E Group Council ${Date.now()}`;
+  const title = `TEST E2E Group Council retry-${testInfo.retry}`;
   await page.getByLabel("Meeting title").fill(title);
   await page.getByLabel("Meeting date and time").fill("2026-08-24T19:30");
   await page.getByLabel("Attendees").fill("Test Web Admin\nTest Group Leader");
   await page.getByLabel("Notes / Minutes").fill("TEST admin meeting persistence check.");
-  await page.getByRole("button", { name: "Save Meeting" }).click();
+  const saveButton = page.getByRole("button", { name: "Save Meeting" });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
 
-  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText("Meeting record saved.")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(title, { exact: true })).toBeVisible();
 
   await page.reload();
@@ -192,11 +192,14 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page, "test.webadmin@example.com");
   await page.goto("/leader/meetings");
+  await expect(page.getByRole("heading", { name: "Meeting Records" })).toBeVisible();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
 
   await openMeetingType(page);
   await page.getByRole("option", { name: "Group Leaders Meeting", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Meeting type" })).toHaveText(/Group Leaders Meeting/);
 
-  const title = `TEST E2E Group Leaders ${Date.now()}`;
+  const title = `TEST E2E Group Leaders retry-${testInfo.retry}`;
   const originalMinutes = "TEST original Group Leaders minutes retained for audit.";
   const revisedMinutes = "TEST revised Group Leaders minutes.";
   await page.getByLabel("Meeting title").fill(title);
@@ -205,9 +208,11 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await page.getByLabel("Notes / Minutes").fill(originalMinutes);
   await page.getByRole("button", { name: "Save Meeting" }).click();
 
+  await expect(page.getByText("Meeting record saved.")).toBeVisible();
+  await expect(page.getByText("Unable to load meeting records for your permitted scope.")).toHaveCount(0);
   const heading = page.getByText(title, { exact: true });
   await expect(heading).toBeVisible();
-  let recordCard = heading.locator("..").locator("..").locator("..");
+  let recordCard = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: title });
   await expect(recordCard.getByText("Group Leaders Meeting", { exact: true })).toBeVisible();
   await expect(recordCard.getByText("Group Leaders", { exact: true })).toBeVisible();
   await recordCard.getByRole("button", { name: "Edit" }).click();
@@ -217,7 +222,7 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   await expect(page.getByText(/previous version has been retained/i)).toBeVisible();
   await expect(page.getByText(revisedMinutes, { exact: true })).toBeVisible();
 
-  recordCard = page.getByText(title, { exact: true }).locator("..").locator("..").locator("..");
+  recordCard = page.locator('[data-testid^="meeting-record-"]').filter({ hasText: title });
   await recordCard.getByRole("button", { name: "Version History" }).click();
   await expect(recordCard.getByText("Previous versions", { exact: true })).toBeVisible();
   await expect(recordCard.getByText(originalMinutes, { exact: true })).toBeVisible();
@@ -235,6 +240,6 @@ test("unusable meeting document leaves manual workflow available", async ({ page
     buffer: Buffer.from("%PDF-1.4 corrupt")
   });
   await expect(page.getByText(/corrupt|cannot be parsed|no .*extractable text/i)).toBeVisible();
-  await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure ${Date.now()}`);
+  await page.getByLabel("Meeting title").fill(`TEST Manual After Parse Failure retry-${testInfo.retry}`);
   await expect(page.getByRole("button", { name: "Save Meeting" })).toBeEnabled();
 });

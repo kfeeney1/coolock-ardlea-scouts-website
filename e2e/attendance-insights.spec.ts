@@ -59,7 +59,8 @@ test("ordinary leader can compare attendance sources, preserve filters through h
   await expect(detail.getByTestId("attendance-history-list")).toContainText("Attended");
 
   await detail.getByRole("button", { name: /Events \(/ }).click();
-  await expect(detail.getByRole("button", { name: /Events \(/ })).toHaveAttribute("class", /MuiButton-contained/);
+  await expect(detail.getByRole("button", { name: /Events \(/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(detail.getByRole("alert")).toContainText("No events attendance is recorded for this member in the selected date range.");
   await detail.getByRole("button", { name: "Back to members" }).click();
   await expect(search).toHaveValue(seededMember);
   await expect(page.getByRole("combobox", { name: "Section" })).toContainText("Scouts");

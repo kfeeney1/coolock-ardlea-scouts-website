@@ -1,11 +1,10 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const db = getFirestore();
 const auth = getAuth();
 const TEST_SEED = "comprehensive-population-v3";

@@ -83,7 +83,7 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
         {working && <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}><CircularProgress size={18} /><Typography color="text.secondary">Updating family relationship…</Typography></Box>}
         {search.trim() && results.length === 0 && <Alert severity="info" sx={{ mt: 1.5 }}>No eligible members match. Current family members are excluded.</Alert>}
         {results.length > 0 && <Stack spacing={1} sx={{ mt: 1.5 }}>
-          {results.map((candidate) => <Paper key={candidate.id} variant="outlined" sx={{ p: 1.5, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1, justifyContent: "space-between", alignItems: { sm: "center" } }}>
+          {results.map((candidate) => <Paper key={candidate.id} variant="outlined" data-testid={`family-candidate-${candidate.id}`} sx={{ p: 1.5, display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1, justifyContent: "space-between", alignItems: { sm: "center" } }}>
             <Box><Typography sx={{ fontWeight: 700 }}>{candidate.displayName}</Typography><Typography variant="body2" color="text.secondary">{candidate.section} · {candidate.status}{candidate.familyId ? " · already in another family (groups will merge)" : ""}</Typography></Box>
             <Button variant={selectedIds.includes(candidate.id) ? "contained" : "outlined"} color="secondary" disabled={working} aria-pressed={selectedIds.includes(candidate.id)} onClick={() => setSelectedIds((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id])}>{selectedIds.includes(candidate.id) ? "Selected" : "Select"}</Button>
           </Paper>)}

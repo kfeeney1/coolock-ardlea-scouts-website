@@ -1,4 +1,4 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
@@ -7,7 +7,6 @@ const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const action = process.argv[2] || "seed";
 
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 if (!["seed", "cleanup"].includes(action)) throw new Error("Usage: node scripts/seed-population-data.mjs seed|cleanup");
 if (action === "seed" && (!password || password.length < 8)) throw new Error("E2E_TEST_USER_PASSWORD must be configured and contain at least 8 characters.");
 
@@ -17,7 +16,8 @@ requireFirebaseMutationTarget({
   requireAuthEmulator: true,
 });
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+const credential = rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault();
+initializeApp({ credential });
 const db = getFirestore();
 const auth = getAuth();
 const marker = { testData: true, testSeed: "comprehensive-population-v3", createdBySeed: "TEST_SEED" };

@@ -1,9 +1,9 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+const credential = rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault();
+initializeApp({ credential });
 const db = getFirestore();
 const marker = { testData: true, testSeed: "full-system-flows-v1", createdBySeed: "TEST_SEED" };
 const now = Timestamp.now();

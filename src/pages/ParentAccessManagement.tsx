@@ -87,7 +87,7 @@ export default function ParentAccessManagement() {
                 : status === "revoked" ? "Disabled Parent Portal access while preserving the authoritative child relationships and all Leader access." : "Rejected parent access.";
             await recordAuditEvent({ category: "parent-access", action, targetId: parent.uid, targetLabel: parent.displayName || parent.email, section: linkedSections.join(", "), description });
             setMessage(`${parent.displayName || parent.email} access updated.${status === "approved" && parent.matchingLeaderStatus ? " Parent access is now attached to the same login as the matching Leader registration." : ""}${status === "approved" ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked.` : ""}`);
-            await load();
+            void load();
         } catch (saveError) {
             console.error("Unable to update parent access:", saveError);
             setError("Unable to update parent access or link the consent records.");

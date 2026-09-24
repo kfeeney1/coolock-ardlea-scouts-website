@@ -1,13 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
-const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+const adminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
 
 test.describe("Equipment & Stores leader navigation", () => {
   test.skip(!adminEmail || !adminPassword, "Admin E2E credentials are required.");
 
-  test("shows the Leader Dashboard and expandable menu on Android-sized mobile", async ({ page }) => {
-    await page.setViewportSize({ width: 412, height: 915 });
+  test("shows the Leader Dashboard and expandable menu on Android-sized mobile", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile equipment navigation runs once on the canonical Pixel 7 project.");
     await page.goto("/leader/login");
     await page.getByLabel(/email/i).fill(adminEmail!);
     await page.getByLabel(/password/i).fill(adminPassword!);
@@ -24,10 +24,10 @@ test.describe("Equipment & Stores leader navigation", () => {
     expect(assetRegisterBox!.x).toBeGreaterThanOrEqual(0);
     expect(assetRegisterBox!.x + assetRegisterBox!.width).toBeLessThanOrEqual(412);
 
-    const menu = page.getByRole("button", { name: /Menu · Equipment & Stores|Open Leader Menu/i });
+    const menu = page.getByRole("button", { name: /Menu · (Equipment|Stores)|Open Leader Menu/i });
     await expect(menu).toBeVisible();
     await menu.click();
-    await expect(page.getByRole("button", { name: "Weekly Meetings" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Leader navigation" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign Out" })).toBeVisible();
   });
 });

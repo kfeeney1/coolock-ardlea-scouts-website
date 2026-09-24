@@ -49,9 +49,8 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
   useEffect(() => { void load(); }, [load]);
 
   const handleSaved = async () => {
-    await load();
     setSaveMessage("Consent and medical details updated successfully.");
-    await onSaved?.();
+    await Promise.all([load(), Promise.resolve(onSaved?.())]);
   };
 
   const recordsByMember = useMemo(() => {

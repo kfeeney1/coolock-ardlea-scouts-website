@@ -122,8 +122,8 @@ export default function LeaderAccessManagement() {
       setMessage("");
       await updateLeaderAccess(record, user.uid, actorEmail);
       setMessage(`${record.displayName} updated.`);
-      await refresh();
       navigate({ pathname: "/leader/access", search: searchParams.toString() ? `?${searchParams.toString()}` : "" });
+      void refresh();
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : "Unable to update this leader. Check that your role permits this change.");

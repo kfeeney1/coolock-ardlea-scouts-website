@@ -130,7 +130,7 @@ export default function SubsManagement() {
       setNote("");
       paymentOperationId.current = "";
       setMessage(selectedAssignment.accountId ? "Family subs payment recorded. Group finance can view the complete shared balance." : "Subs payment recorded.");
-      await load();
+      void load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to record payment.");
     } finally {
@@ -146,7 +146,7 @@ export default function SubsManagement() {
       setCorrection(null);
       setCorrectionReason("");
       setMessage("Payment correction recorded as a linked reversal.");
-      await load();
+      void load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to correct payment.");
     } finally {

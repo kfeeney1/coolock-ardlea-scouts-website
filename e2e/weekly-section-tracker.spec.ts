@@ -45,7 +45,8 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
   await expect(page.getByLabel("Location")).toBeDisabled();
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
   const completedBadgework = page.getByLabel(`Badges · ${scoutMemberName}`);
-  if (await completedBadgework.count()) await expect(completedBadgework).toBeDisabled();
+  await expect(completedBadgework).toBeVisible();
+  await expect(completedBadgework).toBeDisabled();
   await page.getByRole("button", { name: "Notes", exact: true }).click();
   await expect(page.getByLabel("Additional meeting notes")).toBeEnabled();
   await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toBeVisible();

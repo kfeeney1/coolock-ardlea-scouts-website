@@ -39,10 +39,9 @@ async function loginParent(page: Page) {
 }
 
 async function selectMember(page: Page, name: string) {
-  const memberName = page.getByText(name, { exact: true });
-  await expect(memberName).toBeVisible();
-  const label = memberName.locator("xpath=ancestor::label");
-  await label.getByRole("checkbox").check();
+  const memberCheckbox = page.getByRole("checkbox", { name: name, exact: false });
+  await expect(memberCheckbox).toBeVisible();
+  await memberCheckbox.check();
 }
 
 async function openRecordBadgework(page: Page) {
@@ -217,9 +216,8 @@ test.describe("Adventure Skills badgework", () => {
     const hillwalking = page.getByTestId("parent-adventure-skill-hillwalking");
     await hillwalking.getByRole("button", { name: /Stage 1/ }).click();
     const hillwalkingStageOne = hillwalking.getByRole("region", { name: /Stage 1/ });
-    const buddyStatement = hillwalkingStageOne.getByText(/Buddy System/i).first();
-    await expect(buddyStatement).toBeVisible();
-    const buddyRow = buddyStatement.locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+    const buddyRow = hillwalkingStageOne.locator('[data-testid^="parent-adventure-requirement-"]').filter({ hasText: /Buddy System/i }).first();
+    await expect(buddyRow).toContainText(/Buddy System/i);
     await expect(buddyRow.getByText("Completed", { exact: true })).toBeVisible();
 
     await expect(page.getByRole("button", { name: "Award badge" })).toHaveCount(0);

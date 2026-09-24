@@ -88,8 +88,8 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = `TEST Report Damage ${testInfo.retry}`;
-  const damageNote = `Bent frame regression ${testInfo.retry}`;
+  const itemName = "TEST Report Damage";
+  const damageNote = "Bent frame regression";
   await page.route("**/equipment-incident", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 1 }) });
   });
@@ -99,16 +99,10 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  const addComboboxes = addDialog.getByRole("combobox");
-  await addComboboxes.nth(0).click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
-  await addComboboxes.nth(1).click();
-  const existingStore = page.getByRole("option", { name: "TEST Checkout Store", exact: true });
-  if (await existingStore.count()) await existingStore.click();
-  else {
-    await page.getByRole("option", { name: "Other…" }).click();
-    await addDialog.getByLabel("New storage location").fill("TEST Checkout Store");
-  }
+  await addDialog.getByLabel("Store").click();
+  await page.getByRole("option", { name: "TEST Checkout Store", exact: true }).click();
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText(itemName, { exact: true })).toBeVisible();
@@ -117,17 +111,15 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
-  await checkoutRow.getByLabel("Qty").fill("1");
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("1");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(page.getByText(`1 × ${itemName}`, { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Report issue" }).click();
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });
-  const incidentComboboxes = incidentDialog.getByRole("combobox");
-  await incidentComboboxes.nth(0).click();
+  await incidentDialog.getByLabel("Equipment / checkout").click();
   await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${itemName} · 1 out`) }).click();
-  await incidentComboboxes.nth(1).click();
+  await incidentDialog.getByLabel("Issue type").click();
   await page.getByRole("option", { name: "Damaged" }).click();
   await incidentDialog.getByLabel("Quantity affected").fill("1");
   await incidentDialog.getByLabel("What happened?").fill(damageNote);

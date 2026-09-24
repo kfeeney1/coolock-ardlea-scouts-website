@@ -214,11 +214,16 @@ export default function BadgeworkTracking() {
       await Promise.all([...draft.entries()].map(([requirementId, completed]) => setRequirementCompletionForMembers(selectedIds, requirementId, completed, progressSource)));
       const individualChanges = memberRequirementDraftChanges(memberDraft);
       await Promise.all(individualChanges.map((change) => setRequirementCompletionForMembers([change.memberId], change.requirementId, change.completed, progressSource)));
-      await refreshProgress(selectedIds);
       const changeCount = unsavedChangeCount;
       setDraft(new Map());
       setMemberDraft(new Map());
       setMessage(`${changeCount} badgework ${changeCount === 1 ? "change" : "changes"} saved for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
+      try {
+        await refreshProgress(selectedIds);
+      } catch (loadError) {
+        console.error("Badgework saved but progress could not be refreshed:", loadError);
+        setError("Badgework changes were saved, but the latest progress could not be reloaded. Refresh the page to see the saved state.");
+      }
       if (returnToSource && sourceContext) navigate(sourceContext.returnTo);
     } catch (saveError) {
       console.error("Unable to save badgework changes:", saveError);
@@ -232,8 +237,13 @@ export default function BadgeworkTracking() {
     setSaving(true); setError(""); setMessage("");
     try {
       await setStageAwardForMembers(selectedIds, skill.id, stage.stage, awarded);
-      await refreshProgress(selectedIds);
       setMessage(awarded ? `Stage ${stage.stage} ${skill.name} awarded to ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.` : `Stage ${stage.stage} ${skill.name} award removed.`);
+      try {
+        await refreshProgress(selectedIds);
+      } catch (loadError) {
+        console.error("Badge award updated but progress could not be refreshed:", loadError);
+        setError("The badge award was updated, but the latest progress could not be reloaded. Refresh the page to see the saved state.");
+      }
     } catch (awardError) {
       console.error("Unable to update award:", awardError);
       setError("Unable to update the badge award. Please try again.");

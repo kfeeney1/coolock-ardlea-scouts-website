@@ -12,9 +12,8 @@ async function login(page: Page) {
 }
 
 test("mobile Weekly Meetings keeps editable content clear of sticky save actions", async ({ page }, testInfo: TestInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "Mobile layout regression runs once on Chromium.");
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile layout regression runs once on the canonical Pixel 7 project.");
   test.skip(!password, "Configure canonical E2E leader credentials.");
-  await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
@@ -35,5 +34,5 @@ test("mobile Weekly Meetings keeps editable content clear of sticky save actions
   expect(notesBox).not.toBeNull();
   expect(actionsBox).not.toBeNull();
   expect(notesBox!.y + notesBox!.height).toBeLessThanOrEqual(actionsBox!.y);
-  expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(844);
+  expect(actionsBox!.y + actionsBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
 });

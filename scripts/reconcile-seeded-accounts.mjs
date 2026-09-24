@@ -1,11 +1,11 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
+const credential = rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault();
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+initializeApp({ credential });
 const db = getFirestore();
 const auth = getAuth();
 const checkOnly = process.argv.includes("--check");

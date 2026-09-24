@@ -91,8 +91,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
         notes,
         lines: requested.map(({ item, quantity }) => ({ itemId: item.id, quantity }))
       });
-      setCheckoutOpen(false);
       await onChanged();
+      setCheckoutOpen(false);
     } catch (error) {
       console.error("Unable to check out equipment:", error);
       onError(error instanceof Error ? error.message : "Unable to check out equipment.");
@@ -115,8 +115,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
         loanId: returningLoan.id,
         quantities: Object.fromEntries(Object.entries(returnQuantities).map(([itemId, quantity]) => [itemId, quantity ?? 0]))
       });
-      setReturningLoan(null);
       await onChanged();
+      setReturningLoan(null);
     } catch (error) {
       console.error("Unable to return equipment:", error);
       onError(error instanceof Error ? error.message : "Unable to return equipment.");
@@ -143,7 +143,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
             <Stack spacing={1.25}>{sectionLoans.map((loan) => {
               const outstanding = loan.lines.filter((line) => outstandingLoanQuantity(line) > 0);
               const canReturn = canUseEquipmentForSection(profile, loan.section);
-              return <Paper key={loan.id} variant="outlined" sx={{ p: 2 }}>
+              return <Paper key={loan.id} data-testid={`equipment-loan-${loan.id}`} variant="outlined" sx={{ p: 2 }}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
                   <Box>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
@@ -173,10 +173,10 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
           <Stack spacing={1.25}>{activeItems.map((item) => {
             const available = availableEquipmentQuantity(item);
             const quantity = Object.hasOwn(checkoutQuantities, item.id) ? checkoutQuantities[item.id] : 0;
-            return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
+            return <Paper key={item.id} data-testid={`equipment-checkout-item-${item.id}`} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
                 <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available after current checkouts and reservations</Typography></Box>
-                <TextField label="Qty" type="number" value={numericInputDisplayValue(quantity)} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
+                <TextField label={`Qty for ${item.name}`} type="number" value={numericInputDisplayValue(quantity)} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 160 } }} />
               </Stack>
             </Paper>;
           })}</Stack>
@@ -190,7 +190,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
       <DialogContent dividers>
         {returningLoan && <Stack spacing={1.5}>{returningLoan.lines.filter((line) => outstandingLoanQuantity(line) > 0).map((line) => {
           const outstanding = outstandingLoanQuantity(line);
-          return <Paper key={line.itemId} variant="outlined" sx={{ p: 1.5 }}>
+          return <Paper key={line.itemId} data-testid={`equipment-return-item-${line.itemId}`} variant="outlined" sx={{ p: 1.5 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
               <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{line.itemName}</Typography><Typography variant="body2" color="text.secondary">{outstanding} currently checked out</Typography></Box>
               <TextField label="Return" type="number" value={numericInputDisplayValue(returnQuantities[line.itemId])} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.itemId]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: outstanding, step: 1 } }} sx={{ width: { sm: 130 } }} />

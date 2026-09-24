@@ -213,7 +213,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       </Stack>
 
       {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
-        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
+        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} data-testid={`equipment-incident-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
@@ -240,14 +240,14 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       <DialogContent dividers>
         <Stack spacing={2}>
           <FormControl fullWidth>
-            <InputLabel>Equipment / checkout</InputLabel>
-            <Select label="Equipment / checkout" value={sourceId} onChange={(event) => { setSourceId(event.target.value); setQuantity(1); }}>
+            <InputLabel id="equipment-incident-source-label">Equipment / checkout</InputLabel>
+            <Select labelId="equipment-incident-source-label" label="Equipment / checkout" value={sourceId} onChange={(event) => { setSourceId(event.target.value); setQuantity(1); }}>
               {sources.map((source) => <MenuItem key={source.id} value={source.id}>{source.label}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl fullWidth>
-            <InputLabel>Issue type</InputLabel>
-            <Select label="Issue type" value={type} onChange={(event) => setType(event.target.value as EquipmentIncidentType)}>
+            <InputLabel id="equipment-incident-type-label">Issue type</InputLabel>
+            <Select labelId="equipment-incident-type-label" label="Issue type" value={type} onChange={(event) => setType(event.target.value as EquipmentIncidentType)}>
               <MenuItem value="damaged">Broken / damaged</MenuItem>
               <MenuItem value="lost">Lost</MenuItem>
               <MenuItem value="missing">Missing</MenuItem>

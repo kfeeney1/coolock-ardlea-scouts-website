@@ -7,15 +7,21 @@ test.describe("SW-121 / SW-120 section consent experience", () => {
   });
 
   test("renders official section identities with accessible section controls", async ({ page }) => {
-    const sectionNames = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
-    for (const section of sectionNames) {
-      const button = page.getByRole("button", { name: `Open ${section} consent form` });
-      if (await button.count() === 0) continue;
+    const sections = [
+      { value: "Beavers", label: "Beavers" },
+      { value: "Cubs", label: "Cubs" },
+      { value: "Scouts", label: "Scouts" },
+      { value: "Ventures", label: "Ventures" },
+      { value: "Rovers", label: "Rover Scouts" }
+    ];
+    for (const section of sections) {
+      const button = page.getByRole("button", { name: `Open ${section.label} consent form` });
+      await expect(button).toHaveCount(1);
       await expect(button).toBeVisible();
-      await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toBeVisible();
-      await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toHaveAttribute(
+      await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toBeVisible();
+      await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toHaveAttribute(
         "data-icon-id",
-        `official-one-programme-${section.toLowerCase()}`
+        `official-one-programme-${section.value.toLowerCase()}`
       );
     }
   });

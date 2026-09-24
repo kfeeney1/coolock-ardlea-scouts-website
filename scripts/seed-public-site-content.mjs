@@ -1,10 +1,9 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const action = process.argv[2] || "seed";
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 if (!["seed", "cleanup"].includes(action)) throw new Error("Usage: node scripts/seed-public-site-content.mjs seed|cleanup");
 
 requireFirebaseMutationTarget({
@@ -12,7 +11,7 @@ requireFirebaseMutationTarget({
   credentialJson: rawCredentials,
 });
 
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const db = getFirestore();
 const ref = db.collection("publicSiteContent").doc("TEST_site");
 const marker = { testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };

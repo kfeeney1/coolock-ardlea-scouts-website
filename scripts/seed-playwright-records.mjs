@@ -1,11 +1,10 @@
-import { cert, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.");
 requireFirebaseMutationTarget({ operation: "seed-playwright-records", credentialJson: rawCredentials });
-initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
+initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const db = getFirestore();
 const marker = { testData: true, testSeed: "playwright-persistence-v1", createdBySeed: "TEST_SEED" };
 const activityMarker = "weekly-activities-v1";

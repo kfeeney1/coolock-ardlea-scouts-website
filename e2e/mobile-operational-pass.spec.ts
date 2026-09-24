@@ -148,7 +148,7 @@ test.describe("Stage 20.6 mobile operational pass", () => {
     const equipmentDialog = page.getByRole("dialog", { name: "Add equipment" });
     await expect(equipmentDialog).toBeVisible();
     await equipmentDialog.getByLabel("Equipment name").fill("Unsaved mobile regression item");
-    await equipmentDialog.getByRole("combobox").first().click();
+    await equipmentDialog.getByRole("combobox", { name: "Category" }).click();
     const categoryListbox = page.getByRole("listbox");
     await expect(categoryListbox).toBeVisible();
     await expectMobileViewportSafe(page, "/leader/equipment#category-listbox");

@@ -206,7 +206,7 @@ export default function MeetingRecords() {
         setSuccess("Meeting record saved.");
       }
       resetForm();
-      await refresh();
+      void refresh();
     } catch (saveError) {
       console.error("Unable to save meeting record:", saveError);
       setError("Unable to save this meeting record. Check your permissions and try again.");
@@ -292,7 +292,7 @@ export default function MeetingRecords() {
               const existing = currentCandidateValue(candidate.key);
               const proposed = proposedCandidateValue(candidate);
               const conflict = Boolean(existing.trim()) && existing.trim() !== proposed.trim();
-              return <Paper key={candidate.key} variant="outlined" sx={{ p: 1.5 }}>
+              return <Paper key={candidate.key} variant="outlined" sx={{ p: 1.5 }} data-testid={`meeting-import-candidate-${candidate.key}`}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ alignItems: { md: "center" } }}>
                   <Box sx={{ minWidth: { md: 180 } }}><Typography sx={{ fontWeight: 700 }}>{candidate.label}</Typography>{conflict && <Typography variant="caption" color="warning.main">Differs from existing value</Typography>}</Box>
                   <TextField label="Existing value" value={existing} size="small" multiline disabled sx={{ flex: 1 }} />

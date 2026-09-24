@@ -36,26 +36,25 @@ test.describe("parent access management", () => {
     }
 
     const approvedCard = page.getByTestId(/^parent-access-/).filter({ has: page.getByText("approved", { exact: true }) }).first();
-    if (await approvedCard.count()) {
-      await expect(approvedCard.getByRole("button", { name: "Approve Access" })).toHaveCount(0);
-      await expect(approvedCard.getByRole("button", { name: "Manage Linked Children" })).toBeVisible();
+    await expect(approvedCard).toBeVisible();
+    await expect(approvedCard.getByRole("button", { name: "Approve Access" })).toHaveCount(0);
+    await expect(approvedCard.getByRole("button", { name: "Manage Linked Children" })).toBeVisible();
 
-      await approvedCard.getByRole("button", { name: "Disable Parent Access" }).click();
-      const disableDialog = page.getByRole("dialog", { name: "Disable Parent access?" });
-      await expect(disableDialog).toBeVisible();
-      await expect(disableDialog).toContainText(/Child relationships and audit history will be retained/i);
-      await expect(disableDialog).toContainText(/Leader access.*remain active|Firebase identity will not be deleted/i);
-      await disableDialog.getByRole("button", { name: "Cancel" }).click();
-      await expect(disableDialog).toHaveCount(0);
-      await expect(approvedCard.getByText("approved", { exact: true })).toBeVisible();
-    }
+    await approvedCard.getByRole("button", { name: "Disable Parent Access" }).click();
+    const disableDialog = page.getByRole("dialog", { name: "Disable Parent access?" });
+    await expect(disableDialog).toBeVisible();
+    await expect(disableDialog).toContainText(/Child relationships and audit history will be retained/i);
+    await expect(disableDialog).toContainText(/Leader access.*remain active|Firebase identity will not be deleted/i);
+    await disableDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(disableDialog).toHaveCount(0);
+    await expect(approvedCard.getByText("approved", { exact: true })).toBeVisible();
 
-    const manageButton = page.getByRole("button", { name: "Manage Linked Children" }).first();
+    const manageButton = approvedCard.getByRole("button", { name: "Manage Linked Children" });
     await expect(manageButton).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
 
     await manageButton.click();
-    const search = page.getByLabel(/Search members for/).first();
+    const search = approvedCard.getByLabel(/Search members for/);
     await expect(search).toBeVisible();
     await expect(page.getByText(/Enter a name or section to find a child member record manually/i)).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);

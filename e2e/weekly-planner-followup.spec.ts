@@ -17,9 +17,10 @@ async function login(page: Page) {
 
 async function ensureProgramme(page: Page) {
   const planner = page.getByRole("heading", { name: "Programme Planner" });
-  if (!(await planner.isVisible().catch(() => false))) {
-    await page.getByRole("button", { name: "Programme", exact: true }).click();
-  }
+  if (await planner.isVisible()) return;
+  const programmeButton = page.getByRole("button", { name: "Programme", exact: true });
+  await expect(programmeButton).toBeVisible();
+  await programmeButton.click();
   await expect(planner).toBeVisible();
 }
 
@@ -30,9 +31,9 @@ async function openOrCreate(page: Page, date: string, displayDate: RegExp) {
     await existingOpen.first().click();
   } else if (await existingClosed.count()) {
     await existingClosed.first().getByRole("button", { name: "View / Edit" }).click();
-    if (await page.getByRole("button", { name: "Reopen Meeting" }).count()) {
-      await page.getByRole("button", { name: "Reopen Meeting" }).click();
-    }
+    const reopenMeeting = page.getByRole("button", { name: "Reopen Meeting" });
+    await expect(reopenMeeting).toBeVisible();
+    await reopenMeeting.click();
   } else {
     await page.getByRole("link", { name: "Create Meeting" }).click();
     await page.getByLabel("Meeting date").fill(date);
@@ -95,10 +96,9 @@ test("activity can have multiple section leaders and badgework is planned with p
 });
 
 test("weekly planner fits a phone viewport without horizontal overflow", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile weekly planner regression runs once on the canonical Pixel 7 project.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-15", /15 Apr 2099 · Scouts/);

@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
-const leaderPassword = process.env.E2E_LEADER_PASSWORD;
+const leaderPassword = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
 
 async function signInAndOpenInfo(page: import("@playwright/test").Page) {
   await page.goto("/leader/login");
@@ -38,11 +38,11 @@ test.describe("Leader portal information", () => {
     await expect(page.getByText(/Progress belongs to the member/i)).toBeVisible();
 
     await page.getByText("How do receipts work?", { exact: true }).click();
-    await expect(page.getByText(/Where storage-backed attachments are available/i)).toBeVisible();
+    await expect(page.getByText(/^Where storage-backed attachments are available/i)).toBeVisible();
   });
 
-  test("keeps current Info and FAQ usable on a phone viewport", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("keeps current Info and FAQ usable on a phone viewport", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Info regression runs once on the canonical Pixel 7 project.");
     await signInAndOpenInfo(page);
 
     await expect(page.getByRole("heading", { name: "Current Capabilities" })).toBeVisible();

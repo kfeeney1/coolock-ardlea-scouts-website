@@ -212,7 +212,7 @@ export default function EquipmentManagement() {
       const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
       await createEquipmentItem(payload);
       setEditing(undefined);
-      await refresh();
+      void refresh();
     } catch (saveError) {
       console.error("Unable to save equipment:", saveError);
       setError(saveError instanceof Error ? saveError.message : "Unable to save the equipment item.");
@@ -226,7 +226,7 @@ export default function EquipmentManagement() {
     try {
       await setEquipmentArchived(item, !item.archived);
       setArchiveTarget(null);
-      await refresh();
+      void refresh();
     } catch (archiveError) {
       console.error("Unable to update equipment archive state:", archiveError);
       setError(archiveError instanceof Error ? archiveError.message : "Unable to update that equipment item.");
@@ -279,7 +279,7 @@ export default function EquipmentManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
           {visibleItems.map((item) => {
             const available = availableEquipmentQuantity(item);
-            return <Paper key={item.id} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+            return <Paper key={item.id} data-testid={`equipment-inventory-card-${item.id}`} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
               <Stack spacing={1.25}>
                 <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
@@ -307,9 +307,9 @@ export default function EquipmentManagement() {
         <DialogTitle>Add equipment</DialogTitle>
         <DialogContent dividers><Stack spacing={2} sx={{ pt: 0.5 }}>
           <TextField label="Equipment name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-          <FormControl><InputLabel>Category</InputLabel><Select label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
+          <FormControl><InputLabel id="equipment-category-label">Category</InputLabel><Select labelId="equipment-category-label" label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
-          <FormControl><InputLabel>Store</InputLabel><Select label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
+          <FormControl><InputLabel id="equipment-store-label">Store</InputLabel><Select labelId="equipment-store-label" label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use History / move Store so the stock movement remains auditable.</Typography>}
           {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>

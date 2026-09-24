@@ -86,11 +86,14 @@ test("completed event history keeps gallery access on its record page", async ({
     await page.goto("/leader/events");
     await page.getByRole("combobox", { name: "Status" }).click();
     await page.getByRole("option", { name: "Completed" }).click();
-    const completedCards = page.locator('[data-testid^="event-card-"]');
-    const count = await completedCards.count();
-    if (count > 0) {
-        await completedCards.first().click();
-        await expect(page.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeDisabled();
-    }
+    const completedCard = page.getByTestId("event-card-TEST_flow_event_ventures_completed");
+    await expect(completedCard).toBeVisible();
+    await completedCard.click();
+    await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_ventures_completed$/);
+    const record = page.getByTestId("event-record-TEST_flow_event_ventures_completed");
+    await expect(record).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TEST Ventures Completed Activity" })).toBeVisible();
+    await expect(page.getByText("Completed event history is read-only. Attendance, reports, exports and gallery access remain available.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Gallery", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeDisabled();
 });
