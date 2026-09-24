@@ -114,9 +114,8 @@ test("section leader can import a text meeting document, review it and save it",
 });
 
 test("editing a meeting on mobile scrolls the edit form into view instead of the page top", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "Mobile edit-scroll regression runs once on Chromium.");
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile edit-scroll regression runs once on the canonical Pixel 7 project.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await page.setViewportSize({ width: 390, height: 844 });
   await login(page, leaderEmail!);
   await page.goto("/leader/meetings");
 
