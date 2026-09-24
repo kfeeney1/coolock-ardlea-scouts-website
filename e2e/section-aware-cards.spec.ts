@@ -41,7 +41,8 @@ async function assertSectionDropdownBehaviour(page: Page, alignTriggerAtBottom =
   const beforeOpen = await viewportState(page);
   await sectionFilter.click();
 
-  const listbox = page.getByRole("listbox");
+  const listbox = page.locator('[role="listbox"]:visible');
+  await expect(listbox).toHaveCount(1);
   await expect(listbox).toBeVisible();
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 
@@ -78,8 +79,9 @@ async function assertSectionDropdownBehaviour(page: Page, alignTriggerAtBottom =
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
 
   await sectionFilter.click();
+  await expect(listbox).toHaveCount(1);
   await expect(listbox).toBeVisible();
-  await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await listbox.getByRole("option", { name: "Cubs", exact: true }).click();
   await expect(listbox).toBeHidden();
   await expect(sectionFilter).toContainText("Cubs");
   await expect(sectionFilter.getByTestId("section-icon-cubs")).toBeVisible();
