@@ -86,7 +86,7 @@ export default function ActivityLog() {
           <Stack spacing={1.5} data-testid="activity-log-list">
             {visible.length === 0 && <OperationalEmptyState>No activity matches the current search.</OperationalEmptyState>}
             {visible.map((entry) => (
-              <Paper key={entry.id} variant="outlined" sx={{ p: 2.25 }}>
+              <Paper key={entry.id} variant="outlined" sx={{ p: 2.25 }} data-testid={`activity-log-${entry.id}`}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 0.75 }}>
