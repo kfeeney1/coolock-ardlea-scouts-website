@@ -9,6 +9,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -26,6 +27,10 @@ function minutesValue(value: string): number {
 
 export default function SiteSettings() {
     const { adminProfile, refreshSessionSettings } = useAdminAuth();
+    const [searchParams] = useSearchParams();
+    const navigationView = searchParams.get("view");
+    const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "secretary" ? "secretary-settings" : "settings";
+    const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "secretary" ? "Secretary Settings" : "Settings";
     const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
     const [loading, setLoading] = useState(canManageSiteSettings);
@@ -82,10 +87,10 @@ export default function SiteSettings() {
     };
 
     return (
-        <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+        <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-                <LeaderPageHeader title="Settings" />
+                <LeaderPageHeader title={pageTitle} />
 
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
