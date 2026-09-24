@@ -98,6 +98,9 @@ export default function EquipmentManagement() {
     ? statusParam as InventoryStatusFilter
     : "all";
   const showArchived = searchParams.get("archived") === "1";
+  const navigationView = searchParams.get("view");
+  const pageIdentity = navigationView === "quartermaster" ? "qm-equipment-stores" : navigationView === "group-operations" ? "group-equipment-stores" : "equipment-stores";
+  const pageTitle = navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
 
   const updateFilterParam = (key: string, value: string, defaultValue = "all", replace = false) => {
     const next = new URLSearchParams(searchParams);
@@ -235,10 +238,10 @@ export default function EquipmentManagement() {
 
 
 
-  return <Box data-testid="page-equipment-stores" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
+  return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Equipment & Stores" />
+      <LeaderPageHeader title={pageTitle} />
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
