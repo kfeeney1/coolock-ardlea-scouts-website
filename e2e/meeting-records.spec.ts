@@ -93,9 +93,8 @@ test("section leader can import a text meeting document, review it and save it",
   const preview = page.getByTestId("meeting-document-preview");
   await expect(preview).toBeVisible();
   await expect(page.getByLabel("Meeting title")).toHaveValue("");
-  for (const label of ["Meeting title", "Meeting date and time", "Attendees", "Notes / Minutes", "Decisions", "Action Items"]) {
-    const row = preview.getByText(label, { exact: true }).locator("..").locator("..");
-    await row.getByRole("button", { name: "Use value" }).click();
+  for (const key of ["title", "meetingDate", "attendees", "notes", "decisions", "actions"]) {
+    await preview.getByTestId(`meeting-import-candidate-${key}`).getByRole("button", { name: "Use value" }).click();
   }
   await preview.getByRole("button", { name: "Apply selected values" }).click();
   await expect(page.getByLabel("Meeting title")).toHaveValue(title);
