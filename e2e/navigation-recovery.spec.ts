@@ -72,7 +72,7 @@ test.describe("SW-178 canonical role navigation", () => {
     const secretaryReports = navigation.getByTestId("leader-nav-secretary-reports");
     await expect(secretaryReports).toBeVisible();
     await secretaryReports.click();
-    await expect(page).toHaveURL(/\/leader\/reports$/);
+    await expect(page).toHaveURL(/\/leader\/reports\?view=secretary$/);
     await expect(page.getByTestId("page-secretary-reports")).toBeVisible();
     await expect(page.getByTestId("page-qm-reports")).toHaveCount(0);
   });
@@ -163,6 +163,23 @@ test.describe("SW-178 canonical role navigation", () => {
     await navigation.getByTestId("leader-nav-secretary-meeting-records").click();
     await expect(page).toHaveURL(/\/leader\/meetings\?view=secretary$/);
     await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
+  });
+
+
+  test("Insights Reports & Exports remains distinct from Secretary Reports", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    await openMenu(page);
+    let navigation = projectNavigation(page, testInfo);
+    if ((await navigation.getByRole("button", { name: "Insights & Records" }).count()) > 0) await navigation.getByRole("button", { name: "Insights & Records" }).click();
+    await navigation.getByTestId("leader-nav-reports-exports").click();
+    await expect(page).toHaveURL(/\/leader\/reports\?view=insights$/);
+    await expect(page.getByTestId("page-reports-exports")).toBeVisible();
+    await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-reports-exports")).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-secretary-reports")).not.toHaveAttribute("aria-current", "page");
   });
 
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
