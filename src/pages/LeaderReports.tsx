@@ -14,6 +14,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -48,6 +49,9 @@ function downloadCsv(filename: string, csv: string) {
 
 export default function LeaderReports() {
     const { adminProfile } = useAdminAuth();
+    const [searchParams] = useSearchParams();
+    const navigationView = searchParams.get("view");
+    const pageIdentity = navigationView === "insights" ? "reports-exports" : "secretary-reports";
     const [members, setMembers] = useState<MemberReportRow[]>([]);
     const [events, setEvents] = useState<EventReportRecord[]>([]);
     const [selectedEventId, setSelectedEventId] = useState("");
@@ -157,7 +161,7 @@ export default function LeaderReports() {
     };
 
     return (
-        <Box data-testid="page-secretary-reports" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
+        <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
                 <LeaderPageHeader title="Reports & Exports" />
