@@ -73,7 +73,7 @@ export default function JoinManagement() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Join Us Management" description="Process joining enquiries, track contacts and manage the waiting list." actions={<Button variant="contained" color="success" onClick={() => void load()}>Refresh</Button>} />
+      <Box data-testid="page-join-management"><LeaderPageHeader title="Join Us Management" description="Process joining enquiries, track contacts and manage the waiting list." /></Box>
 
       <Box role="group" aria-label="Join enquiry status summary" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(6, 1fr)" }, gap: 2, mb: 3 }}>
         {summaryFilters.map(([label, value, status]) => { const active = statusFilter === status; return <Paper key={status} variant="outlined" role="button" tabIndex={0} aria-pressed={active} aria-controls="join-results" onClick={() => selectStatus(status)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectStatus(status); } }} sx={{ p: 2.5, textAlign: "center", cursor: "pointer", borderWidth: active ? 2 : 1, borderColor: active ? "secondary.main" : "divider", transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: 3 }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 } }}>
