@@ -19,7 +19,7 @@ test.describe("SW-121 / SW-120 section consent experience", () => {
       await expect(button).toHaveCount(1);
       await expect(button).toBeVisible();
       await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toBeVisible();
-      await expect(page.getByTestId(`official-section-symbol-${section.toLowerCase()}`)).toHaveAttribute(
+      await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toHaveAttribute(
         "data-icon-id",
         `official-one-programme-${section.value.toLowerCase()}`
       );
