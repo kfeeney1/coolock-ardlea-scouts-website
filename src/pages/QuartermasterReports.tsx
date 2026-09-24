@@ -22,6 +22,7 @@ export default function QuartermasterReports() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!canManage) { setLoading(false); return; }
     let cancelled = false;
     void (async () => {
       setLoading(true);
@@ -45,7 +46,7 @@ export default function QuartermasterReports() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [canManage]);
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl" data-testid="page-qm-reports">
