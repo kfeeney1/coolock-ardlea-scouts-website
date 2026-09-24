@@ -21,28 +21,34 @@ async function openMenu(page: Page) {
   await page.getByRole("button", { name: /(Open Leader Menu|Menu ·)/ }).click();
 }
 
+async function visibleNavigation(page: Page) {
+  const mobile = page.getByTestId("leader-navigation-mobile");
+  return await mobile.isVisible() ? mobile : page.getByTestId("leader-navigation-desktop");
+}
+
 async function exposeQuartermaster(page: Page) {
   await openMenu(page);
-  const mobile = page.getByTestId("leader-navigation-mobile");
-  if (await mobile.isVisible()) {
-    await mobile.getByRole("button", { name: "Quartermaster / Bo’sun" }).click();
+  const navigation = await visibleNavigation(page);
+  if ((await navigation.getByRole("button", { name: "Quartermaster / Bo’sun" }).count()) > 0) {
+    await navigation.getByRole("button", { name: "Quartermaster / Bo’sun" }).click();
   }
+  return navigation;
 }
 
 test.describe("SW-178 canonical role navigation", () => {
   test("super admin reaches Equipment and Stores and QM Reports canonical destinations", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
 
-    await exposeQuartermaster(page);
-    const equipment = page.getByTestId("leader-nav-qm-equipment-stores");
+    let navigation = await exposeQuartermaster(page);
+    const equipment = navigation.getByTestId("leader-nav-qm-equipment-stores");
     await expect(equipment).toBeVisible();
     await equipment.click();
     await expect(page).toHaveURL(/\/leader\/equipment$/);
     await expect(page.getByTestId("page-equipment-stores")).toBeVisible();
     await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
 
-    await exposeQuartermaster(page);
-    const qmReports = page.getByTestId("leader-nav-qm-reports");
+    navigation = await exposeQuartermaster(page);
+    const qmReports = navigation.getByTestId("leader-nav-qm-reports");
     await expect(qmReports).toBeVisible();
     await qmReports.focus();
     await expect(qmReports).toBeFocused();
@@ -56,11 +62,11 @@ test.describe("SW-178 canonical role navigation", () => {
   test("Secretary Reports remains distinct from QM Reports", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page);
-    const mobile = page.getByTestId("leader-navigation-mobile");
-    if (await mobile.isVisible()) {
-      await mobile.getByRole("button", { name: "Secretary" }).click();
+    const navigation = await visibleNavigation(page);
+    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) {
+      await navigation.getByRole("button", { name: "Secretary" }).click();
     }
-    const secretaryReports = page.getByTestId("leader-nav-secretary-reports");
+    const secretaryReports = navigation.getByTestId("leader-nav-secretary-reports");
     await expect(secretaryReports).toBeVisible();
     await secretaryReports.click();
     await expect(page).toHaveURL(/\/leader\/reports$/);
