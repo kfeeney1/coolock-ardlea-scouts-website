@@ -49,12 +49,12 @@ test.describe("parent access management", () => {
     await expect(disableDialog).toHaveCount(0);
     await expect(approvedCard.getByText("approved", { exact: true })).toBeVisible();
 
-    const manageButton = page.getByRole("button", { name: "Manage Linked Children" }).first();
+    const manageButton = approvedCard.getByRole("button", { name: "Manage Linked Children" });
     await expect(manageButton).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
 
     await manageButton.click();
-    const search = page.getByLabel(/Search members for/).first();
+    const search = approvedCard.getByLabel(/Search members for/);
     await expect(search).toBeVisible();
     await expect(page.getByText(/Enter a name or section to find a child member record manually/i)).toBeVisible();
     await expect(page.getByRole("checkbox")).toHaveCount(0);
