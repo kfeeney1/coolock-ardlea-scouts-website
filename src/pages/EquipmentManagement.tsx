@@ -212,7 +212,7 @@ export default function EquipmentManagement() {
       const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
       await createEquipmentItem(payload);
       setEditing(undefined);
-      await refresh();
+      void refresh();
     } catch (saveError) {
       console.error("Unable to save equipment:", saveError);
       setError(saveError instanceof Error ? saveError.message : "Unable to save the equipment item.");
@@ -226,7 +226,7 @@ export default function EquipmentManagement() {
     try {
       await setEquipmentArchived(item, !item.archived);
       setArchiveTarget(null);
-      await refresh();
+      void refresh();
     } catch (archiveError) {
       console.error("Unable to update equipment archive state:", archiveError);
       setError(archiveError instanceof Error ? archiveError.message : "Unable to update that equipment item.");
