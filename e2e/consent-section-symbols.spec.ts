@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 const youthSections = [
   { value: "Beavers", label: "Beavers" },
@@ -22,8 +22,8 @@ test.describe("public consent section chooser", () => {
     await expect(page.getByText(/Scouters can complete their confidential ES3 form from My Profile/i)).toBeVisible();
   });
 
-  test("section choices remain keyboard operable on a phone viewport", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("section choices remain keyboard operable on a phone viewport", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile consent keyboard regression runs once on the canonical Pixel 7 project.");
     await page.goto("/activities/consent");
 
     const beavers = page.getByRole("button", { name: "Open Beavers consent form" });
