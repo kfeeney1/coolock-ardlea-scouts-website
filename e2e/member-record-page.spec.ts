@@ -56,9 +56,9 @@ test("SW-116 linked family member opens the canonical member record and Back ret
   // This keeps the regression independent of invented fixture IDs and also proves
   // the resulting family link is immediately navigable.
   await familyPanel.getByLabel("Search existing members").fill("Cubs 01");
-  const candidate = familyPanel.getByText(/Cubs 01/).first();
+  const candidate = familyPanel.getByTestId("family-candidate-TEST_member_cub_01");
   await expect(candidate).toBeVisible();
-  await candidate.locator("xpath=ancestor::*[.//button[normalize-space()='Select' or normalize-space()='Selected']][1]").getByRole("button", { name: "Select" }).click();
+  await candidate.getByRole("button", { name: "Select" }).click();
   await familyPanel.getByRole("button", { name: "Link selected siblings" }).click();
 
   const sibling = familyPanel.locator('a[href="/leader/members/TEST_member_cub_01"]');
@@ -79,11 +79,11 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
   await loginAdmin(page);
   await page.goto("/leader/members/TEST_member_beaver_01");
 
-  const indicators = page.getByRole("heading", { name: "Consent & Medical Indicators" }).locator("xpath=following-sibling::*[1]");
+  const indicators = page.getByTestId("member-consent-medical-indicators");
   await expect(indicators).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 
-  const medicalLink = page.getByRole("link", { name: /Open consent and medical details/ }).first();
+  const medicalLink = indicators.getByRole("link", { name: /Open consent and medical details/ }).first();
   await expect(medicalLink).toBeVisible();
   const href = await medicalLink.getAttribute("href");
   expect(href).toMatch(/^\/leader\/consents\/.+/);
