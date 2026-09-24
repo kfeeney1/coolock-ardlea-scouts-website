@@ -228,7 +228,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await page.getByRole("button", { name: "Add equipment" }).click();
   const addDialog = page.getByRole("dialog", { name: "Add equipment" });
   await addDialog.getByLabel("Equipment name").fill(itemName);
-  const await addDialog.getByLabel("Category").click();
+  await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addDialog.getByLabel("Store").click();
   await page.getByRole("option", { name: "TEST Checkout Store" }).click();
