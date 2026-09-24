@@ -20,5 +20,5 @@ test("leader dashboard header owns viewport-based geometry", () => {
 
 test("leader dashboard navigation keeps nested record routes matched to their parent item", () => {
   const header = source("src/components/admin/LeaderDashboardHeader.tsx");
-  assert.ok(header.includes('pathname.startsWith(`${itemPath}/`)'));
+  assert.ok(header.includes('pathname.startsWith(`${target}/`)'));\n  assert.ok(header.includes('itemPath.split(/[?#]/, 1)[0]'));
 });
