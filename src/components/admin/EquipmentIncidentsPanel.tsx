@@ -213,7 +213,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       </Stack>
 
       {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
-        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
+        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} data-testid={`equipment-incident-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
