@@ -188,6 +188,7 @@ export default function SubsManagement() {
     );
   return (
     <Box
+      data-testid={`page-${pageIdentity}`}
       sx={{
         minHeight: "100vh",
         backgroundColor: "background.default",
