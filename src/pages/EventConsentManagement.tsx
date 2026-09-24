@@ -284,11 +284,10 @@ export default function EventConsentManagement() {
             <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
                 <Container maxWidth="xl">
                     <LeaderDashboardHeader />
-                    <LeaderPageHeader
+                    <Box data-testid="page-event-consent"><LeaderPageHeader
                         title="Parent Event Consent"
                         description="Create parent-facing event links, send event notices and reminders, review responses and sync them into the event roster."
-                        actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>}
-                    />
+                    /></Box>
 
                     {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                     {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
