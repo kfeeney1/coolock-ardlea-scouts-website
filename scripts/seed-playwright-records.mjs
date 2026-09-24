@@ -89,6 +89,22 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
+const mutableEquipmentPrefixes = ["TEST Checkout Tent", "TEST Incident Tent", "TEST Move Marker", "TEST Move Tents", "TEST Zero Quantity"];
+const mutableEquipmentItems = await db.collection("equipmentItems").get();
+const mutableItemIds = new Set(mutableEquipmentItems.docs.filter((entry) => mutableEquipmentPrefixes.some((prefix) => String(entry.data().name || "").startsWith(prefix))).map((entry) => entry.id));
+const mutableLoans = await db.collection("equipmentLoans").get();
+for (const entry of mutableLoans.docs) {
+  const lines = Array.isArray(entry.data().lines) ? entry.data().lines : [];
+  if (lines.some((line) => mutableItemIds.has(String(line?.itemId || "")))) await entry.ref.delete();
+}
+const mutableIncidents = await db.collection("equipmentIncidents").get();
+for (const entry of mutableIncidents.docs) if (mutableItemIds.has(String(entry.data().itemId || ""))) await entry.ref.delete();
+const mutableHistory = await db.collection("equipmentHistory").get();
+for (const entry of mutableHistory.docs) if (mutableItemIds.has(String(entry.data().itemId || "")) || mutableItemIds.has(String(entry.data().linkedItemId || ""))) await entry.ref.delete();
+for (const entry of mutableEquipmentItems.docs) if (mutableItemIds.has(entry.id)) await entry.ref.delete();
+const mutableLocations = await db.collection("equipmentLocations").get();
+for (const entry of mutableLocations.docs) if (String(entry.data().name || "").startsWith("TEST Move Store") || entry.data().name === "TEST Checkout Store") await entry.ref.delete();
+
 const equipmentSeedItems = [
   { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220, purchaseDate: "2098-07-22", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment", source: "spreadsheet-import", importBatch: "TEST_sw42", importSourceRef: "Equipment:row-3" },
   { id: "TEST_equipment_stoves", name: "TEST Camping Stoves", category: "Cooking", trackingMode: "individual", totalQuantity: 4, location: "Main Equipment Store", condition: "good", notes: "Portable gas stoves for section cooking activities.", replacementValue: 85 },
