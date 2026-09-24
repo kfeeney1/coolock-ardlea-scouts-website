@@ -144,6 +144,27 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(navigation.getByTestId("leader-nav-group-subs")).not.toHaveAttribute("aria-current", "page");
   });
 
+
+  test("Secretary and Group Operations Meeting Records retain distinct navigation identity", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    await openMenu(page);
+    let navigation = projectNavigation(page, testInfo);
+    if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) await navigation.getByRole("button", { name: "Group Operations" }).click();
+    await navigation.getByTestId("leader-nav-group-meeting-records").click();
+    await expect(page).toHaveURL(/\/leader\/meetings\?view=group-operations$/);
+    await expect(page.getByTestId("page-group-meeting-records")).toBeVisible();
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-group-meeting-records")).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-secretary-meeting-records")).not.toHaveAttribute("aria-current", "page");
+
+    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) await navigation.getByRole("button", { name: "Secretary" }).click();
+    await navigation.getByTestId("leader-nav-secretary-meeting-records").click();
+    await expect(page).toHaveURL(/\/leader\/meetings\?view=secretary$/);
+    await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
+  });
+
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
     await login(page, credentials("E2E_LEADER"));
     await openMenu(page);
