@@ -128,7 +128,8 @@ test.describe("SW-178 canonical role navigation", () => {
       await navigation.getByRole("button", { name: "Group Operations" }).click();
     }
     await navigation.getByTestId("leader-nav-group-subs").click();
-    await expect(page).toHaveURL(/\/leader\/subs$/);
+    await expect(page).toHaveURL(/\/leader\/subs\?view=group-operations$/);
+    await expect(page.getByTestId("page-group-subs")).toBeVisible();
     await expect(page).not.toHaveURL(/#family-billing$/);
 
     await openMenu(page);
@@ -199,6 +200,26 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(navigation.getByTestId("leader-nav-settings")).toHaveAttribute("aria-current", "page");
     await expect(navigation.getByTestId("leader-nav-secretary-settings")).not.toHaveAttribute("aria-current", "page");
     await expect(navigation.getByTestId("leader-nav-qm-settings")).not.toHaveAttribute("aria-current", "page");
+  });
+
+
+  test("Secretary and Group Operations Floats retain distinct navigation identity", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    await openMenu(page);
+    let navigation = projectNavigation(page, testInfo);
+    if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) await navigation.getByRole("button", { name: "Group Operations" }).click();
+    await navigation.getByTestId("leader-nav-group-section-floats").click();
+    await expect(page).toHaveURL(/\/leader\/finance\?view=group-operations$/);
+    await expect(page.getByTestId("page-group-section-floats")).toBeVisible();
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-group-section-floats")).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-secretary-floats")).not.toHaveAttribute("aria-current", "page");
+
+    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) await navigation.getByRole("button", { name: "Secretary" }).click();
+    await navigation.getByTestId("leader-nav-secretary-floats").click();
+    await expect(page).toHaveURL(/\/leader\/finance\?view=secretary$/);
+    await expect(page.getByTestId("page-secretary-floats")).toBeVisible();
   });
 
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
