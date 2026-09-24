@@ -176,7 +176,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
             return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
                 <Box sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {available} available after current checkouts and reservations</Typography></Box>
-                <TextField label="Qty" type="number" value={numericInputDisplayValue(quantity)} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 120 } }} />
+                <TextField label={`Qty for ${item.name}`} type="number" value={numericInputDisplayValue(quantity)} disabled={available === 0} onChange={(event) => setCheckoutQuantities((current) => ({ ...current, [item.id]: parseOptionalNumberInput(event.target.value) }))} slotProps={{ htmlInput: { min: 0, max: available, step: 1 } }} sx={{ width: { sm: 160 } }} />
               </Stack>
             </Paper>;
           })}</Stack>
