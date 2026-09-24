@@ -182,6 +182,25 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(navigation.getByTestId("leader-nav-secretary-reports")).not.toHaveAttribute("aria-current", "page");
   });
 
+
+  test("Administration Settings remains distinct from Secretary and QM Settings", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    await openMenu(page);
+    let navigation = projectNavigation(page, testInfo);
+    if ((await navigation.getByRole("button", { name: "Administration" }).count()) > 0) await navigation.getByRole("button", { name: "Administration" }).click();
+    await navigation.getByTestId("leader-nav-settings").click();
+    await expect(page).toHaveURL(/\/leader\/settings$/);
+    await expect(page.getByTestId("page-settings")).toBeVisible();
+    await expect(page.getByTestId("page-secretary-settings")).toHaveCount(0);
+    await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-settings")).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-secretary-settings")).not.toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-qm-settings")).not.toHaveAttribute("aria-current", "page");
+  });
+
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
     await login(page, credentials("E2E_LEADER"));
     await openMenu(page);
