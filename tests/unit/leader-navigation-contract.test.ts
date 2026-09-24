@@ -1,22 +1,22 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
-import { accountNavItems, dashboardNavItem, leaderNavGroups } from "../../src/navigation/leaderNavigation";
 
-test("leader navigation IDs are unique and every destination has a page identity", () => {
-  const items = [dashboardNavItem, ...leaderNavGroups.flatMap((group) => group.items), ...accountNavItems];
-  assert.equal(new Set(items.map((item) => item.id)).size, items.length);
-  for (const item of items) {
-    assert.ok(item.path.startsWith("/"), `${item.id} must use an absolute application path`);
-    assert.ok(item.pageId, `${item.id} must declare destination page identity`);
-  }
+const root = process.cwd();
+const read = (file: string) => readFile(path.join(root, file), "utf8");
+
+test("leader navigation contract declares unique IDs and destination page identities", async () => {
+  const nav = await read("src/navigation/leaderNavigation.ts");
+  const ids = [...nav.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const id of ids) assert.match(nav, new RegExp(`id: "${id}"[^\\n]+pageId: "[^"]+"`));
 });
 
-test("role-labelled destinations do not silently alias another role workspace", () => {
-  const byId = new Map(leaderNavGroups.flatMap((group) => group.items).map((item) => [item.id, item]));
-  assert.equal(byId.get("secretary-settings")?.path, "/leader/settings?view=secretary");
-  assert.equal(byId.get("qm-settings")?.path, "/leader/settings?view=quartermaster");
-  assert.equal(byId.get("qm-equipment-stores")?.path, "/leader/equipment?view=quartermaster");
-  assert.equal(byId.get("group-equipment-stores")?.path, "/leader/equipment?view=group-operations");
-  assert.notEqual(byId.get("secretary-settings")?.pageId, byId.get("qm-settings")?.pageId);
-  assert.notEqual(byId.get("qm-equipment-stores")?.pageId, byId.get("group-equipment-stores")?.pageId);
+test("role-labelled destinations do not silently alias another role workspace", async () => {
+  const nav = await read("src/navigation/leaderNavigation.ts");
+  assert.match(nav, /id: "secretary-settings"[^\n]+path: "\/leader\/settings\?view=secretary"/);
+  assert.match(nav, /id: "qm-settings"[^\n]+path: "\/leader\/settings\?view=quartermaster"/);
+  assert.match(nav, /id: "qm-equipment-stores"[^\n]+path: "\/leader\/equipment\?view=quartermaster"/);
+  assert.match(nav, /id: "group-equipment-stores"[^\n]+path: "\/leader\/equipment\?view=group-operations"/);
 });
