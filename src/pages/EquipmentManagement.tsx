@@ -279,7 +279,7 @@ export default function EquipmentManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
           {visibleItems.map((item) => {
             const available = availableEquipmentQuantity(item);
-            return <Paper key={item.id} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+            return <Paper key={item.id} data-testid={`equipment-inventory-card-${item.id}`} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
               <Stack spacing={1.25}>
                 <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
