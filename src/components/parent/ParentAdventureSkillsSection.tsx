@@ -133,7 +133,7 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
               </AccordionSummary>
               <AccordionDetails id={`${skill.skillId}-stage-${stage.stage}-content`}>
                 <Stack spacing={1}>
-                  {stage.requirements.map((requirement) => <Paper key={requirement.requirementId} variant="outlined" sx={{ p: 1.25 }}>
+                  {stage.requirements.map((requirement) => <Paper key={requirement.requirementId} variant="outlined" sx={{ p: 1.25 }} data-testid={`parent-adventure-requirement-${requirement.requirementId}`}>
                     <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
                       <Chip
                         size="small"
