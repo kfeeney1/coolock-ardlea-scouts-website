@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 test.describe("Parent Portal", () => {
   test("registration collects minimal child identity and supports multiple children without self-enabling access", async ({ page }) => {
@@ -41,8 +41,8 @@ test.describe("Parent Portal", () => {
     await expect(page.getByText("Parent Consent Portal")).toHaveCount(0);
   });
 
-  test("parent registration remains usable at mobile width and browser Back remains normal", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("parent registration remains usable at mobile width and browser Back remains normal", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile parent registration regression runs once on the canonical Pixel 7 project.");
     await page.goto("/about");
     await page.goto("/parent");
     await page.getByRole("button", { name: "Need an account? Register" }).click();
@@ -52,8 +52,8 @@ test.describe("Parent Portal", () => {
     await expect(page).toHaveURL(/\/about$/);
   });
 
-  test("email portal destination opens the responsive website at Android width", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("email portal destination opens the responsive website at Android width", async ({ page }, testInfo: TestInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile parent portal regression runs once on the canonical Pixel 7 project.");
     await page.goto("/parent");
 
     await expect(page).toHaveURL(/\/parent$/);
