@@ -56,17 +56,17 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await expect(checkoutDialog).toBeVisible();
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const checkoutRow = checkoutDialog.locator('[data-testid^="equipment-checkout-item-"]').filter({ hasText: itemName });
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
 
   await expect(page.getByText(`2 × ${itemName}`, { exact: false })).toBeVisible();
-  const inventoryCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("2 checked out", { exact: true })).toBeVisible();
 
-  const holdingCard = page.getByText(`2 × ${itemName}`, { exact: false }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const holdingCard = page.locator('[data-testid^="equipment-loan-"]').filter({ hasText: itemName });
   await holdingCard.getByRole("button", { name: "Return equipment" }).click();
   const returnDialog = page.getByRole("dialog", { name: /Return equipment/ });
   await expect(returnDialog.getByText("2 currently checked out")).toBeVisible();
@@ -74,7 +74,7 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await expect(returnDialog).toBeHidden();
 
   await expect(page.getByText("No equipment is currently checked out.")).toBeVisible();
-  const returnedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
 
   const search = page.getByLabel("Search equipment");
@@ -127,7 +127,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.getByText(incidentName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const checkoutRow = checkoutDialog.locator('[data-testid^="equipment-checkout-item-"]').filter({ hasText: incidentName });
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
 
@@ -143,9 +143,9 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const submitError = page.getByRole("alert").filter({ hasText: /equipment|issue|checkout|permission|record/i });
   await expect(incidentDialog).toBeHidden({ timeout: 15000 });
 
-  const incidentCard = page.getByText(`1 × ${incidentName}`, { exact: false }).first().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const incidentCard = page.locator('[data-testid^="equipment-incident-"]').filter({ hasText: incidentName });
   await expect(incidentCard).toBeVisible();
-  const inventoryCard = page.getByText(incidentName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
@@ -159,7 +159,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await resolveDialog.getByLabel("Resolution notes").fill("Found in the trailer after the return was checked.");
   await resolveDialog.getByRole("button", { name: "Confirm resolution" }).click();
 
-  const resolvedInventoryCard = page.getByText(incidentName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const resolvedInventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(resolvedInventoryCard.getByText("2 available", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 unavailable", { exact: true })).toHaveCount(0);
@@ -199,7 +199,7 @@ test("admin can partially move stock and see the movement in item history", asyn
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText(itemName, { exact: true })).toBeVisible();
 
-  const sourceCard = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: "TEST Checkout Store" });
+  const sourceCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: "TEST Checkout Store" });
   await sourceCard.getByRole("button", { name: "History / move" }).click();
   const historyDialog = page.getByRole("dialog", { name: `${itemName} history` });
   await expect(historyDialog).toBeVisible();
@@ -211,8 +211,8 @@ test("admin can partially move stock and see the movement in item history", asyn
   await expect(historyDialog.getByText(`TEST Checkout Store → ${destination}`, { exact: true })).toBeVisible();
   await historyDialog.getByRole("button", { name: "Close" }).click();
 
-  const sourceAfter = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: "TEST Checkout Store" });
-  const destinationAfter = page.getByText(itemName, { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").filter({ hasText: destination });
+  const sourceAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: "TEST Checkout Store" });
+  const destinationAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: destination });
   await expect(sourceAfter.getByText("2 total", { exact: true })).toBeVisible();
   await expect(destinationAfter.getByText("2 total", { exact: true })).toBeVisible();
 });
@@ -236,11 +236,11 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await quantity.fill("0");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
 
-  const card = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const card = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(card.getByText("0 total", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Edit" }).click();
   await expect(page).toHaveURL(/\/leader\/equipment\/[^/]+$/);
-  const summary = page.getByText("0 total", { exact: true }).locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const summary = page.getByTestId("equipment-record-summary");
   await summary.getByRole("button", { name: "Edit", exact: true }).click();
   const editQuantity = page.getByLabel("Total quantity");
   await expect(editQuantity).toHaveValue("0");
@@ -253,12 +253,12 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await expect(page.getByText("5 total", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/equipment$/);
-  await expect(page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]").getByText("5 total", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).getByText("5 total", { exact: true })).toBeVisible();
   await page.goto("/leader");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/equipment");
   await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
-  const reloadedCard = page.getByText(itemName, { exact: true }).last().locator("xpath=ancestor::*[contains(@class,'MuiPaper-root')][1]");
+  const reloadedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(reloadedCard.getByText("5 total", { exact: true })).toBeVisible();
 });
 
