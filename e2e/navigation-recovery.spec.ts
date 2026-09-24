@@ -106,10 +106,16 @@ test.describe("SW-178 canonical role navigation", () => {
     if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) {
       await navigation.getByRole("button", { name: "Group Operations" }).click();
     }
-    await navigation.getByTestId("leader-nav-group-equipment-stores").click();
+    const groupEquipment = navigation.getByTestId("leader-nav-group-equipment-stores");
+    await groupEquipment.click();
     await expect(page).toHaveURL(/\/leader\/equipment\?view=group-operations$/);
     await expect(page.getByTestId("page-group-equipment-stores")).toBeVisible();
     await expect(page.getByTestId("page-qm-equipment-stores")).toHaveCount(0);
+
+    await openMenu(page);
+    navigation = projectNavigation(page, testInfo);
+    await expect(navigation.getByTestId("leader-nav-group-equipment-stores")).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByTestId("leader-nav-qm-equipment-stores")).not.toHaveAttribute("aria-current", "page");
   });
 
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
