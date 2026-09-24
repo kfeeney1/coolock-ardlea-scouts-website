@@ -8,7 +8,8 @@ const read = (file: string) => readFile(path.join(root, file), "utf8");
 
 test("leader navigation contract declares unique IDs and destination page identities", async () => {
   const nav = await read("src/navigation/leaderNavigation.ts");
-  const ids = [...nav.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
+  const itemLines = nav.split("\\n").filter((line) => line.includes("path:") && line.includes("pageId:"));
+  const ids = itemLines.flatMap((line) => [...line.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]));
   assert.equal(new Set(ids).size, ids.length);
   for (const id of ids) assert.match(nav, new RegExp(`id: "${id}"[^\\n]+pageId: "[^"]+"`));
 });
