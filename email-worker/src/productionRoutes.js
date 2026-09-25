@@ -234,7 +234,13 @@ async function sendEmail(env, to, subject, html, idempotencyKey = "") {
 function brandedEmail({ heading, intro, bodyHtml = "", actions = [] }) {
   const actionHtml = actions
     .filter((action) => action?.label && action?.url)
-    .map((action, index) => `<p style="margin:${index === 0 ? 28 : 12}px 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:${index === 0 ? BRAND.coral : BRAND.navy};color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px">${escapeHtml(action.label)}</a></p>`)
+    .map((action, index) => {
+      const secondary = action.variant === "secondary";
+      const style = secondary
+        ? `display:inline-block;color:${BRAND.muted};text-decoration:underline;font-size:13px;padding:4px 0`
+        : `display:inline-block;background:${index === 0 ? BRAND.coral : BRAND.navy};color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px`;
+      return `<p style="margin:${secondary ? 18 : index === 0 ? 28 : 12}px 0"><a href="${escapeHtml(action.url)}" style="${style}">${escapeHtml(action.label)}</a></p>`;
+    })
     .join("");
   return `<!doctype html><html><body style="margin:0;background:${BRAND.background};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;background:${BRAND.background}"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border-radius:10px;overflow:hidden"><tr><td style="padding:28px;background:${BRAND.navy};color:#fff;text-align:center"><div style="font-size:24px;font-weight:800">${BRAND.groupName}</div><div style="font-size:14px;margin-top:6px;opacity:.92">Scout Group Communications</div></td></tr><tr><td style="padding:32px"><h1 style="margin:0 0 16px;font-size:26px;color:${BRAND.navy}">${escapeHtml(heading)}</h1><p style="font-size:16px;line-height:1.6;margin:0 0 16px">${escapeHtml(intro)}</p>${bodyHtml}${actionHtml}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:${BRAND.muted};font-size:12px;line-height:1.5">This message was sent by the Coolock Ardlea Scout Group website. Protected information is only available after sign-in.</td></tr></table></td></tr></table></body></html>`;
 }
@@ -351,7 +357,7 @@ async function handleLeaderCommunication(request, env, body) {
         bodyHtml: `<p style="font-size:16px;line-height:1.7">${messageHtml}</p><p style="font-size:14px;line-height:1.6;color:${BRAND.muted};margin-top:22px">This message relates to <strong>${escapeHtml(memberName)}</strong>.</p>`,
         actions: [
           { label: "Open Parent Portal", url: parentPortalUrl(env) },
-          { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
+          { label: `Report ${memberName} as no longer active`, url: await memberActionUrl(env, memberId), variant: "secondary" }
         ]
       }), idempotencyKey);
       delivered.add(recipient.email);
@@ -399,7 +405,7 @@ async function handleEventNotification(request, env, body) {
         actions: [
           { label: "Respond to event", url: actionUrl },
           { label: "Open Parent Portal", url: parentPortalUrl(env) },
-          { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
+          { label: `Report ${memberName} as no longer active`, url: await memberActionUrl(env, memberId), variant: "secondary" }
         ]
       }), `event:${eventId}:${kind}:${memberId}:${recipient.uid}`);
       sent += 1;
@@ -428,7 +434,7 @@ async function handleEventConsentProcessed(request, env, body) {
       bodyHtml: `<p style="font-size:16px;line-height:1.6">Open the secure Parent Portal to review the current event status.</p>`,
       actions: [
         { label: "Open Parent Portal", url: parentPortalUrl(env) },
-        { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
+        { label: `Report ${memberName} as no longer active`, url: await memberActionUrl(env, memberId), variant: "secondary" }
       ]
     }), `event-processed:${eventId}:${memberId}:${recipient.uid}`);
   }
@@ -480,7 +486,7 @@ async function handleFormReminder(request, env, body) {
           bodyHtml: `<p style="font-size:16px;line-height:1.6">For privacy, this email does not include medical, consent or other sensitive details. Sign in to the Parent Portal to see what needs attention.</p>`,
           actions: [
             { label: "Open Parent Portal", url: parentPortalUrl(env) },
-            { label: `${memberName} is no longer active`, url: await memberActionUrl(env, memberId) }
+            { label: `Report ${memberName} as no longer active`, url: await memberActionUrl(env, memberId), variant: "secondary" }
           ]
         }), `form-reminder:${id}`);
         await persistReminderState(env, id, reminderRecord({ memberId, recipientUid: recipient.uid, cycleKey, reason, status: "sent", attemptCount }));
