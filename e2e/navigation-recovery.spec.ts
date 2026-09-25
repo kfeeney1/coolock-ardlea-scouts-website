@@ -21,7 +21,11 @@ async function openMenu(page: Page) {
   const button = page.getByRole("button", { name: /(Open Leader Menu|Menu ·|Hide Leader Menu)/ });
   await expect(button).toBeVisible();
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
-  if (!(await navigation.isVisible().catch(() => false))) await button.click();
+  if (!(await navigation.isVisible().catch(() => false))) {
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await button.click();
+  }
+  await expect(button).toHaveAttribute("aria-expanded", "true");
   await expect(navigation).toBeVisible();
 }
 
@@ -155,6 +159,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
     await navigation.getByTestId("leader-nav-family-billing").click();
     await expect(page).toHaveURL(/\/leader\/subs#family-billing$/);
+    await expect(page.getByTestId("page-subs")).toBeVisible();
     navigation = await exposeGroup(page, testInfo, "People & Parents");
     await expect(navigation.getByTestId("leader-nav-family-billing")).toHaveAttribute("aria-current", "page");
     await assertSiblingNotCurrent(page, testInfo, "Group Operations", "group-subs");
@@ -285,6 +290,7 @@ test.describe("SW-178 canonical role navigation", () => {
       ["/leader/subs#family-billing", "family-billing", ["secretary-subs", "group-subs"]],
     ] as const) {
       await page.goto(route);
+      await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
       const groupByItem: Record<string, string> = {
         settings: "Administration", "secretary-settings": "Secretary", "qm-settings": "Quartermaster / Bo’sun",
         "secretary-reports": "Secretary", "reports-exports": "Insights & Records",
