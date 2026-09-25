@@ -30,7 +30,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await expect(navigation.getByText("Account & Help", { exact: true })).toBeVisible();
 
   await expect(desktopNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");
-  await expect(desktopNavigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance");
+  await expect(desktopNavigation.getByRole("link", { name: "Section Floats" })).toHaveAttribute("href", "/leader/finance?view=group-operations");
   await expect(desktopNavigation.getByRole("link", { name: "Roles & Permissions" })).toHaveAttribute("href", "/leader/roles");
   await expect(desktopNavigation.getByRole("link", { name: "Leader Access" })).toHaveAttribute("href", "/leader/access");
   await expect(navigation.getByRole("link", { name: "Info & FAQ" })).toHaveAttribute("href", "/leader/info");
