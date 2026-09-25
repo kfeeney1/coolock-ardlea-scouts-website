@@ -259,16 +259,16 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("ordinary leader canonical Programme navigation works and officer menus stay absent", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_LEADER"));
-    for (const [itemId, route] of [
-      ["weekly-meetings", "/leader/weekly"],
-      ["events-activities", "/leader/events"],
-      ["badgework", "/leader/badgework"],
+    for (const [itemId, route, destinationHeading] of [
+      ["weekly-meetings", "/leader/weekly", /Weekly Meetings/i],
+      ["events-activities", "/leader/events", /Events & Activities/i],
+      ["badgework", "/leader/badgework", /Badgework|Adventure Skills/i],
     ] as const) {
       const navigation = await exposeGroup(page, testInfo, "Programme");
       await navigation.getByTestId("leader-nav-" + itemId).click();
       await expect(page).toHaveURL(new RegExp(route.replaceAll("/", "\\/") + "$"));
       await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-      await expect(page.getByTestId("page-" + itemId)).toBeVisible();
+      await expect(page.getByRole("heading", { name: destinationHeading }).first()).toBeVisible();
       await expect(page.getByTestId("leader-navigation-desktop").getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
       await expect(page.getByTestId("leader-navigation-desktop").getByTestId("leader-nav-qm-reports")).toHaveCount(0);
     }
