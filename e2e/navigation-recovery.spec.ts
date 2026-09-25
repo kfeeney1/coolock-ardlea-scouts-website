@@ -33,7 +33,10 @@ async function exposeGroup(page: Page, testInfo: TestInfo, group: string) {
   await openMenu(page);
   const navigation = projectNavigation(page, testInfo);
   const button = navigation.getByRole("button", { name: group, exact: true });
-  if (testInfo.project.name === "mobile-chromium" && (await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  if (testInfo.project.name === "mobile-chromium" && (await button.getAttribute("aria-expanded")) !== "true") {
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+  }
   return navigation;
 }
 
@@ -157,7 +160,9 @@ test.describe("SW-178 canonical role navigation", () => {
     navigation = await exposeGroup(page, testInfo, "People & Parents");
     await expect(navigation.getByTestId("leader-nav-family-billing")).not.toHaveAttribute("aria-current", "page");
 
-    await navigation.getByTestId("leader-nav-family-billing").click();
+    const familyBilling = navigation.getByTestId("leader-nav-family-billing");
+    await expect(familyBilling).toBeVisible();
+    await familyBilling.click();
     await expect(page).toHaveURL(/\/leader\/subs#family-billing$/);
     await expect(page.getByTestId("page-subs")).toBeVisible();
     navigation = await exposeGroup(page, testInfo, "People & Parents");
