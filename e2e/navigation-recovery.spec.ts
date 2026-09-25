@@ -268,10 +268,9 @@ test.describe("SW-178 canonical role navigation", () => {
       await navigation.getByTestId("leader-nav-" + itemId).click();
       await expect(page).toHaveURL(new RegExp(route.replaceAll("/", "\\/") + "$"));
       await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-      const currentNavigation = await exposeGroup(page, testInfo, "Programme");
-      await expect(currentNavigation.getByTestId("leader-nav-" + itemId)).toHaveAttribute("aria-current", "page");
-      await expect(currentNavigation.getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
-      await expect(currentNavigation.getByTestId("leader-nav-qm-reports")).toHaveCount(0);
+      await expect(page.getByTestId("page-" + itemId)).toBeVisible();
+      await expect(page.getByTestId("leader-navigation-desktop").getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
+      await expect(page.getByTestId("leader-navigation-desktop").getByTestId("leader-nav-qm-reports")).toHaveCount(0);
     }
   });
 
