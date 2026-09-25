@@ -127,7 +127,7 @@ test.describe("leader permissions", () => {
 
     await openLeaderMenu(page);
     await page.getByRole("link", { name: "Reports & Exports" }).click();
-    await expect(page).toHaveURL(/\/leader\/reports$/);
+    await expect(page).toHaveURL(/\/leader\/reports\?view=insights$/);
     await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByText(/Report scope:/)).toContainText("Scouts");
     await expect(page.getByRole("button", { name: "Export Member CSV" })).toBeVisible();
