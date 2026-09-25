@@ -39,6 +39,14 @@ async function exposeGroup(page: Page, testInfo: TestInfo, group: string) {
   return navigation;
 }
 
+async function clickNavItem(page: Page, testInfo: TestInfo, group: string, itemId: string) {
+  const navigation = await exposeGroup(page, testInfo, group);
+  const item = navigation.getByTestId(`leader-nav-${itemId}`);
+  await expect(item).toBeVisible();
+  await expect(item).toBeEnabled();
+  await item.click();
+}
+
 async function assertSiblingNotCurrent(page: Page, testInfo: TestInfo, group: string, itemId: string) {
   const navigation = await exposeGroup(page, testInfo, group);
   await expect(navigation.getByTestId("leader-nav-" + itemId)).not.toHaveAttribute("aria-current", "page");
@@ -172,20 +180,16 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Secretary and Group Operations Meeting Records retain distinct navigation identity", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page);
-    let navigation = projectNavigation(page, testInfo);
-    if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) await navigation.getByRole("button", { name: "Group Operations" }).click();
-    await navigation.getByTestId("leader-nav-group-meeting-records").click();
+    await clickNavItem(page, testInfo, "Group Operations", "group-meeting-records");
     await expect(page).toHaveURL(/\/leader\/meetings\?view=group-operations$/);
+    let navigation = projectNavigation(page, testInfo);
     await expect(page.getByTestId("page-group-meeting-records")).toBeVisible();
 
     navigation = await exposeGroup(page, testInfo, "Group Operations");
     await expect(navigation.getByTestId("leader-nav-group-meeting-records")).toHaveAttribute("aria-current", "page");
     await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-meeting-records");
 
-    navigation = await exposeGroup(page, testInfo, "Secretary");
-    await expect(navigation.getByTestId("leader-nav-secretary-meeting-records")).toBeVisible();
-    await navigation.getByTestId("leader-nav-secretary-meeting-records").click();
+    await clickNavItem(page, testInfo, "Secretary", "secretary-meeting-records");
     await expect(page).toHaveURL(/\/leader\/meetings\?view=secretary$/);
     await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
   });
