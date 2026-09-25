@@ -283,10 +283,18 @@ test.describe("SW-178 canonical role navigation", () => {
       ["/leader/subs#family-billing", "family-billing", ["secretary-subs", "group-subs"]],
     ] as const) {
       await page.goto(route);
-      await openMenu(page);
-      const navigation = projectNavigation(page, testInfo);
+      const groupByItem: Record<string, string> = {
+        settings: "Administration", "secretary-settings": "Secretary", "qm-settings": "Quartermaster / Bo’sun",
+        "secretary-reports": "Secretary", "reports-exports": "Insights & Records",
+        "qm-equipment-stores": "Quartermaster / Bo’sun", "group-equipment-stores": "Group Operations",
+        "secretary-meeting-records": "Secretary", "group-meeting-records": "Group Operations",
+        "secretary-floats": "Secretary", "group-section-floats": "Group Operations",
+        "secretary-subs": "Secretary", "group-subs": "Group Operations", "family-billing": "People & Parents",
+      };
+      let navigation = await exposeGroup(page, testInfo, groupByItem[currentId]);
       await expect(navigation.getByTestId("leader-nav-" + currentId)).toHaveAttribute("aria-current", "page");
       for (const siblingId of siblingIds) {
+        navigation = await exposeGroup(page, testInfo, groupByItem[siblingId]);
         await expect(navigation.getByTestId("leader-nav-" + siblingId)).not.toHaveAttribute("aria-current", "page");
       }
     }
