@@ -60,7 +60,8 @@ async function loginLeader(page: Page) {
   await page.getByLabel(/email/i).fill(leaderEmail!);
   await page.getByLabel(/password/i).fill(leaderPassword!);
   await page.getByRole("button", { name: /sign in/i }).click();
-  await expect(page).toHaveURL(/\/leader/);
+  await expect(page).toHaveURL(/\/leader$/);
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
 async function loginParent(page: Page) {

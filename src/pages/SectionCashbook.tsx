@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Stack, TextField, Typography,
@@ -70,6 +71,9 @@ function transactionLabel(transaction: FinanceTransaction): string {
 }
 
 export default function SectionCashbook() {
+  const [searchParams] = useSearchParams();
+  const navigationView = searchParams.get("view");
+  const pageIdentity = navigationView === "secretary" ? "secretary-floats" : navigationView === "group-operations" ? "group-section-floats" : "section-floats";
   const { adminProfile } = useAdminAuth();
   const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Treasurer";
   const sections = useMemo(() => isAllSectionsRole ? GROUP_SECTIONS : (adminProfile?.sections ?? []).filter((item) => item !== "Group"), [adminProfile, isAllSectionsRole]);
@@ -227,7 +231,7 @@ export default function SectionCashbook() {
     finally { setSaving(false); }
   };
 
-  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
+  return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <Stack spacing={3}>
