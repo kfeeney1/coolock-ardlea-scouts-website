@@ -20,8 +20,9 @@ async function login(page: Page, account: Credentials) {
 async function openMenu(page: Page) {
   const button = page.getByRole("button", { name: /(Open Leader Menu|Menu ·|Hide Leader Menu)/ });
   await expect(button).toBeVisible();
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  await expect(page.getByRole("navigation", { name: "Leader navigation" })).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "Leader navigation" });
+  if (!(await navigation.isVisible().catch(() => false))) await button.click();
+  await expect(navigation).toBeVisible();
 }
 
 async function exposeGroup(page: Page, testInfo: TestInfo, group: string) {
@@ -173,7 +174,8 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(navigation.getByTestId("leader-nav-group-meeting-records")).toHaveAttribute("aria-current", "page");
     await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-meeting-records");
 
-    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) await navigation.getByRole("button", { name: "Secretary" }).click();
+    navigation = await exposeGroup(page, testInfo, "Secretary");
+    await expect(navigation.getByTestId("leader-nav-secretary-meeting-records")).toBeVisible();
     await navigation.getByTestId("leader-nav-secretary-meeting-records").click();
     await expect(page).toHaveURL(/\/leader\/meetings\?view=secretary$/);
     await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
