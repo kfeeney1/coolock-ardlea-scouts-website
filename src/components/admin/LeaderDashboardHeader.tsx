@@ -57,7 +57,7 @@ export default function LeaderDashboardHeader() {
  };
  const navButton = (item: LeaderNavItem) => {
   const active = matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path);
-  return <Button key={item.id} data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" onClick={() => setMenuOpen(false)} sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
+  return <Button key={item.id} data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
  };
  return <Paper data-testid="leader-dashboard-header" elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: { xs: "calc(100vw - 32px)", md: "calc(100vw - 48px)" }, maxWidth: 1536, position: "relative", left: "50%", transform: "translateX(-50%)", boxSizing: "border-box" }}>
   <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>
