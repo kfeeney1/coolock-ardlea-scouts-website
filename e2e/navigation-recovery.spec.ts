@@ -154,10 +154,9 @@ test.describe("SW-178 canonical role navigation", () => {
 
     await navigation.getByTestId("leader-nav-family-billing").click();
     await expect(page).toHaveURL(/\/leader\/subs#family-billing$/);
-    await openMenu(page);
-    navigation = projectNavigation(page, testInfo);
+    navigation = await exposeGroup(page, testInfo, "People & Parents");
     await expect(navigation.getByTestId("leader-nav-family-billing")).toHaveAttribute("aria-current", "page");
-    await expect(navigation.getByTestId("leader-nav-group-subs")).not.toHaveAttribute("aria-current", "page");
+    await assertSiblingNotCurrent(page, testInfo, "Group Operations", "group-subs");
   });
 
 
@@ -227,7 +226,8 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(navigation.getByTestId("leader-nav-group-section-floats")).toHaveAttribute("aria-current", "page");
     await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-floats");
 
-    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) await navigation.getByRole("button", { name: "Secretary" }).click();
+    navigation = await exposeGroup(page, testInfo, "Secretary");
+    await expect(navigation.getByTestId("leader-nav-secretary-floats")).toBeVisible();
     await navigation.getByTestId("leader-nav-secretary-floats").click();
     await expect(page).toHaveURL(/\/leader\/finance\?view=secretary$/);
     await expect(page.getByTestId("page-secretary-floats")).toBeVisible();
