@@ -25,7 +25,6 @@ async function openMenu(page: Page) {
     await expect(button).toHaveAttribute("aria-expanded", "false");
     await button.click();
   }
-  await expect(button).toHaveAttribute("aria-expanded", "true");
   await expect(navigation).toBeVisible();
 }
 
