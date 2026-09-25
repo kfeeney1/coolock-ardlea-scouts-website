@@ -37,6 +37,15 @@ export default function SubsSettingsPanel() {
       setMembers(memberRows.filter((member) => member.status === "active"));
       setPolicies(policyRows);
       setAssignments(assignmentRows);
+      const activePolicy = resolveCurrentSubsPolicy(policyRows);
+      if (activePolicy) {
+        setPeriod(activePolicy.period);
+        setPeriodStart(activePolicy.periodStart || activePolicy.effectiveFrom);
+        setPeriodEnd(activePolicy.periodEnd || "");
+        setVersion(String(activePolicy.version));
+        if (activePolicy.standardFamilyRatesCents?.length) setStandardRates(activePolicy.standardFamilyRatesCents.map(euroValue));
+        if (activePolicy.leaderFamilyRatesCents?.length) setLeaderRates(activePolicy.leaderFamilyRatesCents.map(euroValue));
+      }
     } catch (loadError) {
       console.error("Unable to load subs settings:", loadError);
       setError("Unable to load subs rates and classifications.");
@@ -89,6 +98,15 @@ export default function SubsSettingsPanel() {
     <Box sx={{ mt: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 800 }}>Rate policy</Typography>
       <Alert severity="info" sx={{ mt: 1.5, mb: 2 }}>2026/27 is prefilled with the agreed rates. The Scout subs year runs from September through June. Policies are immutable once saved; a correction is made by creating a later version.</Alert>
+      {!loading && currentPolicy ? (
+        <Alert severity="success" sx={{ mb: 2 }} data-testid="subs-saved-policy-status">
+          Saved active policy: {currentPolicy.period}, version {currentPolicy.version}. Record Payment will use this persisted policy.
+        </Alert>
+      ) : !loading ? (
+        <Alert severity="warning" sx={{ mb: 2 }} data-testid="subs-unsaved-policy-status">
+          No saved active Subs policy was found. The values below are a draft only and are not available to Record Payment until you save an immutable rate policy.
+        </Alert>
+      ) : null}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
         <TextField label="Scout year" value={period} onChange={(event) => setPeriod(event.target.value)} />
         <TextField type="date" label="Starts" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
