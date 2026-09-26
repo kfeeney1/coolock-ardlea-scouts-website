@@ -22,7 +22,7 @@ import { normalizeLeaderSections } from "./leaderAccessLogic";
 export type EventStatus = "draft" | "open" | "closed" | "completed";
 export type AttendanceStatus = "invited" | "attending" | "not-attending";
 export type EventConsentStatus = "not-required" | "required" | "received";
-export type EventAudience = { version: 1; mode: "sections" | "members"; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
+export type EventAudience = { version: 2; mode: "sections" | "members" | "mixed"; semantics: "snapshot"; sectionIds: string[]; memberIds: string[]; resolvedMemberIds: string[] };
 
 export type EventRecord = {
     id: string;
@@ -88,8 +88,14 @@ function mapAudience(value: unknown): EventAudience | null {
     const ids = (item: unknown) => Array.isArray(item)
         ? [...new Set(item.filter((entry): entry is string => typeof entry === "string" && Boolean(entry.trim())).map((entry) => entry.trim()))]
         : [];
-    if (data.version !== 1) return null;
-    const memberIds=ids(data.memberIds); return { version: 1, mode: data.mode === "members" || (data.mode !== "sections" && memberIds.length > 0) ? "members" : "sections", sectionIds: ids(data.sectionIds), memberIds, resolvedMemberIds: ids(data.resolvedMemberIds) };
+    if (data.version !== 1 && data.version !== 2) return null;
+    const sectionIds = ids(data.sectionIds);
+    const memberIds = ids(data.memberIds);
+    const resolvedMemberIds = ids(data.resolvedMemberIds);
+    const mode = sectionIds.length > 0 && memberIds.length > 0 ? "mixed" : memberIds.length > 0 ? "members" : "sections";
+    // Version 1 was already a persisted resolved-member snapshot in practice. Normalise it
+    // to v2 on read without rewriting the production record until the event is next saved.
+    return { version: 2, mode, semantics: "snapshot", sectionIds, memberIds, resolvedMemberIds };
 }
 
 function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | null {
@@ -261,8 +267,15 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     const nextAudienceIds = input.audience?.resolvedMemberIds ?? [];
     const previousAttendance = mapAttendance(current.attendance);
     const previousConsent = mapConsent(current.consent);
-    const reconciledAttendance = Object.fromEntries(nextAudienceIds.map((id) => [id, previousAttendance[id] ?? "invited"]));
-    const reconciledConsent = Object.fromEntries(nextAudienceIds.map((id) => [id, previousConsent[id] ?? (input.consentRequired ? "required" : "not-required")]));
+    // Audience membership is a snapshot. Keep historical response/consent keys for people
+    // removed from the current audience; eventMembers() controls who is operationally in
+    // scope, so retained history is not mistaken for a current invitation.
+    const reconciledAttendance = { ...previousAttendance };
+    const reconciledConsent = { ...previousConsent };
+    nextAudienceIds.forEach((id) => {
+        reconciledAttendance[id] ??= "invited";
+        reconciledConsent[id] ??= input.consentRequired ? "required" : "not-required";
+    });
 
     await updateDoc(eventRef, {
         title: clean(input.title, 200),
