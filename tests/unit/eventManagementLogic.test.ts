@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
+import { buildEventAudience, eventAudienceSummary, eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -84,6 +84,25 @@ test("resolveEventAudience uses selected members when present and excludes inact
 });
 
 test("eventMembers uses the persisted resolved audience for new events and preserves historical invitees", () => {
-    const targeted = { ...event, audience: { version: 1, sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"] } };
+    const targeted = { ...event, audience: { version: 2, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"] } };
     assert.deepEqual(eventMembers(targeted as any, members).map((member) => member.id), ["m4"]);
+});
+
+
+test("buildEventAudience distinguishes section, selected-member and mixed snapshots", () => {
+    assert.deepEqual(buildEventAudience(["Cubs"], [], members), {
+        version: 2, mode: "sections", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: [], resolvedMemberIds: ["m1", "m2"]
+    });
+    assert.deepEqual(buildEventAudience([], ["m4"], members), {
+        version: 2, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"]
+    });
+    assert.deepEqual(buildEventAudience(["Cubs"], ["m4"], members), {
+        version: 2, mode: "mixed", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: ["m4"], resolvedMemberIds: ["m1", "m2", "m4"]
+    });
+});
+
+test("event audience summary explains the persisted audience without reopening the selector", () => {
+    assert.equal(eventAudienceSummary(["Cubs"], [], 2), "Audience: Cubs — 2 members");
+    assert.equal(eventAudienceSummary([], ["m4"], 1), "Audience: 1 selected member");
+    assert.match(eventAudienceSummary(["Cubs"], ["m4"], 3), /3 members/);
 });

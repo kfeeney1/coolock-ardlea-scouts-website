@@ -25,9 +25,11 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   const admin=readFileSync("src/services/eventAdmin.ts","utf8");
   const logic=readFileSync("src/services/eventManagementLogic.ts","utf8");
   const rules=readFileSync("firestore.rules","utf8");
-  assert.match(admin,/mode: "sections" \| "members"/);
-  assert.match(admin,/previousAttendance\[id\] \?\? "invited"/);
-  assert.match(admin,/previousConsent\[id\]/);
+  assert.match(admin,/mode: "sections" \| "members" \| "mixed"/);
+  assert.match(admin,/const reconciledAttendance = \{ \.\.\.previousAttendance \}/);
+  assert.match(admin,/const reconciledConsent = \{ \.\.\.previousConsent \}/);
+  assert.match(admin,/reconciledAttendance\[id\] \?\?= "invited"/);
+  assert.match(admin,/reconciledConsent\[id\] \?\?=/);
   assert.match(logic,/sections\.has\(member\.section\) \|\| selected\.has\(member\.id\)/);
   assert.match(rules,/"audience"/);
 });
