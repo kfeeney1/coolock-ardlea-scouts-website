@@ -150,7 +150,7 @@ async function loadProjectionCandidates(collectionName: "parentGalleryEvents" | 
 }
 
 async function loadCandidateEvents(sections: string[]): Promise<CandidateEvent[]> {
-    const uniqueSections = [...new Set(sections.map((section) => section.trim()).filter(Boolean))].slice(0, 10);
+    const uniqueSections = [...new Set([...sections.map((section) => section.trim()).filter(Boolean), "Group", "All Sections"])].slice(0, 10);
     if (uniqueSections.length === 0) return [];
 
     const [retained, currentPublic] = await Promise.all([

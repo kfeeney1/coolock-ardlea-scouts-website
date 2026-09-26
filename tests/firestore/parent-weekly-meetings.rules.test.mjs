@@ -40,6 +40,7 @@ test("section leaders can publish only the parent-safe weekly projection shape",
 test("approved parents can query their linked section projection but cannot read raw weekly meetings", async () => {
   await seed([
     ["parentAccounts/parent-beavers", { status: "approved", memberIds: ["member-1"], linkedSections: ["Beavers"] }],
+    ["members/member-1", { section: "Beavers", status: "active" }],
     ["parentWeeklyMeetings/beaver", { ...safeProgramme, updatedAt: new Date() }],
     ["parentWeeklyMeetings/scout", { ...safeProgramme, section: "Scouts", updatedAt: new Date() }],
     ["weeklyMeetings/beaver", { section: "Beavers", meetingDate: "2099-02-01", entries: [], injuries: [], notes: "private" }],
@@ -48,6 +49,35 @@ test("approved parents can query their linked section projection but cannot read
   await assertSucceeds(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Beavers"))));
   await assertFails(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Scouts"))));
   await assertFails(getDoc(doc(db, "weeklyMeetings/beaver")));
+});
+
+test("parent programme access follows a linked member from Beavers to Cubs without stale-section leakage", async () => {
+  await seed([
+    ["parentAccounts/parent-moved", { status: "approved", memberIds: ["member-1"], linkedSections: ["Beavers"] }],
+    ["members/member-1", { section: "Cubs", status: "active" }],
+    ["parentWeeklyMeetings/beaver", { ...safeProgramme, updatedAt: new Date() }],
+    ["parentWeeklyMeetings/cub", { ...safeProgramme, section: "Cubs", updatedAt: new Date() }],
+    ["parentWeeklyMeetings/group", { ...safeProgramme, section: "Group", updatedAt: new Date() }],
+  ]);
+  const db = testEnv.authenticatedContext("parent-moved").firestore();
+  await assertFails(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Beavers"))));
+  await assertSucceeds(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Cubs"))));
+  await assertSucceeds(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Group"))));
+});
+
+test("multi-child parent receives the union of current child sections only", async () => {
+  await seed([
+    ["parentAccounts/parent-family", { status: "approved", memberIds: ["member-cub", "member-scout"], linkedSections: ["Beavers"] }],
+    ["members/member-cub", { section: "Cubs", status: "active" }],
+    ["members/member-scout", { section: "Scouts", status: "active" }],
+    ["parentWeeklyMeetings/cub", { ...safeProgramme, section: "Cubs", updatedAt: new Date() }],
+    ["parentWeeklyMeetings/scout", { ...safeProgramme, section: "Scouts", updatedAt: new Date() }],
+    ["parentWeeklyMeetings/beaver", { ...safeProgramme, section: "Beavers", updatedAt: new Date() }],
+  ]);
+  const db = testEnv.authenticatedContext("parent-family").firestore();
+  await assertSucceeds(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Cubs"))));
+  await assertSucceeds(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Scouts"))));
+  await assertFails(getDocs(query(collection(db, "parentWeeklyMeetings"), where("section", "==", "Beavers"))));
 });
 
 test("pending parents cannot read weekly programme projections", async () => {

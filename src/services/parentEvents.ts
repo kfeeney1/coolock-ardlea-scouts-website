@@ -22,7 +22,7 @@ function value(data: Record<string, unknown>, key: string): string {
 }
 
 export async function loadParentEventConsentLinks(sections: string[]): Promise<ParentEventConsentLink[]> {
-    const uniqueSections = [...new Set(sections.filter(Boolean))].slice(0, 10);
+    const uniqueSections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])].slice(0, 10);
     if (uniqueSections.length === 0) return [];
 
     const snapshot = await getDocs(

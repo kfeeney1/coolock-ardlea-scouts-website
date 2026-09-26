@@ -51,7 +51,6 @@ service firebase.storage {
         && galleryAccess(eventId).get("section", "") == section
         && galleryAccess(eventId).get("memberId", "") is string
         && galleryAccess(eventId).get("memberId", "") in parentProfile().get("memberIds", [])
-        && section in parentProfile().get("linkedSections", [])
         && firestore.exists(/databases/(default)/documents/events/$(eventId))
         && galleryEvent(eventId).get("section", "") == section
         && galleryEvent(eventId).get("attendance", {}).get(galleryAccess(eventId).get("memberId", "__missing__"), "") == "attending"
