@@ -4,6 +4,7 @@ import type { MemberRecord } from "../../services/memberAdmin";
 import { createSubsFamilyAccount } from "../../services/subsLedger";
 import { loadLeaderChildRelationshipsForMembers } from "../../services/leaderChildRelationships";
 import { familyTotalFor, familyTypeForLeaderRelationships, familyTypeLabel, formatEuro, scoutYearPeriodForDate, type SubsAssignment, type SubsFamilyType, type SubsRatePolicy } from "../../services/subsLogic";
+import { persistThenRefresh } from "../../services/persistThenRefresh";
 
 type Props = {
   members: MemberRecord[];
@@ -59,11 +60,17 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
       const relationships = isCurrentYear ? await loadLeaderChildRelationshipsForMembers(selectedMembers.map((member) => member.id)) : [];
       const effectiveFamilyType = isCurrentYear ? familyTypeForLeaderRelationships(selectedMembers.map((member) => member.id), relationships) : familyType;
       const evidence = isCurrentYear ? "Automatically derived from canonical active leader-child relationships." : classificationNote;
-      await createSubsFamilyAccount(selectedMembers, selectedPolicy, effectiveFamilyType, evidence);
-      onMessage(`${familyTypeLabel(effectiveFamilyType)} billing account created for ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}.`);
+      const result = await persistThenRefresh(
+        () => createSubsFamilyAccount(selectedMembers, selectedPolicy, effectiveFamilyType, evidence),
+        onReload
+      );
       setMemberIds([]);
       setClassificationNote("");
-      await onReload();
+      if (result.refreshed) {
+        onMessage(`${familyTypeLabel(effectiveFamilyType)} billing account created for ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}.`);
+      } else {
+        onMessage("Family billing account was created successfully, but the dependent finance data could not be refreshed. Reload this page to retry; the saved account has not been rolled back.");
+      }
     } catch (error) {
       onError(error instanceof Error ? error.message : "Unable to create family billing account.");
     } finally {
