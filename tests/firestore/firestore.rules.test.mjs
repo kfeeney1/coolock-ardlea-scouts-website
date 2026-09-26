@@ -63,6 +63,44 @@ test("leaders can read only members in their assigned sections", async () => {
   await assertFails(getDoc(doc(db, "members/member-scout")));
 });
 
+test("canonical section access includes legacy Venture aliases", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-ventures", { active: true, role: "leader", sections: ["Ventures"] }],
+    ["members/member-venture", { section: "Venture Scout", displayName: "Legacy Venture" }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-ventures", { email: "venture@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(db, "members/member-venture")));
+});
+
+test("member name updates may persist display-name mode without widening identity fields", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["members/member-cub", { firstName: "Alex", lastName: "Old", displayName: "Alex Old", displayNameMode: "auto", dateOfBirth: "2016-01-01", section: "Cubs", status: "active" }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
+  await assertSucceeds(updateDoc(doc(db, "members/member-cub"), {
+    lastName: "O'Neill-Smith",
+    displayName: "Alex O'Neill-Smith",
+    displayNameMode: "auto",
+    updatedAt: serverTimestamp(),
+    updatedBy: "leader-cubs",
+  }));
+  await assertFails(updateDoc(doc(db, "members/member-cub"), { familyId: "forged-family" }));
+});
+
+test("current-section leaders can read stable linked consent after a member transfer", async () => {
+  await seedDocuments([
+    ["adminUsers/leader-ventures", { active: true, role: "leader", sections: ["Ventures"] }],
+    ["members/member-venture", { section: "Ventures", displayName: "Moved Venture", status: "active" }],
+    ["consentApplications/historical-consent", { section: "Scouts", memberId: "member-venture", formType: "youth-activity-consent", status: "active" }],
+    ["consentApplications/other-consent", { section: "Scouts", memberId: "member-other", formType: "youth-activity-consent", status: "active" }],
+    ["members/member-other", { section: "Scouts", displayName: "Other Scout", status: "active" }],
+  ]);
+  const db = testEnv.authenticatedContext("leader-ventures", { email: "venture@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(db, "consentApplications/historical-consent")));
+  await assertFails(getDoc(doc(db, "consentApplications/other-consent")));
+});
+
 test("approved parents can read linked children but not other members", async () => {
   await seedDocuments([
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-cub"], linkedSections: ["Cubs"] }],

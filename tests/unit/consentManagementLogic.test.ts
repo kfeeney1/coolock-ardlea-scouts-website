@@ -9,7 +9,8 @@ import {
     filterConsentRecords,
     filtersForSummary,
     formatFieldName,
-    medicationManagementHasInformation
+    medicationManagementHasInformation,
+    normalizeMedicationManagement
 } from "../../src/services/consentManagementLogic.ts";
 
 const records = [
@@ -59,4 +60,7 @@ test("structured medication values never fall through to raw JSON", () => {
     assert.equal(medicationManagementHasInformation({ enabled: false }), false);
     assert.equal(medicationManagementHasInformation({ enabled: true, medicineName: "Synthetic medicine" }), true);
     assert.equal(medicationManagementHasInformation({ enabled: true, medicineName: "", dosage: null }), false);
+    assert.deepEqual(normalizeMedicationManagement('{"enabled":true,"medicineName":"Legacy medicine"}'), { enabled: true, medicineName: "Legacy medicine" });
+    assert.equal(medicationManagementHasInformation('{"enabled":true,"medicineName":"Legacy medicine"}'), true);
+    assert.equal(normalizeMedicationManagement("{invalid-json"), null);
 });

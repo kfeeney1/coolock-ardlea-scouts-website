@@ -17,7 +17,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import { loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
-import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName } from "../services/consentManagementLogic";
+import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
 
 export default function ConsentRecordPage() {
@@ -102,9 +102,9 @@ export default function ConsentRecordPage() {
               </Paper>)}
             </Box>
           </Box>)}
-          {Boolean(record.data.medicationManagement) && typeof record.data.medicationManagement === "object" && !Array.isArray(record.data.medicationManagement) && <Box component="section" aria-labelledby="medication-management-heading">
+          {normalizeMedicationManagement(record.data.medicationManagement) && <Box component="section" aria-labelledby="medication-management-heading">
             <Typography id="medication-management-heading" variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Medication administration</Typography>
-            <MedicationManagementPanel value={record.data.medicationManagement as Record<string, unknown>} />
+            <MedicationManagementPanel value={record.data.medicationManagement} />
           </Box>}
         </Stack>}
       </>}
