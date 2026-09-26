@@ -3,10 +3,12 @@ import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
   categoryForFamilyPosition,
+  currentSubsAccounts,
   createPaymentReversal,
   familyIncrementFor,
   familyTotalFor,
   subsFamilyAccountId,
+  subsFamilyAccountRevisionId,
   validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
@@ -77,12 +79,11 @@ export async function saveSubsPolicy(input: Omit<SubsRatePolicy, "id">): Promise
 
 export async function loadSubsAccounts(): Promise<SubsAccount[]> {
   const snap = await getDocs(collection(db, "subsAccounts"));
-  return snap.docs
-    .map((item) => {
-      const data = item.data();
-      return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsAccount;
-    })
-    .sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));
+  const accounts = snap.docs.map((item) => {
+    const data = item.data();
+    return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsAccount;
+  });
+  return currentSubsAccounts(accounts).sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));
 }
 
 export async function loadSubsAssignments(section?: string): Promise<SubsAssignment[]> {
@@ -238,6 +239,50 @@ export async function createSubsFamilyAccount(
     description: `${familyType} family account created for ${uniqueMembers.length} child${uniqueMembers.length === 1 ? "" : "ren"}; relationship confirmation recorded.`,
     section: sections.length === 1 ? sections[0] : "Group"
   });
+  return accountId;
+}
+
+export async function reclassifySubsFamilyAccount(
+  current: SubsAccount,
+  members: Array<{ id: string; displayName: string; section: string }>,
+  policy: SubsRatePolicy,
+  familyType: SubsFamilyType,
+  classificationNote: string
+): Promise<string> {
+  const actor = uid();
+  const validated = validateFamilyAccountSelection(members.map((member) => member.id), classificationNote);
+  const uniqueMembers = [...members].filter((member, index, list) => list.findIndex((candidate) => candidate.id === member.id) === index).sort((a, b) => a.id.localeCompare(b.id));
+  if (uniqueMembers.length !== validated.memberIds.length) throw new Error("Select each child exactly once.");
+  if (current.period !== policy.period || current.policyId !== policy.id) throw new Error("Reclassification must use the account's existing Scout-year policy.");
+  if ([...current.memberIds].sort().join("|") !== uniqueMembers.map((member) => member.id).join("|")) throw new Error("Reclassification cannot change the family membership.");
+  if (current.familyType === familyType) throw new Error("This family already has the requested Subs classification.");
+
+  const revision = (current.revision ?? 1) + 1;
+  const accountId = subsFamilyAccountRevisionId(policy.period, uniqueMembers.map((member) => member.id), revision);
+  const amountDueCents = familyTotalFor(policy, familyType, uniqueMembers.length);
+  const sections = [...new Set(uniqueMembers.map((member) => member.section))].sort();
+  const batch = writeBatch(db);
+  batch.set(doc(db, "subsAccounts", accountId), {
+    period: policy.period, policyId: policy.id, policyVersion: policy.version, familyType,
+    memberIds: uniqueMembers.map((member) => member.id), sections, childCount: uniqueMembers.length,
+    amountDueCents, classificationSource: "finance-officer-confirmed", classificationNote: validated.classificationNote,
+    revision, supersedesAccountId: current.id, createdBy: actor, createdAt: serverTimestamp()
+  });
+  uniqueMembers.forEach((member, index) => {
+    const familyPosition = index + 1;
+    const assignmentId = `${member.id}--${policy.period.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}--r${revision}`;
+    batch.set(doc(db, "subsAssignments", assignmentId), {
+      memberId: member.id, memberName: member.displayName, section: member.section, period: policy.period,
+      category: categoryForFamilyPosition(familyType, familyPosition), amountDueCents: familyIncrementFor(policy, familyType, familyPosition),
+      policyId: policy.id, policyVersion: policy.version, sibling: familyPosition > 1, leaderChild: familyType === "leader",
+      familyType, familyPosition, accountId, accountAmountDueCents: amountDueCents, accountChildCount: uniqueMembers.length,
+      classifiedBy: actor, createdAt: serverTimestamp()
+    });
+  });
+  await batch.commit();
+  void recordAuditEvent({ category: "finance", action: "subs-family-account-reclassified", targetId: accountId,
+    targetLabel: `${policy.period} family account`, description: `Family account reclassified from ${current.familyType} to ${familyType}; prior account ${current.id} preserved.`,
+    section: sections.length === 1 ? sections[0] : "Group" });
   return accountId;
 }
 

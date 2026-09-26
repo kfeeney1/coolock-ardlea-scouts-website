@@ -718,7 +718,15 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && hasConfiguredFamilyTotal(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
-        && request.resource.data.keys().hasOnly(["period", "policyId", "policyVersion", "familyType", "memberIds", "sections", "childCount", "amountDueCents", "classificationSource", "classificationNote", "createdBy", "createdAt"]);
+        && (!request.resource.data.keys().hasAny(["revision"]) || (request.resource.data.revision is number && request.resource.data.revision >= 2))
+        && (!request.resource.data.keys().hasAny(["supersedesAccountId"]) || (request.resource.data.supersedesAccountId is string
+          && exists(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId))
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.period == request.resource.data.period
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.policyId == request.resource.data.policyId
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.memberIds == request.resource.data.memberIds
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.familyType != request.resource.data.familyType))
+        && (request.resource.data.keys().hasAny(["revision", "supersedesAccountId"]) == false || request.resource.data.keys().hasAll(["revision", "supersedesAccountId"]))
+        && request.resource.data.keys().hasOnly(["period", "policyId", "policyVersion", "familyType", "memberIds", "sections", "childCount", "amountDueCents", "classificationSource", "classificationNote", "revision", "supersedesAccountId", "createdBy", "createdAt"]);
       allow update, delete: if false;
     }
 
