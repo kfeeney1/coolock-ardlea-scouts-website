@@ -147,7 +147,20 @@ export async function logoutParent(): Promise<void> {
 export async function loadParentAccount(uid: string): Promise<ParentAccount | null> {
     const snapshot = await getDoc(doc(db, "parentAccounts", uid));
     if (!snapshot.exists()) return null;
-    return mapParentAccount(uid, snapshot.data());
+    const account = mapParentAccount(uid, snapshot.data());
+    if (!account || account.status !== "approved" || account.memberIds.length === 0) return account;
+
+    // Current operational scope is derived from the linked members themselves.
+    // linkedSections is retained only as approval/audit history and must not become
+    // a stale source of truth after a child moves section.
+    const memberSnapshots = await Promise.all(account.memberIds.map((memberId) => getDoc(doc(db, "members", memberId))));
+    const currentSections = [...new Set(memberSnapshots.flatMap((memberSnapshot) => {
+        if (!memberSnapshot.exists()) return [];
+        const section = typeof memberSnapshot.data().section === "string" ? memberSnapshot.data().section.trim() : "";
+        const status = typeof memberSnapshot.data().status === "string" ? memberSnapshot.data().status : "";
+        return section && status === "active" ? [section] : [];
+    }))];
+    return { ...account, linkedSections: currentSections };
 }
 
 export async function loadParentAccounts(): Promise<ParentAccount[]> {
