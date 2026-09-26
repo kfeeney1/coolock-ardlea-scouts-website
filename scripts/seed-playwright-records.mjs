@@ -123,7 +123,7 @@ for (const [id, name] of [["TEST_equipment_location_main", "Main Equipment Store
   await db.collection("equipmentLocations").doc(id).set({ name, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
 }
 
-await db.collection("subsRatePolicies").doc("TEST_2026-27-v1").set({ period: "2026/27", periodStart: "2026-09-01", periodEnd: "2027-06-30", effectiveFrom: "2026-09-01", standardCents: 10000, leaderChildCents: 7000, siblingCents: 8500, version: 1, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+await db.collection("subsRatePolicies").doc("TEST_2026-27-v1").set({ period: "2026/27", periodStart: "2026-09-01", periodEnd: "2027-06-30", effectiveFrom: "2026-09-01", standardCents: 10000, leaderChildCents: 7000, siblingCents: 8500, standardFamilyRatesCents: [10000, 18500, 27000, 35500], leaderFamilyRatesCents: [7000, 15500, 24000, 32500], version: 1, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
 const subsFixtures = [
   ["TEST_member_scout_01", scoutMember.displayName, "Scouts", "standard", 10000, false, false],
   ["TEST_member_cub_01", (await requireDoc("members", "TEST_member_cub_01")).displayName, "Cubs", "sibling", 8500, true, false],
