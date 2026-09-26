@@ -16,7 +16,9 @@ test("parent current programme scope is refreshed from members before section pr
   const start = rules.indexOf("function isApprovedParentForSection");
   const end = rules.indexOf("function isCanonicalAdventureSkillStage", start);
   const helper = rules.slice(start, end);
-  assert.match(helper, /linkedSections/);
+  assert.doesNotMatch(helper, /linkedSections/);
+  assert.match(helper, /parentMemberCurrentlyInSection/);
+  assert.match(helper, /"Group", "All Sections"/);
 });
 
 test("meeting copy exposes authorised destination section and resets operational history", () => {
