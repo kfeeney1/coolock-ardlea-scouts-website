@@ -114,11 +114,18 @@ export default function MemberRecordPage() {
         emergencyContactName: draft.emergencyContactName, emergencyContactPhone: draft.emergencyContactPhone,
         status: draft.status, displayNameMode: draft.displayNameMode
       });
-      const updated = { ...draft };
+      const persistedMembers = await loadMembers();
+      const updated = persistedMembers.find((item) => item.id === member.id);
+      if (!updated) throw new Error("Updated member could not be reloaded.");
       setMember(updated);
       setDraft(updated);
-      setMembers((current) => current.map((item) => item.id === updated.id ? updated : item));
-      setHistory(await loadMemberLifecycleHistory(member.id));
+      setMembers(persistedMembers);
+      const [nextHistory, nextConsents] = await Promise.all([
+        loadMemberLifecycleHistory(member.id),
+        loadMemberConsentSummaries(updated)
+      ]);
+      setHistory(nextHistory);
+      setConsents(nextConsents);
 
       if (disableParents && lifecycleCandidates.length > 0) {
         const results = await Promise.allSettled(lifecycleCandidates.map(({ parent }) => disableParentPortalAccess(

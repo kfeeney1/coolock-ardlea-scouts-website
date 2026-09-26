@@ -15,6 +15,7 @@ import type {
 
 import { auth, db } from "../firebase";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { normalizeMedicationManagement } from "./consentManagementLogic";
 export { daysUntilExpiry, isConsentExpired } from "./consentDateLogic";
 
 export type ConsentType = "youth" | "scouter";
@@ -55,8 +56,7 @@ function yes(data: DocumentData, key: string): boolean {
 }
 
 function medicationEnabled(data: DocumentData): boolean {
-    const medication = data.medicationManagement;
-    return Boolean(medication && typeof medication === "object" && "enabled" in medication && medication.enabled === true);
+    return normalizeMedicationManagement(data.medicationManagement)?.enabled === true;
 }
 
 function hasYouthMedicalAlert(data: DocumentData): boolean {

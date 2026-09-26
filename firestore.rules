@@ -90,7 +90,12 @@ service cloud.firestore {
       return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
     }
     function hasSection(section) {
-      return isAdmin() || (isActiveLeader() && section in profile().sections);
+      return isAdmin() || (isActiveLeader() && (section in profile().sections
+        || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
+        || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in profile().sections)
+        || (section == "Scout" && "Scouts" in profile().sections)
+        || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in profile().sections)
+        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections)));
     }
     function isYouthSection(section) {
       return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
@@ -250,7 +255,7 @@ service cloud.firestore {
         || isApprovedParentForMember(memberId);
       allow update: if (isActiveLeader() && hasSection(resource.data.section) && (hasSection(request.resource.data.section) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
         || (isAdmin()
           && request.resource.data.familyId is string
           && request.resource.data.familyUpdatedBy == request.auth.uid
@@ -431,7 +436,10 @@ service cloud.firestore {
         && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
         && request.resource.data.formVersion is string
         && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"]);
-      allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)))
+      allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)
+          || (resource.data.memberId is string
+            && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
+            && hasSection(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data.section))))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
       allow update: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data))
           && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]

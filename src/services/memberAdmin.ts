@@ -15,8 +15,11 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
+import { resolveScoutSectionName } from "../theme/sectionColours";
 import { recordAuditEvent } from "./auditLog";
+import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
 import {
   canonicalMemberFieldError,
   detectMemberLifecycleChange,
@@ -104,7 +107,7 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     lastName: stringValue(data, "lastName"),
     displayName: stringValue(data, "displayName"),
     dateOfBirth: stringValue(data, "dateOfBirth"),
-    section: stringValue(data, "section")
+    section: canonicalMemberSection(stringValue(data, "section"))
   };
   if (!status || Object.values(required).some((value) => !value)) return null;
 
@@ -137,8 +140,20 @@ function yes(data: DocumentData, key: string): boolean {
 }
 
 function medicationEnabled(data: DocumentData): boolean {
-  const medication = data.medicationManagement;
-  return Boolean(medication && typeof medication === "object" && "enabled" in medication && medication.enabled === true);
+  return normalizeMedicationManagement(data.medicationManagement)?.enabled === true;
+}
+
+const SECTION_STORAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  Beavers: ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"],
+  Cubs: ["Cubs", "Cub", "Cub Scout", "Cub Scouts"],
+  Scouts: ["Scouts", "Scout"],
+  Ventures: ["Ventures", "Venture", "Venture Scout", "Venture Scouts"],
+  Rovers: ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+};
+
+function storageSectionAliases(section: string): readonly string[] {
+  const canonical = resolveScoutSectionName(section);
+  return canonical ? SECTION_STORAGE_ALIASES[canonical] : [section];
 }
 
 function hasMedicalAlert(data: DocumentData): boolean {
@@ -149,9 +164,7 @@ function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
 }
 
-export function automaticDisplayName(firstName: string, lastName: string): string {
-  return [clean(firstName, 100), clean(lastName, 100)].filter(Boolean).join(" ");
-}
+export { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
 
 export async function loadMembers(): Promise<MemberRecord[]> {
   const user = auth.currentUser;
@@ -173,12 +186,12 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const docs = isAdmin || isGroupFinanceOfficer
     ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
     : (await Promise.all(
-        normalizeLeaderSections(profile).map((section) =>
-          getDocs(query(collection(db, "members"), where("section", "==", section)))
-        )
+        normalizeLeaderSections(profile).flatMap((section) => storageSectionAliases(section).map((storedSection) =>
+          getDocs(query(collection(db, "members"), where("section", "==", storedSection)))
+        ))
       )).flatMap((snapshot) => snapshot.docs);
 
-  return docs
+  return [...new Map(docs.map((item) => [item.id, item])).values()]
     .map(mapMember)
     .filter((member): member is MemberRecord => member !== null)
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -342,11 +355,23 @@ export async function loadMemberLifecycleHistory(memberId: string): Promise<Memb
 export async function loadMemberConsentSummaries(member: MemberRecord): Promise<MemberConsentSummary[]> {
   if (!member.section) return [];
 
-  const snapshot = await getDocs(query(collection(db, "consentApplications"), where("section", "==", member.section)));
+  const user = auth.currentUser;
+  if (!user) throw new Error("No signed-in leader.");
+  const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+  const isAdmin = profileSnapshot.exists() && ["admin", "super-admin"].includes(String(profileSnapshot.data().role));
+  const snapshots = isAdmin
+    ? [await getDocs(collection(db, "consentApplications"))]
+    : await Promise.all([
+        getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id))),
+        ...storageSectionAliases(member.section).map((section) =>
+          getDocs(query(collection(db, "consentApplications"), where("section", "==", section)))
+        )
+      ]);
+  const documents = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
   const memberName = member.displayName.trim().toLowerCase();
   const memberDob = member.dateOfBirth.trim();
 
-  const summaries = snapshot.docs.flatMap((consentSnapshot) => {
+  const summaries = documents.flatMap((consentSnapshot) => {
     const data = consentSnapshot.data();
     if (data.formType !== "youth-activity-consent") return [];
     const childName = stringValue(data, "childName");
@@ -369,7 +394,7 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
 
   // Legacy consent records pre-date stable member IDs. Only persist a link when
   // the existing strict name + DOB + section identity match resolves uniquely.
-  const legacyMatches = snapshot.docs.filter((consentSnapshot) => {
+  const legacyMatches = documents.filter((consentSnapshot) => {
     const data = consentSnapshot.data();
     return data.formType === "youth-activity-consent"
       && !stringValue(data, "memberId")
