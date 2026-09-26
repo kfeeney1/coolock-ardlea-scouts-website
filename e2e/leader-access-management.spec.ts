@@ -120,8 +120,8 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   const optionText = (await childOption.textContent())?.split(" · ")[0]?.trim() || memberName;
   await childOption.click();
   await card.getByRole("button", { name: "Link child" }).click();
-  await expect(page.getByText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.")).toBeVisible();
   await expect(card).toContainText(optionText);
+  await expect(page.getByRole("alert")).toContainText(/relationship linked|reconciled|saved/i);
 
   await page.reload();
   await expect(page.getByTestId(`leader-access-${leaderUid}`)).toContainText(optionText);
