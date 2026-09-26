@@ -148,6 +148,6 @@ await db.collection("subsAssignments").doc("TEST_member_cub_02--2026-27").set({
   accountId: sw219AccountId, accountAmountDueCents: 10000, accountChildCount: 1,
   classifiedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker
 });
-await db.collection("leaderChildRelationships").doc("TEST_uid_subs_parent_leader--TEST_member_cub_02").delete();
+await db.collection("leaderChildRelationships").doc("TEST_uid_multi_section_leader--TEST_member_cub_02").delete();
 
 console.log(`Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows, parent-safe programme projections, Scout subs and ${equipmentSeedItems.length} allocation-free equipment items.`);
