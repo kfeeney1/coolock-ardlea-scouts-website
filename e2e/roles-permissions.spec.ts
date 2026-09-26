@@ -98,7 +98,10 @@ test.describe("Deputy Group Leader parity", () => {
     await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
     const navigation = page.getByRole("navigation", { name: "Leader navigation" });
     const administration = navigation.getByTestId("leader-navigation-mobile").getByRole("button", { name: "Administration" });
-    await administration.click();
+    if ((await administration.getAttribute("aria-expanded")) !== "true") {
+      await administration.click();
+    }
+    await expect(administration).toHaveAttribute("aria-expanded", "true");
     await expect(navigation.getByRole("link", { name: "Roles & Permissions" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Settings" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Leader Access" })).toBeVisible();
