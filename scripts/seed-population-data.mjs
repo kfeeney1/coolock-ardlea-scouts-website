@@ -133,19 +133,6 @@ function parentOnlyUsers() {
 
 const scenarioLeaders = [
   {
-    uid: "TEST_uid_subs_parent_leader",
-    email: "test.subs.parent.leader@example.com",
-    displayName: "Test Subs Parent Leader",
-    accessRole: "leader",
-    sections: ["Cubs"],
-    scoutingRole: "Scouter",
-    organisationSection: "Cubs",
-    organisationOrder: 94,
-    reportsToUid: "TEST_uid_group_leader",
-    showPublicly: false,
-    kind: "subs-parent-leader"
-  },
-  {
     uid: "TEST_uid_multi_section_leader",
     email: "test.multi.section.leader@example.com",
     displayName: "Test Multi Section Leader",
