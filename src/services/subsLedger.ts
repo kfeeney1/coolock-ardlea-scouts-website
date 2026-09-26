@@ -4,6 +4,7 @@ import { recordAuditEvent } from "./auditLog";
 import {
   categoryForFamilyPosition,
   currentSubsAccounts,
+  currentSubsAssignments,
   createPaymentReversal,
   familyIncrementFor,
   familyTotalFor,
@@ -91,8 +92,8 @@ export async function loadSubsAssignments(section?: string): Promise<SubsAssignm
     ? query(collection(db, "subsAssignments"), where("section", "==", section))
     : collection(db, "subsAssignments");
   const snap = await getDocs(source);
-  return snap.docs
-    .map((item) => ({ id: item.id, ...item.data() } as SubsAssignment))
+  return currentSubsAssignments(snap.docs
+    .map((item) => ({ id: item.id, ...item.data() } as SubsAssignment)))
     .sort((a, b) => a.memberName.localeCompare(b.memberName) || a.id.localeCompare(b.id));
 }
 
