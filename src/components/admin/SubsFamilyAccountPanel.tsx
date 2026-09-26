@@ -2,7 +2,8 @@ import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, St
 import { useEffect, useMemo, useState } from "react";
 import type { MemberRecord } from "../../services/memberAdmin";
 import { createSubsFamilyAccount } from "../../services/subsLedger";
-import { familyTotalFor, familyTypeLabel, formatEuro, type SubsAssignment, type SubsFamilyType, type SubsRatePolicy } from "../../services/subsLogic";
+import { loadLeaderChildRelationshipsForMembers } from "../../services/leaderChildRelationships";
+import { familyTotalFor, familyTypeForLeaderRelationships, familyTypeLabel, formatEuro, scoutYearPeriodForDate, type SubsAssignment, type SubsFamilyType, type SubsRatePolicy } from "../../services/subsLogic";
 
 type Props = {
   members: MemberRecord[];
@@ -54,8 +55,12 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
     onMessage("");
     onError("");
     try {
-      await createSubsFamilyAccount(selectedMembers, selectedPolicy, familyType, classificationNote);
-      onMessage(`${familyTypeLabel(familyType)} billing account created for ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}.`);
+      const isCurrentYear = selectedPolicy.period === scoutYearPeriodForDate(new Date().toISOString().slice(0, 10));
+      const relationships = isCurrentYear ? await loadLeaderChildRelationshipsForMembers(selectedMembers.map((member) => member.id)) : [];
+      const effectiveFamilyType = isCurrentYear ? familyTypeForLeaderRelationships(selectedMembers.map((member) => member.id), relationships) : familyType;
+      const evidence = isCurrentYear ? "Automatically derived from canonical active leader-child relationships." : classificationNote;
+      await createSubsFamilyAccount(selectedMembers, selectedPolicy, effectiveFamilyType, evidence);
+      onMessage(`${familyTypeLabel(effectiveFamilyType)} billing account created for ${selectedMembers.length} member${selectedMembers.length === 1 ? "" : "s"}.`);
       setMemberIds([]);
       setClassificationNote("");
       await onReload();
@@ -88,14 +93,15 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
       </FormControl>
       <FormControl>
         <InputLabel>Family classification</InputLabel>
-        <Select label="Family classification" value={familyType} onChange={(event) => setFamilyType(event.target.value as SubsFamilyType)}>
+        <Select label="Family classification" value={familyType} onChange={(event) => setFamilyType(event.target.value as SubsFamilyType)}
+          disabled={selectedPolicy?.period === scoutYearPeriodForDate(new Date().toISOString().slice(0, 10))}>
           <MenuItem value="standard">Standard family</MenuItem><MenuItem value="leader">Leader family</MenuItem>
         </Select>
       </FormControl>
     </Box>
     <TextField fullWidth sx={{ mt: 2 }} label="Classification evidence" value={classificationNote}
       onChange={(event) => setClassificationNote(event.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }}
-      helperText="Record the controlled source or check used to confirm this family classification." data-testid="subs-family-evidence" />
+      helperText={selectedPolicy?.period === scoutYearPeriodForDate(new Date().toISOString().slice(0, 10)) ? "Current-year leader classification is derived automatically from canonical leader-child relationships." : "Record the controlled source or check used to confirm this historical family classification."} data-testid="subs-family-evidence" disabled={selectedPolicy?.period === scoutYearPeriodForDate(new Date().toISOString().slice(0, 10))} />
     {total !== null && <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2, flexWrap: "wrap" }}>
       <Chip label={`${selectedMembers.length}-member ${familyTypeLabel(familyType).toLowerCase()}`} />
       <Chip label={`Shared family total ${formatEuro(total)}`} />
@@ -107,7 +113,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
     {existingAssignments.length > 0 && <Alert severity="warning" sx={{ mt: 2 }}>
       One or more selected members already has an immutable classification for this Scout year. Existing financial history is not overwritten.
     </Alert>}
-    <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving || !selectedPolicy || !selectedMembers.length || total === null || existingAssignments.length > 0 || classificationNote.trim().length < 3}
+    <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving || !selectedPolicy || !selectedMembers.length || total === null || existingAssignments.length > 0 || (selectedPolicy?.period !== scoutYearPeriodForDate(new Date().toISOString().slice(0, 10)) && classificationNote.trim().length < 3)}
       onClick={() => void submit()} data-testid="subs-create-family-account">
       {saving ? "Saving…" : "Create family billing account"}
     </Button>
