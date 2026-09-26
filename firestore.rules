@@ -118,8 +118,19 @@ service cloud.firestore {
     function isApprovedParentForSection(section) {
       return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
         && parentProfile().status == "approved"
-        && parentProfile().linkedSections is list
-        && section in parentProfile().linkedSections;
+        && parentProfile().memberIds is list
+        && parentProfile().memberIds.size() > 0
+        && parentProfile().memberIds.size() <= 8
+        && (
+          (parentProfile().memberIds.size() >= 1 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[0])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[0])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[0])).data.section == section)
+          || (parentProfile().memberIds.size() >= 2 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[1])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[1])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[1])).data.section == section)
+          || (parentProfile().memberIds.size() >= 3 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[2])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[2])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[2])).data.section == section)
+          || (parentProfile().memberIds.size() >= 4 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[3])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[3])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[3])).data.section == section)
+          || (parentProfile().memberIds.size() >= 5 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[4])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[4])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[4])).data.section == section)
+          || (parentProfile().memberIds.size() >= 6 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[5])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[5])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[5])).data.section == section)
+          || (parentProfile().memberIds.size() >= 7 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[6])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[6])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[6])).data.section == section)
+          || (parentProfile().memberIds.size() >= 8 && exists(/databases/$(database)/documents/members/$(parentProfile().memberIds[7])) && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[7])).data.status == "active" && get(/databases/$(database)/documents/members/$(parentProfile().memberIds[7])).data.section == section)
+        );
     }
     function isCanonicalAdventureSkillStage(skillId, stage) {
       return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
