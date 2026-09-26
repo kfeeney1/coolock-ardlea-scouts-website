@@ -1,5 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+test.describe.configure({ retries: 0 });
+
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
 function desktopOnly(testInfo: TestInfo) {
