@@ -212,6 +212,11 @@ export function balanceFor(assignment: SubsAssignment, payments: SubsPayment[]) 
   return { dueCents: due, paidCents: paid, remainingCents: due - paid };
 }
 
+export function currentSubsAccounts(accounts: SubsAccount[]): SubsAccount[] {
+  const superseded = new Set(accounts.map((account) => account.supersedesAccountId).filter((id): id is string => Boolean(id)));
+  return accounts.filter((account) => !superseded.has(account.id));
+}
+
 export function balanceForAccount(account: SubsAccount, payments: SubsPayment[]) {
   const paid = paidCents(payments.filter((payment) => payment.accountId === account.id && payment.period === account.period));
   return { dueCents: account.amountDueCents, paidCents: paid, remainingCents: account.amountDueCents - paid };
