@@ -217,14 +217,16 @@ export function currentSubsAccounts(accounts: SubsAccount[]): SubsAccount[] {
   return accounts.filter((account) => !superseded.has(account.id));
 }
 
+function assignmentRevision(assignment: SubsAssignment): number {
+  return Number(assignment.id.match(/--r(\d+)$/)?.[1] ?? 1);
+}
+
 export function currentSubsAssignments(assignments: SubsAssignment[]): SubsAssignment[] {
   const latestByMemberPeriod = new Map<string, SubsAssignment>();
   for (const assignment of assignments) {
     const key = `${assignment.memberId}--${assignment.period}`;
     const current = latestByMemberPeriod.get(key);
-    const revision = Number(assignment.id.match(/--r(\d+)$/)?.[1] ?? 1);
-    const currentRevision = Number(current?.id.match(/--r(\d+)$/)?.[1] ?? 1);
-    if (!current || revision > currentRevision) latestByMemberPeriod.set(key, assignment);
+    if (!current || assignmentRevision(assignment) > assignmentRevision(current)) latestByMemberPeriod.set(key, assignment);
   }
   return [...latestByMemberPeriod.values()];
 }
