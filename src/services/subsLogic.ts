@@ -97,6 +97,16 @@ export const rateCategoryLabel = (category: SubsRateCategory) => ({
 
 export const familyTypeLabel = (type: SubsFamilyType) => type === "leader" ? "Leader family" : "Standard family";
 
+export function familyTypeForLeaderRelationships(memberIds: string[], relationships: Array<{ memberId: string; active: boolean }>): SubsFamilyType {
+  const familyMembers = new Set(memberIds.filter(Boolean));
+  return relationships.some((relationship) => relationship.active && familyMembers.has(relationship.memberId)) ? "leader" : "standard";
+}
+
+export function subsFamilyAccountRevisionId(period: string, memberIds: string[], revision: number): string {
+  if (!Number.isInteger(revision) || revision < 1) throw new Error("Family account revision must be a positive integer.");
+  return revision === 1 ? subsFamilyAccountId(period, memberIds) : `${subsFamilyAccountId(period, memberIds)}--r${revision}`;
+}
+
 export function formatEuro(cents: number): string {
   return new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
