@@ -17,6 +17,7 @@ export const FIRESTORE_ROOT_COLLECTIONS = Object.freeze([
   "financeReconciliations",
   "financeTransactions",
   "joinApplications",
+  "leaderChildRelationships",
   "leaderRegistrationRequests",
   "meetingRecords",
   "memberAdventureSkillProgress",
