@@ -75,6 +75,7 @@ test("leaders cannot forge event gallery access projections", async () => {
 test("approved parents can read retained gallery event metadata only for linked sections", async () => {
   await seedDocuments([
     ["parentAccounts/parent-1", { status: "approved", memberIds: ["member-1"], linkedSections: ["Cubs"] }],
+    ["members/member-1", { section: "Cubs", status: "active" }],
     ["parentGalleryEvents/event-1", galleryEvent("Cubs", "completed")],
     ["parentGalleryEvents/event-2", { ...galleryEvent("Scouts", "completed"), eventId: "event-2" }],
   ]);
