@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -235,4 +235,24 @@ test("leader-child relationship create rejects malformed canonical IDs", async (
     updatedBy: "admin",
     updatedAt: serverTimestamp(),
   }));
+});
+
+test("canonical relationship and audit can commit together with the required actor email", async () => {
+  await seedBase();
+  await seedDocuments([
+    ["adminUsers/admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/parent-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+  ]);
+  const db = testEnv.authenticatedContext("admin", { email: "admin@example.com" }).firestore();
+  const batch = writeBatch(db);
+  batch.set(doc(db, "leaderChildRelationships/parent-leader--member-cub"), {
+    leaderUid: "parent-leader", memberId: "member-cub", active: true,
+    createdBy: "admin", createdAt: serverTimestamp(), updatedBy: "admin", updatedAt: serverTimestamp(),
+  });
+  batch.set(doc(db, "auditLog/sw219-link"), {
+    category: "leader-access", action: "leader-child-linked", actorUid: "admin", actorEmail: "admin@example.com",
+    targetId: "parent-leader--member-cub", targetLabel: "Cub Child", description: "Leader linked to child member.",
+    section: "Cubs", createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
 });
