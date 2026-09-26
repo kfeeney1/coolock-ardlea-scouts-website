@@ -99,3 +99,51 @@ test("leader access summary tiles filter and direct routes use stable IDs", asyn
   await page.goto("/leader/access/not-a-real-leader");
   await expect(page.getByText("Leader record not found or is not available to you.")).toBeVisible();
 });
+
+
+test("SW-219 leader-child link persists and automatically reconciles current-year Subs", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+  await loginAdmin(page);
+
+  const leaderUid = "TEST_uid_subs_parent_leader";
+  const memberName = "TEST Cub Child 02";
+  await page.goto(`/leader/access/${leaderUid}`);
+  const card = page.getByTestId(`leader-access-${leaderUid}`);
+  await expect(card).toContainText("Test Subs Parent Leader");
+  await expect(card.getByTestId("leader-child-links")).toBeVisible();
+
+  const childSelect = card.getByRole("combobox", { name: "Child member" });
+  await childSelect.click();
+  const childOption = page.getByRole("option", { name: new RegExp(`Cub.*02.*Cubs`, "i") }).first();
+  await expect(childOption).toBeVisible();
+  const optionText = (await childOption.textContent())?.split(" · ")[0]?.trim() || memberName;
+  await childOption.click();
+  await card.getByRole("button", { name: "Link child" }).click();
+  await expect(page.getByText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.")).toBeVisible();
+  await expect(card).toContainText(optionText);
+
+  await page.reload();
+  await expect(page.getByTestId(`leader-access-${leaderUid}`)).toContainText(optionText);
+
+  await page.goto("/leader/subs");
+  await page.getByRole("tab", { name: "Balances & reports" }).click();
+  const leaderRevision = page.getByTestId("subs-report-row-family-2026-27--TEST_member_cub_02--r2");
+  await expect(leaderRevision).toContainText("Leader family");
+  await expect(leaderRevision).toContainText("€70.00 due");
+
+  await page.goto(`/leader/access/${leaderUid}`);
+  const reloadedCard = page.getByTestId(`leader-access-${leaderUid}`);
+  const linkedRow = reloadedCard.getByText(optionText).locator("..");
+  await linkedRow.getByRole("button", { name: "Unlink" }).click();
+  await expect(page.getByText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByTestId(`leader-access-${leaderUid}`)).not.toContainText(optionText);
+
+  await page.goto("/leader/subs");
+  await page.getByRole("tab", { name: "Balances & reports" }).click();
+  const standardRevision = page.getByTestId("subs-report-row-family-2026-27--TEST_member_cub_02--r3");
+  await expect(standardRevision).toContainText("Standard family");
+  await expect(standardRevision).toContainText("€100.00 due");
+});
