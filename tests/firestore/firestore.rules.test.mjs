@@ -243,7 +243,7 @@ test("leaderChildRelationships enforce authorised reads and canonical admin/grou
     ["adminUsers/leader-parent", { active: true, role: "leader", sections: ["Cubs"] }],
     ["adminUsers/ordinary-leader", { active: true, role: "leader", sections: ["Cubs"] }],
     ["adminUsers/treasurer", { active: true, role: "leader", sections: ["Group"], permissions: ["finance"] }],
-    ["organisationLeadership/group-leader", { active: true, userId: "group-leader", role: "Group Leader" }],
+    ["organisationLeadership/group-leader", { active: true, userId: "group-leader", scoutingRole: "Group Leader" }],
     ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"] }],
     ["members/member-cub", { section: "Cubs", displayName: "Linked Cub", status: "active" }],
   ]);
