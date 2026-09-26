@@ -7,6 +7,7 @@ import {
   categoryForFamilyPosition,
   createPaymentReversal,
   currentSubsAccounts,
+  currentSubsAssignments,
   familyIncrementFor,
   familyTotalFor,
   familyTypeForLeaderRelationships,
@@ -17,6 +18,7 @@ import {
   scoutYearPeriodForDate,
   subsFamilyAccountId,
   subsFamilyAccountRevisionId,
+  subsAccountLineageIds,
   validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
@@ -134,4 +136,20 @@ test("current family accounts exclude immutable revisions that were superseded",
   const revision = { ...account, id: "a2", revision: 2, supersedesAccountId: "a1", familyType: "leader" as const };
   const unrelated = { ...account, id: "b1", memberIds: ["m9"] };
   assert.deepEqual(currentSubsAccounts([original, revision, unrelated]).map((item) => item.id).sort(), ["a2", "b1"]);
+});
+
+
+test("current assignment revisions exclude superseded member-period snapshots", () => {
+  const original = familyAssignment("m1", "Cubs", 1);
+  const revised = { ...original, id: original.id + "--r2", familyType: "leader" as const, leaderChild: true };
+  const other = familyAssignment("m2", "Scouts", 2);
+  assert.deepEqual(currentSubsAssignments([original, revised, other]).map((item) => item.id).sort(), [other.id, revised.id].sort());
+});
+
+test("reclassified family account retains payments from its immutable account lineage", () => {
+  const original = { ...account, id: "family-1" };
+  const revision = { ...account, id: "family-1--r2", revision: 2, supersedesAccountId: "family-1", familyType: "leader" as const, amountDueCents: 46500 };
+  const payments = [familyPayment(20000, "p-old"), { ...familyPayment(5000, "p-new"), accountId: "family-1--r2" }];
+  assert.deepEqual(subsAccountLineageIds(revision, [original, revision]), ["family-1--r2", "family-1"]);
+  assert.deepEqual(balanceForAccount(revision, payments, [original, revision]), { dueCents: 46500, paidCents: 25000, remainingCents: 21500 });
 });
