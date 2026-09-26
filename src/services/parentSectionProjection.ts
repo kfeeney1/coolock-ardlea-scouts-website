@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 
 import { db } from "../firebase";
 
@@ -19,7 +19,7 @@ export async function syncParentSectionProjectionsForMembers(memberIds: readonly
 
   await Promise.all(parents.map(async (parent) => {
     const linkedMemberIds = stringArray(parent.data().memberIds);
-    const memberSnapshots = await Promise.all(linkedMemberIds.map((memberId) => getDocs(query(collection(db, "members"), where("__name__", "==", memberId)))));
+    const memberSnapshots = await Promise.all(linkedMemberIds.map((memberId) => getDoc(doc(db, "members", memberId))));
     const linkedSections = [...new Set(memberSnapshots.flatMap((snapshot) => snapshot.docs.flatMap((member) => {
       const data = member.data();
       const section = typeof data.section === "string" ? data.section.trim() : "";
