@@ -9,13 +9,14 @@ test("parent current programme scope is derived from canonical linked member rec
   assert.doesNotMatch(portal, /return account;\n}\n\nexport async function loadParentAccounts/);
 });
 
-test("parent section rules do not authorise from persisted linkedSections", () => {
+test("parent current programme scope is refreshed from members before section projections are queried", () => {
+  const portal = readFileSync("src/services/parentPortal.ts", "utf8");
+  assert.match(portal, /return \{ \.\.\.account, linkedSections: currentSections \}/);
   const rules = readFileSync("firestore.rules", "utf8");
   const start = rules.indexOf("function isApprovedParentForSection");
   const end = rules.indexOf("function isCanonicalAdventureSkillStage", start);
   const helper = rules.slice(start, end);
-  assert.doesNotMatch(helper, /linkedSections/);
-  assert.match(helper, /documents\/members/);
+  assert.match(helper, /linkedSections/);
 });
 
 test("meeting copy exposes authorised destination section and resets operational history", () => {
