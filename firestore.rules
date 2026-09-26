@@ -212,6 +212,7 @@ service cloud.firestore {
       allow get, list: if isAdmin() || isGroupLeader() || canViewAllFinance();
       allow create: if (isAdmin() || isGroupLeader())
         && request.resource.data.leaderUid is string
+        && relationshipId == request.resource.data.leaderUid + "--" + request.resource.data.memberId
         && request.resource.data.memberId is string
         && request.resource.data.active is bool
         && exists(/databases/$(database)/documents/adminUsers/$(request.resource.data.leaderUid))
@@ -225,6 +226,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && request.resource.data.keys().hasOnly(["leaderUid", "memberId", "active", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
       allow update: if (isAdmin() || isGroupLeader())
+        && request.resource.data.active is bool
         && request.resource.data.leaderUid == resource.data.leaderUid
         && request.resource.data.memberId == resource.data.memberId
         && request.resource.data.createdBy == resource.data.createdBy
