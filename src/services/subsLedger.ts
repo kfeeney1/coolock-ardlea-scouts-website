@@ -3,6 +3,7 @@ import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import {
   categoryForFamilyPosition,
+  currentSubsAccounts,
   createPaymentReversal,
   familyIncrementFor,
   familyTotalFor,
@@ -76,15 +77,7 @@ export async function saveSubsPolicy(input: Omit<SubsRatePolicy, "id">): Promise
   return id;
 }
 
-export async function loadSubsAccounts(): Promise<SubsAccount[]> {
-  const snap = await getDocs(collection(db, "subsAccounts"));
-  return snap.docs
-    .map((item) => {
-      const data = item.data();
-      return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsAccount;
-    })
-    .sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));
-}
+export async function loadSubsAccounts(): Promise<SubsAccount[]> {\n  const snap = await getDocs(collection(db, "subsAccounts"));\n  const accounts = snap.docs.map((item) => {\n    const data = item.data();\n    return { id: item.id, ...data, createdAt: asDate(data.createdAt) } as SubsAccount;\n  });\n  return currentSubsAccounts(accounts).sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));\n}
 
 export async function loadSubsAssignments(section?: string): Promise<SubsAssignment[]> {
   const source = section
