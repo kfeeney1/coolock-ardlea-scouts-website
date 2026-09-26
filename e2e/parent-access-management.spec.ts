@@ -13,6 +13,7 @@ async function loginAdmin(page: Page) {
   await page.getByLabel("Email address").fill(adminEmail!);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page).toHaveURL(/\/leader$/);
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
