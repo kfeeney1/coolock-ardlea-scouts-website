@@ -36,7 +36,6 @@ type CacheEntry = { expiresAt: number; value: AdminOverview };
 const OVERVIEW_CACHE_MS = 90_000;
 const overviewCache = new Map<string, CacheEntry>();
 const EVENT_STATUSES = new Set(["draft", "open", "closed", "completed"]);
-const YOUTH_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
