@@ -23,7 +23,6 @@ import type { EquipmentLoan } from "../services/equipmentLoans";
 import { copyEquipmentRequirement } from "../services/equipmentProgramme";
 import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 
-const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const ALL_LEADERS = "All leaders";
 const LEADER_SEPARATOR = " | ";
 const STANDARD_MEETING_MINUTES = 90;
@@ -66,7 +65,6 @@ export default function WeeklySectionTracker() {
   const [pendingDiscard,setPendingDiscard]=useState<DiscardAction|null>(null);
   const editorTopRef=useRef<HTMLDivElement|null>(null);
 
-  const viewAll=isAdmin||access.canViewAll;
   const readOnly=!isAdmin&&access.readOnly;
   const availableSections=useMemo(()=>adminProfile?effectiveOperationalSections(adminProfile.role,adminProfile.sections,adminProfile.appointments):[],[adminProfile]);
   const canEditPast=canEditPastWeeklyMeeting(access.scoutingRole,Boolean(isAdmin));
