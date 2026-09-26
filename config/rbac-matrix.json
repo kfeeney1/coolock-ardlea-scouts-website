@@ -112,7 +112,8 @@
     "subsRatePolicies": "group-finance-policy",
     "weeklyMeetings": "leader-section-and-group-role",
     "policyDocuments": "audience-scoped-current-metadata-manager-write",
-    "operationalMonitoring": "super-admin-read-trusted-service-write"
+    "operationalMonitoring": "super-admin-read-trusted-service-write",
+    "leaderChildRelationships": "finance-read-admin-group-leader-write"
   },
   "storage": {
     "attachments/finance-receipts": "finance-section",
