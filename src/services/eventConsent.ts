@@ -162,7 +162,7 @@ function publicEventPayload(event: EventRecord) {
         consentRequired: event.consentRequired,
         active: event.status === "open" && event.consentRequired,
         audienceMemberIds: event.audience?.resolvedMemberIds ?? [],
-        audienceVersion: event.audience?.version ?? 0,
+        audienceVersion: 2,
         updatedAt: serverTimestamp()
     };
 }
