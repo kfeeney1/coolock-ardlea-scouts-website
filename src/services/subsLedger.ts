@@ -20,7 +20,9 @@ import {
   type SubsPayment,
   type SubsPaymentMethod,
   type SubsRateCategory,
-  type SubsRatePolicy
+  type SubsRatePolicy,
+  scoutYearPeriodForDate,
+  resolveCurrentSubsPolicy
 } from "./subsLogic";
 import { mapSubsPolicy } from "./subsPolicyCompatibility";
 import { mapSubsMember } from "./subsMemberCompatibility";
@@ -291,13 +293,11 @@ export async function reclassifySubsFamilyAccount(
 
 export async function reconcileCurrentLeaderFamilySubs(memberId: string, dateIso = new Date().toISOString().slice(0, 10)): Promise<string | null> {
   const [policies, accounts, members] = await Promise.all([loadSubsPolicies(), loadSubsAccounts(), loadSubsMembers()]);
-  const currentPeriod = dateIso.slice(5, 7) >= "09"
-    ? `${dateIso.slice(0, 4)}/${String((Number(dateIso.slice(0, 4)) + 1) % 100).padStart(2, "0")}`
-    : `${Number(dateIso.slice(0, 4)) - 1}/${dateIso.slice(2, 4)}`;
+  const currentPeriod = scoutYearPeriodForDate(dateIso);
   const account = accounts.find((item) => item.period === currentPeriod && item.memberIds.includes(memberId));
   if (!account) return null;
-  const policy = policies.find((item) => item.id === account.policyId && item.period === currentPeriod);
-  if (!policy) throw new Error("The current family account policy could not be loaded.");
+  const policy = resolveCurrentSubsPolicy(policies, dateIso);
+  if (!policy || policy.id !== account.policyId) throw new Error("The current family account policy could not be loaded.");
   const accountMembers = account.memberIds.map((id) => members.find((member) => member.id === id)).filter((member): member is MemberRecord => Boolean(member));
   if (accountMembers.length !== account.memberIds.length) throw new Error("The current family account contains a member that could not be loaded.");
   const relationships = await loadLeaderChildRelationshipsForMembers(account.memberIds);
