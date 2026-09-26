@@ -12,7 +12,8 @@ test.describe("Equipment & Stores leader navigation", () => {
     await page.getByLabel(/email/i).fill(adminEmail!);
     await page.getByLabel(/password/i).fill(adminPassword!);
     await page.getByRole("button", { name: /sign in/i }).click();
-    await expect(page).toHaveURL(/\/leader/);
+    await expect(page).toHaveURL(/\/leader$/);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
     await page.goto("/leader/equipment");
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();

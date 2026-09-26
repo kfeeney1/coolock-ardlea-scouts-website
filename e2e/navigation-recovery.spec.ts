@@ -62,8 +62,10 @@ async function exposeQuartermaster(page: Page, testInfo: TestInfo) {
   await openMenu(page);
   const navigation = projectNavigation(page, testInfo);
   await expect(navigation).toBeVisible();
-  if ((await navigation.getByRole("button", { name: "Quartermaster / Bo’sun" }).count()) > 0) {
-    await navigation.getByRole("button", { name: "Quartermaster / Bo’sun" }).click();
+  const quartermaster = navigation.getByRole("button", { name: "Quartermaster / Bo’sun" });
+  if ((await quartermaster.count()) > 0 && (await quartermaster.getAttribute("aria-expanded")) !== "true") {
+    await quartermaster.click();
+    await expect(quartermaster).toHaveAttribute("aria-expanded", "true");
   }
   return navigation;
 }
