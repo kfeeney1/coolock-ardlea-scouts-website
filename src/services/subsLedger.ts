@@ -7,6 +7,7 @@ import {
   currentSubsAssignments,
   createPaymentReversal,
   familyIncrementFor,
+  familyTypeForLeaderRelationships,
   familyTotalFor,
   subsFamilyAccountId,
   subsFamilyAccountRevisionId,
@@ -24,6 +25,7 @@ import {
 import { mapSubsPolicy } from "./subsPolicyCompatibility";
 import { mapSubsMember } from "./subsMemberCompatibility";
 import type { MemberRecord } from "./memberAdmin";
+import { loadLeaderChildRelationshipsForMembers } from "./leaderChildRelationships";
 
 const uid = () => {
   const value = auth.currentUser?.uid;
@@ -285,6 +287,23 @@ export async function reclassifySubsFamilyAccount(
     targetLabel: `${policy.period} family account`, description: `Family account reclassified from ${current.familyType} to ${familyType}; prior account ${current.id} preserved.`,
     section: sections.length === 1 ? sections[0] : "Group" });
   return accountId;
+}
+
+export async function reconcileCurrentLeaderFamilySubs(memberId: string, dateIso = new Date().toISOString().slice(0, 10)): Promise<string | null> {
+  const [policies, accounts, members] = await Promise.all([loadSubsPolicies(), loadSubsAccounts(), loadSubsMembers()]);
+  const currentPeriod = dateIso.slice(5, 7) >= "09"
+    ? `${dateIso.slice(0, 4)}/${String((Number(dateIso.slice(0, 4)) + 1) % 100).padStart(2, "0")}`
+    : `${Number(dateIso.slice(0, 4)) - 1}/${dateIso.slice(2, 4)}`;
+  const account = accounts.find((item) => item.period === currentPeriod && item.memberIds.includes(memberId));
+  if (!account) return null;
+  const policy = policies.find((item) => item.id === account.policyId && item.period === currentPeriod);
+  if (!policy) throw new Error("The current family account policy could not be loaded.");
+  const accountMembers = account.memberIds.map((id) => members.find((member) => member.id === id)).filter((member): member is MemberRecord => Boolean(member));
+  if (accountMembers.length !== account.memberIds.length) throw new Error("The current family account contains a member that could not be loaded.");
+  const relationships = await loadLeaderChildRelationshipsForMembers(account.memberIds);
+  const familyType = familyTypeForLeaderRelationships(account.memberIds, relationships);
+  if (familyType === account.familyType) return account.id;
+  return reclassifySubsFamilyAccount(account, accountMembers, policy, familyType, "Automatically derived from canonical active leader-child relationships.");
 }
 
 export async function loadSubsPayments(section?: string): Promise<SubsPayment[]> {
