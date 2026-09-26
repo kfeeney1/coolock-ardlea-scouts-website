@@ -33,3 +33,18 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   assert.match(logic,/sections\.has\(member\.section\) \|\| selected\.has\(member\.id\)/);
   assert.match(rules,/"audience"/);
 });
+
+
+test("Block E parent event consent uses canonical member audience snapshots", () => {
+  const parentEvents=readFileSync("src/services/parentEvents.ts","utf8");
+  const consent=readFileSync("src/services/eventConsent.ts","utf8");
+  const parentPortal=readFileSync("src/pages/ParentPortal.tsx","utf8");
+  const rules=readFileSync("firestore.rules","utf8");
+
+  assert.match(parentEvents,/where\("audienceMemberIds", "array-contains-any", linkedMemberIds\)/);
+  assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
+  assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
+  assert.match(consent,/audienceVersion: event\.audience\?\.version \?\? 0/);
+  assert.match(parentPortal,/memberIds=\{account\.memberIds\}/);
+  assert.match(rules,/isApprovedParentForAudienceMembers\(resource\.data\.audienceMemberIds\)/);
+});
