@@ -4,7 +4,7 @@ import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, Eve
 
 export const EVENT_SECTIONS = ["All Sections", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 export const EVENT_TYPES = ["Weekly Meeting", "Activity", "Day Trip", "Camp", "Hike", "Fundraiser", "Other"];
-export const EVENT_AUDIENCE_VERSION = 1 as const;
+export const EVENT_AUDIENCE_VERSION = 2 as const;
 export const EVENT_STATUSES: EventStatus[] = ["draft", "open", "closed", "completed"];
 
 export const EMPTY_EVENT: EventInput = {
@@ -77,6 +77,26 @@ export function resolveEventAudience(sectionIds: string[], memberIds: string[], 
     return members
         .filter((member) => member.status === "active" && (sections.has(member.section) || selected.has(member.id)))
         .map((member) => member.id);
+}
+
+export function buildEventAudience(sectionIds: string[], memberIds: string[], members: MemberRecord[]) {
+    const uniqueSections = [...new Set(sectionIds.filter(Boolean))];
+    const uniqueMembers = [...new Set(memberIds.filter(Boolean))];
+    return {
+        version: EVENT_AUDIENCE_VERSION,
+        mode: uniqueSections.length > 0 && uniqueMembers.length > 0 ? "mixed" as const : uniqueMembers.length > 0 ? "members" as const : "sections" as const,
+        semantics: "snapshot" as const,
+        sectionIds: uniqueSections,
+        memberIds: uniqueMembers,
+        resolvedMemberIds: resolveEventAudience(uniqueSections, uniqueMembers, members)
+    };
+}
+
+export function eventAudienceSummary(sectionIds: string[], memberIds: string[], resolvedCount: number): string {
+    if (sectionIds.length > 0 && memberIds.length > 0) return `Audience: ${resolvedCount} members from ${sectionIds.join(", ")} plus ${memberIds.length} individually selected`;
+    if (memberIds.length > 0) return `Audience: ${resolvedCount} selected member${resolvedCount === 1 ? "" : "s"}`;
+    if (sectionIds.length === 1) return `Audience: ${sectionIds[0]} — ${resolvedCount} member${resolvedCount === 1 ? "" : "s"}`;
+    return `Audience: ${resolvedCount} members across ${sectionIds.length} sections`;
 }
 
 export function eventCounts(event: EventRecord, members: MemberRecord[]) {
