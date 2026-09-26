@@ -106,11 +106,11 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
   await loginAdmin(page);
 
-  const leaderUid = "TEST_uid_subs_parent_leader";
-  const memberName = "TEST Cub Child 02";
+  const leaderUid = "TEST_uid_multi_section_leader";
+  const memberName = "Cub Child 02";
   await page.goto(`/leader/access/${leaderUid}`);
   const card = page.getByTestId(`leader-access-${leaderUid}`);
-  await expect(card).toContainText("Test Subs Parent Leader");
+  await expect(card).toContainText("Test Multi Section Leader");
   await expect(card.getByTestId("leader-child-links")).toBeVisible();
 
   const childSelect = card.getByRole("combobox", { name: "Child member" });
@@ -128,7 +128,7 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
 
   await page.goto("/leader/subs");
   await page.getByRole("tab", { name: "Balances & reports" }).click();
-  const leaderRevision = page.getByTestId("subs-report-row-family-2026-27--TEST_member_cub_02--r2");
+  const leaderRevision = page.locator('[data-testid^="subs-report-row-family-2026-27--TEST_member_cub_02"]').filter({ hasText: "Leader family" });
   await expect(leaderRevision).toContainText("Leader family");
   await expect(leaderRevision).toContainText("€70.00 due");
 
@@ -143,7 +143,7 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
 
   await page.goto("/leader/subs");
   await page.getByRole("tab", { name: "Balances & reports" }).click();
-  const standardRevision = page.getByTestId("subs-report-row-family-2026-27--TEST_member_cub_02--r3");
+  const standardRevision = page.locator('[data-testid^="subs-report-row-family-2026-27--TEST_member_cub_02"]').filter({ hasText: "Standard family" });
   await expect(standardRevision).toContainText("Standard family");
   await expect(standardRevision).toContainText("€100.00 due");
 });
