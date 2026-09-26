@@ -133,5 +133,21 @@ for (const [memberId, memberName, section, category, amountDueCents, sibling, le
   await db.collection("subsAssignments").doc(`${memberId}--2026-27`).set({ memberId, memberName, section, period: "2026/27", category, amountDueCents, policyId: "TEST_2026-27-v1", policyVersion: 1, sibling, leaderChild, classifiedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
 }
 await db.collection("subsPayments").doc("TEST_scout_partial").set({ memberId: "TEST_member_scout_01", memberName: scoutMember.displayName, section: "Scouts", period: "2026/27", amountCents: 4000, method: "cash", paymentDate: "2026-09-10", reversalOfPaymentId: "", note: "Deterministic partial payment", recordedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker });
+const sw219Member = await requireDoc("members", "TEST_member_cub_02");
+const sw219AccountId = "2026-27--TEST_member_cub_02";
+await db.collection("subsAccounts").doc(sw219AccountId).set({
+  period: "2026/27", policyId: "TEST_2026-27-v1", policyVersion: 1, familyType: "standard",
+  memberIds: ["TEST_member_cub_02"], sections: ["Cubs"], childCount: 1, amountDueCents: 10000,
+  classificationSource: "finance-officer-confirmed", classificationNote: "Deterministic SW-219 standard family baseline",
+  createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker
+});
+await db.collection("subsAssignments").doc("TEST_member_cub_02--2026-27").set({
+  memberId: "TEST_member_cub_02", memberName: sw219Member.displayName, section: "Cubs", period: "2026/27",
+  category: "standard", amountDueCents: 10000, policyId: "TEST_2026-27-v1", policyVersion: 1,
+  sibling: false, leaderChild: false, familyType: "standard", familyPosition: 1,
+  accountId: sw219AccountId, accountAmountDueCents: 10000, accountChildCount: 1,
+  classifiedBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), ...marker
+});
+await db.collection("leaderChildRelationships").doc("TEST_uid_subs_parent_leader--TEST_member_cub_02").delete();
 
 console.log(`Playwright persistence fixtures seeded from canonical population identities, including varied structured weekly planner rows, parent-safe programme projections, Scout subs and ${equipmentSeedItems.length} allocation-free equipment items.`);
