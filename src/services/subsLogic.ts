@@ -36,6 +36,8 @@ export type SubsAccount = {
   classificationNote: string;
   createdBy: string;
   createdAt?: Date | null;
+  revision?: number;
+  supersedesAccountId?: string;
 };
 
 export type SubsAssignment = {
