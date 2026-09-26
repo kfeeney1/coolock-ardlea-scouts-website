@@ -18,7 +18,6 @@ import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import { resolveScoutSectionName } from "../theme/sectionColours";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
-import { syncParentSectionProjectionsForMembers } from "./parentSectionProjection";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
 import {
@@ -307,7 +306,6 @@ export async function updateMember(
       changedAt: serverTimestamp()
     });
     await batch.commit();
-    await syncParentSectionProjectionsForMembers([memberId]);
 
     await recordAuditEvent({
       category: "member",
