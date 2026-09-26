@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import type { EventInput, EventRecord, EventStatus } from "../../services/eventAdmin";
 import type { MemberRecord } from "../../services/memberAdmin";
-import { EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, eventStatusLabel } from "../../services/eventManagementLogic";
+import { EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, eventAudienceSummary, eventStatusLabel } from "../../services/eventManagementLogic";
 
 type Props = {
     open: boolean;
@@ -21,6 +21,7 @@ type EventEditorStep = "details" | "settings";
 export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onSave }: Props) {
     const [step, setStep] = useState<EventEditorStep>("details");
     const [confirmCompletion, setConfirmCompletion] = useState(false);
+    const [memberSearch, setMemberSearch] = useState("");
 
     useEffect(() => {
         if (open) {
@@ -85,17 +86,21 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
                                     <TextField required label="Event title" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                     <FormControl><InputLabel id="event-editor-type-label">Event type</InputLabel><Select labelId="event-editor-type-label" label="Event type" value={draft.eventType} onChange={(event) => onChange({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select></FormControl>
-                                    <FormControl><InputLabel id="event-editor-section-label">Section</InputLabel><Select labelId="event-editor-section-label" label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 1, mode: "sections", sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+                                    <FormControl><InputLabel id="event-editor-section-label">Section</InputLabel><Select labelId="event-editor-section-label" label="Section" value={draft.section} onChange={(event) => onChange({ ...draft, section: event.target.value, audience: { version: 2, semantics: "snapshot", mode: "sections", sectionIds: event.target.value === "All Sections" ? [] : [event.target.value], memberIds: draft.audience?.memberIds ?? [], resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } })}>{EVENT_SECTIONS.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
 <Box sx={{ gridColumn: { md: "1 / -1" } }}>
-                                        <Typography variant="subtitle2" gutterBottom>Selected members</Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Optional: invite individual members without inviting their whole section.</Typography>
+                                        <Typography variant="subtitle2" gutterBottom>Event audience</Typography>
+                                        <Alert severity="info" sx={{ mb: 1 }}>
+                                            {eventAudienceSummary(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], buildEventAudience(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], members).resolvedMemberIds.length)}
+                                        </Alert>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Choose whole sections, individual members, or both. The resolved audience is saved as a snapshot.</Typography>
+                                        <TextField fullWidth size="small" label="Search members" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} sx={{ mb: 1 }} />
                                         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-                                            {members.filter((member) => member.status === "active").map((member) => {
+                                            {members.filter((member) => member.status === "active" && (!memberSearch.trim() || `${member.displayName} ${member.section}`.toLowerCase().includes(memberSearch.trim().toLowerCase()))).map((member) => {
                                                 const selected = draft.audience?.memberIds.includes(member.id) ?? false;
                                                 return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} variant={selected ? "filled" : "outlined"} clickable onClick={() => {
                                                     const current = draft.audience?.memberIds ?? [];
                                                     const memberIds = selected ? current.filter((id) => id !== member.id) : [...current, member.id];
-                                                    onChange({ ...draft, audience: { version: 1, mode: memberIds.length ? "members" : "sections", sectionIds: draft.audience?.sectionIds ?? [], memberIds, resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } });
+                                                    onChange({ ...draft, audience: { version: 2, semantics: "snapshot", mode: memberIds.length ? "members" : "sections", sectionIds: draft.audience?.sectionIds ?? [], memberIds, resolvedMemberIds: draft.audience?.resolvedMemberIds ?? [] } });
                                                 }} />;
                                             })}
                                         </Stack>
