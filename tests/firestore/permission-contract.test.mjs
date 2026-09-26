@@ -122,6 +122,20 @@ test("member lifecycle query is denied when the referenced member is outside lea
   );
 });
 
+test("stable member consent queries survive section transfer without exposing other members", async () => {
+  await seed([
+    ["adminUsers/leader-ventures", { active: true, role: "leader", sections: ["Ventures"] }],
+    ["members/member-venture", { section: "Ventures", displayName: "Moved Venture", status: "active" }],
+    ["members/member-scout", { section: "Scouts", displayName: "Other Scout", status: "active" }],
+    ["consentApplications/historical", { section: "Scouts", memberId: "member-venture", formType: "youth-activity-consent", status: "active" }],
+    ["consentApplications/other", { section: "Scouts", memberId: "member-scout", formType: "youth-activity-consent", status: "active" }],
+  ]);
+
+  const db = testEnv.authenticatedContext("leader-ventures").firestore();
+  await assertSucceeds(getDocs(query(collection(db, "consentApplications"), where("memberId", "==", "member-venture"))));
+  await assertFails(getDocs(query(collection(db, "consentApplications"), where("memberId", "==", "member-scout"))));
+});
+
 test("audit log writes bind actor email to the authenticated identity and known categories", async () => {
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],

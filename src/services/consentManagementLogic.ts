@@ -41,9 +41,21 @@ export function isMedicationManagementValue(value: unknown): value is Record<str
     return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+export function normalizeMedicationManagement(value: unknown): Record<string, unknown> | null {
+    if (isMedicationManagementValue(value)) return value;
+    if (typeof value !== "string" || !value.trim()) return null;
+    try {
+        const parsed: unknown = JSON.parse(value);
+        return isMedicationManagementValue(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
 export function medicationManagementHasInformation(value: unknown): boolean {
-    if (!isMedicationManagementValue(value)) return false;
-    return Object.entries(value).some(([key, item]) => key !== "enabled" && displayValue(item).trim().length > 0);
+    const normalized = normalizeMedicationManagement(value);
+    if (!normalized) return false;
+    return Object.entries(normalized).some(([key, item]) => key !== "enabled" && displayValue(item).trim().length > 0);
 }
 
 export function objectField(data: Record<string, unknown>, key: string): string {

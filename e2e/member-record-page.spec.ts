@@ -1,5 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+test.describe.configure({ retries: 0 });
+
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
 function desktopOnly(testInfo: TestInfo) {
@@ -92,8 +94,48 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^\${}()|[\\]\\\\]/g, "\\\\$&")}$`));
   await expect(page.getByRole("heading", { name: "Important medical information" })).toBeVisible();
+  const medicationPanel = page.getByTestId("medication-management-panel");
+  await expect(medicationPanel).toBeVisible();
+  await expect(medicationPanel.getByText("Medicine", { exact: true })).toBeVisible();
+  await expect(medicationPanel).not.toContainText('{"');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 
   await page.goBack();
   await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
   await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
+});
+
+test("SW-216 surname edits are reloaded from Firestore and remain visible in Member Management", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_beaver_06");
+
+  const lastName = page.getByLabel("Last name");
+  const original = await lastName.inputValue();
+  const changed = original === "O'Neill-Smith" ? "Recovery-Test" : "O'Neill-Smith";
+  await lastName.fill(changed);
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Last name")).toHaveValue(changed);
+  await page.getByRole("link", { name: "Back to Member Management" }).click();
+  await page.getByLabel("Search members").fill(changed);
+  await expect(page.getByTestId("member-card-TEST_member_beaver_06")).toContainText(changed);
+
+  await page.goto("/leader/members/TEST_member_beaver_06");
+  await page.getByLabel("Last name").fill(original);
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+});
+
+test("SW-218 Venture members appear under Ventures and All Sections", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members?section=Ventures");
+  await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
+  await page.getByLabel("Section").click();
+  await page.getByRole("option", { name: "All Sections" }).click();
+  await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
 });
