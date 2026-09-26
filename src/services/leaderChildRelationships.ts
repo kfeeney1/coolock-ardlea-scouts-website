@@ -36,6 +36,16 @@ export async function loadLeaderChildRelationships(leaderUid: string): Promise<L
   }).filter((item) => item.leaderUid === leaderUid);
 }
 
+export async function loadLeaderChildRelationshipsForMembers(memberIds: string[]): Promise<LeaderChildRelationship[]> {
+  const wanted = new Set(memberIds.filter(Boolean));
+  if (!wanted.size) return [];
+  const snapshot = await getDocs(collection(db, "leaderChildRelationships"));
+  return snapshot.docs.map((item) => {
+    const data = item.data();
+    return { id: item.id, leaderUid: String(data.leaderUid ?? ""), memberId: String(data.memberId ?? ""), active: data.active === true, updatedBy: String(data.updatedBy ?? "") };
+  }).filter((item) => wanted.has(item.memberId));
+}
+
 export async function setLeaderChildRelationship(leaderUid: string, memberId: string, active: boolean): Promise<void> {
   const actor = actorUid();
   const id = relationshipId(leaderUid, memberId);

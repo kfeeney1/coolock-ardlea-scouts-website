@@ -4,8 +4,10 @@ import { recordAuditEvent } from "./auditLog";
 import {
   categoryForFamilyPosition,
   currentSubsAccounts,
+  currentSubsAssignments,
   createPaymentReversal,
   familyIncrementFor,
+  familyTypeForLeaderRelationships,
   familyTotalFor,
   subsFamilyAccountId,
   subsFamilyAccountRevisionId,
@@ -18,11 +20,14 @@ import {
   type SubsPayment,
   type SubsPaymentMethod,
   type SubsRateCategory,
-  type SubsRatePolicy
+  type SubsRatePolicy,
+  scoutYearPeriodForDate,
+  resolveCurrentSubsPolicy
 } from "./subsLogic";
 import { mapSubsPolicy } from "./subsPolicyCompatibility";
 import { mapSubsMember } from "./subsMemberCompatibility";
 import type { MemberRecord } from "./memberAdmin";
+import { loadLeaderChildRelationshipsForMembers } from "./leaderChildRelationships";
 
 const uid = () => {
   const value = auth.currentUser?.uid;
@@ -91,8 +96,8 @@ export async function loadSubsAssignments(section?: string): Promise<SubsAssignm
     ? query(collection(db, "subsAssignments"), where("section", "==", section))
     : collection(db, "subsAssignments");
   const snap = await getDocs(source);
-  return snap.docs
-    .map((item) => ({ id: item.id, ...item.data() } as SubsAssignment))
+  return currentSubsAssignments(snap.docs
+    .map((item) => ({ id: item.id, ...item.data() } as SubsAssignment)))
     .sort((a, b) => a.memberName.localeCompare(b.memberName) || a.id.localeCompare(b.id));
 }
 
@@ -284,6 +289,21 @@ export async function reclassifySubsFamilyAccount(
     targetLabel: `${policy.period} family account`, description: `Family account reclassified from ${current.familyType} to ${familyType}; prior account ${current.id} preserved.`,
     section: sections.length === 1 ? sections[0] : "Group" });
   return accountId;
+}
+
+export async function reconcileCurrentLeaderFamilySubs(memberId: string, dateIso = new Date().toISOString().slice(0, 10)): Promise<string | null> {
+  const [policies, accounts, members] = await Promise.all([loadSubsPolicies(), loadSubsAccounts(), loadSubsMembers()]);
+  const currentPeriod = scoutYearPeriodForDate(dateIso);
+  const account = accounts.find((item) => item.period === currentPeriod && item.memberIds.includes(memberId));
+  if (!account) return null;
+  const policy = resolveCurrentSubsPolicy(policies, dateIso);
+  if (!policy || policy.id !== account.policyId) throw new Error("The current family account policy could not be loaded.");
+  const accountMembers = account.memberIds.map((id) => members.find((member) => member.id === id)).filter((member): member is MemberRecord => Boolean(member));
+  if (accountMembers.length !== account.memberIds.length) throw new Error("The current family account contains a member that could not be loaded.");
+  const relationships = await loadLeaderChildRelationshipsForMembers(account.memberIds);
+  const familyType = familyTypeForLeaderRelationships(account.memberIds, relationships);
+  if (familyType === account.familyType) return account.id;
+  return reclassifySubsFamilyAccount(account, accountMembers, policy, familyType, "Automatically derived from canonical active leader-child relationships.");
 }
 
 export async function loadSubsPayments(section?: string): Promise<SubsPayment[]> {

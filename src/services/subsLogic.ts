@@ -217,8 +217,36 @@ export function currentSubsAccounts(accounts: SubsAccount[]): SubsAccount[] {
   return accounts.filter((account) => !superseded.has(account.id));
 }
 
-export function balanceForAccount(account: SubsAccount, payments: SubsPayment[]) {
-  const paid = paidCents(payments.filter((payment) => payment.accountId === account.id && payment.period === account.period));
+function assignmentRevision(assignment: SubsAssignment): number {
+  return Number(assignment.id.match(/--r(\d+)$/)?.[1] ?? 1);
+}
+
+export function currentSubsAssignments(assignments: SubsAssignment[]): SubsAssignment[] {
+  const latestByMemberPeriod = new Map<string, SubsAssignment>();
+  for (const assignment of assignments) {
+    const key = `${assignment.memberId}--${assignment.period}`;
+    const current = latestByMemberPeriod.get(key);
+    if (!current || assignmentRevision(assignment) > assignmentRevision(current)) latestByMemberPeriod.set(key, assignment);
+  }
+  return [...latestByMemberPeriod.values()];
+}
+
+export function subsAccountLineageIds(account: SubsAccount, accounts: SubsAccount[]): string[] {
+  const byId = new Map(accounts.map((item) => [item.id, item]));
+  const ids: string[] = [];
+  let cursor: SubsAccount | undefined = account;
+  const seen = new Set<string>();
+  while (cursor && !seen.has(cursor.id)) {
+    ids.push(cursor.id);
+    seen.add(cursor.id);
+    cursor = cursor.supersedesAccountId ? byId.get(cursor.supersedesAccountId) : undefined;
+  }
+  return ids;
+}
+
+export function balanceForAccount(account: SubsAccount, payments: SubsPayment[], accounts: SubsAccount[] = [account]) {
+  const lineage = new Set(subsAccountLineageIds(account, accounts));
+  const paid = paidCents(payments.filter((payment) => payment.accountId && lineage.has(payment.accountId) && payment.period === account.period));
   return { dueCents: account.amountDueCents, paidCents: paid, remainingCents: account.amountDueCents - paid };
 }
 
