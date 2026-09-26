@@ -196,3 +196,43 @@ test("section-scoped users cannot inspect sibling payments from another section"
   await assertSucceeds(getDoc(doc(cubLeader, "subsPayments/cub-payment")));
   await assertFails(getDoc(doc(cubLeader, "subsPayments/beaver-payment")));
 });
+
+test("admin and Group Leader can create canonical leader-child relationships without rules evaluation errors", async () => {
+  await seedBase();
+  await seedDocuments([
+    ["adminUsers/admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/parent-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+  ]);
+  for (const actor of ["admin", "gl"]) {
+    const db = testEnv.authenticatedContext(actor, { email: `${actor}@example.com` }).firestore();
+    const memberId = actor === "admin" ? "member-cub" : "member-beaver";
+    const relationshipId = `parent-leader--${memberId}`;
+    await assertSucceeds(setDoc(doc(db, `leaderChildRelationships/${relationshipId}`), {
+      leaderUid: "parent-leader",
+      memberId,
+      active: true,
+      createdBy: actor,
+      createdAt: serverTimestamp(),
+      updatedBy: actor,
+      updatedAt: serverTimestamp(),
+    }));
+  }
+});
+
+test("leader-child relationship create rejects malformed canonical IDs", async () => {
+  await seedBase();
+  await seedDocuments([
+    ["adminUsers/admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/parent-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+  ]);
+  const db = testEnv.authenticatedContext("admin", { email: "admin@example.com" }).firestore();
+  await assertFails(setDoc(doc(db, "leaderChildRelationships/wrong-id"), {
+    leaderUid: "parent-leader",
+    memberId: "member-cub",
+    active: true,
+    createdBy: "admin",
+    createdAt: serverTimestamp(),
+    updatedBy: "admin",
+    updatedAt: serverTimestamp(),
+  }));
+});

@@ -212,8 +212,8 @@ service cloud.firestore {
       allow get, list: if isAdmin() || isGroupLeader() || canViewAllFinance();
       allow create: if (isAdmin() || isGroupLeader())
         && request.resource.data.leaderUid is string
-        && relationshipId == request.resource.data.leaderUid + "--" + request.resource.data.memberId
         && request.resource.data.memberId is string
+        && relationshipId == request.resource.data.leaderUid + "--" + request.resource.data.memberId
         && request.resource.data.active is bool
         && exists(/databases/$(database)/documents/adminUsers/$(request.resource.data.leaderUid))
         && get(/databases/$(database)/documents/adminUsers/$(request.resource.data.leaderUid)).data.active == true
