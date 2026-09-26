@@ -138,6 +138,23 @@ service cloud.firestore {
         );
     }
 
+    function isApprovedParentForAudienceMembers(memberIds) {
+      return isApprovedParent()
+        && memberIds is list
+        && parentProfile().memberIds is list
+        && parentProfile().memberIds.size() <= 8
+        && (
+          (parentProfile().memberIds.size() > 0 && parentProfile().memberIds[0] in memberIds)
+          || (parentProfile().memberIds.size() > 1 && parentProfile().memberIds[1] in memberIds)
+          || (parentProfile().memberIds.size() > 2 && parentProfile().memberIds[2] in memberIds)
+          || (parentProfile().memberIds.size() > 3 && parentProfile().memberIds[3] in memberIds)
+          || (parentProfile().memberIds.size() > 4 && parentProfile().memberIds[4] in memberIds)
+          || (parentProfile().memberIds.size() > 5 && parentProfile().memberIds[5] in memberIds)
+          || (parentProfile().memberIds.size() > 6 && parentProfile().memberIds[6] in memberIds)
+          || (parentProfile().memberIds.size() > 7 && parentProfile().memberIds[7] in memberIds)
+        );
+    }
+
     function isCanonicalAdventureSkillStage(skillId, stage) {
       return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
         && stage is number
@@ -449,14 +466,15 @@ service cloud.firestore {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if isSuperAdmin()
         || (isActiveLeader() && hasSection(resource.data.section))
-        || (resource.data.active == true && isApprovedParentForSection(resource.data.section));
+        || (resource.data.active == true && isApprovedParentForAudienceMembers(resource.data.audienceMemberIds));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string && request.resource.data.title is string
         && request.resource.data.eventType is string && request.resource.data.startDate is string
-        && request.resource.data.endDate is string && request.resource.data.active is bool;
+        && request.resource.data.endDate is string && request.resource.data.active is bool
+        && request.resource.data.audienceMemberIds is list && request.resource.data.audienceVersion == 2;
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "updatedAt"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
     }
 
