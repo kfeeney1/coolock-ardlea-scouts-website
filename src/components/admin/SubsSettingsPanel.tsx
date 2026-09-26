@@ -4,6 +4,7 @@ import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments"
 import type { MemberRecord } from "../../services/memberAdmin";
 import { loadSubsAssignments, loadSubsMembers, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
 import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
+import { persistThenRefresh } from "../../services/persistThenRefresh";
 import { useAdminAuth } from "./AdminAuthProvider";
 import SubsFamilyAccountPanel from "./SubsFamilyAccountPanel";
 
@@ -21,6 +22,7 @@ export default function SubsSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [refreshWarning, setRefreshWarning] = useState("");
   const [period, setPeriod] = useState<string>(AGREED_SUBS_2026_27.period);
   const [periodStart, setPeriodStart] = useState<string>(AGREED_SUBS_2026_27.periodStart);
   const [periodEnd, setPeriodEnd] = useState<string>(AGREED_SUBS_2026_27.periodEnd);
@@ -32,6 +34,7 @@ export default function SubsSettingsPanel() {
     if (!canManage) return;
     setLoading(true);
     setError("");
+    setRefreshWarning("");
     try {
       const [memberRows, policyRows, assignmentRows] = await Promise.all([loadSubsMembers(), loadSubsPolicies(), loadSubsAssignments()]);
       setMembers(memberRows.filter((member) => member.status === "active"));
@@ -49,12 +52,13 @@ export default function SubsSettingsPanel() {
     } catch (loadError) {
       console.error("Unable to load subs settings:", loadError);
       setError("Unable to load subs rates and classifications.");
+      throw loadError;
     } finally {
       setLoading(false);
     }
   }, [canManage]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load().catch(() => undefined); }, [load]);
 
   const setRate = (type: "standard" | "leader", index: number, value: string) => {
     const setter = type === "standard" ? setStandardRates : setLeaderRates;
@@ -75,13 +79,20 @@ export default function SubsSettingsPanel() {
       const standardFamilyRatesCents = standardRates.map(parseEuroToCents);
       const leaderFamilyRatesCents = leaderRates.map(parseEuroToCents);
       const siblingCents = standardFamilyRatesCents.length > 1 ? standardFamilyRatesCents[1] - standardFamilyRatesCents[0] : standardFamilyRatesCents[0];
-      await saveSubsPolicy({
-        period, effectiveFrom: periodStart, periodStart, periodEnd, version: Number(version),
-        standardFamilyRatesCents, leaderFamilyRatesCents,
-        standardCents: standardFamilyRatesCents[0], leaderChildCents: leaderFamilyRatesCents[0], siblingCents
-      });
-      await load();
+      const result = await persistThenRefresh(
+        () => saveSubsPolicy({
+          period, effectiveFrom: periodStart, periodStart, periodEnd, version: Number(version),
+          standardFamilyRatesCents, leaderFamilyRatesCents,
+          standardCents: standardFamilyRatesCents[0], leaderChildCents: leaderFamilyRatesCents[0], siblingCents
+        }),
+        load
+      );
       setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
+      if (!result.refreshed) {
+        console.error("Subs policy saved but dependent state refresh failed:", result.refreshError);
+        setError("");
+        setRefreshWarning("Subs policy was saved successfully, but the dependent finance data could not be refreshed. Reload this page to retry; the saved policy has not been rolled back.");
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save subs policy.");
     } finally { setSaving(false); }
@@ -95,6 +106,7 @@ export default function SubsSettingsPanel() {
     <Typography color="text.secondary" sx={{ mt: 0.75 }}>Configure Scout-year family rates and create one billing account for each family. Access is restricted to the Treasurer, Group Leader, Deputy Group Leader and admins.</Typography>
     {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+    {refreshWarning && <Alert severity="warning" sx={{ mt: 2 }} data-testid="subs-refresh-warning">{refreshWarning}</Alert>}
     <Box sx={{ mt: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 800 }}>Rate policy</Typography>
       <Alert severity="info" sx={{ mt: 1.5, mb: 2 }}>2026/27 is prefilled with the agreed rates. The Scout subs year runs from September through June. Policies are immutable once saved; a correction is made by creating a later version.</Alert>
