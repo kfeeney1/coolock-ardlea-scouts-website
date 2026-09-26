@@ -6,6 +6,7 @@ import {
   balanceForAccount,
   categoryForFamilyPosition,
   createPaymentReversal,
+  currentSubsAccounts,
   familyIncrementFor,
   familyTotalFor,
   familyTypeForLeaderRelationships,
@@ -125,4 +126,12 @@ test("family account revisions preserve the original stable identity", () => {
   assert.equal(subsFamilyAccountRevisionId("2026/27", ["m1", "m2"], 1), original);
   assert.equal(subsFamilyAccountRevisionId("2026/27", ["m1", "m2"], 2), `${original}--r2`);
   assert.throws(() => subsFamilyAccountRevisionId("2026/27", ["m1"], 0), /positive integer/);
+});
+
+
+test("current family accounts exclude immutable revisions that were superseded", () => {
+  const original = { ...account, id: "a1" };
+  const revision = { ...account, id: "a2", revision: 2, supersedesAccountId: "a1", familyType: "leader" as const };
+  const unrelated = { ...account, id: "b1", memberIds: ["m9"] };
+  assert.deepEqual(currentSubsAccounts([original, revision, unrelated]).map((item) => item.id).sort(), ["a2", "b1"]);
 });
