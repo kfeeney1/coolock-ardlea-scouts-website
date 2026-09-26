@@ -10,7 +10,6 @@ import { reconcileOpenWeeklyRoster } from "../services/weeklyTrackerLogic";
 import { recordAuditEvent } from "../services/auditLog";
 import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 
-const GROUP_SECTIONS=["Beavers","Cubs","Scouts","Ventures","Rovers"];
 const today=new Date().toISOString().slice(0,10);
 
 export default function CreateWeeklyMeetingPage(){
