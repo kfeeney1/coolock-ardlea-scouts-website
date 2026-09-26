@@ -21,6 +21,7 @@ import type { EquipmentItem } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { copyEquipmentRequirement } from "../services/equipmentProgramme";
+import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const ALL_LEADERS = "All leaders";
@@ -51,6 +52,7 @@ export default function WeeklySectionTracker() {
   const [savedSelected,setSavedSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [step,setStep]=useState<Step>("attendance");
   const [copyDate,setCopyDate]=useState(today);
+  const [copySection,setCopySection]=useState("");
   const [copySource,setCopySource]=useState<WeeklyMeetingRecord|null>(null);
   const [injuryMemberId,setInjuryMemberId]=useState("");
   const [injuryConcern,setInjuryConcern]=useState("");
@@ -66,7 +68,7 @@ export default function WeeklySectionTracker() {
 
   const viewAll=isAdmin||access.canViewAll;
   const readOnly=!isAdmin&&access.readOnly;
-  const availableSections=useMemo(()=>viewAll?GROUP_SECTIONS:adminProfile?.sections??[],[adminProfile?.sections,viewAll]);
+  const availableSections=useMemo(()=>adminProfile?effectiveOperationalSections(adminProfile.role,adminProfile.sections,adminProfile.appointments):[],[adminProfile]);
   const canEditPast=canEditPastWeeklyMeeting(access.scoutingRole,Boolean(isAdmin));
   const editMode=weeklyMeetingEditMode(selected?.status??"open",access.scoutingRole,Boolean(isAdmin),readOnly);
   const operationalReadOnly=!editMode.canEditOperationalFields;
@@ -108,13 +110,14 @@ export default function WeeklySectionTracker() {
 
   const copyMeeting=async()=>{
     if(!copySource||!copyDate)return;
-    const roster=reconcileOpenWeeklyRoster([],members,copySource.section);
+    if(!availableSections.includes(copySection)) { setError("You are not authorised to copy a meeting into that section."); return; }
+    const roster=reconcileOpenWeeklyRoster([],members,copySection);
     const fallback=copySource.entries.map(e=>newWeeklyEntry(e.memberId,e.memberName));
     setSaving(true);
     try{
-      const input={section:copySource.section,meetingDate:copyDate,status:"open" as const,location:copySource.location,theme:copySource.theme,activities:copySource.activities.map(a=>({...a,id:crypto.randomUUID()})),badgeworkPlan:copySource.badgeworkPlan.map(b=>({...b,id:crypto.randomUUID()})),programmeNotes:copySource.programmeNotes,notes:"",entries:roster.length?roster:fallback,injuries:[]};
+      const input={section:copySection,meetingDate:copyDate,status:"open" as const,location:copySource.location,theme:copySource.theme,activities:copySource.activities.map(a=>({...a,id:crypto.randomUUID()})),badgeworkPlan:copySource.badgeworkPlan.map(b=>({...b,id:crypto.randomUUID()})),programmeNotes:copySource.programmeNotes,notes:"",entries:roster.length?roster:fallback,injuries:[]};
       const id=await createWeeklyMeeting(input);
-      await copyEquipmentRequirement("weeklyMeeting", copySource.id, "weeklyMeeting", id, `${copySource.section} Weekly Meeting · ${copyDate}`, copySource.section, copyDate);
+      await copyEquipmentRequirement("weeklyMeeting", copySource.id, "weeklyMeeting", id, `${copySection} Weekly Meeting · ${copyDate}`, copySection, copyDate);
       const copied={id,...input}; await auditWeeklyMeeting(copied,"weekly-meeting-copy",`Copied weekly meeting from ${copySource.meetingDate}.`); setSelected(copied); setSavedSelected(copied); setCopySource(null); setStep(initialStepForDate(copyDate)); setSuccess("Meeting copied. Planner rows and planned equipment were retained; attendance, completed badgework, injuries, checkout transactions and post-meeting notes were reset."); await refresh(access);
     }catch(e){console.error(e);setError("Unable to copy this meeting.");}finally{setSaving(false);}
   };
@@ -132,7 +135,7 @@ export default function WeeklySectionTracker() {
     const current=leaderParts(badgework.leader).filter((value)=>value!==ALL_LEADERS);
     updateBadgework(badgework.id,{leader:joinLeaders(checked?[...current,name]:current.filter((value)=>value!==name))});
   };
-  const applyDiscardAction=(action:DiscardAction)=>{const current=selected;setSelected(null);setSavedSelected(null);setPendingDiscard(null);if(action==="copy"&&current){setCopySource(current);setCopyDate(today);}};
+  const applyDiscardAction=(action:DiscardAction)=>{const current=selected;setSelected(null);setSavedSelected(null);setPendingDiscard(null);if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);}};
   const requestDiscardAction=(action:DiscardAction)=>{if(hasUnsavedChanges)setPendingDiscard(action);else applyDiscardAction(action);};
 
   const openRecords=records.filter(r=>r.status==="open"),history=records.filter(r=>r.status==="closed");
@@ -144,8 +147,8 @@ export default function WeeklySectionTracker() {
   {loading?<Box sx={{minHeight:300,display:"grid",placeItems:"center"}}><CircularProgress/></Box>:!selected?<Stack spacing={2}>
     {!readOnly&&<Button component={Link} to="/leader/weekly/create" variant="contained" color="success" size="large" sx={{alignSelf:"flex-start"}}>Create Meeting</Button>}
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Open Meeting</Typography>{!openRecords.length?<Alert severity="info">No meetings are currently open.</Alert>:<Stack spacing={1}>{openRecords.map(r=><Button key={r.id} variant="outlined" onClick={()=>{setSelected(r);setSavedSelected(r);setStep(initialStepForDate(r.meetingDate));}} sx={{justifyContent:"space-between",gap:1,textAlign:"left",minWidth:0}}><span>{displayDate(r.meetingDate)} · {r.section}</span><Chip size="small" label="Open"/></Button>)}</Stack>}</Paper>
-    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onOpen={(record)=>{setSelected(record);setSavedSelected(record);setStep("attendance");}} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");setSuccess("Meeting reopened.");await refresh(access);}catch(e){console.error(e);setError("Unable to reopen this meeting.");}finally{setSaving(false);}})();}} onCopy={(record)=>{setCopySource(record);setCopyDate(today);}}/>
-    {copySource&&<Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography sx={{fontWeight:800,mb:1}}>Copy {displayDate(copySource.meetingDate)} · {copySource.section}</Typography><Stack direction={{xs:"column",sm:"row"}} spacing={1}><Button fullWidth variant="outlined" onClick={()=>setCopyDate(today)}>Today</Button><TextField fullWidth label="Choose date" type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} slotProps={{inputLabel:{shrink:true}}}/><Button fullWidth variant="contained" onClick={()=>void copyMeeting()} disabled={saving}>Create Copy</Button><Button fullWidth onClick={()=>setCopySource(null)}>Cancel</Button></Stack></Paper>}
+    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onOpen={(record)=>{setSelected(record);setSavedSelected(record);setStep("attendance");}} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");setSuccess("Meeting reopened.");await refresh(access);}catch(e){console.error(e);setError("Unable to reopen this meeting.");}finally{setSaving(false);}})();}} onCopy={(record)=>{setCopySource(record);setCopyDate(today);setCopySection(record.section);}}/>
+    {copySource&&<Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography sx={{fontWeight:800,mb:1}}>Copy {displayDate(copySource.meetingDate)} · {copySource.section}</Typography><Stack direction={{xs:"column",sm:"row"}} spacing={1}><Button fullWidth variant="outlined" onClick={()=>setCopyDate(today)}>Today</Button><TextField select fullWidth label="Destination section" value={copySection} onChange={e=>setCopySection(e.target.value)}>{availableSections.map(section=><MenuItem key={section} value={section}>{section}</MenuItem>)}</TextField><TextField fullWidth label="Choose date" type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} slotProps={{inputLabel:{shrink:true}}}/><Button fullWidth variant="contained" onClick={()=>void copyMeeting()} disabled={saving}>Create Copy</Button><Button fullWidth onClick={()=>setCopySource(null)}>Cancel</Button></Stack></Paper>}
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
     <Paper ref={editorTopRef} data-testid="weekly-meeting-editor-top" variant="outlined" sx={{p:{xs:1.5,sm:2},minWidth:0,scrollMarginTop:16}}><Stack direction={{xs:"column",md:"row"}} spacing={1} sx={{justifyContent:"space-between",alignItems:{md:"center"}}}><Box sx={{minWidth:0}}><Typography variant="h5" sx={{fontWeight:800,overflowWrap:"anywhere"}}>{selected.section} · {displayDate(selected.meetingDate)}</Typography><Chip size="small" label={selected.status==="open"?"Open":"Closed"}/></Box><Stack direction={{xs:"column",sm:"row"}} spacing={1} useFlexGap sx={{flexWrap:"wrap"}}><Button fullWidth onClick={()=>requestDiscardAction("meetings")}>Meetings</Button><Button fullWidth variant="outlined" color="secondary" onClick={()=>setEquipmentOpen(true)} data-testid="weekly-equipment-button">Equipment</Button><Button fullWidth component="a" href={whatsappUrl} target="_blank" rel="noreferrer" variant="outlined" color="success" data-testid="weekly-whatsapp-share">Share in WhatsApp</Button>{!readOnly&&<Button fullWidth onClick={()=>requestDiscardAction("copy")}>Copy Meeting</Button>}</Stack></Stack></Paper>
     {selected.status==="closed"&&<Alert severity="info" data-testid="past-meeting-edit-notice">{operationalReadOnly?"This past meeting is read-only. Section Leaders, the Group Leader and Deputy Group Leader can update attendance, medical issues and additional notes.":"Past meeting: only attendance, injuries / medical issues and additional notes can be changed. Programme and completed badgework are locked."}</Alert>}
