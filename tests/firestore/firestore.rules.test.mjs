@@ -236,6 +236,41 @@ test("public join applications accept valid canonical submissions and reject inv
   }));
 });
 
+
+test("leaderChildRelationships enforce authorised reads and canonical admin/group-leader writes", async () => {
+  await seedDocuments([
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/leader-parent", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/ordinary-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/treasurer", { active: true, role: "leader", sections: ["Group"], permissions: ["finance"] }],
+    ["organisationLeadership/group-leader", { active: true, userId: "group-leader", role: "Group Leader" }],
+    ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"] }],
+    ["members/member-cub", { section: "Cubs", displayName: "Linked Cub", status: "active" }],
+  ]);
+
+  const adminDb = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
+  const groupLeaderDb = testEnv.authenticatedContext("group-leader", { email: "gl@example.com" }).firestore();
+  const ordinaryDb = testEnv.authenticatedContext("ordinary-leader", { email: "leader@example.com" }).firestore();
+  const canonicalPath = "leaderChildRelationships/leader-parent--member-cub";
+  const relationship = {
+    leaderUid: "leader-parent",
+    memberId: "member-cub",
+    active: true,
+    createdBy: "admin-1",
+    createdAt: serverTimestamp(),
+    updatedBy: "admin-1",
+    updatedAt: serverTimestamp(),
+  };
+
+  await assertSucceeds(setDoc(doc(adminDb, canonicalPath), relationship));
+  await assertSucceeds(getDoc(doc(adminDb, canonicalPath)));
+  await assertFails(getDoc(doc(ordinaryDb, canonicalPath)));
+  await assertFails(setDoc(doc(ordinaryDb, "leaderChildRelationships/leader-parent--member-other"), { ...relationship, memberId: "member-other", createdBy: "ordinary-leader", updatedBy: "ordinary-leader" }));
+  await assertFails(setDoc(doc(adminDb, "leaderChildRelationships/noncanonical"), { ...relationship, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(doc(groupLeaderDb, canonicalPath), { active: false, updatedBy: "group-leader", updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(groupLeaderDb, canonicalPath), { active: "false", updatedBy: "group-leader", updatedAt: serverTimestamp() }));
+});
+
 test("unknown collections remain denied by the default rule", async () => {
   const db = testEnv.authenticatedContext("someone").firestore();
   await assertFails(setDoc(doc(db, "unexpectedCollection/doc-1"), { value: true }));
