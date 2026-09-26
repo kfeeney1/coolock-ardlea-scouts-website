@@ -4,6 +4,7 @@ import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments"
 import type { MemberRecord } from "../../services/memberAdmin";
 import { loadSubsAssignments, loadSubsMembers, loadSubsPolicies, saveSubsPolicy } from "../../services/subsLedger";
 import { AGREED_SUBS_2026_27, parseEuroToCents, resolveCurrentSubsPolicy, type SubsAssignment, type SubsRatePolicy } from "../../services/subsLogic";
+import { persistThenRefresh } from "../../services/persistThenRefresh";
 import { useAdminAuth } from "./AdminAuthProvider";
 import SubsFamilyAccountPanel from "./SubsFamilyAccountPanel";
 
@@ -78,17 +79,17 @@ export default function SubsSettingsPanel() {
       const standardFamilyRatesCents = standardRates.map(parseEuroToCents);
       const leaderFamilyRatesCents = leaderRates.map(parseEuroToCents);
       const siblingCents = standardFamilyRatesCents.length > 1 ? standardFamilyRatesCents[1] - standardFamilyRatesCents[0] : standardFamilyRatesCents[0];
-      await saveSubsPolicy({
-        period, effectiveFrom: periodStart, periodStart, periodEnd, version: Number(version),
-        standardFamilyRatesCents, leaderFamilyRatesCents,
-        standardCents: standardFamilyRatesCents[0], leaderChildCents: leaderFamilyRatesCents[0], siblingCents
-      });
+      const result = await persistThenRefresh(
+        () => saveSubsPolicy({
+          period, effectiveFrom: periodStart, periodStart, periodEnd, version: Number(version),
+          standardFamilyRatesCents, leaderFamilyRatesCents,
+          standardCents: standardFamilyRatesCents[0], leaderChildCents: leaderFamilyRatesCents[0], siblingCents
+        }),
+        load
+      );
       setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
-      try {
-        await load();
-        setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
-      } catch (refreshError) {
-        console.error("Subs policy saved but dependent state refresh failed:", refreshError);
+      if (!result.refreshed) {
+        console.error("Subs policy saved but dependent state refresh failed:", result.refreshError);
         setError("");
         setRefreshWarning("Subs policy was saved successfully, but the dependent finance data could not be refreshed. Reload this page to retry; the saved policy has not been rolled back.");
       }
