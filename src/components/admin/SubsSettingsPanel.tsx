@@ -80,8 +80,8 @@ export default function SubsSettingsPanel() {
         standardFamilyRatesCents, leaderFamilyRatesCents,
         standardCents: standardFamilyRatesCents[0], leaderChildCents: leaderFamilyRatesCents[0], siblingCents
       });
-      setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
       await load();
+      setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save subs policy.");
     } finally { setSaving(false); }
