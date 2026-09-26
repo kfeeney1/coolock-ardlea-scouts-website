@@ -115,11 +115,27 @@ service cloud.firestore {
         && parentProfile().memberIds is list
         && memberId in parentProfile().memberIds;
     }
+    function parentMemberCurrentlyInSection(memberId, section) {
+      return memberId is string
+        && exists(/databases/$(database)/documents/members/$(memberId))
+        && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+        && get(/databases/$(database)/documents/members/$(memberId)).data.section == section;
+    }
     function isApprovedParentForSection(section) {
-      return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && parentProfile().status == "approved"
-        && parentProfile().linkedSections is list
-        && section in parentProfile().linkedSections;
+      return isApprovedParent()
+        && parentProfile().memberIds is list
+        && parentProfile().memberIds.size() <= 8
+        && (
+          section in ["Group", "All Sections"]
+          || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+          || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+          || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+          || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+          || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+          || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+          || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+          || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+        );
     }
 
     function isCanonicalAdventureSkillStage(skillId, stage) {
