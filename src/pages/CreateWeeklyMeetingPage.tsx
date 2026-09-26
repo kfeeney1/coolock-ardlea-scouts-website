@@ -8,8 +8,8 @@ import { loadAttendanceInsightMembers } from "../services/reporting";
 import { createWeeklyMeeting, defaultActivityPlans, defaultBadgeworkPlans, loadWeeklyAccess } from "../services/weeklyTracker";
 import { reconcileOpenWeeklyRoster } from "../services/weeklyTrackerLogic";
 import { recordAuditEvent } from "../services/auditLog";
+import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 
-const GROUP_SECTIONS=["Beavers","Cubs","Scouts","Ventures","Rovers"];
 const today=new Date().toISOString().slice(0,10);
 
 export default function CreateWeeklyMeetingPage(){
@@ -17,7 +17,7 @@ export default function CreateWeeklyMeetingPage(){
  const isAdmin=adminProfile?.role==="admin"||adminProfile?.role==="super-admin";
  const [section,setSection]=useState(""); const [date,setDate]=useState(today); const [location,setLocation]=useState(""); const [theme,setTheme]=useState("");
  const [programmeNotes,setProgrammeNotes]=useState(""); const [saving,setSaving]=useState(false); const [error,setError]=useState(""); const [accessLoaded,setAccessLoaded]=useState(false); const [canViewAll,setCanViewAll]=useState(false);
- const sections=useMemo(()=>isAdmin||canViewAll?GROUP_SECTIONS:adminProfile?.sections??[],[isAdmin,canViewAll,adminProfile?.sections]);
+ const sections=useMemo(()=>adminProfile?effectiveOperationalSections(adminProfile.role,adminProfile.sections,adminProfile.appointments):[],[adminProfile]);
  useEffect(()=>{void loadWeeklyAccess().then(a=>setCanViewAll(a.canViewAll)).catch(()=>setError("Unable to load meeting access.")).finally(()=>setAccessLoaded(true));},[]);
  useEffect(()=>{if(!section&&sections.length)setSection(sections[0]);},[section,sections]);
  const save=async()=>{if(saving)return;if(!section||!date){setError("Choose a section and meeting date.");return;}setSaving(true);setError("");

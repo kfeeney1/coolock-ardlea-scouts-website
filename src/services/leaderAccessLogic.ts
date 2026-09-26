@@ -61,3 +61,32 @@ export function canonicalLeaderAppointments(
     }
     return [...result.values()];
 }
+
+
+export const YOUTH_SECTION_NAMES = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
+
+export function effectiveOperationalSections(
+    role: NormalizedLeaderRole,
+    sections: readonly string[],
+    appointments: readonly ScoutingAppointmentAssignment[]
+): string[] {
+    if (role === "admin" || role === "super-admin") return [...YOUTH_SECTION_NAMES];
+    const active = appointments.filter((item) => item.active !== false);
+    if (active.some((item) => item.appointment === "Group Leader" || item.appointment === "Deputy Group Leader")) {
+        return [...YOUTH_SECTION_NAMES];
+    }
+    const accountSections = new Set(sections.filter((section) => section !== "Group"));
+    active.forEach((item) => {
+        if (!isGroupScopedAppointment(item.appointment) && item.scope !== "Group") accountSections.add(item.scope);
+    });
+    return sortScoutSections([...accountSections]);
+}
+
+export function canManageOperationalSection(
+    role: NormalizedLeaderRole,
+    sections: readonly string[],
+    appointments: readonly ScoutingAppointmentAssignment[],
+    section: string
+): boolean {
+    return effectiveOperationalSections(role, sections, appointments).includes(section);
+}

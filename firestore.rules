@@ -121,6 +121,7 @@ service cloud.firestore {
         && parentProfile().linkedSections is list
         && section in parentProfile().linkedSections;
     }
+
     function isCanonicalAdventureSkillStage(skillId, stage) {
       return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
         && stage is number
