@@ -48,6 +48,8 @@ export async function loadLeaderChildRelationshipsForMembers(memberIds: string[]
 
 export async function setLeaderChildRelationship(leaderUid: string, memberId: string, active: boolean): Promise<void> {
   const actor = actorUid();
+  const actorEmail = auth.currentUser?.email || "";
+  if (!actorEmail) throw new Error("Your signed-in account must have an email address to audit leader family changes.");
   const id = relationshipId(leaderUid, memberId);
   const relationshipRef = doc(db, "leaderChildRelationships", id);
   const leaderRef = doc(db, "adminUsers", leaderUid);
@@ -81,6 +83,7 @@ export async function setLeaderChildRelationship(leaderUid: string, memberId: st
       category: "leader-access",
       action: active ? "leader-child-linked" : "leader-child-unlinked",
       actorUid: actor,
+      actorEmail,
       targetId: id,
       targetLabel: memberSnapshot.data().displayName,
       description: active ? "Leader linked to child member." : "Leader unlinked from child member.",
