@@ -8,12 +8,14 @@ import {
   createPaymentReversal,
   familyIncrementFor,
   familyTotalFor,
+  familyTypeForLeaderRelationships,
   parseEuroToCents,
   paymentsForAssignment,
   rateForCategory,
   resolveCurrentSubsPolicy,
   scoutYearPeriodForDate,
   subsFamilyAccountId,
+  subsFamilyAccountRevisionId,
   validateFamilyAccountSelection,
   validatePayment,
   validatePolicy,
@@ -108,3 +110,19 @@ test("historical assignment remains snapshotted after policy changes",()=>{ cons
 test("derives partial, paid and credit balances from ledger entries",()=>{ assert.deepEqual(balanceFor(assignment,[payment(4000)]),{dueCents:26400,paidCents:4000,remainingCents:22400}); assert.equal(balanceFor(assignment,[payment(26400)]).remainingCents,0); assert.equal(balanceFor(assignment,[payment(27400)]).remainingCents,-1000); });
 test("exact reversals preserve shared-account provenance",()=>{ const original=familyPayment(4000); const reversal=createPaymentReversal(original,"Wrong amount"); assert.equal(reversal.amountCents,-4000); assert.equal(reversal.reversalOfPaymentId,"fp1"); assert.equal(reversal.accountId,"family-1"); assert.equal(balanceFor(familyAssignment("m2","Cubs",2),[original,{...reversal,id:"reversal-fp1",recordedBy:"treasurer"}]).paidCents,0); });
 test("validates policies and positive controlled-method payments",()=>{ const {id:policyId,...policyInput}=policy; const {id:paymentId,recordedBy,createdAt,...paymentInput}=payment(500); void policyId; void paymentId; void recordedBy; void createdAt; assert.doesNotThrow(()=>validatePolicy(policyInput)); assert.throws(()=>validatePolicy({...policyInput,standardFamilyRatesCents:[26400,25000]})); assert.doesNotThrow(()=>validatePolicy({...policyInput,standardFamilyRatesCents:[26400,41900,52400,62900,73400],leaderFamilyRatesCents:[20500,34300,46500,57000]})); assert.throws(()=>validatePolicy({...policyInput,periodEnd:"2026-08-31"})); assert.doesNotThrow(()=>validatePayment(paymentInput)); assert.throws(()=>validatePayment({...paymentInput,amountCents:0})); assert.throws(()=>validatePayment({...paymentInput,method:"card" as never})); });
+
+
+test("leader-family eligibility is relationship-driven and does not double-discount", () => {
+  assert.equal(familyTypeForLeaderRelationships(["m1", "m2"], []), "standard");
+  assert.equal(familyTypeForLeaderRelationships(["m1", "m2"], [{ memberId: "m1", active: true }]), "leader");
+  assert.equal(familyTypeForLeaderRelationships(["m1", "m2"], [{ memberId: "m1", active: true }, { memberId: "m2", active: true }]), "leader");
+  assert.equal(familyTypeForLeaderRelationships(["m1"], [{ memberId: "m1", active: false }]), "standard");
+  assert.equal(familyTypeForLeaderRelationships(["m1"], [{ memberId: "other", active: true }]), "standard");
+});
+
+test("family account revisions preserve the original stable identity", () => {
+  const original = subsFamilyAccountId("2026/27", ["m2", "m1"]);
+  assert.equal(subsFamilyAccountRevisionId("2026/27", ["m1", "m2"], 1), original);
+  assert.equal(subsFamilyAccountRevisionId("2026/27", ["m1", "m2"], 2), `${original}--r2`);
+  assert.throws(() => subsFamilyAccountRevisionId("2026/27", ["m1"], 0), /positive integer/);
+});
