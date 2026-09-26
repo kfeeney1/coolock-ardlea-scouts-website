@@ -15,21 +15,24 @@ export type ParentEventConsentLink = {
     startDate: string;
     endDate: string;
     consentRequired: boolean;
+    audienceMemberIds: string[];
 };
 
 function value(data: Record<string, unknown>, key: string): string {
     return typeof data[key] === "string" ? data[key] as string : "";
 }
 
-export async function loadParentEventConsentLinks(sections: string[]): Promise<ParentEventConsentLink[]> {
-    const uniqueSections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])].slice(0, 10);
-    if (uniqueSections.length === 0) return [];
+export async function loadParentEventConsentLinks(memberIds: string[]): Promise<ParentEventConsentLink[]> {
+    const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
+    if (linkedMemberIds.length === 0) return [];
 
+    // Audience snapshots, not section labels, are the parent visibility boundary.
+    // This prevents a selected-member event leaking to every parent in that section.
     const snapshot = await getDocs(
         query(
             collection(db, "eventConsentLinks"),
             where("active", "==", true),
-            where("section", "in", uniqueSections)
+            where("audienceMemberIds", "array-contains-any", linkedMemberIds)
         )
     );
 
@@ -48,7 +51,8 @@ export async function loadParentEventConsentLinks(sections: string[]): Promise<P
                 returnDetails: value(data, "returnDetails"),
                 startDate: value(data, "startDate"),
                 endDate: value(data, "endDate"),
-                consentRequired: data.consentRequired === true
+                consentRequired: data.consentRequired === true,
+                audienceMemberIds: Array.isArray(data.audienceMemberIds) ? data.audienceMemberIds.filter((id): id is string => typeof id === "string") : []
             };
         })
         .filter((event) => event.title && event.startDate)
