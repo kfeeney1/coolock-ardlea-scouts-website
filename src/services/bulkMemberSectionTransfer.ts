@@ -5,7 +5,6 @@ import type { MemberRecord, MemberStatus } from "./memberAdmin";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { recordAuditEvent } from "./auditLog";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
-import { syncParentSectionProjectionsForMembers } from "./parentSectionProjection";
 
 export const YOUTH_MEMBER_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
 export type YouthMemberSection = typeof YOUTH_MEMBER_SECTIONS[number];
@@ -115,8 +114,6 @@ export async function bulkTransferMembersSection(
       });
     }
   });
-
-  await syncParentSectionProjectionsForMembers(selectedMembers.map((member) => member.id));
 
   await recordAuditEvent({
     category: "member",
