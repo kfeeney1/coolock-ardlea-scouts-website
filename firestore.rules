@@ -99,8 +99,7 @@ service cloud.firestore {
     }
     function hasSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return isActiveLeader()
-        && exists(organisationPath)
+      return exists(organisationPath)
         && (sectionAppointmentAt(get(organisationPath).data, 0, section)
           || sectionAppointmentAt(get(organisationPath).data, 1, section)
           || sectionAppointmentAt(get(organisationPath).data, 2, section)
