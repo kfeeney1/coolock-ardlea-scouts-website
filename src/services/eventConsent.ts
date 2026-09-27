@@ -32,6 +32,7 @@ export type PublicEventLink = {
     endDate: string;
     consentRequired: boolean;
     active: boolean;
+    audienceMemberIds: string[];
     createdAt: Date | null;
     updatedAt: Date | null;
 };
@@ -103,6 +104,7 @@ function mapLink(token: string, data: DocumentData): PublicEventLink | null {
         endDate,
         consentRequired: data.consentRequired === true,
         active: data.active === true,
+        audienceMemberIds: Array.isArray(data.audienceMemberIds) ? data.audienceMemberIds.filter((id): id is string => typeof id === "string") : [],
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt)
     };
@@ -159,6 +161,8 @@ function publicEventPayload(event: EventRecord) {
         endDate: clean(event.endDate, 30),
         consentRequired: event.consentRequired,
         active: event.status === "open" && event.consentRequired,
+        audienceMemberIds: event.audience?.resolvedMemberIds ?? [],
+        audienceVersion: 2,
         updatedAt: serverTimestamp()
     };
 }

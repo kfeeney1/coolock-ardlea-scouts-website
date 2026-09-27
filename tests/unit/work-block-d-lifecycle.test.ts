@@ -25,6 +25,8 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   const admin=readFileSync("src/services/eventAdmin.ts","utf8");
   const logic=readFileSync("src/services/eventManagementLogic.ts","utf8");
   const rules=readFileSync("firestore.rules","utf8");
+  const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
+
   assert.match(admin,/mode: "sections" \| "members" \| "mixed"/);
   assert.match(admin,/const reconciledAttendance = \{ \.\.\.previousAttendance \}/);
   assert.match(admin,/const reconciledConsent = \{ \.\.\.previousConsent \}/);
@@ -32,4 +34,26 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   assert.match(admin,/reconciledConsent\[id\] \?\?=/);
   assert.match(logic,/sections\.has\(member\.section\) \|\| selected\.has\(member\.id\)/);
   assert.match(rules,/"audience"/);
+});
+
+
+test("Block E parent event consent uses canonical member audience snapshots", () => {
+  const parentEvents=readFileSync("src/services/parentEvents.ts","utf8");
+  const consent=readFileSync("src/services/eventConsent.ts","utf8");
+  const parentPortal=readFileSync("src/pages/ParentPortal.tsx","utf8");
+  const parentTasks=readFileSync("src/components/parent/ParentThingsToDo.tsx","utf8");
+  const rules=readFileSync("firestore.rules","utf8");
+  const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
+
+  assert.match(parentEvents,/where\("active", "==", true\)/);
+  assert.match(parentEvents,/audienceMemberIds\.some\(\(id\) => linkedMemberIdSet\.has\(id\)\)/);
+  assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
+  assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
+  assert.match(consent,/audienceVersion: 2/);
+  assert.match(parentPortal,/memberIds=\{account\.memberIds\}/);
+  assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds\)/);
+  assert.doesNotMatch(parentTasks,/loadParentEventConsentLinks\(sections\)/);
+  assert.match(rules,/resource\.data\.active == true && isApprovedParent\(\)/);
+  assert.match(flowSeed,/audienceVersion: 2, audienceMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
+  assert.match(flowSeed,/semantics: "snapshot".*resolvedMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
 });

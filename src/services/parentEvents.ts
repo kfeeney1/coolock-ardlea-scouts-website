@@ -15,23 +15,29 @@ export type ParentEventConsentLink = {
     startDate: string;
     endDate: string;
     consentRequired: boolean;
+    audienceMemberIds: string[];
 };
 
 function value(data: Record<string, unknown>, key: string): string {
     return typeof data[key] === "string" ? data[key] as string : "";
 }
 
-export async function loadParentEventConsentLinks(sections: string[]): Promise<ParentEventConsentLink[]> {
-    const uniqueSections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])].slice(0, 10);
-    if (uniqueSections.length === 0) return [];
+export async function loadParentEventConsentLinks(memberIds: string[]): Promise<ParentEventConsentLink[]> {
+    const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
+    if (linkedMemberIds.length === 0) return [];
 
+    // Fetch the small active consent-link projection, then enforce the canonical
+    // member audience locally. Firestore rules independently restrict parent list
+    // access to active links whose audience intersects the parent's linked members.
+    // Keeping the client query free of an array-contains-any constraint avoids a
+    // rules query-proof mismatch while preserving the same document-level boundary.
     const snapshot = await getDocs(
         query(
             collection(db, "eventConsentLinks"),
-            where("active", "==", true),
-            where("section", "in", uniqueSections)
+            where("active", "==", true)
         )
     );
+    const linkedMemberIdSet = new Set(linkedMemberIds);
 
     return snapshot.docs
         .map((item) => {
@@ -48,9 +54,11 @@ export async function loadParentEventConsentLinks(sections: string[]): Promise<P
                 returnDetails: value(data, "returnDetails"),
                 startDate: value(data, "startDate"),
                 endDate: value(data, "endDate"),
-                consentRequired: data.consentRequired === true
+                consentRequired: data.consentRequired === true,
+                audienceMemberIds: Array.isArray(data.audienceMemberIds) ? data.audienceMemberIds.filter((id): id is string => typeof id === "string") : []
             };
         })
+        .filter((event) => event.audienceMemberIds.some((id) => linkedMemberIdSet.has(id)))
         .filter((event) => event.title && event.startDate)
         .filter((event) => event.startDate >= new Date().toISOString().slice(0, 10))
         .sort((a, b) => a.startDate.localeCompare(b.startDate));

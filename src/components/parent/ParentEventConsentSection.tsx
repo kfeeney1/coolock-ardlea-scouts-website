@@ -15,11 +15,11 @@ import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import type { ParentEventConsentLink } from "../../services/parentEvents";
 import ParentEventGallerySection from "./ParentEventGallerySection";
 
-type Props = { sections: string[] };
+type Props = { memberIds: string[]; sections: string[] };
 
 
 
-export default function ParentEventConsentSection({ sections }: Props) {
+export default function ParentEventConsentSection({ memberIds, sections }: Props) {
   const [events, setEvents] = useState<ParentEventConsentLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,7 +34,7 @@ export default function ParentEventConsentSection({ sections }: Props) {
       setError("");
       setPermissionDenied(false);
       try {
-        const loaded = await loadParentEventConsentLinks(sections);
+        const loaded = await loadParentEventConsentLinks(memberIds);
         if (!cancelled) setEvents(loaded);
       } catch (loadError) {
         console.error("Unable to load parent event consent links:", loadError);
@@ -47,7 +47,7 @@ export default function ParentEventConsentSection({ sections }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [sections, retryVersion]);
+  }, [memberIds, retryVersion]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();

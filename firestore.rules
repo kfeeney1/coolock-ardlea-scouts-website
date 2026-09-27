@@ -138,6 +138,14 @@ service cloud.firestore {
         );
     }
 
+    function isApprovedParentForAudienceMembers(memberIds) {
+      return isApprovedParent()
+        && memberIds is list
+        && parentProfile().memberIds is list
+        && parentProfile().memberIds.size() <= 8
+        && memberIds.hasAny(parentProfile().memberIds);
+    }
+
     function isCanonicalAdventureSkillStage(skillId, stage) {
       return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
         && stage is number
@@ -449,14 +457,15 @@ service cloud.firestore {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if isSuperAdmin()
         || (isActiveLeader() && hasSection(resource.data.section))
-        || (resource.data.active == true && isApprovedParentForSection(resource.data.section));
+        || (resource.data.active == true && isApprovedParent());
       allow create: if isActiveLeader() && hasSection(request.resource.data.section)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string && request.resource.data.title is string
         && request.resource.data.eventType is string && request.resource.data.startDate is string
-        && request.resource.data.endDate is string && request.resource.data.active is bool;
+        && request.resource.data.endDate is string && request.resource.data.active is bool
+        && request.resource.data.audienceMemberIds is list && request.resource.data.audienceVersion == 2;
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "updatedAt"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
     }
 
