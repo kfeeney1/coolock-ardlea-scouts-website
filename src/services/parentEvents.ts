@@ -26,15 +26,18 @@ export async function loadParentEventConsentLinks(memberIds: string[]): Promise<
     const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
     if (linkedMemberIds.length === 0) return [];
 
-    // Audience snapshots, not section labels, are the parent visibility boundary.
-    // This prevents a selected-member event leaking to every parent in that section.
+    // Fetch the small active consent-link projection, then enforce the canonical
+    // member audience locally. Firestore rules independently restrict parent list
+    // access to active links whose audience intersects the parent's linked members.
+    // Keeping the client query free of an array-contains-any constraint avoids a
+    // rules query-proof mismatch while preserving the same document-level boundary.
     const snapshot = await getDocs(
         query(
             collection(db, "eventConsentLinks"),
-            where("active", "==", true),
-            where("audienceMemberIds", "array-contains-any", linkedMemberIds)
+            where("active", "==", true)
         )
     );
+    const linkedMemberIdSet = new Set(linkedMemberIds);
 
     return snapshot.docs
         .map((item) => {
@@ -55,6 +58,7 @@ export async function loadParentEventConsentLinks(memberIds: string[]): Promise<
                 audienceMemberIds: Array.isArray(data.audienceMemberIds) ? data.audienceMemberIds.filter((id): id is string => typeof id === "string") : []
             };
         })
+        .filter((event) => event.audienceMemberIds.some((id) => linkedMemberIdSet.has(id)))
         .filter((event) => event.title && event.startDate)
         .filter((event) => event.startDate >= new Date().toISOString().slice(0, 10))
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
