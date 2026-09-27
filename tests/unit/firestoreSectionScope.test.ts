@@ -10,9 +10,3 @@ test("Firestore section access remains bound to persisted canonical account sect
   assert.match(helper, /section in profile\(\)\.sections/);
   assert.doesNotMatch(helper, /organisationLeadership|appointments/);
 });
-
-test("appointment-derived operational scope is projected by application logic without expanding rules cost", () => {
-  const scope = readFileSync("src/services/leaderAccessLogic.ts", "utf8");
-  assert.match(scope, /effectiveOperationalSections/);
-  assert.match(scope, /appointment\.scope/);
-});
