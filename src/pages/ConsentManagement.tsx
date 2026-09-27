@@ -8,6 +8,7 @@ import { loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
 import { filterConsentRecords } from "../services/consentManagementLogic";
 import type { AlertFilter, TypeFilter } from "../services/consentManagementLogic";
+import { isCurrentUserSuperAdmin, reconcileUnlinkedConsents } from "../services/memberConsentReconciliation";
 
 export default function ConsentManagement() {
     const [records, setRecords] = useState<ConsentAdminRecord[]>([]);
@@ -22,6 +23,7 @@ export default function ConsentManagement() {
         setLoading(true);
         setError("");
         try {
+            if (await isCurrentUserSuperAdmin()) await reconcileUnlinkedConsents();
             setRecords(await loadConsentAdminRecords());
         } catch (loadError) {
             console.error("Unable to load consent management records:", loadError);
