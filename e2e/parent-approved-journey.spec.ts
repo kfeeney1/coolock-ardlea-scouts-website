@@ -6,8 +6,9 @@ const firstMember = "Riley Nolan Beavers 01";
 const secondMember = "Morgan Kavanagh Beavers 02";
 
 async function choose(page: import("@playwright/test").Page, label: string, answer: "Yes" | "No") {
-  await page.getByLabel(label).click();
-  await page.getByRole("option", { name: answer, exact: true }).click();
+  const question = page.getByText(label, { exact: true }).locator("..");
+  await question.getByRole("radio", { name: answer, exact: true }).check();
+  await expect(question.getByRole("radio", { name: answer, exact: true })).toBeChecked();
 }
 
 async function loginParent(page: import("@playwright/test").Page) {
