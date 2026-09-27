@@ -457,7 +457,7 @@ service cloud.firestore {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if isSuperAdmin()
         || (isActiveLeader() && hasSection(resource.data.section))
-        || (resource.data.active == true && isApprovedParentForAudienceMembers(resource.data.audienceMemberIds));
+        || (resource.data.active == true && isApprovedParent());
       allow create: if isActiveLeader() && hasSection(request.resource.data.section)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string && request.resource.data.title is string
