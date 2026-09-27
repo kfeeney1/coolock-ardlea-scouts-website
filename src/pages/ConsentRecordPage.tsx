@@ -7,6 +7,10 @@ import {
   Container,
   Paper,
   Stack,
+  TextField,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
   Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -19,6 +23,7 @@ import { loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
 import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
+import { isCurrentUserSuperAdmin, loadReconciliationCandidates, manuallyReconcileConsent, type ReconciliationCandidate } from "../services/memberConsentReconciliation";
 
 export default function ConsentRecordPage() {
   const { consentId } = useParams();
@@ -26,6 +31,12 @@ export default function ConsentRecordPage() {
   const [record, setRecord] = useState<ConsentAdminRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [superAdmin, setSuperAdmin] = useState(false);
+  const [candidates, setCandidates] = useState<ReconciliationCandidate[]>([]);
+  const [candidateId, setCandidateId] = useState("");
+  const [reason, setReason] = useState("");
+  const [confirmCorrection, setConfirmCorrection] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +59,34 @@ export default function ConsentRecordPage() {
     void load();
     return () => { cancelled = true; };
   }, [consentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void isCurrentUserSuperAdmin().then(async (allowed) => {
+      if (cancelled) return;
+      setSuperAdmin(allowed);
+      if (allowed) setCandidates(await loadReconciliationCandidates());
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [consentId]);
+
+  const reconcile = async () => {
+    if (!record || !candidateId || !reason.trim()) return;
+    if (record.memberId && record.memberId !== candidateId && !confirmCorrection) {
+      setError("Confirm that you intend to replace the existing member relationship.");
+      return;
+    }
+    setReconciling(true); setError("");
+    try {
+      await manuallyReconcileConsent(record.id, candidateId, reason);
+      const records = await loadConsentAdminRecords();
+      setRecord(records.find((item) => item.id === record.id) ?? null);
+      setReason(""); setConfirmCorrection(false);
+    } catch (reconcileError) {
+      console.error("Unable to reconcile consent:", reconcileError);
+      setError(reconcileError instanceof Error ? reconcileError.message : "Unable to reconcile this consent record.");
+    } finally { setReconciling(false); }
+  };
 
   const returnPath = typeof location.state === "object" && location.state && "fromMemberPath" in location.state && typeof location.state.fromMemberPath === "string" ? location.state.fromMemberPath : "/leader/consents";
 
@@ -88,7 +127,18 @@ export default function ConsentRecordPage() {
             </Stack>
           </Paper>
           {record.updatedByParent && <Alert severity="success">This record was updated through the Parent Portal on {formatDate(record.parentUpdatedAt || record.updatedAt)}.</Alert>}
-          {record.type === "youth" && !record.memberId && <Alert severity="warning">This youth consent record is not linked to a member ID. Re-save the parent’s approved Parent Access links to match it before Parent Portal editing can be used.</Alert>}
+          {record.type === "youth" && !record.memberId && <Alert severity="warning">This youth consent record is not linked to a canonical member. Super Admin can reconcile it below; ambiguous records are never guessed automatically.</Alert>}
+          {record.type === "youth" && superAdmin && <Paper variant="outlined" sx={{ p: 3 }} data-testid="consent-reconciliation">
+            <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Super Admin reconciliation</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>Choose the canonical member deliberately. Search results show identity/contact context only; medical details are not copied into the member record.</Typography>
+            <TextField select fullWidth label="Canonical member" value={candidateId} onChange={(event) => { setCandidateId(event.target.value); setConfirmCorrection(false); }}>
+              <MenuItem value="">Select member</MenuItem>
+              {candidates.map((candidate) => <MenuItem key={candidate.id} value={candidate.id}>{candidate.displayName} · {candidate.dateOfBirth || "DOB unavailable"} · {candidate.section || "No section"} · {candidate.parentName || candidate.emailAddress || candidate.mobileNumber || candidate.id}</MenuItem>)}
+            </TextField>
+            <TextField fullWidth label="Reconciliation reason" value={reason} onChange={(event) => setReason(event.target.value)} helperText="Record why this identity match is correct. Do not enter medical details." sx={{ mt: 2 }} />
+            {record.memberId && candidateId && record.memberId !== candidateId && <FormControlLabel sx={{ mt: 1 }} control={<Checkbox checked={confirmCorrection} onChange={(event) => setConfirmCorrection(event.target.checked)} />} label={`I confirm this replaces existing member relationship ${record.memberId}.`} />}
+            <Button variant="contained" color="success" disabled={reconciling || !candidateId || !reason.trim() || Boolean(record.memberId && record.memberId !== candidateId && !confirmCorrection)} onClick={() => void reconcile()} sx={{ mt: 2 }}>{reconciling ? "Saving…" : record.memberId ? "Correct relationship" : "Confirm member match"}</Button>
+          </Paper>}
           <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderWidth: 2, borderColor: hasImportantMedicalInformation(record) ? "warning.main" : "divider" }}>
             <Typography variant="h4" component="h2" color="secondary" sx={{ fontWeight: 800 }}>Important medical information</Typography>
             <Typography sx={{ mt: 1 }}>{hasImportantMedicalInformation(record) ? "Medical or medication information is recorded below. Review the recorded details and established action information." : "No medical alert or medication-management requirement is recorded in this consent summary."}</Typography>

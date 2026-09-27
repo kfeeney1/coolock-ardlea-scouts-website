@@ -490,7 +490,11 @@ service cloud.firestore {
         && request.resource.data.section is string
         && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
         && request.resource.data.formVersion is string
-        && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"]);
+        && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"])
+        && ((!request.resource.data.keys().hasAny(["memberId"]))
+          || (request.resource.data.formType == "youth-activity-consent"
+            && request.resource.data.memberId is string
+            && isApprovedParentForMember(request.resource.data.memberId)));
       allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)
           || (resource.data.memberId is string
             && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
@@ -500,6 +504,16 @@ service cloud.firestore {
           && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
           && !request.resource.data.keys().hasAny(["scoutSection"])
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
+        || (isSuperAdmin()
+          && resource.data.formType == "youth-activity-consent"
+          && request.resource.data.formType == resource.data.formType
+          && request.resource.data.memberId is string
+          && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+          && request.resource.data.reconciledBy == request.auth.uid
+          && request.resource.data.reconciledAt == request.time
+          && request.resource.data.reconciliationReason is string
+          && request.resource.data.reconciliationReason.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["memberId", "linkedBy", "linkedAt", "updatedAt", "reconciliationReason", "reconciledBy", "reconciledAt"]))
         || (resource.data.formType == "youth-activity-consent" && resource.data.memberId is string
           && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
           && request.resource.data.parentUpdatedBy == request.auth.uid

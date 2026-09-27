@@ -6,6 +6,7 @@ import {
 
 import { auth, db } from "../firebase";
 import { getPublicWhosWho } from "./publicWhosWho";
+import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
 
 export type YesNo = "Yes" | "No";
 
@@ -152,6 +153,8 @@ void loadAuthorisedScouterNames()
     .catch((error) => console.error("Unable to load authorised Scouters from Firestore:", error));
 
 export async function submitYouthConsent(data: YouthConsentData): Promise<string> {
+    const validationMessage = firstYouthConsentValidationMessage(validateYouthConsent(data));
+    if (validationMessage) throw new Error(validationMessage);
     const { scoutSection, ...canonicalData } = data;
     const authorisedScouters = await loadAuthorisedScouterNames();
     const ref = await addDoc(collection(db, "consentApplications"), {

@@ -134,6 +134,10 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const checkoutRow = checkoutDialog.locator('[data-testid^="equipment-checkout-item-"]').filter({ hasText: incidentName });
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeHidden();
+  const createdLoan = page.locator('[data-testid^="equipment-loan-"]').filter({ hasText: incidentName });
+  await expect(createdLoan).toBeVisible();
+  await expect(createdLoan).toContainText("2 ×");
 
   await page.getByRole("button", { name: "Report issue" }).click();
   const incidentDialog = page.getByRole("dialog", { name: "Report equipment issue" });

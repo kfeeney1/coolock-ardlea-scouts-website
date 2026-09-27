@@ -26,6 +26,7 @@ import MedicationManagementForm, {
 } from "./MedicationManagementForm";
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
+import { validateYouthConsent } from "../../services/youthConsentValidation";
 import {
     AUTHORISED_SCOUTERS,
     submitYouthConsent
@@ -318,6 +319,10 @@ export default function YouthConsentForm({
                 "gpAddress",
                 "GP address is required."
             );
+            const canonicalMedicalErrors = validateYouthConsent(formData);
+            if (canonicalMedicalErrors.medicalFurtherInfo) {
+                nextErrors.medicalFurtherInfo = canonicalMedicalErrors.medicalFurtherInfo;
+            }
         }
 
         if (activeStep === 3) {

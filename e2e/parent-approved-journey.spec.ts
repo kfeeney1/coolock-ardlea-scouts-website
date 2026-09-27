@@ -5,6 +5,13 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 const firstMember = "Riley Nolan Beavers 01";
 const secondMember = "Morgan Kavanagh Beavers 02";
 
+async function choose(page: import("@playwright/test").Page, field: string, answer: "Yes" | "No") {
+  const select = page.getByTestId(`parent-consent-select-${field}`);
+  await select.locator('[role="combobox"]').click();
+  await page.getByRole("option", { name: answer, exact: true }).click();
+  await expect(select.locator('[role="combobox"]')).toHaveText(answer);
+}
+
 async function loginParent(page: import("@playwright/test").Page) {
   await page.goto("/parent");
   await page.getByLabel("Email").fill(parentEmail!);
@@ -49,6 +56,22 @@ test.describe("approved parent journey", () => {
       .click();
     const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
     await expect(save).toBeVisible();
+    await save.click();
+    await expect(page.getByText(/required|Select Yes or No/i).first()).toBeVisible();
+
+    await page.getByLabel("Consent from").fill("2026-09-01");
+    await page.getByLabel("Consent to").fill("2027-07-31");
+    for (const label of ["photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"]) await choose(page, label, "No");
+    await choose(page, "vaccinated", "Yes");
+    await page.getByLabel("GP name").fill("Dr Test");
+    await page.getByLabel("GP telephone").fill("012345678");
+    await page.getByLabel("GP address").fill("Test Clinic");
+    await page.getByLabel("Parent / guardian 1").fill("Test Parent");
+    await page.getByLabel("Mobile").fill("0871234567");
+    await page.getByLabel("Email").fill(parentEmail!);
+    await page.getByLabel("Home address").fill("1 Test Road");
+    await page.getByLabel("Alternative emergency contact").fill("Other Adult");
+    await page.getByLabel("Alternative contact phone").fill("0861234567");
     await save.click();
     await expect(page.getByText("Consent and medical details updated successfully.")).toBeVisible();
     await expect(medicalAttentionCount).toHaveText("0");

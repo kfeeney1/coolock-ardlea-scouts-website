@@ -12,6 +12,8 @@ import {
 import type { Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import type { MedicationManagementData, YouthConsentData, YouthScoutSection } from "./consentApplications";
+import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
 
 export type ParentConsentRecord = {
     id: string;
@@ -45,7 +47,7 @@ export type ParentConsentRecord = {
     altContactName: string;
     altContactPhone: string;
     additionalInfo: string;
-    medicationManagement: Record<string, unknown>;
+    medicationManagement: MedicationManagementData;
     updatedByParent: boolean;
     submittedAt: Date | null;
     parentUpdatedAt: Date | null;
@@ -61,6 +63,18 @@ export type ParentLinkedMember = {
 
 const stringValue = (data: Record<string, unknown>, key: string) =>
     typeof data[key] === "string" ? (data[key] as string).trim() : "";
+
+const EMPTY_MEDICATION: MedicationManagementData = {
+    enabled: false, memberName: "", dateOfBirth: "", address: "", medicineName: "", dosage: "",
+    frequency: "", quantitySupplied: "", doctorName: "", doctorTel: "", pharmacyName: "", pharmacyTel: "",
+    method: "", otherInfo: "", selfAdmin: "", authFrom: "", authTo: "", scouter1: "", scouter2: "",
+    signature: "", signatureDate: ""
+};
+
+function medicationValue(value: unknown): MedicationManagementData {
+    if (!value || typeof value !== "object") return { ...EMPTY_MEDICATION };
+    return { ...EMPTY_MEDICATION, ...(value as Partial<MedicationManagementData>), enabled: (value as { enabled?: unknown }).enabled === true };
+}
 
 function timestampToDate(value: unknown): Date | null {
     if (value && typeof value === "object" && "toDate" in value && typeof (value as Timestamp).toDate === "function") {
@@ -109,10 +123,7 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
         altContactName: stringValue(data, "altContactName"),
         altContactPhone: stringValue(data, "altContactPhone"),
         additionalInfo: stringValue(data, "additionalInfo"),
-        medicationManagement:
-            data.medicationManagement && typeof data.medicationManagement === "object"
-                ? (data.medicationManagement as Record<string, unknown>)
-                : {},
+        medicationManagement: medicationValue(data.medicationManagement),
         updatedByParent: data.updatedByParent === true,
         submittedAt: timestampToDate(data.submittedAt),
         parentUpdatedAt: timestampToDate(data.parentUpdatedAt),
@@ -153,7 +164,7 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
         altContactName: "",
         altContactPhone: "",
         additionalInfo: "",
-        medicationManagement: {},
+        medicationManagement: { ...EMPTY_MEDICATION, memberName: member.displayName, dateOfBirth: member.dateOfBirth },
         updatedByParent: false,
         submittedAt: null,
         parentUpdatedAt: null,
@@ -188,9 +199,39 @@ export async function loadParentConsents(memberIds: string[]): Promise<ParentCon
     return results;
 }
 
+function parentValidationData(values: Partial<ParentConsentRecord>): YouthConsentData {
+    return {
+        scoutSection: (values.scoutSection ?? "") as YouthScoutSection | "",
+        childName: values.childName ?? "", childDOB: values.childDOB ?? "",
+        consentFrom: values.consentFrom ?? "", consentTo: values.consentTo ?? "",
+        photoConsent: (values.photoConsent ?? "") as YouthConsentData["photoConsent"],
+        waterActivities: (values.waterActivities ?? "") as YouthConsentData["waterActivities"],
+        canSwim: (values.canSwim ?? "") as YouthConsentData["canSwim"],
+        seriousIllness: (values.seriousIllness ?? "") as YouthConsentData["seriousIllness"],
+        regularMeds: (values.regularMeds ?? "") as YouthConsentData["regularMeds"],
+        medAllergies: (values.medAllergies ?? "") as YouthConsentData["medAllergies"],
+        allergies: (values.allergies ?? "") as YouthConsentData["allergies"],
+        dietaryReqs: (values.dietaryReqs ?? "") as YouthConsentData["dietaryReqs"],
+        vaccinated: (values.vaccinated ?? "") as YouthConsentData["vaccinated"],
+        medicalFurtherInfo: values.medicalFurtherInfo ?? "",
+        gpName: values.gpName ?? "", gpTel: values.gpTel ?? "", gpAddress: values.gpAddress ?? "", lastCheckup: values.lastCheckup ?? "",
+        parent1Name: values.parent1Name ?? "", parent2Name: values.parent2Name ?? "", homePhone: values.homePhone ?? "",
+        mobile1: values.mobile1 ?? "", workPhone: values.workPhone ?? "", email: values.email ?? "", homeAddress: values.homeAddress ?? "",
+        altContactName: values.altContactName ?? "", altContactPhone: values.altContactPhone ?? "", additionalInfo: values.additionalInfo ?? "",
+        sig1Name: "Parent Portal retained declaration", sig2Name: "", sigDate: values.parentUpdatedAt?.toISOString().slice(0, 10) ?? "retained",
+        declarationConfirmed: true, medicationManagement: values.medicationManagement ?? { ...EMPTY_MEDICATION }
+    };
+}
+
+export function validateParentConsentRecord(values: Partial<ParentConsentRecord>) {
+    return validateYouthConsent(parentValidationData(values));
+}
+
 export async function updateParentConsent(consentId: string, values: Partial<ParentConsentRecord>): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in parent.");
+    const validationMessage = firstYouthConsentValidationMessage(validateParentConsentRecord(values));
+    if (validationMessage) throw new Error(validationMessage);
 
     const parentFields = {
         consentFrom: values.consentFrom ?? "",
