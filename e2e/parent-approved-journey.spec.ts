@@ -6,9 +6,11 @@ const firstMember = "Riley Nolan Beavers 01";
 const secondMember = "Morgan Kavanagh Beavers 02";
 
 async function choose(page: import("@playwright/test").Page, label: string, answer: "Yes" | "No") {
-  const question = page.getByText(label, { exact: true }).locator("..");
-  await question.getByRole("radio", { name: answer, exact: true }).check();
-  await expect(question.getByRole("radio", { name: answer, exact: true })).toBeChecked();
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  const listbox = page.getByRole("listbox");
+  await expect(listbox).toBeVisible();
+  await listbox.getByRole("option", { name: answer, exact: true }).click();
+  await expect(page.getByRole("combobox", { name: label, exact: true })).toHaveText(answer);
 }
 
 async function loginParent(page: import("@playwright/test").Page) {
