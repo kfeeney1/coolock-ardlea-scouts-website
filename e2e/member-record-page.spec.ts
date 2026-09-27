@@ -105,6 +105,28 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
   await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
 });
 
+
+test("SW-156 stable consent linkage survives a member surname change", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_beaver_01");
+  const indicators = page.getByTestId("member-consent-medical-indicators");
+  await expect(indicators.getByRole("link", { name: /Open consent and medical details/ }).first()).toBeVisible();
+
+  const lastName = page.getByLabel("Last name");
+  const original = await lastName.inputValue();
+  await lastName.fill(original + "-Link-Test");
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+  await page.reload();
+  await expect(indicators.getByRole("link", { name: /Open consent and medical details/ }).first()).toBeVisible();
+
+  await page.getByLabel("Last name").fill(original);
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+});
+
 test("SW-216 surname edits are reloaded from Firestore and remain visible in Member Management", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
