@@ -65,6 +65,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
             value={String(form[key] ?? "")}
             onChange={(event) => set(key, event.target.value)}
             fullWidth
+            data-testid={`parent-consent-select-${String(key)}`}
         >
             {yesNo.map((value) => (
                 <MenuItem key={value || "blank"} value={value}>
