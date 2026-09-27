@@ -368,8 +368,6 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
         )
       ]);
   const documents = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
-  const memberName = member.displayName.trim().toLowerCase();
-  const memberDob = member.dateOfBirth.trim();
 
   const summaries = documents.flatMap((consentSnapshot) => {
     const data = consentSnapshot.data();
@@ -378,8 +376,7 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
     const childDOB = stringValue(data, "childDOB");
     const linkedMemberId = stringValue(data, "memberId");
     const stableIdMatch = linkedMemberId === member.id;
-    const legacyIdentityMatch = !linkedMemberId && childName && childDOB && childName.toLowerCase() === memberName && childDOB === memberDob;
-    if (!stableIdMatch && !legacyIdentityMatch) return [];
+    if (!stableIdMatch) return [];
     return [{
       consentId: consentSnapshot.id,
       memberName: childName,
@@ -391,31 +388,6 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
       hasMedicationManagement: medicationEnabled(data)
     }];
   }).sort((a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0));
-
-  // Legacy consent records pre-date stable member IDs. Only persist a link when
-  // the existing strict name + DOB + section identity match resolves uniquely.
-  const legacyMatches = documents.filter((consentSnapshot) => {
-    const data = consentSnapshot.data();
-    return data.formType === "youth-activity-consent"
-      && !stringValue(data, "memberId")
-      && stringValue(data, "childName").toLowerCase() === memberName
-      && stringValue(data, "childDOB") === memberDob;
-  });
-  if (legacyMatches.length === 1 && summaries.some((item) => item.consentId === legacyMatches[0].id)) {
-    await updateDoc(legacyMatches[0].ref, {
-      memberId: member.id,
-      linkedAt: serverTimestamp(),
-      linkedBy: auth.currentUser?.uid || ""
-    });
-    await recordAuditEvent({
-      category: "member",
-      action: "Consent linked to member",
-      targetId: member.id,
-      targetLabel: member.displayName,
-      section: member.section,
-      description: `Linked legacy consent ${legacyMatches[0].id} using exact name, date of birth and section identity.`
-    });
-  }
 
   return summaries;
 }
