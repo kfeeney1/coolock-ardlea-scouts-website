@@ -45,7 +45,8 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   const rules=readFileSync("firestore.rules","utf8");
   const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
 
-  assert.match(parentEvents,/where\("audienceMemberIds", "array-contains-any", linkedMemberIds\)/);
+  assert.match(parentEvents,/where\("active", "==", true\)/);
+  assert.match(parentEvents,/audienceMemberIds\.some\(\(id\) => linkedMemberIdSet\.has\(id\)\)/);
   assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
   assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
   assert.match(consent,/audienceVersion: 2/);
