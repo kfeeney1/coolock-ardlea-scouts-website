@@ -14,3 +14,10 @@ test("Store, status, category and text filters are applied in the same inventory
   assert.match(predicate, /statusFilter/);
   assert.match(predicate, /search\.trim/);
 });
+
+
+test("sequential filter changes derive from the latest URL state", () => {
+  assert.match(source, /setSearchParams\(\(current\) => \{/);
+  assert.match(source, /new URLSearchParams\(current\)/);
+  assert.doesNotMatch(source, /const next = new URLSearchParams\(searchParams\);/);
+});

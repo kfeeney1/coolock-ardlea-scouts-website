@@ -81,11 +81,15 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   const category = page.locator("#equipment-category-filter");
   const location = page.locator("#equipment-location-filter");
   await search.fill(itemName);
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe(itemName);
   await category.click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("category")).toBe("Camping & Sleeping");
   await location.click();
   await page.getByRole("option", { name: storeName }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(storeName);
   await page.getByRole("button", { name: "Show archived" }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("archived")).toBe("1");
   await expect(page.getByTestId("equipment-result-count")).toContainText("1 matching equipment item");
   await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(storeName);

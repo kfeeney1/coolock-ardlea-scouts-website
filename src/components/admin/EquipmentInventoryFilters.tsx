@@ -35,7 +35,6 @@ type Props = {
   onManageCategories: () => void;
   onToggleArchived: () => void;
   onReset: () => void;
-  onRefresh: () => void;
 };
 
 export default function EquipmentInventoryFilters({
@@ -59,8 +58,7 @@ export default function EquipmentInventoryFilters({
   onManageStores,
   onManageCategories,
   onToggleArchived,
-  onReset,
-  onRefresh
+  onReset
 }: Props) {
   return <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2 }} data-testid="equipment-inventory-controls">
     <Typography color="text.secondary" sx={{ mb: 2 }}>
@@ -128,7 +126,6 @@ export default function EquipmentInventoryFilters({
         {showArchived ? "Hide archived" : "Show archived"}
       </Button>
       {hasActiveFilters && <Button variant="outlined" onClick={onReset} data-testid="equipment-reset-filters">Reset filters</Button>}
-      <Button variant="outlined" onClick={onRefresh}>Refresh</Button>
     </Stack>
     {!loading && <Typography sx={{ mt: 2 }} color="text.secondary" role="status" aria-live="polite" data-testid="equipment-result-count">
       {resultCount} matching equipment item{resultCount === 1 ? "" : "s"}
