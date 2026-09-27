@@ -89,25 +89,8 @@ service cloud.firestore {
     function canDelegateLeaderTarget(userId) {
       return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
     }
-    function sectionAppointmentAt(data, index, section) {
-      return data.keys().hasAny(["appointments"])
-        && data.appointments is list && data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].get("scope", "") == section
-        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
-    }
-    function hasSectionAppointment(section) {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return exists(organisationPath)
-        && (sectionAppointmentAt(get(organisationPath).data, 0, section)
-          || sectionAppointmentAt(get(organisationPath).data, 1, section)
-          || sectionAppointmentAt(get(organisationPath).data, 2, section)
-          || sectionAppointmentAt(get(organisationPath).data, 3, section));
-    }
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && (section in profile().sections
-        || hasSectionAppointment(section)
         || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
         || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in profile().sections)
         || (section == "Scout" && "Scouts" in profile().sections)
