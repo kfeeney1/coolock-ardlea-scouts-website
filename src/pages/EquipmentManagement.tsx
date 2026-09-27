@@ -103,10 +103,12 @@ export default function EquipmentManagement() {
   const pageTitle = navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
 
   const updateFilterParam = (key: string, value: string, defaultValue = "all", replace = false) => {
-    const next = new URLSearchParams(searchParams);
-    if (!value || value === defaultValue) next.delete(key);
-    else next.set(key, value);
-    setSearchParams(next, { replace });
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (!value || value === defaultValue) next.delete(key);
+      else next.set(key, value);
+      return next;
+    }, { replace });
   };
 
   const refresh = async () => {
@@ -274,7 +276,6 @@ export default function EquipmentManagement() {
         onManageCategories={() => setManageCategoriesOpen(true)}
         onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "", false)}
         onReset={resetFilters}
-        onRefresh={() => void refresh()}
       />
       </Box>
 
