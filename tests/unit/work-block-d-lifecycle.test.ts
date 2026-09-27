@@ -25,6 +25,8 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   const admin=readFileSync("src/services/eventAdmin.ts","utf8");
   const logic=readFileSync("src/services/eventManagementLogic.ts","utf8");
   const rules=readFileSync("firestore.rules","utf8");
+  const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
+
   assert.match(admin,/mode: "sections" \| "members" \| "mixed"/);
   assert.match(admin,/const reconciledAttendance = \{ \.\.\.previousAttendance \}/);
   assert.match(admin,/const reconciledConsent = \{ \.\.\.previousConsent \}/);
@@ -50,4 +52,6 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds\)/);
   assert.doesNotMatch(parentTasks,/loadParentEventConsentLinks\(sections\)/);
   assert.match(rules,/isApprovedParentForAudienceMembers\(resource\.data\.audienceMemberIds\)/);
+  assert.match(flowSeed,/audienceVersion: 2, audienceMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
+  assert.match(flowSeed,/semantics: "snapshot".*resolvedMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
 });
