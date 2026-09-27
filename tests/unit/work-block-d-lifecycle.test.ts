@@ -52,7 +52,7 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.match(parentPortal,/memberIds=\{account\.memberIds\}/);
   assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds\)/);
   assert.doesNotMatch(parentTasks,/loadParentEventConsentLinks\(sections\)/);
-  assert.match(rules,/isApprovedParentForAudienceMembers\(resource\.data\.audienceMemberIds\)/);
+  assert.match(rules,/resource\.data\.active == true && isApprovedParent\(\)/);
   assert.match(flowSeed,/audienceVersion: 2, audienceMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
   assert.match(flowSeed,/semantics: "snapshot".*resolvedMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
 });
