@@ -5,12 +5,11 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 const firstMember = "Riley Nolan Beavers 01";
 const secondMember = "Morgan Kavanagh Beavers 02";
 
-async function choose(page: import("@playwright/test").Page, label: string, answer: "Yes" | "No") {
-  await page.getByRole("combobox", { name: label, exact: true }).click();
-  const listbox = page.getByRole("listbox");
-  await expect(listbox).toBeVisible();
-  await listbox.getByRole("option", { name: answer, exact: true }).click();
-  await expect(page.getByRole("combobox", { name: label, exact: true })).toHaveText(answer);
+async function choose(page: import("@playwright/test").Page, field: string, answer: "Yes" | "No") {
+  const select = page.getByTestId(`parent-consent-select-${field}`);
+  await select.locator('[role="combobox"]').click();
+  await page.getByRole("option", { name: answer, exact: true }).click();
+  await expect(select.locator('[role="combobox"]')).toHaveText(answer);
 }
 
 async function loginParent(page: import("@playwright/test").Page) {
@@ -62,8 +61,8 @@ test.describe("approved parent journey", () => {
 
     await page.getByLabel("Consent from").fill("2026-09-01");
     await page.getByLabel("Consent to").fill("2027-07-31");
-    for (const label of ["Photo consent", "Water activities", "Can swim", "Serious illness / condition", "Regular medication", "Medication allergies", "Other allergies", "Dietary requirements"]) await choose(page, label, "No");
-    await choose(page, "Vaccinations up to date", "Yes");
+    for (const label of ["photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"]) await choose(page, label, "No");
+    await choose(page, "vaccinated", "Yes");
     await page.getByLabel("GP name").fill("Dr Test");
     await page.getByLabel("GP telephone").fill("012345678");
     await page.getByLabel("GP address").fill("Test Clinic");
