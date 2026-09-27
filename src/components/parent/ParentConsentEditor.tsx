@@ -11,8 +11,11 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
+import MedicationManagementForm, { validateMedication } from "../consent/MedicationManagementForm";
+
 import type { ParentConsentRecord } from "../../services/parentConsent";
-import { updateParentConsent } from "../../services/parentConsent";
+import { updateParentConsent, validateParentConsentRecord } from "../../services/parentConsent";
+import type { MedicationManagementData } from "../../services/consentApplications";
 
 type Props = {
     consent: ParentConsentRecord;
@@ -26,14 +29,23 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [medicationErrors, setMedicationErrors] = useState<Partial<Record<keyof MedicationManagementData, string>>>({});
 
     const set = (key: keyof ParentConsentRecord, value: string) =>
         setForm((current) => ({ ...current, [key]: value }));
 
     const save = async () => {
-        setSaving(true);
         setMessage("");
         setError("");
+        const validation = validateParentConsentRecord(form);
+        const medicationValidation = validateMedication(form.medicationManagement, "youth");
+        setMedicationErrors(medicationValidation);
+        const firstError = Object.values(validation).find(Boolean) || Object.values(medicationValidation).find(Boolean);
+        if (firstError) {
+            setError(String(firstError));
+            return;
+        }
+        setSaving(true);
         try {
             await updateParentConsent(consent.id, form);
             setMessage("Consent and medical details updated successfully.");
@@ -97,10 +109,19 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
                 fullWidth
                 multiline
                 minRows={3}
+                required={["seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"].some((key) => form[key as keyof ParentConsentRecord] === "Yes")}
                 label="Medical details / further information"
                 value={form.medicalFurtherInfo}
                 onChange={(e) => set("medicalFurtherInfo", e.target.value)}
+                error={Boolean(validateParentConsentRecord(form).medicalFurtherInfo)}
+                helperText={validateParentConsentRecord(form).medicalFurtherInfo}
                 sx={{ mt: 2 }}
+            />
+            <MedicationManagementForm
+                mode="youth"
+                value={form.medicationManagement}
+                errors={medicationErrors}
+                onChange={(medicationManagement) => setForm((current) => ({ ...current, medicationManagement }))}
             />
 
             <Divider sx={{ my: 3 }} />
