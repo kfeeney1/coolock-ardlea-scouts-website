@@ -91,8 +91,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = "TEST Report Damage";
-  const damageNote = "Bent frame regression";
+  const runId = `${testInfo.workerIndex}-${Date.now()}`;
+  const itemName = `TEST Report Damage ${runId}`;
+  const damageNote = `Bent frame regression ${runId}`;
   await page.route("**/equipment-incident", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 1 }) });
   });
@@ -119,6 +120,8 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("option", { name: "Scouts" }).click();
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("1");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeHidden();
+  const scoutsHoldings = page.getByText("Scouts", { exact: true }).locator("..");
   await expect(page.getByText(`1 × ${itemName}`, { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Report issue" }).click();
