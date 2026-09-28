@@ -14,3 +14,12 @@ test("zero-pads single digit days and months", () => {
 test("leaves invalid string values available for legacy fallbacks", () => {
   assert.equal(formatSiteDate("not-a-date"), "not-a-date");
 });
+
+test("date-only values stay on the same calendar day in explicit timezones", () => {
+  assert.equal(formatSiteDate("2026-09-23", "Pacific/Auckland"), "23-09-2026");
+  assert.equal(formatSiteDate("2026-09-23", "America/Los_Angeles"), "23-09-2026");
+});
+
+test("formats timestamp values deterministically with an explicit timezone", () => {
+  assert.equal(formatSiteDate("2026-09-23T23:30:00Z", "Europe/Dublin"), "24-09-2026");
+});
