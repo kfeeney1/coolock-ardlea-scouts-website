@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const webkitCriticalPath = /webkit-critical-path\.spec\.ts/;
 const stableEnvironmentSmoke = /test-environment-smoke\.spec\.ts/;
 const runStableEnvironmentSmoke = process.env.E2E_STABLE_ENVIRONMENT_SMOKE === "true";
-const runTestSmokeContract = process.env.E2E_TEST_SMOKE_CONTRACT === "true";
+const runTestSmokeContract = process.env.E2E_DEPLOYMENT_SMOKE_CONTRACT === "true";
 const runTestEnvironmentSmoke = runStableEnvironmentSmoke || runTestSmokeContract;
 const configuredWorkers = Number.parseInt(process.env.E2E_WORKERS || "1", 10);
 const workers = Number.isFinite(configuredWorkers) && configuredWorkers > 0 ? configuredWorkers : 1;
