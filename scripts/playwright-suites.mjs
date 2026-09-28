@@ -13,6 +13,7 @@ export const suiteSpecs = {
     "leader-access-management.spec.ts",
     "organisation-chart.spec.ts",
     "parent-access-management.spec.ts",
+    "password-visibility.spec.ts",
     "release-authorization-boundaries.spec.ts",
     "role-permissions.spec.ts",
     "roles-permissions.spec.ts",
