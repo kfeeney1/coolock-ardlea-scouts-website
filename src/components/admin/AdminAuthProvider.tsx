@@ -249,16 +249,16 @@ export function AdminAuthProvider({ children }: Props) {
     };
 
     const logout = async () => {
-        // Fail closed in application state immediately. The protected route can
-        // leave privileged UI without waiting for Firebase persistence or the
-        // asynchronous auth observer, while signOut still completes normally.
+        // Keep the current session recoverable if Firebase rejects sign-out.
+        // Once Firebase confirms it, clear privileged application state without
+        // waiting for the asynchronous auth observer to finish rendering.
+        await signOut(auth);
         ++authStateVersion.current;
         setUser(null);
         setAdminProfile(null);
         setSessionSettings(DEFAULT_SESSION_SETTINGS);
         setLoading(false);
         window.localStorage.removeItem(SESSION_LAST_ACTIVITY_KEY);
-        await signOut(auth);
     };
 
     const setUiTheme = useCallback(async (theme: ThemeName) => {
