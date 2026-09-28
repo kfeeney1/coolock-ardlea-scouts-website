@@ -16,8 +16,8 @@ test.describe("stable TEST environment smoke", () => {
   test.skip(!runTestSmoke, "TEST smoke runs after deployment or as a local PR contract check.");
   test.skip(!testPassword, "Stable TEST smoke requires the synthetic TEST password.");
 
-  test("public journey shows a compact TEST banner and About build information", async ({ page }) => {
-    test.skip(!stableTestSmoke, "Deployed TEST banner metadata is verified only against TEST.");
+  if (stableTestSmoke) {
+    test("public journey shows a compact TEST banner and About build information", async ({ page }) => {
     await page.goto("/about");
     await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
 
@@ -35,10 +35,9 @@ test.describe("stable TEST environment smoke", () => {
     await expect(page.getByRole("heading", { name: "Build information" })).toBeVisible();
     await expect(page.getByText(/Build .* · Commit [a-f0-9]{7}/i)).toBeVisible();
     await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);
-  });
+    });
 
-  test("TEST banner does not obstruct public navigation", async ({ page }) => {
-    test.skip(!stableTestSmoke, "Deployed TEST banner geometry is verified only against TEST.");
+    test("TEST banner does not obstruct public navigation", async ({ page }) => {
     await page.goto("/");
     const banner = page.getByTestId("test-environment-banner");
     const header = page.locator("header");
@@ -50,7 +49,8 @@ test.describe("stable TEST environment smoke", () => {
     expect(bannerBox).not.toBeNull();
     expect(headerBox).not.toBeNull();
     expect(bannerBox!.y + bannerBox!.height).toBeLessThanOrEqual(headerBox!.y + 1);
-  });
+    });
+  }
 
   test("leader journey authenticates a synthetic section leader read-only", async ({ page }) => {
     await signIn(page, "/leader/login", "test.scout.section.leader@example.com");
