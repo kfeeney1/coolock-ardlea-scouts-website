@@ -9,7 +9,7 @@ const nativeToLocaleDateString = Date.prototype.toLocaleDateString;
 const nativeToLocaleString = Date.prototype.toLocaleString;
 const nativeToLocaleTimeString = Date.prototype.toLocaleTimeString;
 
-function asDate(value: DateInput | undefined): Date {
+function isDateOnly(value: DateInput | undefined): value is string {\n  return typeof value === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(value);\n}\n\nfunction asDate(value: DateInput | undefined): Date {
   if (value === undefined) return new Date();
   if (value instanceof Date) return value;
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
