@@ -6,6 +6,7 @@ test("shared password field is masked by default and exposes accessible stateful
   const source = readFileSync("src/components/PasswordField.tsx", "utf8");
   assert.match(source, /useState\(false\)/);
   assert.match(source, /visible \? "text" : "password"/);
+  assert.match(source, /"Hide characters" : "Show characters"/);
   assert.match(source, /"Hide password" : "Show password"/);
   assert.match(source, /aria-pressed=\{visible\}/);
   assert.match(source, /minWidth: 44, minHeight: 44/);
