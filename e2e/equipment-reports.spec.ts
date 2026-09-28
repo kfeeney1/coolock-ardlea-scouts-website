@@ -109,7 +109,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(addDialog).toBeHidden();
-  await expect(page.getByText(itemName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Detailed inventory" })).toBeVisible();
+  const createdItem = page.getByRole("link").filter({ hasText: itemName });
+  await expect(createdItem).toBeVisible();
 
   await page.getByRole("button", { name: "Check out equipment" }).click();
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
