@@ -7,7 +7,10 @@ async function signIn(page: import("@playwright/test").Page, path: string, email
   await page.goto(path);
   await page.getByLabel(/email/i).fill(email);
   await page.getByLabel(/password/i).fill(testPassword!);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
+  const signInButton = page.getByRole("button", { name: /^sign in$/i });
+  await signInButton.click();
+  await expect(signInButton).toHaveText("Signing in...");
+  await expect(signInButton).toBeHidden({ timeout: 30_000 });
 }
 
 test.describe("stable TEST environment smoke", () => {
