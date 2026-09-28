@@ -6,15 +6,19 @@ const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const action = process.argv[2] || "seed";
 if (!["seed", "cleanup"].includes(action)) throw new Error("Usage: node scripts/seed-public-site-content.mjs seed|cleanup");
 
-requireFirebaseMutationTarget({
+const { environment } = requireFirebaseMutationTarget({
   operation: `seed-public-site-content:${action}`,
   credentialJson: rawCredentials,
+  allowProduction: true,
 });
 
 initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const db = getFirestore();
-const ref = db.collection("publicSiteContent").doc("TEST_site");
-const marker = { testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
+const production = environment === "production";
+const ref = db.collection("publicSiteContent").doc(production ? "live" : "TEST_site");
+const marker = production
+  ? { testData: false, visibility: "public", published: true }
+  : { testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
 
 const content = {
   contentVersion: 1,
@@ -86,7 +90,10 @@ if (action === "seed") {
   const snapshot = await ref.get();
   if (snapshot.exists) {
     const data = snapshot.data();
-    if (data?.testData !== true || data?.testSeed !== marker.testSeed) throw new Error("Refusing to delete publicSiteContent/TEST_site without canonical seed marker.");
+    const canonical = production
+      ? data?.testData === false && data?.visibility === "public" && data?.published === true
+      : data?.testData === true && data?.testSeed === marker.testSeed;
+    if (!canonical) throw new Error(`Refusing to delete non-canonical publicSiteContent/${ref.id}.`);
     await ref.delete();
   }
   console.log("Removed canonical public website content/configuration.");

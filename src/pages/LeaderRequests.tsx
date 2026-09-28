@@ -11,6 +11,8 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    Checkbox,
+    FormControlLabel,
     Paper,
     Stack,
     TextField,
@@ -20,12 +22,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
+    DEFAULT_NEW_LEADER_APPOINTMENT,
     approveLeaderRegistration,
     loadLeaderRegistrationRequests,
     rejectLeaderRegistration
 } from "../services/leaderRegistrations";
 import type { LeaderRegistrationRequest } from "../services/leaderRegistrations";
 import { recordAuditEvent } from "../services/auditLog";
+import { CANONICAL_SCOUTING_APPOINTMENTS } from "../security/scoutingAppointments";
 
 function formatDate(value: Date | null) {
     if (!value) return "Unknown date";
@@ -50,6 +54,7 @@ export default function LeaderRequests() {
     const [reviewNote, setReviewNote] = useState("");
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const [saving, setSaving] = useState(false);
+    const [selectedAppointments, setSelectedAppointments] = useState<string[]>([DEFAULT_NEW_LEADER_APPOINTMENT]);
 
     const refresh = async () => {
         setLoading(true);
@@ -95,6 +100,7 @@ export default function LeaderRequests() {
         setDecision(null);
         setSelected(null);
         setReviewNote("");
+        setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]);
     };
 
     const finish = async (approved: boolean) => {
@@ -105,7 +111,7 @@ export default function LeaderRequests() {
         setMessage("");
         try {
             if (approved) {
-                await approveLeaderRegistration(selected, user.uid, reviewNote);
+                await approveLeaderRegistration(selected, user.uid, reviewNote, selectedAppointments);
                 setMessage(selected.matchingParentStatus
                     ? `${selected.fullName} has been approved as a Leader and the Leader access is now attached to the same login as the matching Parent registration.`
                     : `${selected.fullName} has been approved as a Leader for ${selected.requestedSection || "their assigned section"}.`);
@@ -121,12 +127,13 @@ export default function LeaderRequests() {
                 section: selected.requestedSection || "",
                 description: approved
                     ? selected.matchingParentStatus
-                        ? `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"} after explicitly confirming the matching Parent registration for the same login.`
-                        : `Approved ${selected.requestedRole || "Leader"} access for ${selected.requestedSection || "the requested section"}.`
+                        ? `Approved Leader access with ${selectedAppointments.join(", ") || "no Scouting appointment"} for ${selected.requestedSection || "the requested section"} after explicitly confirming the matching Parent registration for the same login.`
+                        : `Approved Leader access with ${selectedAppointments.join(", ") || "no Scouting appointment"} for ${selected.requestedSection || "the requested section"}.`
                     : "Rejected leader access request."
             });
             setSelected(null);
             setReviewNote("");
+            setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]);
             await refresh();
         } catch (err) {
             console.error(err);
@@ -190,7 +197,7 @@ export default function LeaderRequests() {
                                 variant="outlined"
                                 component={request.status === "rejected" ? "div" : "button"}
                                 type={request.status === "rejected" ? undefined : "button"}
-                                onClick={() => request.status === "approved" ? navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : request.status === "pending" ? (setDecision(null), setSelected(request)) : undefined}
+                                onClick={() => request.status === "approved" ? navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : request.status === "pending" ? (setDecision(null), setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]), setSelected(request)) : undefined}
                                 aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : request.status === "pending" ? `Review leader request for ${request.fullName}` : undefined}
                                 sx={{
                                     p: { xs: 2, sm: 2.5 },
@@ -256,6 +263,17 @@ export default function LeaderRequests() {
                                 <Alert severity="info">
                                     Approving {selected.fullName} creates active Leader access for {selected.requestedSection}. Additional sections can then be assigned from Leader Access.
                                 </Alert>
+                                <Box role="group" aria-label={`Scouting appointments for ${selected.fullName}`}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Scouting appointments</Typography>
+                                    <Typography variant="body2" color="text.secondary">Programme Scouter is the new-leader default. Change or remove it before approval if required.</Typography>
+                                    <Stack sx={{ mt: 0.5 }}>
+                                        {CANONICAL_SCOUTING_APPOINTMENTS.map((appointment) => <FormControlLabel
+                                            key={appointment}
+                                            control={<Checkbox checked={selectedAppointments.includes(appointment)} onChange={(event) => setSelectedAppointments((current) => event.target.checked ? [...current, appointment] : current.filter((item) => item !== appointment))} />}
+                                            label={appointment}
+                                        />)}
+                                    </Stack>
+                                </Box>
                                 {selected.matchingParentStatus && <Alert severity="warning"><strong>Parent registration match:</strong> this login has Parent status {selected.matchingParentStatus}. Confirm that this is the same person before merging Leader access onto the shared login. No Parent permissions are changed by this Leader approval.</Alert>}
                             </Stack>
                         )}
@@ -292,6 +310,7 @@ export default function LeaderRequests() {
                                 <Typography>
                                     Approve <strong>{selected.fullName}</strong> as a Leader for {selected.requestedSection}?
                                 </Typography>
+                                <Typography>Appointments: <strong>{selectedAppointments.join(", ") || "None"}</strong></Typography>
                                 <Alert severity="warning">
                                     {selected.matchingParentStatus
                                         ? "This explicitly attaches Leader access to the same authenticated login as the matching Parent registration. Parent and child-link approval remains independent."

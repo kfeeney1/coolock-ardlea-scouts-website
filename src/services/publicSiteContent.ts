@@ -1,5 +1,9 @@
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { appEnvironment, db } from "../firebase";
+import { hasCanonicalPublicPublication, publicSiteContentDocumentId } from "./publicSiteContentLogic";
+import type { PublicContentDocumentId } from "./publicSiteContentLogic";
+
+export { publicSiteContentDocumentId } from "./publicSiteContentLogic";
 
 export type PublicSectionOption = {
   value: "Beavers" | "Cubs" | "Scouts" | "Ventures" | "Rovers" | "Scouter";
@@ -46,10 +50,10 @@ function requiredObject(record: Record<string, unknown>, key: string, scope: str
   return value;
 }
 
-function parseSiteContent(data: Record<string, unknown>): PublicSiteContent {
+export function parseSiteContent(data: Record<string, unknown>, documentId: PublicContentDocumentId): PublicSiteContent {
   if (data.contentVersion !== 1) throw new Error("Unsupported publicSiteContent contentVersion.");
-  if (data.testData !== true || data.testSeed !== "public-site-content-v1" || data.createdBySeed !== "TEST_SEED") {
-    throw new Error("publicSiteContent is not the canonical seeded public content document.");
+  if (!hasCanonicalPublicPublication(data, documentId)) {
+    throw new Error("publicSiteContent is not the canonical published public content document.");
   }
 
   const group = requiredObject(data, "group", "site");
@@ -147,9 +151,10 @@ function parseSiteContent(data: Record<string, unknown>): PublicSiteContent {
 let cached: Promise<PublicSiteContent> | null = null;
 export function loadPublicSiteContent(): Promise<PublicSiteContent> {
   if (!cached) {
-    cached = getDoc(doc(db, "publicSiteContent", "TEST_site")).then((snapshot) => {
+    const documentId = publicSiteContentDocumentId(appEnvironment);
+    cached = getDoc(doc(db, "publicSiteContent", documentId)).then((snapshot) => {
       if (!snapshot.exists()) throw new Error("Canonical public website content is missing from Firestore.");
-      return parseSiteContent(snapshot.data());
+      return parseSiteContent(snapshot.data(), documentId);
     }).catch((error) => {
       cached = null;
       throw error;
