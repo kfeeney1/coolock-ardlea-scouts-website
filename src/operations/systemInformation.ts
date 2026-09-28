@@ -1,4 +1,4 @@
-import { formatSiteDate } from "../services/siteDateFormat";
+import { formatSiteDate } from "../services/siteDateFormat.ts";
 
 export type OperationalStatus = "verified" | "guidance" | "unknown";
 
