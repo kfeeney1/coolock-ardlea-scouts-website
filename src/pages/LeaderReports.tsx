@@ -51,7 +51,7 @@ export default function LeaderReports() {
     const { adminProfile } = useAdminAuth();
     const [searchParams] = useSearchParams();
     const navigationView = searchParams.get("view");
-    const pageIdentity = navigationView === "insights" ? "reports-exports" : "secretary-reports";
+    const pageIdentity = navigationView === "insights" ? "reports-exports" : navigationView === "treasurer" ? "treasurer-reports" : "leader-reports";
     const [members, setMembers] = useState<MemberReportRow[]>([]);
     const [events, setEvents] = useState<EventReportRecord[]>([]);
     const [selectedEventId, setSelectedEventId] = useState("");

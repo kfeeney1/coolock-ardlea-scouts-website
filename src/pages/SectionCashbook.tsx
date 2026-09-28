@@ -7,7 +7,7 @@ import {
 import StableSelect from "../components/StableSelect";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
-import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
+import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import NewSectionFloatDialog from "../components/finance/NewSectionFloatDialog";
@@ -73,9 +73,9 @@ function transactionLabel(transaction: FinanceTransaction): string {
 export default function SectionCashbook() {
   const [searchParams] = useSearchParams();
   const navigationView = searchParams.get("view");
-  const pageIdentity = navigationView === "secretary" ? "secretary-floats" : navigationView === "group-operations" ? "group-section-floats" : "section-floats";
+  const pageIdentity = navigationView === "treasurer" ? "treasurer-floats" : navigationView === "group-operations" ? "group-section-floats" : "section-floats";
   const { adminProfile } = useAdminAuth();
-  const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Treasurer";
+  const isAllSectionsRole = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
   const sections = useMemo(() => isAllSectionsRole ? GROUP_SECTIONS : (adminProfile?.sections ?? []).filter((item) => item !== "Group"), [adminProfile, isAllSectionsRole]);
   const [section, setSection] = useState("");
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);

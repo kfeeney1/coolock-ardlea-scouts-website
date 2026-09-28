@@ -1,6 +1,6 @@
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
+import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { recordAuditEvent } from "../../services/auditLog";
 import { loadFinanceTransactions } from "../../services/financeLedger";
@@ -30,7 +30,7 @@ type Props = { initialSection?: string };
 
 export default function FinanceReportsPanel({ initialSection = "" }: Props) {
   const { adminProfile } = useAdminAuth();
-  const allFinance = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || isGroupLeadershipAppointment(adminProfile?.scoutingRole) || adminProfile?.scoutingRole === "Group Treasurer";
+  const allFinance = adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole);
   const permittedSections = useMemo(() => allFinance ? GROUP_SECTIONS : (adminProfile?.sections ?? []), [adminProfile, allFinance]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([]);

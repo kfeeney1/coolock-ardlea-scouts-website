@@ -30,8 +30,8 @@ export default function SiteSettings() {
     const { adminProfile, refreshSessionSettings } = useAdminAuth();
     const [searchParams] = useSearchParams();
     const navigationView = searchParams.get("view");
-    const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "secretary" ? "secretary-settings" : "settings";
-    const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "secretary" ? "Secretary Settings" : "Settings";
+    const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "treasurer" ? "treasurer-settings" : "settings";
+    const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
     const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
     const [loading, setLoading] = useState(canManageSiteSettings);
