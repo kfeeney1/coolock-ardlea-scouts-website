@@ -13,12 +13,13 @@ type Props = {
     members?: MemberRecord[];
     onClose: () => void;
     onChange: (draft: EventInput) => void;
+    onClear?: () => void;
     onSave: () => void;
 };
 
 type EventEditorStep = "details" | "settings";
 
-export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onSave }: Props) {
+export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onClear, onSave }: Props) {
     const [step, setStep] = useState<EventEditorStep>("details");
     const [confirmCompletion, setConfirmCompletion] = useState(false);
     const [memberSearch, setMemberSearch] = useState("");
@@ -140,7 +141,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                         ) : (
                             <>
                                 {!isEditing && <Button onClick={() => setStep("details")}>Back</Button>}
-                                <Button variant="contained" color="success" disabled={saving} onClick={requestSave}>{saving ? "Saving..." : editing ? "Save Event" : "Create Event"}</Button>
+                                {!isEditing && onClear && <Button variant="outlined" disabled={saving} onClick={() => { onClear(); setStep("details"); setMemberSearch(""); }}>Clear</Button>}<Button variant="contained" color="success" disabled={saving} onClick={requestSave}>{saving ? "Saving..." : editing ? "Save Event" : "Create Event"}</Button>
                             </>
                         )}
                     </DialogActions>
