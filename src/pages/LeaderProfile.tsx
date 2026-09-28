@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import PasswordField from "../components/PasswordField";
 import {
     changeLeaderPassword,
     loadLeaderProfile,
@@ -186,12 +187,12 @@ export default function LeaderProfile() {
                     {passwordMessage && <Alert severity="success" sx={{ mb: 3 }}>{passwordMessage}</Alert>}
 
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
-                        <TextField type="password" label="Current password" value={currentPassword}
+                        <PasswordField label="Current password" value={currentPassword}
                             onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password"
                             sx={{ gridColumn: { sm: "1 / -1" } }} />
-                        <TextField type="password" label="New password" value={newPassword}
+                        <PasswordField label="New password" value={newPassword}
                             onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" helperText="At least 8 characters." />
-                        <TextField type="password" label="Confirm new password" value={confirmPassword}
+                        <PasswordField label="Confirm new password" value={confirmPassword}
                             onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" />
                     </Box>
 
