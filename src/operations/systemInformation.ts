@@ -1,3 +1,5 @@
+import { formatSiteDate } from "../services/siteDateFormat";
+
 export type OperationalStatus = "verified" | "guidance" | "unknown";
 
 export const SYSTEM_INFORMATION = {
@@ -94,7 +96,7 @@ export function buildAiHandoverPrompt(): string {
   return `# Coolock Ardlea Scouts — AI Development Handover
 
 Repository: ${d.project.repository}
-Documentation last reviewed: ${d.lastReviewed}
+Documentation last reviewed: ${formatSiteDate(d.lastReviewed)}
 
 You are continuing authorised development of this repository. Static documentation is guidance, not live authority. Before acting, verify current Jira, GitHub and deployment state.
 
