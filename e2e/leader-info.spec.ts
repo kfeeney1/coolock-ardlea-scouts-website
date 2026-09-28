@@ -7,9 +7,12 @@ async function signInAndOpenInfo(page: import("@playwright/test").Page) {
   await page.goto("/leader/login");
   await page.getByLabel(/email/i).fill(leaderEmail!);
   await page.getByLabel(/password/i).fill(leaderPassword!);
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await expect(page).toHaveURL(/\/leader/);
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+  await expect(page).toHaveURL(/\/leader(?:\/)?$/);
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/info");
+  await expect(page).toHaveURL(/\/leader\/info$/);
+  await expect(page.getByRole("heading", { name: "Leader Portal Information" })).toBeVisible();
 }
 
 test.describe("Leader portal information", () => {
