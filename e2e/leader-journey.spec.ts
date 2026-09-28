@@ -57,6 +57,12 @@ test.describe("leader journey", () => {
       await expect(review).toBeVisible();
       await expect(review).toContainText("Pending Scouter");
       await expect(review).toContainText("active Leader access for Beavers");
+      const programmeScouter = review.getByRole("checkbox", { name: "Programme Scouter", exact: true });
+      await expect(programmeScouter).toBeChecked();
+      await programmeScouter.uncheck();
+      await expect(programmeScouter).not.toBeChecked();
+      await programmeScouter.check();
+      await expect(programmeScouter).toBeChecked();
 
       await review.getByRole("button", { name: "Reject", exact: true }).click();
       const rejectConfirmation = page.getByRole("dialog", { name: "Reject leader request?" });
@@ -73,6 +79,7 @@ test.describe("leader journey", () => {
       await expect(approveConfirmation).toContainText("Pending Scouter");
       await expect(approveConfirmation).toContainText("active section-scoped Leader access");
       await expect(approveConfirmation).toContainText("grants access to Beavers leader data and workflows");
+      await expect(approveConfirmation).toContainText("Appointments: Programme Scouter");
       await expect(approveConfirmation.getByRole("button", { name: "Confirm Approval", exact: true })).toBeVisible();
       await approveConfirmation.getByRole("button", { name: "Back to review", exact: true }).click();
 
