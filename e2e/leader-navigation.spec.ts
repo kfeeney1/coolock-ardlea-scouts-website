@@ -47,16 +47,16 @@ test("Treasurer desktop menu opens each finance workspace with its own page iden
   await login(page, "test.group.treasurer@example.com");
 
   for (const destination of [
-    { label: "Subs", url: /\/leader\/subs\?view=treasurer$/, pageId: "page-treasurer-subs" },
-    { label: "Floats", url: /\/leader\/finance\?view=treasurer$/, pageId: "page-treasurer-floats" },
-    { label: "Reports", url: /\/leader\/reports\?view=treasurer$/, pageId: "page-treasurer-reports" },
-    { label: "Settings", url: /\/leader\/settings\?view=treasurer$/, pageId: "page-treasurer-settings" },
+    { itemId: "leader-nav-treasurer-subs", url: /\/leader\/subs\?view=treasurer$/, pageId: "page-treasurer-subs" },
+    { itemId: "leader-nav-treasurer-floats", url: /\/leader\/finance\?view=treasurer$/, pageId: "page-treasurer-floats" },
+    { itemId: "leader-nav-treasurer-reports", url: /\/leader\/reports\?view=treasurer$/, pageId: "page-treasurer-reports" },
+    { itemId: "leader-nav-treasurer-settings", url: /\/leader\/settings\?view=treasurer$/, pageId: "page-treasurer-settings" },
   ]) {
     await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
     const desktopNavigation = page.getByTestId("leader-navigation-desktop");
     await expect(desktopNavigation.getByText("Treasurer", { exact: true })).toBeVisible();
     await expect(desktopNavigation.getByText("Secretary", { exact: true })).toHaveCount(0);
-    await desktopNavigation.getByRole("link", { name: destination.label, exact: true }).click();
+    await desktopNavigation.getByTestId(destination.itemId).click();
     await expect(page).toHaveURL(destination.url);
     await expect(page.getByTestId(destination.pageId)).toBeVisible();
   }
