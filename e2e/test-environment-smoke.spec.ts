@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const testPassword = process.env.E2E_TEST_USER_PASSWORD;
 const stableTestSmoke = process.env.E2E_STABLE_ENVIRONMENT_SMOKE === "true";
-const testSmokeContract = process.env.E2E_TEST_SMOKE_CONTRACT === "true";
+const testSmokeContract = process.env.E2E_DEPLOYMENT_SMOKE_CONTRACT === "true";
 const runTestSmoke = stableTestSmoke || testSmokeContract;
 
 async function signIn(page: import("@playwright/test").Page, path: string, email: string) {
