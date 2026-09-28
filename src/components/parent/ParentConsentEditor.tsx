@@ -3,7 +3,6 @@ import {
     Box,
     Button,
     Divider,
-    MenuItem,
     Paper,
     Stack,
     TextField,
@@ -11,7 +10,8 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-import MedicationManagementForm, { validateMedication } from "../consent/MedicationManagementForm";\nimport YesNoField from "../consent/YesNoField";
+import MedicationManagementForm, { validateMedication } from "../consent/MedicationManagementForm";
+import YesNoField from "../consent/YesNoField";
 
 import type { ParentConsentRecord } from "../../services/parentConsent";
 import { updateParentConsent, validateParentConsentRecord } from "../../services/parentConsent";
@@ -22,7 +22,6 @@ type Props = {
     onSaved: () => Promise<void> | void;
 };
 
-const yesNo = ["", "Yes", "No"];
 
 export default function ParentConsentEditor({ consent, onSaved }: Props) {
     const [form, setForm] = useState(consent);
