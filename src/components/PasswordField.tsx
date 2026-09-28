@@ -7,7 +7,8 @@ type Props = Omit<TextFieldProps, "type">;
 
 export default function PasswordField(props: Props) {
   const [visible, setVisible] = useState(false);
-  const action = visible ? "Hide password" : "Show password";
+  const action = visible ? "Hide characters" : "Show characters";
+  const title = visible ? "Hide password" : "Show password";
   return <TextField
     {...props}
     type={visible ? "text" : "password"}
@@ -20,7 +21,7 @@ export default function PasswordField(props: Props) {
             edge="end"
             aria-label={action}
             aria-pressed={visible}
-            title={action}
+            title={title}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setVisible((current) => !current)}
             sx={{ minWidth: 44, minHeight: 44 }}
