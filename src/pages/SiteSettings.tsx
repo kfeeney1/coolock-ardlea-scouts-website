@@ -20,6 +20,7 @@ import {
     saveSessionSettings
 } from "../services/siteSettings";
 import type { SessionSettings } from "../services/siteSettings";
+import { trySecondaryRefresh } from "../services/secondaryRefresh";
 
 function minutesValue(value: string): number {
     return Number.parseInt(value, 10);
@@ -76,8 +77,10 @@ export default function SiteSettings() {
         setError("");
         try {
             await saveSessionSettings(settings);
-            await refreshSessionSettings();
-            setMessage("Site settings saved. New inactivity limits apply immediately to this session and when other signed-in users next load the settings.");
+            const refreshed = await trySecondaryRefresh(refreshSessionSettings, "session settings");
+            setMessage(refreshed
+                ? "Site settings saved. New inactivity limits apply immediately to this session and when other signed-in users next load the settings."
+                : "Site settings saved, but this screen could not refresh the active session. Reload the page before relying on the new inactivity limit in this session.");
         } catch (saveError) {
             console.error("Unable to save site settings:", saveError);
             setError(saveError instanceof Error ? saveError.message : "Unable to save site settings.");
