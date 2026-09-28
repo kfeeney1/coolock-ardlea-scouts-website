@@ -71,7 +71,10 @@ test("equipment manager sees the operational overview and can generate, open and
   expect(allContent).toContain("TEST Patrol Tents");
 
   await reports.getByLabel("Report").click();
-  await page.getByRole("option", { name: "Current Section Holdings" }).click();
+  const reportOptions = page.getByRole("listbox");
+  await expect(reportOptions).toBeVisible();
+  await reportOptions.getByRole("option", { name: "Current Section Holdings" }).click();
+  await expect(reports.getByLabel("Report")).toHaveText(/Current Section Holdings/);
   await page.getByTestId("export-selected-equipment-report").click();
   const selectedDownload = await downloadPreparedReport(page);
   expect(selectedDownload.suggestedFilename()).toMatch(/^current-section-holdings-\d{4}-\d{2}-\d{2}\.csv$/);
@@ -88,8 +91,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   desktopOnly(testInfo);
   const account = adminCredentials();
   test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = "TEST Report Damage";
-  const damageNote = "Bent frame regression";
+  const runId = `${testInfo.workerIndex}-${Date.now()}`;
+  const itemName = `TEST Report Damage ${runId}`;
+  const damageNote = `Bent frame regression ${runId}`;
   await page.route("**/equipment-incident", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 1 }) });
   });
@@ -106,7 +110,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(addDialog).toBeHidden();
-  await expect(page.getByText(itemName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Detailed inventory" })).toBeVisible();
+  const createdItem = page.getByRole("link").filter({ hasText: itemName });
+  await expect(createdItem).toBeVisible();
 
   await page.getByRole("button", { name: "Check out equipment" }).click();
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
@@ -114,6 +120,8 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("option", { name: "Scouts" }).click();
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("1");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeHidden();
+  const scoutsHoldings = page.getByText("Scouts", { exact: true }).locator("..");
   await expect(page.getByText(`1 × ${itemName}`, { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Report issue" }).click();
