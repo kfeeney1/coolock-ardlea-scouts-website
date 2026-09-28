@@ -19,3 +19,12 @@ test("group leadership receives all youth operational sections", () => {
 test("group-only non-leadership appointments do not silently grant all section meeting scope", () => {
   assert.deepEqual(effectiveOperationalSections("leader", ["Group"], [appointment("Group Treasurer","Group")]), []);
 });
+
+
+test("inactive appointment sections are excluded from operational scope", () => {
+  assert.deepEqual(effectiveOperationalSections("leader", ["Group"], [{ ...appointment("Programme Scouter","Cubs"), active: false }]), []);
+});
+
+test("section appointment scope grants only that operational section", () => {
+  assert.deepEqual(effectiveOperationalSections("leader", ["Group"], [appointment("Programme Scouter","Cubs")]), ["Cubs"]);
+});
