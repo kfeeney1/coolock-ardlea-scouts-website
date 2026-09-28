@@ -13,6 +13,7 @@ import type { FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import PasswordField from "../components/PasswordField";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 import { auth } from "../firebase";
 import { brandColours } from "../theme/theme";
@@ -88,7 +89,7 @@ export default function AdminLogin() {
                     <Box component="form" onSubmit={submit} sx={{ p: { xs: 3, md: 5 } }}>
                         <Alert severity="info" sx={{ mb: 3 }}>This area is restricted to approved Scout leaders.</Alert>
                         <TextField fullWidth required type="email" label="Email address" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
-                        <TextField fullWidth required type="password" label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" sx={{ mt: 3 }} />
+                        <PasswordField fullWidth required label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" sx={{ mt: 3 }} />
                         {error && <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>}
                         {message && <Alert severity="success" sx={{ mt: 3 }}>{message}</Alert>}
                         <Button fullWidth type="submit" variant="contained" color="success" size="large" disabled={submitting || resettingPassword} sx={{ mt: 4 }}>
