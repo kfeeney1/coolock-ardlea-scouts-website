@@ -117,7 +117,7 @@ test("group leader copies a meeting into another authorised section and resets o
   await expect(source).toBeVisible();
   await source.getByRole("button",{name:"Copy Meeting",exact:true}).click();
   const destination=page.getByRole("combobox",{name:"Destination section"});
-  await expect(destination).toHaveValue("Scouts");
+  await expect(destination).toHaveText("Scouts");
   await destination.click();
   await page.getByRole("option",{name:"Cubs",exact:true}).click();
   await page.getByLabel("Choose date").fill("2099-03-15");
