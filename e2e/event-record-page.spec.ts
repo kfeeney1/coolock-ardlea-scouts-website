@@ -76,3 +76,6 @@ test("blocked event report pop-ups use in-page error feedback", async ({ page },
 
   await expect(page.getByRole("alert").filter({ hasText: "Please allow pop-ups for this site to print the event report." })).toBeVisible();
 });
+
+
+test("Clear resets new event creation without persisting or closing the form", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure E2E_TEST_USER_PASSWORD."); await loginAdmin(page); await page.goto("/leader/events"); await page.getByRole("button",{name:"Add Event",exact:true}).click(); const dialog=page.getByRole("dialog",{name:"Add Event"}); await dialog.getByLabel("Event title").fill("TEST clear-only event"); await dialog.getByLabel("Start date").fill("2099-04-02"); await dialog.getByLabel("Location").fill("Temporary location"); await dialog.getByRole("button",{name:"Continue",exact:true}).click(); await dialog.getByLabel("Description").fill("Temporary description"); await dialog.getByRole("button",{name:"Clear",exact:true}).click(); await expect(dialog).toBeVisible(); await expect(dialog.getByLabel("Event title")).toHaveValue(""); await expect(dialog.getByLabel("Start date")).toHaveValue(""); await expect(dialog.getByLabel("Location")).toHaveValue(""); await expect(dialog.getByText("Temporary description")).toHaveCount(0); await expect(page.getByText("Event created.")).toHaveCount(0); });

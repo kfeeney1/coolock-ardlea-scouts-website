@@ -41,6 +41,7 @@ export const suiteSpecs = {
     "weekly-mobile-layout.spec.ts",
     "weekly-parent-sharing.spec.ts",
     "weekly-planner-followup.spec.ts",
+    "weekly-record-integrity.spec.ts",
     "weekly-section-tracker.spec.ts"
   ],
   badgework: [
