@@ -22,12 +22,19 @@ test("legacy Who's Who URL redirects to About", async ({ page }) => {
 });
 
 test("public Who's Who uses accessible collapsed Group and section disclosures without weakening public visibility rules", async ({ page }) => {
+  const canonicalContentPermissionErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && /canonical public website content|missing or insufficient permissions/i.test(message.text())) {
+      canonicalContentPermissionErrors.push(message.text());
+    }
+  });
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "About Us" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Meet the Leaders" })).toBeVisible();
   await expect(page.getByText("These leaders have chosen to be listed publicly.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("public-whos-who")).toBeVisible();
   await expect(page.getByText("Unable to load Who’s Who right now.")).toHaveCount(0);
+  expect(canonicalContentPermissionErrors).toEqual([]);
 
   const groupToggle = page.getByRole("button", { name: "Group Leadership", exact: true });
   const beaversToggle = page.getByRole("button", { name: "Beavers", exact: true });

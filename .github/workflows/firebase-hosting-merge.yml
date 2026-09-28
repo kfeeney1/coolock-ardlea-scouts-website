@@ -161,6 +161,12 @@ jobs:
           NODE
 
           npx --yes firebase-tools@15.28.1 deploy --only firestore:rules,firestore:indexes,storage:production-default,hosting --project "$FIREBASE_PROJECT_ID" --config firebase.production.generated.json --non-interactive
+      - name: Publish canonical public website content
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_PRODUCTION }}
+          PRODUCTION_PROJECT_CONFIRMATION: coolock-ardlea-scouts
+          ALLOW_PRODUCTION_MUTATION: I_UNDERSTAND
+        run: node scripts/seed-public-site-content.mjs seed --allow-production
       - name: Read-only post-deployment verification on custom domain
         run: |
           node scripts/check-live-build-info.mjs
