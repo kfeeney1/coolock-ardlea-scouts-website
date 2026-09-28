@@ -23,7 +23,7 @@ test("password visibility is masked by default and toggles without changing the 
 test("password creation and confirmation fields use the same accessible control", async ({ page }) => {
   await page.goto("/leader/register");
   for (const label of ["Password", "Confirm password"]) {
-    const field = page.getByLabel(label);
+    const field = page.getByRole("textbox", { name: label, exact: true });
     await field.fill(`${label}-value`);
     await expect(field).toHaveAttribute("type", "password");
     await field.locator("..").getByRole("button", { name: "Show characters" }).click();
