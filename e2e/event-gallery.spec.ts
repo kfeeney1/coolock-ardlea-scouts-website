@@ -88,6 +88,7 @@ test("completed event history keeps gallery access on its record page", async ({
     await page.getByRole("option", { name: "Completed" }).click();
     const completedCard = page.getByTestId("event-card-TEST_flow_event_ventures_completed");
     await expect(completedCard).toBeVisible();
+    await expect(completedCard).toHaveAttribute("href", "/leader/events/TEST_flow_event_ventures_completed");
     await completedCard.click();
     await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_ventures_completed$/);
     const record = page.getByTestId("event-record-TEST_flow_event_ventures_completed");
