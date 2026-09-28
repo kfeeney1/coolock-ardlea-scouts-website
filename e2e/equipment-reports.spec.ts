@@ -71,7 +71,10 @@ test("equipment manager sees the operational overview and can generate, open and
   expect(allContent).toContain("TEST Patrol Tents");
 
   await reports.getByLabel("Report").click();
-  await page.getByRole("option", { name: "Current Section Holdings" }).click();
+  const reportOptions = page.getByRole("listbox");
+  await expect(reportOptions).toBeVisible();
+  await reportOptions.getByRole("option", { name: "Current Section Holdings" }).click();
+  await expect(reports.getByLabel("Report")).toHaveText(/Current Section Holdings/);
   await page.getByTestId("export-selected-equipment-report").click();
   const selectedDownload = await downloadPreparedReport(page);
   expect(selectedDownload.suggestedFilename()).toMatch(/^current-section-holdings-\d{4}-\d{2}-\d{2}\.csv$/);
