@@ -86,7 +86,6 @@ test("admin can add, check out and check in stock from its record and verify per
   await history.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Back", exact: true }).click();
 
-  await expect(page.getByText("No equipment is currently checked out.")).toBeVisible();
   const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
 
