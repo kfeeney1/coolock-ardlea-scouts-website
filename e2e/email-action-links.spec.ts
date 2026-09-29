@@ -43,7 +43,13 @@ test("broken equipment email target opens the exact issue after login and protec
   await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addDialog.getByLabel("Store").click();
-  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  const existingStore = page.getByRole("option", { name: "TEST Checkout Store", exact: true });
+  if (await existingStore.count()) {
+    await existingStore.click();
+  } else {
+    await page.getByRole("option", { name: "Other…" }).click();
+    await addDialog.getByLabel("New Store").fill("TEST Checkout Store");
+  }
   await addDialog.getByLabel("Total quantity").fill("3");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });

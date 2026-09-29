@@ -33,7 +33,7 @@ export default function AdminLogin() {
     const [message, setMessage] = useState("");
     const state = location.state as LocationState | null;
 
-    if (!loading && authorised) return <Navigate to="/leader" replace />;
+    if (!loading && authorised) return <Navigate to={state?.from || "/leader"} replace />;
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
