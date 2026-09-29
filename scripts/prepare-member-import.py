@@ -19,6 +19,7 @@ REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 NS = {"m": MAIN_NS, "r": REL_NS}
 EXPLICIT_CUB_TRANSFER_NOTES = {"subs recorded in cubs sheet", "see cubs"}
+SUPPORTED_SECTIONS = ("Beavers", "Cubs", "Scouts", "Ventures", "Rovers")
 
 
 def column_of(cell_ref: str) -> str:
@@ -107,7 +108,7 @@ def main() -> None:
         if len(parts) != 4:
             raise SystemExit("Mapping format is section|sheet|nameColumn|dobColumn")
         section, sheet, name_col, dob_col = [part.strip() for part in parts]
-        if section not in {"Beavers", "Cubs", "Scouts"}:
+        if section not in SUPPORTED_SECTIONS:
             raise SystemExit(f"Unsupported section: {section}")
         for row_number, values in load_sheet(Path(workbook_path), sheet):
             if row_number == 1:
@@ -127,7 +128,7 @@ def main() -> None:
 
     output = {"version": 1, "batch": args.batch, "records": records, "preparationRejected": rejected, "preparationExcluded": excluded}
     Path(args.output).write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    counts = {section: sum(1 for row in records if row["section"] == section) for section in ("Beavers", "Cubs", "Scouts")}
+    counts = {section: sum(1 for row in records if row["section"] == section) for section in SUPPORTED_SECTIONS}
     print(json.dumps({"recordsBySection": counts, "preparationRejected": len(rejected), "preparationExcluded": len(excluded)}, separators=(",", ":")))
     print("Private manifest written. Do not commit, attach to Jira, or upload as a CI artifact.")
 
