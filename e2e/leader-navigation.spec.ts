@@ -24,6 +24,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   const desktopNavigation = navigation.getByTestId("leader-navigation-desktop");
   await expect(desktopNavigation.getByText("Programme", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("People & Parents", { exact: true })).toBeVisible();
+  await expect(desktopNavigation.getByText("Treasurer", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("Group Operations", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("Insights & Records", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("Administration", { exact: true })).toBeVisible();
@@ -38,6 +39,44 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await expect(dashboard).toHaveCount(1);
   await dashboard.click();
   await expect(page).toHaveURL(/\/leader$/);
+});
+
+test("Treasurer desktop menu opens each finance workspace with its own page identity", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Treasurer destination regression runs once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page, "test.group.treasurer@example.com");
+
+  for (const destination of [
+    { itemId: "leader-nav-treasurer-subs", url: /\/leader\/subs\?view=treasurer$/, pageId: "page-treasurer-subs" },
+    { itemId: "leader-nav-treasurer-floats", url: /\/leader\/finance\?view=treasurer$/, pageId: "page-treasurer-floats" },
+    { itemId: "leader-nav-treasurer-reports", url: /\/leader\/reports\?view=treasurer$/, pageId: "page-treasurer-reports" },
+    { itemId: "leader-nav-treasurer-settings", url: /\/leader\/settings\?view=treasurer$/, pageId: "page-treasurer-settings" },
+  ]) {
+    await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
+    const desktopNavigation = page.getByTestId("leader-navigation-desktop");
+    await expect(desktopNavigation.getByText("Treasurer", { exact: true })).toBeVisible();
+    await expect(desktopNavigation.getByText("Secretary", { exact: true })).toHaveCount(0);
+    await desktopNavigation.getByTestId(destination.itemId).click();
+    await expect(page).toHaveURL(destination.url);
+    await expect(page.getByTestId(destination.pageId)).toBeVisible();
+  }
+});
+
+test("Secretary mobile menu contains Meeting Records without Treasurer finance links", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Secretary navigation regression runs once on mobile Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page, "test.group.secretary@example.com");
+  await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
+  const mobileNavigation = page.getByTestId("leader-navigation-mobile");
+  await expect(mobileNavigation.getByRole("button", { name: "Treasurer" })).toHaveCount(0);
+  const secretary = mobileNavigation.getByRole("button", { name: "Secretary" });
+  await secretary.click();
+  const section = mobileNavigation.getByRole("region", { name: "Secretary" });
+  await expect(section.getByRole("link", { name: "Subs" })).toHaveCount(0);
+  await expect(section.getByRole("link", { name: "Floats" })).toHaveCount(0);
+  await section.getByRole("link", { name: "Meeting Records" }).click();
+  await expect(page).toHaveURL(/\/leader\/meetings\?view=secretary$/);
+  await expect(page.getByTestId("page-secretary-meeting-records")).toBeVisible();
 });
 
 test("section leader gets compact mobile disclosure without privileged admin destinations", async ({ page }, testInfo: TestInfo) => {
@@ -136,4 +175,3 @@ test("Leader Menu supports keyboard open and Escape focus restoration", async ({
   await expect(menuToggle).toBeFocused();
   await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
 });
-

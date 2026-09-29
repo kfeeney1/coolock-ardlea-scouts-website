@@ -27,7 +27,7 @@ export default function SubsManagement() {
   const { adminProfile } = useAdminAuth();
   const [searchParams] = useSearchParams();
   const navigationView = searchParams.get("view");
-  const pageIdentity = navigationView === "secretary" ? "secretary-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
+  const pageIdentity = navigationView === "treasurer" ? "treasurer-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
   const canGroupReport = Boolean(adminProfile?.role === "admin" || adminProfile?.role === "super-admin" || hasGroupFinanceAppointment(adminProfile?.appointments, adminProfile?.scoutingRole));
   const authorisedSections = useMemo(() => authorisedSubsSections(adminProfile?.sections ?? [], canGroupReport), [adminProfile?.sections, canGroupReport]);
   const [tab, setTab] = useState(0);

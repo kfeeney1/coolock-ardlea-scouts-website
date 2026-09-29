@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
+import PasswordField from "../components/PasswordField";
 import { confirmMemberInactivation, loadMemberInactivationContext } from "../services/emailNotifications";
 import type { MemberInactivationContext } from "../services/emailNotifications";
 import { loginParent, logoutParent } from "../services/parentPortal";
@@ -84,7 +85,7 @@ export default function ParentMemberInactivation() {
                     {!authLoading && !user && <Stack spacing={2}>
                         <Alert severity="info">Sign in to confirm that you are authorised for the member in this link.</Alert>
                         <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-                        <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
+                        <PasswordField label="Password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
                         <Button variant="contained" color="success" disabled={working || !email.trim() || !password} onClick={() => void signIn()}>
                             {working ? "Signing in…" : "Sign In and Continue"}
                         </Button>

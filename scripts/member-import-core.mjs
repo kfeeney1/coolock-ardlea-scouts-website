@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { canonicalMemberSection } from "../src/services/memberSectionCore.mjs";
 
-const SECTION_NAMES = new Set(["Beavers", "Cubs", "Scouts"]);
+const SECTION_NAMES = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 
 export function cleanText(value) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -36,12 +37,12 @@ export function validateCandidate(candidate) {
   const errors = [];
   const displayName = cleanText(candidate.displayName);
   const dateOfBirth = normalizeDate(candidate.dateOfBirth);
-  const section = cleanText(candidate.section);
+  const section = canonicalMemberSection(candidate.section);
   const name = splitDisplayName(displayName);
   if (!displayName) errors.push("display-name-required");
   if (!name) errors.push("name-needs-at-least-two-parts");
   if (!dateOfBirth) errors.push("invalid-date-of-birth");
-  if (!SECTION_NAMES.has(section)) errors.push("invalid-section");
+  if (!SECTION_NAMES.includes(section)) errors.push("invalid-section");
   return { errors, displayName, dateOfBirth, section, name };
 }
 
@@ -120,6 +121,6 @@ export function planMemberImport(candidates, existingMembers = []) {
 }
 
 export function aggregatePlan(plan) {
-  const bySection = Object.fromEntries([...SECTION_NAMES].map((section) => [section, plan.creates.filter((item) => item.section === section).length]));
+  const bySection = Object.fromEntries(SECTION_NAMES.map((section) => [section, plan.creates.filter((item) => item.section === section).length]));
   return { proposedCreatesBySection: bySection, creates: plan.creates.length, existingMatches: plan.matches.length, conflicts: plan.conflicts.length, rejected: plan.rejected.length };
 }

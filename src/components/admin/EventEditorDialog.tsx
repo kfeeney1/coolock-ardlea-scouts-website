@@ -13,25 +13,49 @@ type Props = {
     members?: MemberRecord[];
     onClose: () => void;
     onChange: (draft: EventInput) => void;
+    onClear?: () => void;
     onSave: () => void;
 };
 
 type EventEditorStep = "details" | "settings";
 
-export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onSave }: Props) {
+export default function EventEditorDialog({ open, editing, draft, saving, members = [], onClose, onChange, onClear, onSave }: Props) {
     const [step, setStep] = useState<EventEditorStep>("details");
     const [confirmCompletion, setConfirmCompletion] = useState(false);
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [memberSearch, setMemberSearch] = useState("");
 
     useEffect(() => {
         if (open) {
             setStep("details");
             setConfirmCompletion(false);
+            setConfirmDiscard(false);
         }
     }, [open, editing?.id]);
 
     const canContinue = Boolean(draft.title.trim() && draft.startDate);
     const isEditing = Boolean(editing);
+    const hasMeaningfulDraft = Boolean(
+        draft.title.trim() || draft.description.trim() || draft.location.trim() || draft.meetingPoint.trim()
+        || draft.returnDetails.trim() || draft.leaderNotes.trim() || draft.startDate || draft.endDate
+        || draft.eventType !== "Activity" || draft.section !== "All Sections" || draft.status !== "draft"
+        || draft.consentRequired || (draft.audience?.memberIds.length ?? 0) > 0 || (draft.audience?.sectionIds.length ?? 0) > 0
+    );
+    useEffect(() => {
+        if (!open || isEditing || !hasMeaningfulDraft) return;
+        const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warnBeforeUnload);
+        return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+    }, [hasMeaningfulDraft, isEditing, open]);
+
+    const requestCancel = () => {
+        if (saving) return;
+        if (!isEditing && hasMeaningfulDraft) setConfirmDiscard(true);
+        else onClose();
+    };
     const completingExistingEvent = Boolean(editing && editing.status !== "completed" && draft.status === "completed");
 
     const requestSave = () => {
@@ -48,9 +72,19 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
     };
 
     return (
-        <Dialog open={open} onClose={confirmCompletion ? undefined : onClose} maxWidth="md" fullWidth>
-            <DialogTitle>{confirmCompletion ? "Complete this event?" : editing ? "Edit Event" : "Add Event"}</DialogTitle>
-            {confirmCompletion ? (
+        <Dialog open={open} onClose={confirmCompletion ? undefined : requestCancel} maxWidth="md" fullWidth data-testid="event-editor-dialog">
+            <DialogTitle>{confirmDiscard ? "Discard this new event?" : confirmCompletion ? "Complete this event?" : editing ? "Edit Event" : "Add Event"}</DialogTitle>
+            {confirmDiscard ? (
+                <>
+                    <DialogContent dividers>
+                        <DialogContentText>Your event details have not been saved. Cancel creation and discard them?</DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button disabled={saving} onClick={() => setConfirmDiscard(false)}>Keep editing</Button>
+                        <Button disabled={saving} color="warning" variant="contained" onClick={() => { setConfirmDiscard(false); onClose(); }}>Discard and cancel</Button>
+                    </DialogActions>
+                </>
+            ) : confirmCompletion ? (
                 <>
                     <DialogContent dividers>
                         <DialogContentText sx={{ mb: 2 }}>
@@ -134,13 +168,13 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                         )}
                     </DialogContent>
                     <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
-                        <Button onClick={onClose}>Cancel</Button>
+                        <Button onClick={requestCancel}>Cancel</Button>
                         {!isEditing && step === "details" ? (
                             <Button variant="contained" color="success" disabled={!canContinue} onClick={() => setStep("settings")}>Continue</Button>
                         ) : (
                             <>
                                 {!isEditing && <Button onClick={() => setStep("details")}>Back</Button>}
-                                <Button variant="contained" color="success" disabled={saving} onClick={requestSave}>{saving ? "Saving..." : editing ? "Save Event" : "Create Event"}</Button>
+                                {!isEditing && onClear && <Button variant="outlined" disabled={saving} onClick={() => { onClear(); setStep("details"); setMemberSearch(""); setConfirmDiscard(false); }}>Clear</Button>}<Button variant="contained" color="success" disabled={saving} onClick={requestSave}>{saving ? "Saving..." : editing ? "Save Event" : "Create Event"}</Button>
                             </>
                         )}
                     </DialogActions>

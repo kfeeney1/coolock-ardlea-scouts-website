@@ -33,6 +33,7 @@ import {
     markEventConsentResponseMatched
 } from "../services/eventConsent";
 import type { EventConsentResponse, PublicEventLink } from "../services/eventConsent";
+import { trySecondaryRefresh } from "../services/secondaryRefresh";
 import {
     applyResponseToRoster,
     eligibleEventMembers,
@@ -54,7 +55,7 @@ export default function EventConsentManagement() {
     const [error, setError] = useState("");
     const [copyFallbackUrl, setCopyFallbackUrl] = useState("");
 
-    const load = async () => {
+    const load = async (reportFailure = false) => {
         setLoading(true);
         setError("");
         try {
@@ -77,6 +78,7 @@ export default function EventConsentManagement() {
         } catch (loadError) {
             console.error("Unable to load parent event consent:", loadError);
             setError("Unable to load event consent information.");
+            if (reportFailure) throw loadError;
         } finally {
             setLoading(false);
         }
@@ -217,12 +219,13 @@ export default function EventConsentManagement() {
                 );
             }
 
-            await load();
+            const refreshed = await trySecondaryRefresh(() => load(true), "event consent responses");
             setMessage(
                 `Synced ${matched} parent response${matched === 1 ? "" : "s"}.` +
                 (unmatched > 0
                     ? ` ${unmatched} response${unmatched === 1 ? "" : "s"} could not be matched automatically. Use Manual Match below.`
-                    : "")
+                    : "") +
+                (refreshed ? "" : " The changes were saved, but the screen could not refresh. Reload the page to see them.")
             );
         } catch (syncError) {
             console.error("Unable to sync event consent responses:", syncError);
@@ -252,9 +255,10 @@ export default function EventConsentManagement() {
             } catch (emailError) {
                 console.error("Unable to send event response confirmation:", emailError);
             }
-            await load();
+            const refreshed = await trySecondaryRefresh(() => load(true), "event consent responses");
             const member = members.find((candidate) => candidate.id === memberId);
-            setMessage(`Response for ${response.childName} matched to ${member?.displayName || "the selected member"}.`);
+            setMessage(`Response for ${response.childName} matched to ${member?.displayName || "the selected member"}.` +
+                (refreshed ? "" : " The match was saved, but the screen could not refresh. Reload the page to see it."));
         } catch (matchError) {
             console.error("Unable to manually match response:", matchError);
             setError("Unable to match the parent response to the selected member.");
@@ -269,8 +273,9 @@ export default function EventConsentManagement() {
         setMessage("");
         try {
             await ignoreEventConsentResponse(response.id);
-            await load();
-            setMessage(`Response for ${response.childName} marked as ignored.`);
+            const refreshed = await trySecondaryRefresh(() => load(true), "event consent responses");
+            setMessage(`Response for ${response.childName} marked as ignored.` +
+                (refreshed ? "" : " The change was saved, but the screen could not refresh. Reload the page to see it."));
         } catch (ignoreError) {
             console.error("Unable to ignore response:", ignoreError);
             setError("Unable to mark the parent response as ignored.");

@@ -3,6 +3,9 @@ import { collection, doc, getDoc, getDocs, orderBy, query, runTransaction, serve
 import type { Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { notifyLeaderAccessStatus, notifyLeaderRegistration } from "./emailNotifications";
+import { DEFAULT_NEW_LEADER_APPOINTMENT, newLeaderAppointments } from "./newLeaderAppointmentLogic";
+
+export { DEFAULT_NEW_LEADER_APPOINTMENT, newLeaderAppointments } from "./newLeaderAppointmentLogic";
 
 export type RequestedLeaderRole = "Scouter" | "Section Leader" | "Group Leader" | "Deputy Group Leader" | "Other";
 export type RequestedSection = "Beavers" | "Cubs" | "Scouts" | "Ventures" | "Rovers" | "Group" | "Other";
@@ -89,17 +92,31 @@ export async function loadLeaderRegistrationRequests(): Promise<LeaderRegistrati
     });
 }
 
-export async function approveLeaderRegistration(request: LeaderRegistrationRequest, reviewerUid: string, reviewNote: string): Promise<void> {
+export async function approveLeaderRegistration(request: LeaderRegistrationRequest, reviewerUid: string, reviewNote: string, selectedAppointments: readonly string[] = [DEFAULT_NEW_LEADER_APPOINTMENT]): Promise<void> {
     const section = request.requestedSection.trim();
     if (!section) throw new Error("A canonical section is required before approving leader access.");
+    const appointments = newLeaderAppointments(section, selectedAppointments);
 
     await runTransaction(db, async (transaction) => {
         const requestRef = doc(db, "leaderRegistrationRequests", request.uid);
         const adminRef = doc(db, "adminUsers", request.uid);
+        const organisationRef = doc(db, "organisationLeadership", request.uid);
         const snapshot = await transaction.get(requestRef);
         if (!snapshot.exists()) throw new Error("Registration request no longer exists.");
         if (snapshot.data().status !== "pending") throw new Error("Only pending requests can be approved.");
         transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
+        transaction.set(organisationRef, {
+            displayName: clean(request.fullName, 120),
+            scoutingRole: appointments[0]?.appointment || "",
+            appointments,
+            organisationSection: section,
+            primarySection: section,
+            organisationOrder: 999,
+            reportsToUid: "",
+            showPublicly: false,
+            active: true,
+            updatedAt: serverTimestamp()
+        });
         transaction.update(requestRef, { status: "approved", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     });
     try { await notifyLeaderAccessStatus(request.uid, "approved"); } catch (emailError) { console.error("Unable to send leader approval email:", emailError); }

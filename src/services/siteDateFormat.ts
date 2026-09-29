@@ -9,10 +9,14 @@ const nativeToLocaleDateString = Date.prototype.toLocaleDateString;
 const nativeToLocaleString = Date.prototype.toLocaleString;
 const nativeToLocaleTimeString = Date.prototype.toLocaleTimeString;
 
+function isDateOnly(value: DateInput | undefined): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 function asDate(value: DateInput | undefined): Date {
   if (value === undefined) return new Date();
   if (value instanceof Date) return value;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (isDateOnly(value)) {
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
   }
@@ -25,6 +29,10 @@ function nativeFormat(formatter: Intl.DateTimeFormat, value: Date): string {
 }
 
 export function formatSiteDate(value: DateInput, timeZone?: string): string {
+  if (isDateOnly(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
   const date = asDate(value);
   if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : "";
   const formatter = new Intl.DateTimeFormat(SITE_DATE_LOCALE, {

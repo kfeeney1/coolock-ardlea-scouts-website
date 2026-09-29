@@ -23,7 +23,7 @@ jobs:
   guard:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - name: Resolve main SHA
         id: target
@@ -51,7 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          deadline=$((SECONDS + 2100))
+          deadline=$((SECONDS + 900))
+          missing_deadline=$((SECONDS + 180))
           required_workflows=("Quality" "Playwright E2E" "Firebase TEST Deploy")
           required_checks=("quality" "e2e" "deploy_test")
 
@@ -97,11 +98,26 @@ jobs:
               exit 0
             fi
 
+            missing_workflows="$(jq -r --argjson required '["Quality","Playwright E2E","Firebase TEST Deploy"]' '
+              $required - ([.workflow_runs[] | select(.event == "push") | .name] | unique)
+              | join(", ")
+            ' <<<"${runs}")"
+            missing_checks="$(jq -r --argjson required '["quality","e2e","deploy_test"]' '
+              $required - ([.check_runs[].name] | unique)
+              | join(", ")
+            ' <<<"${checks}")"
+
+            if (( SECONDS >= missing_deadline )) && { [[ -n "${missing_workflows}" ]] || [[ -n "${missing_checks}" ]]; }; then
+              [[ -z "${missing_workflows}" ]] || echo "::error::Required post-merge workflows never started: ${missing_workflows}."
+              [[ -z "${missing_checks}" ]] || echo "::error::Required exact-SHA checks never appeared: ${missing_checks}."
+              exit 1
+            fi
+
             echo "Post-merge evidence is incomplete; checking again in 30 seconds."
             sleep 30
           done
 
-          echo "::error::Timed out waiting for Quality, Playwright E2E and Firebase TEST Deploy evidence on ${TARGET_SHA}. A required post-merge workflow may not have started."
+          echo "::error::Timed out after 15 minutes waiting for running post-merge CI evidence on ${TARGET_SHA}. A required post-merge workflow may not have started."
           exit 1
 
       - name: Record guarded SHA

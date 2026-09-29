@@ -1,4 +1,4 @@
-import { resolveScoutSectionName } from "../theme/sectionColours.ts";
+import { canonicalMemberSection } from "./memberSectionCore.mjs";
 
 function clean(value: string, max: number): string {
   return value.trim().slice(0, max);
@@ -8,6 +8,4 @@ export function automaticDisplayName(firstName: string, lastName: string): strin
   return [clean(firstName, 100), clean(lastName, 100)].filter(Boolean).join(" ");
 }
 
-export function canonicalMemberSection(value: string): string {
-  return resolveScoutSectionName(value) ?? value.trim();
-}
+export { canonicalMemberSection };

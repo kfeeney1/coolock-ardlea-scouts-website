@@ -122,14 +122,27 @@ test("session settings are readable when signed in but writable only by admins",
   await assertFails(getDocs(collection(adminDb, "siteSettings")));
 });
 
-test("public site content exposes only the canonical test projection", async () => {
-  const canonical = { contentVersion: 1, testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
+test("public site content exposes only canonical environment projections", async () => {
+  const testProjection = { contentVersion: 1, testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
+  const liveProjection = { contentVersion: 1, testData: false, visibility: "public", published: true };
   await seed([
-    ["publicSiteContent/TEST_site", canonical],
-    ["publicSiteContent/live", canonical],
+    ["publicSiteContent/TEST_site", testProjection],
+    ["publicSiteContent/live", liveProjection],
+    ["publicSiteContent/private", { ...liveProjection, visibility: "private" }],
+    ["publicSiteContent/unsafe", { ...liveProjection, memberEmail: "private@example.com" }],
+    ["members/private-member", { displayName: "Private Member" }],
+    ["consentApplications/private-consent", { memberId: "private-member" }],
+    ["adminUsers/private-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["subsPayments/private-finance", { amountCents: 1000 }],
   ]);
   const publicDb = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(getDoc(doc(publicDb, "publicSiteContent/TEST_site")));
-  await assertFails(getDoc(doc(publicDb, "publicSiteContent/live")));
-  await assertFails(setDoc(doc(publicDb, "publicSiteContent/TEST_site"), canonical));
+  await assertSucceeds(getDoc(doc(publicDb, "publicSiteContent/live")));
+  await assertFails(getDoc(doc(publicDb, "publicSiteContent/private")));
+  await assertFails(getDoc(doc(publicDb, "publicSiteContent/unsafe")));
+  await assertFails(getDoc(doc(publicDb, "members/private-member")));
+  await assertFails(getDoc(doc(publicDb, "consentApplications/private-consent")));
+  await assertFails(getDoc(doc(publicDb, "adminUsers/private-leader")));
+  await assertFails(getDoc(doc(publicDb, "subsPayments/private-finance")));
+  await assertFails(setDoc(doc(publicDb, "publicSiteContent/TEST_site"), testProjection));
 });

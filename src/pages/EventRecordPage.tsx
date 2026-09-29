@@ -18,6 +18,7 @@ import { eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRo
 import { loadMembers } from "../services/memberAdmin";
 import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
+import { trySecondaryRefresh } from "../services/secondaryRefresh";
 
 function statusColor(status: EventRecord["status"]): "default" | "success" | "warning" | "secondary" {
     if (status === "open") return "success";
@@ -43,7 +44,7 @@ export default function EventRecordPage() {
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [equipmentOpen, setEquipmentOpen] = useState(false);
 
-    const load = async () => {
+    const load = async (reportFailure = false) => {
         setLoading(true);
         setError("");
         try {
@@ -59,6 +60,7 @@ export default function EventRecordPage() {
         } catch (loadError) {
             console.error("Unable to load event record:", loadError);
             setError("Unable to load this event record.");
+            if (reportFailure) throw loadError;
         } finally {
             setLoading(false);
         }
@@ -98,8 +100,10 @@ export default function EventRecordPage() {
         try {
             await updateEventRoster(event.id, attendance, consent);
             setRosterOpen(false);
-            setMessage("Attendance and consent roster updated.");
-            await load();
+            const refreshed = await trySecondaryRefresh(() => load(true), "the event roster");
+            setMessage(refreshed
+                ? "Attendance and consent roster updated."
+                : "Attendance and consent roster saved, but the screen could not refresh. Reload the page to see the saved roster.");
         } catch (saveError) {
             console.error("Unable to save event roster:", saveError);
             setError("Unable to save the attendance and consent roster.");
