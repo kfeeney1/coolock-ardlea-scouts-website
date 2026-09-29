@@ -41,6 +41,15 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
         || draft.eventType !== "Activity" || draft.section !== "All Sections" || draft.status !== "draft"
         || draft.consentRequired || (draft.audience?.memberIds.length ?? 0) > 0 || (draft.audience?.sectionIds.length ?? 0) > 0
     );
+    useEffect(() => {
+        if (!open || isEditing || !hasMeaningfulDraft) return;
+        const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warnBeforeUnload);
+        return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+    }, [hasMeaningfulDraft, isEditing, open]);
 
     const requestCancel = () => {
         if (saving) return;
