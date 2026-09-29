@@ -297,7 +297,8 @@ export default function EquipmentManagement() {
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History{canManage && !item.archived && available > 0 ? " / move Store" : ""}</Button>
+                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History</Button>
+                  {canManage && !item.archived && available > 0 && <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${encodeURIComponent(item.id)}/move-store`); }}>Move Store</Button>}
                   {canManage && <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${item.id}`); }}>Edit</Button>}
                   {canManage && <Button size="small" variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={(e) => { e.stopPropagation(); setArchiveTarget(item); }}>{item.archived ? "Restore" : "Archive"}</Button>}
                 </Stack>
@@ -314,7 +315,7 @@ export default function EquipmentManagement() {
           <FormControl><InputLabel id="equipment-category-label">Category</InputLabel><Select labelId="equipment-category-label" label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
           <FormControl><InputLabel id="equipment-store-label">Store</InputLabel><Select labelId="equipment-store-label" label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
-          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use History / move Store so the stock movement remains auditable.</Typography>}
+          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use Move Store so the stock movement remains auditable.</Typography>}
           {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
           <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
@@ -333,7 +334,7 @@ export default function EquipmentManagement() {
           <Button variant="contained" color={archiveTarget?.archived ? "success" : "warning"} disabled={saving} onClick={() => archiveTarget && void toggleArchived(archiveTarget)}>{archiveTarget?.archived ? "Restore equipment" : "Archive equipment"}</Button>
         </DialogActions>
       </Dialog>
-      <EquipmentHistoryDialog item={historyItem} locations={locationNames} canManage={canManage} onClose={() => setHistoryItem(null)} onChanged={refresh} onError={setError} />
+      <EquipmentHistoryDialog item={historyItem} onClose={() => setHistoryItem(null)} onError={setError} />
       <EquipmentOptionManager kind="locations" options={locations} activeItems={activeItems} open={manageLocationsOpen} onClose={() => setManageLocationsOpen(false)} onChanged={refresh} onError={setError} />
       <EquipmentOptionManager kind="categories" options={categories} activeItems={activeItems} open={manageCategoriesOpen} onClose={() => setManageCategoriesOpen(false)} onChanged={refresh} onError={setError} />
     </Container>

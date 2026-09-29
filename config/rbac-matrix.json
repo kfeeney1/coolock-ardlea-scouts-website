@@ -69,6 +69,7 @@
     "/leader/settings": "admin",
     "/leader/access/:leaderUid": "admin",
     "/leader/equipment/:equipmentId": "leader",
+    "/leader/equipment/:equipmentId/move-store": "leader",
     "/leader/weekly/create": "leader",
     "/leader/events/:eventId/edit": "leader",
     "/leader/system": "super-admin"
