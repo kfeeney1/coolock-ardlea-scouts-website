@@ -170,13 +170,13 @@ test("SW-218 newly created Venture member remains visible under Ventures and All
   await expect(dialog).toBeHidden();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
 
-  await page.getByLabel("Section").click();
+  await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Ventures", exact: true }).click();
   await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
   const ventureCard = page.getByTestId(/member-card-/).filter({ hasText: displayName });
   await expect(ventureCard).toBeVisible();
   await expect(ventureCard).toContainText("Active");
-  await page.getByLabel("Section").click();
+  await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "All Sections" }).click();
   await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
