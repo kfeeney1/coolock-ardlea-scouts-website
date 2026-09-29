@@ -12,12 +12,7 @@ function isVisibleSurface(element: HTMLElement): boolean {
   while (current && current !== document.body) {
     if (current.getAttribute("aria-hidden") === "true") return false;
     const style = window.getComputedStyle(current);
-    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
-    // MUI marks an exiting surface with an inline target opacity of zero while
-    // its transition keeps the node in the DOM. Treat it as closed immediately:
-    // counting it until the animation ends can consume a second history entry
-    // after its parent dialog has already started closing.
-    if (current.style.opacity.trim() === "0") return false;
+    if (style.display === "none" || style.visibility === "hidden") return false;
     current = current.parentElement;
   }
   return true;
@@ -143,7 +138,7 @@ export default function TransientOverlayBackDismissBridge() {
     if (surfaces.length < markerCount) {
       pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
-      navigate(surfaces.length - markerCount);
+      navigate(-1);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 
