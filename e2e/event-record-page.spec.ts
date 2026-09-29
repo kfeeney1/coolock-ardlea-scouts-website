@@ -79,3 +79,28 @@ test("blocked event report pop-ups use in-page error feedback", async ({ page },
 
 
 test("Clear resets new event creation without persisting or closing the form", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure E2E_TEST_USER_PASSWORD."); await loginAdmin(page); await page.goto("/leader/events"); await page.getByRole("button",{name:"Add Event",exact:true}).click(); const dialog=page.getByRole("dialog",{name:"Add Event"}); await dialog.getByLabel("Event title").fill("TEST clear-only event"); await dialog.getByLabel("Start date").fill("2099-04-02"); await dialog.getByLabel("Location").fill("Temporary location"); await dialog.getByRole("button",{name:"Continue",exact:true}).click(); await dialog.getByLabel("Description").fill("Temporary description"); await dialog.getByRole("button",{name:"Clear",exact:true}).click(); await expect(dialog).toBeVisible(); await expect(dialog.getByLabel("Event title")).toHaveValue(""); await expect(dialog.getByLabel("Start date")).toHaveValue(""); await expect(dialog.getByLabel("Location")).toHaveValue(""); await expect(dialog.getByText("Temporary description")).toHaveCount(0); await expect(page.getByText("Event created.")).toHaveCount(0); });
+
+test("new event Cancel exits untouched and confirms before discarding a meaningful draft", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto("/leader/events");
+  await page.getByRole("button", { name: "Add Event", exact: true }).click();
+  let dialog = page.getByRole("dialog", { name: "Add Event" });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole("button", { name: "Add Event", exact: true }).click();
+  dialog = page.getByRole("dialog", { name: "Add Event" });
+  const title = `TEST cancelled event ${Date.now()}`;
+  await dialog.getByLabel("Event title").fill(title);
+  await dialog.getByLabel("Start date").fill("2099-04-05");
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  const discard = page.getByRole("dialog", { name: "Discard this new event?" });
+  await expect(discard).toBeVisible();
+  await discard.getByRole("button", { name: "Keep editing" }).click();
+  await expect(dialog.getByLabel("Event title")).toHaveValue(title);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("dialog", { name: "Discard this new event?" }).getByRole("button", { name: "Discard and cancel" }).click();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Event created.")).toHaveCount(0);
+});

@@ -87,7 +87,7 @@ export default function WeeklySectionTracker() {
       const [m,r,l,items,loans]=await Promise.all([
         loadAttendanceInsightMembers({isAdmin:Boolean(all),sections:adminProfile?.sections??[]}),
         loadWeeklyMeetings(adminProfile?.sections??[],Boolean(isAdmin),all),
-        loadWeeklyLeaders(adminProfile?.sections??[],Boolean(isAdmin),all),
+        loadWeeklyLeaders(availableSections,Boolean(isAdmin),all),
         loadEquipmentItems(),
         loadEquipmentLoans()
       ]);
@@ -98,7 +98,7 @@ export default function WeeklySectionTracker() {
     } catch(e){console.error(e);setError("Unable to load weekly meetings for your permitted scope.");if(reportFailure)throw e;}
     finally{setLoading(false);}
   };
-  useEffect(()=>{void refresh();},[adminProfile?.sections,isAdmin,requestedMeetingId]);
+  useEffect(()=>{void refresh();},[availableSections,isAdmin,requestedMeetingId]);
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
   useEffect(()=>{if(!hasUnsavedChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[hasUnsavedChanges]);
 
