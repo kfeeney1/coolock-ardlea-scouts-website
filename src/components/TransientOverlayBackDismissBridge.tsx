@@ -5,9 +5,27 @@ import { backDismissStack, withBackDismissMarker } from "../services/backDismiss
 
 const MARKER_PREFIX = "transient-overlay:";
 
+function isVisibleSurface(element: HTMLElement): boolean {
+  if (!element.getClientRects().length) return false;
+
+  let current: HTMLElement | null = element;
+  while (current && current !== document.body) {
+    if (current.getAttribute("aria-hidden") === "true") return false;
+    const style = window.getComputedStyle(current);
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    // MUI marks an exiting surface with an inline target opacity of zero while
+    // its transition keeps the node in the DOM. Treat it as closed immediately:
+    // counting it until the animation ends can consume a second history entry
+    // after its parent dialog has already started closing.
+    if (current.style.opacity.trim() === "0") return false;
+    current = current.parentElement;
+  }
+  return true;
+}
+
 function visibleSurfaces(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="listbox"]'))
-    .filter((element) => element.getClientRects().length > 0 && element.getAttribute("aria-hidden") !== "true");
+    .filter(isVisibleSurface);
 }
 
 function dismissSurface(surface: HTMLElement | undefined) {
