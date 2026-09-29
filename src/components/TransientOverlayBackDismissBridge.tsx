@@ -61,6 +61,7 @@ export default function TransientOverlayBackDismissBridge() {
   const previousMarkerCount = useRef(0);
   const latestMarkerCount = useRef(0);
   const consumingClose = useRef(false);
+  const pendingCloseFromMarkerCount = useRef<number | null>(null);
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
@@ -110,6 +111,15 @@ export default function TransientOverlayBackDismissBridge() {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
 
+    // A dialog and a select inside it can close in the same UI action. Do not
+    // issue another history POP while the previous close is still committing;
+    // otherwise both effects can consume the same overlay entries and leave
+    // the page behind the equipment route.
+    if (pendingCloseFromMarkerCount.current !== null) {
+      if (markerCount >= pendingCloseFromMarkerCount.current) return;
+      pendingCloseFromMarkerCount.current = null;
+    }
+
     if (markerCount < priorMarkerCount) {
       previousMarkerCount.current = markerCount;
       if (consumingClose.current) {
@@ -131,8 +141,9 @@ export default function TransientOverlayBackDismissBridge() {
     }
 
     if (surfaces.length < markerCount) {
+      pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
-      navigate(-1);
+      navigate(surfaces.length - markerCount);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 
