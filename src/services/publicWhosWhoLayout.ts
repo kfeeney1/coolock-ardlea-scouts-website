@@ -18,8 +18,22 @@ export function publicWhosWhoSections(leaders: PublicWhosWhoLeader[]): string[] 
   });
 }
 
+function isSectionLeaderFor(leader: PublicWhosWhoLeader, section: string): boolean {
+  return leader.publicAppointments?.some((appointment) =>
+    appointment.section.trim().toLowerCase() === section.trim().toLowerCase()
+    && appointment.role.trim().toLowerCase() === "section leader"
+  ) ?? false;
+}
+
 export function publicLeadersForSection(leaders: PublicWhosWhoLeader[], section: string): PublicWhosWhoLeader[] {
-  return leaders.filter((leader) => publicSectionsForLeader(leader).includes(section));
+  return leaders
+    .filter((leader) => publicSectionsForLeader(leader).includes(section))
+    .sort((a, b) =>
+      Number(isSectionLeaderFor(b, section)) - Number(isSectionLeaderFor(a, section))
+      || a.organisationOrder - b.organisationOrder
+      || a.displayName.localeCompare(b.displayName)
+      || a.uid.localeCompare(b.uid)
+    );
 }
 
 export function publicSectionTestId(section: string): string {
