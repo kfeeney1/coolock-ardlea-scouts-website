@@ -6,6 +6,7 @@ import {
     Paper, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { recordAuditEvent } from "../services/auditLog";
 import { loadMembers } from "../services/memberAdmin";
@@ -21,6 +22,8 @@ const memberStatusColor = (status: MemberRecord["status"]): "success" | "warning
     status === "active" ? "success" : status === "inactive" ? "warning" : "default";
 
 export default function ParentAccessManagement() {
+    const [searchParams] = useSearchParams();
+    const requestedParentUid = searchParams.get("parent") || "";
     const [parents, setParents] = useState<ParentAccount[]>([]);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [selected, setSelected] = useState<Record<string, string[]>>({});
@@ -47,6 +50,18 @@ export default function ParentAccessManagement() {
         } finally { setLoading(false); }
     };
     useEffect(() => { void load(); }, []);
+    useEffect(() => {
+        if (requestedParentUid && parents.some((parent) => parent.uid === requestedParentUid)) {
+            setActiveParentUid(requestedParentUid);
+        }
+    }, [parents, requestedParentUid]);
+    useEffect(() => {
+        if (!requestedParentUid || activeParentUid !== requestedParentUid) return;
+        const frame = window.requestAnimationFrame(() => {
+            document.getElementById(`parent-access-${requestedParentUid}`)?.scrollIntoView({ block: "center" });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [activeParentUid, requestedParentUid]);
     const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
     const filteredParents = useMemo(() => {
         const query = parentSearch.trim().toLowerCase();
@@ -114,6 +129,7 @@ export default function ParentAccessManagement() {
                 <TextField fullWidth label="Search parents" value={parentSearch} onChange={(event) => setParentSearch(event.target.value)} placeholder="Parent name, child name, section or status" />
             </Paper>
             {loading ? <Box sx={{ minHeight: 300, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <Box sx={{ display: "grid", gap: 2 }}>
+                {requestedParentUid && !parents.some((parent) => parent.uid === requestedParentUid) && <Alert severity="warning" data-testid="parent-access-link-fallback">This parent access request is no longer available or is outside your authorised scope. Review the current Parent Access list instead.</Alert>}
                 {parents.length === 0 && <Alert severity="info">No parent accounts have registered yet.</Alert>}
                 {parents.length > 0 && filteredParents.length === 0 && <Alert severity="info">No parent accounts match this search.</Alert>}
                 {filteredParents.map((parent) => {
@@ -122,7 +138,7 @@ export default function ParentAccessManagement() {
                     const query = isActive ? memberSearch.trim().toLowerCase() : "";
                     const manualMatches = query ? members.filter((member) => `${member.displayName} ${member.section}`.toLowerCase().includes(query)).slice(0, 30) : [];
                     const childMatches = parent.requestedChildren.map((request) => matchParentChildRequest(request, members));
-                    return <Paper key={parent.uid} data-testid={`parent-access-${parent.uid}`} variant="outlined" sx={{ p: 2.5 }}>
+                    return <Paper key={parent.uid} id={`parent-access-${parent.uid}`} data-testid={`parent-access-${parent.uid}`} variant="outlined" sx={{ p: 2.5 }}>
                         <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography variant="h5" color="secondary">{parent.displayName || "Unnamed parent"}</Typography><Chip label={parent.status === "revoked" ? "parent disabled" : parent.status} size="small" color={parent.status === "approved" ? "success" : parent.status === "pending" ? "warning" : "error"} />{parent.hasLeaderAccess && <Chip label="Leader access active" size="small" color="info" />}</Stack>

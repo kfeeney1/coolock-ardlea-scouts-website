@@ -55,7 +55,7 @@ export default function ProtectedAdminRoute({
                 replace
                 state={{
                     leaderAccessDenied: true,
-                    from: location.pathname
+                    from: `${location.pathname}${location.search}${location.hash}`
                 }}
             />
         );
@@ -67,7 +67,7 @@ export default function ProtectedAdminRoute({
                 to="/leader/login"
                 replace
                 state={{
-                    from: location.pathname
+                    from: `${location.pathname}${location.search}${location.hash}`
                 }}
             />
         );

@@ -3,7 +3,7 @@ import {
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentItemReturnDialog from "../components/admin/EquipmentItemReturnDialog";
@@ -29,6 +29,7 @@ export default function EquipmentRecordPage() {
   const { equipmentId = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
   const [item, setItem] = useState<EquipmentItem | null>(null);
@@ -71,6 +72,9 @@ export default function EquipmentRecordPage() {
 
   useEffect(() => { void refresh(); }, [equipmentId]);
   const itemIncidents = useMemo(() => incidents.filter((x) => x.itemId === equipmentId), [incidents, equipmentId]);
+  const highlightedIssueId = searchParams.get("issue");
+  const highlightedIssue = itemIncidents.find((incident) => incident.id === highlightedIssueId);
+  const issueTargetUnavailable = Boolean(highlightedIssueId && (!highlightedIssue || !canUseEquipmentForSection(adminProfile, highlightedIssue.section)));
   const storeMove = (location.state as { storeMove?: { itemId: string; destination: string; quantity: number; destinationItemId: string | null } } | null)?.storeMove;
   const canReturnItem = useMemo(() => Boolean(item && loans.some((loan) =>
     loan.status === "open" && !isEquipmentReservationLoan(loan) && canUseEquipmentForSection(adminProfile, loan.section)
@@ -106,7 +110,7 @@ export default function EquipmentRecordPage() {
   };
 
   if (loading && !item) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="info">Loading equipment record…</Alert></Container>;
-  if (!item || !form) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="error">Equipment record not found.</Alert><Button sx={{ mt: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment</Button></Container>;
+  if (!item || !form) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></Container>;
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
@@ -116,6 +120,7 @@ export default function EquipmentRecordPage() {
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {storeMove?.itemId === item.id && <Alert severity="success" sx={{ mb: 2 }} data-testid="equipment-store-move-success">Moved {storeMove.quantity} × {item.name} to {storeMove.destination}.{storeMove.destinationItemId ? " The moved stock has its own destination record." : " The existing equipment record was kept."}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
+    {issueTargetUnavailable && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in this record or your account’s scope. <Button size="small" onClick={() => navigate(`/leader/equipment?issue=${encodeURIComponent(highlightedIssueId ?? "")}`)}>Review current equipment issues</Button></Alert>}
 
     <Paper data-testid="equipment-record-summary" variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
@@ -153,7 +158,7 @@ export default function EquipmentRecordPage() {
       </Stack>
     </Paper>
 
-    {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} onChanged={refresh} onError={setError} />}
+    {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
     <EquipmentHistoryDialog item={historyOpen ? item : null} onClose={() => setHistoryOpen(false)} onError={setError} />
     <EquipmentItemReturnDialog item={item} loans={loans} profile={adminProfile} open={returnOpen} onClose={() => setReturnOpen(false)} onChanged={refresh} onError={setError} />
 
