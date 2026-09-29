@@ -99,6 +99,7 @@ test("new event Cancel exits untouched and confirms before discarding a meaningf
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
   await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Back", exact: true }).click();
   await expect(dialog.getByLabel("Event title")).toHaveValue(title);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("dialog", { name: "Discard this new event?" }).getByRole("button", { name: "Discard and cancel" }).click();
