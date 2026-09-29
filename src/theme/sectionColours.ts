@@ -1,4 +1,5 @@
 import { SCOUT_SECTION_ORDER } from "../services/sectionOrder.ts";
+import { canonicalMemberSection } from "../services/memberSectionCore.mjs";
 
 export type ScoutSectionName = (typeof SCOUT_SECTION_ORDER)[number];
 
@@ -14,27 +15,6 @@ export type SectionVisualTokens = Readonly<{
   disabledBackground: string;
   disabledForeground: string;
 }>;
-
-const SECTION_ALIASES = new Map<string, ScoutSectionName>([
-  ["beaver", "Beavers"],
-  ["beavers", "Beavers"],
-  ["beaver scout", "Beavers"],
-  ["beaver scouts", "Beavers"],
-  ["cub", "Cubs"],
-  ["cubs", "Cubs"],
-  ["cub scout", "Cubs"],
-  ["cub scouts", "Cubs"],
-  ["scout", "Scouts"],
-  ["scouts", "Scouts"],
-  ["venture", "Ventures"],
-  ["ventures", "Ventures"],
-  ["venture scout", "Ventures"],
-  ["venture scouts", "Ventures"],
-  ["rover", "Rovers"],
-  ["rovers", "Rovers"],
-  ["rover scout", "Rovers"],
-  ["rover scouts", "Rovers"]
-]);
 
 /**
  * Semantic section colours for the application.
@@ -122,7 +102,8 @@ export const NEUTRAL_SECTION_VISUAL_TOKENS: SectionVisualTokens = {
 
 export function resolveScoutSectionName(section: string | null | undefined): ScoutSectionName | null {
   if (!section) return null;
-  return SECTION_ALIASES.get(section.trim().toLowerCase()) ?? null;
+  const canonical = canonicalMemberSection(section);
+  return SCOUT_SECTION_ORDER.includes(canonical as ScoutSectionName) ? canonical as ScoutSectionName : null;
 }
 
 export function sectionVisualTokens(section: string | null | undefined): SectionVisualTokens {

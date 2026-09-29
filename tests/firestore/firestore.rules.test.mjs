@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import {
   assertFails,
@@ -10,9 +11,11 @@ import {
   getDoc,
   getDocs,
   collection,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
@@ -67,9 +70,13 @@ test("canonical section access includes legacy Venture aliases", async () => {
   await seedDocuments([
     ["adminUsers/leader-ventures", { active: true, role: "leader", sections: ["Ventures"] }],
     ["members/member-venture", { section: "Venture Scout", displayName: "Legacy Venture" }],
+    ["members/member-scout", { section: "Scouts", displayName: "Out of scope Scout" }],
   ]);
   const db = testEnv.authenticatedContext("leader-ventures", { email: "venture@example.com" }).firestore();
   await assertSucceeds(getDoc(doc(db, "members/member-venture")));
+  const aliasQuery = await assertSucceeds(getDocs(query(collection(db, "members"), where("section", "==", "Venture Scout"))));
+  assert.deepEqual(aliasQuery.docs.map((snapshot) => snapshot.id), ["member-venture"]);
+  await assertFails(getDocs(collection(db, "members")));
 });
 
 test("member name updates may persist display-name mode without widening identity fields", async () => {
