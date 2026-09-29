@@ -63,7 +63,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
     };
 
     return (
-        <Dialog open={open} onClose={confirmCompletion ? undefined : requestCancel} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={confirmCompletion ? undefined : requestCancel} maxWidth="md" fullWidth data-testid="event-editor-dialog">
             <DialogTitle>{confirmDiscard ? "Discard this new event?" : confirmCompletion ? "Complete this event?" : editing ? "Edit Event" : "Add Event"}</DialogTitle>
             {confirmDiscard ? (
                 <>

@@ -84,12 +84,12 @@ test("new event Cancel exits untouched and confirms before discarding a meaningf
   await loginAdmin(page);
   await page.goto("/leader/events");
   await page.getByRole("button", { name: "Add Event", exact: true }).click();
-  let dialog = page.getByRole("dialog", { name: "Add Event" });
+  let dialog = page.getByTestId("event-editor-dialog");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
 
   await page.getByRole("button", { name: "Add Event", exact: true }).click();
-  dialog = page.getByRole("dialog", { name: "Add Event" });
+  dialog = page.getByTestId("event-editor-dialog");
   const title = `TEST cancelled event ${Date.now()}`;
   await dialog.getByLabel("Event title").fill(title);
   await dialog.getByLabel("Start date").fill("2099-04-05");
@@ -98,6 +98,7 @@ test("new event Cancel exits untouched and confirms before discarding a meaningf
   const discard = page.getByRole("dialog", { name: "Discard this new event?" });
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Event title")).toHaveValue(title);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("dialog", { name: "Discard this new event?" }).getByRole("button", { name: "Discard and cancel" }).click();
