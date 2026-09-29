@@ -95,19 +95,19 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
   });
 
-  test("Secretary Reports remains distinct from QM Reports", async ({ page }, testInfo) => {
+  test("Treasurer Reports remains distinct from QM Reports", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page);
     const navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
-    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) {
-      await navigation.getByRole("button", { name: "Secretary" }).click();
+    if ((await navigation.getByRole("button", { name: "Treasurer" }).count()) > 0) {
+      await navigation.getByRole("button", { name: "Treasurer" }).click();
     }
-    const secretaryReports = navigation.getByTestId("leader-nav-secretary-reports");
-    await expect(secretaryReports).toBeVisible();
-    await secretaryReports.click();
-    await expect(page).toHaveURL(/\/leader\/reports\?view=secretary$/);
-    await expect(page.getByTestId("page-secretary-reports")).toBeVisible();
+    const treasurerReports = navigation.getByTestId("leader-nav-treasurer-reports");
+    await expect(treasurerReports).toBeVisible();
+    await treasurerReports.click();
+    await expect(page).toHaveURL(/\/leader\/reports\?view=treasurer$/);
+    await expect(page.getByTestId("page-treasurer-reports")).toBeVisible();
     await expect(page.getByTestId("page-qm-reports")).toHaveCount(0);
   });
 
@@ -121,17 +121,17 @@ test.describe("SW-178 canonical role navigation", () => {
     await qmSettings.click();
     await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
     await expect(page.getByTestId("page-qm-settings")).toBeVisible();
-    await expect(page.getByTestId("page-secretary-settings")).toHaveCount(0);
+    await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
 
     await openMenu(page);
     navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
-    if ((await navigation.getByRole("button", { name: "Secretary" }).count()) > 0) {
-      await navigation.getByRole("button", { name: "Secretary" }).click();
+    if ((await navigation.getByRole("button", { name: "Treasurer" }).count()) > 0) {
+      await navigation.getByRole("button", { name: "Treasurer" }).click();
     }
-    await navigation.getByTestId("leader-nav-secretary-settings").click();
-    await expect(page).toHaveURL(/\/leader\/settings\?view=secretary$/);
-    await expect(page.getByTestId("page-secretary-settings")).toBeVisible();
+    await navigation.getByTestId("leader-nav-treasurer-settings").click();
+    await expect(page).toHaveURL(/\/leader\/settings\?view=treasurer$/);
+    await expect(page.getByTestId("page-treasurer-settings")).toBeVisible();
     await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);
 
     await openMenu(page);
@@ -198,7 +198,7 @@ test.describe("SW-178 canonical role navigation", () => {
   });
 
 
-  test("Insights Reports & Exports remains distinct from Secretary Reports", async ({ page }, testInfo) => {
+  test("Insights Reports & Exports remains distinct from Treasurer Reports", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
@@ -206,15 +206,15 @@ test.describe("SW-178 canonical role navigation", () => {
     await navigation.getByTestId("leader-nav-reports-exports").click();
     await expect(page).toHaveURL(/\/leader\/reports\?view=insights$/);
     await expect(page.getByTestId("page-reports-exports")).toBeVisible();
-    await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
+    await expect(page.getByTestId("page-treasurer-reports")).toHaveCount(0);
 
     navigation = await exposeGroup(page, testInfo, "Insights & Records");
     await expect(navigation.getByTestId("leader-nav-reports-exports")).toHaveAttribute("aria-current", "page");
-    await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-reports");
+    await assertSiblingNotCurrent(page, testInfo, "Treasurer", "treasurer-reports");
   });
 
 
-  test("Administration Settings remains distinct from Secretary and QM Settings", async ({ page }, testInfo) => {
+  test("Administration Settings remains distinct from Treasurer and QM Settings", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
@@ -222,17 +222,17 @@ test.describe("SW-178 canonical role navigation", () => {
     await navigation.getByTestId("leader-nav-settings").click();
     await expect(page).toHaveURL(/\/leader\/settings$/);
     await expect(page.getByTestId("page-settings")).toBeVisible();
-    await expect(page.getByTestId("page-secretary-settings")).toHaveCount(0);
+    await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
     await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);
 
     navigation = await exposeGroup(page, testInfo, "Administration");
     await expect(navigation.getByTestId("leader-nav-settings")).toHaveAttribute("aria-current", "page");
-    await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-settings");
+    await assertSiblingNotCurrent(page, testInfo, "Treasurer", "treasurer-settings");
     await assertSiblingNotCurrent(page, testInfo, "Quartermaster / Bo’sun", "qm-settings");
   });
 
 
-  test("Secretary and Group Operations Floats retain distinct navigation identity", async ({ page }, testInfo) => {
+  test("Treasurer and Group Operations Floats retain distinct navigation identity", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
@@ -242,13 +242,13 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-group-section-floats")).toBeVisible();
     navigation = await exposeGroup(page, testInfo, "Group Operations");
     await expect(navigation.getByTestId("leader-nav-group-section-floats")).toHaveAttribute("aria-current", "page");
-    await assertSiblingNotCurrent(page, testInfo, "Secretary", "secretary-floats");
+    await assertSiblingNotCurrent(page, testInfo, "Treasurer", "treasurer-floats");
 
-    navigation = await exposeGroup(page, testInfo, "Secretary");
-    await expect(navigation.getByTestId("leader-nav-secretary-floats")).toBeVisible();
-    await navigation.getByTestId("leader-nav-secretary-floats").click();
-    await expect(page).toHaveURL(/\/leader\/finance\?view=secretary$/);
-    await expect(page.getByTestId("page-secretary-floats")).toBeVisible();
+    navigation = await exposeGroup(page, testInfo, "Treasurer");
+    await expect(navigation.getByTestId("leader-nav-treasurer-floats")).toBeVisible();
+    await navigation.getByTestId("leader-nav-treasurer-floats").click();
+    await expect(page).toHaveURL(/\/leader\/finance\?view=treasurer$/);
+    await expect(page.getByTestId("page-treasurer-floats")).toBeVisible();
   });
 
   test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
@@ -284,30 +284,30 @@ test.describe("SW-178 canonical role navigation", () => {
   test("role-specific direct routes cannot be claimed by sibling navigation identities", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     for (const [route, currentId, siblingIds] of [
-      ["/leader/settings", "settings", ["secretary-settings", "qm-settings"]],
-      ["/leader/settings?view=secretary", "secretary-settings", ["settings", "qm-settings"]],
-      ["/leader/settings?view=quartermaster", "qm-settings", ["settings", "secretary-settings"]],
-      ["/leader/reports?view=secretary", "secretary-reports", ["reports-exports"]],
-      ["/leader/reports?view=insights", "reports-exports", ["secretary-reports"]],
+      ["/leader/settings", "settings", ["treasurer-settings", "qm-settings"]],
+      ["/leader/settings?view=treasurer", "treasurer-settings", ["settings", "qm-settings"]],
+      ["/leader/settings?view=quartermaster", "qm-settings", ["settings", "treasurer-settings"]],
+      ["/leader/reports?view=treasurer", "treasurer-reports", ["reports-exports"]],
+      ["/leader/reports?view=insights", "reports-exports", ["treasurer-reports"]],
       ["/leader/equipment?view=quartermaster", "qm-equipment-stores", ["group-equipment-stores"]],
       ["/leader/equipment?view=group-operations", "group-equipment-stores", ["qm-equipment-stores"]],
       ["/leader/meetings?view=secretary", "secretary-meeting-records", ["group-meeting-records"]],
       ["/leader/meetings?view=group-operations", "group-meeting-records", ["secretary-meeting-records"]],
-      ["/leader/finance?view=secretary", "secretary-floats", ["group-section-floats"]],
-      ["/leader/finance?view=group-operations", "group-section-floats", ["secretary-floats"]],
-      ["/leader/subs?view=secretary", "secretary-subs", ["group-subs", "family-billing"]],
-      ["/leader/subs?view=group-operations", "group-subs", ["secretary-subs", "family-billing"]],
-      ["/leader/subs#family-billing", "family-billing", ["secretary-subs", "group-subs"]],
+      ["/leader/finance?view=treasurer", "treasurer-floats", ["group-section-floats"]],
+      ["/leader/finance?view=group-operations", "group-section-floats", ["treasurer-floats"]],
+      ["/leader/subs?view=treasurer", "treasurer-subs", ["group-subs", "family-billing"]],
+      ["/leader/subs?view=group-operations", "group-subs", ["treasurer-subs", "family-billing"]],
+      ["/leader/subs#family-billing", "family-billing", ["treasurer-subs", "group-subs"]],
     ] as const) {
       await page.goto(route);
       await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
       const groupByItem: Record<string, string> = {
-        settings: "Administration", "secretary-settings": "Secretary", "qm-settings": "Quartermaster / Bo’sun",
-        "secretary-reports": "Secretary", "reports-exports": "Insights & Records",
+        settings: "Administration", "treasurer-settings": "Treasurer", "qm-settings": "Quartermaster / Bo’sun",
+        "treasurer-reports": "Treasurer", "reports-exports": "Insights & Records",
         "qm-equipment-stores": "Quartermaster / Bo’sun", "group-equipment-stores": "Group Operations",
         "secretary-meeting-records": "Secretary", "group-meeting-records": "Group Operations",
-        "secretary-floats": "Secretary", "group-section-floats": "Group Operations",
-        "secretary-subs": "Secretary", "group-subs": "Group Operations", "family-billing": "People & Parents",
+        "treasurer-floats": "Treasurer", "group-section-floats": "Group Operations",
+        "treasurer-subs": "Treasurer", "group-subs": "Group Operations", "family-billing": "People & Parents",
       };
       let navigation = await exposeGroup(page, testInfo, groupByItem[currentId]);
       await expect(navigation.getByTestId("leader-nav-" + currentId)).toHaveAttribute("aria-current", "page");

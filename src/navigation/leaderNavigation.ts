@@ -31,11 +31,13 @@ export const leaderNavGroups: LeaderNavGroup[] = [
     { id: "parent-communications", label: "Parent Communications", path: "/leader/communications", pageId: "parent-communications" },
     { id: "family-billing", label: "Family Billing Accounts", path: "/leader/subs#family-billing", pageId: "family-billing" }
   ]},
+  { id: "treasurer", label: "Treasurer", items: [
+    { id: "treasurer-subs", label: "Subs", path: "/leader/subs?view=treasurer", pageId: "treasurer-subs", appointments: ["Group Treasurer"] },
+    { id: "treasurer-floats", label: "Floats", path: "/leader/finance?view=treasurer", pageId: "treasurer-floats", appointments: ["Group Treasurer"] },
+    { id: "treasurer-reports", label: "Reports", path: "/leader/reports?view=treasurer", pageId: "treasurer-reports", appointments: ["Group Treasurer"] },
+    { id: "treasurer-settings", label: "Settings", path: "/leader/settings?view=treasurer", pageId: "treasurer-settings", appointments: ["Group Treasurer"] }
+  ]},
   { id: "secretary", label: "Secretary", items: [
-    { id: "secretary-subs", label: "Subs", path: "/leader/subs?view=secretary", pageId: "secretary-subs", appointments: ["Group Secretary"] },
-    { id: "secretary-floats", label: "Floats", path: "/leader/finance?view=secretary", pageId: "secretary-floats", appointments: ["Group Secretary"] },
-    { id: "secretary-reports", label: "Secretary Reports", path: "/leader/reports?view=secretary", pageId: "secretary-reports", appointments: ["Group Secretary", "Group Chairperson"] },
-    { id: "secretary-settings", label: "Secretary Settings", path: "/leader/settings?view=secretary", pageId: "secretary-settings", appointments: ["Group Secretary"] },
     { id: "secretary-meeting-records", label: "Meeting Records", path: "/leader/meetings?view=secretary", pageId: "secretary-meeting-records", appointments: ["Group Secretary", "Group Chairperson"] }
   ]},
   { id: "quartermaster", label: "Quartermaster / Bo’sun", items: [

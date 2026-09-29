@@ -91,8 +91,9 @@ function groupLeaders() {
     email: `test.${entry.key.replaceAll("_", ".")}@example.com`,
     displayName: entry.displayName,
     accessRole: "leader",
-    sections: ["Group"],
+    sections: entry.key === "group_leader" ? ["Group", "Cubs"] : ["Group"],
     scoutingRole: entry.scoutingRole,
+    appointments: entry.key === "group_leader" ? [{ appointment: "Group Leader", scope: "Group", active: true }, { appointment: "Scouter", scope: "Cubs", active: true }] : undefined,
     organisationSection: "Group",
     organisationOrder: entry.order,
     reportsToUid: entry.key === "group_leader" ? "" : "TEST_uid_group_leader",
@@ -267,6 +268,7 @@ async function seedLeader(user) {
     active: true,
     mobileNumber: "0872000000",
     testRoleType: user.kind,
+    ...(user.appointments ? { appointments: user.appointments } : {}),
     ...(user.uiTheme ? { uiTheme: user.uiTheme } : {})
   });
 
@@ -278,7 +280,8 @@ async function seedLeader(user) {
     reportsToUid: user.reportsToUid,
     showPublicly: user.showPublicly,
     active: true,
-    testRoleType: user.kind
+    testRoleType: user.kind,
+    ...(user.appointments ? { appointments: user.appointments } : {})
   };
   await replace("organisationLeadership", user.uid, organisationRecord);
 

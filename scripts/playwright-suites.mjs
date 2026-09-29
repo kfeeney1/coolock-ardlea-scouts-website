@@ -13,6 +13,7 @@ export const suiteSpecs = {
     "leader-access-management.spec.ts",
     "organisation-chart.spec.ts",
     "parent-access-management.spec.ts",
+    "password-visibility.spec.ts",
     "release-authorization-boundaries.spec.ts",
     "role-permissions.spec.ts",
     "roles-permissions.spec.ts",
@@ -41,6 +42,7 @@ export const suiteSpecs = {
     "weekly-mobile-layout.spec.ts",
     "weekly-parent-sharing.spec.ts",
     "weekly-planner-followup.spec.ts",
+    "weekly-record-integrity.spec.ts",
     "weekly-section-tracker.spec.ts"
   ],
   badgework: [
@@ -49,6 +51,7 @@ export const suiteSpecs = {
   ],
   equipment: [
     "equipment-checkout.spec.ts",
+    "email-action-links.spec.ts",
     "equipment-leader-dashboard.spec.ts",
     "equipment-reports.spec.ts"
   ],

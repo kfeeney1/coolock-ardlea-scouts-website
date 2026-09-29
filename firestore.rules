@@ -1219,11 +1219,22 @@ service cloud.firestore {
     }
 
     match /publicSiteContent/{contentId} {
-      allow get: if contentId == "TEST_site"
-        && resource.data.contentVersion == 1
-        && resource.data.testData == true
-        && resource.data.testSeed == "public-site-content-v1"
-        && resource.data.createdBySeed == "TEST_SEED";
+      allow get: if resource.data.contentVersion == 1
+        && resource.data.keys().hasOnly([
+          "contentVersion", "group", "navigation", "home", "about", "activities", "contact", "sections", "join", "consent",
+          "testData", "testSeed", "createdBySeed", "visibility", "published", "updatedAt", "publishedAt"
+        ])
+        && (
+          (contentId == "TEST_site"
+            && resource.data.testData == true
+            && resource.data.testSeed == "public-site-content-v1"
+            && resource.data.createdBySeed == "TEST_SEED")
+          ||
+          (contentId == "live"
+            && resource.data.visibility == "public"
+            && resource.data.published == true
+            && resource.data.testData == false)
+        );
       allow list, create, update, delete: if false;
     }
 

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { automaticDisplayName, createMember, loadMemberConsentSummaries, loadMembers, updateMember } from "../services/memberAdmin";
 import type { CreateMemberInput, MemberConsentSummary, MemberRecord, MemberStatus } from "../services/memberAdmin";
+import { filterMemberRecords } from "../services/memberManagementLogic";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates } from "../services/parentLifecycleLogic";
@@ -57,7 +58,7 @@ export default function MemberManagement() {
     if (statusFilter !== "active") next.set("status", statusFilter);
     setSearchParams(next, { replace: true });
   }, [search, sectionFilter, statusFilter, setSearchParams]);
-  const visibleMembers = useMemo(() => members.filter((member) => { if (sectionFilter !== "all" && member.section !== sectionFilter) return false; if (statusFilter !== "all" && member.status !== statusFilter) return false; const query = search.trim().toLowerCase(); return !query || [member.displayName, member.firstName, member.lastName, member.parentName, member.emailAddress, member.mobileNumber, member.section, member.emergencyContactName, member.emergencyContactPhone].join(" ").toLowerCase().includes(query); }), [members, sectionFilter, statusFilter, search]);
+  const visibleMembers = useMemo(() => filterMemberRecords(members, sectionFilter, statusFilter, search), [members, sectionFilter, statusFilter, search]);
   const counts = useMemo(() => ({ total: members.length, active: members.filter((m) => m.status === "active").length, inactive: members.filter((m) => m.status === "inactive").length, left: members.filter((m) => m.status === "left").length }), [members]);
   const summary: Array<[string, number, MemberStatus | "all"]> = [["Total", counts.total, "all"], ["Active", counts.active, "active"], ["Inactive", counts.inactive, "inactive"], ["Left", counts.left, "left"]];
   const selectStatus = (status: MemberStatus | "all") => {

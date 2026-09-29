@@ -6,10 +6,11 @@ const firstMember = "Riley Nolan Beavers 01";
 const secondMember = "Morgan Kavanagh Beavers 02";
 
 async function choose(page: import("@playwright/test").Page, field: string, answer: "Yes" | "No") {
-  const select = page.getByTestId(`parent-consent-select-${field}`);
-  await select.locator('[role="combobox"]').click();
-  await page.getByRole("option", { name: answer, exact: true }).click();
-  await expect(select.locator('[role="combobox"]')).toHaveText(answer);
+  const fieldControl = page.getByTestId(`parent-consent-select-${field}`);
+  const radio = fieldControl.getByRole("radio", { name: answer, exact: true });
+  await expect(radio).toBeVisible();
+  await radio.check();
+  await expect(radio).toBeChecked();
 }
 
 async function loginParent(page: import("@playwright/test").Page) {
