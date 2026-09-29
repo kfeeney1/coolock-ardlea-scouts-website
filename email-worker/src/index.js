@@ -1,3 +1,5 @@
+import { equipmentIncidentActionUrl, joinApplicationActionUrl, leaderRequestActionUrl, parentAccessActionUrl } from "./emailActionLinks.js";
+
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
   navy: "#17324D",
@@ -86,7 +88,7 @@ async function handleJoinApplication(request, env, body) {
   const recipients = adminRecipients(env); if (!recipients.length) return json(request, env, 503, { ok: false, error: "Admin email recipients are not configured." });
   const childName = clean(body.childName, 170) || "New applicant"; const section = clean(body.section, 80) || "Not specified"; const parentName = clean(body.parentName, 150) || "Not specified"; const applicationId = clean(body.applicationId, 200); if (!applicationId) return json(request, env, 400, { ok: false, error: "Missing application id." });
   const bodyHtml = `<table role="presentation" style="font-size:15px;line-height:1.6;border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0;font-weight:700">Applicant</td><td>${escapeHtml(childName)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Section</td><td>${escapeHtml(section)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Parent / Guardian</td><td>${escapeHtml(parentName)}</td></tr></table>`;
-  await sendEmail(env, recipients, `New Join Us application – ${childName}`, brandedEmail({ heading: "New Join Us application", intro: "A new application has been submitted through the website.", bodyHtml, actionLabel: "Review application", actionUrl: `${env.SITE_URL}/leader/join` }));
+  await sendEmail(env, recipients, `New Join Us application – ${childName}`, brandedEmail({ heading: "New Join Us application", intro: "A new application has been submitted through the website.", bodyHtml, actionLabel: "Review application", actionUrl: joinApplicationActionUrl(env.SITE_URL, applicationId) }));
   return json(request, env, 200, { ok: true });
 }
 
@@ -98,7 +100,7 @@ async function handleSelfRegistration(request, env, collectionName, kind) {
   const requesterHtml = kind === "parent" ? `<p style="font-size:16px;line-height:1.6">Your Parent Portal request has been received and is waiting for an administrator to verify and link your account to the correct member record.</p>` : `<p style="font-size:16px;line-height:1.6">Your Leader Access request has been received${section ? ` for <strong>${escapeHtml(section)}</strong>` : ""}. An administrator will review it before leader areas become available.</p>`;
   await sendEmail(env, email, kind === "parent" ? "Parent access request received – Coolock Ardlea Scouts" : "Leader access request received – Coolock Ardlea Scouts", brandedEmail({ heading: kind === "parent" ? "Parent access request received" : "Leader access request received", intro: `Hello ${name}, thanks for registering.`, bodyHtml: requesterHtml, actionLabel: kind === "parent" ? "Open Parent Portal" : "Open Leader Login", actionUrl: `${env.SITE_URL}/${kind === "parent" ? "parent" : "leader/login"}` }));
   const admins = adminRecipients(env);
-  if (admins.length) await sendEmail(env, admins, `New ${kind === "parent" ? "Parent Access" : "Leader Access"} request – ${name}`, brandedEmail({ heading: `New ${kind === "parent" ? "Parent Access" : "Leader Access"} request`, intro: `${name} has submitted a new access request.`, bodyHtml: kind === "leader" && section ? `<p>Requested section: <strong>${escapeHtml(section)}</strong></p>` : "", actionLabel: "Review request", actionUrl: `${env.SITE_URL}/leader/${kind === "parent" ? "parent-access" : "requests"}` }));
+  if (admins.length) await sendEmail(env, admins, `New ${kind === "parent" ? "Parent Access" : "Leader Access"} request – ${name}`, brandedEmail({ heading: `New ${kind === "parent" ? "Parent Access" : "Leader Access"} request`, intro: `${name} has submitted a new access request.`, bodyHtml: kind === "leader" && section ? `<p>Requested section: <strong>${escapeHtml(section)}</strong></p>` : "", actionLabel: "Review request", actionUrl: kind === "parent" ? parentAccessActionUrl(env.SITE_URL, uid) : leaderRequestActionUrl(env.SITE_URL, uid) }));
   return json(request, env, 200, { ok: true });
 }
 
@@ -288,7 +290,7 @@ async function handleEquipmentIncident(request, env, body) {
     intro: "An equipment issue has been reported and needs review by the Quartermaster / Bo'sun and Group Leadership.",
     bodyHtml,
     actionLabel: "Review Equipment & Stores",
-    actionUrl: `${env.SITE_URL}/leader/equipment`
+    actionUrl: equipmentIncidentActionUrl(env.SITE_URL, incidentId, fieldString(incident, "itemId"))
   }));
   return json(request, env, 200, { ok: true, sent: recipients.length });
 }

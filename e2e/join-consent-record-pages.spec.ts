@@ -34,6 +34,62 @@ test("Join Us enquiry tiles open full-page records", async ({ page }, testInfo) 
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("Join application action deep link preserves login target and hides out-of-scope records", async ({ browser }) => {
+  const applicationPath = "/leader/join/TEST_flow_join_accepted";
+  const emailTarget = `${applicationPath}?source=email#application`;
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await adminPage.goto(emailTarget);
+  await expect(adminPage).toHaveURL(/\/leader\/login$/);
+  await adminPage.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await adminPage.getByLabel("Password").fill(password!);
+  await adminPage.getByRole("button", { name: "Sign In" }).click();
+  await expect(adminPage).toHaveURL(new RegExp(`${applicationPath}\\?source=email#application$`));
+  await expect(adminPage.getByTestId("join-record-page-TEST_flow_join_accepted")).toBeVisible();
+  await adminContext.close();
+
+  const sectionContext = await browser.newContext();
+  const sectionPage = await sectionContext.newPage();
+  await sectionPage.goto(applicationPath);
+  await expect(sectionPage).toHaveURL(/\/leader\/login$/);
+  await sectionPage.getByLabel("Email address").fill(process.env.E2E_MULTI_SECTION_LEADER_EMAIL || "test.multi.section.leader@example.com");
+  await sectionPage.getByLabel("Password").fill(password!);
+  await sectionPage.getByRole("button", { name: "Sign In" }).click();
+  await expect(sectionPage).toHaveURL(new RegExp(applicationPath + "$"));
+  await expect(sectionPage.getByRole("alert")).toContainText("outside your permitted sections");
+  await expect(sectionPage.getByText("Test accepted", { exact: true })).toHaveCount(0);
+  await sectionContext.close();
+});
+
+test("access request email links preserve authentication and open the exact leader and parent records", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const leaderTarget = "/leader/requests?request=TEST_flow_leader_request_pending";
+  await page.goto(leaderTarget);
+  await expect(page).toHaveURL(/\/leader\/login$/);
+  await page.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await page.getByLabel("Password").fill(password!);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page).toHaveURL(new RegExp(`${leaderTarget.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+  const leaderRequest = page.getByRole("dialog", { name: "Review leader request" });
+  await expect(leaderRequest).toBeVisible();
+  await expect(leaderRequest).toContainText("Pending Scouter");
+  await context.close();
+
+  const parentContext = await browser.newContext();
+  const parentPage = await parentContext.newPage();
+  const parentTarget = "/leader/parent-access?parent=TEST_flow_parent_pending";
+  await parentPage.goto(parentTarget);
+  await expect(parentPage).toHaveURL(/\/leader\/login$/);
+  await parentPage.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await parentPage.getByLabel("Password").fill(password!);
+  await parentPage.getByRole("button", { name: "Sign In" }).click();
+  await expect(parentPage).toHaveURL(new RegExp(`${parentTarget.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+  await expect(parentPage.getByTestId("parent-access-TEST_flow_parent_pending")).toBeInViewport();
+  await expect(parentPage.getByTestId("parent-child-linking-TEST_flow_parent_pending")).toBeVisible();
+  await parentContext.close();
+});
+
 test("Join Us member conversion requires review and cancel does not persist it", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
