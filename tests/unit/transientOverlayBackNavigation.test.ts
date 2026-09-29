@@ -13,7 +13,8 @@ test("transient overlay Back bridge covers dialogs and select listboxes", async 
   assert.match(source, /\[role="dialog"\]/);
   assert.match(source, /\[role="listbox"\]/);
   assert.match(source, /transient-overlay:/);
-  assert.match(source, /navigate\(-1\)/);
+  assert.match(source, /pendingCloseFromMarkerCount/);
+  assert.match(source, /navigate\(surfaces\.length - markerCount\)/);
   assert.match(source, /key:\s*"Escape"/);
 });
 
