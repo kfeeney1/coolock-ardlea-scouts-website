@@ -4,6 +4,8 @@ import test from "node:test";
 import { filterMemberRecords } from "../../src/services/memberManagementLogic.ts";
 
 const members = [
+  { id: "beaver-active", displayName: "Active Beaver", firstName: "Active", lastName: "Beaver", parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", section: "Beavers", status: "active" as const },
+  { id: "cub-active", displayName: "Active Cub", firstName: "Active", lastName: "Cub", parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", section: "Cubs", status: "active" as const },
   { id: "venture-new", displayName: "New Venture", firstName: "New", lastName: "Venture", parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", section: "Venture Scout", status: "active" as const },
   { id: "venture-existing", displayName: "Existing Venture", firstName: "Existing", lastName: "Venture", parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", section: "Ventures", status: "inactive" as const },
   { id: "scout-existing", displayName: "Existing Scout", firstName: "Existing", lastName: "Scout", parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", section: "Scouts", status: "active" as const },
@@ -22,4 +24,12 @@ test("Member Management status filters include only the requested lifecycle stat
   assert.deepEqual(filterMemberRecords(members, "all", "inactive").map((member) => member.id), ["venture-existing"]);
   assert.deepEqual(filterMemberRecords(members, "all", "left").map((member) => member.id), ["venture-left"]);
   assert.equal(filterMemberRecords(members, "all", "all", "new venture").length, 1);
+});
+
+test("SW-218 active members remain visible in their applicable section and All Sections", () => {
+  for (const [section, id] of [["Beavers", "beaver-active"], ["Cubs", "cub-active"], ["Scouts", "scout-existing"], ["Ventures", "venture-new"]] as const) {
+    assert.ok(filterMemberRecords(members, section, "active").some((member) => member.id === id), `${section} should include ${id}`);
+    assert.ok(filterMemberRecords(members, "all", "active").some((member) => member.id === id), `All Sections should include ${id}`);
+  }
+  assert.equal(filterMemberRecords(members, "Scouts", "active").some((member) => member.id === "venture-new"), false);
 });
