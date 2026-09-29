@@ -7,29 +7,19 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Stack,
-  TextField,
   Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EquipmentItem } from "../../services/equipment";
-import { loadEquipmentHistory, moveEquipmentStock } from "../../services/equipmentHistory";
+import { loadEquipmentHistory } from "../../services/equipmentHistory";
 import type { EquipmentHistoryEntry } from "../../services/equipmentHistory";
 import { equipmentHistoryLabel } from "../../services/equipmentHistoryLogic";
-import { availableEquipmentQuantity } from "../../services/equipmentLoanLogic";
-import { numericInputDisplayValue, parseOptionalNumberInput } from "../../services/numericInput";
 
 type Props = {
   item: EquipmentItem | null;
-  locations: string[];
-  canManage: boolean;
   onClose: () => void;
-  onChanged: () => Promise<void>;
   onError: (message: string) => void;
 };
 
@@ -38,17 +28,12 @@ function formatDate(value: Date | null): string {
   return value.toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function EquipmentHistoryDialog({ item, locations, canManage, onClose, onChanged, onError }: Props) {
+export default function EquipmentHistoryDialog({ item, onClose, onError }: Props) {
   const [history, setHistory] = useState<EquipmentHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [destination, setDestination] = useState("");
-  const [quantity, setQuantity] = useState<number | null>(1);
-  const [moving, setMoving] = useState(false);
 
   useEffect(() => {
     if (!item) return;
-    setDestination("");
-    setQuantity(1);
     setLoading(true);
     void loadEquipmentHistory(item.id)
       .then(setHistory)
@@ -59,40 +44,10 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
       .finally(() => setLoading(false));
   }, [item, onError]);
 
-  const available = item ? availableEquipmentQuantity(item) : 0;
-  const destinations = useMemo(() => locations.filter((location) => item && location.toLowerCase() !== item.location.toLowerCase()), [item, locations]);
-
-  const move = async () => {
-    if (!item || quantity === null) return;
-    setMoving(true);
-    try {
-      await moveEquipmentStock(item, quantity, destination);
-      await onChanged();
-      setHistory(await loadEquipmentHistory(item.id));
-      setDestination("");
-      setQuantity(1);
-    } catch (error) {
-      console.error("Unable to move equipment stock:", error);
-      onError(error instanceof Error ? error.message : "Unable to move that equipment stock.");
-    } finally {
-      setMoving(false);
-    }
-  };
-
-  return <Dialog open={Boolean(item)} onClose={() => !moving && onClose()} fullWidth maxWidth="md">
+  return <Dialog open={Boolean(item)} onClose={onClose} fullWidth maxWidth="md">
     <DialogTitle>{item ? `${item.name} history` : "Equipment history"}</DialogTitle>
     <DialogContent dividers>
       {item && <Stack spacing={2.5}>
-        {canManage && !item.archived && available > 0 && destinations.length > 0 && <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Move stock</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Move available stock from {item.location}. Partial moves create a separate stock record at the destination so each location keeps an accurate quantity.</Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <FormControl fullWidth><InputLabel>Destination</InputLabel><Select label="Destination" value={destination} onChange={(event) => setDestination(event.target.value)}>{destinations.map((location) => <MenuItem key={location} value={location}>{location}</MenuItem>)}</Select></FormControl>
-            <TextField label="Quantity to move" type="number" value={numericInputDisplayValue(quantity)} onChange={(event) => setQuantity(parseOptionalNumberInput(event.target.value))} slotProps={{ htmlInput: { min: 1, max: available, step: 1 } }} helperText={`${available} available`} />
-            <Button variant="contained" color="success" disabled={moving || !destination || quantity === null || quantity < 1 || quantity > available || !Number.isInteger(quantity)} onClick={() => void move()} sx={{ minWidth: { sm: 120 } }}>{moving ? "Moving…" : "Move stock"}</Button>
-          </Stack>
-        </Paper>}
-
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Timeline</Typography>
           {loading ? <Alert severity="info">Loading equipment history…</Alert> : history.length === 0 ? <Alert severity="info">No item history has been recorded yet. New stock changes, checkouts, returns, issues and movements will appear here.</Alert> : <Stack spacing={1.25}>
@@ -114,6 +69,6 @@ export default function EquipmentHistoryDialog({ item, locations, canManage, onC
         </Box>
       </Stack>}
     </DialogContent>
-    <DialogActions><Button onClick={onClose} disabled={moving}>Close</Button></DialogActions>
+    <DialogActions><Button onClick={onClose}>Close</Button></DialogActions>
   </Dialog>;
 }

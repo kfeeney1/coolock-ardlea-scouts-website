@@ -22,11 +22,9 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Equipment checkout runs once on desktop Chromium.");
 }
 
-test("admin can add stock, check it out to a section, return it and reset catalogue filters", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+test("admin can add, check out and check in stock from its record and verify persisted history", async ({ page }, testInfo) => {
   const account = adminCredentials();
-  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const itemName = `TEST Checkout Tent ${testInfo.retry}`;
+  const itemName = `TEST Checkout Tent ${testInfo.project.name} ${Date.now()}`;
   const storeName = "TEST Checkout Store";
   await loginLeader(page, account!);
 
@@ -56,7 +54,6 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await expect(checkoutDialog).toBeVisible();
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
-  const checkoutRow = checkoutDialog.locator('[data-testid^="equipment-checkout-item-"]').filter({ hasText: itemName });
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
@@ -66,12 +63,28 @@ test("admin can add stock, check it out to a section, return it and reset catalo
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("2 checked out", { exact: true })).toBeVisible();
 
-  const holdingCard = page.locator('[data-testid^="equipment-loan-"]').filter({ hasText: itemName });
-  await holdingCard.getByRole("button", { name: "Return equipment" }).click();
-  const returnDialog = page.getByRole("dialog", { name: /Return equipment/ });
+  const itemTestId = await inventoryCard.getAttribute("data-testid");
+  const itemId = itemTestId?.replace("equipment-inventory-card-", "");
+  expect(itemId).toBeTruthy();
+  await inventoryCard.getByText(itemName, { exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}$`));
+  const record = page.getByTestId("equipment-record-summary");
+  await expect(record).toContainText(itemName);
+  await expect(record).toContainText("2 checked out");
+  await record.getByRole("button", { name: "Check in / Return", exact: true }).click();
+  const returnDialog = page.getByRole("dialog", { name: `Check in / Return ${itemName}` });
   await expect(returnDialog.getByText("2 currently checked out")).toBeVisible();
-  await returnDialog.getByRole("button", { name: "Confirm return" }).click();
+  await returnDialog.getByRole("button", { name: "Confirm check in" }).click();
   await expect(returnDialog).toBeHidden();
+  await expect(record).toContainText("0 checked out");
+  await page.reload();
+  await expect(page.getByTestId("equipment-record-summary")).toContainText("0 checked out");
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  const history = page.getByRole("dialog", { name: `${itemName} history` });
+  await expect(history.getByText("Checked out", { exact: true })).toBeVisible();
+  await expect(history.getByText("Returned", { exact: true })).toBeVisible();
+  await history.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
 
   await expect(page.getByText("No equipment is currently checked out.")).toBeVisible();
   const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
@@ -104,10 +117,8 @@ test("admin can add stock, check it out to a section, return it and reset catalo
 });
 
 test("missing checkout equipment can be investigated and resolved back into stock", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
   const account = adminCredentials();
-  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const incidentName = `TEST Incident Tent ${testInfo.retry}`;
+  const incidentName = `TEST Incident Tent ${testInfo.project.name} ${Date.now()}`;
   let notificationCalls = 0;
   await page.route("**/equipment-incident", async (route) => {
     notificationCalls += 1;
@@ -173,14 +184,13 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await expect(resolvedInventoryCard.getByText("1 unavailable", { exact: true })).toHaveCount(0);
 });
 
-test("admin can partially move stock and see the movement in item history", async ({ page }, testInfo) => {
+test("History stays on the audit record and Move Store uses its own item-specific route", async ({ page }, testInfo) => {
   test.setTimeout(60_000);
-  desktopOnly(testInfo);
   const account = adminCredentials();
-  test.skip(!account, "Configure the seeded E2E admin account to run this check.");
-  const destination = `TEST Move Store ${testInfo.retry}`;
-  const markerName = `TEST Move Marker ${testInfo.retry}`;
-  const itemName = `TEST Move Tents ${testInfo.retry}`;
+  const runId = `${testInfo.project.name} ${Date.now()}`;
+  const destination = `TEST Move Store ${runId}`;
+  const markerName = `TEST Move Marker ${runId}`;
+  const itemName = `TEST Move Tents ${runId}`;
   await loginLeader(page, account!);
   await page.goto("/leader/equipment");
 
@@ -208,16 +218,46 @@ test("admin can partially move stock and see the movement in item history", asyn
   await expect(page.getByText(itemName, { exact: true })).toBeVisible();
 
   const sourceCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: "TEST Checkout Store" });
-  await sourceCard.getByRole("button", { name: "History / move" }).click();
+  const sourceTestId = await sourceCard.getAttribute("data-testid");
+  const sourceId = sourceTestId?.replace("equipment-inventory-card-", "");
+  expect(sourceId).toBeTruthy();
+  await sourceCard.getByRole("button", { name: "History", exact: true }).click();
   const historyDialog = page.getByRole("dialog", { name: `${itemName} history` });
   await expect(historyDialog).toBeVisible();
-  await historyDialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: destination }).click();
-  await historyDialog.getByLabel("Quantity to move").fill("2");
-  await historyDialog.getByRole("button", { name: "Move stock" }).click();
-  await expect(historyDialog.getByText("Stock moved out", { exact: true })).toBeVisible();
-  await expect(historyDialog.getByText(`TEST Checkout Store → ${destination}`, { exact: true })).toBeVisible();
+  await expect(historyDialog.getByText("Move stock", { exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL("/leader/equipment");
   await historyDialog.getByRole("button", { name: "Close" }).click();
+
+  await sourceCard.getByRole("button", { name: "Move Store", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
+  const moveTarget = page.getByTestId("equipment-store-move-target");
+  await expect(moveTarget).toHaveAttribute("data-equipment-id", sourceId!);
+  await expect(moveTarget).toContainText(itemName);
+  await page.getByRole("button", { name: "Back to equipment record" }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
+  await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
+  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
+  const cancelledMove = page.getByTestId("equipment-store-move-target");
+  await cancelledMove.getByRole("combobox", { name: "Destination store" }).click();
+  await page.getByRole("option", { name: destination, exact: true }).click();
+  await cancelledMove.getByRole("spinbutton", { name: "Quantity to move" }).fill("2");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
+  await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
+  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
+  const movePage = page.getByTestId("equipment-store-move-target");
+  await movePage.getByRole("combobox", { name: "Destination store" }).click();
+  await page.getByRole("option", { name: destination, exact: true }).click();
+  await movePage.getByRole("spinbutton", { name: "Quantity to move" }).fill("2");
+  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
+  await expect(page.getByTestId("equipment-store-move-success")).toContainText(`Moved 2 × ${itemName} to ${destination}`);
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: `${itemName} history` }).getByText("Stock moved out", { exact: true })).toBeVisible();
+  await page.getByRole("dialog", { name: `${itemName} history` }).getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
 
   const sourceAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: "TEST Checkout Store" });
   const destinationAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: destination });
