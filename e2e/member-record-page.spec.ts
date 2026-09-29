@@ -151,13 +151,41 @@ test("SW-216 surname edits are reloaded from Firestore and remain visible in Mem
   await expect(page.getByText("Member details updated.")).toBeVisible();
 });
 
-test("SW-218 Venture members appear under Ventures and All Sections", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+test("SW-218 newly created Venture member remains visible under Ventures and All Sections after reload", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Member creation visibility runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
-  await page.goto("/leader/members?section=Ventures");
+  const firstName = `SW218-${Date.now()}`;
+  const displayName = `${firstName} Venture-Test`;
+
+  await page.goto("/leader/members");
+  await page.getByRole("button", { name: "Add Member" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add Existing Member" });
+  await dialog.getByLabel("First name").fill(firstName);
+  await dialog.getByLabel("Last name").fill("Venture-Test");
+  await dialog.getByLabel("Date of birth").fill("2009-04-18");
+  await dialog.getByLabel("Section").click();
+  await page.getByRole("option", { name: "Ventures", exact: true }).click();
+  await dialog.getByRole("button", { name: "Add Member" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Ventures", exact: true }).click();
   await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
-  await page.getByLabel("Section").click();
+  const ventureCard = page.getByTestId(/member-card-/).filter({ hasText: displayName });
+  await expect(ventureCard).toBeVisible();
+  await expect(ventureCard).toContainText("Active");
+  await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "All Sections" }).click();
   await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
+  await page.goto("/leader");
+  await page.goto("/leader/members?section=Ventures");
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });

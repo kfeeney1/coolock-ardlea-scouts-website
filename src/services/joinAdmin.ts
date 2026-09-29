@@ -14,6 +14,7 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { canonicalMemberSection } from "./memberIdentityLogic";
 
 export type JoinStatus = "new" | "contacted" | "waiting-list" | "accepted" | "closed";
 export type ContactMethod = "phone" | "email" | "text" | "in-person" | "other";
@@ -207,7 +208,7 @@ export async function convertJoinApplicationToMember(application: JoinApplicatio
             lastName: application.childLastName,
             displayName: application.childName,
             dateOfBirth: application.childDob,
-            section: application.section,
+            section: canonicalMemberSection(application.section),
             parentName: application.parentName,
             emailAddress: application.emailAddress,
             mobileNumber: application.mobileNumber,

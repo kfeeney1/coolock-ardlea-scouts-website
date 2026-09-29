@@ -43,6 +43,8 @@ export default function TransientOverlayBackDismissBridge() {
   const previousMarkerCount = useRef(0);
   const latestMarkerCount = useRef(0);
   const consumingClose = useRef(false);
+  // Serialise UI-driven overlay closes so nested surfaces cannot consume the same history entry.
+  const pendingCloseFromMarkerCount = useRef<number | null>(null);
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
@@ -92,6 +94,11 @@ export default function TransientOverlayBackDismissBridge() {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
 
+    if (pendingCloseFromMarkerCount.current !== null) {
+      if (markerCount >= pendingCloseFromMarkerCount.current) return;
+      pendingCloseFromMarkerCount.current = null;
+    }
+
     if (markerCount < priorMarkerCount) {
       previousMarkerCount.current = markerCount;
       if (consumingClose.current) {
@@ -113,6 +120,7 @@ export default function TransientOverlayBackDismissBridge() {
     }
 
     if (surfaces.length < markerCount) {
+      pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
       navigate(-1);
     }
