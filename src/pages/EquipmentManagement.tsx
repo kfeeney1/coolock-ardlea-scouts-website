@@ -42,7 +42,7 @@ import { loadEquipmentIncidents } from "../services/equipmentIncidents";
 import type { EquipmentIncident } from "../services/equipmentIncidents";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
-import { availableEquipmentQuantity } from "../services/equipmentLoanLogic";
+import { availableEquipmentQuantity, canUseEquipmentForSection } from "../services/equipmentLoanLogic";
 import {
   canManageEquipment,
   DEFAULT_EQUIPMENT_CATEGORIES,
@@ -91,6 +91,7 @@ export default function EquipmentManagement() {
   const inventoryHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const search = searchParams.get("q") ?? "";
+  const highlightedIssueId = searchParams.get("issue");
   const categoryFilter = searchParams.get("category") ?? "all";
   const locationFilter = searchParams.get("store") ?? "all";
   const statusParam = searchParams.get("status") ?? "all";
@@ -246,10 +247,11 @@ export default function EquipmentManagement() {
       <LeaderPageHeader title={pageTitle} />
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues below.</Alert>}
 
       {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
       {!loading && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
-      {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
+      {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
       {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
