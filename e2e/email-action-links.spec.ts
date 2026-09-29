@@ -63,7 +63,12 @@ test("broken equipment email target opens the exact issue after login and protec
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
 
-  await page.getByRole("button", { name: "Report issue" }).click();
+  await expect(page).toHaveURL(/\/leader\/equipment$/);
+  const checkedOutLoan = page.locator('[data-testid^="equipment-loan-"]').filter({ hasText: itemName });
+  await expect(checkedOutLoan).toContainText(`2 × ${itemName}`);
+  const reportIssueButton = page.getByRole("button", { name: "Report issue", exact: true });
+  await expect(reportIssueButton).toBeEnabled();
+  await reportIssueButton.click();
   const issueDialog = page.getByRole("dialog", { name: "Report equipment issue" });
   await issueDialog.getByLabel("Equipment / checkout").click();
   await page.getByRole("option", { name: new RegExp(`Scouts checkout · ${itemName} · 2 out`) }).click();
