@@ -84,9 +84,7 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(page.getByText(/08 Apr 2099 · Scouts/)).toHaveCount(0);
 });
 
-test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password, "Configure canonical E2E password.");
+test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }) => {
   await login(page, "test.group.leader@example.com");
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();
