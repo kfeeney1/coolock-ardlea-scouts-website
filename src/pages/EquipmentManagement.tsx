@@ -78,6 +78,7 @@ export default function EquipmentManagement() {
   const [categories, setCategories] = useState<EquipmentOption[]>([]);
   const [locations, setLocations] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
   const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
@@ -129,6 +130,7 @@ export default function EquipmentManagement() {
       setCategories(nextCategories);
       setLocations(nextLocations);
       setHistoryItem((current) => current ? nextItems.find((item) => item.id === current.id) ?? current : null);
+      setHasLoaded(true);
     } catch (loadError) {
       console.error("Unable to load equipment:", loadError);
       setError("Unable to load Equipment & Stores right now.");
@@ -249,10 +251,10 @@ export default function EquipmentManagement() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues below.</Alert>}
 
-      {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
-      {!loading && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
-      {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
-      {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
+      {hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
+      {hasLoaded && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
+      {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
+      {hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
         <Typography ref={inventoryHeadingRef} tabIndex={-1} variant="h5" sx={{ fontWeight: 800, mb: 1, scrollMarginTop: { xs: "104px", md: "120px" }, "&:focus": { outline: "none" } }}>Detailed inventory</Typography>
