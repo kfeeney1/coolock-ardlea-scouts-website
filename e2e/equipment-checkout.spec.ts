@@ -69,7 +69,7 @@ test("admin can add, check out and check in stock from its record and verify per
   await inventoryCard.getByText(itemName, { exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}$`));
   const record = page.getByTestId("equipment-record-summary");
-  await expect(record).toContainText(itemName);
+  await expect(page.getByRole("heading", { name: itemName, exact: true })).toBeVisible();
   await expect(record).toContainText("2 checked out");
   await record.getByRole("button", { name: "Check in / Return", exact: true }).click();
   const returnDialog = page.getByRole("dialog", { name: `Check in / Return ${itemName}` });
@@ -257,7 +257,11 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await page.getByRole("button", { name: "History", exact: true }).click();
   await expect(page.getByRole("dialog", { name: `${itemName} history` }).getByText("Stock moved out", { exact: true })).toBeVisible();
   await page.getByRole("dialog", { name: `${itemName} history` }).getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
+  await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
+  await expect(page.getByTestId("equipment-record-summary")).toContainText("2 total");
+  await page.goto("/leader/equipment");
 
   const sourceAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: "TEST Checkout Store" });
   const destinationAfter = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).filter({ hasText: destination });
