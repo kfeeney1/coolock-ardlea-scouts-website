@@ -51,6 +51,7 @@ export const suiteSpecs = {
   ],
   equipment: [
     "equipment-checkout.spec.ts",
+    "email-action-links.spec.ts",
     "equipment-leader-dashboard.spec.ts",
     "equipment-reports.spec.ts"
   ],

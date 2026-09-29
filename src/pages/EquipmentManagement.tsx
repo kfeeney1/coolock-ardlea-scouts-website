@@ -42,7 +42,7 @@ import { loadEquipmentIncidents } from "../services/equipmentIncidents";
 import type { EquipmentIncident } from "../services/equipmentIncidents";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
-import { availableEquipmentQuantity } from "../services/equipmentLoanLogic";
+import { availableEquipmentQuantity, canUseEquipmentForSection } from "../services/equipmentLoanLogic";
 import {
   canManageEquipment,
   DEFAULT_EQUIPMENT_CATEGORIES,
@@ -78,6 +78,7 @@ export default function EquipmentManagement() {
   const [categories, setCategories] = useState<EquipmentOption[]>([]);
   const [locations, setLocations] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
   const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
@@ -91,6 +92,7 @@ export default function EquipmentManagement() {
   const inventoryHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const search = searchParams.get("q") ?? "";
+  const highlightedIssueId = searchParams.get("issue");
   const categoryFilter = searchParams.get("category") ?? "all";
   const locationFilter = searchParams.get("store") ?? "all";
   const statusParam = searchParams.get("status") ?? "all";
@@ -128,6 +130,7 @@ export default function EquipmentManagement() {
       setCategories(nextCategories);
       setLocations(nextLocations);
       setHistoryItem((current) => current ? nextItems.find((item) => item.id === current.id) ?? current : null);
+      setHasLoaded(true);
     } catch (loadError) {
       console.error("Unable to load equipment:", loadError);
       setError("Unable to load Equipment & Stores right now.");
@@ -246,11 +249,12 @@ export default function EquipmentManagement() {
       <LeaderPageHeader title={pageTitle} />
       {!canManage && <Alert severity="info" sx={{ mb: 2 }}>You can view the group catalogue, check equipment in or out for your assigned section, report issues from your section holdings, and view equipment history. Stock records and moves remain restricted to the Quartermaster / Bo'sun, Group Leader, Deputy Group Leader and administrator roles.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues below.</Alert>}
 
-      {!loading && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
-      {!loading && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
-      {!loading && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} onChanged={refresh} onError={setError} />}
-      {!loading && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
+      {hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
+      {hasLoaded && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
+      {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
+      {hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
         <Typography ref={inventoryHeadingRef} tabIndex={-1} variant="h5" sx={{ fontWeight: 800, mb: 1, scrollMarginTop: { xs: "104px", md: "120px" }, "&:focus": { outline: "none" } }}>Detailed inventory</Typography>
@@ -297,7 +301,8 @@ export default function EquipmentManagement() {
                 </Stack>
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History{canManage && !item.archived && available > 0 ? " / move Store" : ""}</Button>
+                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History</Button>
+                  {canManage && !item.archived && available > 0 && <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${encodeURIComponent(item.id)}/move-store`); }}>Move Store</Button>}
                   {canManage && <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${item.id}`); }}>Edit</Button>}
                   {canManage && <Button size="small" variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={(e) => { e.stopPropagation(); setArchiveTarget(item); }}>{item.archived ? "Restore" : "Archive"}</Button>}
                 </Stack>
@@ -314,7 +319,7 @@ export default function EquipmentManagement() {
           <FormControl><InputLabel id="equipment-category-label">Category</InputLabel><Select labelId="equipment-category-label" label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
           {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
           <FormControl><InputLabel id="equipment-store-label">Store</InputLabel><Select labelId="equipment-store-label" label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
-          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use History / move Store so the stock movement remains auditable.</Typography>}
+          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use Move Store so the stock movement remains auditable.</Typography>}
           {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
           <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
           <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
@@ -333,7 +338,7 @@ export default function EquipmentManagement() {
           <Button variant="contained" color={archiveTarget?.archived ? "success" : "warning"} disabled={saving} onClick={() => archiveTarget && void toggleArchived(archiveTarget)}>{archiveTarget?.archived ? "Restore equipment" : "Archive equipment"}</Button>
         </DialogActions>
       </Dialog>
-      <EquipmentHistoryDialog item={historyItem} locations={locationNames} canManage={canManage} onClose={() => setHistoryItem(null)} onChanged={refresh} onError={setError} />
+      <EquipmentHistoryDialog item={historyItem} onClose={() => setHistoryItem(null)} onError={setError} />
       <EquipmentOptionManager kind="locations" options={locations} activeItems={activeItems} open={manageLocationsOpen} onClose={() => setManageLocationsOpen(false)} onChanged={refresh} onError={setError} />
       <EquipmentOptionManager kind="categories" options={categories} activeItems={activeItems} open={manageCategoriesOpen} onClose={() => setManageCategoriesOpen(false)} onChanged={refresh} onError={setError} />
     </Container>

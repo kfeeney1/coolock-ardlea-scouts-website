@@ -75,8 +75,10 @@ test("leader opens the gallery from the full event record", async ({ page }, tes
     await expect(dialog.getByText("Leader-only gallery. Parent access remains disabled until explicit photo-sharing consent is available.", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Choose gallery photos")).toHaveAttribute("multiple", "");
     await expect(page.getByLabel("Take gallery photo")).toHaveAttribute("capture", "environment");
-    await dialog.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(dialog).toHaveCount(0);
+    const closeButton = dialog.getByRole("button", { name: "Close", exact: true });
+    await expect(closeButton).toBeEnabled();
+    await closeButton.click();
+    await expect(dialog).not.toBeVisible();
 });
 
 test("completed event history keeps gallery access on its record page", async ({ page }, testInfo) => {

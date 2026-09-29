@@ -35,9 +35,56 @@ test("Clear resets a new meeting form without creating a record", async ({ page 
   await expect(page.getByLabel("Programme notes")).toHaveValue("");
 });
 
-test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }, testInfo) => {
-  desktopOnly(testInfo);
-  test.skip(!password, "Configure canonical E2E password.");
+test("new meeting Cancel exits an untouched form without a discard prompt", async ({ page }) => {
+  await login(page, adminEmail);
+  await page.goto("/leader/weekly/create");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly$/);
+  await expect(page.getByRole("dialog", { name: "Discard this new meeting?" })).toHaveCount(0);
+});
+
+test("new meeting Cancel confirms and discards entered data without creating a record", async ({ page }) => {
+  await login(page, adminEmail);
+  await page.goto("/leader/weekly/create");
+  await page.getByLabel("Meeting date").fill("2099-04-04");
+  await page.getByLabel("Location").fill("TEST cancelled meeting location");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const discardDialog = page.getByRole("dialog", { name: "Discard this new meeting?" });
+  await expect(discardDialog).toBeVisible();
+  await discardDialog.getByRole("button", { name: "Keep editing" }).click();
+  await expect(page.getByLabel("Location")).toHaveValue("TEST cancelled meeting location");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("dialog", { name: "Discard this new meeting?" }).getByRole("button", { name: "Discard and cancel" }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly$/);
+  await expect(page.getByText("TEST cancelled meeting location", { exact: true })).toHaveCount(0);
+});
+
+test("meeting copy Cancel exits untouched and protects a changed destination date", async ({ page }) => {
+  await login(page, adminEmail);
+  await page.goto("/leader/weekly");
+  const sourceMeeting = page.getByTestId("meeting-history-TEST_e2e_weekly_scout");
+  await expect(sourceMeeting).toBeVisible();
+  await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Discard this new meeting copy?" })).toHaveCount(0);
+  await expect(page.getByTestId("weekly-meeting-copy-form")).toHaveCount(0);
+
+  await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
+  const copyDate = page.getByLabel("Choose date");
+  await copyDate.fill("2099-04-08");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const discard = page.getByRole("dialog", { name: "Discard this new meeting copy?" });
+  await expect(discard).toBeVisible();
+  await discard.getByRole("button", { name: "Keep editing" }).click();
+  await expect(copyDate).toHaveValue("2099-04-08");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("dialog", { name: "Discard this new meeting copy?" }).getByRole("button", { name: "Discard and cancel" }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly$/);
+  await expect(page.getByText("Meeting copied.")).toHaveCount(0);
+  await expect(page.getByText(/08 Apr 2099 · Scouts/)).toHaveCount(0);
+});
+
+test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }) => {
   await login(page, "test.group.leader@example.com");
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();

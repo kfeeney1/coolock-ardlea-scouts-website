@@ -50,6 +50,7 @@ export default function LeaderRequests() {
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const search = searchParams.get("q") || "";
+    const requestedRequestId = searchParams.get("request") || "";
     const [selected, setSelected] = useState<LeaderRegistrationRequest | null>(null);
     const [reviewNote, setReviewNote] = useState("");
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
@@ -72,6 +73,21 @@ export default function LeaderRequests() {
     useEffect(() => {
         void refresh();
     }, []);
+
+    useEffect(() => {
+        if (!requestedRequestId) return;
+        const request = requests.find((item) => item.uid === requestedRequestId);
+        if (!request) return;
+        if (request.status === "approved") {
+            navigate(`/leader/access/${encodeURIComponent(request.uid)}`, { replace: true });
+            return;
+        }
+        if (request.status === "pending") {
+            setDecision(null);
+            setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]);
+            setSelected(request);
+        }
+    }, [navigate, requestedRequestId, requests]);
 
     const visible = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -190,6 +206,7 @@ export default function LeaderRequests() {
                     </Box>
                 ) : (
                     <Stack spacing={2}>
+                        {requestedRequestId && !requests.some((request) => request.uid === requestedRequestId && request.status === "pending") && <Alert severity="warning" data-testid="leader-request-link-fallback">This leader request is no longer pending or is outside your authorised scope. Review the current request list instead.</Alert>}
                         {visible.length === 0 && <Alert severity="info">No leader registration requests match this view.</Alert>}
                         {visible.map((request) => (
                             <Paper

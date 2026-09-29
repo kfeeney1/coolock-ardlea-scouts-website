@@ -15,7 +15,7 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
-import { resolveScoutSectionName } from "../theme/sectionColours";
+import { memberSectionStorageAliases } from "./memberSectionCore.mjs";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
@@ -143,17 +143,8 @@ function medicationEnabled(data: DocumentData): boolean {
   return normalizeMedicationManagement(data.medicationManagement)?.enabled === true;
 }
 
-const SECTION_STORAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
-  Beavers: ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"],
-  Cubs: ["Cubs", "Cub", "Cub Scout", "Cub Scouts"],
-  Scouts: ["Scouts", "Scout"],
-  Ventures: ["Ventures", "Venture", "Venture Scout", "Venture Scouts"],
-  Rovers: ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
-};
-
 function storageSectionAliases(section: string): readonly string[] {
-  const canonical = resolveScoutSectionName(section);
-  return canonical ? SECTION_STORAGE_ALIASES[canonical] : [section];
+  return memberSectionStorageAliases(section);
 }
 
 function hasMedicalAlert(data: DocumentData): boolean {
@@ -215,7 +206,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
     displayName,
     displayNameMode,
     dateOfBirth: clean(input.dateOfBirth, 20),
-    section: clean(input.section, 40),
+    section: canonicalMemberSection(clean(input.section, 40)),
     parentName: clean(input.parentName, 200),
     emailAddress: clean(input.emailAddress, 254),
     mobileNumber: clean(input.mobileNumber, 40),
@@ -235,7 +226,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
     action: "Member created",
     targetId: memberRef.id,
     targetLabel: displayName,
-    section: clean(input.section, 40),
+    section: canonicalMemberSection(clean(input.section, 40)),
     description: `Created member record with status ${input.status}.`
   });
   return memberRef.id;
@@ -261,7 +252,7 @@ export async function updateMember(
   const previousStatus = memberStatus(current.status);
   if (!previousSection || !previousStatus) throw new Error("Member record does not match the canonical seed schema.");
 
-  const nextSection = clean(updates.section, 40);
+  const nextSection = canonicalMemberSection(clean(updates.section, 40));
   const changeType = detectMemberLifecycleChange(
     { section: previousSection, status: previousStatus },
     { section: nextSection, status: updates.status }

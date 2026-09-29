@@ -3,9 +3,10 @@ import {
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
+import EquipmentItemReturnDialog from "../components/admin/EquipmentItemReturnDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -17,6 +18,8 @@ import {
 import type { EquipmentItem, EquipmentItemInput } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
+import { availableEquipmentQuantity, canUseEquipmentForSection, outstandingLoanQuantity } from "../services/equipmentLoanLogic";
+import { isEquipmentReservationLoan } from "../services/equipmentProgrammeLogic";
 import { canManageEquipment, DEFAULT_EQUIPMENT_CATEGORIES, normaliseEquipmentLabel } from "../services/equipmentLogic";
 import { numericInputDisplayValue, parseOptionalNumberInput } from "../services/numericInput";
 
@@ -25,6 +28,7 @@ type FormState = Omit<EquipmentItemInput, "totalQuantity"> & { totalQuantity: nu
 export default function EquipmentRecordPage() {
   const { equipmentId = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
@@ -36,6 +40,7 @@ export default function EquipmentRecordPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [editing, setEditing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -68,6 +73,13 @@ export default function EquipmentRecordPage() {
   useEffect(() => { void refresh(); }, [equipmentId]);
   const itemIncidents = useMemo(() => incidents.filter((x) => x.itemId === equipmentId), [incidents, equipmentId]);
   const highlightedIssueId = searchParams.get("issue");
+  const highlightedIssue = itemIncidents.find((incident) => incident.id === highlightedIssueId);
+  const issueTargetUnavailable = Boolean(highlightedIssueId && (!highlightedIssue || !canUseEquipmentForSection(adminProfile, highlightedIssue.section)));
+  const storeMove = (location.state as { storeMove?: { itemId: string; destination: string; quantity: number; destinationItemId: string | null } } | null)?.storeMove;
+  const canReturnItem = useMemo(() => Boolean(item && loans.some((loan) =>
+    loan.status === "open" && !isEquipmentReservationLoan(loan) && canUseEquipmentForSection(adminProfile, loan.section)
+    && loan.lines.some((line) => line.itemId === item.id && outstandingLoanQuantity(line) > 0)
+  )), [adminProfile, item, loans]);
 
   const save = async () => {
     if (!item || !form || !canManage) return;
@@ -98,7 +110,7 @@ export default function EquipmentRecordPage() {
   };
 
   if (loading && !item) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="info">Loading equipment record…</Alert></Container>;
-  if (!item || !form) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="error">Equipment record not found.</Alert><Button sx={{ mt: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment</Button></Container>;
+  if (!item || !form) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></Container>;
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
@@ -106,13 +118,16 @@ export default function EquipmentRecordPage() {
     <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
+    {storeMove?.itemId === item.id && <Alert severity="success" sx={{ mb: 2 }} data-testid="equipment-store-move-success">Moved {storeMove.quantity} × {item.name} to {storeMove.destination}.{storeMove.destinationItemId ? " The moved stock has its own destination record." : " The existing equipment record was kept."}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
+    {issueTargetUnavailable && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in this record or your account’s scope. <Button size="small" onClick={() => navigate(`/leader/equipment?issue=${encodeURIComponent(highlightedIssueId ?? "")}`)}>Review current equipment issues</Button></Alert>}
 
     <Paper data-testid="equipment-record-summary" variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
           <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History</Button>
-          {canManage && !item.archived && <Button variant="outlined" onClick={() => setHistoryOpen(true)}>Move Store</Button>}
+          {canManage && !item.archived && availableEquipmentQuantity(item) > 0 && <Button variant="outlined" onClick={() => navigate(`/leader/equipment/${encodeURIComponent(item.id)}/move-store`)}>Move Store</Button>}
+          {item.checkedOutQuantity > 0 && canReturnItem && <Button data-testid="equipment-record-return" variant="outlined" color="success" onClick={() => setReturnOpen(true)}>Check in / Return</Button>}
           {canManage && !item.archived && <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>}
           {canManage && <Button variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => setConfirmArchive(true)}>{item.archived ? "Restore" : "Archive"}</Button>}
         </Stack>
@@ -144,7 +159,8 @@ export default function EquipmentRecordPage() {
     </Paper>
 
     {!item.archived && <EquipmentIncidentsPanel profile={adminProfile} items={[item]} loans={loans} incidents={itemIncidents} highlightedIncidentId={highlightedIssueId} onChanged={refresh} onError={setError} />}
-    <EquipmentHistoryDialog item={historyOpen ? item : null} locations={locations} canManage={canManage && !item.archived} onClose={() => setHistoryOpen(false)} onChanged={refresh} onError={setError} />
+    <EquipmentHistoryDialog item={historyOpen ? item : null} onClose={() => setHistoryOpen(false)} onError={setError} />
+    <EquipmentItemReturnDialog item={item} loans={loans} profile={adminProfile} open={returnOpen} onClose={() => setReturnOpen(false)} onChanged={refresh} onError={setError} />
 
     <Dialog open={confirmArchive} onClose={() => !saving && setConfirmArchive(false)}>
       <DialogTitle>{item.archived ? `Restore ${item.name}?` : `Archive ${item.name}?`}</DialogTitle>

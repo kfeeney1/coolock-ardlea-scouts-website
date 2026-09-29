@@ -45,20 +45,30 @@ test("blocks a source identity that conflicts with an existing section", () => {
   assert.equal(plan.conflicts[0].reason, "existing-section-conflict");
 });
 
-test("rejects incomplete or noncanonical source rows", () => {
+test("rejects incomplete or unsupported source rows", () => {
   const plan = planMemberImport([
     candidate({ displayName: "SingleName" }),
     candidate({ dateOfBirth: "04/05/2016", sourceRef: "Cubs:row-3" }),
-    candidate({ section: "Ventures", sourceRef: "Cubs:row-4" })
+    candidate({ section: "Other", sourceRef: "Other:row-4" })
   ]);
   assert.equal(plan.rejected.length, 3);
   assert.equal(plan.creates.length, 0);
 });
 
+test("plans Venture imports and canonicalizes supported section aliases before persistence", () => {
+  const plan = planMemberImport([
+    candidate({ section: "Venture Scout", sourceRef: "Ventures:row-5" }),
+    candidate({ displayName: "Synthetic Venture Member Two", section: "Ventures", sourceRef: "Ventures:row-6" })
+  ]);
+  assert.equal(plan.rejected.length, 0);
+  assert.deepEqual(plan.creates.map((item) => item.section), ["Ventures", "Ventures"]);
+  assert.equal(plan.creates[0].id, deterministicMemberId({ ...candidate(), section: "Ventures" }));
+});
+
 test("aggregate output contains counts only", () => {
   const plan = planMemberImport([candidate(), candidate({ displayName: "Another Synthetic Member", dateOfBirth: "2016-06-05", sourceRef: "Cubs:row-3" })]);
   assert.deepEqual(aggregatePlan(plan), {
-    proposedCreatesBySection: { Beavers: 0, Cubs: 2, Scouts: 0 },
+    proposedCreatesBySection: { Beavers: 0, Cubs: 2, Scouts: 0, Ventures: 0, Rovers: 0 },
     creates: 2,
     existingMatches: 0,
     conflicts: 0,
