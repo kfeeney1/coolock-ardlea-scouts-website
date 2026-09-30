@@ -157,9 +157,10 @@ export async function loadParentAccount(uid: string): Promise<ParentAccount | nu
     const memberSnapshots = await Promise.all(account.memberIds.map((memberId) => getDoc(doc(db, "members", memberId))));
     const currentSections = [...new Set(memberSnapshots.flatMap((memberSnapshot) => {
         if (!memberSnapshot.exists()) return [];
-        const section = typeof memberSnapshot.data().section === "string" ? memberSnapshot.data().section.trim() : "";
-        const status = typeof memberSnapshot.data().status === "string" ? memberSnapshot.data().status : "";
-        return section && status === "active" ? [section] : [];
+        const data = memberSnapshot.data();
+        const section = typeof data.section === "string" ? data.section.trim() : "";
+        const status = typeof data.status === "string" ? data.status : "";
+        return status === "active" ? canonicalMemberSections(data.sections, section) : [];
     }))];
     return { ...account, linkedSections: currentSections };
 }
