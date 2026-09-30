@@ -178,18 +178,35 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const isAdmin = profile.role === "admin" || profile.role === "super-admin";
   const isGroupFinanceOfficer = organisation?.active === true
     && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
-  const docs = isAdmin || isGroupFinanceOfficer
-    ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
+  const leaderSections = normalizeLeaderSections(profile);
+  const legacyDocs = isAdmin || isGroupFinanceOfficer
+    ? []
     : (await Promise.all(
-        normalizeLeaderSections(profile).flatMap((section) => storageSectionAliases(section).map((storedSection) =>
+        leaderSections.flatMap((section) => storageSectionAliases(section).map((storedSection) =>
           getDocs(query(collection(db, "members"), where("section", "==", storedSection)))
         ))
-      )).flatMap((snapshot) => snapshot.docs)
-        .concat((await Promise.all(
-          normalizeLeaderSections(profile).map((section) =>
-            getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))
-          )
-        )).flatMap((snapshot) => snapshot.docs));
+      )).flatMap((snapshot) => snapshot.docs);
+
+  // During the backwards-compatible transition, a legacy scalar query must not
+  // be discarded if Firestore cannot authorize one of the additive sections[]
+  // queries. Each concurrent-membership query is isolated so established
+  // single-section records remain readable while sections[] records are added.
+  const concurrentDocs = isAdmin || isGroupFinanceOfficer
+    ? []
+    : (await Promise.all(
+        leaderSections.map(async (section) => {
+          try {
+            return (await getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))).docs;
+          } catch (error) {
+            console.warn(`Unable to load concurrent member memberships for ${section}; preserving legacy member results.`, error);
+            return [];
+          }
+        })
+      )).flat();
+
+  const docs = isAdmin || isGroupFinanceOfficer
+    ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
+    : legacyDocs.concat(concurrentDocs);
 
   return [...new Map(docs.map((item) => [item.id, item])).values()]
     .map(mapMember)
