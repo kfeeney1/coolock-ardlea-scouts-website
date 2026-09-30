@@ -143,7 +143,7 @@ test("Consent tiles open full-page records", async ({ page }, testInfo) => {
 
 
 test("SW-218 unlinked Venture consent creates a canonical member visible in Member Management", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Consent member onboarding runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/consents/TEST_flow_consent_venture_unlinked");
@@ -153,6 +153,9 @@ test("SW-218 unlinked Venture consent creates a canonical member visible in Memb
   await expect(record.getByText("Not linked to member", { exact: true })).toBeVisible();
   await record.getByRole("button", { name: "Create new member from consent", exact: true }).click();
   await expect(record.getByText("Not linked to member", { exact: true })).toHaveCount(0);
+  await expect(record.getByRole("button", { name: "Create new member from consent", exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("consent-record-page-TEST_flow_consent_venture_unlinked").getByText("Not linked to member", { exact: true })).toHaveCount(0);
 
   await page.goto("/leader/members");
   await page.getByLabel("Search members").fill("TEST Consent Venture");
@@ -166,4 +169,15 @@ test("SW-218 unlinked Venture consent creates a canonical member visible in Memb
   await expect(memberCard).toBeVisible();
   await page.reload();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: "TEST Consent Venture" })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "All Sections" }).click();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: "TEST Consent Venture" })).toBeVisible();
+
+  await memberCard.click();
+  await expect(page).toHaveURL(/\/leader\/members\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: "TEST Consent Venture", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open consent and medical details/ }).first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
