@@ -14,7 +14,17 @@ export default function MedicationManagementPanel({ value }: { value: unknown })
   const normalized = normalizeMedicationManagement(value) ?? {};
   const medication = normalized as unknown as MedicationManagementData;
   const entries = medicationEntries(medication);
+  const firstMedication = entries[0];
   const sharedRows = [
+    ["Medicine", firstMedication?.medicineName || objectField(normalized, "medicineName")],
+    ["Dosage", firstMedication?.dosage || objectField(normalized, "dosage")],
+    ["Frequency", firstMedication?.frequency || objectField(normalized, "frequency")],
+    ["Quantity Supplied", firstMedication?.quantitySupplied || objectField(normalized, "quantitySupplied")],
+    ["Method", firstMedication?.method || objectField(normalized, "method")],
+    ["Other Information", firstMedication?.otherInfo || objectField(normalized, "otherInfo")],
+    ["Self Administration", firstMedication?.selfAdmin || objectField(normalized, "selfAdmin")],
+    ["Authorisation From", formatDateOnly(firstMedication?.authFrom || objectField(normalized, "authFrom"))],
+    ["Authorisation To", formatDateOnly(firstMedication?.authTo || objectField(normalized, "authTo"))],
     ["Doctor", objectField(normalized, "doctorName")], ["Doctor Telephone", objectField(normalized, "doctorTel")],
     ["Pharmacy", objectField(normalized, "pharmacyName")], ["Pharmacy Telephone", objectField(normalized, "pharmacyTel")],
     ["Scouter 1", objectField(normalized, "scouter1")], ["Scouter 2", objectField(normalized, "scouter2")],
@@ -30,6 +40,6 @@ export default function MedicationManagementPanel({ value }: { value: unknown })
     <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: "1px solid", borderColor: "error.light" }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography variant="h5" color="error.main" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>Medication Management</Typography><Chip label="SIF 20/10" color="error" size="small" /></Stack>
     </Box>
-    {!hasInformation ? <Typography role="status" sx={{ p: 3 }}>{MEDICATION_EMPTY_STATE}</Typography> : <><Stack spacing={2} sx={{ p: 2 }}>{entries.map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 2 }} data-testid={`medication-display-entry-${index}`}><Typography variant="h6" sx={{ mb: 1 }}>Medication {index + 1}</Typography><Typography><strong>Medicine</strong>: {entry.medicineName || "Not provided"}</Typography><Typography><strong>Dosage:</strong> {entry.dosage || "Not provided"}</Typography><Typography><strong>Frequency:</strong> {entry.frequency || "Not provided"}</Typography><Typography><strong>Method:</strong> {entry.method || "Not provided"}</Typography></Paper>)}</Stack><TableContainer><Table size="small" sx={{ tableLayout: { sm: "fixed" } }}><TableBody>{visibleRows.map(([label, text]) => <TableRow data-testid="medication-management-row" key={label} sx={{ display: { xs: "block", sm: "table-row" } }}><TableCell sx={{ ...mobileCell, width: { xs: "100%", sm: "38%" }, pb: { xs: .5, sm: 1 }, fontWeight: 700, color: "secondary.main", verticalAlign: "top", borderBottom: { xs: 0, sm: "1px solid" } }}>{label}</TableCell><TableCell sx={{ ...mobileCell, pt: { xs: 0, sm: 1 } }}>{text}</TableCell></TableRow>)}</TableBody></Table></TableContainer></>}
+    {!hasInformation ? <Typography role="status" sx={{ p: 3 }}>{MEDICATION_EMPTY_STATE}</Typography> : <><Stack spacing={2} sx={{ p: entries.length > 1 ? 2 : 0 }}>{entries.slice(1).map((entry, index) => <Paper key={index + 1} variant="outlined" sx={{ p: 2 }} data-testid={`medication-display-entry-${index + 1}`}><Typography variant="h6" sx={{ mb: 1 }}>Medication {index + 2}</Typography><Typography><strong>Medicine</strong>: {entry.medicineName || "Not provided"}</Typography><Typography><strong>Dosage:</strong> {entry.dosage || "Not provided"}</Typography><Typography><strong>Frequency:</strong> {entry.frequency || "Not provided"}</Typography><Typography><strong>Method:</strong> {entry.method || "Not provided"}</Typography></Paper>)}</Stack><TableContainer><Table size="small" sx={{ tableLayout: { sm: "fixed" } }}><TableBody>{visibleRows.map(([label, text]) => <TableRow data-testid="medication-management-row" key={label} sx={{ display: { xs: "block", sm: "table-row" } }}><TableCell sx={{ ...mobileCell, width: { xs: "100%", sm: "38%" }, pb: { xs: .5, sm: 1 }, fontWeight: 700, color: "secondary.main", verticalAlign: "top", borderBottom: { xs: 0, sm: "1px solid" } }}>{label}</TableCell><TableCell sx={{ ...mobileCell, pt: { xs: 0, sm: 1 } }}>{text}</TableCell></TableRow>)}</TableBody></Table></TableContainer></>}
   </Paper>;
 }
