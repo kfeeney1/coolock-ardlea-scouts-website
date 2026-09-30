@@ -23,3 +23,17 @@ export function memberSectionStorageAliases(value) {
   const canonical = canonicalMemberSection(value);
   return SECTION_STORAGE_ALIASES[canonical] || [canonical];
 }
+
+
+export function canonicalMemberSections(value, legacySection = "") {
+  const raw = Array.isArray(value) ? value : [];
+  const sections = raw.map(canonicalMemberSection).filter(Boolean);
+  const legacy = canonicalMemberSection(legacySection);
+  if (legacy) sections.push(legacy);
+  return [...new Set(sections)];
+}
+
+export function memberBelongsToSection(member, section) {
+  const wanted = canonicalMemberSection(section);
+  return Boolean(wanted) && canonicalMemberSections(member?.sections, member?.section).includes(wanted);
+}
