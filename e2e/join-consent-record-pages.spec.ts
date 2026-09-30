@@ -6,9 +6,9 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Record-page navigation runs once on desktop Chromium.");
 }
 
-async function loginAdmin(page: Page) {
+async function loginAdmin(page: Page, email = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com") {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -143,9 +143,9 @@ test("Consent tiles open full-page records", async ({ page }, testInfo) => {
 
 
 test("SW-218 unlinked Venture consent creates a canonical member visible in Member Management", async ({ page }, testInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Consent member onboarding runs on desktop and Pixel 7 Chromium.");
+  test.skip(testInfo.project.name !== "chromium", "Consent member creation mutates the shared fixture and runs once on desktop Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAdmin(page, process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
   await page.goto("/leader/consents/TEST_flow_consent_venture_unlinked");
 
   const record = page.getByTestId("consent-record-page-TEST_flow_consent_venture_unlinked");
