@@ -17,6 +17,7 @@ import {
 
 import { auth, db } from "../firebase";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
+import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import {
     notifyParentAccessApproved,
     notifyParentAccessRejected,
