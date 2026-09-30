@@ -49,9 +49,10 @@ export async function loadSubsPolicies(): Promise<SubsRatePolicy[]> {
 
 export async function loadSubsMembers(sections?: string[]): Promise<MemberRecord[]> {
   const docs = sections
-    ? (await Promise.all([...new Set(sections.filter(Boolean))].map((section) =>
-        getDocs(query(collection(db, "members"), where("section", "==", section)))
-      ))).flatMap((snapshot) => snapshot.docs)
+    ? [...new Map((await Promise.all([...new Set(sections.filter(Boolean))].flatMap((section) => [
+        getDocs(query(collection(db, "members"), where("section", "==", section))),
+        getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))
+      ]))).flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()]
     : (await getDocs(collection(db, "members"))).docs;
   return docs.map((item) => mapSubsMember(item.id, item.data()))
     .filter((member): member is MemberRecord => member !== null && member.status === "active")
