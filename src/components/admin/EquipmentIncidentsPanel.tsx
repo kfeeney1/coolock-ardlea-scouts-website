@@ -213,16 +213,16 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       </Stack>
 
       {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
-        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} data-testid={`equipment-incident-${incident.id}`} sx={{ p: 1.75, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
+        {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} data-testid={`equipment-incident-${incident.id}`} aria-label={`${incidentTypeLabel(incident.type)} issue for ${incident.itemName}, ${incidentStatusLabel(incident.status)}`} sx={{ p: 1.75, minWidth: 0, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
                 <Chip size="small" color={incident.type === "maintenance" ? "info" : "warning"} label={incidentTypeLabel(incident.type)} />
                 <Chip size="small" variant="outlined" color={incident.status === "investigating" ? "info" : "default"} label={incidentStatusLabel(incident.status)} />
-                <Typography sx={{ fontWeight: 800 }}>{incident.quantity} × {incident.itemName}</Typography>
+                <Typography sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>{incident.quantity} × {incident.itemName}</Typography>
                 <Chip size="small" variant="outlined" label={incident.section} />
               </Stack>
-              <Typography variant="body2" sx={{ mt: 0.75 }}>{incident.description}</Typography>
+              <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{incident.description}</Typography>
               <Typography variant="caption" color="text.secondary">{incident.itemLocation || "Location not recorded"}{incident.loanId ? " · Reported from a checkout" : " · Reported from stores"}</Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>

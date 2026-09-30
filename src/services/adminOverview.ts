@@ -160,18 +160,19 @@ async function loadEquipmentAttention(profile: AdminProfile): Promise<LeaderAtte
     const data = document.data();
     const status = stringValue(data.status);
     const type = stringValue(data.type);
+    const itemId = stringValue(data.itemId);
     const itemName = stringValue(data.itemName);
     const section = stringValue(data.section) || "Group";
     const quantity = typeof data.quantity === "number" && Number.isInteger(data.quantity) ? data.quantity : 0;
-    if (status === "resolved" || !["damaged", "lost", "missing", "maintenance"].includes(type) || !itemName || quantity <= 0) return [];
+    if (status === "resolved" || !["damaged", "lost", "missing", "maintenance"].includes(type) || !itemId || !itemName || quantity <= 0) return [];
     return [{
       id: `equipment-incident-${document.id}`,
       label: `${incidentTypeLabel(type as "damaged" | "lost" | "missing" | "maintenance")}: ${quantity} × ${itemName}`,
       detail: `${section} · ${stringValue(data.description) || "Equipment issue needs review."}`,
-      path: "/leader/equipment",
+      path: `/leader/equipment/${encodeURIComponent(itemId)}?issue=${encodeURIComponent(document.id)}`,
       severity: "warning" as const
     }];
-  }).slice(0, 4);
+  });
 }
 
 export async function loadAdminOverview(profile: AdminProfile, force = false): Promise<AdminOverview> {

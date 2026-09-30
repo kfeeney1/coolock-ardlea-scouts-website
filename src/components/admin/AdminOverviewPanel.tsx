@@ -119,7 +119,7 @@ export default function AdminOverviewPanel() {
               ) : (
                 <Stack spacing={1.25}>
                   {overview.attentionItems.map((item) => (
-                    <Box key={item.id} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5, pb: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
+                    <Paper key={item.id} component={Link} to={item.path} state={{ fromPath: "/leader" }} variant="outlined" aria-label={`Open ${item.label}`} data-testid={`attention-tile-${item.id}`} sx={{ display: "block", p: 1.5, color: "inherit", textDecoration: "none", transition: "border-color 120ms ease, box-shadow 120ms ease", "&:hover": { borderColor: "primary.main", boxShadow: 1 }, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
                       <Box>
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
                           <Chip size="small" color={item.severity === "warning" ? "warning" : "info"} label={item.severity === "warning" ? "Action" : "Today"} />
@@ -127,8 +127,7 @@ export default function AdminOverviewPanel() {
                         </Stack>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{item.detail}</Typography>
                       </Box>
-                      <Button component={Link} to={item.path} size="small" variant="contained" color="success" sx={{ alignSelf: { xs: "center", sm: "center" } }}>Open</Button>
-                    </Box>
+                    </Paper>
                   ))}
                 </Stack>
               )}
