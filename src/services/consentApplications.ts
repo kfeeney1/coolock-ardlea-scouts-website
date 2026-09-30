@@ -13,8 +13,22 @@ export type YesNo = "Yes" | "No";
 export type ScoutSection = "Beavers" | "Cubs" | "Scouts" | "Ventures" | "Rovers" | "Scouter";
 export type YouthScoutSection = Exclude<ScoutSection, "Scouter">;
 
+export type MedicationEntry = {
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    quantitySupplied: string;
+    method: string;
+    otherInfo: string;
+    selfAdmin: YesNo | "";
+    authFrom: string;
+    authTo: string;
+};
+
 export type MedicationManagementData = {
     enabled: boolean;
+    /** Multiple medication entries. Legacy records may omit this and use the flat fields below. */
+    medications?: MedicationEntry[];
     memberName: string;
     dateOfBirth: string;
     address: string;
@@ -108,24 +122,36 @@ export type ScouterConsentData = {
 const clean = (value: string, maxLength: number): string => value.trim().slice(0, maxLength);
 
 function cleanMedication(medication: MedicationManagementData) {
+    const entries = (medication.medications?.length ? medication.medications : [{
+        medicineName: medication.medicineName, dosage: medication.dosage, frequency: medication.frequency,
+        quantitySupplied: medication.quantitySupplied, method: medication.method, otherInfo: medication.otherInfo,
+        selfAdmin: medication.selfAdmin, authFrom: medication.authFrom, authTo: medication.authTo
+    }]).map((entry) => ({
+        medicineName: clean(entry.medicineName, 200), dosage: clean(entry.dosage, 100), frequency: clean(entry.frequency, 150),
+        quantitySupplied: clean(entry.quantitySupplied, 100), method: clean(entry.method, 300), otherInfo: clean(entry.otherInfo, 2000),
+        selfAdmin: entry.selfAdmin, authFrom: entry.authFrom, authTo: entry.authTo
+    }));
+    const first = entries[0] ?? { medicineName: "", dosage: "", frequency: "", quantitySupplied: "", method: "", otherInfo: "", selfAdmin: "" as const, authFrom: "", authTo: "" };
     return {
         enabled: medication.enabled,
+        medications: entries,
+        // Retain the first entry in the legacy flat fields so existing readers remain compatible.
         memberName: clean(medication.memberName, 150),
         dateOfBirth: medication.dateOfBirth,
         address: clean(medication.address, 400),
-        medicineName: clean(medication.medicineName, 200),
-        dosage: clean(medication.dosage, 100),
-        frequency: clean(medication.frequency, 150),
-        quantitySupplied: clean(medication.quantitySupplied, 100),
+        medicineName: first.medicineName,
+        dosage: first.dosage,
+        frequency: first.frequency,
+        quantitySupplied: first.quantitySupplied,
         doctorName: clean(medication.doctorName, 150),
         doctorTel: clean(medication.doctorTel, 40),
         pharmacyName: clean(medication.pharmacyName, 150),
         pharmacyTel: clean(medication.pharmacyTel, 40),
-        method: clean(medication.method, 300),
-        otherInfo: clean(medication.otherInfo, 2000),
-        selfAdmin: medication.selfAdmin,
-        authFrom: medication.authFrom,
-        authTo: medication.authTo,
+        method: first.method,
+        otherInfo: first.otherInfo,
+        selfAdmin: first.selfAdmin,
+        authFrom: first.authFrom,
+        authTo: first.authTo,
         scouter1: clean(medication.scouter1, 150),
         scouter2: clean(medication.scouter2, 150),
         signature: clean(medication.signature, 150),
