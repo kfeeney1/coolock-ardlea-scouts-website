@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 
@@ -20,6 +20,44 @@ export type ConsentReconciliationState = {
 
 const value = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? String(data[key]).trim() : "";
 const identity = (name: string, dob: string) => `${name.trim().toLocaleLowerCase()}::${dob.trim()}`;
+const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
+
+export type ConsentMemberDraft = {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  dateOfBirth: string;
+  section: string;
+  parentName: string;
+  emailAddress: string;
+  mobileNumber: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+};
+
+export function memberDraftFromYouthConsent(data: Record<string, unknown>): ConsentMemberDraft {
+  const displayName = value(data, "childName");
+  const parts = displayName.split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() ?? "";
+  const lastName = parts.join(" ");
+  const section = value(data, "section");
+  const dateOfBirth = value(data, "childDOB");
+  if (!firstName || !lastName) throw new Error("The consent child name must include a first name and surname before a member can be created.");
+  if (!dateOfBirth) throw new Error("The consent date of birth is required before a member can be created.");
+  if (!YOUTH_SECTIONS.has(section)) throw new Error("The consent must have a canonical youth section before a member can be created.");
+  return {
+    firstName,
+    lastName,
+    displayName,
+    dateOfBirth,
+    section,
+    parentName: value(data, "parent1Name"),
+    emailAddress: value(data, "email").toLowerCase(),
+    mobileNumber: value(data, "mobile1"),
+    emergencyContactName: value(data, "altContactName"),
+    emergencyContactPhone: value(data, "altContactPhone")
+  };
+}
 
 async function currentProfile() {
   const user = auth.currentUser;
@@ -118,4 +156,51 @@ export async function manuallyReconcileConsent(consentId: string, memberId: stri
     targetId: consentId, targetLabel: value(member, "displayName"), section: value(member, "section"),
     description: `Consent relationship changed from ${previousMemberId || "unlinked"} to member ${memberId}. Reason: ${reason.trim().slice(0, 300)}`
   });
+}
+
+
+export async function createMemberFromYouthConsent(consentId: string): Promise<string> {
+  const { user, profile } = await currentProfile();
+  if (!["admin", "super-admin"].includes(String(profile.role))) throw new Error("Administrator access is required.");
+
+  const consentRef = doc(db, "consentApplications", consentId);
+  const memberRef = doc(collection(db, "members"));
+  const draft = await runTransaction(db, async (transaction) => {
+    const consentSnapshot = await transaction.get(consentRef);
+    if (!consentSnapshot.exists() || consentSnapshot.data().formType !== "youth-activity-consent") {
+      throw new Error("Youth consent record was not found.");
+    }
+    const consent = consentSnapshot.data();
+    if (value(consent, "memberId")) throw new Error("This consent is already linked to a member.");
+    const next = memberDraftFromYouthConsent(consent);
+    transaction.set(memberRef, {
+      ...next,
+      displayNameMode: "auto",
+      status: "active",
+      source: "consent-application",
+      sourceConsentApplicationId: consentId,
+      sourceJoinApplicationId: "",
+      createdAt: serverTimestamp(),
+      createdBy: user.uid,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid
+    });
+    transaction.update(consentRef, {
+      memberId: memberRef.id,
+      linkedBy: user.uid,
+      linkedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return next;
+  });
+
+  await recordAuditEvent({
+    category: "member",
+    action: "Member created from consent",
+    targetId: memberRef.id,
+    targetLabel: draft.displayName,
+    section: draft.section,
+    description: `Created canonical member ${memberRef.id} from unlinked youth consent ${consentId}.`
+  });
+  return memberRef.id;
 }
