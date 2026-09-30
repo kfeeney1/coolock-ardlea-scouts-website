@@ -1,5 +1,6 @@
 import { formatSiteDate } from "./siteDateFormat.ts";
 import type { MemberRecord } from "./memberAdmin";
+import { memberBelongsToSection } from "./memberSectionCore.mjs";
 import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, EventStatus } from "./eventAdmin";
 
 export const EVENT_SECTIONS = ["All Sections", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
@@ -68,14 +69,14 @@ export function eventMembers(event: EventRecord, members: MemberRecord[]): Membe
         const invited = new Set(event.audience.resolvedMemberIds);
         return members.filter((member) => invited.has(member.id));
     }
-    return members.filter((member) => member.status === "active" && (event.section === "All Sections" || member.section === event.section));
+    return members.filter((member) => member.status === "active" && (event.section === "All Sections" || memberBelongsToSection(member, event.section)));
 }
 
 export function resolveEventAudience(sectionIds: string[], memberIds: string[], members: MemberRecord[]): string[] {
     const sections = new Set(sectionIds);
     const selected = new Set(memberIds);
     return members
-        .filter((member) => member.status === "active" && (sections.has(member.section) || selected.has(member.id)))
+        .filter((member) => member.status === "active" && ([...sections].some((section) => memberBelongsToSection(member, section)) || selected.has(member.id)))
         .map((member) => member.id);
 }
 
