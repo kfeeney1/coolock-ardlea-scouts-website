@@ -73,7 +73,15 @@ const EMPTY_MEDICATION: MedicationManagementData = {
 
 function medicationValue(value: unknown): MedicationManagementData {
     if (!value || typeof value !== "object") return { ...EMPTY_MEDICATION };
-    return { ...EMPTY_MEDICATION, ...(value as Partial<MedicationManagementData>), enabled: (value as { enabled?: unknown }).enabled === true };
+    const normalized = { ...EMPTY_MEDICATION, ...(value as Partial<MedicationManagementData>), enabled: (value as { enabled?: unknown }).enabled === true };
+    if (!Array.isArray(normalized.medications) || normalized.medications.length === 0) {
+        normalized.medications = [{
+            medicineName: normalized.medicineName, dosage: normalized.dosage, frequency: normalized.frequency,
+            quantitySupplied: normalized.quantitySupplied, method: normalized.method, otherInfo: normalized.otherInfo,
+            selfAdmin: normalized.selfAdmin, authFrom: normalized.authFrom, authTo: normalized.authTo
+        }];
+    }
+    return normalized;
 }
 
 function timestampToDate(value: unknown): Date | null {
@@ -123,7 +131,13 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
         altContactName: stringValue(data, "altContactName"),
         altContactPhone: stringValue(data, "altContactPhone"),
         additionalInfo: stringValue(data, "additionalInfo"),
-        medicationManagement: medicationValue(data.medicationManagement),
+        medicationManagement: {
+            ...medicationValue(data.medicationManagement),
+            // Shared identity comes from the canonical linked consent/member projection, not a stale medication copy.
+            memberName: childName,
+            dateOfBirth: childDOB,
+            address: stringValue(data, "homeAddress") || medicationValue(data.medicationManagement).address
+        },
         updatedByParent: data.updatedByParent === true,
         submittedAt: timestampToDate(data.submittedAt),
         parentUpdatedAt: timestampToDate(data.parentUpdatedAt),
