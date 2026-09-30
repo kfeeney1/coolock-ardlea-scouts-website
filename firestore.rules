@@ -315,7 +315,7 @@ service cloud.firestore {
           request.resource.data.sections is list
           && request.resource.data.sections.size() > 0
           && request.resource.data.section in request.resource.data.sections
-          && request.resource.data.sections.hasAny(profile().sections)
+          && (isAdmin() || request.resource.data.sections.hasAny(profile().sections))
         ))
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.firstName is string && request.resource.data.lastName is string
@@ -325,7 +325,11 @@ service cloud.firestore {
           || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
           || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
-        || (isActiveLeader() && (canAccessMemberSections(resource.data) || canViewAllFinance() || isGroupSecretary()))
+        // Keep the scalar branch explicit so legacy section-constrained queries
+        // remain provably safe to Firestore while sections[] is introduced.
+        || (isActiveLeader() && hasSection(resource.data.section))
+        || (isActiveLeader() && resource.data.keys().hasAny(["sections"]) && resource.data.sections is list && resource.data.sections.hasAny(profile().sections))
+        || (isActiveLeader() && (canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
