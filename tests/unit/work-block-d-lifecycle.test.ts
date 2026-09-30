@@ -32,7 +32,7 @@ test("selected-member audiences reconcile by stable member IDs without destructi
   assert.match(admin,/const reconciledConsent = \{ \.\.\.previousConsent \}/);
   assert.match(admin,/reconciledAttendance\[id\] \?\?= "invited"/);
   assert.match(admin,/reconciledConsent\[id\] \?\?=/);
-  assert.match(logic,/sections\.has\(member\.section\) \|\| selected\.has\(member\.id\)/);
+  assert.match(logic,/memberBelongsToSection\(member, section\).*selected\.has\(member\.id\)/s);
   assert.match(rules,/"audience"/);
 });
 
