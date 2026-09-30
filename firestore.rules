@@ -89,13 +89,16 @@ service cloud.firestore {
     function canDelegateLeaderTarget(userId) {
       return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
     }
-    function hasSection(section) {
-      return isAdmin() || (isActiveLeader() && (section in profile().sections
+    function profileHasSection(section) {
+      return section in profile().sections
         || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
         || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in profile().sections)
         || (section == "Scout" && "Scouts" in profile().sections)
         || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in profile().sections)
-        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections)));
+        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections);
+    }
+    function hasSection(section) {
+      return isAdmin() || (isActiveLeader() && profileHasSection(section));
     }
     function memberHasSection(data, section) {
       return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
@@ -325,13 +328,14 @@ service cloud.firestore {
           || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
           || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
-        // Evaluate established group-wide roles first so their collection reads
-        // do not spend the rules expression budget on section membership checks.
-        || (isActiveLeader() && (canViewAllFinance() || isGroupSecretary()))
-        // Keep the scalar branch explicit so legacy section-constrained queries
-        // remain provably safe to Firestore while sections[] is introduced.
-        || (isActiveLeader() && hasSection(resource.data.section))
-        || (isActiveLeader() && resource.data.keys().hasAny(["sections"]) && resource.data.sections is list && resource.data.sections.hasAny(profile().sections))
+        || (isActiveLeader() && (
+          // Keep scalar membership first for legacy section-constrained queries,
+          // then evaluate concurrent membership and group-wide exceptions.
+          profileHasSection(resource.data.section)
+          || (resource.data.keys().hasAny(["sections"]) && resource.data.sections is list && resource.data.sections.hasAny(profile().sections))
+          || canViewAllFinance()
+          || isGroupSecretary()
+        ))
         || isApprovedParentForMember(memberId);
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
