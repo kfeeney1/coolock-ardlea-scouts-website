@@ -303,7 +303,9 @@ service cloud.firestore {
         && request.resource.data.firstName is string && request.resource.data.lastName is string
         && request.resource.data.displayName is string && request.resource.data.dateOfBirth is string
         && request.resource.data.status in ["active", "inactive", "left"]
-        && ((request.resource.data.source == "join-application" && request.resource.data.status == "active") || request.resource.data.source == "manual");
+        && ((request.resource.data.source == "join-application" && request.resource.data.status == "active")
+          || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
+          || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
         || (isActiveLeader() && (hasSection(resource.data.section) || canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
