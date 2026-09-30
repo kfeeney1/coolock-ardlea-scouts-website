@@ -327,16 +327,18 @@ service cloud.firestore {
         && ((request.resource.data.source == "join-application" && request.resource.data.status == "active")
           || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
           || request.resource.data.source == "manual");
+      // Preserve the proven legacy scalar rule as an independent allow path.
+      // Firestore can authorize section-constrained legacy queries against this
+      // rule without needing to reason about the concurrent-membership branch.
       allow read: if isSuperAdmin()
-        || (isActiveLeader() && (
-          // Keep scalar membership first for legacy section-constrained queries,
-          // then evaluate concurrent membership and group-wide exceptions.
-          profileHasSection(resource.data.section)
-          || (resource.data.keys().hasAny(["sections"]) && resource.data.sections is list && resource.data.sections.hasAny(profile().sections))
-          || canViewAllFinance()
-          || isGroupSecretary()
-        ))
+        || (isActiveLeader() && (hasSection(resource.data.section) || canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
+      // Concurrent memberships are additive: a leader may also read a member
+      // when one of the persisted sections[] values is in their canonical scope.
+      allow read: if isActiveLeader()
+        && resource.data.keys().hasAny(["sections"])
+        && resource.data.sections is list
+        && resource.data.sections.hasAny(profile().sections);
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
