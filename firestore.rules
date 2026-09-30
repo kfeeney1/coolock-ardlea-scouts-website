@@ -101,12 +101,12 @@ service cloud.firestore {
       return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
         || (data.keys().hasAny(["section"]) && data.section == section);
     }
+    // Call only after isActiveLeader() has been established by the enclosing rule.
+    // Keeping this helper to section-overlap checks avoids repeatedly expanding the
+    // authentication/profile predicates and hitting Firestore's expression limit.
     function canAccessMemberSections(data) {
-      return isAdmin()
-        || (isActiveLeader() && (
-          (data.keys().hasAny(["section"]) && hasSection(data.section))
-          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections))
-        ));
+      return (data.keys().hasAny(["section"]) && hasSection(data.section))
+        || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     function isYouthSection(section) {
       return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
