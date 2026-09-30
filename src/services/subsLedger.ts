@@ -48,10 +48,24 @@ export async function loadSubsPolicies(): Promise<SubsRatePolicy[]> {
 }
 
 export async function loadSubsMembers(sections?: string[]): Promise<MemberRecord[]> {
-  const docs = sections
-    ? (await Promise.all([...new Set(sections.filter(Boolean))].map((section) =>
+  const requestedSections = [...new Set((sections ?? []).filter(Boolean))];
+  const legacyDocs = sections
+    ? (await Promise.all(requestedSections.map((section) =>
         getDocs(query(collection(db, "members"), where("section", "==", section)))
       ))).flatMap((snapshot) => snapshot.docs)
+    : [];
+  const concurrentDocs = sections
+    ? (await Promise.all(requestedSections.map(async (section) => {
+        try {
+          return (await getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))).docs;
+        } catch (error) {
+          console.warn(`Unable to load concurrent subs memberships for ${section}; preserving legacy member results.`, error);
+          return [];
+        }
+      }))).flat()
+    : [];
+  const docs = sections
+    ? [...new Map(legacyDocs.concat(concurrentDocs).map((item) => [item.id, item])).values()]
     : (await getDocs(collection(db, "members"))).docs;
   return docs.map((item) => mapSubsMember(item.id, item.data()))
     .filter((member): member is MemberRecord => member !== null && member.status === "active")

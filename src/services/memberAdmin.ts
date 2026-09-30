@@ -15,7 +15,7 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
-import { memberSectionStorageAliases } from "./memberSectionCore.mjs";
+import { canonicalMemberSections, memberSectionStorageAliases } from "./memberSectionCore.mjs";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
@@ -37,6 +37,7 @@ export type MemberRecord = {
   displayNameMode: "auto" | "custom";
   dateOfBirth: string;
   section: string;
+  sections: string[];
   parentName: string;
   emailAddress: string;
   mobileNumber: string;
@@ -54,7 +55,7 @@ export type CreateMemberInput = Pick<
   MemberRecord,
   "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" |
   "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"
->;
+> & { sections?: string[] };
 
 export type MemberConsentSummary = {
   consentId: string;
@@ -109,11 +110,14 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     dateOfBirth: stringValue(data, "dateOfBirth"),
     section: canonicalMemberSection(stringValue(data, "section"))
   };
-  if (!status || Object.values(required).some((value) => !value)) return null;
+  const sections = canonicalMemberSections(data.sections, required.section);
+  if (!status || !required.firstName || !required.lastName || !required.displayName || !required.dateOfBirth || sections.length === 0) return null;
+  required.section = sections[0];
 
   return {
     id: snapshot.id,
     ...required,
+    sections,
     displayNameMode: data.displayNameMode === "custom"
       ? "custom"
       : data.displayNameMode === "auto"
@@ -174,13 +178,35 @@ export async function loadMembers(): Promise<MemberRecord[]> {
   const isAdmin = profile.role === "admin" || profile.role === "super-admin";
   const isGroupFinanceOfficer = organisation?.active === true
     && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
-  const docs = isAdmin || isGroupFinanceOfficer
-    ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
+  const leaderSections = normalizeLeaderSections(profile);
+  const legacyDocs = isAdmin || isGroupFinanceOfficer
+    ? []
     : (await Promise.all(
-        normalizeLeaderSections(profile).flatMap((section) => storageSectionAliases(section).map((storedSection) =>
+        leaderSections.flatMap((section) => storageSectionAliases(section).map((storedSection) =>
           getDocs(query(collection(db, "members"), where("section", "==", storedSection)))
         ))
       )).flatMap((snapshot) => snapshot.docs);
+
+  // During the backwards-compatible transition, a legacy scalar query must not
+  // be discarded if Firestore cannot authorize one of the additive sections[]
+  // queries. Each concurrent-membership query is isolated so established
+  // single-section records remain readable while sections[] records are added.
+  const concurrentDocs = isAdmin || isGroupFinanceOfficer
+    ? []
+    : (await Promise.all(
+        leaderSections.map(async (section) => {
+          try {
+            return (await getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))).docs;
+          } catch (error) {
+            console.warn(`Unable to load concurrent member memberships for ${section}; preserving legacy member results.`, error);
+            return [];
+          }
+        })
+      )).flat();
+
+  const docs = isAdmin || isGroupFinanceOfficer
+    ? (await getDocs(query(collection(db, "members"), orderBy("displayName", "asc")))).docs
+    : legacyDocs.concat(concurrentDocs);
 
   return [...new Map(docs.map((item) => [item.id, item])).values()]
     .map(mapMember)
@@ -200,13 +226,17 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
   const displayNameMode = input.displayNameMode === "custom" ? "custom" : "auto";
   const displayName = displayNameMode === "custom" ? requestedName : automaticName;
   if (displayNameMode === "custom" && !displayName) throw new Error("Custom display name is required.");
+  const requestedSections = canonicalMemberSections(input.sections, input.section);
+  if (requestedSections.length === 0) throw new Error("Select at least one section.");
+  const primarySection = requestedSections[0];
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
     lastName: clean(input.lastName, 100),
     displayName,
     displayNameMode,
     dateOfBirth: clean(input.dateOfBirth, 20),
-    section: canonicalMemberSection(clean(input.section, 40)),
+    section: primarySection,
+    sections: requestedSections,
     parentName: clean(input.parentName, 200),
     emailAddress: clean(input.emailAddress, 254),
     mobileNumber: clean(input.mobileNumber, 40),
@@ -226,7 +256,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
     action: "Member created",
     targetId: memberRef.id,
     targetLabel: displayName,
-    section: canonicalMemberSection(clean(input.section, 40)),
+    section: primarySection,
     description: `Created member record with status ${input.status}.`
   });
   return memberRef.id;
@@ -235,7 +265,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 export async function updateMember(
   memberId: string,
   updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" |
-    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode">
+    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"> & { sections?: string[] }
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -252,7 +282,9 @@ export async function updateMember(
   const previousStatus = memberStatus(current.status);
   if (!previousSection || !previousStatus) throw new Error("Member record does not match the canonical seed schema.");
 
-  const nextSection = canonicalMemberSection(clean(updates.section, 40));
+  const nextSections = canonicalMemberSections(updates.sections, updates.section);
+  if (nextSections.length === 0) throw new Error("Select at least one section.");
+  const nextSection = nextSections[0];
   const changeType = detectMemberLifecycleChange(
     { section: previousSection, status: previousStatus },
     { section: nextSection, status: updates.status }
@@ -271,6 +303,7 @@ export async function updateMember(
     displayNameMode,
     dateOfBirth: clean(updates.dateOfBirth, 20),
     section: nextSection,
+    sections: nextSections,
     parentName: clean(updates.parentName, 200),
     emailAddress: clean(updates.emailAddress, 254),
     mobileNumber: clean(updates.mobileNumber, 40),
@@ -344,7 +377,7 @@ export async function loadMemberLifecycleHistory(memberId: string): Promise<Memb
 }
 
 export async function loadMemberConsentSummaries(member: MemberRecord): Promise<MemberConsentSummary[]> {
-  if (!member.section) return [];
+  if (!member.sections.length) return [];
 
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -354,7 +387,7 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
     ? [await getDocs(collection(db, "consentApplications"))]
     : await Promise.all([
         getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id))),
-        ...storageSectionAliases(member.section).map((section) =>
+        ...member.sections.flatMap((memberSection) => storageSectionAliases(memberSection)).map((section) =>
           getDocs(query(collection(db, "consentApplications"), where("section", "==", section)))
         )
       ]);

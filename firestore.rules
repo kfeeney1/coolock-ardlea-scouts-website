@@ -89,13 +89,27 @@ service cloud.firestore {
     function canDelegateLeaderTarget(userId) {
       return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
     }
-    function hasSection(section) {
-      return isAdmin() || (isActiveLeader() && (section in profile().sections
+    function profileHasSection(section) {
+      return section in profile().sections
         || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
         || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in profile().sections)
         || (section == "Scout" && "Scouts" in profile().sections)
         || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in profile().sections)
-        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections)));
+        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections);
+    }
+    function hasSection(section) {
+      return isAdmin() || (isActiveLeader() && profileHasSection(section));
+    }
+    function memberHasSection(data, section) {
+      return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+        || (data.keys().hasAny(["section"]) && data.section == section);
+    }
+    // Call only after isActiveLeader() has been established by the enclosing rule.
+    // Keeping this helper to section-overlap checks avoids repeatedly expanding the
+    // authentication/profile predicates and hitting Firestore's expression limit.
+    function canAccessMemberSections(data) {
+      return (data.keys().hasAny(["section"]) && hasSection(data.section))
+        || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     function isYouthSection(section) {
       return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
@@ -119,7 +133,7 @@ service cloud.firestore {
       return memberId is string
         && exists(/databases/$(database)/documents/members/$(memberId))
         && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
-        && get(/databases/$(database)/documents/members/$(memberId)).data.section == section;
+        && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
     }
     function isApprovedParentForSection(section) {
       return isApprovedParent()
@@ -299,19 +313,35 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section)
+        && (!request.resource.data.keys().hasAny(["sections"]) || (
+          request.resource.data.sections is list
+          && request.resource.data.sections.size() > 0
+          && request.resource.data.section in request.resource.data.sections
+          && (isAdmin() || request.resource.data.sections.hasAny(profile().sections))
+        ))
+        && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.firstName is string && request.resource.data.lastName is string
         && request.resource.data.displayName is string && request.resource.data.dateOfBirth is string
         && request.resource.data.status in ["active", "inactive", "left"]
         && ((request.resource.data.source == "join-application" && request.resource.data.status == "active")
           || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
           || request.resource.data.source == "manual");
+      // Preserve the proven legacy scalar rule as an independent allow path.
+      // Firestore can authorize section-constrained legacy queries against this
+      // rule without needing to reason about the concurrent-membership branch.
       allow read: if isSuperAdmin()
         || (isActiveLeader() && (hasSection(resource.data.section) || canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
-      allow update: if (isActiveLeader() && hasSection(resource.data.section) && (hasSection(request.resource.data.section) || canTransferMember(resource.data.section, request.resource.data.section))
+      // Concurrent memberships are additive: a leader may also read a member
+      // when one of the persisted sections[] values is in their canonical scope.
+      allow read: if isActiveLeader()
+        && resource.data.keys().hasAny(["sections"])
+        && resource.data.sections is list
+        && resource.data.sections.hasAny(profile().sections);
+      allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
         || (isAdmin()
           && request.resource.data.familyId is string
           && request.resource.data.familyUpdatedBy == request.auth.uid
@@ -327,10 +357,10 @@ service cloud.firestore {
         allow get, list: if isApprovedParentForMember(memberId)
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
-            && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader() || isGroupSecretary()));
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
         allow create, update: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
           && request.resource.data.memberId == memberId
           && request.resource.data.requirementId == requirementId
           && request.resource.data.skillId is string
@@ -345,17 +375,17 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
         allow delete: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader());
       }
 
       match /awards/{awardId} {
         allow get, list: if isApprovedParentForMember(memberId)
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
-            && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader() || isGroupSecretary()));
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
         allow create, update: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader())
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
           && request.resource.data.awardId == awardId
           && request.resource.data.memberId == memberId
           && isCanonicalAdventureSkillStage(request.resource.data.skillId, request.resource.data.stage)
@@ -365,7 +395,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
         allow delete: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
-          && (hasSection(get(/databases/$(database)/documents/members/$(memberId)).data.section) || isGroupLeader());
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader());
       }
     }
 
@@ -373,7 +403,7 @@ service cloud.firestore {
       allow read: if isActiveLeader()
         && resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
-        && hasSection(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data.section);
+        && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data);
       allow create: if isActiveLeader()
         && request.resource.data.memberId is string
         && request.resource.data.memberName is string

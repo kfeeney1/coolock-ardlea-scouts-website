@@ -1,5 +1,6 @@
 import type { DocumentData } from "firebase/firestore";
 import type { MemberRecord, MemberStatus } from "./memberAdmin";
+import { canonicalMemberSections } from "./memberSectionCore.mjs";
 
 const text = (data: DocumentData, key: string) => typeof data[key] === "string" ? data[key].trim() : "";
 
@@ -8,13 +9,14 @@ const text = (data: DocumentData, key: string) => typeof data[key] === "string" 
 export function mapSubsMember(id: string, data: DocumentData): MemberRecord | null {
   const displayName = text(data, "displayName");
   const section = text(data, "section");
+  const sections = canonicalMemberSections(data.sections, section);
   const status = data.status as MemberStatus;
-  if (!displayName || !section || !["active", "inactive", "left"].includes(status)) return null;
+  if (!displayName || sections.length === 0 || !["active", "inactive", "left"].includes(status)) return null;
   const parts = displayName.split(/\s+/);
   return {
     id, firstName: text(data, "firstName") || parts[0] || "",
     lastName: text(data, "lastName") || (parts.length > 1 ? parts.at(-1)! : ""),
-    displayName, displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto", dateOfBirth: text(data, "dateOfBirth"), section,
+    displayName, displayNameMode: data.displayNameMode === "custom" ? "custom" : "auto", dateOfBirth: text(data, "dateOfBirth"), section: sections[0], sections,
     parentName: text(data, "parentName"), emailAddress: text(data, "emailAddress"),
     mobileNumber: text(data, "mobileNumber"), emergencyContactName: text(data, "emergencyContactName"),
     emergencyContactPhone: text(data, "emergencyContactPhone"), status,

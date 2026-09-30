@@ -109,7 +109,7 @@ export default function MemberRecordPage() {
     try {
       await updateMember(member.id, {
         firstName: draft.firstName, lastName: draft.lastName, displayName: draft.displayName,
-        dateOfBirth: draft.dateOfBirth, section: draft.section, parentName: draft.parentName,
+        dateOfBirth: draft.dateOfBirth, section: draft.section, sections: draft.sections, parentName: draft.parentName,
         emailAddress: draft.emailAddress, mobileNumber: draft.mobileNumber,
         emergencyContactName: draft.emergencyContactName, emergencyContactPhone: draft.emergencyContactPhone,
         status: draft.status, displayNameMode: draft.displayNameMode
@@ -168,14 +168,14 @@ export default function MemberRecordPage() {
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 3 }}>
             <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>Member Details</Typography>
             <Chip label={statusLabel(draft.status)} color={draft.status === "active" ? "success" : draft.status === "inactive" ? "warning" : "default"} />
-            {draft.section && <Chip label={draft.section} variant="outlined" />}
+            {draft.sections.map((section) => <Chip key={section} label={section} variant="outlined" />)}
           </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             <TextField label="First name" value={draft.firstName} onChange={(event) => { const firstName = event.target.value; setDraft({ ...draft, firstName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(firstName, draft.lastName) : draft.displayName }); }} />
             <TextField label="Last name" value={draft.lastName} onChange={(event) => { const lastName = event.target.value; setDraft({ ...draft, lastName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, lastName) : draft.displayName }); }} />
             <Box><TextField fullWidth label="Display name" value={draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, draft.lastName) : draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value, displayNameMode: "custom" })} helperText={draft.displayNameMode === "auto" ? "Automatically follows First name + Last name." : "Custom display name."} />{draft.displayNameMode === "custom" && <Button size="small" onClick={() => setDraft({ ...draft, displayName: automaticDisplayName(draft.firstName, draft.lastName), displayNameMode: "auto" })}>Reset to automatic</Button>}</Box>
             {field("dateOfBirth", "Date of birth", "date")}
-            <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => setDraft({ ...draft, section: event.target.value })}>{sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+            <FormControl><InputLabel>Sections</InputLabel><Select multiple label="Sections" value={draft.sections} onChange={(event) => { const selectedSections = typeof event.target.value === "string" ? event.target.value.split(",") : event.target.value; setDraft({ ...draft, sections: selectedSections, section: selectedSections[0] || "" }); }} renderValue={(selectedSections) => selectedSections.join(", ")}>{sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
