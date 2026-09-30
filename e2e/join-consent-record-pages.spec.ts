@@ -6,9 +6,9 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Record-page navigation runs once on desktop Chromium.");
 }
 
-async function loginAdmin(page: Page) {
+async function loginAdmin(page: Page, email = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com") {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -139,4 +139,45 @@ test("Consent tiles open full-page records", async ({ page }, testInfo) => {
   await expect(page.locator('[data-testid^="consent-record-page-"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Print / Save PDF", exact: true })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+
+test("SW-218 unlinked Venture consent creates a canonical member visible in Member Management", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Consent member creation mutates the shared fixture and runs once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page, process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
+  await page.goto("/leader/consents/TEST_flow_consent_venture_unlinked");
+
+  const record = page.getByTestId("consent-record-page-TEST_flow_consent_venture_unlinked");
+  await expect(record).toBeVisible();
+  await expect(record.getByText("Not linked to member", { exact: true })).toBeVisible();
+  await record.getByRole("button", { name: "Create new member from consent", exact: true }).click();
+  await expect(record.getByText("Not linked to member", { exact: true })).toHaveCount(0);
+  await expect(record.getByRole("button", { name: "Create new member from consent", exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("consent-record-page-TEST_flow_consent_venture_unlinked").getByText("Not linked to member", { exact: true })).toHaveCount(0);
+
+  await page.goto("/leader/members");
+  await page.getByLabel("Search members").fill("TEST Consent Venture");
+  const memberCard = page.getByTestId(/member-card-/).filter({ hasText: "TEST Consent Venture" });
+  await expect(memberCard).toBeVisible();
+  await expect(memberCard).toContainText("Ventures");
+  await expect(memberCard).toContainText("Active");
+
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Ventures", exact: true }).click();
+  await expect(memberCard).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: "TEST Consent Venture" })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "All Sections" }).click();
+  await expect(page.getByTestId(/member-card-/).filter({ hasText: "TEST Consent Venture" })).toBeVisible();
+
+  await memberCard.click();
+  await expect(page).toHaveURL(/\/leader\/members\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: "TEST Consent Venture", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Consent & Medical Indicators" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open consent and medical details/ }).first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
