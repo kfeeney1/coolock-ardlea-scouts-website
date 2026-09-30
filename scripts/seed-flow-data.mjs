@@ -192,6 +192,19 @@ async function seed() {
   const scouter = await organisationLeader("TEST_uid_scout_section_leader");
   await set("consentApplications", "TEST_flow_consent_youth_medication", canonicalYouthConsent(beaver, true));
   await set("consentApplications", "TEST_flow_consent_youth_clear", canonicalYouthConsent(cub, false));
+  const unlinkedVentureConsent = canonicalYouthConsent({
+    id: "",
+    section: "Ventures",
+    displayName: "TEST Consent Venture",
+    dateOfBirth: "2010-06-15",
+    parentName: "Test Venture Parent",
+    emailAddress: "test.venture.parent@example.com",
+    mobileNumber: "0878000200",
+    emergencyContactName: "Test Venture Emergency",
+    emergencyContactPhone: "0878000201"
+  }, false);
+  delete unlinkedVentureConsent.memberId;
+  await set("consentApplications", "TEST_flow_consent_venture_unlinked", unlinkedVentureConsent);
   await set("consentApplications", "TEST_flow_consent_scouter", {
     memberId: "TEST_uid_scout_section_leader",
     section: "Scouter",

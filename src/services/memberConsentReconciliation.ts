@@ -1,6 +1,7 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import { memberDraftFromYouthConsent } from "./consentMemberOnboardingLogic";
 
 export type ReconciliationCandidate = {
   id: string;
@@ -20,7 +21,6 @@ export type ConsentReconciliationState = {
 
 const value = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? String(data[key]).trim() : "";
 const identity = (name: string, dob: string) => `${name.trim().toLocaleLowerCase()}::${dob.trim()}`;
-
 async function currentProfile() {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -118,4 +118,51 @@ export async function manuallyReconcileConsent(consentId: string, memberId: stri
     targetId: consentId, targetLabel: value(member, "displayName"), section: value(member, "section"),
     description: `Consent relationship changed from ${previousMemberId || "unlinked"} to member ${memberId}. Reason: ${reason.trim().slice(0, 300)}`
   });
+}
+
+
+export async function createMemberFromYouthConsent(consentId: string): Promise<string> {
+  const { user, profile } = await currentProfile();
+  if (profile.role !== "super-admin") throw new Error("Super Admin access is required.");
+
+  const consentRef = doc(db, "consentApplications", consentId);
+  const memberRef = doc(collection(db, "members"));
+  const draft = await runTransaction(db, async (transaction) => {
+    const consentSnapshot = await transaction.get(consentRef);
+    if (!consentSnapshot.exists() || consentSnapshot.data().formType !== "youth-activity-consent") {
+      throw new Error("Youth consent record was not found.");
+    }
+    const consent = consentSnapshot.data();
+    if (value(consent, "memberId")) throw new Error("This consent is already linked to a member.");
+    const next = memberDraftFromYouthConsent(consent);
+    transaction.set(memberRef, {
+      ...next,
+      displayNameMode: "auto",
+      status: "active",
+      source: "consent-application",
+      sourceConsentApplicationId: consentId,
+      sourceJoinApplicationId: "",
+      createdAt: serverTimestamp(),
+      createdBy: user.uid,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid
+    });
+    transaction.update(consentRef, {
+      memberId: memberRef.id,
+      linkedBy: user.uid,
+      linkedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return next;
+  });
+
+  await recordAuditEvent({
+    category: "member",
+    action: "Member created from consent",
+    targetId: memberRef.id,
+    targetLabel: draft.displayName,
+    section: draft.section,
+    description: `Created canonical member ${memberRef.id} from unlinked youth consent ${consentId}.`
+  });
+  return memberRef.id;
 }

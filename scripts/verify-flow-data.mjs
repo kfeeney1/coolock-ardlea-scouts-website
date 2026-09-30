@@ -50,7 +50,7 @@ const expectedMinimums = {
   events: 6,
   publicEvents: 3,
   joinApplications: 5,
-  consentApplications: 3,
+  consentApplications: 4,
   eventConsentLinks: 2,
   eventConsentResponses: 3,
   meetingRecords: 2,
@@ -112,7 +112,9 @@ forbidFields("consentApplications", consents, ["scoutSection", "expiryDate", "me
 for (const doc of consents) {
   const data = doc.data();
   if (data.formType === "youth-activity-consent") {
-    for (const field of ["memberId", "childName", "childDOB", "consentFrom", "consentTo", "medicationManagement"]) if (!(field in data)) fail(`consentApplications/${doc.id} missing youth field ${field}`);
+    for (const field of ["childName", "childDOB", "consentFrom", "consentTo", "medicationManagement"]) if (!(field in data)) fail(`consentApplications/${doc.id} missing youth field ${field}`);
+    if (doc.id !== "TEST_flow_consent_venture_unlinked" && !("memberId" in data)) fail(`consentApplications/${doc.id} missing youth field memberId`);
+    if (doc.id === "TEST_flow_consent_venture_unlinked" && "memberId" in data) fail(`consentApplications/${doc.id} must begin unlinked for SW-218`);
     if (data.consentFrom !== relativeDate(-10) || data.consentTo !== relativeDate(330)) fail(`consentApplications/${doc.id} active consent window is not time-stable`);
   }
   if (data.formType === "scouter-es3-medical-advice") {

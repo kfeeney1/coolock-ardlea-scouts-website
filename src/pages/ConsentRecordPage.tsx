@@ -23,7 +23,7 @@ import { loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
 import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
-import { isCurrentUserSuperAdmin, loadReconciliationCandidates, manuallyReconcileConsent, type ReconciliationCandidate } from "../services/memberConsentReconciliation";
+import { createMemberFromYouthConsent, isCurrentUserSuperAdmin, loadReconciliationCandidates, manuallyReconcileConsent, type ReconciliationCandidate } from "../services/memberConsentReconciliation";
 
 export default function ConsentRecordPage() {
   const { consentId } = useParams();
@@ -37,6 +37,7 @@ export default function ConsentRecordPage() {
   const [reason, setReason] = useState("");
   const [confirmCorrection, setConfirmCorrection] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [creatingMember, setCreatingMember] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +89,20 @@ export default function ConsentRecordPage() {
     } finally { setReconciling(false); }
   };
 
+  const createMember = async () => {
+    if (!record || record.type !== "youth" || record.memberId) return;
+    setCreatingMember(true); setError("");
+    try {
+      const memberId = await createMemberFromYouthConsent(record.id);
+      const records = await loadConsentAdminRecords();
+      setRecord(records.find((item) => item.id === record.id) ?? null);
+      setCandidateId(memberId);
+    } catch (createError) {
+      console.error("Unable to create member from consent:", createError);
+      setError(createError instanceof Error ? createError.message : "Unable to create the member record.");
+    } finally { setCreatingMember(false); }
+  };
+
   const returnPath = typeof location.state === "object" && location.state && "fromMemberPath" in location.state && typeof location.state.fromMemberPath === "string" ? location.state.fromMemberPath : "/leader/consents";
 
   const printRecord = () => {
@@ -130,7 +145,8 @@ export default function ConsentRecordPage() {
           {record.type === "youth" && !record.memberId && <Alert severity="warning">This youth consent record is not linked to a canonical member. Super Admin can reconcile it below; ambiguous records are never guessed automatically.</Alert>}
           {record.type === "youth" && superAdmin && <Paper variant="outlined" sx={{ p: 3 }} data-testid="consent-reconciliation">
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Super Admin reconciliation</Typography>
-            <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>Choose the canonical member deliberately. Search results show identity/contact context only; medical details are not copied into the member record.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>If this consent is for a new member, create the canonical member directly from the verified identity/contact fields below. If the member already exists, choose that canonical member instead. Medical details remain on the consent record.</Typography>
+            {!record.memberId && <Button variant="contained" color="success" disabled={creatingMember || reconciling} onClick={() => void createMember()} sx={{ mb: 2 }}>{creatingMember ? "Creating member…" : "Create new member from consent"}</Button>}
             <TextField select fullWidth label="Canonical member" value={candidateId} onChange={(event) => { setCandidateId(event.target.value); setConfirmCorrection(false); }}>
               <MenuItem value="">Select member</MenuItem>
               {candidates.map((candidate) => <MenuItem key={candidate.id} value={candidate.id}>{candidate.displayName} · {candidate.dateOfBirth || "DOB unavailable"} · {candidate.section || "No section"} · {candidate.parentName || candidate.emailAddress || candidate.mobileNumber || candidate.id}</MenuItem>)}
