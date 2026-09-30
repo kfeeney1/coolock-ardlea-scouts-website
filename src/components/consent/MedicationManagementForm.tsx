@@ -112,7 +112,7 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2 }}>Medication Information</Typography>
             <Stack spacing={2.5}>
                 {entries.map((entry, index) => <Paper key={index} variant="outlined" data-testid={`medication-entry-${index}`} sx={{ p: 2.5 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                    <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: "center", justifyContent: "space-between" }}>
                         <Typography variant="h6">Medication {index + 1}</Typography>
                         {entries.length > 1 && <Button color="error" onClick={() => removeMedication(index)} aria-label={`Remove medication ${index + 1}`}>Remove</Button>}
                     </Stack>
