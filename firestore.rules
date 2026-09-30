@@ -325,11 +325,13 @@ service cloud.firestore {
           || (request.resource.data.source == "consent-application" && request.resource.data.status == "active" && isSuperAdmin())
           || request.resource.data.source == "manual");
       allow read: if isSuperAdmin()
+        // Evaluate established group-wide roles first so their collection reads
+        // do not spend the rules expression budget on section membership checks.
+        || (isActiveLeader() && (canViewAllFinance() || isGroupSecretary()))
         // Keep the scalar branch explicit so legacy section-constrained queries
         // remain provably safe to Firestore while sections[] is introduced.
         || (isActiveLeader() && hasSection(resource.data.section))
         || (isActiveLeader() && resource.data.keys().hasAny(["sections"]) && resource.data.sections is list && resource.data.sections.hasAny(profile().sections))
-        || (isActiveLeader() && (canViewAllFinance() || isGroupSecretary()))
         || isApprovedParentForMember(memberId);
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && request.resource.data.status in ["active", "inactive", "left"]
