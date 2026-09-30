@@ -166,6 +166,9 @@ test("SW-218 newly created Venture member remains visible under Ventures and All
   await dialog.getByLabel("Date of birth").fill("2009-04-18");
   await dialog.getByLabel("Section").click();
   await page.getByRole("option", { name: "Ventures", exact: true }).click();
+  // The section picker is intentionally multi-select for SW-237, so close it
+  // after choosing this member's section before submitting the dialog.
+  await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: "Add Member" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
