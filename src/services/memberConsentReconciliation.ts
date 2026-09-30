@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
+import { memberDraftFromYouthConsent } from "./consentMemberOnboardingLogic";
 
 export type ReconciliationCandidate = {
   id: string;
@@ -20,45 +21,6 @@ export type ConsentReconciliationState = {
 
 const value = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? String(data[key]).trim() : "";
 const identity = (name: string, dob: string) => `${name.trim().toLocaleLowerCase()}::${dob.trim()}`;
-const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
-
-export type ConsentMemberDraft = {
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  dateOfBirth: string;
-  section: string;
-  parentName: string;
-  emailAddress: string;
-  mobileNumber: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-};
-
-export function memberDraftFromYouthConsent(data: Record<string, unknown>): ConsentMemberDraft {
-  const displayName = value(data, "childName");
-  const parts = displayName.split(/\s+/).filter(Boolean);
-  const firstName = parts.shift() ?? "";
-  const lastName = parts.join(" ");
-  const section = value(data, "section");
-  const dateOfBirth = value(data, "childDOB");
-  if (!firstName || !lastName) throw new Error("The consent child name must include a first name and surname before a member can be created.");
-  if (!dateOfBirth) throw new Error("The consent date of birth is required before a member can be created.");
-  if (!YOUTH_SECTIONS.has(section)) throw new Error("The consent must have a canonical youth section before a member can be created.");
-  return {
-    firstName,
-    lastName,
-    displayName,
-    dateOfBirth,
-    section,
-    parentName: value(data, "parent1Name"),
-    emailAddress: value(data, "email").toLowerCase(),
-    mobileNumber: value(data, "mobile1"),
-    emergencyContactName: value(data, "altContactName"),
-    emergencyContactPhone: value(data, "altContactPhone")
-  };
-}
-
 async function currentProfile() {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
