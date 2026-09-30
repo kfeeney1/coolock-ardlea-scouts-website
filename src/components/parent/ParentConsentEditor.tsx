@@ -114,6 +114,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
                 mode="youth"
                 value={form.medicationManagement}
                 errors={medicationErrors}
+                sharedIdentity={{ memberName: form.childName, dateOfBirth: form.childDOB, address: form.homeAddress }}
                 onChange={(medicationManagement) => setForm((current) => ({ ...current, medicationManagement }))}
             />
 
