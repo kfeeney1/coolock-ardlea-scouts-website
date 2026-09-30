@@ -265,7 +265,6 @@ export async function updateMember(
   const previousStatus = memberStatus(current.status);
   if (!previousSection || !previousStatus) throw new Error("Member record does not match the canonical seed schema.");
 
-  const previousSections = canonicalMemberSections(current.sections, previousSection);
   const nextSections = canonicalMemberSections(updates.sections, updates.section);
   if (nextSections.length === 0) throw new Error("Select at least one section.");
   const nextSection = nextSections[0];
