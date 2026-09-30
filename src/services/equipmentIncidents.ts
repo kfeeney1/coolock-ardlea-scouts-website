@@ -242,11 +242,17 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
 
 export async function startEquipmentIncidentInvestigation(incident: EquipmentIncident): Promise<void> {
   const uid = currentUid();
-  if (incident.status !== "reported") throw new Error("Only newly reported equipment issues can be moved to investigating.");
-  await updateDoc(doc(db, "equipmentIncidents", incident.id), {
-    status: "investigating",
-    updatedBy: uid,
-    updatedAt: serverTimestamp()
+  const incidentRef = doc(db, "equipmentIncidents", incident.id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(incidentRef);
+    if (!snapshot.exists()) throw new Error("That equipment issue no longer exists.");
+    const current = snapshot.data();
+    if (current.status !== "reported") throw new Error("Only newly reported equipment issues can be moved to investigating.");
+    transaction.update(incidentRef, {
+      status: "investigating",
+      updatedBy: uid,
+      updatedAt: serverTimestamp()
+    });
   });
   await recordEquipmentHistory({
     itemId: incident.itemId,

@@ -50,6 +50,7 @@ export const suiteSpecs = {
     "badgework-skill-filter.spec.ts"
   ],
   equipment: [
+    "damaged-equipment-issues.spec.ts",
     "equipment-checkout.spec.ts",
     "email-action-links.spec.ts",
     "equipment-leader-dashboard.spec.ts",
