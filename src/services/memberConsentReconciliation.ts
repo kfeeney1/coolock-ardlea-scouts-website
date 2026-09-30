@@ -123,7 +123,7 @@ export async function manuallyReconcileConsent(consentId: string, memberId: stri
 
 export async function createMemberFromYouthConsent(consentId: string): Promise<string> {
   const { user, profile } = await currentProfile();
-  if (!["admin", "super-admin"].includes(String(profile.role))) throw new Error("Administrator access is required.");
+  if (profile.role !== "super-admin") throw new Error("Super Admin access is required.");
 
   const consentRef = doc(db, "consentApplications", consentId);
   const memberRef = doc(collection(db, "members"));
