@@ -12,6 +12,7 @@ import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSk
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
+import { BACK_DISMISS_STATE_KEY, backDismissStack } from "../services/backDismissHistory";
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
@@ -69,6 +70,7 @@ export default function ParentPortal() {
     const [childrenLoadError, setChildrenLoadError] = useState(false);
     const [pendingChildId, setPendingChildId] = useState<string | null>(null);
     const pendingChildIdRef = useRef<string | null>(null);
+    const childCommitTimerRef = useRef<number | null>(null);
     const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
@@ -99,28 +101,45 @@ export default function ParentPortal() {
     }, [account]);
 
     const requestedChildId = searchParams.get("child") || "";
-    const selectedChild = linkedChildren.find((child) => child.id === requestedChildId) || linkedChildren[0] || null;
+    const selectedChild = linkedChildren.find((child) => child.id === pendingChildId)
+        || linkedChildren.find((child) => child.id === requestedChildId)
+        || linkedChildren[0]
+        || null;
     useEffect(() => {
-        if (!selectedChild || requestedChildId === selectedChild.id) return;
+        if (pendingChildId && requestedChildId === pendingChildId) {
+            pendingChildIdRef.current = null;
+            setPendingChildId(null);
+            return;
+        }
+        if (pendingChildId || !selectedChild || requestedChildId === selectedChild.id) return;
         const next = new URLSearchParams(searchParams);
         next.set("child", selectedChild.id);
         navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true, state: location.state });
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
     const rememberChildSelection = (childId: string) => {
+        if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
+        childCommitTimerRef.current = null;
         pendingChildIdRef.current = childId;
         setPendingChildId(childId);
     };
     const commitChildSelectionAfterClose = () => {
         const childId = pendingChildIdRef.current;
-        if (!childId) return;
-        pendingChildIdRef.current = null;
-        setPendingChildId(null);
-        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        if (!childId || childCommitTimerRef.current !== null) return;
+        childCommitTimerRef.current = window.setTimeout(() => {
+            childCommitTimerRef.current = null;
+            if (pendingChildIdRef.current !== childId) return;
+            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
+            const nextState = routerState && typeof routerState === "object" && !Array.isArray(routerState)
+                ? { ...(routerState as Record<string, unknown>) }
+                : {};
+            const remainingMarkers = backDismissStack(nextState).filter((marker) => !marker.startsWith("transient-overlay:"));
+            if (remainingMarkers.length > 0) nextState[BACK_DISMISS_STATE_KEY] = remainingMarkers;
+            else delete nextState[BACK_DISMISS_STATE_KEY];
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
-            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash });
-        }));
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: nextState });
+        }, 350);
     };
 
     useEffect(() => {
