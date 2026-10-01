@@ -43,6 +43,7 @@ const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
 const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
 const WeeklySectionTracker = lazy(() => import("./pages/WeeklySectionTracker"));
 const CreateWeeklyMeetingPage = lazy(() => import("./pages/CreateWeeklyMeetingPage"));
+const CreateEventPage = lazy(() => import("./pages/CreateEventPage"));
 const EventEditPage = lazy(() => import("./pages/EventEditPage"));
 const BadgeworkTracking = lazy(() => import("./pages/BadgeworkTracking"));
 const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
@@ -119,6 +120,7 @@ export default function App() {
         <Route path="/leader/subs" element={protectedRoute(<SubsManagement />)} />
         <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
         <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
+        <Route path="/leader/events/create" element={protectedRoute(<CreateEventPage />)} />
         <Route path="/leader/events/:eventId" element={protectedRoute(<EventRecordPage />)} />
         <Route path="/leader/events/:eventId/edit" element={protectedRoute(<EventEditPage />)} />
         <Route path="/leader/event-consent" element={protectedRoute(<EventConsentManagement />)} />
