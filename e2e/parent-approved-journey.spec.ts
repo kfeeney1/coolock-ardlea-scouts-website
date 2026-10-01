@@ -87,8 +87,8 @@ test.describe("approved parent journey", () => {
     await page.getByLabel("Alternative emergency contact").fill("Other Adult");
     await page.getByLabel("Alternative contact phone").fill("0861234567");
     await save.click();
-    const saveFeedback = page.getByRole("alert").filter({ hasText: /Consent and medical details updated successfully\\.|Unable to save the consent and medical details\\.|required|Select Yes or No/i }).last();
-    await expect(saveFeedback, `Parent consent save failed. Browser console: ${parentConsentSaveErrors.join("\\n") || "no save error was logged"}`).toHaveText("Consent and medical details updated successfully.");
+    const saveFeedback = page.getByRole("alert").filter({ hasText: /Consent and medical details updated successfully|Unable to save the consent and medical details|required|Select Yes or No/i }).last();
+    await expect(saveFeedback, `Parent consent save failed. Browser console: ${parentConsentSaveErrors.join("\n") || "no save error was logged"}`).toHaveText("Consent and medical details updated successfully.");
     await expect(medicalAttentionCount).toHaveText("0");
   });
 
