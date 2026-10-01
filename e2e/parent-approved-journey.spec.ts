@@ -140,7 +140,11 @@ test("approved parent can sign out globally and must authenticate again", async 
   await loginParent(page);
   const desktopSignOut = page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
   if (testInfo.project.name === "mobile-chromium") {
-    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    const mobileMenuButton = page.getByRole("button", { name: "Open navigation menu" });
+    await mobileMenuButton.click();
+    // Header uses useBackDismiss before mounting the MUI menu. Wait for that
+    // committed open state rather than assuming the click immediately creates menuitems.
+    await expect(mobileMenuButton).toHaveAttribute("aria-expanded", "true");
     const mobileSignOut = page.getByRole("menuitem", { name: "Sign Out", exact: true });
     await expect(mobileSignOut).toBeVisible();
     await mobileSignOut.click();
