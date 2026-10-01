@@ -23,31 +23,40 @@ test("active Member Management is surname-first across All Sections, filters and
 
     const cards = page.locator("[data-testid^='member-card-']");
     await expect(cards.first()).toBeVisible();
-    const readNames = async () => cards.evaluateAll((items) => items.map((card) => {
-        const memberName = Array.from(card.querySelectorAll("p"))
-            .map((paragraph) => paragraph.textContent?.trim() || "")
-            .find((text) => text.startsWith("Member name:"))
-            ?.replace(/^Member name:\s*/, "");
-        return memberName || card.querySelector("h5")?.textContent?.trim() || "";
-    }));
-    const allNames = await readNames();
-    expect(allNames.length).toBeGreaterThan(1);
-    const normalized = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IE");
-    const surnames = allNames.map((name) => normalized(name).split(" ").at(-1) || "");
-    expect(surnames).toEqual([...surnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+    const readNames = async () => cards.evaluateAll((items) => items.map((card) => ({
+        firstName: card.getAttribute("data-member-first-name")?.trim().replace(/\s+/g, " ") || "",
+        lastName: card.getAttribute("data-member-last-name")?.trim().replace(/\s+/g, " ") || "",
+        displayName: card.querySelector("h5")?.textContent?.trim() || "",
+    })));
+    const compareText = (left: string, right: string) => left.localeCompare(right, "en-IE", { sensitivity: "base" });
+    const expectSurnameFirstOrder = (members: Awaited<ReturnType<typeof readNames>>) => {
+        const sorted = [...members].sort((a, b) => {
+            const aSurname = a.lastName.toLocaleLowerCase("en-IE");
+            const bSurname = b.lastName.toLocaleLowerCase("en-IE");
+            if (!aSurname || !bSurname) {
+                if (!aSurname && bSurname) return 1;
+                if (aSurname && !bSurname) return -1;
+            }
+            return compareText(aSurname || a.firstName || a.displayName, bSurname || b.firstName || b.displayName)
+                || compareText(a.firstName, b.firstName)
+                || compareText(a.displayName, b.displayName);
+        });
+        expect(members).toEqual(sorted);
+    };
+    const allMembers = await readNames();
+    expect(allMembers.length).toBeGreaterThan(1);
+    expectSurnameFirstOrder(allMembers);
 
     await page.getByRole("combobox", { name: "Section" }).click();
     await page.getByRole("option", { name: "Beavers", exact: true }).click();
-    const sectionNames = await readNames();
-    expect(sectionNames.length).toBeGreaterThan(0);
-    const sectionSurnames = sectionNames.map((name) => normalized(name).split(" ").at(-1) || "");
-    expect(sectionSurnames).toEqual([...sectionSurnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+    const sectionMembers = await readNames();
+    expect(sectionMembers.length).toBeGreaterThan(0);
+    expectSurnameFirstOrder(sectionMembers);
 
     const search = page.getByRole("textbox", { name: "Search members" });
-    await search.fill(sectionNames[0].split(" ").at(-1) || "");
-    const searchedNames = await readNames();
-    const searchedSurnames = searchedNames.map((name) => normalized(name).split(" ").at(-1) || "");
-    expect(searchedSurnames).toEqual([...searchedSurnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+    await search.fill(sectionMembers[0].lastName || sectionMembers[0].firstName);
+    const searchedMembers = await readNames();
+    expectSurnameFirstOrder(searchedMembers);
 });
 
 test("member status tiles filter and jump to member results", async ({ page }, testInfo) => {

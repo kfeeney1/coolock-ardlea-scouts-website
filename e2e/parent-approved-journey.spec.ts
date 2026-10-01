@@ -36,7 +36,7 @@ test.describe("approved parent journey", () => {
     await expect(childSelect).toBeVisible();
     await childSelect.click();
     await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
-    await expect(page.getByText(/^Viewing /)).toContainText("Morgan Kavanagh");
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
 
     const summary = page.getByTestId("parent-things-to-do");
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
@@ -160,7 +160,7 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     const firstHref = await badgeworkLink.getAttribute("href");
     const firstChild = new URL(firstHref!, "http://localhost").searchParams.get("child") || "";
     expect(firstChild).not.toBe("");
-    await expect(page.getByText(/^Viewing /)).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
     await expect(badgeworkLink).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
 
     await page.getByRole("link", { name: "Consent & Medical" }).click();
@@ -176,7 +176,7 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     const secondChild = await options.nth(1).getAttribute("data-value");
     await options.nth(1).click();
     await expect(page).toHaveURL(new RegExp(`child=${secondChild}`));
-    await expect(page.getByText(/^Viewing /)).toContainText("Morgan Kavanagh");
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
     await page.getByRole("link", { name: "Meetings & Events" }).click();
     await expect(page).toHaveURL(new RegExp(`child=${secondChild}#parent-event-consent$`));
 
