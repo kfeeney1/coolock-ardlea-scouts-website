@@ -318,6 +318,31 @@ test.describe("SW-178 canonical role navigation", () => {
     }
   });
 
+  test("SW-132 redundant refresh controls stay absent on administration pages", async ({ page }) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    for (const route of ["/leader/join", "/leader/event-consent", "/leader/parent-access", "/leader/activity"]) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Refresh", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Reload", exact: true })).toHaveCount(0);
+    }
+  });
+
+  test("SW-174 Weekly Meetings has no visible title tile and keeps Create Meeting usable without overflow", async ({ page }) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    await page.goto("/leader/weekly");
+    // Keep the semantic h1 for accessibility; SW-174 removes the redundant visual title card/introduction.
+    await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeAttached();
+    await expect(page.getByTestId("leader-page-actions")).toHaveCount(0);
+    await expect(page.getByText("Manage weekly meetings", { exact: false })).toHaveCount(0);
+    const create = page.getByRole("link", { name: "Create Meeting" });
+    await expect(create).toBeVisible();
+    await create.click();
+    await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(overflow).toBe(false);
+  });
+
   test("redundant Join Us and Event Consent Refresh controls are absent", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await page.goto("/leader/join");

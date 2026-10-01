@@ -121,7 +121,7 @@ export default function ParentAccessManagement() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
-            <LeaderPageHeader title="Parent Management" description="Search parent accounts, review child relationships, approve access and manage Parent Portal lifecycle. Matching Leader access is shown but remains independently authorised." actions={<Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button>} />
+            <LeaderPageHeader title="Parent Management" />
             {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <Alert severity="warning" sx={{ mb: 3 }}>Family relationships and matching emails never grant Parent Portal access. Only explicitly approved parent-child links are authoritative for Parent access.</Alert>

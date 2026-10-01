@@ -12,15 +12,31 @@ test("SW-132 removes representative generic refresh controls while preserving sc
     read("src/pages/LeaderRequests.tsx"),
     read("src/pages/MemberManagement.tsx"),
     read("src/pages/EventsManagement.tsx"),
-    read("src/pages/ConsentManagement.tsx")
+    read("src/pages/ConsentManagement.tsx"),
+    read("src/pages/ActivityLog.tsx"),
+    read("src/pages/ParentAccessManagement.tsx"),
+    read("src/pages/EventRecordPage.tsx")
   ]);
   for (const source of files) {
     assert.doesNotMatch(source, />Refresh<\/Button>/);
     assert.doesNotMatch(source, />Reload<\/Button>/);
   }
   const members = files[2];
+  assert.doesNotMatch(files[5], /actions=\{<Button[^>]*>Refresh<\/Button>\}/);
+  assert.doesNotMatch(files[6], />Refresh<\/Button>/);
+  assert.doesNotMatch(files[7], />Refresh<\/Button>/);
   assert.match(members, /Retry loading member records/);
   assert.match(members, /onAction=\{\(\) => void load\(\)\}/);
+});
+
+test("SW-174 shared page header renders no visible title tile and keeps compact actions", async () => {
+  const header = await read("src/components/admin/LeaderPageHeader.tsx");
+  assert.match(header, /position: "absolute"/);
+  assert.match(header, /data-testid="leader-page-actions"/);
+  assert.doesNotMatch(header, /<Paper/);
+  assert.doesNotMatch(header, /description\}/);
+  const weekly = await read("src/pages/WeeklySectionTracker.tsx");
+  assert.match(weekly, />Create Meeting<\/Button>/);
 });
 
 test("SW-146 keeps operational headers compact and retains meaningful safety guidance", async () => {
