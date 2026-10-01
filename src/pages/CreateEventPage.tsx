@@ -127,8 +127,8 @@ export default function CreateEventPage() {
         <Stack spacing={2.25}>
           <TextField required label="Event title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <FormControl fullWidth><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-            <FormControl fullWidth><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth><InputLabel id="event-type-label">Event type</InputLabel><Select labelId="event-type-label" id="event-type" label="Event type" value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth><InputLabel id="event-section-label">Section</InputLabel><Select labelId="event-section-label" id="event-section" label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
           </Box>
 
           <Box>
@@ -150,7 +150,7 @@ export default function CreateEventPage() {
             <TextField label="End date" type="date" value={draft.endDate} onChange={(event) => setDraft({ ...draft, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
           </Box>
           <TextField label="Location" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} />
-          <FormControl fullWidth><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as EventInput["status"] })}>{EVENT_STATUSES.filter((value) => value === "draft" || value === "open").map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
+          <FormControl fullWidth><InputLabel id="event-status-label">Status</InputLabel><Select labelId="event-status-label" id="event-status" label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as EventInput["status"] })}>{EVENT_STATUSES.filter((value) => value === "draft" || value === "open").map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
           <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(event) => setDraft({ ...draft, consentRequired: event.target.checked })} />} label="Event consent required" />
           <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(event) => setDraft({ ...draft, meetingPoint: event.target.value })} />
           <TextField label="Return / collection details" value={draft.returnDetails} onChange={(event) => setDraft({ ...draft, returnDetails: event.target.value })} />
