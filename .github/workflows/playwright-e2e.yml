@@ -27,6 +27,9 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
       options: --user 1001
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     env:
       VITE_APP_ENV: local
       VITE_FIREBASE_API_KEY: demo-api-key
