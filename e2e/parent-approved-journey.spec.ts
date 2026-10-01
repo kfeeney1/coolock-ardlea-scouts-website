@@ -142,10 +142,12 @@ test("approved parent can sign out globally and must authenticate again", async 
   if (testInfo.project.name === "mobile-chromium") {
     const mobileMenuButton = page.getByRole("button", { name: "Open navigation menu" });
     await mobileMenuButton.click();
-    // Header uses useBackDismiss before mounting the MUI menu. Wait for that
-    // committed open state rather than assuming the click immediately creates menuitems.
-    await expect(mobileMenuButton).toHaveAttribute("aria-expanded", "true");
-    const mobileSignOut = page.getByRole("menuitem", { name: "Sign Out", exact: true });
+    // Header gates the MUI Menu through useBackDismiss. The trigger can leave the
+    // accessibility tree once focus moves into the portal, so synchronize on the
+    // mounted menu rather than re-reading the trigger after the click.
+    const mobileMenu = page.getByRole("menu");
+    await expect(mobileMenu).toBeVisible();
+    const mobileSignOut = mobileMenu.getByRole("menuitem", { name: "Sign Out", exact: true });
     await expect(mobileSignOut).toBeVisible();
     await mobileSignOut.click();
   } else {
