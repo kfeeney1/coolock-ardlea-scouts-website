@@ -108,14 +108,19 @@ service cloud.firestore {
     // Keeping this helper to section-overlap checks avoids repeatedly expanding the
     // authentication/profile predicates and hitting Firestore's expression limit.
     function canAccessMemberSections(data) {
-      return (data.keys().hasAny(["section"]) && hasSection(data.section))
+      return profile().role in ["super-admin", "admin"]
+        || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
         || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     function isYouthSection(section) {
       return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
     }
+    // Call only after isActiveLeader() has been established by the enclosing rule.
+    // Source authority is sufficient for a youth-section transfer; destination
+    // authority is deliberately not required and no profile permissions are changed.
     function canTransferMember(fromSection, toSection) {
-      return isActiveLeader() && hasSection(fromSection) && isYouthSection(fromSection) && isYouthSection(toSection);
+      return (profile().role in ["super-admin", "admin"] || profileHasSection(fromSection))
+        && isYouthSection(fromSection) && isYouthSection(toSection);
     }
     function canAccessFinanceSection(section) {
       return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
@@ -414,8 +419,8 @@ service cloud.firestore {
         && request.resource.data.toStatus in ["active", "inactive", "left"]
         && request.resource.data.changedBy == request.auth.uid
         && request.resource.data.changedAt == request.time
-        && hasSection(request.resource.data.fromSection)
-        && (hasSection(request.resource.data.toSection) || canTransferMember(request.resource.data.fromSection, request.resource.data.toSection))
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(request.resource.data.fromSection))
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(request.resource.data.toSection) || canTransferMember(request.resource.data.fromSection, request.resource.data.toSection))
         && request.resource.data.keys().hasOnly(["memberId", "memberName", "changeType", "fromSection", "toSection", "fromStatus", "toStatus", "changedBy", "changedAt"]);
       allow update, delete: if false;
     }

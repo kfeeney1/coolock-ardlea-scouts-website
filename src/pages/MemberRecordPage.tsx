@@ -116,7 +116,19 @@ export default function MemberRecordPage() {
       });
       const persistedMembers = await loadMembers();
       const updated = persistedMembers.find((item) => item.id === member.id);
-      if (!updated) throw new Error("Updated member could not be reloaded.");
+      if (!updated) {
+        // A source-section leader legitimately loses visibility after transferring
+        // the member wholly out of their assigned section. updateMember only
+        // resolves after Firestore confirms the authoritative write/history batch.
+        setMembers(persistedMembers);
+        setMember(null);
+        setDraft(null);
+        setHistory([]);
+        setConsents([]);
+        setLifecycleCandidates([]);
+        setMessage("Member transferred successfully. The member is now outside your assigned sections.");
+        return;
+      }
       setMember(updated);
       setDraft(updated);
       setMembers(persistedMembers);
