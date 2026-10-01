@@ -19,7 +19,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
-import { loadConsentAdminRecords } from "../services/consentAdmin";
+import { loadConsentAdminRecord, loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
 import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
@@ -44,9 +44,8 @@ export default function ConsentRecordPage() {
     const load = async () => {
       setLoading(true); setError("");
       try {
-        const records = await loadConsentAdminRecords();
+        const found = consentId ? await loadConsentAdminRecord(consentId) : null;
         if (cancelled) return;
-        const found = records.find((item) => item.id === consentId) ?? null;
         setRecord(found);
         if (!found) setError("This consent record could not be found or is outside your permitted sections.");
       } catch (loadError) {
