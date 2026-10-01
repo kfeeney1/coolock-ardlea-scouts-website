@@ -12,6 +12,7 @@ import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSk
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
+import { backDismissStack } from "../services/backDismissHistory";
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
@@ -114,13 +115,22 @@ export default function ParentPortal() {
     const commitChildSelectionAfterClose = () => {
         const childId = pendingChildIdRef.current;
         if (!childId) return;
-        pendingChildIdRef.current = null;
-        setPendingChildId(null);
-        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        const commitWhenOverlayIsGone = () => {
+            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
+            const hasPendingOverlayMarker = backDismissStack(routerState).some((marker) => marker.startsWith("transient-overlay:"));
+            const hasVisibleListbox = Array.from(document.querySelectorAll<HTMLElement>('[role="listbox"]'))
+                .some((listbox) => listbox.getClientRects().length > 0 && listbox.getAttribute("aria-hidden") !== "true");
+            if (hasPendingOverlayMarker || hasVisibleListbox) {
+                window.requestAnimationFrame(commitWhenOverlayIsGone);
+                return;
+            }
+            pendingChildIdRef.current = null;
+            setPendingChildId(null);
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
-            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash });
-        }));
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { state: routerState });
+        };
+        window.requestAnimationFrame(commitWhenOverlayIsGone);
     };
 
     useEffect(() => {
