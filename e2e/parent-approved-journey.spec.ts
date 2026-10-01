@@ -43,8 +43,12 @@ test.describe("approved parent journey", () => {
     expect(firstChildId).toBeTruthy();
     await expect(page).toHaveURL(new RegExp(`child=${firstChildId}`));
     await childSelect.click();
-    await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
+    const secondChildOption = page.getByRole("option", { name: /Morgan Kavanagh/ });
+    const secondChildId = await secondChildOption.getAttribute("data-value");
+    expect(secondChildId).toBeTruthy();
+    await secondChildOption.click();
     await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+    await expect(page).toHaveURL(new RegExp(`child=${secondChildId}`));
 
     const summary = page.getByTestId("parent-things-to-do");
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
