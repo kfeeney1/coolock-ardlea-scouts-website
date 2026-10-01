@@ -62,6 +62,7 @@
     "/leader/members/:memberId": "leader",
     "/leader/member-history": "leader-redirect",
     "/leader/events": "leader",
+    "/leader/events/create": "leader",
     "/leader/events/:eventId": "leader",
     "/leader/event-consent": "leader",
     "/leader/policies": "leader",
