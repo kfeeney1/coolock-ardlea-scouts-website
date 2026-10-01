@@ -102,8 +102,10 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await resolve.getByRole("button", { name: "Confirm resolution" }).click();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(firstName)}`)).toHaveCount(0);
   await page.goto(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
+  await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`).getByText("Reported", { exact: true })).toBeVisible();
   await page.reload();
+  await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`).getByText("Reported", { exact: true })).toBeVisible();
   await page.goto(`/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
 
