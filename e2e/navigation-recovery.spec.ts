@@ -17,18 +17,20 @@ async function login(page: Page, account: Credentials) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-async function openMenu(page: Page, testInfo: TestInfo) {
-  const header = page.getByTestId("leader-dashboard-header");
-  const button = header.locator('button[aria-controls="leader-navigation"]');
-  const navigation = projectNavigation(page, testInfo);
+async function openMenu(page: Page) {
+  const button = page.getByRole("button", { name: /(Open Leader Menu|Menu ·|Hide Leader Menu)/ });
   await expect(button).toBeVisible();
-  if (!(await navigation.isVisible())) await button.click();
-  await expect(button).toHaveAttribute("aria-expanded", "true");
+  const navigation = page.getByRole("navigation", { name: "Leader navigation" });
+  if (!(await navigation.isVisible().catch(() => false))) {
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+  }
   await expect(navigation).toBeVisible();
 }
 
 async function exposeGroup(page: Page, testInfo: TestInfo, group: string) {
-  await openMenu(page, testInfo);
+  await openMenu(page);
   const navigation = projectNavigation(page, testInfo);
   const button = navigation.getByRole("button", { name: group, exact: true });
   if (testInfo.project.name === "mobile-chromium" && (await button.getAttribute("aria-expanded")) !== "true") {
@@ -58,7 +60,7 @@ function projectNavigation(page: Page, testInfo: TestInfo) {
 }
 
 async function exposeQuartermaster(page: Page, testInfo: TestInfo) {
-  await openMenu(page, testInfo);
+  await openMenu(page);
   const navigation = projectNavigation(page, testInfo);
   await expect(navigation).toBeVisible();
   const quartermaster = navigation.getByRole("button", { name: "Quartermaster / Bo’sun" });
@@ -95,7 +97,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Treasurer Reports remains distinct from QM Reports", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     const navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
     if ((await navigation.getByRole("button", { name: "Treasurer" }).count()) > 0) {
@@ -121,7 +123,7 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-qm-settings")).toBeVisible();
     await expect(page.getByTestId("page-treasurer-settings")).toHaveCount(0);
 
-    await openMenu(page, testInfo);
+    await openMenu(page);
     navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
     if ((await navigation.getByRole("button", { name: "Treasurer" }).count()) > 0) {
@@ -132,7 +134,7 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-treasurer-settings")).toBeVisible();
     await expect(page.getByTestId("page-qm-settings")).toHaveCount(0);
 
-    await openMenu(page, testInfo);
+    await openMenu(page);
     navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
     if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) {
@@ -152,7 +154,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Group Operations Subs remains distinct from Family Billing", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
     await expect(navigation).toBeVisible();
     if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) {
@@ -198,7 +200,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Insights Reports & Exports remains distinct from Treasurer Reports", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
     if ((await navigation.getByRole("button", { name: "Insights & Records" }).count()) > 0) await navigation.getByRole("button", { name: "Insights & Records" }).click();
     await navigation.getByTestId("leader-nav-reports-exports").click();
@@ -214,7 +216,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Administration Settings remains distinct from Treasurer and QM Settings", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
     if ((await navigation.getByRole("button", { name: "Administration" }).count()) > 0) await navigation.getByRole("button", { name: "Administration" }).click();
     await navigation.getByTestId("leader-nav-settings").click();
@@ -232,7 +234,7 @@ test.describe("SW-178 canonical role navigation", () => {
 
   test("Treasurer and Group Operations Floats retain distinct navigation identity", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     let navigation = projectNavigation(page, testInfo);
     if ((await navigation.getByRole("button", { name: "Group Operations" }).count()) > 0) await navigation.getByRole("button", { name: "Group Operations" }).click();
     await navigation.getByTestId("leader-nav-group-section-floats").click();
@@ -249,9 +251,9 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-treasurer-floats")).toBeVisible();
   });
 
-  test("ordinary leader is not shown officer-specific navigation", async ({ page }, testInfo) => {
+  test("ordinary leader is not shown officer-specific navigation", async ({ page }) => {
     await login(page, credentials("E2E_LEADER"));
-    await openMenu(page, testInfo);
+    await openMenu(page);
     await expect(page.getByTestId("leader-nav-qm-equipment-stores")).toHaveCount(0);
     await expect(page.getByTestId("leader-nav-qm-reports")).toHaveCount(0);
     await expect(page.getByTestId("leader-nav-secretary-reports")).toHaveCount(0);
