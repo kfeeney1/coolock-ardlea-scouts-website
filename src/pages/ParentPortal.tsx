@@ -118,9 +118,7 @@ export default function ParentPortal() {
         const commitWhenOverlayIsGone = () => {
             const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
             const hasPendingOverlayMarker = backDismissStack(routerState).some((marker) => marker.startsWith("transient-overlay:"));
-            const hasVisibleListbox = Array.from(document.querySelectorAll<HTMLElement>('[role="listbox"]'))
-                .some((listbox) => listbox.getClientRects().length > 0 && listbox.getAttribute("aria-hidden") !== "true");
-            if (hasPendingOverlayMarker || hasVisibleListbox) {
+            if (hasPendingOverlayMarker) {
                 window.requestAnimationFrame(commitWhenOverlayIsGone);
                 return;
             }
