@@ -104,6 +104,13 @@ export default function ParentPortal() {
         navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true });
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
+    useEffect(() => {
+        if (!location.hash || !account || account.status !== "approved") return;
+        const targetId = decodeURIComponent(location.hash.slice(1));
+        const timer = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+        return () => window.clearTimeout(timer);
+    }, [location.hash, account, linkedChildren]);
+
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
         if (!mobileNumber.trim()) return "Your mobile number is required.";
