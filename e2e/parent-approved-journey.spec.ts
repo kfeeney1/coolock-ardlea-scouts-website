@@ -103,6 +103,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByRole("link", { name: "Back to Parent Portal" })).toHaveCount(0);
   });
 
+
   test("parent gallery area fails closed when no gallery access is projected", async ({ page }) => {
     await loginParent(page);
 
@@ -138,4 +139,41 @@ test("approved parent can sign out globally and must authenticate again", async 
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
+});
+
+test.describe("Parent Portal navigation on desktop and mobile", () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent navigation runs on desktop Chromium and Pixel 7 Chromium.");
+    test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+    await loginParent(page);
+  });
+
+  test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
+    const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
+    await expect(childSelect).toBeVisible();
+    const firstChild = (await childSelect.getAttribute("data-value")) || "";
+    expect(firstChild).not.toBe("");
+    await expect(page.getByText(/^Viewing /)).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" })).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
+
+    await page.getByRole("link", { name: "Consent & Medical" }).click();
+    await expect(page).toHaveURL(/#parent-medical-consent$/);
+    await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeInViewport();
+    await page.goBack();
+    await expect(page).toHaveURL(/#parent-adventure-skills$/);
+    await expect(childSelect).toHaveAttribute("data-value", firstChild);
+
+    await childSelect.click();
+    const options = page.getByRole("option");
+    await expect(options).toHaveCount(2);
+    const secondChild = await options.nth(1).getAttribute("data-value");
+    await options.nth(1).click();
+    await expect(page).toHaveURL(new RegExp(`child=${secondChild}`));
+    await expect(page.getByText(/^Viewing /)).toContainText("Morgan Kavanagh");
+
+    await page.goto(`/parent?child=UNLINKED_MEMBER#parent-event-consent`);
+    await expect(childSelect).toHaveAttribute("data-value", firstChild);
+    await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-event-consent$`));
+    await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
+  });
 });

@@ -25,6 +25,7 @@ const member = (id: string): ParentLinkedMember => ({
     id,
     displayName: id,
     section: "Cubs",
+    sections: ["Cubs"],
     dateOfBirth: "2015-01-01"
 });
 

@@ -12,6 +12,7 @@ import {
 import type { Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import type { MedicationManagementData, YouthConsentData, YouthScoutSection } from "./consentApplications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
 
@@ -58,6 +59,7 @@ export type ParentLinkedMember = {
     id: string;
     displayName: string;
     section: string;
+    sections: string[];
     dateOfBirth: string;
 };
 
@@ -196,7 +198,8 @@ export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLink
         const section = stringValue(data, "section");
         const dateOfBirth = stringValue(data, "dateOfBirth");
         if (!displayName || !section || !dateOfBirth) continue;
-        results.push({ id: snapshot.id, displayName, section, dateOfBirth });
+        const sections = canonicalMemberSections(data.sections, section);
+        results.push({ id: snapshot.id, displayName, section, sections, dateOfBirth });
     }
     return results;
 }

@@ -14,6 +14,34 @@ async function loginAdmin(page: Page) {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+
+test("active Member Management is surname-first across All Sections, filters and search", async ({ page }, testInfo) => {
+    test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Surname ordering runs on desktop Chromium and Pixel 7 Chromium.");
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/members");
+
+    const readNames = async () => page.locator("[data-testid^='member-card-'] h5").allTextContents();
+    const allNames = await readNames();
+    expect(allNames.length).toBeGreaterThan(1);
+    const normalized = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IE");
+    const surnames = allNames.map((name) => normalized(name).split(" ").at(-1) || "");
+    expect(surnames).toEqual([...surnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+
+    await page.getByRole("combobox", { name: "Section" }).click();
+    await page.getByRole("option", { name: "Beavers", exact: true }).click();
+    const sectionNames = await readNames();
+    expect(sectionNames.length).toBeGreaterThan(0);
+    const sectionSurnames = sectionNames.map((name) => normalized(name).split(" ").at(-1) || "");
+    expect(sectionSurnames).toEqual([...sectionSurnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+
+    const search = page.getByRole("textbox", { name: "Search members" });
+    await search.fill(sectionNames[0].split(" ").at(-1) || "");
+    const searchedNames = await readNames();
+    const searchedSurnames = searchedNames.map((name) => normalized(name).split(" ").at(-1) || "");
+    expect(searchedSurnames).toEqual([...searchedSurnames].sort((a, b) => a.localeCompare(b, "en-IE", { sensitivity: "base" })));
+});
+
 test("member status tiles filter and jump to member results", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
