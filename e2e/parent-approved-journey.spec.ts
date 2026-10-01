@@ -163,6 +163,8 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
     await expect(badgeworkLink).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
 
+    await badgeworkLink.click();
+    await expect(page).toHaveURL(/#parent-adventure-skills$/);
     await page.getByRole("link", { name: "Consent & Medical" }).click();
     await expect(page).toHaveURL(/#parent-medical-consent$/);
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeInViewport();

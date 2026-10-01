@@ -103,7 +103,7 @@ export default function ParentPortal() {
         if (!selectedChild || requestedChildId === selectedChild.id) return;
         const next = new URLSearchParams(searchParams);
         next.set("child", selectedChild.id);
-        navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true });
+        navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true, state: location.state });
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
     const rememberChildSelection = (childId: string) => {
