@@ -43,8 +43,12 @@ test.describe("approved parent journey", () => {
     expect(firstChildId).toBeTruthy();
     await expect(page).toHaveURL(new RegExp(`child=${firstChildId}`));
     await childSelect.click();
-    await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
+    const secondChildOption = page.getByRole("option", { name: /Morgan Kavanagh/ });
+    const secondChildId = await secondChildOption.getAttribute("data-value");
+    expect(secondChildId).toBeTruthy();
+    await secondChildOption.click();
     await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+    await expect(page).toHaveURL(new RegExp(`child=${secondChildId}`));
 
     const summary = page.getByTestId("parent-things-to-do");
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
@@ -136,8 +140,14 @@ test("approved parent can sign out globally and must authenticate again", async 
   await loginParent(page);
   const desktopSignOut = page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
   if (testInfo.project.name === "mobile-chromium") {
-    await page.getByRole("button", { name: "Open navigation menu" }).click();
-    const mobileSignOut = page.getByRole("menuitem", { name: "Sign Out", exact: true });
+    const mobileMenuButton = page.getByRole("button", { name: "Open navigation menu" });
+    await mobileMenuButton.click();
+    // Header gates the MUI Menu through useBackDismiss. The trigger can leave the
+    // accessibility tree once focus moves into the portal, so synchronize on the
+    // mounted menu rather than re-reading the trigger after the click.
+    const mobileMenu = page.getByRole("menu");
+    await expect(mobileMenu).toBeVisible();
+    const mobileSignOut = mobileMenu.getByRole("menuitem", { name: "Sign Out", exact: true });
     await expect(mobileSignOut).toBeVisible();
     await mobileSignOut.click();
   } else {

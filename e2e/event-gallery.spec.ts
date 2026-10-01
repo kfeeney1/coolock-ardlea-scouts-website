@@ -75,6 +75,9 @@ test("leader opens the gallery from the full event record", async ({ page }, tes
     await expect(dialog.getByText("Leader-only gallery. Parent access remains disabled until explicit photo-sharing consent is available.", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Choose gallery photos")).toHaveAttribute("multiple", "");
     await expect(page.getByLabel("Take gallery photo")).toHaveAttribute("capture", "environment");
+    // Close only after the initial gallery refresh has settled. Closing while the
+    // asynchronous refresh is completing can race the dialog state transition.
+    await expect(dialog.getByRole("status")).toHaveCount(0);
     const closeButton = dialog.getByRole("button", { name: "Close", exact: true });
     await expect(closeButton).toBeEnabled();
     await closeButton.click();
