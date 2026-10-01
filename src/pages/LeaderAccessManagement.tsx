@@ -174,8 +174,9 @@ export default function LeaderAccessManagement() {
     });
   };
   const appointmentScope = (record: LeaderAccessRecord) => record.sections.find((section) => section !== "Group") || record.sections[0] || "Group";
+  const assignmentScope = (record: LeaderAccessRecord, appointment: string) => isGroupScopedAppointment(appointment) ? "Group" : appointmentScope(record);
   const toggleAppointment = (record: LeaderAccessRecord, appointment: string) => {
-    const scope = isGroupScopedAppointment(appointment) ? "Group" : appointmentScope(record);
+    const scope = assignmentScope(record, appointment);
     const existing = record.appointments.find((item) => item.appointment === appointment && item.scope === scope);
     const appointments = existing
       ? record.appointments.filter((item) => item.id !== existing.id)
@@ -225,10 +226,10 @@ export default function LeaderAccessManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <Box sx={{ gridColumn: { md: "span 1" } }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700 }}>Scouting appointments</Typography>
-            <Typography variant="caption" color="text.secondary">Active Leaders include the Programme Scouter baseline. Appointment scope follows the leader&apos;s Account sections.</Typography>
+            <Typography variant="caption" color="text.secondary">Active Leaders include the Programme Scouter baseline. Appointments may be held by multiple leaders; Group appointments use Group scope and section appointments follow the leader&apos;s Account sections.</Typography>
             <Stack role="group" aria-label={`Scouting appointments for ${record.displayName}`} sx={{ mt: 1, maxHeight: 260, overflowY: "auto" }}>
               {CANONICAL_SCOUTING_APPOINTMENTS.filter((appointment) => appointmentsActorMayAssign(actor).includes(appointment) || record.appointments.some((item) => item.appointment === appointment)).map((appointment) => {
-                const selected = record.appointments.some((item) => item.appointment === appointment && item.scope === appointmentScope(record));
+                const selected = record.appointments.some((item) => item.appointment === appointment && item.scope === assignmentScope(record, appointment));
                 return <FormControlLabel key={appointment} control={<Checkbox checked={selected} disabled={record.role !== "leader" || record.uid === actor.uid} onChange={() => toggleAppointment(record, appointment)} />} label={appointment} />;
               })}
             </Stack>
