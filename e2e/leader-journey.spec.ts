@@ -46,6 +46,12 @@ test.describe("leader journey", () => {
     await leaderRequestsMenuLink.click();
     await expect(page).toHaveURL(/\/leader\/requests$/);
     await expect(page.getByRole("heading", { name: "Leader Requests" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Leader Access", exact: true })).toHaveCount(0);
+
+    await openLeaderMenu(page);
+    const administration = page.getByTestId("leader-navigation-desktop");
+    await expect(administration.getByRole("link", { name: "Leader Access", exact: true })).toHaveAttribute("href", "/leader/access");
+    await page.keyboard.press("Escape");
 
     if (seededJourneyData) {
       await expect(page.getByText("Pending Scouter")).toBeVisible();
@@ -100,6 +106,7 @@ test.describe("leader journey", () => {
     await login(page, adminEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await page.goto("/leader/requests");
+    await expect(page.getByRole("link", { name: "Leader Access", exact: true })).toHaveCount(0);
     await page.getByLabel("Search requests").fill("Approved Section Leader");
 
     const tile = page.getByRole("button", { name: "Open Leader Access for Approved Section Leader" });
