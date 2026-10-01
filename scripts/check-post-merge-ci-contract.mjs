@@ -23,7 +23,7 @@ for (const [name, text] of [["Quality", quality], ["Playwright E2E", e2e], ["Fir
 
 requireMatch(quality, /jobs:\s*\n\s*quality:/m, "Quality must publish the quality job/check.");
 requireMatch(e2e, /^  e2e:\s*$/m, "Playwright E2E must publish the e2e job/check.");
-requireMatch(e2e, /e2e_shard:[\s\S]*shard:\s*1\/2[\s\S]*shard:\s*2\/2/m, "Playwright E2E must retain two isolated execution shards.");
+requireMatch(e2e, /e2e_shard:[\s\S]*shard:\s*1\/3[\s\S]*shard:\s*2\/3[\s\S]*shard:\s*3\/3/m, "Playwright E2E must retain three isolated execution shards.");
 requireMatch(e2e, /e2e:\s*\n\s*if:[\s\S]*needs:\s*e2e_shard/m, "The protected e2e check must aggregate the Playwright shards.");
 requireMatch(e2e, /test:e2e:full -- --shard/, "Full main E2E must execute through the shard-aware full-suite command.");
 requireMatch(e2e, /test:e2e:pr -- --base[\s\S]*--shard/, "PR E2E must preserve affected-suite selection inside each shard.");
