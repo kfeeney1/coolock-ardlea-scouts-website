@@ -331,8 +331,10 @@ test.describe("SW-178 canonical role navigation", () => {
   test("SW-174 Weekly Meetings has no visible title tile and keeps Create Meeting usable without overflow", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await page.goto("/leader/weekly");
+    // Keep the semantic h1 for accessibility; SW-174 removes the redundant visual title card/introduction.
     await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeAttached();
-    await expect(page.getByRole("heading", { name: "Weekly Meetings" })).not.toBeVisible();
+    await expect(page.getByTestId("leader-page-actions")).toHaveCount(0);
+    await expect(page.getByText("Manage weekly meetings", { exact: false })).toHaveCount(0);
     const create = page.getByRole("link", { name: "Create Meeting" });
     await expect(create).toBeVisible();
     await create.click();
