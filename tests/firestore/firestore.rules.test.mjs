@@ -16,6 +16,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
@@ -142,24 +143,74 @@ test("member lifecycle history is append-only and section scoped", async () => {
   await assertFails(updateDoc(historyRef, { toStatus: "left" }));
 });
 
-test("leaders cannot create transfer history into an unassigned section", async () => {
+test("SW-155 source-section leaders can transfer without destination access and do not gain it", async () => {
   await seedDocuments([
+    ["adminUsers/leader-beavers", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
-    ["members/member-cub", { section: "Cubs", displayName: "Test Cub", status: "active" }],
+    ["adminUsers/leader-scouts", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/leader-ventures", { active: true, role: "leader", sections: ["Ventures"] }],
+    ["adminUsers/leader-rovers", { active: true, role: "leader", sections: ["Rovers"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["members/member-beaver", { section: "Beavers", sections: ["Beavers"], displayName: "Test Beaver", status: "active" }],
+    ["members/member-scout", { section: "Scouts", sections: ["Scouts"], displayName: "Test Scout", status: "active" }],
+    ["members/member-rover", { section: "Rovers", sections: ["Rovers"], displayName: "Test Rover", status: "active" }],
   ]);
-  const db = testEnv.authenticatedContext("leader-cubs", { email: "leader@example.com" }).firestore();
 
-  await assertFails(setDoc(doc(db, "memberHistory/history-2"), {
-    memberId: "member-cub",
-    memberName: "Test Cub",
-    changeType: "section-transfer",
-    fromSection: "Cubs",
-    toSection: "Scouts",
-    fromStatus: "active",
-    toStatus: "active",
-    changedBy: "leader-cubs",
-    changedAt: serverTimestamp(),
+  const transfer = async (uid, memberId, fromSection, toSection, historyId) => {
+    const db = testEnv.authenticatedContext(uid, { email: `${uid}@example.com` }).firestore();
+    const batch = writeBatch(db);
+    batch.update(doc(db, `members/${memberId}`), {
+      section: toSection,
+      sections: [toSection],
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    });
+    batch.set(doc(db, `memberHistory/${historyId}`), {
+      memberId,
+      memberName: memberId,
+      changeType: "section-transfer",
+      fromSection,
+      toSection,
+      fromStatus: "active",
+      toStatus: "active",
+      changedBy: uid,
+      changedAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+    return db;
+  };
+
+  const beaverDb = await transfer("leader-beavers", "member-beaver", "Beavers", "Cubs", "history-beaver-cub");
+  await assertFails(getDoc(doc(beaverDb, "members/member-beaver")));
+  await assertFails(getDoc(doc(beaverDb, "members/member-scout")));
+  const cubDb = testEnv.authenticatedContext("leader-cubs", { email: "cubs@example.com" }).firestore();
+  const movedBeaver = await assertSucceeds(getDoc(doc(cubDb, "members/member-beaver")));
+  assert.equal(movedBeaver.data().section, "Cubs");
+  assert.deepEqual(movedBeaver.data().sections, ["Cubs"]);
+
+  await transfer("leader-scouts", "member-scout", "Scouts", "Ventures", "history-scout-venture");
+  const ventureDb = testEnv.authenticatedContext("leader-ventures", { email: "ventures@example.com" }).firestore();
+  assert.equal((await assertSucceeds(getDoc(doc(ventureDb, "members/member-scout")))).data().section, "Ventures");
+
+  const roverDb = testEnv.authenticatedContext("leader-beavers", { email: "beavers@example.com" }).firestore();
+  await assertFails(updateDoc(doc(roverDb, "members/member-rover"), {
+    section: "Cubs", sections: ["Cubs"], updatedAt: serverTimestamp(), updatedBy: "leader-beavers",
   }));
+
+  for (const uid of ["admin-1", "super-1"]) {
+    await seedDocuments([["members/member-admin-transfer", { section: "Beavers", sections: ["Beavers"], displayName: "Admin Transfer", status: "active" }]]);
+    await transfer(uid, "member-admin-transfer", "Beavers", "Cubs", `history-${uid}`);
+  }
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    const history = await getDoc(doc(db, "memberHistory/history-beaver-cub"));
+    assert.equal(history.data().changedBy, "leader-beavers");
+    assert.equal(history.data().fromSection, "Beavers");
+    assert.equal(history.data().toSection, "Cubs");
+    assert.ok(history.data().changedAt);
+  });
 });
 
 test("admins can list parent accounts", async () => {
