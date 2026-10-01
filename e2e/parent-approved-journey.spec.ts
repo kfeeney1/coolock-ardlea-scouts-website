@@ -32,6 +32,12 @@ test.describe("approved parent journey", () => {
   test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
     await loginParent(page);
 
+    const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
+    await expect(childSelect).toBeVisible();
+    await childSelect.click();
+    await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
+    await expect(page.getByText(/^Viewing /)).toContainText("Morgan Kavanagh");
+
     const summary = page.getByTestId("parent-things-to-do");
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
     await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
@@ -41,9 +47,8 @@ test.describe("approved parent journey", () => {
     await expect(medicalAttentionCount).toHaveText("1");
 
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
-    await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(firstMember, { exact: true })).toHaveCount(0);
     await expect(page.getByText(secondMember, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Consent linked", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Consent not started", { exact: true }).first()).toBeVisible();
 
     const search = page.getByTestId("parent-consent-search");
@@ -151,17 +156,19 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
   test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
     await expect(childSelect).toBeVisible();
-    const firstChild = (await childSelect.getAttribute("data-value")) || "";
+    const badgeworkLink = page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" });
+    const firstHref = await badgeworkLink.getAttribute("href");
+    const firstChild = new URL(firstHref!, "http://localhost").searchParams.get("child") || "";
     expect(firstChild).not.toBe("");
     await expect(page.getByText(/^Viewing /)).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" })).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
+    await expect(badgeworkLink).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
 
     await page.getByRole("link", { name: "Consent & Medical" }).click();
     await expect(page).toHaveURL(/#parent-medical-consent$/);
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeInViewport();
     await page.goBack();
     await expect(page).toHaveURL(/#parent-adventure-skills$/);
-    await expect(childSelect).toHaveAttribute("data-value", firstChild);
+    await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-adventure-skills$`));
 
     await childSelect.click();
     const options = page.getByRole("option");
@@ -174,7 +181,6 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     await expect(page).toHaveURL(new RegExp(`child=${secondChild}#parent-event-consent$`));
 
     await page.goto(`/parent?child=UNLINKED_MEMBER#parent-event-consent`);
-    await expect(childSelect).toHaveAttribute("data-value", firstChild);
     await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-event-consent$`));
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
   });

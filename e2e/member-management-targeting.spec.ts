@@ -21,7 +21,9 @@ test("active Member Management is surname-first across All Sections, filters and
     await loginAdmin(page);
     await page.goto("/leader/members");
 
-    const readNames = async () => page.locator("[data-testid^='member-card-']").evaluateAll((cards) => cards.map((card) => {
+    const cards = page.locator("[data-testid^='member-card-']");
+    await expect(cards.first()).toBeVisible();
+    const readNames = async () => cards.evaluateAll((items) => items.map((card) => {
         const memberName = Array.from(card.querySelectorAll("p"))
             .map((paragraph) => paragraph.textContent?.trim() || "")
             .find((text) => text.startsWith("Member name:"))
