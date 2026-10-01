@@ -148,7 +148,7 @@ export default function EventRecordPage() {
                 <LeaderPageHeader
                     title={event.title}
                     description={`${event.section} · ${event.eventType} · ${eventStatusLabel(event.status)}`}
-                    actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button variant="outlined" onClick={() => navigate("/leader/events")}>Back to Events</Button><Button variant="outlined" color="secondary" onClick={() => void load()}>Refresh</Button></Stack>}
+                    actions={<Button variant="outlined" onClick={() => navigate("/leader/events")}>Back to Events</Button>}
                 />
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
