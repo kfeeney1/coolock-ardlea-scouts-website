@@ -70,6 +70,7 @@ function hasScouterMedicalAlert(data: DocumentData): boolean {
 
 function mapConsent(snapshot: DocumentSnapshot<DocumentData>): ConsentAdminRecord | null {
     const data = snapshot.data();
+    if (!data) return null;
     const formType = stringValue(data, "formType");
     if (formType !== "youth-activity-consent" && formType !== "scouter-es3-medical-advice") return null;
 
