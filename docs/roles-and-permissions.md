@@ -14,6 +14,10 @@ System access roles and Scouting appointments are intentionally separate.
 
 Appointments do not grant Admin or Super Admin.
 
+## Appointment concurrency
+
+Scouting appointments are assignments on each leader's own `organisationLeadership/{uid}` record. The same canonical appointment may therefore be held by more than one active leader at the same time; assigning or saving one leader must not replace another leader's assignment. No appointment is currently documented as exclusive. If an exclusive appointment is introduced later, it must be an explicit business rule rather than a blanket uniqueness assumption.
+
 ## Current appointment catalogue and normalization
 
 The canonical appointment catalogue is Group Leader, Deputy Group Leader, Group Secretary, Group Treasurer, Group Quartermaster / Bo'sun, Group Chairperson, Group Youth Champion, Section Leader, Assistant Section Leader, Programme Scouter and Scouter.

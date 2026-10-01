@@ -49,7 +49,7 @@ test.describe("leader access management", () => {
     await expect(cubsSection.getByTestId("section-icon-cubs")).toBeVisible();
 
     await expect(card.getByRole("combobox", { name: "Organisation section" })).toHaveCount(0);
-    await expect(card.getByText("Appointment scope follows the leader's Account sections.")).toBeVisible();
+    await expect(card.getByText(/Appointments may be held by multiple leaders.*Account sections\./)).toBeVisible();
 
 
     const saveLeader = card.getByRole("button", { name: "Save Leader" });
@@ -98,6 +98,60 @@ test("leader access summary tiles filter and direct routes use stable IDs", asyn
   await expect(search).toHaveValue("Test Multi Section Leader");
   await page.goto("/leader/access/not-a-real-leader");
   await expect(page.getByText("Leader record not found or is not available to you.")).toBeVisible();
+});
+
+
+test("SW-248 allows two leaders to retain the same Group appointment independently", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+  await loginAdmin(page);
+
+  const sharedAppointment = "Group Treasurer";
+  const existingHolderUid = "TEST_uid_group_treasurer";
+  const secondHolderUid = "TEST_uid_multi_section_leader";
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  const existingHolder = page.getByTestId(`leader-access-${existingHolderUid}`);
+  await expect(existingHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  let secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  let secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+
+  // Retries share the emulator state. Restore this fixture if a previous attempt
+  // persisted the assignment before failing later in the journey.
+  if (await secondAppointment.isChecked()) {
+    await secondAppointment.uncheck();
+    await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+    await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+    await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
+    await page.goto(`/leader/access/${secondHolderUid}`);
+    secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+    secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+  }
+
+  await expect(secondAppointment).not.toBeChecked();
+  await secondAppointment.check();
+  await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+  await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+  await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  await expect(secondHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  await expect(page.getByTestId(`leader-access-${existingHolderUid}`).getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  await secondHolder.getByRole("checkbox", { name: sharedAppointment }).uncheck();
+  await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+  await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+  await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  await expect(page.getByTestId(`leader-access-${existingHolderUid}`).getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
 });
 
 
