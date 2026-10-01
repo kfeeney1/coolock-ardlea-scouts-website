@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const email = process.env.E2E_ADMIN_EMAIL?.trim();
 const password = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
@@ -9,6 +9,14 @@ async function signIn(page: Page) {
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page).toHaveURL(/\/leader$/);
+}
+
+async function chooseEquipmentIssueOption(page: Page, field: Locator, optionName: string) {
+  const listbox = page.getByRole("listbox");
+  await field.click();
+  await expect(listbox).toBeVisible();
+  await page.getByRole("option", { name: optionName, exact: true }).click();
+  await expect(listbox).toBeHidden();
 }
 
 test("damaged equipment issues keep independent state and dashboard tiles open their exact records", async ({ page }, testInfo) => {
@@ -51,10 +59,8 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   for (const [name, description] of [[firstName, firstDescription], [secondName, secondDescription]] as const) {
     await page.getByRole("button", { name: "Report issue" }).click();
     const report = page.getByRole("dialog", { name: "Report equipment issue" });
-    await report.getByLabel("Equipment / checkout").click();
-    await page.getByRole("option", { name: `Store · ${name} · 1 available`, exact: true }).click();
-    await report.getByLabel("Issue type").click();
-    await page.getByRole("option", { name: "Broken / damaged" }).click();
+    await chooseEquipmentIssueOption(page, report.getByLabel("Equipment / checkout"), `Store · ${name} · 1 available`);
+    await chooseEquipmentIssueOption(page, report.getByLabel("Issue type"), "Broken / damaged");
     await report.getByLabel("Quantity affected").fill("1");
     await report.getByLabel("What happened?").fill(description);
     await report.getByRole("button", { name: "Report issue" }).click();
@@ -100,13 +106,25 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   const resolve = page.getByRole("dialog", { name: "Resolve equipment issue" });
   await resolve.getByLabel("Resolution notes").fill("Repaired and checked independently.");
   await resolve.getByRole("button", { name: "Confirm resolution" }).click();
+  await expect(resolve).toBeHidden();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(firstName)}`)).toHaveCount(0);
-  await page.goto(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
+
+  // Continue through the same visible dashboard tile a leader would use. This
+  // keeps the tile-to-record assertion on the SPA path after the resolve dialog
+  // has finished closing and its history entry has been consumed.
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader$/);
+  const secondAlertAfterResolution = page.getByTestId("needs-attention-card").getByTestId(`attention-tile-equipment-incident-${incidentIds.get(secondName)}`);
+  await secondAlertAfterResolution.click();
+  await expect(page).toHaveURL(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`).getByText("Reported", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`).getByText("Reported", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader$/);
   await page.goto(`/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
 
   await page.getByRole("button", { name: "History", exact: true }).click();
