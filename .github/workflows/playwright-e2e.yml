@@ -11,7 +11,16 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
+  e2e_shard:
+    name: e2e shard ${{ matrix.id }}/2
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: 1
+            shard: 1/2
+          - id: 2
+            shard: 2/2
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -174,9 +183,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}"
+            npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --shard "${{ matrix.shard }}"
           else
-            npm run test:e2e:full
+            npm run test:e2e:full -- --shard "${{ matrix.shard }}"
           fi
 
       - name: Collect E2E service logs on failure
@@ -192,7 +201,7 @@ jobs:
         if: ${{ always() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.id }}
           path: playwright-report/
           retention-days: 14
           if-no-files-found: ignore
@@ -201,9 +210,26 @@ jobs:
         if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-test-results
+          name: playwright-test-results-shard-${{ matrix.id }}
           path: |
             test-results/
             e2e-debug/
           retention-days: 14
           if-no-files-found: ignore
+
+  # Preserve the repository-protected check name while the browser workload runs
+  # in isolated runners. Each shard owns its own emulator dataset, so this reduces
+  # wall time without introducing shared-state parallelism inside Playwright.
+  e2e:
+    if: ${{ always() }}
+    needs: e2e_shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Playwright shard
+        shell: bash
+        run: |
+          if [ "${{ needs.e2e_shard.result }}" != "success" ]; then
+            echo "::error::One or more Playwright shards failed or were cancelled."
+            exit 1
+          fi
+          echo "All Playwright shards passed."
