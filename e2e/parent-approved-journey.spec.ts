@@ -34,6 +34,10 @@ test.describe("approved parent journey", () => {
 
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
     await expect(childSelect).toBeVisible();
+    const firstChildHref = await page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" }).getAttribute("href");
+    const firstChildId = new URL(firstChildHref!, "http://localhost").searchParams.get("child");
+    expect(firstChildId).toBeTruthy();
+    await expect(page).toHaveURL(new RegExp(`child=${firstChildId}`));
     await childSelect.click();
     await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
     await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");

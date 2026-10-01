@@ -122,6 +122,15 @@ export default function ParentPortal() {
         }));
     };
 
+    useEffect(() => {
+        if (!location.hash || !account || account.status !== "approved" || linkedChildren.length === 0) return;
+        const targetId = decodeURIComponent(location.hash.slice(1));
+        const timer = window.setTimeout(() => {
+            document.getElementById(targetId)?.scrollIntoView({ behavior: "auto", block: "start" });
+        }, 80);
+        return () => window.clearTimeout(timer);
+    }, [location.hash, account, linkedChildren]);
+
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
         if (!mobileNumber.trim()) return "Your mobile number is required.";
