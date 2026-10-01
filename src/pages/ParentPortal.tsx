@@ -69,6 +69,7 @@ export default function ParentPortal() {
     const [childrenLoadError, setChildrenLoadError] = useState(false);
     const [pendingChildId, setPendingChildId] = useState<string | null>(null);
     const pendingChildIdRef = useRef<string | null>(null);
+    const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
     const loadAccount = useCallback(async () => {
@@ -125,11 +126,23 @@ export default function ParentPortal() {
     useEffect(() => {
         if (!location.hash || !account || account.status !== "approved" || linkedChildren.length === 0) return;
         const targetId = decodeURIComponent(location.hash.slice(1));
-        const timer = window.setTimeout(() => {
+        let settleTimer = 0;
+        const scrollToTarget = () => {
             document.getElementById(targetId)?.scrollIntoView({ behavior: "auto", block: "start" });
-        }, 80);
-        return () => window.clearTimeout(timer);
-    }, [location.hash, account, linkedChildren]);
+            window.clearTimeout(settleTimer);
+            settleTimer = window.setTimeout(() => observer.disconnect(), 750);
+        };
+        const observer = new ResizeObserver(scrollToTarget);
+        if (portalContentRef.current) observer.observe(portalContentRef.current);
+        const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget));
+        const timeout = window.setTimeout(() => observer.disconnect(), 4_000);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(settleTimer);
+            window.clearTimeout(timeout);
+            observer.disconnect();
+        };
+    }, [location.hash, account, linkedChildren, selectedChild?.id]);
 
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
@@ -201,7 +214,7 @@ export default function ParentPortal() {
             ["Consent & Medical", "parent-medical-consent"],
             ["Meetings & Events", "parent-event-consent"]
         ] as const;
-        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>
+        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>
             {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => rememberChildSelection(event.target.value)} onClose={commitChildSelectionAfterClose} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
             {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
             <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>
@@ -214,4 +227,3 @@ export default function ParentPortal() {
 
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}><Container maxWidth="sm"><Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to view your children’s Adventure Skills progress, upcoming events and event consent, and manage linked consent and medical information.</Typography><Alert severity="info" sx={{ mt: 2, mb: 3 }}>Parent and Leader registrations are reviewed separately. If you are both, register on each side with the same email and password; the approving administrator will confirm the shared login before granting access.</Alert>{error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}{message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}<Stack spacing={2}>{mode === "register" && <><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required /><ChildFields children={children} setChildren={setChildren} /></>}<TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /><PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} /><Button variant="contained" color="success" disabled={working} onClick={() => void submit()}>{working ? "Please wait…" : mode === "register" ? "Create Parent Account" : "Sign In"}</Button>{mode === "login" && <Button disabled={resettingPassword} onClick={() => void resetPassword()}>Forgot Password?</Button>}<Button color="secondary" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setMessage(""); }}>{mode === "login" ? "Need an account? Register" : "Already registered? Sign In"}</Button></Stack></Paper></Container></Box>;
 }
-
