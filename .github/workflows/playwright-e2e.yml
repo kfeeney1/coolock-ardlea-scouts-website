@@ -23,7 +23,13 @@ jobs:
             shard: 2/2
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --user 1001
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     env:
       VITE_APP_ENV: local
       VITE_FIREBASE_API_KEY: demo-api-key
@@ -146,22 +152,16 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright --version
 
-      - name: Isolate Playwright dependencies from unrelated Chrome apt source
+      - name: Verify preinstalled Playwright browsers launch
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          for source in /etc/apt/sources.list.d/*; do
-            [ -f "$source" ] || continue
-            if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
-          done
-
-      - name: Install Chromium and WebKit
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: |
-          for attempt in 1 2 3; do
-            if npx --no-install playwright install --with-deps chromium webkit; then exit 0; fi
-            if [ "$attempt" -lt 3 ]; then sleep 10; fi
-          done
-          exit 1
+          node --input-type=module <<'NODE'
+          import { chromium, webkit } from "@playwright/test";
+          for (const browserType of [chromium, webkit]) {
+            const browser = await browserType.launch({ headless: true });
+            await browser.close();
+          }
+          NODE
 
       - name: Start tested build
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
