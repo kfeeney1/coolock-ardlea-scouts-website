@@ -143,14 +143,14 @@ test("full-page Create Event preserves fields and audience and saves to the even
 
   const title = `TEST full-page event ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Event type").click();
+  await page.getByRole("combobox", { name: "Event type" }).click();
   await page.getByRole("option", { name: "Day Trip", exact: true }).click();
-  await page.getByLabel("Section").click();
+  await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
   await page.getByLabel("Start date").fill("2099-05-10");
   await page.getByLabel("End date").fill("2099-05-10");
   await page.getByLabel("Location").fill("TEST full-page location");
-  await page.getByLabel("Status").click();
+  await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Open", exact: true }).click();
   await page.getByLabel("Event consent required").check();
   await page.getByLabel("Meeting / departure details").fill("TEST departure");
