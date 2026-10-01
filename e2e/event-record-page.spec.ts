@@ -78,31 +78,97 @@ test("blocked event report pop-ups use in-page error feedback", async ({ page },
 });
 
 
-test("Clear resets new event creation without persisting or closing the form", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure E2E_TEST_USER_PASSWORD."); await loginAdmin(page); await page.goto("/leader/events"); await page.getByRole("button",{name:"Add Event",exact:true}).click(); const dialog=page.getByRole("dialog",{name:"Add Event"}); await dialog.getByLabel("Event title").fill("TEST clear-only event"); await dialog.getByLabel("Start date").fill("2099-04-02"); await dialog.getByLabel("Location").fill("Temporary location"); await dialog.getByRole("button",{name:"Continue",exact:true}).click(); await dialog.getByLabel("Description").fill("Temporary description"); await dialog.getByRole("button",{name:"Clear",exact:true}).click(); await expect(dialog).toBeVisible(); await expect(dialog.getByLabel("Event title")).toHaveValue(""); await expect(dialog.getByLabel("Start date")).toHaveValue(""); await expect(dialog.getByLabel("Location")).toHaveValue(""); await expect(dialog.getByText("Temporary description")).toHaveCount(0); await expect(page.getByText("Event created.")).toHaveCount(0); });
-
-test("new event Cancel exits untouched and confirms before discarding a meaningful draft", async ({ page }) => {
+test("Add Event opens the dedicated full-page editor on desktop and mobile", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events");
   await page.getByRole("button", { name: "Add Event", exact: true }).click();
-  let dialog = page.getByTestId("event-editor-dialog");
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(dialog).toBeHidden();
+
+  await expect(page).toHaveURL(/\/leader\/events\/create$/);
+  await expect(page.getByTestId("event-create-page")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create Event" })).toBeVisible();
+  await expect(page.getByTestId("event-editor-dialog")).toHaveCount(0);
+  await expect(page.getByLabel("Event title")).toBeVisible();
+  await expect(page.getByText("Event audience", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("Clear resets the full-page event form without persisting or leaving it", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+  await page.getByLabel("Event title").fill("TEST clear-only event");
+  await page.getByLabel("Start date").fill("2099-04-02");
+  await page.getByLabel("Location").fill("Temporary location");
+  await page.getByLabel("Description").fill("Temporary description");
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/leader\/events\/create$/);
+  await expect(page.getByLabel("Event title")).toHaveValue("");
+  await expect(page.getByLabel("Start date")).toHaveValue("");
+  await expect(page.getByLabel("Location")).toHaveValue("");
+  await expect(page.getByLabel("Description")).toHaveValue("");
+});
+
+test("Back and Cancel return to Events without persisting a new event", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events$/);
 
   await page.getByRole("button", { name: "Add Event", exact: true }).click();
-  dialog = page.getByTestId("event-editor-dialog");
   const title = `TEST cancelled event ${Date.now()}`;
-  await dialog.getByLabel("Event title").fill(title);
-  await dialog.getByLabel("Start date").fill("2099-04-05");
-  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Start date").fill("2099-04-05");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+
   const discard = page.getByRole("dialog", { name: "Discard this new event?" });
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(dialog.getByLabel("Event title")).toHaveValue(title);
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByLabel("Event title")).toHaveValue(title);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("dialog", { name: "Discard this new event?" }).getByRole("button", { name: "Discard and cancel" }).click();
+
+  await expect(page).toHaveURL(/\/leader\/events$/);
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Event created.")).toHaveCount(0);
+});
+
+test("full-page Create Event preserves fields and audience and saves to the event record", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+
+  const title = `TEST full-page event ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Event type").click();
+  await page.getByRole("option", { name: "Day Trip", exact: true }).click();
+  await page.getByLabel("Section").click();
+  await page.getByRole("option", { name: "Beavers", exact: true }).click();
+  await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByLabel("End date").fill("2099-05-10");
+  await page.getByLabel("Location").fill("TEST full-page location");
+  await page.getByLabel("Status").click();
+  await page.getByRole("option", { name: "Open", exact: true }).click();
+  await page.getByLabel("Event consent required").check();
+  await page.getByLabel("Meeting / departure details").fill("TEST departure");
+  await page.getByLabel("Return / collection details").fill("TEST return");
+  await page.getByLabel("Description").fill("TEST event description");
+  await page.getByLabel("Leader notes").fill("TEST leader notes");
+
+  await expect(page.getByText(/Audience: .*Beavers/)).toBeVisible();
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
+});
+
+test("direct Create Event route remains protected", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  await page.goto("/leader/events/create");
+  await expect(page).toHaveURL(/\/leader\/login/);
+  await expect(page.getByLabel("Email address")).toBeVisible();
 });
