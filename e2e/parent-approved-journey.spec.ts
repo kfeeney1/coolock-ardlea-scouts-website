@@ -170,6 +170,8 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     await options.nth(1).click();
     await expect(page).toHaveURL(new RegExp(`child=${secondChild}`));
     await expect(page.getByText(/^Viewing /)).toContainText("Morgan Kavanagh");
+    await page.getByRole("link", { name: "Meetings & Events" }).click();
+    await expect(page).toHaveURL(new RegExp(`child=${secondChild}#parent-event-consent$`));
 
     await page.goto(`/parent?child=UNLINKED_MEMBER#parent-event-consent`);
     await expect(childSelect).toHaveAttribute("data-value", firstChild);
