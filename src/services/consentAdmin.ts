@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import type {
     DocumentData,
+    DocumentSnapshot,
     QueryDocumentSnapshot,
     Timestamp
 } from "firebase/firestore";
@@ -67,7 +68,7 @@ function hasScouterMedicalAlert(data: DocumentData): boolean {
     return ["epilepsy", "diabetes", "asthma", "heartDisease", "highBloodPressure", "skinAllergies", "hearingDifficulties", "onMedication"].some((key) => yes(data, key));
 }
 
-function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): ConsentAdminRecord | null {
+function mapConsent(snapshot: DocumentSnapshot<DocumentData>): ConsentAdminRecord | null {
     const data = snapshot.data();
     const formType = stringValue(data, "formType");
     if (formType !== "youth-activity-consent" && formType !== "scouter-es3-medical-advice") return null;
@@ -113,7 +114,7 @@ export async function loadConsentAdminRecord(consentId: string): Promise<Consent
     // section-scoped while allowing a valid linked consent to survive transfers.
     const snapshot = await getDoc(doc(db, "consentApplications", consentId));
     if (!snapshot.exists()) return null;
-    return mapConsent(snapshot as QueryDocumentSnapshot<DocumentData>);
+    return mapConsent(snapshot);
 }
 
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
