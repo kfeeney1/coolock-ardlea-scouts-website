@@ -128,7 +128,7 @@ export default function CreateEventPage() {
           <TextField required label="Event title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
             <FormControl fullWidth><InputLabel>Event type</InputLabel><Select label="Event type" value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-            <FormControl fullWidth><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => updateSection(event.target.value)}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth><InputLabel>Section</InputLabel><Select label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
           </Box>
 
           <Box>
