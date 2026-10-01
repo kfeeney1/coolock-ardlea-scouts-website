@@ -162,10 +162,16 @@ jobs:
             if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
           done
 
-      # GitHub-hosted ubuntu runners already carry the shared libraries required by
-      # Playwright's Chromium/WebKit builds. Avoid playwright install-deps here:
-      # it invokes apt and has shown 20-30 minute runner/network stalls. Browser
-      # launch below is the executable dependency contract instead.
+      # Avoid playwright install-deps: its broad apt operation has shown 20-30
+      # minute runner/network stalls. The current GitHub runner image already has
+      # Chromium's runtime libraries; Playwright WebKit additionally requires the
+      # libevent 2.1 ABI. Keep this dependency narrow and verify both browsers below.
+      - name: Install WebKit runtime dependency
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libevent-2.1-7t64
+
       - name: Install Chromium and WebKit on cache miss
         if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.playwright-browser-cache.outputs.cache-hit != 'true' }}
         run: npx --no-install playwright install chromium webkit
