@@ -49,7 +49,7 @@ test.describe("leader access management", () => {
     await expect(cubsSection.getByTestId("section-icon-cubs")).toBeVisible();
 
     await expect(card.getByRole("combobox", { name: "Organisation section" })).toHaveCount(0);
-    await expect(card.getByText("Appointment scope follows the leader's Account sections.")).toBeVisible();
+    await expect(card.getByText(/Appointments may be held by multiple leaders.*Account sections\./)).toBeVisible();
 
 
     const saveLeader = card.getByRole("button", { name: "Save Leader" });
@@ -116,12 +116,25 @@ test("SW-248 allows two leaders to retain the same Group appointment independent
 
   await page.goto(`/leader/access/${secondHolderUid}`);
   let secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
-  const secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+  let secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+
+  // Retries share the emulator state. Restore this fixture if a previous attempt
+  // persisted the assignment before failing later in the journey.
+  if (await secondAppointment.isChecked()) {
+    await secondAppointment.uncheck();
+    await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+    await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+    await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
+    await page.goto(`/leader/access/${secondHolderUid}`);
+    secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+    secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+  }
+
   await expect(secondAppointment).not.toBeChecked();
   await secondAppointment.check();
   await secondHolder.getByRole("button", { name: "Save Leader" }).click();
   await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
-  await expect(page).toHaveURL(/\/leader\/access(?:\?|$)/);
+  await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
 
   await page.goto(`/leader/access/${secondHolderUid}`);
   secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
@@ -135,7 +148,7 @@ test("SW-248 allows two leaders to retain the same Group appointment independent
   await secondHolder.getByRole("checkbox", { name: sharedAppointment }).uncheck();
   await secondHolder.getByRole("button", { name: "Save Leader" }).click();
   await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
-  await expect(page).toHaveURL(/\/leader\/access(?:\?|$)/);
+  await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
 
   await page.goto(`/leader/access/${existingHolderUid}`);
   await expect(page.getByTestId(`leader-access-${existingHolderUid}`).getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
