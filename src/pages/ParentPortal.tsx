@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -67,6 +67,8 @@ export default function ParentPortal() {
     const navigate = useNavigate();
     const [linkedChildren, setLinkedChildren] = useState<ParentLinkedMember[]>([]);
     const [childrenLoadError, setChildrenLoadError] = useState(false);
+    const [pendingChildId, setPendingChildId] = useState<string | null>(null);
+    const pendingChildIdRef = useRef<string | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
     const loadAccount = useCallback(async () => {
@@ -104,12 +106,21 @@ export default function ParentPortal() {
         navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true });
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
-    useEffect(() => {
-        if (!location.hash || !account || account.status !== "approved") return;
-        const targetId = decodeURIComponent(location.hash.slice(1));
-        const timer = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-        return () => window.clearTimeout(timer);
-    }, [location.hash, account, linkedChildren]);
+    const rememberChildSelection = (childId: string) => {
+        pendingChildIdRef.current = childId;
+        setPendingChildId(childId);
+    };
+    const commitChildSelectionAfterClose = () => {
+        const childId = pendingChildIdRef.current;
+        if (!childId) return;
+        pendingChildIdRef.current = null;
+        setPendingChildId(null);
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+            const next = new URLSearchParams(window.location.search);
+            next.set("child", childId);
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash });
+        }));
+    };
 
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
@@ -182,9 +193,9 @@ export default function ParentPortal() {
             ["Meetings & Events", "parent-event-consent"]
         ] as const;
         return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>
-            {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={selectedChild?.id || ""} onChange={(event) => { const next = new URLSearchParams(searchParams); next.set("child", event.target.value); navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }); }} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
+            {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => rememberChildSelection(event.target.value)} onClose={commitChildSelectionAfterClose} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
             {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
-            <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>
+            <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>
             <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={activeMemberIds} sections={activeSections} refreshVersion={taskSummaryVersion} /></Box>
             <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={activeMemberIds} /></Box>
             <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={activeMemberIds} sections={activeSections} /></Box>
