@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -47,4 +47,39 @@ test("only Super Admin can replace an existing canonical relationship with recon
   await assertFails(updateDoc(doc(adminDb, "consentApplications/consent-1"), { ...update, linkedBy: "admin-1", reconciledBy: "admin-1" }));
   const superDb = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
   await assertSucceeds(updateDoc(doc(superDb, "consentApplications/consent-1"), update));
+});
+
+
+test("SW-156 linked consent follows the member's current authorized section after a transfer", async () => {
+  await seed([
+    ["members/member-moved", { displayName: "Alex Scout", dateOfBirth: "2015-01-02", section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["adminUsers/cub-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["consentApplications/consent-moved", { ...consent, section: "Beavers", submittedAt: new Date(), memberId: "member-moved" }]
+  ]);
+
+  const cubDb = testEnv.authenticatedContext("cub-leader", { email: "cub@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(cubDb, "consentApplications/consent-moved")));
+
+  const oldSectionDb = testEnv.authenticatedContext("beaver-leader", { email: "beaver@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(oldSectionDb, "consentApplications/consent-moved")));
+
+  const superDb = testEnv.authenticatedContext("super-1", { email: "super@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(superDb, "consentApplications/consent-moved")));
+});
+
+test("SW-156 linked consent supports concurrent current sections and denies unrelated leaders", async () => {
+  await seed([
+    ["members/member-shared", { displayName: "Alex Scout", dateOfBirth: "2015-01-02", section: "Cubs", sections: ["Cubs", "Scouts"], status: "active" }],
+    ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/venture-leader", { active: true, role: "leader", sections: ["Ventures"] }],
+    ["consentApplications/consent-shared", { ...consent, section: "Beavers", submittedAt: new Date(), memberId: "member-shared" }]
+  ]);
+
+  const scoutDb = testEnv.authenticatedContext("scout-leader", { email: "scout@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(scoutDb, "consentApplications/consent-shared")));
+
+  const ventureDb = testEnv.authenticatedContext("venture-leader", { email: "venture@example.com" }).firestore();
+  await assertFails(getDoc(doc(ventureDb, "consentApplications/consent-shared")));
 });
