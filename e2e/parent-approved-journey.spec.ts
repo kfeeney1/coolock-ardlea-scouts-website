@@ -31,6 +31,10 @@ test.describe("approved parent journey", () => {
 
   test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
     await loginParent(page);
+    const parentConsentSaveErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" && message.text().includes("Unable to update parent consent:")) parentConsentSaveErrors.push(message.text());
+    });
 
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
     await expect(childSelect).toBeVisible();
@@ -83,7 +87,8 @@ test.describe("approved parent journey", () => {
     await page.getByLabel("Alternative emergency contact").fill("Other Adult");
     await page.getByLabel("Alternative contact phone").fill("0861234567");
     await save.click();
-    await expect(page.getByText("Consent and medical details updated successfully.")).toBeVisible();
+    const saveFeedback = page.getByRole("alert").filter({ hasText: /Consent and medical details updated successfully|Unable to save the consent and medical details|required|Select Yes or No/i }).last();
+    await expect(saveFeedback, `Parent consent save failed. Browser console: ${parentConsentSaveErrors.join("\n") || "no save error was logged"}`).toHaveText("Consent and medical details updated successfully.");
     await expect(medicalAttentionCount).toHaveText("0");
   });
 
