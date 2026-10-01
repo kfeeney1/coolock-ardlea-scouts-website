@@ -12,7 +12,7 @@ import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSk
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
-import { backDismissStack } from "../services/backDismissHistory";
+import { BACK_DISMISS_STATE_KEY, backDismissStack } from "../services/backDismissHistory";
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
@@ -115,20 +115,21 @@ export default function ParentPortal() {
     const commitChildSelectionAfterClose = () => {
         const childId = pendingChildIdRef.current;
         if (!childId) return;
-        const commitWhenOverlayIsGone = () => {
-            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
-            const hasPendingOverlayMarker = backDismissStack(routerState).some((marker) => marker.startsWith("transient-overlay:"));
-            if (hasPendingOverlayMarker) {
-                window.requestAnimationFrame(commitWhenOverlayIsGone);
-                return;
-            }
+        window.setTimeout(() => {
+            if (pendingChildIdRef.current !== childId) return;
             pendingChildIdRef.current = null;
             setPendingChildId(null);
+            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
+            const nextState = routerState && typeof routerState === "object" && !Array.isArray(routerState)
+                ? { ...(routerState as Record<string, unknown>) }
+                : {};
+            const remainingMarkers = backDismissStack(nextState).filter((marker) => !marker.startsWith("transient-overlay:"));
+            if (remainingMarkers.length > 0) nextState[BACK_DISMISS_STATE_KEY] = remainingMarkers;
+            else delete nextState[BACK_DISMISS_STATE_KEY];
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
-            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { state: routerState });
-        };
-        window.requestAnimationFrame(commitWhenOverlayIsGone);
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: nextState });
+        }, 350);
     };
 
     useEffect(() => {
