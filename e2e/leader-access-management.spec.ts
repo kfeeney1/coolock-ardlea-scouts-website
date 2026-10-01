@@ -101,6 +101,47 @@ test("leader access summary tiles filter and direct routes use stable IDs", asyn
 });
 
 
+test("SW-248 allows two leaders to retain the same Group appointment independently", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+  await loginAdmin(page);
+
+  const sharedAppointment = "Group Treasurer";
+  const existingHolderUid = "TEST_uid_group_treasurer";
+  const secondHolderUid = "TEST_uid_multi_section_leader";
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  const existingHolder = page.getByTestId(`leader-access-${existingHolderUid}`);
+  await expect(existingHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  let secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  const secondAppointment = secondHolder.getByRole("checkbox", { name: sharedAppointment });
+  await expect(secondAppointment).not.toBeChecked();
+  await secondAppointment.check();
+  await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+  await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+  await expect(page).toHaveURL(/\/leader\/access(?:\?|$)/);
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  await expect(secondHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  await expect(page.getByTestId(`leader-access-${existingHolderUid}`).getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+
+  await page.goto(`/leader/access/${secondHolderUid}`);
+  secondHolder = page.getByTestId(`leader-access-${secondHolderUid}`);
+  await secondHolder.getByRole("checkbox", { name: sharedAppointment }).uncheck();
+  await secondHolder.getByRole("button", { name: "Save Leader" }).click();
+  await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
+  await expect(page).toHaveURL(/\/leader\/access(?:\?|$)/);
+
+  await page.goto(`/leader/access/${existingHolderUid}`);
+  await expect(page.getByTestId(`leader-access-${existingHolderUid}`).getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
+});
+
+
 test("SW-219 leader-child link persists and automatically reconciles current-year Subs", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
