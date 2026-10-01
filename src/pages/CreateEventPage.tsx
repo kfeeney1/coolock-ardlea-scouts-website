@@ -137,7 +137,7 @@ export default function CreateEventPage() {
               Choose whole sections, individual members, or both. {eventAudienceSummary(audience.sectionIds, audience.memberIds, audience.resolvedMemberIds.length)}
             </Typography>
             <TextField fullWidth label="Search members" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} sx={{ mb: 1.5 }} />
-            <Stack direction="row" useFlexGap gap={1} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
               {visibleMembers.map((member) => {
                 const selected = (draft.audience?.memberIds ?? []).includes(member.id);
                 return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} color={selected ? "primary" : "default"} variant={selected ? "filled" : "outlined"} onClick={() => toggleMember(member.id)} />;
