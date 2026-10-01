@@ -101,6 +101,64 @@ test("leader access summary tiles filter and direct routes use stable IDs", asyn
 });
 
 
+test("SW-153 filters preserve the working viewport on desktop, mobile, and keyboard changes", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+
+  const exerciseFilters = async (width: number, height: number) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/leader/access");
+    const search = page.getByLabel("Search leaders");
+    await expect(search).toBeVisible();
+    await search.scrollIntoViewIfNeeded();
+
+    const filterPosition = async () => search.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, viewportHeight: window.innerHeight };
+    });
+    const expectWorkingViewport = async (before: Awaited<ReturnType<typeof filterPosition>>) => {
+      const after = await filterPosition();
+      expect(after.top).toBeLessThan(after.viewportHeight);
+      expect(after.bottom).toBeGreaterThan(0);
+      expect(Math.abs(after.top - before.top)).toBeLessThan(after.viewportHeight / 2);
+    };
+
+    let before = await filterPosition();
+    await search.fill("Test");
+    await expect(search).toHaveValue("Test");
+    await expect(page).toHaveURL(/q=Test/);
+    await expectWorkingViewport(before);
+
+    before = await filterPosition();
+    await search.fill("Test Multi");
+    await expect(page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" })).toHaveCount(1);
+    await expectWorkingViewport(before);
+
+    before = await filterPosition();
+    await search.clear();
+    await expect(search).toHaveValue("");
+    await expect(page).not.toHaveURL(/q=/);
+    await expectWorkingViewport(before);
+
+    before = await filterPosition();
+    await search.focus();
+    await search.pressSequentially("Test");
+    await expect(search).toHaveValue("Test");
+    await expectWorkingViewport(before);
+
+    const tile = page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" });
+    await tile.click();
+    await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader\?q=Test/);
+    await page.getByRole("button", { name: "Back to leaders" }).click();
+    await expect(page.getByLabel("Search leaders")).toHaveValue("Test");
+  };
+
+  await loginAdmin(page);
+  await exerciseFilters(1280, 420);
+  await exerciseFilters(390, 500);
+});
+
+
 test("SW-248 allows two leaders to retain the same Group appointment independently", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
