@@ -21,7 +21,13 @@ test("active Member Management is surname-first across All Sections, filters and
     await loginAdmin(page);
     await page.goto("/leader/members");
 
-    const readNames = async () => page.locator("[data-testid^='member-card-'] h5").allTextContents();
+    const readNames = async () => page.locator("[data-testid^='member-card-']").evaluateAll((cards) => cards.map((card) => {
+        const memberName = Array.from(card.querySelectorAll("p"))
+            .map((paragraph) => paragraph.textContent?.trim() || "")
+            .find((text) => text.startsWith("Member name:"))
+            ?.replace(/^Member name:\s*/, "");
+        return memberName || card.querySelector("h5")?.textContent?.trim() || "";
+    }));
     const allNames = await readNames();
     expect(allNames.length).toBeGreaterThan(1);
     const normalized = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IE");
