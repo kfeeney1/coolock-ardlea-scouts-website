@@ -170,7 +170,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libevent-2.1-7t64
+          sudo apt-get install -y --no-install-recommends libevent-2.1-7t64 libopus0
 
       - name: Install Chromium and WebKit on cache miss
         if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.playwright-browser-cache.outputs.cache-hit != 'true' }}
