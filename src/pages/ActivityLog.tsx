@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Chip, Container, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -62,11 +62,7 @@ export default function ActivityLog() {
     <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
       <Container maxWidth="xl">
         <LeaderDashboardHeader />
-        <LeaderPageHeader
-          title="Activity Log"
-          description="Read-only history of important administrative and leader actions. Entries cannot be edited or deleted from the website."
-          actions={<Button variant="outlined" color="secondary" onClick={() => void refresh()}>Refresh</Button>}
-        />
+        <LeaderPageHeader title="Activity Log" />
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
