@@ -97,6 +97,25 @@ function mapConsent(snapshot: QueryDocumentSnapshot<DocumentData>): ConsentAdmin
     };
 }
 
+export async function loadConsentAdminRecord(consentId: string): Promise<ConsentAdminRecord | null> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No signed-in leader.");
+
+    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
+        throw new Error("Active leader profile is required.");
+    }
+
+    // Direct record reads deliberately use the document path. Firestore Rules are
+    // authoritative here: a leader may read a youth consent when either the
+    // consent's historical section is in scope or its stable memberId resolves to
+    // a member in one of the leader's current sections. This keeps list queries
+    // section-scoped while allowing a valid linked consent to survive transfers.
+    const snapshot = await getDoc(doc(db, "consentApplications", consentId));
+    if (!snapshot.exists()) return null;
+    return mapConsent(snapshot as QueryDocumentSnapshot<DocumentData>);
+}
+
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
     const user = auth.currentUser;
     if (!user) throw new Error("No signed-in leader.");
