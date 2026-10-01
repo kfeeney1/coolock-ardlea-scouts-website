@@ -65,4 +65,11 @@ describe("public Who's Who layout", () => {
     assert.deepEqual(publicLeadersForSection([multi], "Beavers").map((item) => item.uid), ["leader-1"]);
     assert.deepEqual(publicLeadersForSection([multi], "Cubs").map((item) => item.uid), ["leader-1"]);
   });
+  it("keeps multiple leaders holding the same Group appointment", () => {
+    const treasurers = [
+      leader({ uid: "treasurer-a", displayName: "Treasurer A", scoutingRole: "Group Treasurer", organisationSection: "Group", organisationSections: ["Group"], organisationOrder: 5, publicAppointments: [{ role: "Group Treasurer", section: "Group" }] }),
+      leader({ uid: "treasurer-b", displayName: "Treasurer B", scoutingRole: "Group Treasurer", organisationSection: "Group", organisationSections: ["Group"], organisationOrder: 6, publicAppointments: [{ role: "Group Treasurer", section: "Group" }] })
+    ];
+    assert.deepEqual(publicLeadersForSection(treasurers, "Group").map((item) => item.uid), ["treasurer-a", "treasurer-b"]);
+  });
 });
