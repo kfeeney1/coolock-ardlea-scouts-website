@@ -19,7 +19,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     DEFAULT_NEW_LEADER_APPOINTMENT,
@@ -171,10 +171,7 @@ export default function LeaderRequests() {
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl">
                 <LeaderDashboardHeader />
-                <LeaderPageHeader
-                    title="Leader Requests"
-                    actions={<Button component={Link} to="/leader/access" variant="outlined" color="secondary">Leader Access</Button>}
-                />
+                <LeaderPageHeader title="Leader Requests" />
 
                 {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
