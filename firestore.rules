@@ -535,7 +535,7 @@ service cloud.firestore {
       allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)
           || (resource.data.memberId is string
             && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
-            && hasSection(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data.section))))
+            && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data))))
         || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
       allow update: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data))
           && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
