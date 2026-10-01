@@ -162,13 +162,24 @@ jobs:
             if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
           done
 
-      - name: Install Playwright system dependencies
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npx --no-install playwright install-deps chromium webkit
-
+      # GitHub-hosted ubuntu runners already carry the shared libraries required by
+      # Playwright's Chromium/WebKit builds. Avoid playwright install-deps here:
+      # it invokes apt and has shown 20-30 minute runner/network stalls. Browser
+      # launch below is the executable dependency contract instead.
       - name: Install Chromium and WebKit on cache miss
         if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.playwright-browser-cache.outputs.cache-hit != 'true' }}
         run: npx --no-install playwright install chromium webkit
+
+      - name: Verify Playwright browsers launch
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium, webkit } from "@playwright/test";
+          for (const browserType of [chromium, webkit]) {
+            const browser = await browserType.launch({ headless: true });
+            await browser.close();
+          }
+          NODE
 
       - name: Start tested build
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
