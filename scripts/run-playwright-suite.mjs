@@ -6,15 +6,18 @@ const args = process.argv.slice(2);
 const modeIndex = args.indexOf("--mode");
 const baseIndex = args.indexOf("--base");
 const suiteIndex = args.indexOf("--suite");
+const shardIndex = args.indexOf("--shard");
 const mode = modeIndex >= 0 ? args[modeIndex + 1] : "full";
 const base = baseIndex >= 0 ? args[baseIndex + 1] : null;
 const requestedSuite = suiteIndex >= 0 ? args[suiteIndex + 1] : null;
+const shard = shardIndex >= 0 ? args[shardIndex + 1] : null;
+const shardArgs = shard ? ["--shard", shard] : [];
 
 function run(specs, label) {
   const unique = [...new Set(specs)].map((name) => `e2e/${name}`);
   console.log(`Playwright selection: ${label}`);
   console.log(`Specs (${unique.length}): ${unique.join(", ")}`);
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique], {
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique, ...shardArgs], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
@@ -22,7 +25,7 @@ function run(specs, label) {
 }
 
 if (mode === "full") {
-  const result = spawnSync("npx", ["--no-install", "playwright", "test"], {
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
@@ -57,7 +60,7 @@ try {
 } catch (error) {
   console.error("Unable to determine changed files safely; running full Playwright suite.");
   console.error(error instanceof Error ? error.message : error);
-  const result = spawnSync("npx", ["--no-install", "playwright", "test"], {
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
@@ -77,7 +80,7 @@ for (const file of changedFiles) {
 }
 
 if (requiresFullSuite) {
-  const result = spawnSync("npx", ["--no-install", "playwright", "test"], {
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
