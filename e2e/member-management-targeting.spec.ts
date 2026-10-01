@@ -14,6 +14,51 @@ async function loginAdmin(page: Page) {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+
+test("active Member Management is surname-first across All Sections, filters and search", async ({ page }, testInfo) => {
+    test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Surname ordering runs on desktop Chromium and Pixel 7 Chromium.");
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAdmin(page);
+    await page.goto("/leader/members");
+
+    const cards = page.locator("[data-testid^='member-card-']");
+    await expect(cards.first()).toBeVisible();
+    const readNames = async () => cards.evaluateAll((items) => items.map((card) => ({
+        firstName: card.getAttribute("data-member-first-name")?.trim().replace(/\s+/g, " ") || "",
+        lastName: card.getAttribute("data-member-last-name")?.trim().replace(/\s+/g, " ") || "",
+        displayName: card.querySelector("h5")?.textContent?.trim() || "",
+    })));
+    const compareText = (left: string, right: string) => left.localeCompare(right, "en-IE", { sensitivity: "base" });
+    const expectSurnameFirstOrder = (members: Awaited<ReturnType<typeof readNames>>) => {
+        const sorted = [...members].sort((a, b) => {
+            const aSurname = a.lastName.toLocaleLowerCase("en-IE");
+            const bSurname = b.lastName.toLocaleLowerCase("en-IE");
+            if (!aSurname || !bSurname) {
+                if (!aSurname && bSurname) return 1;
+                if (aSurname && !bSurname) return -1;
+            }
+            return compareText(aSurname || a.firstName || a.displayName, bSurname || b.firstName || b.displayName)
+                || compareText(a.firstName, b.firstName)
+                || compareText(a.displayName, b.displayName);
+        });
+        expect(members).toEqual(sorted);
+    };
+    const allMembers = await readNames();
+    expect(allMembers.length).toBeGreaterThan(1);
+    expectSurnameFirstOrder(allMembers);
+
+    await page.getByRole("combobox", { name: "Section" }).click();
+    await page.getByRole("option", { name: "Beavers", exact: true }).click();
+    const sectionMembers = await readNames();
+    expect(sectionMembers.length).toBeGreaterThan(0);
+    expectSurnameFirstOrder(sectionMembers);
+
+    const search = page.getByRole("textbox", { name: "Search members" });
+    await search.fill(sectionMembers[0].lastName || sectionMembers[0].firstName);
+    const searchedMembers = await readNames();
+    expectSurnameFirstOrder(searchedMembers);
+});
+
 test("member status tiles filter and jump to member results", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");

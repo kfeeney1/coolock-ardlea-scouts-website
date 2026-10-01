@@ -14,9 +14,9 @@ const members = [
 
 test("Member Management section filters include canonical and legacy Venture records", () => {
   assert.deepEqual(filterMemberRecords(members, "Ventures", "all").map((member) => member.id), [
-    "venture-new", "venture-existing", "venture-left"
+    "venture-existing", "venture-left", "venture-new"
   ]);
-  assert.deepEqual(filterMemberRecords(members, "all", "all").map((member) => member.id), members.map((member) => member.id));
+  assert.deepEqual(filterMemberRecords(members, "all", "all").map((member) => member.id), ["beaver-active", "cub-active", "scout-existing", "venture-existing", "venture-left", "venture-new"]);
 });
 
 test("Member Management status filters include only the requested lifecycle state", () => {
@@ -32,4 +32,21 @@ test("SW-218 active members remain visible in their applicable section and All S
     assert.ok(filterMemberRecords(members, "all", "active").some((member) => member.id === id), `All Sections should include ${id}`);
   }
   assert.equal(filterMemberRecords(members, "Scouts", "active").some((member) => member.id === "venture-new"), false);
+});
+
+test("member lists sort by trimmed surname then first name using Irish locale rules", () => {
+  const mixed = [
+    { ...members[0], id: "m1", firstName: "Cara", lastName: " Murphy " },
+    { ...members[0], id: "m2", firstName: "Zoe", lastName: "Byrne" },
+    { ...members[0], id: "m3", firstName: "Amy", lastName: "BYRNE" },
+    { ...members[0], id: "m4", firstName: "Aisling", lastName: "O’Neill-Smith" },
+    { ...members[0], id: "m5", firstName: "Eoin", lastName: "Ó Súilleabháin" },
+    { ...members[0], id: "m6", firstName: "Bláithín", lastName: "Ní Bhraonáin" },
+    { ...members[0], id: "m7", firstName: "Zed", lastName: "  " },
+    { ...members[0], id: "m8", firstName: "Alex", lastName: "" }
+  ];
+  const result = filterMemberRecords(mixed, "all", "all");
+  assert.deepEqual(result.map((member) => member.firstName), ["Amy", "Zoe", "Cara", "Bláithín", "Eoin", "Aisling", "Alex", "Zed"]);
+  assert.deepEqual(result.slice(-2).map((member) => member.firstName), ["Alex", "Zed"]);
+  assert.deepEqual(filterMemberRecords(mixed, "all", "all", " murphy ").map((member) => member.id), ["m1"]);
 });

@@ -32,6 +32,16 @@ test.describe("approved parent journey", () => {
   test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
     await loginParent(page);
 
+    const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
+    await expect(childSelect).toBeVisible();
+    const firstChildHref = await page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" }).getAttribute("href");
+    const firstChildId = new URL(firstChildHref!, "http://localhost").searchParams.get("child");
+    expect(firstChildId).toBeTruthy();
+    await expect(page).toHaveURL(new RegExp(`child=${firstChildId}`));
+    await childSelect.click();
+    await page.getByRole("option", { name: /Morgan Kavanagh/ }).click();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+
     const summary = page.getByTestId("parent-things-to-do");
     const medicalAttentionCount = summary.getByTestId("parent-medical-attention-count");
     await expect(summary.getByRole("heading", { name: "Things to do" })).toBeVisible();
@@ -41,9 +51,8 @@ test.describe("approved parent journey", () => {
     await expect(medicalAttentionCount).toHaveText("1");
 
     await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
-    await expect(page.getByText(firstMember, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(firstMember, { exact: true })).toHaveCount(0);
     await expect(page.getByText(secondMember, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Consent linked", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Consent not started", { exact: true }).first()).toBeVisible();
 
     const search = page.getByTestId("parent-consent-search");
@@ -103,6 +112,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByRole("link", { name: "Back to Parent Portal" })).toHaveCount(0);
   });
 
+
   test("parent gallery area fails closed when no gallery access is projected", async ({ page }) => {
     await loginParent(page);
 
@@ -138,4 +148,46 @@ test("approved parent can sign out globally and must authenticate again", async 
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
+});
+
+test.describe("Parent Portal navigation on desktop and mobile", () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent navigation runs on desktop Chromium and Pixel 7 Chromium.");
+    test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+    await loginParent(page);
+  });
+
+  test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
+    const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
+    await expect(childSelect).toBeVisible();
+    const badgeworkLink = page.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Badgework" });
+    const firstHref = await badgeworkLink.getAttribute("href");
+    const firstChild = new URL(firstHref!, "http://localhost").searchParams.get("child") || "";
+    expect(firstChild).not.toBe("");
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+    await expect(badgeworkLink).toHaveAttribute("href", new RegExp(`child=${firstChild}#parent-adventure-skills`));
+
+    await badgeworkLink.click();
+    await expect(page).toHaveURL(/#parent-adventure-skills$/);
+    await page.getByRole("link", { name: "Consent & Medical" }).click();
+    await expect(page).toHaveURL(/#parent-medical-consent$/);
+    await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toBeInViewport();
+    await page.goBack();
+    await expect(page).toHaveURL(/#parent-adventure-skills$/);
+    await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-adventure-skills$`));
+
+    await childSelect.click();
+    const options = page.getByRole("option");
+    await expect(options).toHaveCount(2);
+    const secondChild = await options.nth(1).getAttribute("data-value");
+    await options.nth(1).click();
+    await expect(page).toHaveURL(new RegExp(`child=${secondChild}`));
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+    await page.getByRole("link", { name: "Meetings & Events" }).click();
+    await expect(page).toHaveURL(new RegExp(`child=${secondChild}#parent-event-consent$`));
+
+    await page.goto(`/parent?child=UNLINKED_MEMBER#parent-event-consent`);
+    await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-event-consent$`));
+    await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
+  });
 });

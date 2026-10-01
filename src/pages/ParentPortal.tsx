@@ -1,7 +1,7 @@
-import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -12,6 +12,8 @@ import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSk
 import ParentConsentSection from "../components/parent/ParentConsentSection";
 import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
 import ParentThingsToDo from "../components/parent/ParentThingsToDo";
+import { loadLinkedMembers } from "../services/parentConsent";
+import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import type { ParentChildRequest } from "../services/parentChildMatching";
@@ -61,6 +63,12 @@ export default function ParentPortal() {
     const [message, setMessage] = useState("");
     const [taskSummaryVersion, setTaskSummaryVersion] = useState(0);
     const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const [linkedChildren, setLinkedChildren] = useState<ParentLinkedMember[]>([]);
+    const [childrenLoadError, setChildrenLoadError] = useState(false);
+    const [pendingChildId, setPendingChildId] = useState<string | null>(null);
+    const pendingChildIdRef = useRef<string | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
     const loadAccount = useCallback(async () => {
@@ -72,6 +80,56 @@ export default function ParentPortal() {
         finally { setAccountReady(true); }
     }, [adminAuthLoading, user]);
     useEffect(() => { void loadAccount(); }, [loadAccount]);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!account || account.status !== "approved" || account.memberIds.length === 0) {
+            setLinkedChildren([]);
+            return;
+        }
+        setChildrenLoadError(false);
+        void loadLinkedMembers(account.memberIds).then((children) => {
+            if (!cancelled) setLinkedChildren(children);
+        }).catch((loadError) => {
+            console.error("Unable to load linked child context:", loadError);
+            if (!cancelled) setChildrenLoadError(true);
+        });
+        return () => { cancelled = true; };
+    }, [account]);
+
+    const requestedChildId = searchParams.get("child") || "";
+    const selectedChild = linkedChildren.find((child) => child.id === requestedChildId) || linkedChildren[0] || null;
+    useEffect(() => {
+        if (!selectedChild || requestedChildId === selectedChild.id) return;
+        const next = new URLSearchParams(searchParams);
+        next.set("child", selectedChild.id);
+        navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true, state: location.state });
+    }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
+
+    const rememberChildSelection = (childId: string) => {
+        pendingChildIdRef.current = childId;
+        setPendingChildId(childId);
+    };
+    const commitChildSelectionAfterClose = () => {
+        const childId = pendingChildIdRef.current;
+        if (!childId) return;
+        pendingChildIdRef.current = null;
+        setPendingChildId(null);
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+            const next = new URLSearchParams(window.location.search);
+            next.set("child", childId);
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash });
+        }));
+    };
+
+    useEffect(() => {
+        if (!location.hash || !account || account.status !== "approved" || linkedChildren.length === 0) return;
+        const targetId = decodeURIComponent(location.hash.slice(1));
+        const timer = window.setTimeout(() => {
+            document.getElementById(targetId)?.scrollIntoView({ behavior: "auto", block: "start" });
+        }, 80);
+        return () => window.clearTimeout(timer);
+    }, [location.hash, account, linkedChildren]);
 
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
@@ -134,7 +192,25 @@ export default function ParentPortal() {
 
     if (user && !account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography>}{leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access.</Alert>}<Alert severity="info" sx={{ my: 2 }}>Submit parent registration by identifying your child or children. The details are reviewed separately from any Leader access and never grant child access automatically.</Alert><Stack spacing={2}><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} /><ChildFields children={children} setChildren={setChildren} />{error && <Alert severity="error">{error}</Alert>}<Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Submit Parent Registration"}</Button><Button onClick={() => void logoutParent()}>Sign Out</Button></Stack></Paper></Container></Box>;
 
-    if (account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert><ParentThingsToDo memberIds={account.memberIds} sections={account.linkedSections} refreshVersion={taskSummaryVersion} /><Box id="parent-adventure-skills" sx={{ mt: 4 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={account.memberIds} /></Box><Box id="parent-event-consent" sx={{ mt: 4 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={account.memberIds} sections={account.linkedSections} /></Box><Box id="parent-medical-consent" sx={{ mt: 4 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection memberIds={account.memberIds} onSaved={() => setTaskSummaryVersion((version) => version + 1)} /></Box></>}</Paper></Container></Box>;
+    if (account) {
+        const activeMemberIds = selectedChild ? [selectedChild.id] : [];
+        const activeSections = selectedChild?.sections ?? [];
+        const portalLinks = [
+            ["Things to do", "parent-things-to-do"],
+            ["Badgework", "parent-adventure-skills"],
+            ["Consent & Medical", "parent-medical-consent"],
+            ["Meetings & Events", "parent-event-consent"]
+        ] as const;
+        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>
+            {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => rememberChildSelection(event.target.value)} onClose={commitChildSelectionAfterClose} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
+            {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
+            <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>
+            <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={activeMemberIds} sections={activeSections} refreshVersion={taskSummaryVersion} /></Box>
+            <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={activeMemberIds} /></Box>
+            <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={activeMemberIds} sections={activeSections} /></Box>
+            <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection memberIds={activeMemberIds} onSaved={() => setTaskSummaryVersion((version) => version + 1)} /></Box>
+            </>}</Paper></Container></Box>;
+    }
 
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 7 } }}><Container maxWidth="sm"><Paper elevation={3} sx={{ p: { xs: 3, md: 4 } }}><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Sign in to view your children’s Adventure Skills progress, upcoming events and event consent, and manage linked consent and medical information.</Typography><Alert severity="info" sx={{ mt: 2, mb: 3 }}>Parent and Leader registrations are reviewed separately. If you are both, register on each side with the same email and password; the approving administrator will confirm the shared login before granting access.</Alert>{error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}{message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}<Stack spacing={2}>{mode === "register" && <><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required /><ChildFields children={children} setChildren={setChildren} /></>}<TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /><PasswordField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} /><Button variant="contained" color="success" disabled={working} onClick={() => void submit()}>{working ? "Please wait…" : mode === "register" ? "Create Parent Account" : "Sign In"}</Button>{mode === "login" && <Button disabled={resettingPassword} onClick={() => void resetPassword()}>Forgot Password?</Button>}<Button color="secondary" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setMessage(""); }}>{mode === "login" ? "Need an account? Register" : "Already registered? Sign In"}</Button></Stack></Paper></Container></Box>;
 }

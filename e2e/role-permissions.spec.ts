@@ -46,9 +46,10 @@ async function loginParent(page: Page, account: Credentials) {
 }
 
 async function openLeaderMenu(page: Page) {
-  const button = page.getByRole("button", { name: /(Leader Menu|Menu ·)/ });
+  const button = page.locator('button[aria-controls="leader-navigation"]');
   await expect(button).toBeVisible();
   await button.click();
+  await expect(page.getByRole("navigation", { name: "Leader navigation" })).toBeVisible();
 }
 
 test.describe("route protection", () => {
