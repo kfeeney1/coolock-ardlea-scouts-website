@@ -23,6 +23,9 @@ jobs:
             shard: 2/2
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --user 1001
     timeout-minutes: 30
     env:
       VITE_APP_ENV: local
@@ -146,37 +149,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright --version
 
-      - name: Restore Playwright browser cache
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        id: playwright-browser-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-1.62.1-chromium-webkit
-
-      - name: Isolate Playwright dependencies from unrelated Chrome apt source
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: |
-          for source in /etc/apt/sources.list.d/*; do
-            [ -f "$source" ] || continue
-            if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
-          done
-
-      # Avoid playwright install-deps: its broad apt operation has shown 20-30
-      # minute runner/network stalls. The current GitHub runner image already has
-      # Chromium's runtime libraries; Playwright WebKit additionally requires the
-      # libevent 2.1 ABI. Keep this dependency narrow and verify both browsers below.
-      - name: Install WebKit runtime dependency
-        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libevent-2.1-7t64 libopus0
-
-      - name: Install Chromium and WebKit on cache miss
-        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.playwright-browser-cache.outputs.cache-hit != 'true' }}
-        run: npx --no-install playwright install chromium webkit
-
-      - name: Verify Playwright browsers launch
+      - name: Verify preinstalled Playwright browsers launch
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
           node --input-type=module <<'NODE'
