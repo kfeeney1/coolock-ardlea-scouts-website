@@ -146,6 +146,14 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright --version
 
+      - name: Restore Playwright browser cache
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        id: playwright-browser-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.62.1-chromium-webkit
+
       - name: Isolate Playwright dependencies from unrelated Chrome apt source
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
@@ -154,14 +162,13 @@ jobs:
             if grep -q "dl.google.com/linux/chrome-stable" "$source"; then sudo rm -f "$source"; fi
           done
 
-      - name: Install Chromium and WebKit
+      - name: Install Playwright system dependencies
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: |
-          for attempt in 1 2 3; do
-            if npx --no-install playwright install --with-deps chromium webkit; then exit 0; fi
-            if [ "$attempt" -lt 3 ]; then sleep 10; fi
-          done
-          exit 1
+        run: npx --no-install playwright install-deps chromium webkit
+
+      - name: Install Chromium and WebKit on cache miss
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && steps.playwright-browser-cache.outputs.cache-hit != 'true' }}
+        run: npx --no-install playwright install chromium webkit
 
       - name: Start tested build
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
