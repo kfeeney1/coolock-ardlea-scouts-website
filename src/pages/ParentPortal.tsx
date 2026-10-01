@@ -139,7 +139,7 @@ export default function ParentPortal() {
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
             navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: nextState });
-        }, 350);
+        }, 1_000);
     };
 
     useEffect(() => {
