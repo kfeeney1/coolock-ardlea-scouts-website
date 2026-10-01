@@ -70,7 +70,13 @@ export default function EquipmentRecordPage() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [equipmentId]);
+  useEffect(() => {
+    // Route changes reuse this component. Clear the previous record so an in-flight/stale
+    // record cannot be rendered while the newly addressed equipment item is loading.
+    setItem(null);
+    setForm(null);
+    void refresh();
+  }, [equipmentId]);
   const itemIncidents = useMemo(() => incidents.filter((x) => x.itemId === equipmentId), [incidents, equipmentId]);
   const highlightedIssueId = searchParams.get("issue");
   const highlightedIssue = itemIncidents.find((incident) => incident.id === highlightedIssueId);
