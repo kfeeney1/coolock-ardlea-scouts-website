@@ -4,7 +4,8 @@ import {
     canonicalLeaderAppointments,
     canonicalOrganisationSection,
     normalizeLeaderRole,
-    normalizeLeaderSections
+    normalizeLeaderSections,
+    sortLeaderAccessRecords
 } from "../../src/services/leaderAccessLogic.ts";
 
 test("normalizeLeaderRole preserves only supported roles", () => {
@@ -81,5 +82,34 @@ test("canonical appointments keep Group Trainer group-scoped for section and Gro
             "Group"
         ),
         [{ id: "group-trainer--group", appointment: "Group Trainer", scope: "Group", active: true }]
+    );
+});
+
+const orderingRecords = [
+    { uid: "secondary-z", displayName: "Aardvark Leader", primarySection: "Scouts" },
+    { uid: "primary-b", displayName: "Zebra Leader", primarySection: "Cubs" },
+    { uid: "primary-a", displayName: "Zebra Leader", primarySection: "Cubs" },
+    { uid: "secondary-a", displayName: "Aardvark Leader", primarySection: "Beavers" }
+];
+
+test("SW-257 puts selected primary-section leaders before other matching leaders", () => {
+    const ordered = sortLeaderAccessRecords(orderingRecords, "Cubs");
+
+    assert.deepEqual(
+        ordered.map(({ uid }) => uid),
+        ["primary-a", "primary-b", "secondary-a", "secondary-z"]
+    );
+    assert.deepEqual(orderingRecords.map(({ uid }) => uid), [
+        "secondary-z",
+        "primary-b",
+        "primary-a",
+        "secondary-a"
+    ]);
+});
+
+test("SW-257 preserves name and UID ordering when all sections are selected", () => {
+    assert.deepEqual(
+        sortLeaderAccessRecords(orderingRecords, "").map(({ uid }) => uid),
+        ["secondary-a", "secondary-z", "primary-a", "primary-b"]
     );
 });

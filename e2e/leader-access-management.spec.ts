@@ -259,3 +259,56 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await expect(standardRevision).toContainText("Standard family");
   await expect(standardRevision).toContainText("€100.00 due");
 });
+
+
+test("SW-257 places primary-section leaders before valid secondary-section matches", async ({ page }) => {
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader access fixtures are required.");
+  await loginAdmin(page);
+
+  const expectedCubsOrder = [
+    "TEST_uid_cub_assistant_section_leader",
+    "TEST_uid_cub_programme_scouter",
+    "TEST_uid_cub_scouter",
+    "TEST_uid_cub_section_leader",
+    "TEST_uid_group_leader",
+    "TEST_uid_multi_section_leader"
+  ];
+
+  const ids = async () => page.getByTestId("leader-access-summary-list")
+    .locator('[data-testid^="leader-access-tile-"]')
+    .evaluateAll((tiles) => tiles.map((tile) => tile.getAttribute("data-testid")!.replace("leader-access-tile-", "")));
+
+  const exercise = async (width: number, height: number) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/leader/access");
+    await expect(page.getByRole("heading", { name: "Leader Access & Organisation" })).toBeVisible();
+    const allSectionsOrder = await ids();
+
+    const sectionFilter = page.getByRole("combobox", { name: "Filter by section" });
+    await sectionFilter.click();
+    await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    await expect(page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader")).toBeVisible();
+    expect(await ids()).toEqual(expectedCubsOrder);
+
+    const search = page.getByLabel("Search leaders");
+    await search.fill("Cubs");
+    expect(await ids()).toEqual(expectedCubsOrder);
+    await page.reload();
+    await expect(page.getByLabel("Search leaders")).toHaveValue("");
+    const reloadedSectionFilter = page.getByRole("combobox", { name: "Filter by section" });
+    await reloadedSectionFilter.click();
+    await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    expect(await ids()).toEqual(expectedCubsOrder);
+
+    await page.goto("/leader/access");
+    await expect(page.getByTestId("leader-access-summary-list").locator('[data-testid^="leader-access-tile-"]').first()).toBeVisible();
+    expect(await ids()).toEqual(allSectionsOrder);
+    await page.reload();
+    await expect(page.getByTestId("leader-access-summary-list").locator('[data-testid^="leader-access-tile-"]').first()).toBeVisible();
+    expect(await ids()).toEqual(allSectionsOrder);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  };
+
+  await exercise(1280, 900);
+  await exercise(390, 844);
+});
