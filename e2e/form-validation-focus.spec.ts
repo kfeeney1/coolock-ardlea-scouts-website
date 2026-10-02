@@ -26,10 +26,13 @@ test("SW-263 focuses and reveals the highest invalid mandatory field without cle
   await expect(first).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Date of birth")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Address")).toHaveValue("TEST retained address");
-  const box = await first.boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.y).toBeGreaterThanOrEqual(72);
-  expect(box!.y).toBeLessThan(page.viewportSize()!.height);
+  await expect(first).toBeInViewport();
+  const unobscured = await first.evaluate((input) => {
+    const rect = input.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return hit === input || input.contains(hit);
+  });
+  expect(unobscured).toBe(true);
 
   await first.fill("TEST Focus User");
   await page.getByRole("button", { name: "Continue" }).click();
