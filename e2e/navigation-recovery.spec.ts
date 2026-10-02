@@ -22,7 +22,7 @@ async function openMenu(page: Page, testInfo: TestInfo) {
   const button = header.locator('button[aria-controls="leader-navigation"]');
   const navigation = projectNavigation(page, testInfo);
   await expect(button).toBeVisible();
-  if (!(await navigation.isVisible())) await button.click();
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
   await expect(button).toHaveAttribute("aria-expanded", "true");
   await expect(navigation).toBeVisible();
 }
