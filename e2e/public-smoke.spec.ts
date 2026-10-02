@@ -16,6 +16,48 @@ test.describe("public website", () => {
   }
 });
 
+test("homepage shows section meeting times and the canonical meeting map", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Meeting Times" })).toBeVisible();
+
+  const meetingTimes = [
+    ["Beavers", "Wednesday, 6:30 pm–8:00 pm"],
+    ["Cubs", "Tuesday, 7:00 pm–8:30 pm"],
+    ["Scouts", "Wednesday, 8:00 pm–9:30 pm"],
+    ["Ventures", "Tuesday, 8:30 pm–10:00 pm"]
+  ];
+  for (const [section, schedule] of meetingTimes) {
+    await expect(page.getByRole("heading", { name: section, exact: true })).toBeVisible();
+    await expect(page.getByText(schedule, { exact: true })).toBeVisible();
+  }
+
+  await expect(page.getByRole("heading", { name: "Where We Meet" })).toBeVisible();
+  const mapLink = page.getByRole("link", { name: "View on Google Maps" });
+  await expect(mapLink).toHaveAttribute("href", "https://maps.app.goo.gl/iexSS8BtsViUA2D87?g_st=ac");
+  await expect(mapLink).toHaveAttribute("target", "_blank");
+  await expect(mapLink).toHaveAttribute("rel", "noopener noreferrer");
+
+  await expect(page.getByRole("button", { name: "Activity Consent" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Activity Consent|Consent Form/i })).toHaveCount(0);
+  const joinUs = page.getByRole("link", { name: "Join Us" }).first();
+  await expect(joinUs).toBeVisible();
+  await expect(joinUs).toHaveAttribute("href", "/join");
+  await joinUs.click();
+  await expect(page).toHaveURL(/\/join$/);
+
+  await page.goto("/");
+  const width = page.viewportSize()?.width ?? 1280;
+  if (width < 900) {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await expect(page.getByRole("menuitem", { name: "Parent Login" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Consent Form/i })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("link", { name: "Parent Login" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Consent Form/i })).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBeTruthy();
+});
+
 test("build information lives on About rather than the public footer", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);
