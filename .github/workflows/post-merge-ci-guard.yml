@@ -44,6 +44,13 @@ jobs:
           echo "sha=${TARGET_SHA}" >> "${GITHUB_OUTPUT}"
           echo "Guarding post-merge evidence for ${TARGET_SHA}"
 
+      - name: Checkout guarded SHA for exact-check state calculation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
       - name: Require exact-SHA post-merge evidence
         env:
           GH_TOKEN: ${{ github.token }}
@@ -102,10 +109,13 @@ jobs:
               $required - ([.workflow_runs[] | select(.event == "push") | .name] | unique)
               | join(", ")
             ' <<<"${runs}")"
-            missing_checks="$(jq -r --argjson required '["quality","e2e","deploy_test"]' '
-              $required - ([.check_runs[].name] | unique)
-              | join(", ")
-            ' <<<"${checks}")"
+            missing_checks="$(jq -n \
+              --argjson required '["quality","e2e","deploy_test"]' \
+              --argjson runs "${runs}" \
+              --argjson checks "${checks}" \
+              '{requiredChecks:$required, workflowRuns:$runs.workflow_runs, checkRuns:$checks.check_runs}' \
+              | node scripts/post-merge-ci-evidence.mjs
+            )"
 
             if (( SECONDS >= missing_deadline )) && { [[ -n "${missing_workflows}" ]] || [[ -n "${missing_checks}" ]]; }; then
               [[ -z "${missing_workflows}" ]] || echo "::error::Required post-merge workflows never started: ${missing_workflows}."

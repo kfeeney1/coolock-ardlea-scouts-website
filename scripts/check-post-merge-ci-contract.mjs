@@ -16,6 +16,7 @@ const e2e = await source(".github/workflows/playwright-e2e.yml");
 const testDeploy = await source(".github/workflows/firebase-hosting-test.yml");
 const production = await source(".github/workflows/firebase-hosting-merge.yml");
 const guard = await source(".github/workflows/post-merge-ci-guard.yml");
+const guardEvidence = await source("scripts/post-merge-ci-evidence.mjs");
 
 for (const [name, text] of [["Quality", quality], ["Playwright E2E", e2e], ["Firebase TEST Deploy", testDeploy]]) {
   requireMatch(text, /push:\s*\n\s*branches:\s*(?:\[main\]|\n\s*- main)/m, `${name} must run on pushes to main.`);
@@ -33,6 +34,9 @@ requireMatch(guard, /push:\s*\n\s*branches:\s*(?:\[main\]|\n\s*- main)/m, "Post-
 requireMatch(guard, /workflow_run:\s*\n\s*workflows:\s*\["Firebase TEST Deploy"\]/m, "Post-merge guard must also react to TEST deployment completion.");
 requireMatch(guard, /GITHUB_EVENT_NAME.*push[\s\S]*TARGET_SHA="\$\{GITHUB_SHA\}"/m, "Post-merge guard must bind a push-triggered run to the exact pushed SHA.");
 requireMatch(guard, /schedule:\s*\n\s*- cron:/m, "Post-merge guard must have a scheduled fallback for completely missing push workflows.");
+requireMatch(guard, /actions\/checkout@[0-9a-f]{40}[\s\S]*?ref:\s*\$\{\{\s*steps\.target\.outputs\.sha\s*\}\}[\s\S]*?node scripts\/post-merge-ci-evidence\.mjs/m, "Guard must resolve missing exact-SHA checks from the guarded revision.");
+requireMatch(guardEvidence, /run\.status === "completed"/, "A missing exact-SHA check must become a failure after its source workflow completes.");
+
 for (const expected of ["Quality", "Playwright E2E", "Firebase TEST Deploy", "quality", "e2e", "deploy_test"]) {
   if (!guard.includes(`"${expected}"`)) failures.push(`Post-merge guard does not require ${expected}.`);
 }
