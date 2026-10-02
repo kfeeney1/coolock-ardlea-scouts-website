@@ -78,21 +78,6 @@ export default function Home() {
                             <Button component={Link} to="/join" variant="contained" color="success" size="large" sx={{ py: 1.5, minWidth: 180 }}>
                                 Join Us
                             </Button>
-                            <Button
-                                component={Link}
-                                to="/activities/consent"
-                                variant="outlined"
-                                size="large"
-                                sx={{
-                                    py: 1.5,
-                                    minWidth: 220,
-                                    color: "white",
-                                    borderColor: "white",
-                                    "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.12)" }
-                                }}
-                            >
-                                Activity Consent
-                            </Button>
                         </Box>
                     </Box>
                 </Container>

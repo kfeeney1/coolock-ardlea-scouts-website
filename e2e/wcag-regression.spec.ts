@@ -114,7 +114,7 @@ test.describe("WCAG-oriented regression scanner", () => {
     test.skip(testInfo.project.name !== "chromium", "WCAG regression scanner runs once on desktop Chromium.");
   });
 
-  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact", "/leader/login", "/parent"]) {
+  for (const route of ["/", "/about", "/activities", "/join", "/contact", "/leader/login", "/parent"]) {
     test(`${route} has no core semantic regression findings`, async ({ page }) => {
       await page.goto(route);
       await expect(page.locator("main")).toBeVisible();
@@ -122,14 +122,7 @@ test.describe("WCAG-oriented regression scanner", () => {
     });
   }
 
-  test("consent chooser remains scan-clean after keyboard interaction", async ({ page }) => {
-    await page.goto("/activities/consent");
-    const chooser = page.getByRole("button", { name: /Open Beavers consent form/i });
-    await chooser.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("button", { name: /change section/i })).toBeVisible();
-    await expectNoWcagRegressionFindings(page);
-  });
+
 
   test("approved parent workflow remains scan-clean", async ({ page }) => {
     test.skip(!parentEmail || !parentPassword, "Canonical parent E2E credentials are required.");

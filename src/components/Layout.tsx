@@ -14,7 +14,7 @@ function RouteFallback() {
 export default function Layout() {
     const { pathname } = useLocation();
     const isLeaderRoute = pathname.startsWith("/leader") && pathname !== "/leader/login";
-    const showsSensitiveFormPrivacyLink = pathname === "/join" || pathname === "/parent" || pathname === "/activities/consent" || pathname.startsWith("/event-consent/");
+    const showsSensitiveFormPrivacyLink = pathname === "/join" || pathname === "/parent" || pathname.startsWith("/event-consent/");
     useEffect(() => {
         const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
         if (!CANONICAL_PUBLIC_PATHS.has(pathname)) { existing?.remove(); return; }

@@ -1,35 +1,15 @@
-import { expect, test, type TestInfo } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const youthSections = [
-  { value: "Beavers", label: "Beavers" },
-  { value: "Cubs", label: "Cubs" },
-  { value: "Scouts", label: "Scouts" },
-  { value: "Ventures", label: "Ventures" },
-  { value: "Rovers", label: "Rover Scouts" }
-] as const;
+test.describe("consent access is inside the Parent Portal", () => {
+  test("public homepage and navigation do not expose consent forms while Parent Login remains available", async ({ page }) => {
+    await page.goto("/");
 
-test.describe("public consent section chooser", () => {
-  test("uses the supplied ONE Programme symbols without replacing accessible labels", async ({ page }) => {
-    await page.goto("/activities/consent");
-
-    for (const section of youthSections) {
-      const button = page.getByRole("button", { name: `Open ${section.label} consent form` });
-      await expect(button).toBeVisible();
-      await expect(page.getByTestId(`official-section-symbol-${section.value.toLowerCase()}`)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Join Us", exact: true }).first()).toBeVisible();
+    if (await page.getByRole("link", { name: "Parent Login", exact: true }).count() === 0) {
+      await page.getByRole("button", { name: "Open navigation menu" }).click();
     }
-
-    await expect(page.getByRole("button", { name: /Open Scouter.*consent form/i })).toHaveCount(0);
-    await expect(page.getByText(/Scouters can complete their confidential ES3 form from My Profile/i)).toBeVisible();
-  });
-
-  test("section choices remain keyboard operable on a phone viewport", async ({ page }, testInfo: TestInfo) => {
-    test.skip(testInfo.project.name !== "mobile-chromium", "Mobile consent keyboard regression runs once on the canonical Pixel 7 project.");
-    await page.goto("/activities/consent");
-
-    const beavers = page.getByRole("button", { name: "Open Beavers consent form" });
-    await beavers.focus();
-    await expect(beavers).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("heading", { name: /Beaver/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Parent Login", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /consent/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /consent/i })).toHaveCount(0);
   });
 });

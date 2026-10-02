@@ -26,7 +26,7 @@ export default function Header() {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const content = usePublicSiteContent();
-    const menuItems = content.navigation;
+    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label));
     const isPublicRoute = !pathname.startsWith("/leader");
     const showDashboardReturn = isPublicRoute && authorised && Boolean(adminProfile);
     const identity = adminProfile ? `${adminProfile.displayName} · ${roleSummary(adminProfile)}` : "";
