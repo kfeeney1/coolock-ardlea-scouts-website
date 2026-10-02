@@ -35,7 +35,7 @@ requireMatch(guard, /workflow_run:\s*\n\s*workflows:\s*\["Firebase TEST Deploy"\
 requireMatch(guard, /GITHUB_EVENT_NAME.*push[\s\S]*TARGET_SHA="\$\{GITHUB_SHA\}"/m, "Post-merge guard must bind a push-triggered run to the exact pushed SHA.");
 requireMatch(guard, /schedule:\s*\n\s*- cron:/m, "Post-merge guard must have a scheduled fallback for completely missing push workflows.");
 requireMatch(guard, /actions\/checkout@[0-9a-f]{40}[\s\S]*?ref:\s*\$\{\{\s*steps\.target\.outputs\.sha\s*\}\}[\s\S]*?node scripts\/post-merge-ci-evidence\.mjs/m, "Guard must resolve missing exact-SHA checks from the guarded revision.");
-requireMatch(guardEvidence, /run\.status === "completed"/, "A missing exact-SHA check must become a failure after its source workflow completes.");
+requireMatch(guardEvidence, /workflowRun\.status === "completed"/, "A missing exact-SHA check must become a failure after its source workflow completes.");
 
 for (const expected of ["Quality", "Playwright E2E", "Firebase TEST Deploy", "quality", "e2e", "deploy_test"]) {
   if (!guard.includes(`"${expected}"`)) failures.push(`Post-merge guard does not require ${expected}.`);
