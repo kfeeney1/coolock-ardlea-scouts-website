@@ -151,6 +151,36 @@ test("SW-216 surname edits are reloaded from Firestore and remain visible in Mem
   await expect(page.getByText("Member details updated.")).toBeVisible();
 });
 
+test("SW-258 section checklist preserves memberships and explicit Primary section after reload", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Section checklist regression runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_beaver_06");
+
+  const sections = page.getByRole("group", { name: "Member sections" });
+  await expect(sections.getByRole("checkbox", { name: "Beavers" })).toBeChecked();
+  await expect(page.getByLabel("Primary section")).toHaveValue("Beavers");
+
+  await sections.getByRole("checkbox", { name: "Cubs" }).check();
+  await page.getByLabel("Primary section").selectOption("Cubs");
+  await expect(sections.getByRole("checkbox", { name: "Cubs" })).toBeDisabled();
+  await expect(sections.getByRole("checkbox", { name: "Beavers" })).toBeEnabled();
+  await sections.getByRole("checkbox", { name: "Beavers" }).uncheck();
+
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+  await page.reload();
+  await expect(sections.getByRole("checkbox", { name: "Cubs" })).toBeChecked();
+  await expect(sections.getByRole("checkbox", { name: "Beavers" })).not.toBeChecked();
+  await expect(page.getByLabel("Primary section")).toHaveValue("Cubs");
+
+  await sections.getByRole("checkbox", { name: "Beavers" }).check();
+  await page.getByLabel("Primary section").selectOption("Beavers");
+  await sections.getByRole("checkbox", { name: "Cubs" }).uncheck();
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+});
+
 test("SW-218 newly created Venture member remains visible under Ventures and All Sections after reload", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Member creation visibility runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -164,11 +194,9 @@ test("SW-218 newly created Venture member remains visible under Ventures and All
   await dialog.getByLabel("First name").fill(firstName);
   await dialog.getByLabel("Last name").fill("Venture-Test");
   await dialog.getByLabel("Date of birth").fill("2009-04-18");
-  await dialog.getByLabel("Section").click();
-  await page.getByRole("option", { name: "Ventures", exact: true }).click();
-  // The section picker is intentionally multi-select for SW-237, so close it
-  // after choosing this member's section before submitting the dialog.
-  await page.keyboard.press("Escape");
+  await dialog.getByRole("checkbox", { name: "Ventures" }).check();
+  await expect(dialog.getByRole("checkbox", { name: "Ventures" })).toBeChecked();
+  await expect(dialog.getByLabel("Primary section")).toHaveValue("Ventures");
   await dialog.getByRole("button", { name: "Add Member" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
