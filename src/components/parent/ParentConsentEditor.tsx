@@ -8,7 +8,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import MedicationManagementForm, { validateMedication } from "../consent/MedicationManagementForm";
 import YesNoField from "../consent/YesNoField";
@@ -16,6 +16,7 @@ import YesNoField from "../consent/YesNoField";
 import type { ParentConsentRecord } from "../../services/parentConsent";
 import { updateParentConsent, validateParentConsentRecord } from "../../services/parentConsent";
 import type { MedicationManagementData } from "../../services/consentApplications";
+import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 
 type Props = {
     consent: ParentConsentRecord;
@@ -29,6 +30,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [medicationErrors, setMedicationErrors] = useState<Partial<Record<keyof MedicationManagementData, string>>>({});
+    const editorRef = useRef<HTMLDivElement | null>(null);
 
     const set = (key: keyof ParentConsentRecord, value: string) =>
         setForm((current) => ({ ...current, [key]: value }));
@@ -42,6 +44,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
         const firstError = Object.values(validation).find(Boolean) || Object.values(medicationValidation).find(Boolean);
         if (firstError) {
             setError(String(firstError));
+            focusFirstInvalidFieldAfterRender(editorRef.current ?? document);
             return;
         }
         setSaving(true);
@@ -68,7 +71,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
     );
 
     return (
-        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Paper ref={editorRef} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>
                 {form.childName}
             </Typography>
