@@ -15,17 +15,37 @@ type Props = {
     sharedIdentity?: SharedIdentity;
 };
 
-export function createMedicationEntry(today = "", july31 = ""): MedicationEntry {
-    return { medicineName: "", dosage: "", frequency: "", quantitySupplied: "", method: "", otherInfo: "", selfAdmin: "", authFrom: today, authTo: july31 };
+function localCalendarDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 }
 
-export function createMedicationData(today: string, july31: string): MedicationManagementData {
-    const entry = createMedicationEntry(today, july31);
+export function medicationAuthorisationDefaults(now = new Date()) {
+    return {
+        authFrom: localCalendarDate(now),
+        authTo: `${now.getFullYear() + 1}-08-31`
+    };
+}
+
+export function createMedicationEntry(authFrom = "", authTo = ""): MedicationEntry {
+    return { medicineName: "", dosage: "", frequency: "", quantitySupplied: "", method: "", otherInfo: "", selfAdmin: "", authFrom, authTo };
+}
+
+export function createNewMedicationEntry(now = new Date()): MedicationEntry {
+    const defaults = medicationAuthorisationDefaults(now);
+    return createMedicationEntry(defaults.authFrom, defaults.authTo);
+}
+
+export function createMedicationData(today: string, _legacyUntil: string): MedicationManagementData {
+    const defaults = medicationAuthorisationDefaults();
+    const entry = createMedicationEntry(today || defaults.authFrom, defaults.authTo);
     return {
         enabled: false, medications: [entry], memberName: "", dateOfBirth: "", address: "",
         medicineName: "", dosage: "", frequency: "", quantitySupplied: "", doctorName: "", doctorTel: "",
         pharmacyName: "", pharmacyTel: "", method: "", otherInfo: "", selfAdmin: "", authFrom: today,
-        authTo: july31, scouter1: "", scouter2: "", signature: "", signatureDate: today
+        authTo: entry.authTo, scouter1: "", scouter2: "", signature: "", signatureDate: today
     };
 }
 
@@ -90,8 +110,8 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
         onChange(withEntries(value, next));
     };
     const addMedication = () => {
-        const previous = entries.at(-1) ?? createMedicationEntry();
-        onChange(withEntries(value, [...entries, createMedicationEntry(previous.authFrom, previous.authTo)]));
+        const next = createNewMedicationEntry();
+        onChange(withEntries(value, [...entries, next]));
     };
     const removeMedication = (index: number) => onChange(withEntries(value, entries.filter((_, i) => i !== index)));
 
