@@ -175,3 +175,17 @@ test("SW-264 read-only meeting viewer does not gain Create Meeting action", asyn
   const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button",{name:"View",exact:true}).click();
   await expect(page.getByRole("button", { name: "Create Meeting", exact: true })).toHaveCount(0);
 });
+
+
+test("SW-264 mobile meeting editor exposes canonical Create Meeting route", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "SW-264 mobile navigation runs on the canonical mobile project.");
+  test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
+  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
+  const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
+  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button", { name: /View/ }).click(); }
+  const create = page.getByRole("button", { name: "Create Meeting", exact: true });
+  await expect(create).toBeVisible();
+  await create.click();
+  await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
+  await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+});
