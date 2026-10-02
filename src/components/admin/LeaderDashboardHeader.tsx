@@ -62,7 +62,7 @@ export default function LeaderDashboardHeader() {
   try {
    await logout();
    setMenuOpen(false);
-   navigate("/leader/login", { replace: true });
+   navigate("/leader/login",{replace:true})
   } catch (error) {
    console.error("Unable to sign out:", error);
    setSignOutError("Sign out did not complete. You are still signed in; please try again.");
