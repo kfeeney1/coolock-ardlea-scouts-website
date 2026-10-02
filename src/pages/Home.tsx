@@ -10,6 +10,15 @@ import { Link } from "react-router-dom";
 import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 
+const meetingTimes = [
+    { section: "Beavers", schedule: "Wednesday, 6:30 pm–8:00 pm" },
+    { section: "Cubs", schedule: "Tuesday, 7:00 pm–8:30 pm" },
+    { section: "Scouts", schedule: "Wednesday, 8:00 pm–9:30 pm" },
+    { section: "Ventures", schedule: "Tuesday, 8:30 pm–10:00 pm" }
+] as const;
+
+const googleMapsUrl = "https://maps.app.goo.gl/iexSS8BtsViUA2D87?g_st=ac";
+
 export default function Home() {
     const content = usePublicSiteContent();
     const accent = {
@@ -80,6 +89,47 @@ export default function Home() {
                             </Button>
                         </Box>
                     </Box>
+                </Container>
+            </Box>
+
+            <Box component="section" aria-labelledby="meeting-times-heading" sx={{ py: { xs: 6, md: 8 } }}>
+                <Container maxWidth="lg">
+                    <Typography id="meeting-times-heading" variant="h3" component="h2" color="secondary" sx={{ textAlign: "center", mb: 4 }}>
+                        Meeting Times
+                    </Typography>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2 }}>
+                        {meetingTimes.map(({ section, schedule }) => (
+                            <Paper key={section} elevation={2} sx={{ p: 3, borderTop: `5px solid ${brandColours.coral}` }}>
+                                <Typography variant="h5" component="h3" color="secondary" sx={{ mb: 1 }}>
+                                    {section}
+                                </Typography>
+                                <Typography>{schedule}</Typography>
+                            </Paper>
+                        ))}
+                    </Box>
+                </Container>
+            </Box>
+
+            <Box component="section" aria-labelledby="where-we-meet-heading" sx={{ backgroundColor: "background.default", py: { xs: 6, md: 8 } }}>
+                <Container maxWidth="lg">
+                    <Paper elevation={1} sx={{ p: { xs: 3, md: 5 }, textAlign: "center" }}>
+                        <Typography id="where-we-meet-heading" variant="h3" component="h2" color="secondary" sx={{ mb: 2 }}>
+                            Where We Meet
+                        </Typography>
+                        <Typography sx={{ mb: 3, color: "text.secondary" }}>
+                            View our meeting location on Google Maps.
+                        </Typography>
+                        <Button
+                            component="a"
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="contained"
+                            color="primary"
+                        >
+                            View on Google Maps
+                        </Button>
+                    </Paper>
                 </Container>
             </Box>
 
