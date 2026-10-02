@@ -7,6 +7,7 @@ import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPan
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
+import MemberSectionChecklist from "../components/admin/MemberSectionChecklist";
 import { automaticDisplayName, loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 import { disableParentPortalAccess } from "../services/parentManagement";
@@ -187,7 +188,7 @@ export default function MemberRecordPage() {
             <TextField label="Last name" value={draft.lastName} onChange={(event) => { const lastName = event.target.value; setDraft({ ...draft, lastName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, lastName) : draft.displayName }); }} />
             <Box><TextField fullWidth label="Display name" value={draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, draft.lastName) : draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value, displayNameMode: "custom" })} helperText={draft.displayNameMode === "auto" ? "Automatically follows First name + Last name." : "Custom display name."} />{draft.displayNameMode === "custom" && <Button size="small" onClick={() => setDraft({ ...draft, displayName: automaticDisplayName(draft.firstName, draft.lastName), displayNameMode: "auto" })}>Reset to automatic</Button>}</Box>
             {field("dateOfBirth", "Date of birth", "date")}
-            <FormControl><InputLabel>Sections</InputLabel><Select multiple label="Sections" value={draft.sections} onChange={(event) => { const selectedSections = typeof event.target.value === "string" ? event.target.value.split(",") : event.target.value; setDraft({ ...draft, sections: selectedSections, section: selectedSections[0] || "" }); }} renderValue={(selectedSections) => selectedSections.join(", ")}>{sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+            <MemberSectionChecklist availableSections={sections} sections={draft.sections} primarySection={draft.section} onChange={(selectedSections, primarySection) => setDraft({ ...draft, sections: selectedSections, section: primarySection })} />
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
