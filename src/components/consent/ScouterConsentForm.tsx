@@ -332,11 +332,17 @@ export default function ScouterConsentForm({
 
         setErrors(nextErrors);
 
-        return (
+        const valid =
             Object.keys(nextErrors).length === 0 &&
-            Object.keys(nextMedicationErrors).length ===
-                0
-        );
+            Object.keys(nextMedicationErrors).length === 0;
+
+        if (!valid) {
+            focusFirstInvalidFieldAfterRender(
+                formRef.current ?? document
+            );
+        }
+
+        return valid;
     };
 
     const next = () => {
