@@ -582,6 +582,7 @@ export default function YouthConsentForm({
 
             <Box
                 component="form"
+                ref={formRef}
                 onSubmit={submit}
                 noValidate
                 sx={{
