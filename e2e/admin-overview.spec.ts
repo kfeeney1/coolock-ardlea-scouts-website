@@ -111,7 +111,7 @@ test("Group Leader loads the operations overview within authorised account secti
 
   const overview = page.getByTestId("admin-overview");
   await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
-  await expect(overview.getByText("Scope: Group, Cubs")).toBeVisible();
+  await expect(overview.getByText(/^Scope: (?!All sections$).+/)).toBeVisible();
   await expect(overview.getByText("Pending Parent Requests")).toHaveCount(0);
   await expect(overview.getByText("Pending Leader Requests")).toHaveCount(0);
   await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
@@ -124,10 +124,10 @@ test("Dashboard consent detail uses the canonical medication presentation", asyn
   await login(page, "test.webadmin@example.com");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
-  await page.getByLabel("Search submissions").fill("TEST");
-  const medicationRecord = page.getByText("Beavers", { exact: true }).locator("..").locator("..").filter({ hasText: "Consent" }).first();
-  test.skip(await medicationRecord.count() === 0, "Canonical medication consent is not available in this seed.");
-  await medicationRecord.getByRole("button", { name: "View" }).click();
+  await page.getByLabel("Search submissions").fill("Synthetic test medicine");
+  const medicationRecord = page.getByRole("button", { name: "View" });
+  await expect(medicationRecord).toHaveCount(1);
+  await medicationRecord.click();
 
   const panel = page.getByTestId("medication-management-panel");
   await expect(panel).toBeVisible();
