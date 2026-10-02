@@ -48,7 +48,7 @@ test("SW-213 keeps Sign Out enabled until the user initiates logout", async ({ p
   await expect(signOut).toBeEnabled();
   await expect(page.getByText("Signing Out…", { exact: true })).toHaveCount(0);
 
-  await page.keyboard.press("Escape");
+  await menuButton.click();
   await expect(signOut).toHaveCount(0);
   await menuButton.click();
   await expect(signOut).toBeVisible();
