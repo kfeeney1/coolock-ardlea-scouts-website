@@ -301,8 +301,10 @@ test("SW-257 places primary-section leaders before valid secondary-section match
     expect(await ids()).toEqual(expectedCubsOrder);
 
     await page.goto("/leader/access");
+    await expect(page.getByTestId("leader-access-summary-list").locator('[data-testid^="leader-access-tile-"]').first()).toBeVisible();
     expect(await ids()).toEqual(allSectionsOrder);
     await page.reload();
+    await expect(page.getByTestId("leader-access-summary-list").locator('[data-testid^="leader-access-tile-"]').first()).toBeVisible();
     expect(await ids()).toEqual(allSectionsOrder);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   };
