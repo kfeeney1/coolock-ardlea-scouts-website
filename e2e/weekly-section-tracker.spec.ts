@@ -166,7 +166,7 @@ test("SW-264 authorised meeting editor routes to canonical Create Meeting and pr
       await dialog.getByRole("button", { name: "Keep editing" }).click(); await expect(theme).toHaveValue(original + " unsaved"); await theme.fill(original);
     }
   }
-  await create.click(); await expect(page).toHaveURL(/\\/leader\\/weekly\\/create$/); await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+  await create.click(); await expect(page).toHaveURL(/\/leader\/weekly\/create$/); await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
 });
 
 test("SW-264 read-only meeting viewer does not gain Create Meeting action", async ({ page }, testInfo) => {
