@@ -1,4 +1,5 @@
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import AdminOverviewPanel from "../components/admin/AdminOverviewPanel";
 import OperationalHealthPanel from "../components/admin/OperationalHealthPanel";
 import {
@@ -176,6 +177,9 @@ export default function AdminDashboard() {
                         <Divider sx={{ mb: 2 }} />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
                             {Object.entries(selected.data).filter(([key]) => !HIDDEN_KEYS.has(key) && key !== "submittedAt").map(([key, value]) => {
+                                if (key === "medicationManagement") {
+                                    return <MedicationManagementPanel key={key} value={value} />;
+                                }
                                 const text = displayValue(value);
                                 if (!text) return null;
                                 const isObject = typeof value === "object" && value !== null;

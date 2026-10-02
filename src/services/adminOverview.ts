@@ -5,7 +5,7 @@ import { buildLeaderToday, type LeaderAttentionItem, type LeaderTodayMeeting } f
 import { canManageEquipment } from "./equipmentLogic";
 import { incidentTypeLabel } from "./equipmentIncidentLogic";
 import { findMembersNeedingFormRenewal, type FormRenewalConsent } from "./formRenewalLogic";
-import { effectiveOperationalSections } from "./leaderAccessLogic";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 
 export type AdminOverviewEvent = {
   id: string;
@@ -68,8 +68,13 @@ function isAdmin(profile: AdminProfile): boolean {
   return profile.role === "admin" || profile.role === "super-admin";
 }
 
+function authorisedOverviewSections(profile: AdminProfile): string[] {
+  if (isAdmin(profile)) return normalizeLeaderSections({ sections: profile.sections });
+  return normalizeLeaderSections({ sections: profile.sections }).filter((section) => section !== "Group");
+}
+
 function cacheKey(profile: AdminProfile): string {
-  return `${profile.role}:${profile.scoutingRole}:${effectiveOperationalSections(profile.role, profile.sections, profile.appointments).join("|")}`;
+  return `${profile.role}:${profile.scoutingRole}:${authorisedOverviewSections(profile).join("|")}`;
 }
 
 function encodedProgrammeHasContent(value: unknown, itemField?: string): boolean {
@@ -126,7 +131,7 @@ async function countDocuments(target: Query): Promise<number> {
 
 async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
   if (isAdmin(profile)) return countDocuments(query(collection(db, "joinApplications"), where("status", "==", "new")));
-  const sections = effectiveOperationalSections(profile.role, profile.sections, profile.appointments);
+  const sections = authorisedOverviewSections(profile);
   if (sections.length === 0) return 0;
   const counts = await Promise.all(sections.map((section) => countDocuments(query(collection(db, "joinApplications"), where("section", "==", section), where("status", "==", "new")))));
   return counts.reduce((total, count) => total + count, 0);
@@ -134,7 +139,7 @@ async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
 
 async function loadScopedCollection(collectionName: string, profile: AdminProfile): Promise<FirestoreSnapshot[]> {
   if (isAdmin(profile)) return (await getDocs(collection(db, collectionName))).docs;
-  const sections = effectiveOperationalSections(profile.role, profile.sections, profile.appointments);
+  const sections = authorisedOverviewSections(profile);
   if (sections.length === 0) return [];
   const snapshots = await Promise.all(sections.map((section) => getDocs(query(collection(db, collectionName), where("section", "==", section)))));
   const byId = new Map<string, FirestoreSnapshot>();
@@ -143,7 +148,7 @@ async function loadScopedCollection(collectionName: string, profile: AdminProfil
 }
 
 async function loadScopedWeeklyMeetings(profile: AdminProfile): Promise<FirestoreSnapshot[]> {
-  const sections = effectiveOperationalSections(profile.role, profile.sections, profile.appointments);
+  const sections = authorisedOverviewSections(profile);
   if (sections.length === 0) return [];
   const snapshots = await Promise.all(
     sections.map((section) => getDocs(query(collection(db, "weeklyMeetings"), where("section", "==", section))))

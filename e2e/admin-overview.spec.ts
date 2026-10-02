@@ -101,3 +101,40 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await expect(page.getByRole("heading", { name: /Member Management/i })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
+
+test("Group Leader loads the operations overview within authorised account sections", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.group.leader@example.com");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  const overview = page.getByTestId("admin-overview");
+  await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
+  await expect(overview.getByText(/^Scope: (?!All sections$).+/)).toBeVisible();
+  await expect(overview.getByText("Pending Parent Requests")).toHaveCount(0);
+  await expect(overview.getByText("Pending Leader Requests")).toHaveCount(0);
+  await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
+});
+
+test("Dashboard consent detail uses the canonical medication presentation", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.webadmin@example.com");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  await page.getByLabel("Search submissions").fill("Synthetic test medicine");
+  const medicationRecord = page.getByRole("button", { name: "View" });
+  await expect(medicationRecord).toHaveCount(1);
+  await medicationRecord.click();
+
+  const panel = page.getByTestId("medication-management-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Medicine");
+  await expect(panel).toContainText("Pharmacy Telephone");
+  await expect(panel).toContainText("Signature Date");
+  for (const rawKey of ["pharmacyTel", "otherInfo", "medicineName", "memberName", "signatureDate", "authTo", "authFrom"]) {
+    await expect(page.getByText(rawKey, { exact: true })).toHaveCount(0);
+  }
+});
