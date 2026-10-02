@@ -29,8 +29,7 @@ test("leader can sign out from the shared dashboard menu", async ({ page }) => {
 });
 
 
-test("SW-213 keeps Sign Out enabled until the user initiates logout", async ({ page }, testInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Sign-out menu state runs on desktop and Pixel 7 Chromium.");
+test("SW-213 keeps Sign Out enabled until the user initiates logout", async ({ page }) => {
   const email = process.env.E2E_LEADER_EMAIL?.trim();
   const password = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
   if (!email || !password) throw new Error("Configure the seeded E2E leader credentials.");
