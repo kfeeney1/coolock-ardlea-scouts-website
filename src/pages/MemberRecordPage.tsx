@@ -7,6 +7,7 @@ import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPan
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
+import MemberSectionChecklist from "../components/admin/MemberSectionChecklist";
 import { automaticDisplayName, loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 import { disableParentPortalAccess } from "../services/parentManagement";
