@@ -5,10 +5,13 @@ test.describe("consent access is inside the Parent Portal", () => {
     await page.goto("/");
 
     await expect(page.getByRole("link", { name: "Join Us", exact: true }).first()).toBeVisible();
-    if (await page.getByRole("link", { name: "Parent Login", exact: true }).count() === 0) {
+    const parentLoginLink = page.getByRole("link", { name: "Parent Login", exact: true });
+    if (await parentLoginLink.count() === 0) {
       await page.getByRole("button", { name: "Open navigation menu" }).click();
+      await expect(page.getByRole("menuitem", { name: "Parent Login", exact: true })).toBeVisible();
+    } else {
+      await expect(parentLoginLink).toBeVisible();
     }
-    await expect(page.getByRole("link", { name: "Parent Login", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /consent/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /consent/i })).toHaveCount(0);
   });
