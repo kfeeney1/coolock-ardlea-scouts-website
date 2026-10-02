@@ -11,7 +11,7 @@ test("leader can sign out from the shared dashboard menu", async ({ page }) => {
   await page.getByRole("button", { name: "Sign In" }).click();
 
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
+  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Hide Leader Menu|Menu ·/ });
   await expect(menuButton).toBeVisible();
   await menuButton.click();
   await expect(page.getByRole("button", { name: "Sign Out" })).toBeVisible();
@@ -40,7 +40,7 @@ test("SW-213 keeps Sign Out enabled until the user initiates logout", async ({ p
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
-  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Menu ·/ });
+  const menuButton = page.getByRole("button", { name: /Open Leader Menu|Hide Leader Menu|Menu ·/ });
   await menuButton.click();
   const signOut = page.getByRole("button", { name: "Sign Out", exact: true });
   await expect(signOut).toBeVisible();
