@@ -25,7 +25,8 @@ import MedicationManagementForm, {
     validateMedication
 } from "./MedicationManagementForm";
 import YesNoField from "./YesNoField";
-import { brandColours } from "../../theme/theme";\nimport { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
+import { brandColours } from "../../theme/theme";
+import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { validateYouthConsent } from "../../services/youthConsentValidation";
 import {
     AUTHORISED_SCOUTERS,
@@ -158,7 +159,8 @@ export default function YouthConsentForm({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [submitted, setSubmitted] = useState(false);
-    const [reference, setReference] = useState("");\n    const formRef = useRef<HTMLFormElement | null>(null);
+    const [reference, setReference] = useState("");
+    const formRef = useRef<HTMLFormElement | null>(null);
 
     const progress = useMemo(
         () =>
