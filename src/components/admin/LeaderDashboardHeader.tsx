@@ -24,7 +24,8 @@ export default function LeaderDashboardHeader() {
  const location = useLocation();
  const navigate = useNavigate();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
- const { adminProfile, logout, setUiTheme } = useAdminAuth();
+ const signOutInFlight = useRef(false);
+ const { user, adminProfile, logout, setUiTheme } = useAdminAuth();
  const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path)))?.label ?? null;
  const [menuOpen, setMenuOpen] = useState(false);
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
@@ -46,14 +47,29 @@ export default function LeaderDashboardHeader() {
  const visibleItems = [dashboardNavItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
  const currentItem = visibleItems.find((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path));
  useEffect(() => { setMobileGroupOpen(activeMobileGroup); }, [activeMobileGroup]);
+ // Busy UI is local to this header. Clear any completed/stale state when the
+ // authenticated identity or route changes; the ref still prevents a second
+ // Firebase signOut call if navigation happens while the first is pending.
+ useEffect(() => { setSigningOut(false); setSignOutError(""); }, [user?.uid, location.pathname]);
  const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
  const menuHistoryReady = useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
  const handleSignOut = async () => {
-  if(signingOut)return;
-  setSigningOut(true);setSignOutError("");
-  try{await logout();setMenuOpen(false);navigate("/leader/login",{replace:true});}
-  catch(error){console.error("Unable to sign out:",error);setSignOutError("Sign out did not complete. You are still signed in; please try again.");setSigningOut(false);}
+  if (signOutInFlight.current) return;
+  signOutInFlight.current = true;
+  setSigningOut(true);
+  setSignOutError("");
+  try {
+   await logout();
+   setMenuOpen(false);
+   navigate("/leader/login", { replace: true });
+  } catch (error) {
+   console.error("Unable to sign out:", error);
+   setSignOutError("Sign out did not complete. You are still signed in; please try again.");
+  } finally {
+   signOutInFlight.current = false;
+   setSigningOut(false);
+  }
  };
  const handleThemeChange = async (theme: ThemeName) => {
   if (theme === adminProfile?.uiTheme || themeSaving) return;
