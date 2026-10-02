@@ -169,9 +169,11 @@ test("SW-264 authorised meeting editor routes to canonical Create Meeting and pr
   await create.click(); await expect(page).toHaveURL(/\/leader\/weekly\/create$/); await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
 });
 
-test("SW-264 read-only meeting viewer does not gain Create Meeting action", async ({ page }, testInfo) => {
-  desktopOnly(testInfo); test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
-  await login(page, leaderEmail!); await page.goto("/leader/weekly");
+test("SW-264 Group Secretary does not gain Create Meeting action", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password, "Configure canonical E2E password.");
+  await login(page, "test.group.secretary@example.com"); await page.goto("/leader/weekly");
+  await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create Meeting", exact: true })).toHaveCount(0);
   const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button",{name:"View",exact:true}).click();
   await expect(page.getByRole("button", { name: "Create Meeting", exact: true })).toHaveCount(0);
 });
