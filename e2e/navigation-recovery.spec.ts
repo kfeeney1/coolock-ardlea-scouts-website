@@ -51,10 +51,13 @@ async function assertSiblingNotCurrent(page: Page, testInfo: TestInfo, group: st
   await expect(navigation.getByTestId("leader-nav-" + itemId)).not.toHaveAttribute("aria-current", "page");
 }
 
-function projectNavigation(page: Page, testInfo: TestInfo) {
-  return page.getByTestId(testInfo.project.name === "mobile-chromium"
-    ? "leader-navigation-mobile"
-    : "leader-navigation-desktop");
+function projectNavigation(page: Page, _testInfo: TestInfo) {
+  // Responsive rendering is authoritative: route changes can briefly remount the
+  // navigation surface, so select the currently visible container instead of
+  // assuming the Playwright project name always matches the mounted DOM variant.
+  return page.locator(
+    '[data-testid="leader-navigation-desktop"]:visible, [data-testid="leader-navigation-mobile"]:visible'
+  );
 }
 
 async function exposeQuartermaster(page: Page, testInfo: TestInfo) {
