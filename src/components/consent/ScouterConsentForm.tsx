@@ -534,6 +534,7 @@ export default function ScouterConsentForm({
 
             <Box
                 component="form"
+                ref={formRef}
                 onSubmit={submit}
                 noValidate
                 sx={{
