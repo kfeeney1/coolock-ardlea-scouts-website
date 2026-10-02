@@ -13,6 +13,7 @@ import type { Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
+import { medicationAuthorisationDefaults } from "./medicationAuthorisationDates";
 import type { MedicationManagementData, YouthConsentData, YouthScoutSection } from "./consentApplications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
 
@@ -148,6 +149,7 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
 }
 
 export function createParentConsentDraft(member: ParentLinkedMember): ParentConsentRecord {
+    const medicationDates = medicationAuthorisationDefaults();
     return {
         id: "",
         memberId: member.id,
@@ -180,7 +182,13 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
         altContactName: "",
         altContactPhone: "",
         additionalInfo: "",
-        medicationManagement: { ...EMPTY_MEDICATION, memberName: member.displayName, dateOfBirth: member.dateOfBirth },
+        medicationManagement: {
+            ...EMPTY_MEDICATION,
+            memberName: member.displayName,
+            dateOfBirth: member.dateOfBirth,
+            authFrom: medicationDates.authFrom,
+            authTo: medicationDates.authTo
+        },
         updatedByParent: false,
         submittedAt: null,
         parentUpdatedAt: null,
