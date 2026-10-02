@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import process from "node:process";
 import { smokeSpecs, suiteSpecs, suitesForChangedPath } from "./playwright-suites.mjs";
+import { assignSpecsToShard, estimateSpecsSeconds } from "./playwright-shards.mjs";
 
 const args = process.argv.slice(2);
 const modeIndex = args.indexOf("--mode");
@@ -11,13 +12,31 @@ const mode = modeIndex >= 0 ? args[modeIndex + 1] : "full";
 const base = baseIndex >= 0 ? args[baseIndex + 1] : null;
 const requestedSuite = suiteIndex >= 0 ? args[suiteIndex + 1] : null;
 const shard = shardIndex >= 0 ? args[shardIndex + 1] : null;
-const shardArgs = shard ? ["--shard", shard] : [];
+
+function selectedForShard(specs) {
+  if (!shard) return [...new Set(specs)];
+  const match = /^(\d+)\/(\d+)$/.exec(shard);
+  if (!match) {
+    console.error(`Invalid Playwright shard: ${shard}; expected <index>/<count>.`);
+    process.exit(2);
+  }
+  const shardNumber = Number(match[1]);
+  const shardCount = Number(match[2]);
+  const assigned = assignSpecsToShard(specs, shardNumber, shardCount);
+  console.log(`Weighted shard ${shardNumber}/${shardCount}: ${assigned.length} specs, estimated ${estimateSpecsSeconds(assigned).toFixed(1)}s.`);
+  return assigned;
+}
 
 function run(specs, label) {
-  const unique = [...new Set(specs)].map((name) => `e2e/${name}`);
+  const selected = selectedForShard(specs);
+  const unique = selected.map((name) => `e2e/${name}`);
   console.log(`Playwright selection: ${label}`);
   console.log(`Specs (${unique.length}): ${unique.join(", ")}`);
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique, ...shardArgs], {
+  if (unique.length === 0) {
+    console.log("No specs assigned to this shard.");
+    process.exit(0);
+  }
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
@@ -25,11 +44,7 @@ function run(specs, label) {
 }
 
 if (mode === "full") {
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
-    stdio: "inherit",
-    shell: process.platform === "win32"
-  });
-  process.exit(result.status ?? 1);
+  run(Object.values(suiteSpecs).flat(), "full suite");
 }
 
 if (mode === "suite") {
@@ -60,11 +75,7 @@ try {
 } catch (error) {
   console.error("Unable to determine changed files safely; running full Playwright suite.");
   console.error(error instanceof Error ? error.message : error);
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
-    stdio: "inherit",
-    shell: process.platform === "win32"
-  });
-  process.exit(result.status ?? 1);
+  run(Object.values(suiteSpecs).flat(), "full-suite fallback");
 }
 
 const selectedSuites = new Set();
@@ -80,11 +91,7 @@ for (const file of changedFiles) {
 }
 
 if (requiresFullSuite) {
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...shardArgs], {
-    stdio: "inherit",
-    shell: process.platform === "win32"
-  });
-  process.exit(result.status ?? 1);
+  run(Object.values(suiteSpecs).flat(), "full-suite fallback");
 }
 
 const selectedSpecs = [...smokeSpecs];
