@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 
 import YesNoField from "./YesNoField";
 import type { MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
+import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 
 type Errors = Partial<Record<keyof MedicationManagementData, string>>;
 type SharedIdentity = { memberName?: string; dateOfBirth?: string; address?: string };
@@ -14,20 +15,6 @@ type Props = {
     onChange: (next: MedicationManagementData) => void;
     sharedIdentity?: SharedIdentity;
 };
-
-function localCalendarDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
-export function medicationAuthorisationDefaults(now = new Date()) {
-    return {
-        authFrom: localCalendarDate(now),
-        authTo: `${now.getFullYear() + 1}-08-31`
-    };
-}
 
 export function createMedicationEntry(authFrom = "", authTo = ""): MedicationEntry {
     return { medicineName: "", dosage: "", frequency: "", quantitySupplied: "", method: "", otherInfo: "", selfAdmin: "", authFrom, authTo };
