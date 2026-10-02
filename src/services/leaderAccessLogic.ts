@@ -90,3 +90,25 @@ export function canManageOperationalSection(
 ): boolean {
     return effectiveOperationalSections(role, sections, appointments).includes(section);
 }
+
+
+export type LeaderAccessOrderRecord = {
+    displayName: string;
+    uid: string;
+    primarySection: string;
+};
+
+export function sortLeaderAccessRecords<T extends LeaderAccessOrderRecord>(
+    records: readonly T[],
+    sectionFilter: string
+): T[] {
+    return [...records].sort((left, right) => {
+        if (sectionFilter) {
+            const leftIsPrimary = left.primarySection === sectionFilter;
+            const rightIsPrimary = right.primarySection === sectionFilter;
+            if (leftIsPrimary !== rightIsPrimary) return leftIsPrimary ? -1 : 1;
+        }
+
+        return left.displayName.localeCompare(right.displayName) || left.uid.localeCompare(right.uid);
+    });
+}
