@@ -77,29 +77,21 @@ test.describe("accessibility baseline", () => {
     test.skip(testInfo.project.name !== "chromium", "Accessibility baseline runs once on desktop Chromium.");
   });
 
-  for (const route of ["/", "/about", "/activities", "/activities/consent", "/join", "/contact", "/privacy"]) {
+  for (const route of ["/", "/about", "/activities", "/join", "/contact", "/privacy"]) {
     test(`public route ${route} has baseline accessible structure`, async ({ page }) => {
       await page.goto(route);
       await expectAccessibilityBaseline(page);
     });
   }
 
-  for (const route of ["/join", "/parent", "/activities/consent"]) {
+  for (const route of ["/join", "/parent"]) {
     test(`personal-data route ${route} links to privacy information`, async ({ page }) => {
       await page.goto(route);
       await expect(page.getByRole("link", { name: /privacy & data protection information/i })).toBeVisible();
     });
   }
 
-  test("consent section chooser is keyboard reachable and operable", async ({ page }) => {
-    await page.goto("/activities/consent");
-    const chooser = page.getByRole("button", { name: /Open Beavers consent form/i });
-    await chooser.focus();
-    await expect(chooser).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: /change section/i })).toBeVisible();
-  });
+
 
   test("parent sign-in has baseline accessible structure", async ({ page }) => {
     await page.goto("/parent");

@@ -11,7 +11,6 @@ export const DEFAULT_PUBLIC_SITE_CONTENT: PublicSiteContent = {
     { label: "Home", path: "/" },
     { label: "About", path: "/about" },
     { label: "Activities", path: "/activities" },
-    { label: "Consent Form", path: "/activities/consent" },
     { label: "Contact", path: "/contact" }
   ],
   home: {

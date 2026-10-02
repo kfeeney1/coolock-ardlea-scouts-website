@@ -19,7 +19,6 @@ import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
 const Home = lazy(() => import("./pages/Home"));
 const About = lazy(() => import("./pages/About"));
 const Activities = lazy(() => import("./pages/Activities"));
-const ConsentForm = lazy(() => import("./pages/ConsentForm"));
 const EventConsent = lazy(() => import("./pages/EventConsent"));
 const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const ParentMemberInactivation = lazy(() => import("./pages/ParentMemberInactivation"));
@@ -79,7 +78,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/whos-who" element={<Navigate to="/about" replace />} />
         <Route path="/activities" element={<Activities />} />
-        <Route path="/activities/consent" element={<ConsentForm />} />
+        <Route path="/activities/consent" element={<Navigate to="/parent#parent-medical-consent" replace />} />
         <Route path="/event-consent/:token" element={<EventConsent />} />
         <Route path="/parent" element={<ParentPortal />} />
         <Route path="/parent/member-action/:actionToken" element={<ParentMemberInactivation />} />
