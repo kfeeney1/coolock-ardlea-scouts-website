@@ -38,7 +38,8 @@ const numberValue = (value: string) => value === "" ? 0 : Math.max(0, Number(val
 
 export default function WeeklySectionTracker() {
   const { adminProfile } = useAdminAuth();
-  const [searchParams] = useSearchParams();\n  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const requestedMeetingId = searchParams.get("meeting") ?? "";
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [access,setAccess]=useState<WeeklyAccess>({scoutingRole:"",canViewAll:false,canEditAll:false,readOnly:false});
