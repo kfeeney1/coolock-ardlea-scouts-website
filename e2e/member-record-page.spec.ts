@@ -159,10 +159,11 @@ test("SW-258 section checklist preserves memberships and explicit Primary sectio
 
   const sections = page.getByRole("group", { name: "Member sections" });
   await expect(sections.getByRole("checkbox", { name: "Beavers" })).toBeChecked();
-  await expect(page.getByLabel("Primary section")).toHaveValue("Beavers");
+  await expect(page.getByRole("combobox", { name: "Primary section" })).toHaveText("Beavers");
 
   await sections.getByRole("checkbox", { name: "Cubs" }).check();
-  await page.getByLabel("Primary section").selectOption("Cubs");
+  await page.getByRole("combobox", { name: "Primary section" }).click();
+  await page.getByRole("option", { name: "Cubs", exact: true }).click();
   await expect(sections.getByRole("checkbox", { name: "Cubs" })).toBeDisabled();
   await expect(sections.getByRole("checkbox", { name: "Beavers" })).toBeEnabled();
   await sections.getByRole("checkbox", { name: "Beavers" }).uncheck();
@@ -172,10 +173,11 @@ test("SW-258 section checklist preserves memberships and explicit Primary sectio
   await page.reload();
   await expect(sections.getByRole("checkbox", { name: "Cubs" })).toBeChecked();
   await expect(sections.getByRole("checkbox", { name: "Beavers" })).not.toBeChecked();
-  await expect(page.getByLabel("Primary section")).toHaveValue("Cubs");
+  await expect(page.getByRole("combobox", { name: "Primary section" })).toHaveText("Cubs");
 
   await sections.getByRole("checkbox", { name: "Beavers" }).check();
-  await page.getByLabel("Primary section").selectOption("Beavers");
+  await page.getByRole("combobox", { name: "Primary section" }).click();
+  await page.getByRole("option", { name: "Beavers", exact: true }).click();
   await sections.getByRole("checkbox", { name: "Cubs" }).uncheck();
   await page.getByRole("button", { name: "Save Member" }).click();
   await expect(page.getByText("Member details updated.")).toBeVisible();
@@ -196,7 +198,7 @@ test("SW-218 newly created Venture member remains visible under Ventures and All
   await dialog.getByLabel("Date of birth").fill("2009-04-18");
   await dialog.getByRole("checkbox", { name: "Ventures" }).check();
   await expect(dialog.getByRole("checkbox", { name: "Ventures" })).toBeChecked();
-  await expect(dialog.getByLabel("Primary section")).toHaveValue("Ventures");
+  await expect(dialog.getByRole("combobox", { name: "Primary section" })).toHaveText("Ventures");
   await dialog.getByRole("button", { name: "Add Member" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByTestId(/member-card-/).filter({ hasText: displayName })).toBeVisible();
