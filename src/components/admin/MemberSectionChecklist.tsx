@@ -52,7 +52,7 @@ export default function MemberSectionChecklist({
                 checked={selected.includes(section)}
                 disabled={section === effectivePrimary}
                 onChange={(event) => toggleSection(section, event.target.checked)}
-                inputProps={{ "aria-label": section }}
+                slotProps={{ input: { "aria-label": section } }}
               />
             }
             label={section === effectivePrimary ? `${section} (Primary)` : section}
