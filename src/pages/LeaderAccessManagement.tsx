@@ -31,7 +31,7 @@ import { loadSubsMembers, reconcileCurrentLeaderFamilySubs } from "../services/s
 import { loadLeaderChildRelationships, setLeaderChildRelationship } from "../services/leaderChildRelationships";
 import type { MemberRecord } from "../services/memberAdmin";
 import type { LeaderAccessRecord } from "../services/leaderAccess";
-import { canonicalOrganisationSection } from "../services/leaderAccessLogic";
+import { canonicalOrganisationSection, sortLeaderAccessRecords } from "../services/leaderAccessLogic";
 import { CANONICAL_SCOUTING_APPOINTMENTS, isGroupScopedAppointment } from "../security/scoutingAppointments";
 import { appointmentsActorMayAssign, canChangeSystemRole, canManageSectionScope, canOpenLeaderAccess } from "../security/leaderDelegationPolicy";
 
@@ -107,13 +107,16 @@ export default function LeaderAccessManagement() {
       setLinkedChildIds(relationships.filter((relationship) => relationship.active).map((relationship) => relationship.memberId));
     }).catch((e) => { console.error(e); setError("Unable to load linked children for this leader."); });
   }, [selectedRecord?.uid, selectedRecord?.role]);
-  const filteredRecords = useMemo(() => records.filter((record) => {
-    const term = search.trim().toLowerCase();
-    const matchesSearch = !term || [record.displayName, record.email, ...record.sections, ...record.appointments.map((item) => item.appointment)].some((value) => value.toLowerCase().includes(term));
-    const matchesSection = !sectionFilter || record.sections.includes(sectionFilter) || record.organisationSection === sectionFilter;
-    const matchesActive = activeFilter === "all" || (activeFilter === "active" ? record.active : !record.active);
-    return matchesSearch && matchesSection && matchesActive;
-  }).sort((a, b) => a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid)), [records, search, sectionFilter, activeFilter]);
+  const filteredRecords = useMemo(() => {
+    const filtered = records.filter((record) => {
+      const term = search.trim().toLowerCase();
+      const matchesSearch = !term || [record.displayName, record.email, ...record.sections, ...record.appointments.map((item) => item.appointment)].some((value) => value.toLowerCase().includes(term));
+      const matchesSection = !sectionFilter || record.sections.includes(sectionFilter) || record.organisationSection === sectionFilter;
+      const matchesActive = activeFilter === "all" || (activeFilter === "active" ? record.active : !record.active);
+      return matchesSearch && matchesSection && matchesActive;
+    });
+    return sortLeaderAccessRecords(filtered, sectionFilter);
+  }, [records, search, sectionFilter, activeFilter]);
 
   const updateFilter = (key: string, value: string) => {
     const next = new URLSearchParams(filterParams);
