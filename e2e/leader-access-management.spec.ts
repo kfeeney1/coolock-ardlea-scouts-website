@@ -218,7 +218,7 @@ test("SW-248 allows two leaders to retain the same Group appointment independent
   secondHolder = await openLeaderAccessRecord(page, secondHolderUid);
   await expect(secondHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
 
-  const reloadedExistingHolder = await openLeaderAccessRecord(page, existingHolderUid);
+  let reloadedExistingHolder = await openLeaderAccessRecord(page, existingHolderUid);
   await expect(reloadedExistingHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
 
   secondHolder = await openLeaderAccessRecord(page, secondHolderUid);
@@ -227,7 +227,7 @@ test("SW-248 allows two leaders to retain the same Group appointment independent
   await page.getByRole("dialog", { name: "Confirm leader access changes?" }).getByRole("button", { name: "Confirm Changes" }).click();
   await expect(page.getByText("Test Multi Section Leader updated.")).toBeVisible();
 
-  const reloadedExistingHolder = await openLeaderAccessRecord(page, existingHolderUid);
+  reloadedExistingHolder = await openLeaderAccessRecord(page, existingHolderUid);
   await expect(reloadedExistingHolder.getByRole("checkbox", { name: sharedAppointment })).toBeChecked();
 });
 
