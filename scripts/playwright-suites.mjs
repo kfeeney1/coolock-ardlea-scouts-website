@@ -21,6 +21,7 @@ export const suiteSpecs = {
   ],
   "members-parents-consent": [
     "consent-section-symbols.spec.ts",
+    "form-validation-focus.spec.ts",
     "section-consent-ux.spec.ts",
     "join-consent-record-pages.spec.ts",
     "member-history-search.spec.ts",
