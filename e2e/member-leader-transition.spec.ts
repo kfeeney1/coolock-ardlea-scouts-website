@@ -26,7 +26,8 @@ test("cancelling member-to-leader transition leaves member status unchanged", as
   await expect(dialog).toBeHidden();
   await expect(page.getByRole("combobox").filter({ hasText: "Active" })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("combobox").filter({ hasText: "Active" })).toBeVisible();
+  await expect(member).toBeVisible();
+  await expect(member).toContainText("Active");
 });
 
 test("invalid member transition link cannot submit a Leader Registration", async ({ page }) => {
@@ -76,7 +77,8 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("dialog", { name: /Member —/ }).getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: /^Menu ·|Open Leader Menu/ }).click();
   await page.getByRole("button", { name: "Sign Out", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Leader Login" })).toBeVisible();
+  await expect(page).toHaveURL(/\/leader\/login$/);
+  await expect(page.getByRole("button", { name: "Sign In", exact: true })).toBeVisible();
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "Leader Registration" })).toBeVisible();
   await page.getByLabel("Password", { exact: true }).fill(passwordForMember);
