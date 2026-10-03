@@ -91,6 +91,21 @@ test("Rover self-service read is limited to records carrying the caller's email 
   await assertFails(getDoc(doc(db, "members/other-rover")));
 });
 
+test("a reserved Rover ID cannot overwrite an unrelated member record", async () => {
+  await seedDocuments([
+    ["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["members/rover_rover-leader", { firstName: "Other", lastName: "Member", displayName: "Other Member", dateOfBirth: "2015-01-01", section: "Cubs", sections: ["Cubs"], status: "active", emailAddress: "family@example.com" }],
+  ]);
+  const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
+  await assertFails(updateDoc(doc(db, "members/rover_rover-leader"), {
+    firstName: "Rory", lastName: "Rover", displayName: "Rory Rover", dateOfBirth: "", section: "Rovers",
+    sections: ["Rovers"], status: "active", source: "rover-self-service", accountUid: "rover-leader",
+    updatedAt: serverTimestamp(), updatedBy: "rover-leader",
+  }));
+  const stored = await assertSucceeds(getDoc(doc(db, "members/rover_rover-leader")));
+  assert.equal(stored.data().displayName, "Other Member");
+});
+
 test("leaders can read only members in their assigned sections", async () => {
   await seedDocuments([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],

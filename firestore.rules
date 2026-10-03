@@ -391,6 +391,7 @@ service cloud.firestore {
             && resource.data.emailAddress == request.auth.token.email
             && (canAccessMemberSections(resource.data) || canViewAllFinance() || isGroupSecretary())));
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
+          && (memberId != "rover_" + request.auth.uid || resource.data.accountUid == request.auth.uid)
           && request.resource.data.status in ["active", "inactive", "left"]
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
         || (isAdmin()
