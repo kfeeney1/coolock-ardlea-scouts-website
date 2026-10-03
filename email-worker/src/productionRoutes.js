@@ -1,4 +1,4 @@
-import { issueMemberInactivationToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
+import { issueJoinConsentToken, issueMemberInactivationToken, verifyJoinConsentToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
 import { reminderDocumentId, reminderRecord, shouldAttemptReminder } from "./reminderPersistence.js";
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
@@ -76,6 +76,27 @@ function fieldStringArray(document, key) {
   const values = document?.fields?.[key]?.arrayValue?.values;
   if (!Array.isArray(values)) return [];
   return values.map((value) => value?.stringValue || "").filter(Boolean);
+}
+
+function fieldMapArray(document, key) {
+  const values = document?.fields?.[key]?.arrayValue?.values;
+  return Array.isArray(values) ? values.map((value) => value?.mapValue?.fields || {}).filter(Boolean) : [];
+}
+
+function fieldMapString(fields, key) {
+  return fields?.[key]?.stringValue || "";
+}
+
+function fieldMapBoolean(fields, key) {
+  return fields?.[key]?.booleanValue === true;
+}
+
+function activeAppointment(appointment) {
+  if (!fieldMapBoolean(appointment, "active")) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const start = fieldMapString(appointment, "startDate");
+  const end = fieldMapString(appointment, "endDate");
+  return (!start || start <= today) && (!end || end >= today);
 }
 
 function base64Url(bytes) {
@@ -566,6 +587,165 @@ async function leadershipRecipients(env, section) {
   return [...new Set(recipients)];
 }
 
+export function resolveJoinLeaderRecipients(profiles, leadership, section, configuredAdmins = []) {
+  const byUid = new Map(leadership.map((item) => [documentId(item), item]));
+  const sectionLeaders = [];
+  const groupLeaders = [];
+  for (const profile of profiles) {
+    if (!fieldBoolean(profile, "active")) continue;
+    const uid = documentId(profile);
+    const appointmentRecord = byUid.get(uid);
+    if (!appointmentRecord || !fieldBoolean(appointmentRecord, "active")) continue;
+    const appointments = fieldMapArray(appointmentRecord, "appointments");
+    const legacyRole = fieldString(appointmentRecord, "scoutingRole");
+    const legacyScope = fieldString(appointmentRecord, "organisationSection") || "Group";
+    const sectionMatch = appointments.some((appointment) =>
+      activeAppointment(appointment) && fieldMapString(appointment, "appointment") === "Section Leader" &&
+      fieldMapString(appointment, "scope") === section
+    ) || (appointments.length === 0 && legacyRole === "Section Leader" && legacyScope === section);
+    const groupMatch = appointments.some((appointment) =>
+      activeAppointment(appointment) && ["Group Leader", "Deputy Group Leader"].includes(fieldMapString(appointment, "appointment"))
+    ) || (appointments.length === 0 && ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "DGL"].includes(legacyRole));
+    const email = validEmail(fieldString(profile, "email"));
+    if (!email) continue;
+    if (sectionMatch) sectionLeaders.push(email);
+    if (groupMatch) groupLeaders.push(email);
+  }
+  const admins = (Array.isArray(configuredAdmins) ? configuredAdmins : String(configuredAdmins || "").split(","))
+    .map(validEmail).filter(Boolean);
+  return [...new Set([...admins, ...(sectionLeaders.length ? sectionLeaders : groupLeaders)])];
+}
+
+async function joinEventKey(applicationId, event) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${applicationId}\n${event}`));
+  return base64Url(new Uint8Array(digest));
+}
+
+async function joinEventAlreadySent(env, key) {
+  return Boolean(await privilegedDocument(env, "joinApplicationEmailDeliveries", key));
+}
+
+async function recordJoinEventSent(env, key, event) {
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents:commit`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await serviceAccessToken(env)}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ writes: [{
+      update: { name: documentName(env, "joinApplicationEmailDeliveries", key), fields: { event: stringField(event), state: stringField("sent") } },
+      updateTransforms: [{ fieldPath: "sentAt", setToServerValue: "REQUEST_TIME" }],
+      currentDocument: { exists: false }
+    }] })
+  });
+  if (!response.ok && response.status !== 409 && response.status !== 412) throw new Error(`Firestore join-email ledger write failed with ${response.status}.`);
+}
+
+async function sendJoinLifecycleEmail(env, applicationId, event, recipients, subject, content) {
+  const uniqueRecipients = [...new Set(recipients.map(validEmail).filter(Boolean))];
+  if (!uniqueRecipients.length) return false;
+  const key = await joinEventKey(applicationId, event);
+  if (await joinEventAlreadySent(env, key)) return false;
+  await sendEmail(env, uniqueRecipients, subject, brandedEmail(content), `join-lifecycle:${key}`);
+  await recordJoinEventSent(env, key, event);
+  return true;
+}
+
+function joinChildName(application) {
+  return `${fieldString(application, "childFirstName")} ${fieldString(application, "childLastName")}`.trim() || "your child";
+}
+
+function joinParentHello(application) {
+  return fieldString(application, "parentName").trim() || "Parent / Guardian";
+}
+
+async function authoritativeJoinLeaderRecipients(env, section) {
+  const [profiles, leadership] = await Promise.all([
+    privilegedDocuments(env, "adminUsers"),
+    privilegedDocuments(env, "organisationLeadership")
+  ]);
+  return resolveJoinLeaderRecipients(profiles, leadership, section, env.ADMIN_EMAILS || "");
+}
+
+async function handleJoinApplicationLifecycle(request, env, body) {
+  const applicationId = clean(body.applicationId, 200);
+  if (!applicationId) return json(request, env, 400, { ok: false, error: "Missing application id." });
+  const application = await privilegedDocument(env, "joinApplications", applicationId);
+  if (!application || fieldString(application, "status") !== "new") return json(request, env, 404, { ok: false, error: "Join application unavailable." });
+  const email = validEmail(fieldString(application, "emailAddress"));
+  if (!email) return json(request, env, 422, { ok: false, error: "Application has no valid parent email." });
+  const childName = joinChildName(application);
+  const parentName = joinParentHello(application);
+  const section = fieldString(application, "section");
+  const errors = [];
+  try {
+    await sendJoinLifecycleEmail(env, applicationId, "received-parent", [email], "Join Us application received – Coolock Ardlea Scouts", {
+      heading: "Join Us application received",
+      intro: `Hello ${parentName}, we have received your application for ${childName}.`,
+      bodyHtml: `<p style="font-size:16px;line-height:1.6">This confirms receipt only. Your child has not yet been accepted and a place or start date is not confirmed. We will contact you again when the application status changes.</p>`
+    });
+  } catch (error) { errors.push(error); }
+  try {
+    const leaders = await authoritativeJoinLeaderRecipients(env, section);
+    if (!leaders.length) throw new Error("No configured Section Leader, Group Leader, or administrator recipient for Join Us application.");
+    const recipients = leaders;
+    const bodyHtml = `<table role="presentation" style="font-size:15px;line-height:1.6;border-collapse:collapse"><tr><td style="padding:4px 12px 4px 0;font-weight:700">Applicant</td><td>${escapeHtml(childName)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Section</td><td>${escapeHtml(section)}</td></tr><tr><td style="padding:4px 12px 4px 0;font-weight:700">Parent / Guardian</td><td>${escapeHtml(parentName)}</td></tr></table>`;
+    await sendJoinLifecycleEmail(env, applicationId, "received-leaders", recipients, `New Join Us application – ${childName}`, {
+      heading: "New Join Us application", intro: "A new application has been submitted through the website.", bodyHtml,
+      actions: [{ label: "Review application", url: `${String(env.SITE_URL || "").replace(/\/$/, "")}/leader/join/${encodeURIComponent(applicationId)}` }]
+    });
+  } catch (error) { errors.push(error); }
+  if (errors.length) throw errors[0];
+  return json(request, env, 200, { ok: true });
+}
+
+async function handleJoinApplicationStatus(request, env, body) {
+  const applicationId = clean(body.applicationId, 200);
+  const status = clean(body.status, 40);
+  if (!applicationId || !["waiting-list", "accepted"].includes(status)) return json(request, env, 400, { ok: false, error: "Invalid Join Us status notification." });
+  const claims = decodeFirebaseClaims(bearer(request));
+  const uid = clean(claims.user_id || claims.sub, 200);
+  const leader = uid ? await getDocumentWithToken(env, bearer(request), "adminUsers", uid) : null;
+  if (!leader || !fieldBoolean(leader, "active") || !["leader", "admin", "super-admin"].includes(fieldString(leader, "role"))) return json(request, env, 403, { ok: false, error: "Active leader access is required." });
+  const application = await privilegedDocument(env, "joinApplications", applicationId);
+  if (!application || fieldString(application, "status") !== status) return json(request, env, 409, { ok: false, error: "Join application status has changed." });
+  const role = fieldString(leader, "role");
+  const leaderSections = fieldStringArray(leader, "sections");
+  const legacySection = fieldString(leader, "section");
+  if (!new Set(["admin", "super-admin"]).has(role) && !leaderSections.includes(fieldString(application, "section")) && legacySection !== fieldString(application, "section")) return json(request, env, 403, { ok: false, error: "You are not authorised for this Join Us section." });
+  const email = validEmail(fieldString(application, "emailAddress"));
+  if (!email) return json(request, env, 422, { ok: false, error: "Application has no valid parent email." });
+  const childName = joinChildName(application);
+  const parentName = joinParentHello(application);
+  const section = fieldString(application, "section");
+  const waiting = status === "waiting-list";
+  const content = waiting ? {
+    heading: "Join Us application update — waiting list",
+    intro: `Hello ${parentName}, ${childName} has been placed on the waiting list for ${section}.`,
+    bodyHtml: `<p style="font-size:16px;line-height:1.6">This does not confirm a place or start date. The relevant leaders have been informed and we will contact you if the status changes.</p>`
+  } : {
+    heading: "Join Us application accepted",
+    intro: `Hello ${parentName}, ${childName}'s application to ${section} has been accepted.`,
+    bodyHtml: `<p style="font-size:16px;line-height:1.6">Next, sign in or create your Parent Portal account. A leader will verify and link your child to your account; once that access is approved, complete the consent and medical form for ${escapeHtml(childName)}.</p>`,
+    actions: [{ label: "Sign in or register for Parent Portal", url: `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent?joinToken=${encodeURIComponent(await issueJoinConsentToken(env, applicationId))}#parent-medical-consent` }]
+  };
+  await sendJoinLifecycleEmail(env, applicationId, `status-${status}`, [email], waiting ? "Join Us application update — waiting list" : "Join Us application accepted — complete your consent form", content);
+  return json(request, env, 200, { ok: true });
+}
+
+async function handleJoinConsentContext(request, env, body) {
+  const action = await verifyJoinConsentToken(env, clean(body.joinToken, 4096));
+  if (!action) return json(request, env, 410, { ok: false, error: "This Join Us consent link is invalid or has expired." });
+  const claims = decodeFirebaseClaims(bearer(request));
+  const signedInEmail = validEmail(claims.email);
+  const application = await privilegedDocument(env, "joinApplications", clean(action.applicationId, 200));
+  if (!application || fieldString(application, "status") !== "accepted" || !signedInEmail || signedInEmail !== validEmail(fieldString(application, "emailAddress"))) {
+    return json(request, env, 403, { ok: false, error: "This link is not available to this signed-in parent." });
+  }
+  const memberId = fieldString(application, "memberId");
+  if (!memberId) return json(request, env, 409, { ok: false, error: "Parent access and child membership linking must be completed before consent is available." });
+  const parent = await authenticatedParentMember(request, env, memberId);
+  if (!parent || validEmail(fieldString(parent.account, "email")) !== signedInEmail) return json(request, env, 403, { ok: false, error: "This child is not linked to the signed-in parent account." });
+  return json(request, env, 200, { ok: true, memberId });
+}
+
 async function commitMemberInactivation(env, actor, memberId, member, parentAccounts, actionLinkId) {
   const serviceToken = await serviceAccessToken(env);
   const historyId = crypto.randomUUID();
@@ -695,6 +875,9 @@ async function handleMemberInactivation(request, env, body) {
 }
 
 export async function handleProductionRoute(request, env, body, path) {
+  if (path === "/join-application") return handleJoinApplicationLifecycle(request, env, body);
+  if (path === "/join-application-status") return handleJoinApplicationStatus(request, env, body);
+  if (path === "/join-consent-context") return handleJoinConsentContext(request, env, body);
   if (path === "/leader-communication") return handleLeaderCommunication(request, env, body);
   if (path === "/event-notification") return handleEventNotification(request, env, body);
   if (path === "/event-consent-processed") return handleEventConsentProcessed(request, env, body);

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { generateKeyPairSync } from "node:crypto";
 import entry, { privacySafeDiagnostic, validateDeliveryEnvironment } from "../src/entry.js";
-import { communicationIdempotencyKey, resolveParentRecipientCandidates } from "../src/productionRoutes.js";
-import { issueMemberInactivationToken, verifyMemberInactivationToken } from "../src/secureActionLinks.js";
+import { communicationIdempotencyKey, resolveJoinLeaderRecipients, resolveParentRecipientCandidates } from "../src/productionRoutes.js";
+import { issueJoinConsentToken, issueMemberInactivationToken, verifyJoinConsentToken, verifyMemberInactivationToken } from "../src/secureActionLinks.js";
 
 const production = {
   EMAIL_DELIVERY_MODE: "production",
@@ -52,11 +53,156 @@ test("authoritative production communication routes require authentication befor
     "/event-consent-processed",
     "/form-reminder",
     "/member-inactivation-context",
-    "/member-inactivation"
+    "/member-inactivation",
+    "/join-application-status"
   ]) {
     const response = await entry.fetch(productionRequest(path), production);
     assert.equal(response.status, 401, path);
     assert.deepEqual(await response.json(), { ok: false, error: "Sign-in required." }, path);
+  }
+});
+
+function firestoreLeadership(uid, appointments, active = true) {
+  return {
+    name: `projects/test/databases/(default)/documents/organisationLeadership/${uid}`,
+    fields: {
+      active: { booleanValue: true },
+      appointments: { arrayValue: { values: appointments.map((item) => ({ mapValue: { fields: {
+        appointment: { stringValue: item.role }, scope: { stringValue: item.scope }, active: { booleanValue: item.active ?? active }
+      } } })) } }
+    }
+  };
+}
+
+function firestoreLeader(uid, email, active = true) {
+  return { name: `projects/test/databases/(default)/documents/adminUsers/${uid}`, fields: { active: { booleanValue: active }, email: { stringValue: email } } };
+}
+
+test("SW-270 routes Join Us notifications to scoped Section Leaders and deduplicates recipients", () => {
+  const profiles = [firestoreLeader("sl-1", "Leader@Example.com"), firestoreLeader("sl-2", "leader@example.com"), firestoreLeader("sl-other", "other@example.com")];
+  const leadership = [
+    firestoreLeadership("sl-1", [{ role: "Section Leader", scope: "Beavers" }]),
+    firestoreLeadership("sl-2", [{ role: "Section Leader", scope: "Beavers" }]),
+    firestoreLeadership("sl-other", [{ role: "Section Leader", scope: "Cubs" }])
+  ];
+  assert.deepEqual(resolveJoinLeaderRecipients(profiles, leadership, "Beavers"), ["leader@example.com"]);
+});
+
+test("SW-270 falls back to Group Leaders only when no active Section Leader matches", () => {
+  const profiles = [firestoreLeader("inactive", "inactive@example.com", false), firestoreLeader("group", "group@example.com")];
+  const leadership = [
+    firestoreLeadership("inactive", [{ role: "Section Leader", scope: "Beavers" }]),
+    firestoreLeadership("group", [{ role: "Group Leader", scope: "Group" }])
+  ];
+  assert.deepEqual(resolveJoinLeaderRecipients(profiles, leadership, "Beavers"), ["group@example.com"]);
+});
+
+test("SW-270 initial notices read authoritative data and repeated requests do not resend", async () => {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const privatePem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+  const ledger = new Map();
+  const sent = [];
+  let applicationStatus = "new";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input);
+    if (url === "https://oauth2.googleapis.com/token") return Response.json({ access_token: "service-token", expires_in: 3600 });
+    if (url.startsWith("https://firestore.googleapis.com/v1/projects/test-project/")) {
+      if (url.includes("/joinApplications/app-1")) return Response.json({
+        fields: {
+          status: { stringValue: applicationStatus }, childFirstName: { stringValue: "Rory" }, childLastName: { stringValue: "Scout" },
+          parentName: { stringValue: "Pat Parent" }, emailAddress: { stringValue: "parent@example.com" }, section: { stringValue: "Beavers" },
+          memberId: { stringValue: "member-1" }
+        }
+      });
+      if (url.includes("/adminUsers/leader-1")) return Response.json({ fields: {
+        active: { booleanValue: true }, role: { stringValue: "leader" },
+        sections: { arrayValue: { values: [{ stringValue: "Beavers" }] } }
+      } });
+      if (url.includes("/parentAccounts/parent-1")) return Response.json({ fields: {
+        status: { stringValue: "approved" }, email: { stringValue: "parent@example.com" },
+        memberIds: { arrayValue: { values: [{ stringValue: "member-1" }] } }
+      } });
+      if (url.includes("/members/member-1")) return Response.json({ fields: { status: { stringValue: "active" } } });
+      if (url.endsWith("/adminUsers?pageSize=100")) return Response.json({ documents: [{
+        name: "projects/test-project/databases/(default)/documents/adminUsers/sl-1",
+        fields: { active: { booleanValue: true }, email: { stringValue: "leader@example.com" } }
+      }] });
+      if (url.endsWith("/organisationLeadership?pageSize=100")) {
+        const sectionLeader = { appointment: { stringValue: "Section Leader" }, scope: { stringValue: "Beavers" }, active: { booleanValue: true } };
+        return Response.json({ documents: [{
+          name: "projects/test-project/databases/(default)/documents/organisationLeadership/sl-1",
+          fields: { active: { booleanValue: true }, appointments: { arrayValue: { values: [{ mapValue: { fields: sectionLeader } }] } } }
+        }] });
+      }
+      if (url.includes("/joinApplicationEmailDeliveries/")) {
+        const id = decodeURIComponent(url.split("/").pop());
+        return ledger.has(id) ? Response.json(ledger.get(id)) : new Response("", { status: 404 });
+      }
+      if (url.endsWith("/documents:commit")) {
+        const body = JSON.parse(init.body);
+        for (const write of body.writes || []) {
+          const id = write.update.name.split("/").pop();
+          ledger.set(id, write.update);
+        }
+        return Response.json({});
+      }
+    }
+    if (url === "https://api.resend.com/emails") {
+      const body = JSON.parse(init.body);
+      sent.push({ key: new Headers(init.headers).get("Idempotency-Key"), body });
+      return Response.json({ id: `email-${sent.length}` });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+  try {
+    const env = {
+      ...production, FIREBASE_PROJECT_ID: "test-project", FIREBASE_SERVICE_ACCOUNT_EMAIL: "service@test-project.iam.gserviceaccount.com",
+      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem, RESEND_API_KEY: "test-resend-key", ADMIN_EMAILS: ""
+    };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await entry.fetch(productionRequest("/join-application", {
+        applicationId: "app-1", childName: "forged name", section: "Cubs", parentName: "forged parent"
+      }), env);
+      assert.equal(response.status, 200, await response.text());
+    }
+    applicationStatus = "accepted";
+    const token = `header.${btoa(JSON.stringify({ sub: "leader-1", user_id: "leader-1", email: "leader@example.com" })).replaceAll("=", "")}.signature`;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const statusRequest = new Request("https://email.example.test/join-application-status", {
+        method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ applicationId: "app-1", status: "accepted" })
+      });
+      const response = await entry.fetch(statusRequest, env);
+      assert.equal(response.status, 200, await response.text());
+    }
+    assert.equal(sent.length, 3, "parent and section leader receive initial email once; accepted email is also sent once");
+    assert.equal(sent[0].body.to[0], "parent@example.com");
+    assert.match(sent[0].body.text, /Rory Scout/);
+    assert.doesNotMatch(sent[0].body.text, /forged/);
+    assert.equal(sent[1].body.to[0], "leader@example.com");
+    assert.equal(sent[2].body.to[0], "parent@example.com");
+    assert.match(sent[2].body.text, /complete the consent and medical form/);
+    assert.match(sent[2].body.html, /https:\/\/coolockardleascouts\.ie\/parent\?joinToken=v1\.[^\"]+#parent-medical-consent/);
+    assert.equal(new Set(sent.map((item) => item.key)).size, 3);
+    const joinToken = sent[2].body.html.match(/joinToken=([^&#\"]+)/)?.[1];
+    assert.ok(joinToken, "accepted email contains an opaque onboarding token");
+    const parentToken = `header.${btoa(JSON.stringify({ sub: "parent-1", user_id: "parent-1", email: "parent@example.com" })).replaceAll("=", "")}.signature`;
+    const consentRequest = new Request("https://email.example.test/join-consent-context", {
+      method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${parentToken}` },
+      body: JSON.stringify({ joinToken: decodeURIComponent(joinToken) })
+    });
+    const consentResponse = await entry.fetch(consentRequest, env);
+    assert.deepEqual(await consentResponse.json(), { ok: true, memberId: "member-1" });
+
+    const unrelatedToken = `header.${btoa(JSON.stringify({ sub: "other-parent", user_id: "other-parent", email: "other@example.com" })).replaceAll("=", "")}.signature`;
+    const unrelatedRequest = new Request("https://email.example.test/join-consent-context", {
+      method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${unrelatedToken}` },
+      body: JSON.stringify({ joinToken: decodeURIComponent(joinToken) })
+    });
+    assert.equal((await entry.fetch(unrelatedRequest, env)).status, 403);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 
@@ -193,6 +339,14 @@ test("SW-45 action tokens are opaque, purpose-bound and expire safely", async ()
   assert.equal(await verifyMemberInactivationToken(env, tampered), null);
   const expired = await issueMemberInactivationToken(env, "member-sensitive-id", -1);
   assert.equal(await verifyMemberInactivationToken(env, expired), null);
+});
+
+test("SW-270 consent tokens hide the application id and expire safely", async () => {
+  const env = { ACTION_LINK_SECRET: "test-action-link-secret-at-least-32-characters" };
+  const token = await issueJoinConsentToken(env, "application-sensitive-id", 60);
+  assert.doesNotMatch(token, /application-sensitive-id/);
+  assert.equal((await verifyJoinConsentToken(env, token)).applicationId, "application-sensitive-id");
+  assert.equal(await verifyJoinConsentToken(env, await issueJoinConsentToken(env, "application-sensitive-id", -1)), null);
 });
 
 test("SW-45 production configuration fails closed without an action-link secret", () => {
