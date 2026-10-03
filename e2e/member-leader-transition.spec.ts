@@ -78,7 +78,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
     const db = getFirestore(app);
     await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
     original = (await db.collection("members").doc(memberId).get()).data();
-    await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: [], linkedSections: [], requestedChildren: [] });
+    await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
     await page.reload();
     await expect(member).toBeVisible();
   }
@@ -131,7 +131,9 @@ async function completeTransition(page: import("@playwright/test").Page, section
     const persisted = (await db.collection("members").doc(memberId).get()).data()!;
     expect(persisted.accountUid).toBe(existingUid);
     for (const field of ["familyId", "sections", "sectionRoles", "dateOfBirth", "emailAddress", "parentName"]) expect(persisted[field]).toEqual(original![field]);
-    expect((await db.collection("parentAccounts").doc(existingUid).get()).data()!.status).toBe("approved");
+    const parentAccount = (await db.collection("parentAccounts").doc(existingUid).get()).data()!;
+    expect(parentAccount.status).toBe("approved");
+    expect(parentAccount.memberIds).toEqual(["TEST_member_beaver_01"]);
     expect((await db.collection("leaderRegistrationRequests").doc(existingUid).get()).data()!.status).toBe("approved");
     expect((await db.collection("members").where("emailAddress", "==", email).get()).size).toBe(1);
   }
