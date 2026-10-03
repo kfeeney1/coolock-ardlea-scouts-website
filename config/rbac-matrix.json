@@ -95,6 +95,7 @@
     "financeTransactions": "finance-section",
     "joinApplications": "public-create-leader-section",
     "leaderRegistrationRequests": "own-create-admin-review",
+    "leaderTransitionInvitations": "section-leader-create-capability-read-admin-consume",
     "meetingRecords": "leader-section-and-group-role",
     "memberAdventureSkillProgress": "parent-linked-leader-section",
     "memberHistory": "leader-section-history",

@@ -26,6 +26,7 @@ export const suiteSpecs = {
     "join-consent-record-pages.spec.ts",
     "member-history-search.spec.ts",
     "member-management-targeting.spec.ts",
+    "member-leader-transition.spec.ts",
     "member-record-page.spec.ts",
     "rover-membership.spec.ts",
     "mobile-consent-medication.spec.ts",

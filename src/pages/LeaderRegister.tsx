@@ -17,7 +17,7 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
 import PasswordField from "../components/PasswordField";
@@ -29,6 +29,8 @@ import type {
     RequestedLeaderRole,
     RequestedSection
 } from "../services/leaderRegistrations";
+import { loadMemberLeaderTransitionInvitation } from "../services/memberLeaderTransition";
+import type { MemberLeaderTransitionInvitation } from "../services/memberLeaderTransition";
 
 type Errors = Partial<Record<keyof LeaderRegistrationInput | "confirmPassword", string>>;
 
@@ -47,23 +49,52 @@ const initialForm: LeaderRegistrationInput = {
 };
 
 export default function LeaderRegister() {
+    const [searchParams] = useSearchParams();
+    const transitionId = searchParams.get("transition") || "";
     const content = usePublicSiteContent();
     const [formData, setFormData] = useState<LeaderRegistrationInput>(initialForm);
     const [confirmPassword, setConfirmPassword] = useState("");
     const [usingExistingAccount, setUsingExistingAccount] = useState(false);
+    const [signedInEmail, setSignedInEmail] = useState("");
     const [errors, setErrors] = useState<Errors>({});
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [submitted, setSubmitted] = useState(false);
+    const [transitionInvitation, setTransitionInvitation] = useState<MemberLeaderTransitionInvitation | null>(null);
+    const [transitionLoading, setTransitionLoading] = useState(Boolean(transitionId));
+    const [transitionLoadError, setTransitionLoadError] = useState("");
+
+    useEffect(() => {
+        if (!transitionId) {
+            setTransitionInvitation(null);
+            setTransitionLoading(false);
+            setTransitionLoadError("");
+            return;
+        }
+        let current = true;
+        setTransitionLoading(true);
+        setTransitionLoadError("");
+        void loadMemberLeaderTransitionInvitation(transitionId).then((invitation) => {
+            if (!current) return;
+            setTransitionInvitation(invitation);
+            setFormData((form) => ({ ...form, fullName: `${invitation.firstName} ${invitation.lastName}`.trim(), email: invitation.emailAddress, mobileNumber: invitation.mobileNumber, requestedSection: invitation.section as RequestedSection }));
+        }).catch((error) => {
+            if (current) setTransitionLoadError(error instanceof Error ? error.message : "This leader registration link is unavailable or has expired.");
+        }).finally(() => { if (current) setTransitionLoading(false); });
+        return () => { current = false; };
+    }, [transitionId]);
 
     useEffect(() => onAuthStateChanged(auth, (user) => {
         const existing = Boolean(user);
         setUsingExistingAccount(existing);
+        setSignedInEmail(user?.email || "");
         if (user?.email) {
-            setFormData((current) => ({ ...current, email: user.email || current.email, password: "" }));
+            setFormData((current) => ({ ...current, email: transitionId ? current.email : user.email || current.email, password: "" }));
             setConfirmPassword("");
         }
-    }), []);
+    }), [transitionId]);
+
+    const transitionAccountMismatch = Boolean(transitionInvitation && signedInEmail && signedInEmail.trim().toLowerCase() !== transitionInvitation.emailAddress.trim().toLowerCase());
 
     const clear = (field: keyof Errors) => setErrors((current) => ({ ...current, [field]: undefined }));
 
@@ -90,7 +121,7 @@ export default function LeaderRegister() {
         setSubmitting(true);
         setSubmitError("");
         try {
-            await registerLeader(formData);
+            await registerLeader({ ...formData, transitionInvitationId: transitionInvitation?.id, transitionEndMemberMembership: transitionInvitation?.endMemberMembership });
             setSubmitted(true);
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (error) {
@@ -122,12 +153,16 @@ export default function LeaderRegister() {
             </Box>
             <Box component="form" onSubmit={submit} noValidate sx={{ p: { xs: 3, md: 5 } }}>
                 <Alert severity="info" sx={{ mb: 4 }}>{usingExistingAccount ? "This login already exists. Submit the Leader registration separately; an administrator must approve Leader access and will be shown any matching Parent registration." : "Leader registration is reviewed separately from Parent registration. If you are both, use the same email and password on each side so an administrator can confirm one shared login during approval."}</Alert>
+                {transitionLoading && <Alert severity="info" sx={{ mb: 3 }}>Loading the member details for this Leader Registration…</Alert>}
+                {transitionLoadError && <Alert severity="error" sx={{ mb: 3 }}>{transitionLoadError}</Alert>}
+                {transitionInvitation && <Alert severity="info" sx={{ mb: 3 }}>This registration is linked to an existing {transitionInvitation.section} member record. The record will only be linked to Leader access after an administrator approves this request. {transitionInvitation.endMemberMembership ? "The current membership will then be ended, with its history retained." : "The current membership will remain active alongside Leader status."}</Alert>}
+                {transitionAccountMismatch && <Alert severity="warning" sx={{ mb: 3 }}>This browser is signed in as a different person. Open the registration link in the member&apos;s own account or sign out before continuing.</Alert>}
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
-                    <TextField required label="Full name" value={formData.fullName} onChange={(e) => { setFormData(c => ({ ...c, fullName: e.target.value })); clear("fullName"); }} error={Boolean(errors.fullName)} helperText={errors.fullName} />
-                    <TextField required type="email" label="Email address" value={formData.email} disabled={usingExistingAccount} onChange={(e) => { setFormData(c => ({ ...c, email: e.target.value })); clear("email"); }} error={Boolean(errors.email)} helperText={usingExistingAccount ? "Uses your current signed-in account." : errors.email} />
-                    <TextField required label="Mobile number" value={formData.mobileNumber} onChange={(e) => { setFormData(c => ({ ...c, mobileNumber: e.target.value })); clear("mobileNumber"); }} error={Boolean(errors.mobileNumber)} helperText={errors.mobileNumber} />
-                    <FormControl required error={Boolean(errors.requestedRole)}><InputLabel>Requested role</InputLabel><Select label="Requested role" value={formData.requestedRole} onChange={(e) => { setFormData(c => ({ ...c, requestedRole: e.target.value as RequestedLeaderRole })); clear("requestedRole"); }}><MenuItem value="Scouter">Scouter</MenuItem><MenuItem value="Section Leader">Section Leader</MenuItem><MenuItem value="Group Leader">Group Leader</MenuItem><MenuItem value="Deputy Group Leader">Deputy Group Leader</MenuItem><MenuItem value="Other">Other</MenuItem></Select>{errors.requestedRole && <FormHelperText>{errors.requestedRole}</FormHelperText>}</FormControl>
-                    <FormControl required error={Boolean(errors.requestedSection)}><InputLabel>Section</InputLabel><Select label="Section" value={formData.requestedSection} onChange={(e) => { setFormData(c => ({ ...c, requestedSection: e.target.value as RequestedSection })); clear("requestedSection"); }}>{[...content.sections.filter((section) => section.youth).map((section) => section.value), "Group", "Other"].map(section => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select>{errors.requestedSection && <FormHelperText>{errors.requestedSection}</FormHelperText>}</FormControl>
+                    <TextField required label="Full name" value={formData.fullName} disabled={Boolean(transitionInvitation)} onChange={(e) => { setFormData(c => ({ ...c, fullName: e.target.value })); clear("fullName"); }} error={Boolean(errors.fullName)} helperText={transitionInvitation ? "Uses the existing member record." : errors.fullName} />
+                    <TextField required type="email" label="Email address" value={formData.email} disabled={usingExistingAccount || Boolean(transitionInvitation)} onChange={(e) => { setFormData(c => ({ ...c, email: e.target.value })); clear("email"); }} error={Boolean(errors.email)} helperText={transitionInvitation ? "Uses the existing member record." : usingExistingAccount ? "Uses your current signed-in account." : errors.email} />
+                    <TextField required label="Mobile number" value={formData.mobileNumber} disabled={Boolean(transitionInvitation)} onChange={(e) => { setFormData(c => ({ ...c, mobileNumber: e.target.value })); clear("mobileNumber"); }} error={Boolean(errors.mobileNumber)} helperText={transitionInvitation ? "Uses the existing member record." : errors.mobileNumber} />
+                    <FormControl required error={Boolean(errors.requestedRole)}><InputLabel id="leader-registration-role-label">Requested role</InputLabel><Select labelId="leader-registration-role-label" label="Requested role" value={formData.requestedRole} onChange={(e) => { setFormData(c => ({ ...c, requestedRole: e.target.value as RequestedLeaderRole })); clear("requestedRole"); }}><MenuItem value="Scouter">Scouter</MenuItem><MenuItem value="Section Leader">Section Leader</MenuItem><MenuItem value="Group Leader">Group Leader</MenuItem><MenuItem value="Deputy Group Leader">Deputy Group Leader</MenuItem><MenuItem value="Other">Other</MenuItem></Select>{errors.requestedRole && <FormHelperText>{errors.requestedRole}</FormHelperText>}</FormControl>
+                    <FormControl required error={Boolean(errors.requestedSection)}><InputLabel id="leader-registration-section-label">Section</InputLabel><Select labelId="leader-registration-section-label" label="Section" value={formData.requestedSection} onChange={(e) => { setFormData(c => ({ ...c, requestedSection: e.target.value as RequestedSection })); clear("requestedSection"); }}>{[...new Set([...content.sections.filter((section) => section.youth).map((section) => section.value), "Rovers", "Group", "Other"])].map(section => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select>{errors.requestedSection && <FormHelperText>{errors.requestedSection}</FormHelperText>}</FormControl>
                     {!usingExistingAccount && <Box />}
                     {!usingExistingAccount && <PasswordField required label="Password" value={formData.password} onChange={(e) => { setFormData(c => ({ ...c, password: e.target.value })); clear("password"); }} error={Boolean(errors.password)} helperText={errors.password ?? "At least 8 characters. Use the same password if this email already has Parent access."} autoComplete="new-password" />}
                     {!usingExistingAccount && <PasswordField required label="Confirm password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); clear("confirmPassword"); }} error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword} autoComplete="new-password" />}
@@ -135,7 +170,7 @@ export default function LeaderRegister() {
                 <TextField fullWidth multiline minRows={4} label="Reason / additional information" value={formData.reason} onChange={(e) => setFormData(c => ({ ...c, reason: e.target.value }))} helperText="Optional information for the approving administrator." sx={{ mt: 3 }} />
                 <FormControl error={Boolean(errors.privacyConfirmed)} sx={{ mt: 3 }}><FormControlLabel control={<Checkbox color="success" checked={formData.privacyConfirmed} onChange={(e) => { setFormData(c => ({ ...c, privacyConfirmed: e.target.checked })); clear("privacyConfirmed"); }} />} label="I confirm that the information supplied is accurate and may be used by the Scout Group to assess this leader registration." />{errors.privacyConfirmed && <FormHelperText>{errors.privacyConfirmed}</FormHelperText>}</FormControl>
                 {submitError && <Alert severity="error" sx={{ mt: 3 }}>{submitError}</Alert>}
-                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, justifyContent: "space-between", mt: 4 }}><Button component={Link} to="/leader/login" color="secondary">Back to Login</Button><Button type="submit" variant="contained" color="success" disabled={submitting}>{submitting ? "Registering..." : "Submit Leader Registration"}</Button></Box>
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, justifyContent: "space-between", mt: 4 }}><Button component={Link} to="/leader/login" color="secondary">Back to Login</Button><Button type="submit" variant="contained" color="success" disabled={submitting || transitionLoading || Boolean(transitionLoadError) || (Boolean(transitionId) && !transitionInvitation) || transitionAccountMismatch}>{submitting ? "Registering..." : "Submit Leader Registration"}</Button></Box>
             </Box>
         </Paper></Container>
     </Box>;
