@@ -25,6 +25,10 @@ test("canonicalMemberFieldError rejects a missing canonical field", () => {
   );
 });
 
+test("canonicalMemberFieldError permits a missing birth date for an identity-linked adult Rover", () => {
+  assert.equal(canonicalMemberFieldError({ ...canonicalMember, dateOfBirth: "" }, { allowMissingDateOfBirth: true }), null);
+});
+
 test("canonicalMemberFieldError reports every missing canonical field", () => {
   assert.equal(
     canonicalMemberFieldError({

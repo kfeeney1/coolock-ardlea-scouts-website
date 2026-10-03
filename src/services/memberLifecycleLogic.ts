@@ -27,9 +27,9 @@ const REQUIRED_MEMBER_FIELDS: Array<[keyof CanonicalMemberFields, string]> = [
   ["section", "section"]
 ];
 
-export function canonicalMemberFieldError(fields: CanonicalMemberFields): string | null {
+export function canonicalMemberFieldError(fields: CanonicalMemberFields, options: { allowMissingDateOfBirth?: boolean } = {}): string | null {
   const missing = REQUIRED_MEMBER_FIELDS
-    .filter(([key]) => !fields[key].trim())
+    .filter(([key]) => !(options.allowMissingDateOfBirth && key === "dateOfBirth") && !fields[key].trim())
     .map(([, label]) => label);
 
   if (missing.length === 0) return null;
