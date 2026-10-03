@@ -28,7 +28,6 @@ import {
 } from "../services/financeLedgerLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
-const RECEIPT_UPLOAD_TIMEOUT_MS = 15000;
 type FloatAction = "opening-float" | "float-top-up" | "money-out" | "close-float";
 
 const formatEuro = (cents: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -45,29 +44,6 @@ function currencyInputValue(value: string): string | null {
   const normalised = value.replace(",", ".");
   if (normalised === "" || /^\d+(\.\d{0,2})?$/.test(normalised)) return normalised;
   return null;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
-
-function transactionLabel(transaction: FinanceTransaction): string {
-  if (transaction.type === "opening-float") return "Open float";
-  if (transaction.type === "income") return "Float top up";
-  if (transaction.type === "expense" && transaction.category === FLOAT_CLOSE_CATEGORY) return "Close float";
-  if (transaction.type === "expense") return "Money out";
-  if (transaction.type === "adjustment") return "Correction";
-  return "Legacy transfer";
 }
 
 export default function SectionCashbook() {
@@ -199,11 +175,7 @@ export default function SectionCashbook() {
 
     setUploadingReceipt(true);
     try {
-      await withTimeout(
-        addFinanceReceipt(transactionId, section, selectedReceipt),
-        RECEIPT_UPLOAD_TIMEOUT_MS,
-        "Receipt upload timed out."
-      );
+      await addFinanceReceipt(transactionId, section, selectedReceipt);
       setReceiptFile(null);
       setReceiptRefreshKey((value) => value + 1);
       setSuccess("Money out saved and receipt uploaded successfully.");
