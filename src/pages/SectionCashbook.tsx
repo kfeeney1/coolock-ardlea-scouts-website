@@ -206,6 +206,7 @@ export default function SectionCashbook() {
       );
       setReceiptFile(null);
       setReceiptRefreshKey((value) => value + 1);
+      setSuccess("Money out saved and receipt uploaded successfully.");
     } catch (receiptError) {
       console.error("Money out saved but receipt upload failed:", receiptError);
       setError("Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.");
