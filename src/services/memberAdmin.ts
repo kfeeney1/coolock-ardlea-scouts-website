@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch
@@ -51,6 +52,7 @@ export type MemberRecord = {
   sourceJoinApplicationId: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+  accountUid?: string;
 };
 
 export type CreateMemberInput = Pick<
@@ -113,7 +115,10 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     section: canonicalMemberSection(stringValue(data, "section"))
   };
   const sections = canonicalMemberSections(data.sections, required.section);
-  if (!status || !required.firstName || !required.lastName || !required.displayName || !required.dateOfBirth || sections.length === 0) return null;
+  const accountUid = stringValue(data, "accountUid");
+  const adultRoverWithoutDateOfBirth = Boolean(accountUid)
+    && (sections.includes("Rovers") || stringValue(data, "source") === "rover-self-service");
+  if (!status || !required.firstName || !required.lastName || !required.displayName || (!required.dateOfBirth && !adultRoverWithoutDateOfBirth) || sections.length === 0) return null;
   required.section = sections[0];
 
   return {
@@ -138,8 +143,96 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     source: stringValue(data, "source"),
     sourceJoinApplicationId: stringValue(data, "sourceJoinApplicationId"),
     createdAt: timestampToDate(data.createdAt),
-    updatedAt: timestampToDate(data.updatedAt)
+    updatedAt: timestampToDate(data.updatedAt),
+    accountUid
   };
+}
+
+export async function setRoverSelfMembership(input: { firstName: string; lastName: string; enabled: boolean }): Promise<void> {
+  const user = auth.currentUser;
+  const email = user?.email?.trim() ?? "";
+  if (!user || !email) throw new Error("A signed-in leader email is required.");
+  const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+  const profile = profileSnapshot.data();
+  if (!profileSnapshot.exists() || profile?.active !== true || !["leader", "admin", "super-admin"].includes(profile?.role)) {
+    throw new Error("An active approved adult account is required to manage Rover membership.");
+  }
+
+  const accountMatches = await getDocs(query(collection(db, "members"), where("accountUid", "==", user.uid)));
+  let member = accountMatches.docs[0];
+  if (accountMatches.size > 1) throw new Error("More than one member record is linked to this account. Ask an administrator to reconcile the records.");
+
+  if (!member && input.enabled) {
+    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+    const organisationSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
+    const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
+    const isGroupFinanceOfficer = organisation?.active === true
+      && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
+    const emailMatches = isAdmin || isGroupFinanceOfficer
+      ? [await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)))]
+      : (await Promise.all(normalizeLeaderSections(profile).flatMap((section) => {
+          const scopedQueries = memberSectionStorageAliases(section).map((storedSection) =>
+            getDocs(query(collection(db, "members"), where("emailAddress", "==", email), where("section", "==", storedSection)))
+          );
+          scopedQueries.push(getDocs(query(collection(db, "members"), where("emailAddress", "==", email), where("sections", "array-contains", section))));
+          return scopedQueries;
+        }))).flat();
+    const firstName = clean(input.firstName, 100);
+    const lastName = clean(input.lastName, 100);
+    const candidates = [...new Map(emailMatches.flatMap((snapshot) => snapshot.docs).map((candidate) => [candidate.id, candidate])).values()].filter((candidate) => {
+      const data = candidate.data();
+      return stringValue(data, "emailAddress") === email
+        && stringValue(data, "firstName").toLocaleLowerCase() === firstName.toLocaleLowerCase()
+        && stringValue(data, "lastName").toLocaleLowerCase() === lastName.toLocaleLowerCase();
+    });
+    if (candidates.length > 1) throw new Error("More than one member record matches your name and email. Ask an administrator to reconcile the records.");
+    member = candidates[0];
+  }
+
+  const now = serverTimestamp();
+  if (!member && input.enabled) {
+    const firstName = clean(input.firstName, 100);
+    const lastName = clean(input.lastName, 100);
+    if (!firstName || !lastName) throw new Error("Enter your first and last name.");
+    await setDoc(doc(db, "members", `rover_${user.uid}`), {
+      firstName, lastName, displayName: automaticDisplayName(firstName, lastName), displayNameMode: "auto",
+      dateOfBirth: "", section: "Rovers", sections: ["Rovers"], sectionRoles: {}, parentName: "",
+      emailAddress: email, mobileNumber: clean(profile.mobileNumber ?? "", 40), emergencyContactName: "",
+      emergencyContactPhone: "", status: "active", source: "rover-self-service", sourceJoinApplicationId: "",
+      accountUid: user.uid, createdAt: now, createdBy: user.uid, updatedAt: now, updatedBy: user.uid
+    });
+    return;
+  }
+  if (!member) throw new Error("Your Rover member record could not be found.");
+
+  const data = member.data();
+  if (data.accountUid && data.accountUid !== user.uid) throw new Error("This member record is already linked to another account.");
+  if (stringValue(data, "emailAddress") !== email) throw new Error("Your member record email must match your signed-in account email exactly.");
+  const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
+  const nextSections = input.enabled
+    ? [...sections.filter((section) => section !== "Rovers"), "Rovers"]
+    : sections.filter((section) => section !== "Rovers");
+  const retainedSections = nextSections.length > 0 ? nextSections : ["Rovers"];
+  await updateDoc(member.ref, {
+    accountUid: user.uid,
+    section: retainedSections[0],
+    sections: retainedSections,
+    sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, retainedSections),
+    status: input.enabled ? "active" : (nextSections.length === 0 ? "left" : (memberStatus(data.status) ?? "active")),
+    updatedAt: now,
+    updatedBy: user.uid
+  });
+}
+
+export async function loadRoverSelfMembership(): Promise<{ active: boolean; firstName: string; lastName: string }> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("A signed-in leader account is required.");
+  const matches = await getDocs(query(collection(db, "members"), where("accountUid", "==", user.uid)));
+  if (matches.size > 1) throw new Error("More than one member record is linked to this account.");
+  if (matches.empty) return { active: false, firstName: "", lastName: "" };
+  const data = matches.docs[0].data();
+  const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
+  return { active: data.status === "active" && sections.includes("Rovers"), firstName: stringValue(data, "firstName"), lastName: stringValue(data, "lastName") };
 }
 
 function yes(data: DocumentData, key: string): boolean {
@@ -274,14 +367,17 @@ export async function updateMember(
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
 
-  const canonicalError = canonicalMemberFieldError(updates);
-  if (canonicalError) throw new Error(canonicalError);
-
   const memberRef = doc(db, "members", memberId);
   const currentSnapshot = await getDoc(memberRef);
   if (!currentSnapshot.exists()) throw new Error("Member record no longer exists.");
 
   const current = currentSnapshot.data();
+  const existingSections = canonicalMemberSections(current.sections, stringValue(current, "section"));
+  const canonicalError = canonicalMemberFieldError(updates, {
+    allowMissingDateOfBirth: Boolean(stringValue(current, "accountUid"))
+      && (existingSections.includes("Rovers") || stringValue(current, "source") === "rover-self-service")
+  });
+  if (canonicalError) throw new Error(canonicalError);
   const previousSection = stringValue(current, "section");
   const previousStatus = memberStatus(current.status);
   if (!previousSection || !previousStatus) throw new Error("Member record does not match the canonical seed schema.");

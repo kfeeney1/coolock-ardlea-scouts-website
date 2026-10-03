@@ -26,6 +26,7 @@ import {
     updateLeaderProfile
 } from "../services/leaderProfile";
 import type { LeaderProfileData } from "../services/leaderProfile";
+import { loadRoverSelfMembership, setRoverSelfMembership } from "../services/memberAdmin";
 
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
@@ -49,6 +50,13 @@ export default function LeaderProfile() {
     const [changingPassword, setChangingPassword] = useState(false);
     const [passwordMessage, setPasswordMessage] = useState("");
     const [passwordError, setPasswordError] = useState("");
+    const [roverActive, setRoverActive] = useState(false);
+    const [roverFirstName, setRoverFirstName] = useState("");
+    const [roverLastName, setRoverLastName] = useState("");
+    const [roverLoading, setRoverLoading] = useState(true);
+    const [roverSaving, setRoverSaving] = useState(false);
+    const [roverError, setRoverError] = useState("");
+    const [roverMessage, setRoverMessage] = useState("");
 
     useEffect(() => {
         const load = async () => {
@@ -65,6 +73,20 @@ export default function LeaderProfile() {
         };
         void load();
     }, []);
+
+    useEffect(() => {
+        let active = true;
+        void loadRoverSelfMembership().then((membership) => {
+            if (!active) return;
+            setRoverActive(membership.active);
+            setRoverFirstName(membership.firstName || adminProfile?.displayName?.trim().split(/\s+/)[0] || "");
+            setRoverLastName(membership.lastName || adminProfile?.displayName?.trim().split(/\s+/).slice(1).join(" ") || "");
+        }).catch((error) => {
+            console.error("Unable to load Rover membership:", error);
+            if (active) setRoverError("Unable to check your Rover membership.");
+        }).finally(() => { if (active) setRoverLoading(false); });
+        return () => { active = false; };
+    }, [adminProfile?.displayName]);
 
     const saveProfile = async () => {
         setProfileError("");
@@ -129,6 +151,19 @@ export default function LeaderProfile() {
         } finally {
             setChangingPassword(false);
         }
+    };
+
+    const saveRoverMembership = async (enabled: boolean) => {
+        setRoverSaving(true); setRoverError(""); setRoverMessage("");
+        try {
+            await setRoverSelfMembership({ firstName: roverFirstName, lastName: roverLastName, enabled });
+            const membership = await loadRoverSelfMembership();
+            setRoverActive(membership.active);
+            setRoverMessage(enabled ? "Your Rover membership is active and linked to your account." : "Your Rover membership has ended. Your member history and other section memberships remain." );
+        } catch (error) {
+            console.error("Unable to update Rover membership:", error);
+            setRoverError(error instanceof Error ? error.message : "Unable to update Rover membership.");
+        } finally { setRoverSaving(false); }
     };
 
     return (
@@ -213,6 +248,22 @@ export default function LeaderProfile() {
                         </Box>
                         <Button component={Link} to="/leader/profile/consent" variant="contained" color="secondary" sx={{ minHeight: 44, flexShrink: 0, alignSelf: { xs: "stretch", sm: "center" } }}>Open My Form</Button>
                     </Box>
+                </Paper>
+
+                <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2 }} data-testid="rover-self-membership">
+                    <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Rover Membership</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+                        Explicitly join or leave Rovers. Eligibility is checked against your active, approved leader account. This does not grant leader access.
+                    </Typography>
+                    {roverError && <Alert severity="error" sx={{ mb: 2 }}>{roverError}</Alert>}
+                    {roverMessage && <Alert severity="success" sx={{ mb: 2 }}>{roverMessage}</Alert>}
+                    {!roverActive && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
+                        <TextField label="First name" value={roverFirstName} disabled={roverLoading || roverSaving} onChange={(event) => setRoverFirstName(event.target.value)} />
+                        <TextField label="Last name" value={roverLastName} disabled={roverLoading || roverSaving} onChange={(event) => setRoverLastName(event.target.value)} />
+                    </Box>}
+                    <Button variant="contained" color={roverActive ? "warning" : "success"} disabled={roverLoading || roverSaving || (!roverActive && (!roverFirstName.trim() || !roverLastName.trim()))} onClick={() => void saveRoverMembership(!roverActive)}>
+                        {roverLoading ? "Checking membership…" : roverSaving ? "Saving…" : roverActive ? "End Rover Membership" : "Join Rovers"}
+                    </Button>
                 </Paper>
             </Container>
         </Box>
