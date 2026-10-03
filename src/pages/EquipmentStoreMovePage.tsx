@@ -25,6 +25,9 @@ export default function EquipmentStoreMovePage() {
 
   useEffect(() => {
     let current = true;
+    setLoading(true);
+    setItem(null);
+    setError("");
     void Promise.all([loadEquipmentItem(equipmentId), loadEquipmentItems(), loadEquipmentOptions("locations")])
       .then(([loadedItem, allItems, storeOptions]) => {
         if (!current) return;
@@ -63,13 +66,11 @@ export default function EquipmentStoreMovePage() {
     }
   };
 
-  if (loading) return <Container maxWidth="md" sx={{ py: 4 }}><Alert severity="info">Loading equipment store move…</Alert></Container>;
-  if (!item) return <Container maxWidth="md" sx={{ py: 4 }}><Alert severity="error">Equipment record not found or unavailable.</Alert><Button sx={{ mt: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment & Stores</Button></Container>;
-
   return <Box data-testid="equipment-store-move-workflow" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}>
     <Container maxWidth="md">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title={`Move Store · ${item.name}`} description="Move available stock and keep the item’s movement in its audit history." />
+      <LeaderPageHeader title={item ? `Move Store · ${item.name}` : "Move Store"} description="Move available stock and keep the item’s movement in its audit history." />
+      {loading ? <Alert severity="info" role="status">Loading equipment store move…</Alert> : !item ? <><Alert severity="error">{error || "Equipment record not found or unavailable."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment &amp; Stores</Button></> : <>
       <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(recordPath)}>Back to equipment record</Button>
       {!canManage && <Alert severity="warning" sx={{ mb: 2 }}>You are not authorised to move equipment between stores.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -96,6 +97,7 @@ export default function EquipmentStoreMovePage() {
           <Typography variant="caption" color="text.secondary">Equipment record: {item.id}</Typography>
         </Stack>
       </Paper>
+      </>}
     </Container>
   </Box>;
 }
