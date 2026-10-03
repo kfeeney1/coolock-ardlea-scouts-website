@@ -6,6 +6,32 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
+const ownedMembers: { memberId: string; email: string; invitationId?: string }[] = [];
+
+function fixtureApp() {
+  if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
+  return getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
+}
+
+test.afterEach(async () => {
+  if (ownedMembers.length === 0) return;
+  const app = fixtureApp();
+  const db = getFirestore(app);
+  for (const fixture of ownedMembers.splice(0)) {
+    let uid = "";
+    try { uid = (await getAuth(app).getUserByEmail(fixture.email)).uid; }
+    catch (error) { if ((error as { code?: string }).code !== "auth/user-not-found") throw error; }
+    const batch = db.batch();
+    batch.delete(db.doc(`members/${fixture.memberId}`));
+    if (fixture.invitationId) batch.delete(db.doc(`leaderTransitionInvitations/${fixture.invitationId}`));
+    const history = await db.collection("memberHistory").where("memberId", "==", fixture.memberId).get();
+    history.docs.forEach((entry) => batch.delete(entry.ref));
+    if (uid) for (const collection of ["adminUsers", "organisationLeadership", "leaderRegistrationRequests", "parentAccounts"]) batch.delete(db.doc(`${collection}/${uid}`));
+    await batch.commit();
+    if (uid) await getAuth(app).deleteUser(uid);
+  }
+});
+
 test("cancelling member-to-leader transition leaves member status unchanged", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Member transition runs on desktop and mobile Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -69,11 +95,12 @@ async function completeTransition(page: import("@playwright/test").Page, section
   const member = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
   await expect(member).toBeVisible();
   const memberId = (await member.getAttribute("data-testid"))!.replace("member-card-", "");
+  const fixture: { memberId: string; email: string; invitationId?: string } = { memberId, email };
+  ownedMembers.push(fixture);
   let existingUid = "";
   let original: Record<string, unknown> | undefined;
   if (existingAccount) {
-    if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
-    const app = getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
+    const app = fixtureApp();
     existingUid = (await getAuth(app).createUser({ email, password: passwordForMember })).uid;
     const db = getFirestore(app);
     await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
@@ -90,6 +117,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await endMembershipCheckbox.setChecked(endMembership);
   await transitionDialog.getByRole("button", { name: "Prepare registration link" }).click();
   const link = await transitionDialog.getByLabel("Leader registration link").inputValue();
+  fixture.invitationId = new URL(link).searchParams.get("transition") || undefined;
 
   await transitionDialog.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("link", { name: "Back to Member Management" }).click();
