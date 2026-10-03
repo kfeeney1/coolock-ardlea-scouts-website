@@ -322,7 +322,14 @@ service cloud.firestore {
 
     match /leaderRegistrationRequests/{userId} {
       allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId && request.resource.data.status == "pending" && request.resource.data.privacyConfirmed == true
-        && (!request.resource.data.keys().hasAny(["transitionInvitationId"]) || (request.resource.data.transitionInvitationId is string && request.resource.data.transitionEndMemberMembership is bool));
+        && (!request.resource.data.keys().hasAny(["transitionInvitationId"]) || (request.resource.data.transitionInvitationId is string && request.resource.data.transitionEndMemberMembership is bool
+          && request.auth.token.email is string && request.resource.data.email is string
+          && request.resource.data.email.lower() == request.auth.token.email.lower()
+          && exists(/databases/$(database)/documents/leaderTransitionInvitations/$(request.resource.data.transitionInvitationId))
+          && get(/databases/$(database)/documents/leaderTransitionInvitations/$(request.resource.data.transitionInvitationId)).data.status == "pending"
+          && get(/databases/$(database)/documents/leaderTransitionInvitations/$(request.resource.data.transitionInvitationId)).data.expiresAt > request.time
+          && get(/databases/$(database)/documents/leaderTransitionInvitations/$(request.resource.data.transitionInvitationId)).data.emailAddress.lower() == request.auth.token.email.lower()
+          && get(/databases/$(database)/documents/leaderTransitionInvitations/$(request.resource.data.transitionInvitationId)).data.endMemberMembership == request.resource.data.transitionEndMemberMembership));
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedAt", "reviewedBy", "reviewNote"]);
       allow delete: if false;

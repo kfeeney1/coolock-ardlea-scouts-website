@@ -99,6 +99,12 @@ test("member transition links are section scoped, short lived, read only for reg
   await assertFails(setDoc(doc(leaderDb, "leaderTransitionInvitations/out-of-scope-invite-123"), { ...invitation, memberId: "member-scout", emailAddress: "sam@example.com", section: "Scouts" }));
   await assertSucceeds(getDoc(doc(strangerDb, "leaderTransitionInvitations/secure-random-invite-123")));
   await assertFails(getDocs(collection(strangerDb, "leaderTransitionInvitations")));
+  const memberDb = testEnv.authenticatedContext("member-account", { email: "casey@example.com" }).firestore();
+  const transitionRequest = { uid: "member-account", email: "casey@example.com", status: "pending", privacyConfirmed: true, transitionInvitationId: "secure-random-invite-123", transitionEndMemberMembership: true };
+  await assertSucceeds(setDoc(doc(memberDb, "leaderRegistrationRequests/member-account"), transitionRequest));
+  await assertFails(setDoc(doc(strangerDb, "leaderRegistrationRequests/stranger"), { ...transitionRequest, uid: "stranger" }));
+  const wrongChoiceDb = testEnv.authenticatedContext("wrong-choice", { email: "casey@example.com" }).firestore();
+  await assertFails(setDoc(doc(wrongChoiceDb, "leaderRegistrationRequests/wrong-choice"), { ...transitionRequest, uid: "wrong-choice", transitionEndMemberMembership: false }));
   await assertFails(updateDoc(doc(strangerDb, "leaderTransitionInvitations/secure-random-invite-123"), { status: "used", usedBy: "stranger", usedAt: serverTimestamp() }));
   await assertSucceeds(updateDoc(doc(adminDb, "members/member-cub"), { accountUid: "member-account", status: "left", updatedAt: serverTimestamp(), updatedBy: "admin-1" }));
   await assertSucceeds(updateDoc(doc(adminDb, "leaderTransitionInvitations/secure-random-invite-123"), { status: "used", usedBy: "member-account", usedAt: serverTimestamp() }));
