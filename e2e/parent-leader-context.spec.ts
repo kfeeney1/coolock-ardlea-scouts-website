@@ -136,6 +136,8 @@ test("combined identity with one child outside its leader section retains indepe
   await page.reload();
   expect(await expectChildOptions(page, 1)).toEqual(["TEST_member_beaver_01"]);
   await page.goto("/leader/members");
+  await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Loading member records" })).toHaveCount(0);
   await expect(page.getByTestId("member-card-TEST_member_scout_01")).toBeVisible();
   await expect(page.getByTestId("member-card-TEST_member_beaver_02")).toHaveCount(0);
 });
