@@ -5,6 +5,20 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const ownedAccounts: string[] = [];
+
+test.afterEach(async () => {
+  if (ownedAccounts.length === 0) return;
+  if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture cleanup requires local demo emulators.");
+  const app = getApps()[0];
+  const db = getFirestore(app);
+  for (const uid of ownedAccounts.splice(0)) {
+    const batch = db.batch();
+    for (const collection of ["adminUsers", "organisationLeadership", "parentAccounts"]) batch.delete(db.doc(`${collection}/${uid}`));
+    await batch.commit();
+    await getAuth(app).deleteUser(uid);
+  }
+});
 
 test.beforeEach(({}, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Context switching runs on desktop and mobile Chromium.");
@@ -108,6 +122,7 @@ test("combined identity with one child outside its leader section retains indepe
   const app = getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
   const email = `test.dual.${randomUUID().slice(0, 8)}@example.com`;
   const uid = (await getAuth(app).createUser({ email, password: password! })).uid;
+  ownedAccounts.push(uid);
   const db = getFirestore(app);
   await db.doc(`adminUsers/${uid}`).set({ active: true, role: "leader", displayName: "Dual Context Fixture", email, sections: ["Scouts"] });
   await db.doc(`organisationLeadership/${uid}`).set({ active: true, displayName: "Dual Context Fixture", scoutingRole: "Programme Scouter", organisationSection: "Scouts", appointments: [{ appointment: "Programme Scouter", scope: "Scouts", active: true }] });
