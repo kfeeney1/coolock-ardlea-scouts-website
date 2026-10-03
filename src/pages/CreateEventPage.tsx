@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
 import type { EventInput, EventRecord } from "../services/eventAdmin";
@@ -12,6 +13,9 @@ import type { MemberRecord } from "../services/memberAdmin";
 
 export default function CreateEventPage() {
   const navigate = useNavigate();
+  const { user, adminProfile } = useAdminAuth();
+  const scopeKey = JSON.stringify([user?.uid, adminProfile?.role, adminProfile?.sections]);
+  const [loadedScope, setLoadedScope] = useState("");
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [draft, setDraft] = useState<EventInput>(EMPTY_EVENT);
@@ -19,23 +23,30 @@ export default function CreateEventPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dataReady = !loading && !loadError && loadedScope === scopeKey;
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setLoadedScope("");
+    setLoadError("");
     Promise.all([loadEvents(), loadMembers()])
       .then(([loadedEvents, loadedMembers]) => {
         if (!active) return;
+        setLoadedScope(scopeKey);
         setEvents(loadedEvents);
         setMembers(loadedMembers);
       })
       .catch((loadError) => {
         console.error("Unable to load event creation data:", loadError);
-        if (active) setError("Unable to load event creation data.");
+        if (active) setLoadError("Unable to load event creation data. Retry before selecting an audience or creating this event.");
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [loadAttempt, scopeKey]);
 
   const hasMeaningfulDraft = Boolean(
     draft.title.trim() || draft.description.trim() || draft.location.trim() || draft.meetingPoint.trim()
@@ -54,7 +65,7 @@ export default function CreateEventPage() {
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [hasMeaningfulDraft]);
 
-  const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+  const activeMembers = useMemo(() => dataReady ? members.filter((member) => member.status === "active") : [], [dataReady, members]);
   const visibleMembers = useMemo(() => {
     const query = memberSearch.trim().toLowerCase();
     return activeMembers.filter((member) => !query || `${member.displayName} ${member.section}`.toLowerCase().includes(query));
@@ -95,7 +106,7 @@ export default function CreateEventPage() {
   };
 
   const save = async () => {
-    if (saving) return;
+    if (saving || !dataReady) return;
     if (!draft.title.trim()) return setError("Event title is required.");
     if (!draft.startDate) return setError("Start date is required.");
     if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
@@ -123,24 +134,26 @@ export default function CreateEventPage() {
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Create Event" description="" actions={<Button variant="outlined" disabled={saving} onClick={requestExit}>Back to Events</Button>} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {loading ? <Typography role="status">Loading event details…</Typography> : <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+      {loadError && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</Button>}>{loadError}</Alert>}
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack spacing={2.25}>
           <TextField required label="Event title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
             <FormControl fullWidth><InputLabel id="event-type-label">Event type</InputLabel><Select labelId="event-type-label" id="event-type" label="Event type" value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-            <FormControl fullWidth><InputLabel id="event-section-label">Section</InputLabel><Select labelId="event-section-label" id="event-section" label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth disabled={!dataReady}><InputLabel id="event-section-label">Section</InputLabel><Select labelId="event-section-label" id="event-section" label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
           </Box>
 
           <Box>
             <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Event audience</Typography>
+            {!dataReady && !loadError && <Typography role="status">Loading event audience and duplicate checks…</Typography>}
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
               Choose whole sections, individual members, or both. {eventAudienceSummary(audience.sectionIds, audience.memberIds, audience.resolvedMemberIds.length)}
             </Typography>
-            <TextField fullWidth label="Search members" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} sx={{ mb: 1.5 }} />
+            <TextField fullWidth disabled={!dataReady} label="Search members" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} sx={{ mb: 1.5 }} />
             <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
               {visibleMembers.map((member) => {
                 const selected = (draft.audience?.memberIds ?? []).includes(member.id);
-                return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} color={selected ? "primary" : "default"} variant={selected ? "filled" : "outlined"} onClick={() => toggleMember(member.id)} />;
+                return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} color={selected ? "primary" : "default"} variant={selected ? "filled" : "outlined"} disabled={!dataReady} onClick={() => toggleMember(member.id)} />;
               })}
             </Stack>
           </Box>
@@ -157,12 +170,12 @@ export default function CreateEventPage() {
           <TextField label="Description" multiline minRows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           <TextField label="Leader notes" multiline minRows={3} value={draft.leaderNotes} onChange={(event) => setDraft({ ...draft, leaderNotes: event.target.value })} helperText="Leader-only. Included on the leader event report." />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>{saving ? "Creating…" : "Create Event"}</Button>
+            <Button variant="contained" color="success" disabled={saving || !dataReady} onClick={() => void save()}>{saving ? "Creating…" : "Create Event"}</Button>
             <Button variant="outlined" disabled={saving} onClick={clear}>Clear</Button>
             <Button variant="outlined" disabled={saving} onClick={requestExit}>Cancel</Button>
           </Stack>
         </Stack>
-      </Paper>}
+      </Paper>
       <Dialog open={confirmDiscard} onClose={() => setConfirmDiscard(false)} aria-labelledby="discard-new-event-title">
         <DialogTitle id="discard-new-event-title">Discard this new event?</DialogTitle>
         <DialogContent><Typography>Your event details have not been saved. Cancel creation and discard them?</Typography></DialogContent>
