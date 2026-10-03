@@ -1,7 +1,8 @@
-import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytesResumable } from "firebase/storage";
 
 import { auth, storage } from "../firebase";
 import { eventGalleryStoragePath, validateEventGalleryUpload } from "./attachmentLogic";
+import { loadGalleryItems, completeGalleryUpload } from "./eventGalleryLoadLogic";
 
 export interface EventGalleryPhoto {
   id: string;
@@ -50,7 +51,7 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
   });
   const path = eventGalleryStoragePath(validated.section, validated.ownerId, attachmentId, validated.safeFileName);
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, {
+  const task = uploadBytesResumable(storageRef, file, {
     contentType: validated.contentType,
     customMetadata: {
       ownerType: validated.ownerType,
@@ -61,6 +62,8 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
     },
   });
 
+  await completeGalleryUpload(task, 60000);
+
   return {
     id: attachmentId,
     eventId: validated.ownerId,
@@ -70,7 +73,7 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
     contentType: validated.contentType,
     size: validated.size,
     uploadedBy: uid,
-    downloadUrl: await authenticatedObjectUrl(path, validated.contentType),
+    downloadUrl: URL.createObjectURL(file),
   };
 }
 
@@ -81,23 +84,21 @@ export async function loadEventGalleryPhotos(section: string, eventId: string): 
   const eventRef = ref(storage, `attachments/event-gallery/${safeSection}/${safeEventId}`);
   const result = await listAll(eventRef);
   const files = result.prefixes.length > 0
-    ? (await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)
+    ? [...result.items, ...(await Promise.all(result.prefixes.map((prefix) => listAll(prefix)))).flatMap((nested) => nested.items)]
     : result.items;
 
-  const photos: EventGalleryPhoto[] = [];
-  try {
-    for (const item of files) {
+  return loadGalleryItems(files, async (item): Promise<EventGalleryPhoto | null> => {
       const metadata = await getMetadata(item);
       if (
         metadata.customMetadata?.ownerType !== "event-gallery" ||
         metadata.customMetadata?.ownerId !== eventId.trim() ||
         metadata.customMetadata?.section !== section.trim()
-      ) continue;
+      ) return null;
 
       const pathParts = item.fullPath.split("/");
       const attachmentId = pathParts.at(-2) || "";
       const contentType = metadata.contentType || "";
-      photos.push({
+      return {
         id: attachmentId,
         eventId: metadata.customMetadata.ownerId,
         section: metadata.customMetadata.section,
@@ -107,13 +108,8 @@ export async function loadEventGalleryPhotos(section: string, eventId: string): 
         size: metadata.size,
         uploadedBy: metadata.customMetadata.uploadedBy || "",
         downloadUrl: await authenticatedObjectUrl(item.fullPath, contentType),
-      });
-    }
-    return photos;
-  } catch (error) {
-    revokeEventGalleryPhotoUrls(photos);
-    throw error;
-  }
+      };
+  }, revokeEventGalleryPhotoUrls);
 }
 
 export async function deleteEventGalleryPhoto(photo: Pick<EventGalleryPhoto, "path">): Promise<void> {

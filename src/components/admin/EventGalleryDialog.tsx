@@ -63,20 +63,26 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
     const uploadFiles = async (files: FileList | null) => {
         if (!event || !files?.length) return;
         setUploading(true); setLoadFailed(false); setError(""); setMessage("");
+        try {
         const results = await Promise.allSettled(Array.from(files).map((file) => uploadEventGalleryPhoto(event.section, event.id, file)));
         const uploadedPhotos = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
         const uploaded = uploadedPhotos.length;
         const failed = results.length - uploaded;
         if (uploaded) {
             revokeEventGalleryPhotoUrls(uploadedPhotos);
-            await recordAuditEvent({ category: "event", action: "gallery-photo-uploaded", targetId: event.id, targetLabel: event.title, section: event.section, description: `${uploaded} event gallery photo${uploaded === 1 ? "" : "s"} uploaded.` });
+            await withTimeout(recordAuditEvent({ category: "event", action: "gallery-photo-uploaded", targetId: event.id, targetLabel: event.title, section: event.section, description: `${uploaded} event gallery photo${uploaded === 1 ? "" : "s"} uploaded.` }), GALLERY_LOAD_TIMEOUT_MS);
             setMessage(`${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded${failed ? `; ${failed} failed.` : "."}`);
             await refresh();
         }
         if (failed && !uploaded) setError("The selected photo(s) could not be uploaded. Use JPEG, PNG or WebP images up to 10 MB each.");
+        } catch (uploadError) {
+            console.error("Unable to finish gallery upload:", uploadError);
+            setError("Unable to finish uploading. Reopen the gallery to check which photos were saved before trying again.");
+        } finally {
         setUploading(false);
         if (galleryInput.current) galleryInput.current.value = "";
         if (cameraInput.current) cameraInput.current.value = "";
+        }
     };
 
     const removePhoto = async () => {
