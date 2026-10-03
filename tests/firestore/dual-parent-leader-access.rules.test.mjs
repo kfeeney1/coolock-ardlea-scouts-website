@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -153,6 +153,8 @@ test("approval on one side and rejection on the other remain independent", async
 test("combined parent and leader retain independent child and section permissions", async () => {
   await seed([
     ["adminUsers/dual-user", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["organisationLeadership/dual-user", { active: true, scoutingRole: "Programme Scouter", appointments: [{ appointment: "Programme Scouter", scope: "Scouts", active: true }] }],
+    ["members/own-rover", { section: "Rovers", sections: ["Rovers"], accountUid: "dual-user", emailAddress: "dual@example.com", displayName: "Own Rover" }],
     ["adminUsers/leader-only", { active: true, role: "leader", sections: ["Scouts"] }],
     ["parentAccounts/dual-user", { status: "approved", memberIds: ["linked-beaver"], linkedSections: ["Beavers"] }],
     ["parentAccounts/parent-only", { status: "approved", memberIds: ["linked-beaver"], linkedSections: ["Beavers"] }],
@@ -163,6 +165,8 @@ test("combined parent and leader retain independent child and section permission
   const combined = testEnv.authenticatedContext("dual-user", { email: "dual@example.com" }).firestore();
   const parent = testEnv.authenticatedContext("parent-only", { email: "parent@example.com" }).firestore();
   const leader = testEnv.authenticatedContext("leader-only", { email: "leader@example.com" }).firestore();
+  await assertSucceeds(getDocs(query(collection(combined, "members"), where("accountUid", "==", "dual-user"))));
+  await assertFails(getDocs(query(collection(combined, "members"), where("accountUid", "==", "someone-else"))));
   await assertSucceeds(getDoc(doc(combined, "members/linked-beaver")));
   await assertSucceeds(getDoc(doc(combined, "members/scout")));
   await assertFails(getDoc(doc(combined, "members/unlinked-beaver")));

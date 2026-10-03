@@ -111,7 +111,7 @@ test("combined identity with one child outside its leader section retains indepe
   const db = getFirestore(app);
   await db.doc(`adminUsers/${uid}`).set({ active: true, role: "leader", displayName: "Dual Context Fixture", email, sections: ["Scouts"] });
   await db.doc(`organisationLeadership/${uid}`).set({ active: true, displayName: "Dual Context Fixture", scoutingRole: "Programme Scouter", organisationSection: "Scouts", appointments: [{ appointment: "Programme Scouter", scope: "Scouts", active: true }] });
-  await db.doc(`parentAccounts/${uid}`).set({ uid, email, displayName: "Dual Context Fixture", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
+  await db.doc(`parentAccounts/${uid}`).set({ uid, email, displayName: "Dual Context Fixture", mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
   await signIn(page, email, true);
   await openParentFromHeader(page, testInfo);
   await expect(page.getByText("Your account is approved and linked to 1 member record.")).toBeVisible();
