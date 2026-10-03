@@ -176,3 +176,14 @@ test("combined parent and leader retain independent child and section permission
   await assertSucceeds(getDoc(doc(leader, "members/scout")));
   await assertFails(getDoc(doc(leader, "members/linked-beaver")));
 });
+
+test("Group Secretary retains existing group-wide member queries with appointments", async () => {
+  await seed([
+    ["adminUsers/secretary", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/secretary", { active: true, scoutingRole: "Group Secretary", appointments: [{ appointment: "Group Secretary", scope: "Group", active: true }] }],
+    ["members/beaver", { section: "Beavers", displayName: "Beaver" }],
+    ["members/rover", { section: "Rovers", displayName: "Rover" }],
+  ]);
+  const secretary = testEnv.authenticatedContext("secretary", { email: "secretary@example.com" }).firestore();
+  await assertSucceeds(getDocs(collection(secretary, "members")));
+});

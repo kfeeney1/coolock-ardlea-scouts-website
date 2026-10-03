@@ -67,6 +67,17 @@ service cloud.firestore {
             && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
               || hasFinanceAppointment(get(organisationPath).data))));
     }
+    // The same existing group-wide member readers, evaluated once rather than
+    // repeating leader-profile validation across several independent role paths.
+    function canReadAllMembers() {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let organisation = get(organisationPath).data;
+      return isActiveLeader()
+        && (profile().role in ["super-admin", "admin"]
+          || (exists(organisationPath) && organisation.active == true
+            && (organisation.scoutingRole in ["Group Secretary", "Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+              || hasFinanceAppointment(organisation))));
+    }
     function financeAppointmentAt(data, index) {
       return data.keys().hasAny(["appointments"])
         && data.appointments is list && data.appointments.size() > index
@@ -411,6 +422,8 @@ service cloud.firestore {
           && request.resource.data.source == "rover-self-service"
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time);
+      // Preserve the existing group-wide readers without repeated profile checks.
+      allow read: if signedIn() && canReadAllMembers();
       // Evaluate the existing parent-link and self-identity permissions before
       // expensive section predicates, including accountUid self-service queries.
       allow read: if isApprovedParentForMember(memberId);
@@ -419,8 +432,7 @@ service cloud.firestore {
       // Preserve the proven legacy scalar rule as an independent allow path.
       // Firestore can authorize section-constrained legacy queries against this
       // rule without needing to reason about the concurrent-membership branch.
-      allow read: if isSuperAdmin()
-        || (isActiveLeader() && (hasSection(resource.data.section) || canViewAllFinance() || isGroupSecretary()));
+      allow read: if isActiveLeader() && hasSection(resource.data.section);
       // Concurrent memberships are additive: a leader may also read a member
       // when one of the persisted sections[] values is in their canonical scope.
       allow read: if isActiveLeader()
