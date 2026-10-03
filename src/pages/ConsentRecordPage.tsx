@@ -136,8 +136,8 @@ export default function ConsentRecordPage() {
               {record.section && <Chip label={record.section} variant="outlined" />}
               {record.type === "youth" && !record.memberId && <Chip label="Not linked to member" color="warning" />}
               {record.updatedByParent && <Chip label="Updated by parent" color="success" />}
-              {record.hasMedicalAlert && <Chip label="Medical information present" color="warning" />}
-              {record.hasMedicationManagement && <Chip label="Medication management required" color="error" />}
+              {record.hasMedicalAlert && <Chip component="a" href="#important-medical-information" clickable label="Medical information present" color="warning" sx={{ minHeight: 44 }} />}
+              {record.hasMedicationManagement && normalizeMedicationManagement(record.data.medicationManagement) && <Chip component="a" href="#medication-management-heading" clickable label="Medication management required" color="error" sx={{ minHeight: 44 }} />}
             </Stack>
           </Paper>
           {record.updatedByParent && <Alert severity="success">This record was updated through the Parent Portal on {formatDate(record.parentUpdatedAt || record.updatedAt)}.</Alert>}
@@ -154,7 +154,7 @@ export default function ConsentRecordPage() {
             {record.memberId && candidateId && record.memberId !== candidateId && <FormControlLabel sx={{ mt: 1 }} control={<Checkbox checked={confirmCorrection} onChange={(event) => setConfirmCorrection(event.target.checked)} />} label={`I confirm this replaces existing member relationship ${record.memberId}.`} />}
             <Button variant="contained" color="success" disabled={reconciling || !candidateId || !reason.trim() || Boolean(record.memberId && record.memberId !== candidateId && !confirmCorrection)} onClick={() => void reconcile()} sx={{ mt: 2 }}>{reconciling ? "Saving…" : record.memberId ? "Correct relationship" : "Confirm member match"}</Button>
           </Paper>}
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderWidth: 2, borderColor: hasImportantMedicalInformation(record) ? "warning.main" : "divider" }}>
+          <Paper id="important-medical-information" tabIndex={-1} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderWidth: 2, borderColor: hasImportantMedicalInformation(record) ? "warning.main" : "divider", scrollMarginTop: 16 }}>
             <Typography variant="h4" component="h2" color="secondary" sx={{ fontWeight: 800 }}>Important medical information</Typography>
             <Typography sx={{ mt: 1 }}>{hasImportantMedicalInformation(record) ? "Medical or medication information is recorded below. Review the recorded details and established action information." : "No medical alert or medication-management requirement is recorded in this consent summary."}</Typography>
           </Paper>
@@ -168,7 +168,7 @@ export default function ConsentRecordPage() {
             </Box>
           </Box>)}
           {normalizeMedicationManagement(record.data.medicationManagement) && <Box component="section" aria-labelledby="medication-management-heading">
-            <Typography id="medication-management-heading" variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Medication administration</Typography>
+            <Typography id="medication-management-heading" tabIndex={-1} variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Medication administration</Typography>
             <MedicationManagementPanel value={record.data.medicationManagement} />
           </Box>}
         </Stack>}
