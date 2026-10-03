@@ -276,8 +276,6 @@ test("public join applications accept valid canonical submissions and reject inv
     parentName: "Test Parent",
     emailAddress: "parent@example.com",
     mobileNumber: "0870000000",
-    emergencyContactName: "Test Emergency",
-    emergencyContactPhone: "0871111111",
     section: "Cubs",
     informationConfirmed: true,
     contactConsent: true,
@@ -287,6 +285,11 @@ test("public join applications accept valid canonical submissions and reject inv
   };
 
   await assertSucceeds(setDoc(doc(db, "joinApplications/valid"), canonical));
+  await assertSucceeds(setDoc(doc(db, "joinApplications/legacy-with-emergency-details"), {
+    ...canonical,
+    emergencyContactName: "Existing Emergency Contact",
+    emergencyContactPhone: "0871111111",
+  }));
   await assertFails(setDoc(doc(db, "joinApplications/invalid"), {
     ...canonical,
     contactConsent: false,
