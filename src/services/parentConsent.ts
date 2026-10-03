@@ -198,8 +198,8 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
 
 export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLinkedMember[]> {
     const results: ParentLinkedMember[] = [];
-    for (const memberId of memberIds) {
-        const snapshot = await getDoc(doc(db, "members", memberId));
+    const snapshots = await Promise.all([...new Set(memberIds)].map((memberId) => getDoc(doc(db, "members", memberId))));
+    for (const snapshot of snapshots) {
         if (!snapshot.exists()) continue;
         const data = snapshot.data();
         const displayName = stringValue(data, "displayName");
@@ -214,8 +214,9 @@ export async function loadLinkedMembers(memberIds: string[]): Promise<ParentLink
 
 export async function loadParentConsents(memberIds: string[]): Promise<ParentConsentRecord[]> {
     const results: ParentConsentRecord[] = [];
-    for (const memberId of memberIds) {
-        const snapshot = await getDocs(query(collection(db, "consentApplications"), where("memberId", "==", memberId)));
+    const snapshots = await Promise.all([...new Set(memberIds)].map((memberId) =>
+        getDocs(query(collection(db, "consentApplications"), where("memberId", "==", memberId)))));
+    for (const snapshot of snapshots) {
         for (const item of snapshot.docs) {
             const mapped = mapConsent(item.id, item.data());
             if (mapped) results.push(mapped);
