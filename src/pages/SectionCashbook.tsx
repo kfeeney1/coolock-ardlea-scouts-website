@@ -46,6 +46,15 @@ function currencyInputValue(value: string): string | null {
   return null;
 }
 
+function transactionLabel(transaction: FinanceTransaction): string {
+  if (transaction.type === "opening-float") return "Open float";
+  if (transaction.type === "income") return "Float top up";
+  if (transaction.type === "expense" && transaction.category === FLOAT_CLOSE_CATEGORY) return "Close float";
+  if (transaction.type === "expense") return "Money out";
+  if (transaction.type === "adjustment") return "Correction";
+  return "Legacy transfer";
+}
+
 export default function SectionCashbook() {
   const [searchParams] = useSearchParams();
   const navigationView = searchParams.get("view");
