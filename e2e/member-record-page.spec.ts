@@ -183,6 +183,34 @@ test("SW-258 section checklist preserves memberships and explicit Primary sectio
   await expect(page.getByText("Member details updated.")).toBeVisible();
 });
 
+test("SW-266 Venture youth leadership role persists and filters in the selected section", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Youth-role persistence runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_venture_01");
+  const ventureRole = page.getByRole("combobox", { name: "Ventures role" });
+  await expect(ventureRole).toBeVisible();
+  await ventureRole.click();
+  await page.getByRole("option", { name: "Executive Committee", exact: true }).click();
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Ventures role" })).toHaveText("Executive Committee");
+
+  await page.goto("/leader/members?section=Ventures");
+  await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
+  await page.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("option", { name: "Executive Committee", exact: true }).click();
+  await expect(page.getByTestId("member-card-TEST_member_venture_01")).toBeVisible();
+  await expect(page.locator("[data-testid^='member-card-']")).toHaveCount(1);
+
+  await page.goto("/leader/members/TEST_member_venture_01");
+  await page.getByRole("combobox", { name: "Ventures role" }).click();
+  await page.getByRole("option", { name: "No role", exact: true }).click();
+  await page.getByRole("button", { name: "Save Member" }).click();
+  await expect(page.getByText("Member details updated.")).toBeVisible();
+});
+
 test("SW-218 newly created Venture member remains visible under Ventures and All Sections after reload", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Member creation visibility runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
