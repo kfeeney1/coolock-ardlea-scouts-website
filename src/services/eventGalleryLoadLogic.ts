@@ -43,3 +43,27 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message =
     );
   });
 }
+
+// Cancel the underlying transfer on expiry: a UI-only timeout would leave an
+// upload running and could create duplicates when the user retries.
+export function completeGalleryUpload(
+  task: { on: (event: "state_changed", next: undefined, error: (error: unknown) => void, complete: () => void) => () => void; cancel: () => boolean },
+  deadlineMs: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      unsubscribe();
+      task.cancel();
+      reject(new Error("Gallery upload timed out."));
+    }, deadlineMs);
+    const unsubscribe = task.on("state_changed", undefined, (error) => {
+      clearTimeout(timer);
+      unsubscribe();
+      reject(error);
+    }, () => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    });
+  });
+}

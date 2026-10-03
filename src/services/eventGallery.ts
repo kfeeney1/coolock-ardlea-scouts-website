@@ -1,8 +1,8 @@
-import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytesResumable } from "firebase/storage";
 
 import { auth, storage } from "../firebase";
 import { eventGalleryStoragePath, validateEventGalleryUpload } from "./attachmentLogic";
-import { loadGalleryItems } from "./eventGalleryLoadLogic";
+import { loadGalleryItems, completeGalleryUpload } from "./eventGalleryLoadLogic";
 
 export interface EventGalleryPhoto {
   id: string;
@@ -51,7 +51,7 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
   });
   const path = eventGalleryStoragePath(validated.section, validated.ownerId, attachmentId, validated.safeFileName);
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, {
+  const task = uploadBytesResumable(storageRef, file, {
     contentType: validated.contentType,
     customMetadata: {
       ownerType: validated.ownerType,
@@ -62,6 +62,8 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
     },
   });
 
+  await completeGalleryUpload(task, 60000);
+
   return {
     id: attachmentId,
     eventId: validated.ownerId,
@@ -71,7 +73,7 @@ export async function uploadEventGalleryPhoto(section: string, eventId: string, 
     contentType: validated.contentType,
     size: validated.size,
     uploadedBy: uid,
-    downloadUrl: await authenticatedObjectUrl(path, validated.contentType),
+    downloadUrl: URL.createObjectURL(file),
   };
 }
 
