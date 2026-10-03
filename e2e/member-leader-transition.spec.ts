@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -36,7 +39,7 @@ test("invalid member transition link cannot submit a Leader Registration", async
   await expect(page.getByRole("button", { name: "Submit Leader Registration" })).toBeDisabled();
 });
 
-async function completeTransition(page: import("@playwright/test").Page, section: "Cubs" | "Rovers", endMembership: boolean) {
+async function completeTransition(page: import("@playwright/test").Page, section: "Cubs" | "Rovers", endMembership: boolean, existingAccount = false) {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   const suffix = randomUUID().slice(0, 8);
   const firstName = "TEST Transition";
@@ -64,6 +67,20 @@ async function completeTransition(page: import("@playwright/test").Page, section
 
   const member = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
   await expect(member).toBeVisible();
+  const memberId = (await member.getAttribute("data-testid"))!.replace("member-card-", "");
+  let existingUid = "";
+  let original: Record<string, unknown> | undefined;
+  if (existingAccount) {
+    if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
+    const app = getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
+    existingUid = (await getAuth(app).createUser({ email, password: passwordForMember })).uid;
+    const db = getFirestore(app);
+    await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `TEST_family_${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
+    original = (await db.collection("members").doc(memberId).get()).data();
+    await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: [], linkedSections: [], requestedChildren: [] });
+    await page.reload();
+    await expect(member).toBeVisible();
+  }
   await member.getByRole("button", { name: "Manage" }).click();
   await page.getByRole("button", { name: "Transition to Leader" }).click();
   const transitionDialog = page.getByRole("dialog", { name: "Transition member to Leader" });
@@ -98,9 +115,9 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("button", { name: `Review leader request for ${firstName} ${lastName}` }).click();
   const reviewDialog = page.getByRole("dialog", { name: "Review leader request" });
   await expect(reviewDialog).toContainText("This request started from an existing member record.");
-  await reviewDialog.getByRole("button", { name: "Approve as Leader" }).click();
-  const approvalDialog = page.getByRole("dialog", { name: "Approve leader access?" });
-  await approvalDialog.getByRole("button", { name: "Confirm Approval" }).click();
+  await reviewDialog.getByRole("button", { name: /Approve as Leader|Approve & Merge Access/ }).click();
+  const approvalDialog = page.getByRole("dialog", { name: /Approve (?:leader access|and merge Leader access)\?/ });
+  await approvalDialog.getByRole("button", { name: /Confirm Approval/ }).click();
   await expect(page.getByText(`${firstName} ${lastName} has been approved as a Leader`)).toBeVisible();
 
   await page.goto(`/leader/members?status=all&q=${encodeURIComponent(lastName)}`);
@@ -108,6 +125,15 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await expect(updatedMember).toBeVisible();
   await expect(updatedMember).toContainText(endMembership ? "Left" : "Active");
   await expect(updatedMember).toContainText(section);
+  if (existingAccount) {
+    const db = getFirestore(getApps()[0]);
+    const persisted = (await db.collection("members").doc(memberId).get()).data()!;
+    expect(persisted.accountUid).toBe(existingUid);
+    for (const field of ["familyId", "sections", "sectionRoles", "dateOfBirth", "emailAddress", "parentName"]) expect(persisted[field]).toEqual(original![field]);
+    expect((await db.collection("parentAccounts").doc(existingUid).get()).data()!.status).toBe("approved");
+    expect((await db.collection("leaderRegistrationRequests").doc(existingUid).get()).data()!.status).toBe("approved");
+    expect((await db.collection("members").where("emailAddress", "==", email).get()).size).toBe(1);
+  }
   await page.goto(link);
   await expect(page.getByText("This leader registration link is unavailable or has expired.")).toBeVisible();
 }
@@ -120,4 +146,8 @@ test("approved transition ends youth membership and prevents reusing the link", 
 test("approved Rover transition preserves concurrent Rover membership", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Transition approval covers desktop and mobile Chromium.");
   await completeTransition(page, "Rovers", false);
+});
+
+test("transition reuses an existing Parent login and preserves family, multi-section and youth-role identity", async ({ page }) => {
+  await completeTransition(page, "Cubs", false, true);
 });
