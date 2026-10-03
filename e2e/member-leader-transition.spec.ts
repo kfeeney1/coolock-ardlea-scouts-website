@@ -75,7 +75,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
     const app = getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
     existingUid = (await getAuth(app).createUser({ email, password: passwordForMember })).uid;
     const db = getFirestore(app);
-    await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `TEST_family_${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
+    await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
     original = (await db.collection("members").doc(memberId).get()).data();
     await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: [], linkedSections: [], requestedChildren: [] });
     await page.reload();
