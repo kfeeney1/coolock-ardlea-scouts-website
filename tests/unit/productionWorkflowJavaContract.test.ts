@@ -46,3 +46,11 @@ test("production Storage rules explicitly target the provisioned firebasestorage
   assert.doesNotMatch(workflow, /--config \/tmp\/firebase\.production\.json/);
   assert.doesNotMatch(workflow, /deploy --only firestore:rules,firestore:indexes,storage,hosting/);
 });
+
+
+test("production client and smoke verification use the same canonical Storage bucket as rules deployment", () => {
+  const canonicalClientBindings = workflow.match(/VITE_FIREBASE_STORAGE_BUCKET: \$\{\{ env\.PRODUCTION_STORAGE_BUCKET \}\}/g) ?? [];
+  assert.ok(canonicalClientBindings.length >= 2, "production validation and build must bind the canonical Storage bucket");
+  assert.match(workflow, /FIREBASE_STORAGE_BUCKET: \$\{\{ env\.PRODUCTION_STORAGE_BUCKET \}\}/);
+  assert.doesNotMatch(workflow, /(?:VITE_)?FIREBASE_STORAGE_BUCKET: \$\{\{ vars\.VITE_FIREBASE_STORAGE_BUCKET \}\}/);
+});

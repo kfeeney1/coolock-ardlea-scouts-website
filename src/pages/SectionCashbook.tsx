@@ -28,7 +28,6 @@ import {
 } from "../services/financeLedgerLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
-const RECEIPT_UPLOAD_TIMEOUT_MS = 15000;
 type FloatAction = "opening-float" | "float-top-up" | "money-out" | "close-float";
 
 const formatEuro = (cents: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -45,20 +44,6 @@ function currencyInputValue(value: string): string | null {
   const normalised = value.replace(",", ".");
   if (normalised === "" || /^\d+(\.\d{0,2})?$/.test(normalised)) return normalised;
   return null;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
 }
 
 function transactionLabel(transaction: FinanceTransaction): string {
@@ -199,13 +184,10 @@ export default function SectionCashbook() {
 
     setUploadingReceipt(true);
     try {
-      await withTimeout(
-        addFinanceReceipt(transactionId, section, selectedReceipt),
-        RECEIPT_UPLOAD_TIMEOUT_MS,
-        "Receipt upload timed out."
-      );
+      await addFinanceReceipt(transactionId, section, selectedReceipt);
       setReceiptFile(null);
       setReceiptRefreshKey((value) => value + 1);
+      setSuccess("Money out saved and receipt uploaded successfully.");
     } catch (receiptError) {
       console.error("Money out saved but receipt upload failed:", receiptError);
       setError("Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.");
