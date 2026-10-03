@@ -277,6 +277,7 @@ export default function LeaderRequests() {
                                 <Alert severity="info">
                                     Approving {selected.fullName} creates active Leader access for {selected.requestedSection}. Additional sections can then be assigned from Leader Access.
                                 </Alert>
+                                {selected.transitionInvitationId && <Alert severity="warning">This request started from an existing member record. Approval will link that record to this account{selected.transitionEndMemberMembership ? " and end its current membership while retaining its history" : ", while retaining its current membership"}. Cancelling or rejecting the request leaves the member unchanged.</Alert>}
                                 <Box role="group" aria-label={`Scouting appointments for ${selected.fullName}`}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Scouting appointments</Typography>
                                     <Typography variant="body2" color="text.secondary">Programme Scouter is the new-leader default. Change or remove it before approval if required.</Typography>
@@ -330,6 +331,7 @@ export default function LeaderRequests() {
                                         ? "This explicitly attaches Leader access to the same authenticated login as the matching Parent registration. Parent and child-link approval remains independent."
                                         : `This creates active section-scoped Leader access and grants access to ${selected.requestedSection} leader data and workflows.`}
                                 </Alert>
+                                {selected.transitionInvitationId && <Alert severity="info">The member link is applied in the same approval transaction as Leader access. The existing member record and family/consent history are preserved.</Alert>}
                                 <Typography color="text.secondary">
                                     The registration service re-checks that the request is still pending before creating access. Matching email is review assistance only and never approves either access type automatically.
                                 </Typography>

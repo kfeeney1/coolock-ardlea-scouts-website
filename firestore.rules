@@ -321,9 +321,41 @@ service cloud.firestore {
     }
 
     match /leaderRegistrationRequests/{userId} {
-      allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId && request.resource.data.status == "pending" && request.resource.data.privacyConfirmed == true;
+      allow create: if signedIn() && request.auth.uid == userId && request.resource.data.uid == userId && request.resource.data.status == "pending" && request.resource.data.privacyConfirmed == true
+        && (!request.resource.data.keys().hasAny(["transitionInvitationId"]) || (request.resource.data.transitionInvitationId is string && request.resource.data.transitionEndMemberMembership is bool));
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedAt", "reviewedBy", "reviewNote"]);
+      allow delete: if false;
+    }
+
+    // A random, short-lived link lets the member complete the ordinary public
+    // Leader Registration form without putting their personal details in the URL.
+    match /leaderTransitionInvitations/{invitationId} {
+      allow create: if isActiveLeader()
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(14, "d")
+        && invitationId.size() >= 20
+        && request.resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && canAccessMemberSections(get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data)
+        && request.resource.data.firstName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.firstName
+        && request.resource.data.lastName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.lastName
+        && request.resource.data.displayName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
+        && request.resource.data.emailAddress == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.emailAddress
+        && request.resource.data.mobileNumber == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.mobileNumber
+        && request.resource.data.section == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.section
+        && request.resource.data.endMemberMembership is bool
+        && request.resource.data.keys().hasOnly(["memberId", "firstName", "lastName", "displayName", "emailAddress", "mobileNumber", "section", "endMemberMembership", "status", "createdBy", "createdAt", "expiresAt"]);
+      allow get: if resource.data.status == "pending" && resource.data.expiresAt is timestamp && request.time < resource.data.expiresAt;
+      allow list: if isAdmin();
+      allow update: if isAdmin() && resource.data.status == "pending"
+        && request.resource.data.status == "used"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "usedBy", "usedAt"])
+        && request.resource.data.usedBy is string && request.resource.data.usedAt == request.time;
       allow delete: if false;
     }
 
@@ -393,7 +425,9 @@ service cloud.firestore {
       allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && (memberId != "rover_" + request.auth.uid || resource.data.accountUid == request.auth.uid)
           && request.resource.data.status in ["active", "inactive", "left"]
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "updatedAt", "updatedBy"]))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && request.resource.data.accountUid is string
+            && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == "" || resource.data.accountUid == request.resource.data.accountUid)))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "accountUid", "updatedAt", "updatedBy"]))
         || (isAdmin()
           && request.resource.data.familyId is string
           && request.resource.data.familyUpdatedBy == request.auth.uid
