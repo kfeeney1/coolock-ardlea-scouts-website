@@ -149,7 +149,9 @@ const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
   "/event-consent-processed",
   "/form-reminder",
   "/member-inactivation-context",
-  "/member-inactivation"
+  "/member-inactivation",
+  "/join-application-status",
+  "/join-consent-context"
 ]);
 
 export default {
@@ -169,8 +171,8 @@ export default {
       return worker.fetch(request, env);
     }
 
-    if (AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
-      if (!bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+    if (path === "/join-application" || AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
+      if (path !== "/join-application" && !bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
       try {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
