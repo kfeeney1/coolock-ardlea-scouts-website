@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   hasBackDismissMarker,
   isTopBackDismissMarker,
+  shouldDismissForMissingBackMarker,
   withBackDismissMarker
 } from "../services/backDismissHistory";
 
@@ -24,6 +25,8 @@ export function useBackDismiss(open: boolean, onDismiss: () => void, name: strin
   const reactId = useId();
   const markerRef = useRef(`${name}:${reactId}`);
   const armedRef = useRef(false);
+  const markerWasCommittedRef = useRef(false);
+  const openingLocationRef = useRef("");
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
 
@@ -33,28 +36,42 @@ export function useBackDismiss(open: boolean, onDismiss: () => void, name: strin
     const marker = markerRef.current;
     const state = location.state;
     const currentMarkerPresent = hasBackDismissMarker(state, marker);
+    const currentLocation = `${location.pathname}${location.search}${location.hash}`;
 
     if (open) {
-      if (armedRef.current && !currentMarkerPresent) {
-        armedRef.current = false;
-        dismissRef.current();
+      if (currentMarkerPresent) {
+        armedRef.current = true;
+        markerWasCommittedRef.current = true;
+        openingLocationRef.current = "";
         return;
       }
 
-      if (!armedRef.current && !currentMarkerPresent) {
+      if (armedRef.current) {
+        if (shouldDismissForMissingBackMarker(markerWasCommittedRef.current, openingLocationRef.current, currentLocation)) {
+          armedRef.current = false;
+          markerWasCommittedRef.current = false;
+          openingLocationRef.current = "";
+          dismissRef.current();
+        }
+        return;
+      }
+
+      if (!currentMarkerPresent) {
         armedRef.current = true;
+        markerWasCommittedRef.current = false;
+        openingLocationRef.current = currentLocation;
         navigate(`${location.pathname}${location.search}${location.hash}`, {
           state: withBackDismissMarker(state, marker)
         });
         return;
       }
-
-      armedRef.current = true;
       return;
     }
 
     if (!armedRef.current) return;
     armedRef.current = false;
+    markerWasCommittedRef.current = false;
+    openingLocationRef.current = "";
 
     if (isTopBackDismissMarker(state, marker)) {
       navigate(-1);
