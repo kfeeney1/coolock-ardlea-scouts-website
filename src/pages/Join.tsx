@@ -33,8 +33,6 @@ const EMPTY_FORM: JoinApplication = {
     section: "",
     previousScoutExperience: "No",
     previousScoutGroup: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
     volunteeringInterest: "No",
     additionalInformation: "",
     informationConfirmed: false,
@@ -67,7 +65,6 @@ export default function Join() {
         if (!phonePattern.test(form.mobileNumber.trim())) return "Enter a valid mobile number.";
         if (!emailPattern.test(form.emailAddress.trim())) return "Enter a valid email address.";
         if (!youthSections.some((section) => section.value === form.section)) return "Choose a valid Scout section.";
-        if (!form.emergencyContactName.trim() || !phonePattern.test(form.emergencyContactPhone.trim())) return "Enter a valid emergency contact name and phone number.";
         if (!form.informationConfirmed) return "Confirm that the information is accurate.";
         if (!form.contactConsent) return "Consent to being contacted about this joining enquiry.";
         return "";
@@ -165,12 +162,6 @@ export default function Join() {
                             <TextField required label="Relationship" name="relationship" value={form.relationship} onChange={updateText} />
                             <TextField required label="Mobile number" name="mobileNumber" value={form.mobileNumber} onChange={updateText} />
                             <TextField required type="email" label="Email address" name="emailAddress" value={form.emailAddress} onChange={updateText} />
-                        </Box>
-
-                        <Typography variant="h5" color="secondary">Emergency contact</Typography>
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-                            <TextField required label="Emergency contact name" name="emergencyContactName" value={form.emergencyContactName} onChange={updateText} />
-                            <TextField required label="Emergency contact phone" name="emergencyContactPhone" value={form.emergencyContactPhone} onChange={updateText} />
                         </Box>
 
                         <Typography variant="h5" color="secondary">Additional information</Typography>

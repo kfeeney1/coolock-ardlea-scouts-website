@@ -58,6 +58,28 @@ test("homepage shows section meeting times and the canonical meeting map", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBeTruthy();
 });
 
+test("Join Us submits on mobile and desktop without collecting emergency contact details", async ({ page }) => {
+  await page.goto("/join");
+  await expect(page.getByRole("heading", { name: "Emergency contact" })).toHaveCount(0);
+  await expect(page.getByLabel("Emergency contact name")).toHaveCount(0);
+  await expect(page.getByLabel("Emergency contact phone")).toHaveCount(0);
+
+  await page.getByLabel("First name").fill("Taylor");
+  await page.getByLabel("Last name").fill("Test");
+  await page.getByLabel("Date of birth").fill("2016-05-10");
+  await page.getByLabel("Preferred section").click();
+  await page.getByRole("option", { name: /Cubs/ }).click();
+  await page.getByLabel("Parent / guardian name").fill("Alex Test");
+  await page.getByLabel("Relationship").fill("Parent");
+  await page.getByLabel("Mobile number").fill("0870000000");
+  await page.getByLabel("Email address").fill("join-test@example.com");
+  await page.getByLabel("I confirm that the information provided is accurate.").check();
+  await page.getByLabel("I consent to being contacted about this joining enquiry.").check();
+  await page.getByRole("button", { name: "Submit joining enquiry" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Application reference:");
+});
+
 test("build information lives on About rather than the public footer", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("contentinfo")).not.toContainText(/Build /i);

@@ -305,7 +305,6 @@ service cloud.firestore {
       allow create: if request.resource.data.childFirstName is string && request.resource.data.childLastName is string
         && request.resource.data.dateOfBirth is string && request.resource.data.parentName is string
         && request.resource.data.emailAddress is string && request.resource.data.mobileNumber is string
-        && request.resource.data.emergencyContactName is string && request.resource.data.emergencyContactPhone is string
         && request.resource.data.section is string
         && request.resource.data.informationConfirmed == true && request.resource.data.contactConsent == true
         && request.resource.data.status == "new" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time

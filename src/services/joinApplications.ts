@@ -19,8 +19,6 @@ export type JoinApplication = {
     section: string;
     previousScoutExperience: string;
     previousScoutGroup: string;
-    emergencyContactName: string;
-    emergencyContactPhone: string;
     volunteeringInterest: string;
     additionalInformation: string;
     informationConfirmed: boolean;
@@ -57,14 +55,6 @@ export async function submitJoinApplication(
             previousScoutGroup: cleanText(
                 application.previousScoutGroup,
                 150
-            ),
-            emergencyContactName: cleanText(
-                application.emergencyContactName,
-                150
-            ),
-            emergencyContactPhone: cleanText(
-                application.emergencyContactPhone,
-                40
             ),
             volunteeringInterest: cleanText(
                 application.volunteeringInterest,
