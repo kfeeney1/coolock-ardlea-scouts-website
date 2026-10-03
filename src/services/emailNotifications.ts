@@ -32,13 +32,16 @@ async function post<T = void>(path: string, body: Record<string, unknown>, authe
     return await response.json() as T;
 }
 
-export async function notifyJoinApplication(applicationId: string, application: JoinApplication): Promise<void> {
-    await post("/join-application", {
-        applicationId,
-        childName: `${application.childFirstName} ${application.childLastName}`.trim(),
-        section: application.section,
-        parentName: application.parentName
-    }, false);
+export async function notifyJoinApplication(applicationId: string, _application?: JoinApplication): Promise<void> {
+    await post("/join-application", { applicationId }, false);
+}
+
+export async function notifyJoinApplicationStatus(applicationId: string, status: "waiting-list" | "accepted"): Promise<void> {
+    await post("/join-application-status", { applicationId, status }, true);
+}
+
+export async function resolveJoinConsentContext(joinToken: string): Promise<{ memberId: string }> {
+    return await post<{ memberId: string }>("/join-consent-context", { joinToken }, true);
 }
 
 export async function notifyParentRegistration(): Promise<void> {

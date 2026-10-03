@@ -16,6 +16,7 @@ import { BACK_DISMISS_STATE_KEY, backDismissStack } from "../services/backDismis
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
+import { resolveJoinConsentContext } from "../services/emailNotifications";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/firestoreErrors";
 import type { ParentChildRequest } from "../services/parentChildMatching";
 import { createParentAccessForCurrentUser, loadParentAccount, loginParent, logoutParent, registerParent } from "../services/parentPortal";
@@ -62,6 +63,7 @@ export default function ParentPortal() {
     const [resettingPassword, setResettingPassword] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [joinConsentNotice, setJoinConsentNotice] = useState("");
     const [taskSummaryVersion, setTaskSummaryVersion] = useState(0);
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -70,6 +72,7 @@ export default function ParentPortal() {
     const [childrenLoadError, setChildrenLoadError] = useState(false);
     const [pendingChildId, setPendingChildId] = useState<string | null>(null);
     const pendingChildIdRef = useRef<string | null>(null);
+    const handledJoinConsentTokenRef = useRef("");
     const childCommitTimerRef = useRef<number | null>(null);
     const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
@@ -101,6 +104,7 @@ export default function ParentPortal() {
     }, [account]);
 
     const requestedChildId = searchParams.get("child") || "";
+    const joinConsentToken = searchParams.get("joinToken") || "";
     const selectedChild = linkedChildren.find((child) => child.id === pendingChildId)
         || linkedChildren.find((child) => child.id === requestedChildId)
         || linkedChildren[0]
@@ -116,6 +120,29 @@ export default function ParentPortal() {
         next.set("child", selectedChild.id);
         navigate({ pathname: "/parent", search: next.toString(), hash: location.hash }, { replace: true, state: location.state });
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
+
+    useEffect(() => {
+        if (!joinConsentToken || !user || !account || account.status !== "approved" || handledJoinConsentTokenRef.current === joinConsentToken) return;
+        handledJoinConsentTokenRef.current = joinConsentToken;
+        let cancelled = false;
+        void resolveJoinConsentContext(joinConsentToken).then(({ memberId }) => {
+            if (cancelled) return;
+            if (!account.memberIds.includes(memberId)) {
+                setJoinConsentNotice("This accepted application is not linked to your approved Parent Portal account. Please contact a leader for help.");
+                return;
+            }
+            const next = new URLSearchParams(searchParams);
+            next.delete("joinToken");
+            next.set("child", memberId);
+            setJoinConsentNotice("Your child’s consent form is ready. Review and submit the form below.");
+            navigate({ pathname: "/parent", search: next.toString(), hash: "#parent-medical-consent" }, { replace: true, state: location.state });
+        }).catch((contextError) => {
+            if (cancelled) return;
+            console.error("Unable to resolve accepted Join Us consent context:", contextError);
+            setJoinConsentNotice("This consent link is unavailable for this account. Confirm that you are signed in with the parent email used for the application and that your child is linked to your approved account.");
+        });
+        return () => { cancelled = true; };
+    }, [joinConsentToken, user, account, searchParams, navigate, location.state]);
 
     const rememberChildSelection = (childId: string) => {
         if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
@@ -233,7 +260,7 @@ export default function ParentPortal() {
             ["Consent & Medical", "parent-medical-consent"],
             ["Meetings & Events", "parent-event-consent"]
         ] as const;
-        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>
+        return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>{joinConsentNotice && <Alert severity="info" sx={{ mb: 3 }}>{joinConsentNotice}</Alert>}
             {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => rememberChildSelection(event.target.value)} onClose={commitChildSelectionAfterClose} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
             {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
             <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>

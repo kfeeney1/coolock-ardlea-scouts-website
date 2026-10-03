@@ -72,3 +72,30 @@ export async function verifyMemberInactivationToken(env, token) {
     return null;
   }
 }
+
+export async function issueJoinConsentToken(env, applicationId, ttlSeconds = 30 * 24 * 60 * 60) {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { v: 1, purpose: "join-consent", applicationId: String(applicationId || ""), iat: now, exp: now + ttlSeconds };
+  if (!payload.applicationId) throw new Error("Join application id is required for the consent link.");
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, await actionKey(requireSecret(env)), encoder.encode(JSON.stringify(payload))
+  );
+  return `v1.${base64Url(iv)}.${base64Url(new Uint8Array(ciphertext))}`;
+}
+
+export async function verifyJoinConsentToken(env, token) {
+  try {
+    const [version, ivPart, ciphertextPart] = String(token || "").split(".");
+    if (version !== "v1" || !ivPart || !ciphertextPart) return null;
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: fromBase64Url(ivPart) }, await actionKey(requireSecret(env)), fromBase64Url(ciphertextPart)
+    );
+    const payload = JSON.parse(decoder.decode(plaintext));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload?.v !== 1 || payload?.purpose !== "join-consent" || typeof payload.applicationId !== "string" || !payload.applicationId || !Number.isFinite(payload.exp) || payload.exp <= now) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}

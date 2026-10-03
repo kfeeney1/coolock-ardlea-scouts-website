@@ -13,6 +13,7 @@ import {
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { notifyJoinApplicationStatus } from "./emailNotifications";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { canonicalMemberSection } from "./memberIdentityLogic";
 
@@ -154,6 +155,15 @@ export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
 
 export async function updateJoinStatus(applicationId: string, status: JoinStatus): Promise<void> {
     await updateDoc(doc(db, "joinApplications", applicationId), { status, updatedAt: serverTimestamp() });
+    if (status === "waiting-list" || status === "accepted") {
+        try {
+            await notifyJoinApplicationStatus(applicationId, status);
+        } catch (emailError) {
+            // The status is already safely persisted. A delivery error is reported
+            // without reverting the leader's decision or inviting a duplicate edit.
+            console.error("Unable to send Join Us status email:", emailError);
+        }
+    }
 }
 
 export async function updateJoinNotes(applicationId: string, notes: string): Promise<void> {
