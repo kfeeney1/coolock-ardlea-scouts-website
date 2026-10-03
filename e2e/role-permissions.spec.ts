@@ -98,7 +98,7 @@ test.describe("dual-role parent and leader permissions", () => {
     await expect(page.getByRole("link", { name: "Events & Activities" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reports & Exports" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Event Consent", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Parent Portal" })).toBeVisible();
+    await expect(page.getByTestId("leader-nav-parent-portal")).toBeVisible();
     await expect(page.getByRole("link", { name: "Leader Access" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Parent Access" })).toHaveCount(0);
 
