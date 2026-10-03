@@ -7,6 +7,7 @@ import {
   backDismissStack,
   hasBackDismissMarker,
   isTopBackDismissMarker,
+  shouldDismissForMissingBackMarker,
   withBackDismissMarker
 } from "../../src/services/backDismissHistory.ts";
 
@@ -19,6 +20,13 @@ test("back-dismiss markers preserve location state and stack in opening order", 
   assert.equal(hasBackDismissMarker(second, "menu"), true);
   assert.equal(isTopBackDismissMarker(second, "menu"), false);
   assert.equal(isTopBackDismissMarker(second, "dialog"), true);
+});
+
+test("an overlay stays open until its new history marker commits, then closes if that marker is removed", () => {
+  const location = "/leader/settings";
+  assert.equal(shouldDismissForMissingBackMarker(false, location, location), false);
+  assert.equal(shouldDismissForMissingBackMarker(false, location, "/leader/reports"), true);
+  assert.equal(shouldDismissForMissingBackMarker(true, "", location), true);
 });
 
 test("back-dismiss marker insertion is idempotent and ignores malformed state", () => {

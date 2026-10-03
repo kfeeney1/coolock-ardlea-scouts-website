@@ -29,3 +29,11 @@ export function hasBackDismissMarker(state: unknown, marker: string): boolean {
 export function isTopBackDismissMarker(state: unknown, marker: string): boolean {
   return backDismissStack(state).at(-1) === marker;
 }
+
+export function shouldDismissForMissingBackMarker(
+  markerWasCommitted: boolean,
+  openingLocation: string,
+  currentLocation: string
+): boolean {
+  return markerWasCommitted || Boolean(openingLocation && openingLocation !== currentLocation);
+}
