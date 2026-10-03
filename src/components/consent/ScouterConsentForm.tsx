@@ -14,7 +14,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
     ChangeEvent,
     FormEvent
@@ -26,6 +26,7 @@ import MedicationManagementForm, {
 } from "./MedicationManagementForm";
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
+import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -144,6 +145,7 @@ export default function ScouterConsentForm({
     const [submitError, setSubmitError] = useState("");
     const [submitted, setSubmitted] = useState(false);
     const [reference, setReference] = useState("");
+    const formRef = useRef<HTMLFormElement | null>(null);
 
     const progress = useMemo(
         () =>
@@ -332,11 +334,17 @@ export default function ScouterConsentForm({
 
         setErrors(nextErrors);
 
-        return (
+        const valid =
             Object.keys(nextErrors).length === 0 &&
-            Object.keys(nextMedicationErrors).length ===
-                0
-        );
+            Object.keys(nextMedicationErrors).length === 0;
+
+        if (!valid) {
+            focusFirstInvalidFieldAfterRender(
+                formRef.current ?? document
+            );
+        }
+
+        return valid;
     };
 
     const next = () => {
@@ -528,6 +536,7 @@ export default function ScouterConsentForm({
 
             <Box
                 component="form"
+                ref={formRef}
                 onSubmit={submit}
                 noValidate
                 sx={{

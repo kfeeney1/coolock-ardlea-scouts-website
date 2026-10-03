@@ -44,6 +44,7 @@ export default function YesNoField({
 
             <RadioGroup
                 row
+                aria-invalid={Boolean(error)}
                 value={value}
                 onChange={(event) =>
                     onChange(
