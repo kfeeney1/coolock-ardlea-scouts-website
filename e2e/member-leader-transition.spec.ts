@@ -99,8 +99,8 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await expect(page.getByRole("button", { name: "Sign In", exact: true })).toBeVisible();
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "Leader Registration" })).toBeVisible();
-  await page.getByLabel("Password", { exact: true }).fill(passwordForMember);
-  await page.getByLabel("Confirm password", { exact: true }).fill(passwordForMember);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(passwordForMember);
+  await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill(passwordForMember);
   await page.getByRole("combobox", { name: "Requested role" }).click();
   await page.getByRole("option", { name: "Scouter", exact: true }).click();
   await page.getByLabel(/I confirm that the information supplied is accurate/).check();
