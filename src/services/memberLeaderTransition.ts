@@ -43,7 +43,9 @@ export async function createMemberLeaderTransitionInvitation(
 
 export async function loadMemberLeaderTransitionInvitation(id: string): Promise<MemberLeaderTransitionInvitation> {
   if (!/^[A-Za-z0-9_-]{15,40}$/.test(id)) throw new Error("This leader registration link is invalid.");
-  const snapshot = await getDoc(doc(db, "leaderTransitionInvitations", id));
+  const snapshot = await getDoc(doc(db, "leaderTransitionInvitations", id)).catch(() => {
+    throw new Error("This leader registration link is unavailable or has expired.");
+  });
   if (!snapshot.exists()) throw new Error("This leader registration link is unavailable or has expired.");
   const data = snapshot.data();
   if (data.status !== "pending" || !(data.expiresAt instanceof Timestamp) || data.expiresAt.toDate().getTime() <= Date.now()) {
