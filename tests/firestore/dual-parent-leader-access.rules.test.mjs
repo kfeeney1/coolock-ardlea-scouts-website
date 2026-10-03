@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
-import { assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
+import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
@@ -147,4 +147,28 @@ test("approval on one side and rejection on the other remain independent", async
   const leaderRequest = await getDoc(doc(adminDb, "leaderRegistrationRequests/dual-user"));
   if (parentRequest.data()?.status !== "approved") throw new Error("Parent approval changed after leader rejection.");
   if (leaderRequest.data()?.status !== "rejected") throw new Error("Leader rejection did not remain independent.");
+});
+
+
+test("combined parent and leader retain independent child and section permissions", async () => {
+  await seed([
+    ["adminUsers/dual-user", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/leader-only", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["parentAccounts/dual-user", { status: "approved", memberIds: ["linked-beaver"], linkedSections: ["Beavers"] }],
+    ["parentAccounts/parent-only", { status: "approved", memberIds: ["linked-beaver"], linkedSections: ["Beavers"] }],
+    ["members/linked-beaver", { section: "Beavers", displayName: "Linked child" }],
+    ["members/unlinked-beaver", { section: "Beavers", displayName: "Unlinked child" }],
+    ["members/scout", { section: "Scouts", displayName: "Leader section member" }],
+  ]);
+  const combined = testEnv.authenticatedContext("dual-user", { email: "dual@example.com" }).firestore();
+  const parent = testEnv.authenticatedContext("parent-only", { email: "parent@example.com" }).firestore();
+  const leader = testEnv.authenticatedContext("leader-only", { email: "leader@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(combined, "members/linked-beaver")));
+  await assertSucceeds(getDoc(doc(combined, "members/scout")));
+  await assertFails(getDoc(doc(combined, "members/unlinked-beaver")));
+  await assertSucceeds(getDoc(doc(parent, "members/linked-beaver")));
+  await assertFails(getDoc(doc(parent, "members/scout")));
+  await assertFails(getDoc(doc(parent, "members/unlinked-beaver")));
+  await assertSucceeds(getDoc(doc(leader, "members/scout")));
+  await assertFails(getDoc(doc(leader, "members/linked-beaver")));
 });

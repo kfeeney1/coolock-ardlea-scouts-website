@@ -1,0 +1,126 @@
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+
+const password = process.env.E2E_TEST_USER_PASSWORD;
+
+test.beforeEach(({}, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Context switching runs on desktop and mobile Chromium.");
+  test.skip(!password, "Configure canonical E2E credentials.");
+});
+
+async function signIn(page: Page, email: string, leader: boolean) {
+  await page.goto(leader ? "/leader/login" : "/parent");
+  await page.getByLabel(leader ? "Email address" : "Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password!);
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page.getByRole("heading", { name: leader ? "Leader Dashboard" : "Parent Portal", exact: true })).toBeVisible();
+}
+
+async function openParentFromHeader(page: Page, testInfo: TestInfo) {
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
+  } else {
+    await page.getByRole("banner").getByRole("link", { name: "Parent Portal", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "Parent Portal", exact: true })).toBeVisible();
+}
+
+async function signOutFromHeader(page: Page, testInfo: TestInfo) {
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await page.getByRole("menuitem", { name: "Sign Out", exact: true }).click();
+  } else {
+    await page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true }).click();
+  }
+  await expect(page).toHaveURL(/\/$/);
+}
+
+async function expectChildOptions(page: Page, count: number) {
+  const select = page.getByRole("combobox", { name: "Viewing information for" });
+  await expect(select).toBeVisible();
+  await select.click();
+  await expect(page.getByRole("option")).toHaveCount(count);
+  const ids = await page.getByRole("option").evaluateAll((options) => options.map((option) => option.getAttribute("data-value")));
+  await page.getByRole("option").first().click();
+  return ids;
+}
+
+test("combined leader and parent can switch contexts, reload and sign in again with only linked children", async ({ page }, testInfo) => {
+  const email = process.env.E2E_PARENT_LEADER_EMAIL;
+  test.skip(!email, "Configure canonical combined account.");
+  await signIn(page, email!, true);
+  await openParentFromHeader(page, testInfo);
+  await expect(page.getByText("Your account is approved and linked to 2 member records.")).toBeVisible();
+  const children = await expectChildOptions(page, 2);
+  expect(children).toEqual(["TEST_member_beaver_05", "TEST_member_beaver_06"]);
+  await page.getByRole("combobox", { name: "Viewing information for" }).click();
+  await page.getByRole("option").nth(1).click();
+  await expect(page).toHaveURL(/child=TEST_member_beaver_06/);
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+  await expect(page).toHaveURL(/child=TEST_member_beaver_06/);
+  await page.goto("/parent?child=TEST_member_beaver_01");
+  await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
+  await expectChildOptions(page, 2);
+  await page.goto("/leader/members");
+  await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
+  await expect(page.getByTestId("member-card-TEST_member_beaver_01")).toBeVisible();
+  await page.goto("/parent");
+  await expect(page.getByText("Your account is approved and linked to 2 member records.")).toBeVisible();
+  await signOutFromHeader(page, testInfo);
+  await signIn(page, email!, true);
+  await page.goto("/parent");
+  await expectChildOptions(page, 2);
+});
+
+test("parent-only account retains portal navigation and cannot enter Leader Dashboard", async ({ page }, testInfo) => {
+  const email = process.env.E2E_PARENT_EMAIL;
+  test.skip(!email, "Configure canonical parent account.");
+  await signIn(page, email!, false);
+  await page.goto("/about");
+  await openParentFromHeader(page, testInfo);
+  await expectChildOptions(page, 2);
+  await page.goto("/leader");
+  await expect(page).toHaveURL(/\/parent$/);
+  await expect(page.getByText("This account does not have leader access.")).toBeVisible();
+});
+
+test("leader-only account can reach parent registration without receiving child access", async ({ page }, testInfo) => {
+  const email = process.env.E2E_LEADER_EMAIL;
+  test.skip(!email, "Configure canonical leader account.");
+  await signIn(page, email!, true);
+  await openParentFromHeader(page, testInfo);
+  await expect(page.getByText(/Submit parent registration by identifying your child/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Viewing information for" })).toHaveCount(0);
+  await expect(page.getByTestId("parent-portal-menu")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText(/Submit parent registration by identifying your child/)).toBeVisible();
+  await page.goto("/leader");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard", exact: true })).toBeVisible();
+});
+
+test("combined identity with one child outside its leader section retains independent parent scope", async ({ page }, testInfo) => {
+  if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
+  const app = getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
+  const email = `test.dual.${randomUUID().slice(0, 8)}@example.com`;
+  const uid = (await getAuth(app).createUser({ email, password: password! })).uid;
+  const db = getFirestore(app);
+  await db.doc(`adminUsers/${uid}`).set({ active: true, role: "leader", displayName: "Dual Context Fixture", email, sections: ["Scouts"] });
+  await db.doc(`organisationLeadership/${uid}`).set({ active: true, displayName: "Dual Context Fixture", scoutingRole: "Programme Scouter", organisationSection: "Scouts", appointments: [{ appointment: "Programme Scouter", scope: "Scouts", active: true }] });
+  await db.doc(`parentAccounts/${uid}`).set({ uid, email, displayName: "Dual Context Fixture", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
+  await signIn(page, email, true);
+  await openParentFromHeader(page, testInfo);
+  await expect(page.getByText("Your account is approved and linked to 1 member record.")).toBeVisible();
+  expect(await expectChildOptions(page, 1)).toEqual(["TEST_member_beaver_01"]);
+  await page.goto("/parent?child=TEST_member_beaver_02");
+  await expect(page).toHaveURL(/child=TEST_member_beaver_01/);
+  await page.reload();
+  expect(await expectChildOptions(page, 1)).toEqual(["TEST_member_beaver_01"]);
+  await page.goto("/leader/members");
+  await expect(page.getByTestId("member-card-TEST_member_scout_01")).toBeVisible();
+  await expect(page.getByTestId("member-card-TEST_member_beaver_02")).toHaveCount(0);
+});
