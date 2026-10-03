@@ -19,6 +19,7 @@ import { canonicalMemberSections, memberSectionStorageAliases } from "./memberSe
 import { recordAuditEvent } from "./auditLog";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { normalizeMemberSectionRoles, type MemberSectionRoles } from "./memberYouthRoles";
 import { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
 import {
   canonicalMemberFieldError,
@@ -38,6 +39,7 @@ export type MemberRecord = {
   dateOfBirth: string;
   section: string;
   sections: string[];
+  sectionRoles: MemberSectionRoles;
   parentName: string;
   emailAddress: string;
   mobileNumber: string;
@@ -55,7 +57,7 @@ export type CreateMemberInput = Pick<
   MemberRecord,
   "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" |
   "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"
-> & { sections?: string[] };
+> & { sections?: string[]; sectionRoles?: MemberSectionRoles };
 
 export type MemberConsentSummary = {
   consentId: string;
@@ -118,6 +120,7 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
     id: snapshot.id,
     ...required,
     sections,
+    sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, sections),
     displayNameMode: data.displayNameMode === "custom"
       ? "custom"
       : data.displayNameMode === "auto"
@@ -237,6 +240,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
     dateOfBirth: clean(input.dateOfBirth, 20),
     section: primarySection,
     sections: requestedSections,
+    sectionRoles: normalizeMemberSectionRoles(input.sectionRoles, requestedSections),
     parentName: clean(input.parentName, 200),
     emailAddress: clean(input.emailAddress, 254),
     mobileNumber: clean(input.mobileNumber, 40),
@@ -265,7 +269,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
 export async function updateMember(
   memberId: string,
   updates: Pick<MemberRecord, "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" |
-    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"> & { sections?: string[] }
+    "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"> & { sections?: string[]; sectionRoles?: MemberSectionRoles }
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("No signed-in leader.");
@@ -285,6 +289,7 @@ export async function updateMember(
   const nextSections = canonicalMemberSections(updates.sections, updates.section);
   if (nextSections.length === 0) throw new Error("Select at least one section.");
   const nextSection = nextSections[0];
+  const sectionRoles = normalizeMemberSectionRoles(updates.sectionRoles, nextSections);
   const changeType = detectMemberLifecycleChange(
     { section: previousSection, status: previousStatus },
     { section: nextSection, status: updates.status }
@@ -304,6 +309,7 @@ export async function updateMember(
     dateOfBirth: clean(updates.dateOfBirth, 20),
     section: nextSection,
     sections: nextSections,
+    sectionRoles,
     parentName: clean(updates.parentName, 200),
     emailAddress: clean(updates.emailAddress, 254),
     mobileNumber: clean(updates.mobileNumber, 40),

@@ -93,6 +93,11 @@ test("member name updates may persist display-name mode without widening identit
     updatedAt: serverTimestamp(),
     updatedBy: "leader-cubs",
   }));
+  await assertSucceeds(updateDoc(doc(db, "members/member-cub"), {
+    sectionRoles: { Cubs: "Sixer" },
+    updatedAt: serverTimestamp(),
+    updatedBy: "leader-cubs",
+  }));
   await assertFails(updateDoc(doc(db, "members/member-cub"), { familyId: "forged-family" }));
 });
 

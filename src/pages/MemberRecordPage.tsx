@@ -8,6 +8,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
 import MemberSectionChecklist from "../components/admin/MemberSectionChecklist";
+import MemberYouthRoleControls from "../components/admin/MemberYouthRoleControls";
 import { automaticDisplayName, loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
 import { disableParentPortalAccess } from "../services/parentManagement";
@@ -111,6 +112,7 @@ export default function MemberRecordPage() {
       await updateMember(member.id, {
         firstName: draft.firstName, lastName: draft.lastName, displayName: draft.displayName,
         dateOfBirth: draft.dateOfBirth, section: draft.section, sections: draft.sections, parentName: draft.parentName,
+        sectionRoles: draft.sectionRoles,
         emailAddress: draft.emailAddress, mobileNumber: draft.mobileNumber,
         emergencyContactName: draft.emergencyContactName, emergencyContactPhone: draft.emergencyContactPhone,
         status: draft.status, displayNameMode: draft.displayNameMode
@@ -189,6 +191,7 @@ export default function MemberRecordPage() {
             <Box><TextField fullWidth label="Display name" value={draft.displayNameMode === "auto" ? automaticDisplayName(draft.firstName, draft.lastName) : draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value, displayNameMode: "custom" })} helperText={draft.displayNameMode === "auto" ? "Automatically follows First name + Last name." : "Custom display name."} />{draft.displayNameMode === "custom" && <Button size="small" onClick={() => setDraft({ ...draft, displayName: automaticDisplayName(draft.firstName, draft.lastName), displayNameMode: "auto" })}>Reset to automatic</Button>}</Box>
             {field("dateOfBirth", "Date of birth", "date")}
             <MemberSectionChecklist availableSections={sections} sections={draft.sections} primarySection={draft.section} onChange={(selectedSections, primarySection) => setDraft({ ...draft, sections: selectedSections, section: primarySection })} />
+            <MemberYouthRoleControls sections={draft.sections} roles={draft.sectionRoles} onChange={(sectionRoles) => setDraft({ ...draft, sectionRoles })} />
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
