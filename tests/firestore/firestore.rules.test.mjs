@@ -67,6 +67,7 @@ test("active adult leader may self-create and end only their Rover membership", 
     createdAt: serverTimestamp(), createdBy: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader",
   }));
   const memberRef = doc(db, "members/rover_rover-leader");
+  await assertFails(updateDoc(memberRef, { emailAddress: "other@example.com", accountUid: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader" }));
   await assertSucceeds(updateDoc(memberRef, {
     sections: ["Cubs", "Rovers"], section: "Cubs", status: "active", accountUid: "rover-leader",
     sectionRoles: {}, updatedAt: serverTimestamp(), updatedBy: "rover-leader",
@@ -76,7 +77,6 @@ test("active adult leader may self-create and end only their Rover membership", 
     sectionRoles: {}, updatedAt: serverTimestamp(), updatedBy: "rover-leader",
   }));
   await assertFails(updateDoc(memberRef, { familyId: "forged-family", accountUid: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader" }));
-  await assertFails(updateDoc(memberRef, { emailAddress: "other@example.com", accountUid: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader" }));
 });
 
 test("Rover self-service read is limited to records carrying the caller's email or uid", async () => {
