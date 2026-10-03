@@ -15,6 +15,8 @@ export interface AttachmentUploadProgress {
   totalBytes: number;
 }
 
+const FINANCE_RECEIPT_UPLOAD_TIMEOUT_MS = 60000;
+
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("You must be signed in to upload attachments.");
@@ -51,11 +53,24 @@ export async function uploadFinanceReceipt(
   });
 
   await new Promise<void>((resolve, reject) => {
-    task.on(
+    const timer = setTimeout(() => {
+      unsubscribe();
+      task.cancel();
+      reject(new Error("Receipt upload timed out."));
+    }, FINANCE_RECEIPT_UPLOAD_TIMEOUT_MS);
+    const unsubscribe = task.on(
       "state_changed",
       (snapshot) => onProgress?.({ bytesTransferred: snapshot.bytesTransferred, totalBytes: snapshot.totalBytes }),
-      reject,
-      resolve,
+      (error) => {
+        clearTimeout(timer);
+        unsubscribe();
+        reject(error);
+      },
+      () => {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      },
     );
   });
 
