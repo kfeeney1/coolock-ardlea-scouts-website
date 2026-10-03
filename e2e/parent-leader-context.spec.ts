@@ -13,8 +13,8 @@ test.beforeEach(({}, testInfo) => {
 
 async function signIn(page: Page, email: string, leader: boolean) {
   await page.goto(leader ? "/leader/login" : "/parent");
-  await page.getByLabel(leader ? "Email address" : "Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(password!);
+  await page.getByRole("textbox", { name: leader ? "Email address" : "Email", exact: true }).fill(email);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(password!);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page.getByRole("heading", { name: leader ? "Leader Dashboard" : "Parent Portal", exact: true })).toBeVisible();
 }
