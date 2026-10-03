@@ -79,6 +79,38 @@ test("active adult leader may self-create and end only their Rover membership", 
   await assertFails(updateDoc(memberRef, { familyId: "forged-family", accountUid: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader" }));
 });
 
+test("member transition links are section scoped, short lived, read only for registration, and consumed by admin approval", async () => {
+  await seedDocuments([
+    ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["members/member-cub", { firstName: "Casey", lastName: "Cub", displayName: "Casey Cub", section: "Cubs", sections: ["Cubs"], emailAddress: "casey@example.com", mobileNumber: "0871111111", status: "active" }],
+    ["members/member-scout", { firstName: "Sam", lastName: "Scout", displayName: "Sam Scout", section: "Scouts", sections: ["Scouts"], emailAddress: "sam@example.com", mobileNumber: "0872222222", status: "active" }],
+  ]);
+  const leaderDb = testEnv.authenticatedContext("cubs-leader", { email: "leader@example.com" }).firestore();
+  const strangerDb = testEnv.authenticatedContext("stranger", { email: "stranger@example.com" }).firestore();
+  const adminDb = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
+  const invitation = {
+    memberId: "member-cub", firstName: "Casey", lastName: "Cub", displayName: "Casey Cub",
+    emailAddress: "casey@example.com", mobileNumber: "0871111111", section: "Cubs",
+    endMemberMembership: true, status: "pending", createdBy: "cubs-leader",
+    createdAt: serverTimestamp(), expiresAt: new Date(Date.now() + 60_000),
+  };
+  await assertSucceeds(setDoc(doc(leaderDb, "leaderTransitionInvitations/secure-random-invite-123"), invitation));
+  await assertFails(setDoc(doc(leaderDb, "leaderTransitionInvitations/out-of-scope-invite-123"), { ...invitation, memberId: "member-scout", emailAddress: "sam@example.com", section: "Scouts" }));
+  await assertSucceeds(getDoc(doc(strangerDb, "leaderTransitionInvitations/secure-random-invite-123")));
+  await assertFails(getDocs(collection(strangerDb, "leaderTransitionInvitations")));
+  const memberDb = testEnv.authenticatedContext("member-account", { email: "casey@example.com" }).firestore();
+  const transitionRequest = { uid: "member-account", email: "casey@example.com", status: "pending", privacyConfirmed: true, transitionInvitationId: "secure-random-invite-123", transitionEndMemberMembership: true };
+  await assertSucceeds(setDoc(doc(memberDb, "leaderRegistrationRequests/member-account"), transitionRequest));
+  await assertFails(setDoc(doc(strangerDb, "leaderRegistrationRequests/stranger"), { ...transitionRequest, uid: "stranger" }));
+  const wrongChoiceDb = testEnv.authenticatedContext("wrong-choice", { email: "casey@example.com" }).firestore();
+  await assertFails(setDoc(doc(wrongChoiceDb, "leaderRegistrationRequests/wrong-choice"), { ...transitionRequest, uid: "wrong-choice", transitionEndMemberMembership: false }));
+  await assertFails(updateDoc(doc(strangerDb, "leaderTransitionInvitations/secure-random-invite-123"), { status: "used", usedBy: "stranger", usedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(doc(adminDb, "members/member-cub"), { accountUid: "member-account", status: "left", updatedAt: serverTimestamp(), updatedBy: "admin-1" }));
+  await assertSucceeds(updateDoc(doc(adminDb, "leaderTransitionInvitations/secure-random-invite-123"), { status: "used", usedBy: "member-account", usedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(leaderDb, "members/member-cub"), { accountUid: "forged-account", updatedAt: serverTimestamp(), updatedBy: "cubs-leader" }));
+});
+
 test("Rover self-service read is limited to records carrying the caller's email or uid", async () => {
   await seedDocuments([
     ["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }],
