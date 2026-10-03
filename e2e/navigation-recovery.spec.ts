@@ -302,6 +302,12 @@ test.describe("SW-178 canonical role navigation", () => {
     ] as const) {
       await page.goto(route);
       await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+      // Some destinations first render the shared header inside a loading branch
+      // and then replace it with the settled page shell. Wait for the specific
+      // destination identity before interacting with that header so this test
+      // checks navigation identity rather than the route's data-load transition.
+      const pageIdentity = currentId === "family-billing" ? "subs" : currentId;
+      await expect(page.getByTestId(`page-${pageIdentity}`)).toBeVisible();
       const groupByItem: Record<string, string> = {
         settings: "Administration", "treasurer-settings": "Treasurer", "qm-settings": "Quartermaster / Bo’sun",
         "treasurer-reports": "Treasurer", "reports-exports": "Insights & Records",
