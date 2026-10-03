@@ -30,6 +30,7 @@ export const suiteSpecs = {
     "rover-membership.spec.ts",
     "mobile-consent-medication.spec.ts",
     "parent-approved-journey.spec.ts",
+    "parent-leader-context.spec.ts",
     "parent-portal.spec.ts"
   ],
   "activities-programme": [
