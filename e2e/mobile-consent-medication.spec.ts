@@ -20,7 +20,19 @@ test("medication record stacks labels and values inside the mobile viewport", as
   const panel = page.getByTestId("medication-management-panel");
   const firstRow = page.getByTestId("medication-management-row").first();
   await expect(panel).toBeVisible();
-  await expect(page.getByTestId("medication-management-row")).toHaveCount(20);
+  await expect(page.getByTestId("medication-management-row")).toHaveCount(11);
+  const medication = page.getByTestId("medication-display-entry-0");
+  await expect(medication).toBeVisible();
+  await expect(medication.getByRole("heading", { name: "Medication 1" })).toBeVisible();
+  await expect(medication).toContainText("Medicine");
+  await expect(medication).toContainText("Dosage:");
+  await expect(medication).toContainText("Frequency:");
+  await expect(medication).toContainText("Quantity Supplied:");
+  await expect(medication).toContainText("Method:");
+  await expect(medication).toContainText("Other Information:");
+  await expect(medication).toContainText("Self Administration:");
+  await expect(medication).toContainText("Authorisation From:");
+  await expect(medication).toContainText("Authorisation To:");
 
   const [panelBox, labelBox, valueBox] = await Promise.all([
     panel.boundingBox(),
