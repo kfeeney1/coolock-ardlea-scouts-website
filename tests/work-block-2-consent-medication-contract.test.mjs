@@ -44,3 +44,15 @@ test("legacy single-medication records are promoted to one entry instead of bein
   assert.match(medicationForm, /if \(Array\.isArray\(data\.medications\) && data\.medications\.length > 0\)/);
   assert.match(parentConsent, /if \(!Array\.isArray\(normalized\.medications\) \|\| normalized\.medications\.length === 0\)/);
 });
+
+
+test("SW-278 presents the complete normalized medication collection through one rendering path", () => {
+  assert.match(display, /entries\.map\(\(entry, index\)/);
+  assert.doesNotMatch(display, /entries\.slice\(1\)/);
+  assert.match(display, /Medication \{index \+ 1\}/);
+  assert.match(display, /Quantity Supplied:/);
+  assert.match(display, /Other Information:/);
+  assert.match(display, /Self Administration:/);
+  assert.match(display, /Authorisation From:/);
+  assert.match(display, /Authorisation To:/);
+});
