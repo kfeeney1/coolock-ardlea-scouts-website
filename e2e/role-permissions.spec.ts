@@ -87,6 +87,9 @@ test.describe("dual-role parent and leader permissions", () => {
     desktopOnly(testInfo);
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
+    await expect(page.getByText("Your account is approved and linked to 2 member records.")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+    await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
 
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await openLeaderMenu(page);

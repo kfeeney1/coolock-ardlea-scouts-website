@@ -6,6 +6,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import FamilyRelationshipsPanel from "../components/admin/FamilyRelationshipsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import MemberLeaderTransition from "../components/admin/MemberLeaderTransition";
 import MemberStatusLifecycleDialog from "../components/admin/MemberStatusLifecycleDialog";
 import MemberSectionChecklist from "../components/admin/MemberSectionChecklist";
 import MemberYouthRoleControls from "../components/admin/MemberYouthRoleControls";
@@ -195,6 +196,7 @@ export default function MemberRecordPage() {
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
+          <MemberLeaderTransition member={member} disabled={saving} />
           <Button variant="contained" color="success" disabled={saving} onClick={() => void save()} sx={{ mt: 3 }}>{saving ? "Saving…" : "Save Member"}</Button>
         </Paper>
 
