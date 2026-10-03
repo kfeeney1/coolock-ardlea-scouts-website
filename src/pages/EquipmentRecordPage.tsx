@@ -2,7 +2,7 @@ import {
   Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
@@ -43,17 +43,21 @@ export default function EquipmentRecordPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [saving, setSaving] = useState(false);
+  const loadVersion = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
 
   const refresh = async () => {
+    const version = ++loadVersion.current;
     setLoading(true);
+    setError("");
     try {
       const [nextItem, nextItems, nextLoans, nextIncidents, categoryOptions, locationOptions] = await Promise.all([
         loadEquipmentItem(equipmentId), loadEquipmentItems(), loadEquipmentLoans(), loadEquipmentIncidents(),
         loadEquipmentOptions("categories"), loadEquipmentOptions("locations")
       ]);
+      if (version !== loadVersion.current) return;
       setItem(nextItem);
       setLoans(nextLoans);
       setIncidents(nextIncidents);
@@ -66,11 +70,11 @@ export default function EquipmentRecordPage() {
       });
     } catch (e) {
       console.error(e);
-      setError("Unable to load this equipment record.");
-    } finally { setLoading(false); }
+      if (version === loadVersion.current) setError("Unable to load this equipment record.");
+    } finally { if (version === loadVersion.current) setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [equipmentId]);
+  useEffect(() => { setItem(null); setForm(null); void refresh(); return () => { ++loadVersion.current; }; }, [equipmentId]);
   const itemIncidents = useMemo(() => incidents.filter((x) => x.itemId === equipmentId), [incidents, equipmentId]);
   const highlightedIssueId = searchParams.get("issue");
   const highlightedIssue = itemIncidents.find((incident) => incident.id === highlightedIssueId);
@@ -109,12 +113,10 @@ export default function EquipmentRecordPage() {
     finally { setSaving(false); }
   };
 
-  if (loading && !item) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="info">Loading equipment record…</Alert></Container>;
-  if (!item || !form) return <Container maxWidth="lg" sx={{ py: 4 }}><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></Container>;
-
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
-    <LeaderPageHeader title={item.name} description="Equipment record, condition, history, Store movement and issue reporting." />
+    <LeaderPageHeader title={item?.id === equipmentId ? item.name : "Equipment record"} description="Equipment record, condition, history, Store movement and issue reporting." />
+    {loading && (!item || item.id !== equipmentId) ? <Alert severity="info" role="status">Loading equipment record…</Alert> : !item || !form || item.id !== equipmentId ? <><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></> : <>
     <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
@@ -167,5 +169,6 @@ export default function EquipmentRecordPage() {
       <DialogContent><Typography>{item.archived ? "This will return the existing record to active inventory with the same stable ID and history." : "This will remove the item from normal active inventory. Its history is retained and authorised users can restore it from the archived inventory view."}</Typography></DialogContent>
       <DialogActions><Button disabled={saving} onClick={() => setConfirmArchive(false)}>Cancel</Button><Button variant="contained" color={item.archived ? "success" : "warning"} disabled={saving} onClick={() => void changeArchiveState()}>{saving ? "Saving…" : item.archived ? "Restore equipment" : "Archive equipment"}</Button></DialogActions>
     </Dialog>
+    </>}
   </Container></Box>;
 }

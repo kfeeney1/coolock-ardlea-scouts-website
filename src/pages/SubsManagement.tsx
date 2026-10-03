@@ -24,7 +24,7 @@ const download = (name: string, body: string) => {
 const uniquePayments = (rows: SubsPayment[]) => [...new Map(rows.map((row) => [row.id, row])).values()];
 
 export default function SubsManagement() {
-  const { adminProfile } = useAdminAuth();
+  const { user, adminProfile } = useAdminAuth();
   const [searchParams] = useSearchParams();
   const navigationView = searchParams.get("view");
   const pageIdentity = navigationView === "treasurer" ? "treasurer-subs" : navigationView === "group-operations" ? "group-subs" : "subs";
@@ -35,6 +35,8 @@ export default function SubsManagement() {
   const [policies, setPolicies] = useState<SubsRatePolicy[]>([]);
   const [assignments, setAssignments] = useState<SubsAssignment[]>([]);
   const [payments, setPayments] = useState<SubsPayment[]>([]);
+  const scopeKey = JSON.stringify([user?.uid, authorisedSections, canGroupReport]);
+  const [loadedScope, setLoadedScope] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -49,6 +51,7 @@ export default function SubsManagement() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [correction, setCorrection] = useState<SubsPayment | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
+  const loadVersion = useRef(0);
   const paymentSubmission = useRef(false);
   const paymentOperationId = useRef("");
   const selectableSections = useMemo(
@@ -71,12 +74,19 @@ export default function SubsManagement() {
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }, [effectiveSection]);
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
+    setLoadedScope("");
     setLoading(true);
     setError("");
     try {
-      const assignmentRows = canGroupReport ? await loadSubsAssignments() : (await Promise.all(authorisedSections.map((value) => loadSubsAssignments(value)))).flat();
-      const paymentRows = canGroupReport ? await loadSubsPayments() : (await Promise.all(authorisedSections.map((value) => loadSubsPayments(value)))).flat();
-      const [m, p] = await Promise.all([loadSubsMembers(canGroupReport ? undefined : authorisedSections), loadSubsPolicies()]);
+      const [assignmentRows, paymentRows, m, p] = await Promise.all([
+        canGroupReport ? loadSubsAssignments() : Promise.all(authorisedSections.map((value) => loadSubsAssignments(value))).then((rows) => rows.flat()),
+        canGroupReport ? loadSubsPayments() : Promise.all(authorisedSections.map((value) => loadSubsPayments(value))).then((rows) => rows.flat()),
+        loadSubsMembers(canGroupReport ? undefined : authorisedSections),
+        loadSubsPolicies(),
+      ]);
+      if (version !== loadVersion.current) return;
+      setLoadedScope(scopeKey);
       setMembers(m);
       setPolicies(p);
       setAssignments(assignmentRows);
@@ -85,13 +95,14 @@ export default function SubsManagement() {
       setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
     } catch (e) {
       console.error(e);
-      setError(e instanceof Error ? `Unable to load Subs data: ${e.message}` : "Unable to load Subs data. Try again.");
+      if (version === loadVersion.current) setError("Unable to load Subs data. Try again.");
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
-  }, [authorisedSections, canGroupReport]);
+  }, [authorisedSections, canGroupReport, scopeKey]);
   useEffect(() => {
     void load();
+    return () => { ++loadVersion.current; };
   }, [load]);
   const currentPolicy = useMemo(() => resolveCurrentSubsPolicy(policies), [policies]);
   const visibleMembers = useMemo(() => members.filter((member) => isMemberInSubsScope(member.section, effectiveSection, authorisedSections, canGroupReport)), [authorisedSections, canGroupReport, effectiveSection, members]);
@@ -179,13 +190,6 @@ export default function SubsManagement() {
     if (!selectedAssignment || !selectedBalance) return;
     download(`subs-${selectedAssignment.memberName}-${period}.csv`, csv([["Member", "Section", "Scout year", "Rate category", "Family classification", "Child position", "Amount due (cents)", "Total paid (cents)", "Remaining (cents)"], [selectedAssignment.memberName, selectedAssignment.section, period, rateCategoryLabel(selectedAssignment.category), selectedAssignment.familyType ? familyTypeLabel(selectedAssignment.familyType) : "Legacy classification", selectedAssignment.familyPosition ? String(selectedAssignment.familyPosition) : "", String(selectedBalance.dueCents), String(selectedBalance.paidCents), String(selectedBalance.remainingCents)], [], ["Payment date", "Method", "Amount (cents)", "Correction of", "Note"], ...memberPayments.map((p) => [p.paymentDate, paymentMethodLabel(p.method), String(p.amountCents), p.reversalOfPaymentId, p.note])]));
   };
-  if (loading)
-    return (
-      <Container>
-        <LeaderDashboardHeader />
-        <Typography role="status">Loading Subs records…</Typography>
-      </Container>
-    );
   return (
     <Box
       data-testid={`page-${pageIdentity}`}
@@ -198,6 +202,7 @@ export default function SubsManagement() {
       <Container maxWidth="xl">
         <LeaderDashboardHeader />
         <LeaderPageHeader title="Subs" />
+        {loading || loadedScope !== scopeKey ? <Paper sx={{ p: 3 }}>{loading || !error ? <Typography role="status">Loading Subs records…</Typography> : <Alert severity="error" action={<Button onClick={() => void load()}>Retry</Button>}>{error}</Alert>}</Paper> : <>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -374,6 +379,7 @@ export default function SubsManagement() {
             </Button>
           </DialogActions>
         </Dialog>
+        </>}
       </Container>
     </Box>
   );
