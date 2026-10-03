@@ -56,3 +56,13 @@ test("SW-278 presents the complete normalized medication collection through one 
   assert.match(display, /Authorisation From:/);
   assert.match(display, /Authorisation To:/);
 });
+
+
+test("SW-277 consent medical status indicators navigate to authorized detail sections", () => {
+  assert.match(consentRecord, /component="a" href="#important-medical-information" clickable label="Medical information present"/);
+  assert.match(consentRecord, /id="important-medical-information" tabIndex=\{-1\}/);
+  assert.match(consentRecord, /component="a" href="#medication-management-heading" clickable label="Medication management required"/);
+  assert.match(consentRecord, /record\.hasMedicationManagement && normalizeMedicationManagement\(record\.data\.medicationManagement\)/);
+  assert.match(consentRecord, /id="medication-management-heading" tabIndex=\{-1\}/);
+  assert.match(consentRecord, /minHeight: 44/);
+});
