@@ -48,3 +48,7 @@ test("existing linked account is reused without replacing its identity", () => {
 test("concurrent multi-section member retains inactive and historical membership state", () => {
   assert.equal(validateMemberLeaderTransition({ ...base.request, transitionEndMemberMembership: false }, { ...base.invitation, endMemberMembership: false }, { ...base.member, status: "inactive" }, "uid"), "inactive");
 });
+
+test("normal leader onboarding can request a section different from the existing membership", () => {
+  assert.equal(validateMemberLeaderTransition({ ...base.request, requestedSection: "Scouts" }, base.invitation, base.member, "uid"), "left");
+});

@@ -41,8 +41,7 @@ export function validateMemberLeaderTransition(
     || request.transitionEndMemberMembership !== invitation.endMemberMembership
     || email(request.email) !== email(invitation.emailAddress)
     || submittedName !== expectedName
-    || text(request.mobileNumber) !== text(invitation.mobileNumber)
-    || text(request.requestedSection) !== text(invitation.section)) {
+    || text(request.mobileNumber) !== text(invitation.mobileNumber)) {
     throw new Error("The request identity does not match the member transition.");
   }
   const memberName = `${text(member.firstName)} ${text(member.lastName)}`.trim().toLocaleLowerCase();
