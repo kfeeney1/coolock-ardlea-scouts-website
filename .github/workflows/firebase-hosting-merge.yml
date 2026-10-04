@@ -148,6 +148,30 @@ jobs:
           trap 'rm -f /tmp/firebase-service-account.json firebase.production.generated.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
 
+          # Protected receipt downloads use an authenticated browser fetch. Apply the
+          # reviewed custom-domain CORS policy to the exact production bucket before
+          # deploying rules/hosting so a successful media response is readable by the site.
+          gcloud storage buckets update "gs://$PRODUCTION_STORAGE_BUCKET" --cors-file=storage.cors.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const expected = JSON.parse(fs.readFileSync('storage.cors.json', 'utf8'));
+          const raw = execFileSync('gcloud', ['storage', 'buckets', 'describe', `gs://${process.env.PRODUCTION_STORAGE_BUCKET}`, '--format=json(cors_config)'], { encoding: 'utf8' });
+          const actual = JSON.parse(raw).cors_config ?? [];
+          const canonicalise = value => Array.isArray(value)
+            ? value.map(canonicalise)
+            : value && typeof value === 'object'
+              ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalise(value[key])]))
+              : value;
+          if (JSON.stringify(canonicalise(actual)) !== JSON.stringify(canonicalise(expected))) {
+            console.error('::error::Production Storage CORS does not match reviewed storage.cors.json.');
+            console.error('Expected:', JSON.stringify(expected));
+            console.error('Actual:', JSON.stringify(actual));
+            process.exit(1);
+          }
+          console.log('Production Storage CORS matches reviewed configuration.');
+          NODE
+
           # New default buckets use PROJECT_ID.firebasestorage.app. Bind the reviewed
           # Storage rules to the exact production bucket instead of relying on the
           # CLI's default-bucket discovery. Keep the generated config in the repo
