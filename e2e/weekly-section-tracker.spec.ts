@@ -56,6 +56,7 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
 test("weekly meetings reject unauthenticated users", async ({ page }) => { await page.goto("/leader/weekly"); await expect(page).toHaveURL(/\/leader\/login$/); });
 
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
   await login(page, sectionLeaderEmail); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByRole("link", { name: "Create Meeting" })).toBeVisible();
   const lifecycleState = await openOrCreateLifecycleMeeting(page);
@@ -63,8 +64,22 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   const created = lifecycleState === "created";
 
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
-  await page.getByRole("button", { name: "Attendance", exact: true }).click(); const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName }); if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click(); await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible(); await expect(attendanceCheckbox).toBeChecked();
-  const discardMeeting = page.getByRole("dialog", { name: "Discard unsaved meeting changes?" }); await page.getByRole("button", { name: "Meetings", exact: true }).click(); if (await discardMeeting.isVisible()) { await discardMeeting.getByRole("button", { name: "Keep editing", exact: true }).click(); } await page.getByRole("button", { name: "Attendance", exact: true }).click(); await expect(page.getByRole("checkbox", { name: scoutMemberName })).toBeChecked();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName });
+  if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
+  await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
+  await expect(attendanceCheckbox).toBeChecked();
+
+  // Always create a real dirty state before exercising the discard guard. A retry can reopen a meeting where everyone is already present.
+  await attendanceCheckbox.uncheck();
+  await expect(attendanceCheckbox).not.toBeChecked();
+  const discardMeeting = page.getByRole("dialog", { name: "Discard unsaved meeting changes?" });
+  await page.getByRole("button", { name: "Meetings", exact: true }).click();
+  await expect(discardMeeting).toBeVisible();
+  await discardMeeting.getByRole("button", { name: "Keep editing", exact: true }).click();
+  await expect(attendanceCheckbox).not.toBeChecked();
+  await page.getByRole("button", { name: "Mark all present", exact: true }).click();
+  await expect(attendanceCheckbox).toBeChecked();
 
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   if (created) await expect(page.getByTestId("activity-plan-row")).toHaveCount(2);
