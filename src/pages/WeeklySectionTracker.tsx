@@ -14,8 +14,7 @@ import { createWeeklyMeeting, loadWeeklyAccess, loadWeeklyLeaders, loadWeeklyMee
 import type { InjurySeverity, WeeklyAccess, WeeklyActivityPlan, WeeklyBadgeworkPlan, WeeklyInjury, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
 import { newWeeklyEntry, reconcileOpenWeeklyRoster, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
-import { buildParentWeeklyMeetingProgramme, buildWeeklyMeetingWhatsAppUrl, mergeWeeklyMeetingShareBadgework } from "../services/weeklyMeetingProgramme";
-import { loadWeeklyMeetingAdventureBadgework } from "../services/adventureSkillProgress";
+import { useWeeklyMeetingShare } from "../hooks/useWeeklyMeetingShare";
 import { recordAuditEvent } from "../services/auditLog";
 import { badgeworkSourceHref } from "../services/adventureSkillSourceContext";
 import { loadEquipmentItems } from "../services/equipment";
@@ -67,9 +66,6 @@ export default function WeeklySectionTracker() {
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState("");
   const [success,setSuccess]=useState("");
-  const [shareAdventureBadgework,setShareAdventureBadgework]=useState<string[]>([]);
-  const [shareBadgeworkLoading,setShareBadgeworkLoading]=useState(false);
-  const [shareBadgeworkError,setShareBadgeworkError]=useState("");
   const [pendingDiscard,setPendingDiscard]=useState<DiscardAction|null>(null);
   const editorTopRef=useRef<HTMLDivElement|null>(null);
 
@@ -81,10 +77,8 @@ export default function WeeklySectionTracker() {
   const planningReadOnly=!editMode.canEditPlanningFields;
   const selectedSectionLeaders=useMemo(()=>selected?leaders.filter(leader=>leader.organisationSection===selected.section):[],[leaders,selected]);
   const programmeDuration=selected?totalProgrammeDuration(selected.activities,selected.badgeworkPlan):0;
+  const {url:whatsappUrl,loading:shareBadgeworkLoading,error:shareBadgeworkError}=useWeeklyMeetingShare(selected);
   const presentMemberIds=selected?.entries.filter(entry=>entry.attendance==="present").map(entry=>entry.memberId)??[];
-  const completedMeetingBadges=selected?[...new Set(selected.entries.flatMap(entry=>entry.badges).map(badge=>badge.trim()).filter(Boolean))]:[];
-  const whatsappProgramme=selected?mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(selected),[...completedMeetingBadges,...shareAdventureBadgework]):null;
-  const whatsappUrl=whatsappProgramme?buildWeeklyMeetingWhatsAppUrl(whatsappProgramme):"";
   const hasUnsavedChanges=weeklyMeetingHasChanges(selected,savedSelected);
   const copyHasMeaningfulChanges=Boolean(copySource&&(copyDate!==today||copySection!==copySource.section));
   const adventureBadgeworkHref=selected?badgeworkSourceHref({sourceType:"weeklyMeeting",sourceId:selected.id,memberIds:presentMemberIds,returnTo:`/leader/weekly?meeting=${encodeURIComponent(selected.id)}`}):"/leader/badgework";
