@@ -147,7 +147,7 @@ test("unclassified exceptions at fetch boundary remain unexpected with their ori
 test("safe user diagnostics distinguish representative failure classes without duplicate generic guidance", (t) => {
   t.mock.method(console, "error", () => {});
   for (const [error, expected] of [
-    [{ code: "storage/unauthorized" }, /Service: Firebase Storage.*Code: UNAUTHORIZED.*not authorised/],
+    [{ code: "storage/unauthorized" }, /Service: Firebase Storage.*Code: UNAUTHORIZED.*rejected access/],
     [{ code: "auth/unauthenticated" }, /Service: Firebase Authentication.*Code: UNAUTHENTICATED.*session/],
     [{ code: "storage/object-not-found" }, /Service: Firebase Storage.*Code: OBJECT_NOT_FOUND.*requested object/],
     [{ code: "storage/network-error" }, /Service: Firebase Storage.*Code: NETWORK_ERROR.*CORS-level/],
