@@ -24,3 +24,13 @@ test("leader dashboard navigation keeps nested record routes matched to their pa
   assert.ok(header.includes('target.hash && current.hash !== target.hash'));
   assert.ok(header.includes('${location.pathname}${location.search}${location.hash}'));
 });
+
+
+test("SW-288 desktop navigation uses independent balanced columns instead of rigid grid rows", () => {
+  const header = source("src/components/admin/LeaderDashboardHeader.tsx");
+  assert.ok(header.includes("leader-navigation-column-"));
+  assert.ok(header.includes("visibleGroups.filter((_,index)=>index%2===column)"));
+  assert.ok(header.includes('gridTemplateColumns:"repeat(2, minmax(0, 1fr))"'));
+  assert.ok(header.includes("minWidth:0"));
+  assert.ok(header.includes('data-testid="leader-navigation-desktop"'));
+});

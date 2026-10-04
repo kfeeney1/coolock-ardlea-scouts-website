@@ -46,6 +46,14 @@ export async function fetchProtectedStorageBlob(
     if (error instanceof Error && error.name === "AbortError") {
       throw storageDownloadError("storage/download-timeout", "Receipt download timed out.");
     }
+    // Browser fetch rejects before an HTTP response for connectivity, DNS and
+    // CORS enforcement. Preserve that boundary as a safe network classification
+    // instead of leaking or guessing from the browser's raw TypeError message.
+    if (error instanceof TypeError) {
+      const networkError = storageDownloadError("storage/network-error", "Protected Storage request failed before a response was available.");
+      Object.defineProperty(networkError, "cause", { value: error, enumerable: false });
+      throw networkError;
+    }
     throw error;
   } finally {
     clearTimeout(timer);

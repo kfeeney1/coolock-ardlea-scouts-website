@@ -28,6 +28,12 @@ test("admin sees grouped desktop navigation with administration tools", async ({
   await expect(desktopNavigation.getByText("Group Operations", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("Insights & Records", { exact: true })).toBeVisible();
   await expect(desktopNavigation.getByText("Administration", { exact: true })).toBeVisible();
+  const firstColumn = desktopNavigation.getByTestId("leader-navigation-column-1");
+  const secondColumn = desktopNavigation.getByTestId("leader-navigation-column-2");
+  await expect(firstColumn.getByText("Programme", { exact: true })).toBeVisible();
+  await expect(firstColumn.getByText("Treasurer", { exact: true })).toBeVisible();
+  await expect(secondColumn.getByText("People & Parents", { exact: true })).toBeVisible();
+  expect(await desktopNavigation.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
   await expect(navigation.getByText("Account & Help", { exact: true })).toBeVisible();
 
   await expect(desktopNavigation.getByRole("link", { name: "Weekly Meetings" })).toHaveAttribute("href", "/leader/weekly");

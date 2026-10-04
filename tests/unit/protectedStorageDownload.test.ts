@@ -54,3 +54,13 @@ test("SW-281 protected download rejects missing auth/configuration before networ
   await assert.rejects(fetchProtectedStorageBlob("bucket", "path", "", { fetchImpl }), (e: unknown) => typeof e === "object" && e !== null && "code" in e && e.code === "storage/unauthenticated");
   assert.equal(calls, 0);
 });
+
+
+test("SW-286 protected download classifies fetch rejection as network/CORS-level failure without leaking browser text", async () => {
+  await assert.rejects(
+    fetchProtectedStorageBlob("bucket", "path", "token", {
+      fetchImpl: (async () => { throw new TypeError("Failed to fetch PRIVATE_SIGNED_URL"); }) as typeof fetch,
+    }),
+    (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "storage/network-error" && !JSON.stringify(error).includes("PRIVATE_SIGNED_URL"),
+  );
+});
