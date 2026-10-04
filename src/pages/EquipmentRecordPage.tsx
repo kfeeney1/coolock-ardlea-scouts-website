@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
@@ -69,8 +70,7 @@ export default function EquipmentRecordPage() {
         notes: nextItem.notes, replacementValue: nextItem.replacementValue
       });
     } catch (e) {
-      console.error(e);
-      if (version === loadVersion.current) setError("Unable to load this equipment record.");
+      if (version === loadVersion.current) setError(applicationErrorMessage(e, "Unable to load this equipment record.", "EquipmentRecordPage"));
     } finally { if (version === loadVersion.current) setLoading(false); }
   };
 
@@ -97,7 +97,7 @@ export default function EquipmentRecordPage() {
     try {
       await updateEquipmentItem(item.id, { ...form, name, totalQuantity: form.totalQuantity });
       setEditing(false); setFeedback("Equipment record saved."); await refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Unable to save equipment."); }
+    } catch (e) { setError(applicationErrorMessage(e, "Unable to save equipment.", "EquipmentRecordPage")); }
     finally { setSaving(false); }
   };
 
@@ -109,7 +109,7 @@ export default function EquipmentRecordPage() {
       setConfirmArchive(false);
       setFeedback(item.archived ? "Equipment restored to active inventory." : "Equipment archived. It remains available through the archived inventory view.");
       await refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Unable to update archive state."); }
+    } catch (e) { setError(applicationErrorMessage(e, "Unable to update archive state.", "EquipmentRecordPage")); }
     finally { setSaving(false); }
   };
 

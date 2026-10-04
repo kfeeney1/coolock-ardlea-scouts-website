@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -59,8 +60,7 @@ export default function EventConsent() {
 
                 setEvent(result);
             } catch (loadError) {
-                console.error("Unable to load event consent link:", loadError);
-                setError("Unable to load this event consent form.");
+                setError(applicationErrorMessage(loadError, "Unable to load this event consent form.", "EventConsent"));
             } finally {
                 setLoading(false);
             }
@@ -118,8 +118,7 @@ export default function EventConsent() {
 
             setSubmitted(true);
         } catch (submitError) {
-            console.error("Unable to submit event consent:", submitError);
-            setError("Unable to submit your response. Please try again.");
+            setError(applicationErrorMessage(submitError, "Unable to submit your response. Please try again.", "EventConsent"));
         } finally {
             setSaving(false);
         }

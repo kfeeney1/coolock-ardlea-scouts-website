@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogContentText, DialogTitle, Paper, Stack, TextField, Typography
@@ -38,8 +39,7 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
       setSearch(member.lastName.trim());
       await onChanged();
     } catch (linkError) {
-      console.error("Unable to link siblings:", linkError);
-      setError(linkError instanceof Error ? linkError.message : "Unable to link these siblings.");
+      setError(applicationErrorMessage(linkError, "Unable to link these siblings.", "FamilyRelationshipsPanel"));
     } finally { setWorking(false); }
   };
 
@@ -50,8 +50,7 @@ export default function FamilyRelationshipsPanel({ member, members, onChanged }:
       setUnlinkConfirmOpen(false);
       await onChanged();
     } catch (unlinkError) {
-      console.error("Unable to unlink family relationship:", unlinkError);
-      setError(unlinkError instanceof Error ? unlinkError.message : "Unable to unlink this family relationship.");
+      setError(applicationErrorMessage(unlinkError, "Unable to unlink this family relationship.", "FamilyRelationshipsPanel"));
     } finally { setWorking(false); }
   };
 

@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../services/applicationErrors.ts";
 import { Box, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
@@ -85,7 +86,7 @@ export default function MemberHistory() {
           setSelectedId((current) => current && loaded.some((member) => member.id === current) ? current : loaded[0]?.id || "");
         }
       } catch (loadError) {
-        console.error("Unable to load members for lifecycle history:", loadError);
+        reportApplicationError(loadError, { area: "MemberHistory", operation: "Unable to load members for lifecycle history" });
         if (!cancelled) setMemberLoadError(loadError);
       } finally {
         if (!cancelled) setLoading(false);
@@ -108,7 +109,7 @@ export default function MemberHistory() {
         const loaded = await loadMemberLifecycleHistory(selectedId);
         if (!cancelled) setHistory(loaded);
       } catch (loadError) {
-        console.error("Unable to load lifecycle entries:", loadError);
+        reportApplicationError(loadError, { area: "MemberHistory", operation: "Unable to load lifecycle entries" });
         if (!cancelled) setHistoryLoadError(loadError);
       } finally {
         if (!cancelled) setHistoryLoading(false);

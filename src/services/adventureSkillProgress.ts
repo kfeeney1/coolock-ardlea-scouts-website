@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
   collection,
   deleteDoc,
@@ -92,7 +93,7 @@ function mapAward(snapshot: QueryDocumentSnapshot<DocumentData>): AdventureStage
 
 function currentUserId(): string {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   return user.uid;
 }
 
@@ -102,7 +103,7 @@ function memberProgressRoot(memberId: string) {
 
 function uniqueMemberIds(memberIds: string[]): string[] {
   const ids = [...new Set(memberIds.map((memberId) => memberId.trim()).filter(Boolean))];
-  if (ids.length === 0) throw new Error("Select at least one member.");
+  if (ids.length === 0) throw new UserFacingError("Select at least one member.");
   return ids;
 }
 

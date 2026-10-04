@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDocs, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import type { SystemRole } from "../components/admin/AdminAuthProvider";
@@ -75,14 +76,14 @@ export async function loadLeaderAccessRecords(): Promise<LeaderAccessRecord[]> {
 
 export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: string, actorEmail: string): Promise<void> {
   const sections = [...new Set(record.sections.map((section) => section.trim()).filter(Boolean))];
-  if (sections.length === 0) throw new Error("Leader access requires at least one canonical section.");
+  if (sections.length === 0) throw new UserFacingError("Leader access requires at least one canonical section.");
   const primarySection = canonicalOrganisationSection(sections, record.primarySection || record.organisationSection);
   const organisationSection = primarySection;
   const appointments = canonicalLeaderAppointments(record.appointments, sections, record.scoutingRole, organisationSection);
   const activeAppointments = activeScoutingAppointments(appointments);
   const canonicalAppointment = activeAppointments[0]?.appointment || normalizeScoutingAppointment(record.scoutingRole);
-  if (record.role === "leader" && appointments.some((item) => !normalizeScoutingAppointment(item.appointment))) throw new Error("Unsupported Scouting appointment.");
-  if (new Set(appointments.map((item) => item.id)).size !== appointments.length) throw new Error("Duplicate Scouting appointment scope.");
+  if (record.role === "leader" && appointments.some((item) => !normalizeScoutingAppointment(item.appointment))) throw new UserFacingError("Unsupported Scouting appointment.");
+  if (new Set(appointments.map((item) => item.id)).size !== appointments.length) throw new UserFacingError("Duplicate Scouting appointment scope.");
 
   await runTransaction(db, async (transaction) => {
     const actorAccessRef = doc(db, "adminUsers", actorUid);
@@ -101,7 +102,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
       transaction.get(targetAccessRef),
       transaction.get(targetOrgRef)
     ]);
-    if (!actorAccessSnap.exists() || !targetAccessSnap.exists()) throw new Error("Leader access record no longer exists.");
+    if (!actorAccessSnap.exists() || !targetAccessSnap.exists()) throw new UserFacingError("Leader access record no longer exists.");
 
     const actorAccess = actorAccessSnap.data();
     const actor: LeaderDelegationActor = {
@@ -122,7 +123,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
 
     if (timestampVersion(currentAccess.updatedAt) !== record.accessVersion
       || timestampVersion(currentOrg?.updatedAt) !== record.organisationVersion) {
-      throw new Error("This leader changed since you opened the page. Refresh before saving.");
+      throw new UserFacingError("This leader changed since you opened the page. Refresh before saving.");
     }
 
     const roleChanged = currentRole !== record.role;
@@ -132,23 +133,23 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     const appointmentChanged = JSON.stringify(currentAppointments) !== JSON.stringify(appointments);
     const adminActor = actor.systemRole === "admin" || actor.systemRole === "super-admin";
 
-    if (roleChanged && !canChangeSystemRole(actor, target)) throw new Error("Only a Super Admin can change this system role.");
-    if (sectionsChanged && !canManageSectionScope(actor, target)) throw new Error("You cannot change this leader's section scope.");
+    if (roleChanged && !canChangeSystemRole(actor, target)) throw new UserFacingError("Only a Super Admin can change this system role.");
+    if (sectionsChanged && !canManageSectionScope(actor, target)) throw new UserFacingError("You cannot change this leader's section scope.");
     if (appointmentChanged) {
       const currentKeys = new Set(currentAppointments.map((item) => item.id));
       const added = appointments.filter((item) => !currentKeys.has(item.id));
       const allowed = added.every((item) => canAssignScoutingAppointment(actor, target, item.appointment))
         && (appointments.length > 0 || canClearScoutingAppointment(actor, target));
-      if (!allowed) throw new Error("You cannot assign or remove one or more Scouting appointments.");
+      if (!allowed) throw new UserFacingError("You cannot assign or remove one or more Scouting appointments.");
     }
-    if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new Error("You cannot change this account's active state.");
+    if (activeChanged && (!adminActor || target.systemRole === "super-admin")) throw new UserFacingError("You cannot change this account's active state.");
 
     const sectionIdentityChanged = currentOrg?.organisationSection !== organisationSection
       || (currentOrg?.primarySection ?? currentOrg?.organisationSection) !== primarySection;
     const restrictedOrganisationChanged = currentOrg?.organisationOrder !== record.organisationOrder
       || (currentOrg?.reportsToUid ?? "") !== record.reportsToUid
       || (currentOrg?.showPublicly === true) !== record.showPublicly;
-    if (restrictedOrganisationChanged && !adminActor) throw new Error("Only an Administrator can change organisation-chart or public-listing settings.");
+    if (restrictedOrganisationChanged && !adminActor) throw new UserFacingError("Only an Administrator can change organisation-chart or public-listing settings.");
     if (!roleChanged && !sectionsChanged && !activeChanged && !appointmentChanged && !sectionIdentityChanged && !restrictedOrganisationChanged) return;
 
     transaction.update(targetAccessRef, {
@@ -206,7 +207,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
         }
       } else if (currentOrg?.showPublicly === true) {
         if (!isAllowedPublicAppointment(safeAppointment, safeOrg.organisationSection)) {
-          throw new Error("An Administrator must change the appointment of a publicly listed leader when the new appointment is not public-listing compatible.");
+          throw new UserFacingError("An Administrator must change the appointment of a publicly listed leader when the new appointment is not public-listing compatible.");
         }
         transaction.update(publicRef, {
           scoutingRole: safeAppointment,

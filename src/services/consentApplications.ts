@@ -1,3 +1,4 @@
+import { UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -176,7 +177,7 @@ export async function loadAuthorisedScouterNames(): Promise<string[]> {
 
 void loadAuthorisedScouterNames()
     .then((names) => AUTHORISED_SCOUTERS.splice(0, AUTHORISED_SCOUTERS.length, ...names))
-    .catch((error) => console.error("Unable to load authorised Scouters from Firestore:", error));
+    .catch((error) => reportApplicationError(error, { area: "consentApplications", operation: "Unable to load authorised Scouters from Firestore" }));
 
 export async function submitYouthConsent(data: YouthConsentData): Promise<string> {
     const validationMessage = firstYouthConsentValidationMessage(validateYouthConsent(data));
@@ -216,7 +217,7 @@ export async function submitYouthConsent(data: YouthConsentData): Promise<string
 
 export async function submitScouterConsent(data: ScouterConsentData): Promise<string> {
     const user = auth.currentUser;
-    if (!user) throw new Error("An active Leader account is required to submit a Scouter form.");
+    if (!user) throw new UserFacingError("An active Leader account is required to submit a Scouter form.");
 
     const { scoutSection, ...canonicalData } = data;
     const ref = await addDoc(collection(db, "consentApplications"), {

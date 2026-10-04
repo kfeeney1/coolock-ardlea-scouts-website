@@ -1,5 +1,6 @@
+import { reportApplicationError, applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
-import { sendPasswordResetEmail } from "firebase/auth";
+import { requestPasswordReset } from "../services/passwordReset";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -82,7 +83,7 @@ export default function ParentPortal() {
         if (!user) { setAccount(null); setAccountLoadError(null); setAccountReady(true); return; }
         setAccountReady(false); setAccountLoadError(null); setEmail(user.email || "");
         try { setAccount(await loadParentAccount(user.uid)); }
-        catch (loadError) { console.error("Unable to load parent account:", loadError); setAccount(null); setAccountLoadError(loadError); }
+        catch (loadError) { reportApplicationError(loadError, { area: "ParentPortal", operation: "Unable to load parent account" }); setAccount(null); setAccountLoadError(loadError); }
         finally { setAccountReady(true); }
     }, [adminAuthLoading, user]);
     useEffect(() => { void loadAccount(); }, [loadAccount]);
@@ -97,7 +98,7 @@ export default function ParentPortal() {
         void loadLinkedMembers(account.memberIds).then((children) => {
             if (!cancelled) setLinkedChildren(children);
         }).catch((loadError) => {
-            console.error("Unable to load linked child context:", loadError);
+            reportApplicationError(loadError, { area: "ParentPortal", operation: "Unable to load linked child context" });
             if (!cancelled) setChildrenLoadError(true);
         });
         return () => { cancelled = true; };
@@ -138,7 +139,7 @@ export default function ParentPortal() {
             navigate({ pathname: "/parent", search: next.toString(), hash: "#parent-medical-consent" }, { replace: true, state: location.state });
         }).catch((contextError) => {
             if (cancelled) return;
-            console.error("Unable to resolve accepted Join Us consent context:", contextError);
+            reportApplicationError(contextError, { area: "ParentPortal", operation: "Unable to resolve accepted Join Us consent context" });
             setJoinConsentNotice("This consent link is unavailable for this account. Confirm that you are signed in with the parent email used for the application and that your child is linked to your approved account.");
         });
         return () => { cancelled = true; };
@@ -208,12 +209,11 @@ export default function ParentPortal() {
                 if (newUser) { setAccountLoadError(null); setAccount(await loadParentAccount(newUser.uid)); setAccountReady(true); }
             } else await loginParent(email, password);
         } catch (submitError) {
-            console.error("Parent portal sign-in error:", submitError);
             const code = firebaseErrorCode(submitError);
-            if (code === "auth/invalid-credential") setError("The email or password was not recognised. If this email is already used for Leader access, use the same password so the registrations can be linked during approval.");
-            else if (code === "auth/weak-password") setError("Please choose a password with at least 6 characters.");
-            else if (code === "auth/invalid-email") setError("Please enter a valid email address.");
-            else setError(mode === "register" ? "Unable to create the parent registration. Check the details and try again." : "Unable to sign in. Check the email and password and try again.");
+            if (code === "auth/invalid-credential") setError(applicationErrorMessage(submitError, "The email or password was not recognised. If this email is already used for Leader access, use the same password so the registrations can be linked during approval.", "ParentPortal"));
+            else if (code === "auth/weak-password") setError(applicationErrorMessage(submitError, "Please choose a password with at least 6 characters.", "ParentPortal"));
+            else if (code === "auth/invalid-email") setError(applicationErrorMessage(submitError, "Please enter a valid email address.", "ParentPortal"));
+            else setError(applicationErrorMessage(submitError, "Unable to sign in. Check the email and password and try again.", "ParentPortal"));
         } finally { setWorking(false); }
     };
 
@@ -221,9 +221,10 @@ export default function ParentPortal() {
         const trimmedEmail = email.trim();
         if (!trimmedEmail) { setError("Enter your email address first, then select Forgot Password."); setMessage(""); return; }
         setResettingPassword(true); setError(""); setMessage("");
-        try { await sendPasswordResetEmail(auth, trimmedEmail); }
-        catch (resetError) { console.error("Unable to send parent password reset email:", resetError); }
-        finally { setMessage("If an account exists for that email address, a password-reset email has been sent. Check your inbox and spam folder."); setResettingPassword(false); }
+        const result = await requestPasswordReset(auth, trimmedEmail, "ParentPortal");
+        setMessage(result.message);
+        setError(result.error);
+        setResettingPassword(false);
     };
 
     const enableExistingAccount = async () => {
@@ -234,7 +235,7 @@ export default function ParentPortal() {
             await createParentAccessForCurrentUser(displayName, mobileNumber, children);
             const current = auth.currentUser;
             if (current) { setAccountLoadError(null); setAccount(await loadParentAccount(current.uid)); }
-        } catch (setupError) { console.error("Unable to submit parent registration:", setupError); setError("Unable to submit parent registration for this account."); }
+        } catch (setupError) { setError(applicationErrorMessage(setupError, "Unable to submit parent registration for this account.", "ParentPortal")); }
         finally { setWorking(false); }
     };
 

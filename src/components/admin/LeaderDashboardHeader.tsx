@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Collapse, Divider, Paper, Stack, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
@@ -64,8 +65,7 @@ export default function LeaderDashboardHeader() {
    setMenuOpen(false);
    navigate("/leader/login",{replace:true})
   } catch (error) {
-   console.error("Unable to sign out:", error);
-   setSignOutError("Sign out did not complete. You are still signed in; please try again.");
+   setSignOutError(applicationErrorMessage(error, "Sign out did not complete. You are still signed in; please try again.", "LeaderDashboardHeader"));
   } finally {
    signOutInFlight.current = false;
    setSigningOut(false);
@@ -75,7 +75,7 @@ export default function LeaderDashboardHeader() {
   if (theme === adminProfile?.uiTheme || themeSaving) return;
   setThemeSaving(theme); setThemeError("");
   try { await setUiTheme(theme); }
-  catch (error) { console.error("Unable to change theme:", error); setThemeError("The look and feel could not be changed. Please try again."); }
+  catch (error) { setThemeError(applicationErrorMessage(error, "The look and feel could not be changed. Please try again.", "LeaderDashboardHeader")); }
   finally { setThemeSaving(null); }
  };
  const navButton = (item: LeaderNavItem) => {

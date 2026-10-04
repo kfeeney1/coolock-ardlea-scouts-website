@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -94,8 +95,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
       await onChanged();
       setCheckoutOpen(false);
     } catch (error) {
-      console.error("Unable to check out equipment:", error);
-      onError(error instanceof Error ? error.message : "Unable to check out equipment.");
+      onError(applicationErrorMessage(error, "Unable to check out equipment.", "EquipmentLoansPanel"));
     } finally {
       setSaving(false);
     }
@@ -118,8 +118,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
       await onChanged();
       setReturningLoan(null);
     } catch (error) {
-      console.error("Unable to return equipment:", error);
-      onError(error instanceof Error ? error.message : "Unable to return equipment.");
+      onError(applicationErrorMessage(error, "Unable to return equipment.", "EquipmentLoansPanel"));
     } finally {
       setSaving(false);
     }

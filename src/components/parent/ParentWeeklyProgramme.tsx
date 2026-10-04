@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 
@@ -43,7 +44,7 @@ export default function ParentWeeklyProgramme({ sections }: Props) {
         const records = await loadParentWeeklyMeetingProgrammes(sections);
         if (!cancelled) setMeetings(records);
       } catch (error) {
-        console.error("Unable to load parent weekly programme:", error);
+        reportApplicationError(error, { area: "ParentWeeklyProgramme", operation: "Unable to load parent weekly programme" });
         if (!cancelled) setLoadError(error);
       } finally {
         if (!cancelled) setLoading(false);

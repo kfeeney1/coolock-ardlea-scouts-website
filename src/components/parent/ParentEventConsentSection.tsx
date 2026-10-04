@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { Box, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -37,7 +38,7 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
         const loaded = await loadParentEventConsentLinks(memberIds);
         if (!cancelled) setEvents(loaded);
       } catch (loadError) {
-        console.error("Unable to load parent event consent links:", loadError);
+        reportApplicationError(loadError, { area: "ParentEventConsentSection", operation: "Unable to load parent event consent links" });
         if (!cancelled) {
           setPermissionDenied(classifyFirestoreFailure(loadError) === "permission");
           setError(firestoreFailureMessage(loadError, "Unable to load upcoming event consent requests."));

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -34,8 +35,7 @@ export default function EventsManagement() {
                 navigate(`/leader/events/${encodeURIComponent(requestedEventId)}`, { replace: true });
             }
         } catch (loadError) {
-            console.error("Unable to load events:", loadError);
-            setError("Unable to load events and activities.");
+            setError(applicationErrorMessage(loadError, "Unable to load events and activities.", "EventsManagement"));
         } finally {
             setLoading(false);
         }

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -36,8 +37,7 @@ export default function EquipmentStoreMovePage() {
         setQuantity(loadedItem ? availableEquipmentQuantity(loadedItem) : 0);
       })
       .catch((loadError) => {
-        console.error("Unable to load equipment store move:", loadError);
-        if (current) setError("Unable to load the equipment store move.");
+        if (current) setError(applicationErrorMessage(loadError, "Unable to load the equipment store move.", "EquipmentStoreMovePage"));
       })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
@@ -59,8 +59,7 @@ export default function EquipmentStoreMovePage() {
       const destinationItemId = await moveEquipmentStock(item, quantity, destination);
       navigate(recordPath, { replace: true, state: { storeMove: { itemId: item.id, destination, quantity, destinationItemId } } });
     } catch (saveError) {
-      console.error("Unable to move equipment stock:", saveError);
-      setError(saveError instanceof Error ? saveError.message : "Unable to move that equipment stock.");
+      setError(applicationErrorMessage(saveError, "Unable to move that equipment stock.", "EquipmentStoreMovePage"));
     } finally {
       setSaving(false);
     }

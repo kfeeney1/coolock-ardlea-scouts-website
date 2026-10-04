@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError, reportSecondaryFailure } from "./applicationErrors.ts";
 import {
     createUserWithEmailAndPassword,
     onAuthStateChanged,
@@ -88,7 +89,7 @@ function mapParentAccount(uid: string, data: Record<string, unknown>): ParentAcc
 function prepareRequestedChildren(children: ParentChildRequest[]): ParentChildRequest[] {
     const normalized = dedupeParentChildRequests(children);
     if (normalized.length === 0 || normalized.length !== children.length || normalized.some((child) => !isValidParentChildRequest(child))) {
-        throw new Error("Enter a valid first name, surname and date of birth for each child.");
+        throw new UserFacingError("Enter a valid first name, surname and date of birth for each child.");
     }
     return normalized.slice(0, 8).map(normalizeParentChildRequest);
 }
@@ -115,7 +116,7 @@ export async function registerParent(email: string, password: string, displayNam
 
 export async function createParentAccessForCurrentUser(displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[] = []): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in user.");
+    if (!user) throw new ServiceFailure("No signed-in user.", "auth/unauthenticated");
 
     const existing = await getDoc(doc(db, "parentAccounts", user.uid));
     if (existing.exists()) return;
@@ -134,7 +135,7 @@ export async function createParentAccessForCurrentUser(displayName: string, mobi
         updatedAt: serverTimestamp()
     });
 
-    try { await notifyParentRegistration(); } catch (emailError) { console.error("Unable to send parent registration emails:", emailError); }
+    try { await notifyParentRegistration(); } catch (emailError) { reportSecondaryFailure(emailError, { area: "parentPortal", operation: "Unable to send parent registration emails" }); }
 }
 
 export async function loginParent(email: string, password: string): Promise<void> {
@@ -205,31 +206,32 @@ export async function isCurrentUserActiveLeader(): Promise<boolean> {
         if (!snapshot.exists() || snapshot.data().active !== true) return false;
         normalizeLeaderRole(snapshot.data().role);
         return normalizeLeaderSections(snapshot.data()).length > 0;
-    } catch {
+    } catch (error) {
+        reportApplicationError(error, { area: "Parents", operation: "Check optional linked leader access" });
         return false;
     }
 }
 
 export async function updateParentAccess(uid: string, status: ParentAccessStatus, memberIds: string[], linkedSections: string[] = []): Promise<void> {
     const leader = auth.currentUser;
-    if (!leader) throw new Error("No signed-in leader.");
+    if (!leader) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const accountRef = doc(db, "parentAccounts", uid);
     const uniqueMemberIds = [...new Set(memberIds.map((id) => id.trim()).filter(Boolean))];
     const uniqueSections = [...new Set(linkedSections.map((section) => section.trim()).filter(Boolean))];
     if (status === "approved" && uniqueMemberIds.length === 0) {
-        throw new Error("At least one linked child is required before approving parent access.");
+        throw new UserFacingError("At least one linked child is required before approving parent access.");
     }
 
     const beforeAccount = await runTransaction(db, async (transaction): Promise<ParentAccount> => {
         const beforeSnapshot = await transaction.get(accountRef);
-        if (!beforeSnapshot.exists()) throw new Error("Parent account no longer exists.");
+        if (!beforeSnapshot.exists()) throw new UserFacingError("Parent account no longer exists.");
         const account = mapParentAccount(uid, beforeSnapshot.data());
-        if (!account) throw new Error("Parent account does not match the canonical data contract.");
+        if (!account) throw new UserFacingError("Parent account does not match the canonical data contract.");
         if (status === "approved") {
             const memberSnapshots = await Promise.all(uniqueMemberIds.map((memberId) => transaction.get(doc(db, "members", memberId))));
             if (memberSnapshots.some((snapshot) => !snapshot.exists())) {
-                throw new Error("A linked child record changed or no longer exists. Refresh and review the links before approving access.");
+                throw new UserFacingError("A linked child record changed or no longer exists. Refresh and review the links before approving access.");
             }
         }
         const preserveExistingLinks = status === "revoked";
@@ -252,6 +254,6 @@ export async function updateParentAccess(uid: string, status: ParentAccessStatus
             await notifyParentAccessRejected({ ...beforeAccount, status: "rejected" });
         }
     } catch (emailError) {
-        console.error("Unable to send parent access status email:", emailError);
+        reportSecondaryFailure(emailError, { area: "parentPortal", operation: "Unable to send parent access status email" });
     }
 }

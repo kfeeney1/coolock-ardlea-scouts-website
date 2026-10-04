@@ -1,3 +1,4 @@
+import { applicationErrorMessage, ServiceFailure } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -9,16 +10,13 @@ import type { MemberInactivationContext } from "../services/emailNotifications";
 import { loginParent, logoutParent } from "../services/parentPortal";
 
 function errorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && /403|not authorised/i.test(error.message)) {
-        return "This signed-in account is not authorised to manage the member in this link. Sign in with an approved Parent account or an authorised Leader account.";
-    }
-    if (error instanceof Error && /410/.test(error.message)) {
-        return "This secure action link is invalid, expired or has already been used. Request a new message if the member still needs to be updated.";
-    }
-    if (error instanceof Error && /409/.test(error.message)) {
-        return "The member status changed while this page was open. Reload the page to review the current state.";
-    }
-    return fallback;
+    const status = error instanceof ServiceFailure ? error.status : undefined;
+    const messages: Record<number, string> = {
+        403: "This signed-in account is not authorised to manage the member in this link. Sign in with an approved Parent account or an authorised Leader account.",
+        410: "This secure action link is invalid, expired or has already been used. Request a new message if the member still needs to be updated.",
+        409: "The member status changed while this page was open. Reload the page to review the current state.",
+    };
+    return applicationErrorMessage(error, status ? messages[status] || fallback : fallback, "Member lifecycle");
 }
 
 export default function ParentMemberInactivation() {
@@ -49,8 +47,8 @@ export default function ParentMemberInactivation() {
         setError("");
         try {
             await loginParent(email, password);
-        } catch {
-            setError("Unable to sign in. Check the email and password and try again.");
+        } catch (failure) {
+            setError(applicationErrorMessage(failure, "Unable to sign in. Check the email and password and try again.", "ParentMemberInactivation"));
         } finally {
             setWorking(false);
         }

@@ -21,7 +21,11 @@ test("does not turn a completed write into a rejected operation when refresh fai
     );
     assert.equal(refreshed, false);
     assert.equal(errors.length, 1);
-    assert.match(String(errors[0]?.[0]), /after a successful save/);
+    assert.equal(errors[0]?.[0], "Application failure");
+    const diagnostic = errors[0]?.[1] as { operation: string; reference: string; category: string };
+    assert.match(diagnostic.operation, /after a successful save/);
+    assert.match(diagnostic.reference, /^ERR-/);
+    assert.equal(diagnostic.category, "unexpected");
   } finally {
     console.error = originalError;
   }

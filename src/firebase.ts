@@ -1,3 +1,4 @@
+import { configureErrorEnvironment, reportApplicationError } from "./services/applicationErrors.ts";
 import { initializeApp } from "firebase/app";
 import { browserSessionPersistence, connectAuthEmulator, getAuth, setPersistence } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, initializeFirestore } from "firebase/firestore";
@@ -13,6 +14,8 @@ const appEnvironment = (import.meta.env.VITE_APP_ENV?.trim() || "local") as AppE
 if (!(["local", "test", "production"] as const).includes(appEnvironment)) {
     throw new Error(`Unsupported VITE_APP_ENV: ${appEnvironment}`);
 }
+
+configureErrorEnvironment(appEnvironment);
 
 const expectedProjectId = appEnvironment === "production"
     ? PRODUCTION_FIREBASE_PROJECT_ID
@@ -48,7 +51,7 @@ const app = initializeApp(firebaseConfig);
 const firestoreEmulator = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST?.trim();
 
 if (appEnvironment === "local" && !firestoreEmulator) {
-    console.warn("Local Firebase runtime is not connected to the Firestore emulator.");
+    reportApplicationError("Local Firebase runtime is not connected to the Firestore emulator.", { area: "firebase", operation: "Local Firebase runtime is not connected to the Firestore emulator." });
 }
 if (appEnvironment !== "local" && (
     firestoreEmulator
@@ -65,7 +68,7 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 void setPersistence(auth, browserSessionPersistence).catch((error) => {
-    console.error("Unable to configure session-only authentication:", error);
+    reportApplicationError(error, { area: "firebase", operation: "Unable to configure session-only authentication" });
 });
 
 if (firestoreEmulator) {

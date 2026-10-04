@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
 import type { AdminProfile } from "./AdminAuthProvider";
@@ -61,8 +62,7 @@ export default function EquipmentItemReturnDialog({ item, loans, profile, open, 
       await onChanged();
       onClose();
     } catch (error) {
-      console.error("Unable to return equipment from its record:", error);
-      onError(error instanceof Error ? error.message : "Unable to check in this equipment.");
+      onError(applicationErrorMessage(error, "Unable to check in this equipment.", "EquipmentItemReturnDialog"));
     } finally {
       setSaving(false);
     }

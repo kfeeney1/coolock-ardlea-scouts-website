@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import {
   addDoc,
   collection,
@@ -151,16 +152,16 @@ function mapMember(snapshot: QueryDocumentSnapshot<DocumentData>): MemberRecord 
 export async function setRoverSelfMembership(input: { firstName: string; lastName: string; enabled: boolean }): Promise<void> {
   const user = auth.currentUser;
   const email = user?.email?.trim() ?? "";
-  if (!user || !email) throw new Error("A signed-in leader email is required.");
+  if (!user || !email) throw new ServiceFailure("A signed-in leader email is required.", "auth/unauthenticated");
   const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
   const profile = profileSnapshot.data();
   if (!profileSnapshot.exists() || profile?.active !== true || !["leader", "admin", "super-admin"].includes(profile?.role)) {
-    throw new Error("An active approved adult account is required to manage Rover membership.");
+    throw new UserFacingError("An active approved adult account is required to manage Rover membership.");
   }
 
   const accountMatches = await getDocs(query(collection(db, "members"), where("accountUid", "==", user.uid)));
   let member = accountMatches.docs[0];
-  if (accountMatches.size > 1) throw new Error("More than one member record is linked to this account. Ask an administrator to reconcile the records.");
+  if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this account. Ask an administrator to reconcile the records.");
 
   if (!member && input.enabled) {
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
@@ -185,7 +186,7 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
         && stringValue(data, "firstName").toLocaleLowerCase() === firstName.toLocaleLowerCase()
         && stringValue(data, "lastName").toLocaleLowerCase() === lastName.toLocaleLowerCase();
     });
-    if (candidates.length > 1) throw new Error("More than one member record matches your name and email. Ask an administrator to reconcile the records.");
+    if (candidates.length > 1) throw new UserFacingError("More than one member record matches your name and email. Ask an administrator to reconcile the records.");
     member = candidates[0];
   }
 
@@ -193,7 +194,7 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
   if (!member && input.enabled) {
     const firstName = clean(input.firstName, 100);
     const lastName = clean(input.lastName, 100);
-    if (!firstName || !lastName) throw new Error("Enter your first and last name.");
+    if (!firstName || !lastName) throw new UserFacingError("Enter your first and last name.");
     await setDoc(doc(db, "members", `rover_${user.uid}`), {
       firstName, lastName, displayName: automaticDisplayName(firstName, lastName), displayNameMode: "auto",
       dateOfBirth: "", section: "Rovers", sections: ["Rovers"], sectionRoles: {}, parentName: "",
@@ -203,11 +204,11 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
     });
     return;
   }
-  if (!member) throw new Error("Your Rover member record could not be found.");
+  if (!member) throw new UserFacingError("Your Rover member record could not be found.");
 
   const data = member.data();
-  if (data.accountUid && data.accountUid !== user.uid) throw new Error("This member record is already linked to another account.");
-  if (stringValue(data, "emailAddress") !== email) throw new Error("Your member record email must match your signed-in account email exactly.");
+  if (data.accountUid && data.accountUid !== user.uid) throw new UserFacingError("This member record is already linked to another account.");
+  if (stringValue(data, "emailAddress") !== email) throw new UserFacingError("Your member record email must match your signed-in account email exactly.");
   const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
   const nextSections = input.enabled
     ? [...sections.filter((section) => section !== "Rovers"), "Rovers"]
@@ -226,9 +227,9 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
 
 export async function loadRoverSelfMembership(): Promise<{ active: boolean; firstName: string; lastName: string }> {
   const user = auth.currentUser;
-  if (!user) throw new Error("A signed-in leader account is required.");
+  if (!user) throw new ServiceFailure("A signed-in leader account is required.", "auth/unauthenticated");
   const matches = await getDocs(query(collection(db, "members"), where("accountUid", "==", user.uid)));
-  if (matches.size > 1) throw new Error("More than one member record is linked to this account.");
+  if (matches.size > 1) throw new UserFacingError("More than one member record is linked to this account.");
   if (matches.empty) return { active: false, firstName: "", lastName: "" };
   const data = matches.docs[0].data();
   const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
@@ -259,14 +260,14 @@ export { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLo
 
 export async function loadMembers(): Promise<MemberRecord[]> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
   const [profileSnapshot, organisationSnapshot] = await Promise.all([
     getDoc(doc(db, "adminUsers", user.uid)),
     getDoc(doc(db, "organisationLeadership", user.uid))
   ]);
   if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-    throw new Error("Active leader profile is required.");
+    throw new UserFacingError("Active leader profile is required.");
   }
 
   const profile = profileSnapshot.data();
@@ -294,7 +295,7 @@ export async function loadMembers(): Promise<MemberRecord[]> {
           try {
             return (await getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))).docs;
           } catch (error) {
-            console.warn(`Unable to load concurrent member memberships for ${section}; preserving legacy member results.`, error);
+            reportApplicationError(error, { area: "memberAdmin", operation: "memberAdmin operation" });
             return [];
           }
         })
@@ -312,7 +313,7 @@ export async function loadMembers(): Promise<MemberRecord[]> {
 
 export async function createMember(input: CreateMemberInput): Promise<string> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
   const canonicalError = canonicalMemberFieldError(input);
   if (canonicalError) throw new Error(canonicalError);
@@ -321,9 +322,9 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
   const requestedName = clean(input.displayName, 200);
   const displayNameMode = input.displayNameMode === "custom" ? "custom" : "auto";
   const displayName = displayNameMode === "custom" ? requestedName : automaticName;
-  if (displayNameMode === "custom" && !displayName) throw new Error("Custom display name is required.");
+  if (displayNameMode === "custom" && !displayName) throw new UserFacingError("Custom display name is required.");
   const requestedSections = canonicalMemberSections(input.sections, input.section);
-  if (requestedSections.length === 0) throw new Error("Select at least one section.");
+  if (requestedSections.length === 0) throw new UserFacingError("Select at least one section.");
   const primarySection = requestedSections[0];
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
@@ -365,11 +366,11 @@ export async function updateMember(
     "emailAddress" | "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"> & { sections?: string[]; sectionRoles?: MemberSectionRoles }
 ): Promise<void> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
   const memberRef = doc(db, "members", memberId);
   const currentSnapshot = await getDoc(memberRef);
-  if (!currentSnapshot.exists()) throw new Error("Member record no longer exists.");
+  if (!currentSnapshot.exists()) throw new UserFacingError("Member record no longer exists.");
 
   const current = currentSnapshot.data();
   const existingSections = canonicalMemberSections(current.sections, stringValue(current, "section"));
@@ -380,10 +381,10 @@ export async function updateMember(
   if (canonicalError) throw new Error(canonicalError);
   const previousSection = stringValue(current, "section");
   const previousStatus = memberStatus(current.status);
-  if (!previousSection || !previousStatus) throw new Error("Member record does not match the canonical seed schema.");
+  if (!previousSection || !previousStatus) throw new UserFacingError("Member record does not match the canonical seed schema.");
 
   const nextSections = canonicalMemberSections(updates.sections, updates.section);
-  if (nextSections.length === 0) throw new Error("Select at least one section.");
+  if (nextSections.length === 0) throw new UserFacingError("Select at least one section.");
   const nextSection = nextSections[0];
   const sectionRoles = normalizeMemberSectionRoles(updates.sectionRoles, nextSections);
   const changeType = detectMemberLifecycleChange(
@@ -395,7 +396,7 @@ export async function updateMember(
   const requestedDisplayName = clean(updates.displayName, 200);
   const displayNameMode = updates.displayNameMode === "custom" ? "custom" : "auto";
   const nextDisplayName = displayNameMode === "auto" ? automaticName : requestedDisplayName;
-  if (displayNameMode === "custom" && !nextDisplayName) throw new Error("Custom display name is required.");
+  if (displayNameMode === "custom" && !nextDisplayName) throw new UserFacingError("Custom display name is required.");
 
   const memberUpdate = {
     firstName: clean(updates.firstName, 100),
@@ -482,7 +483,7 @@ export async function loadMemberConsentSummaries(member: MemberRecord): Promise<
   if (!member.sections.length) return [];
 
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
   const isAdmin = profileSnapshot.exists() && ["admin", "super-admin"].includes(String(profileSnapshot.data().role));
   const snapshots = isAdmin

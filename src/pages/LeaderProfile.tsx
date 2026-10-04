@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import HealthAndSafetyOutlinedIcon from "@mui/icons-material/HealthAndSafetyOutlined";
@@ -65,8 +66,7 @@ export default function LeaderProfile() {
             try {
                 setProfile(await loadLeaderProfile());
             } catch (error) {
-                console.error("Unable to load leader profile:", error);
-                setProfileError("Unable to load your leader profile.");
+                setProfileError(applicationErrorMessage(error, "Unable to load your leader profile.", "LeaderProfile"));
             } finally {
                 setLoading(false);
             }
@@ -82,8 +82,7 @@ export default function LeaderProfile() {
             setRoverFirstName(membership.firstName || adminProfile?.displayName?.trim().split(/\s+/)[0] || "");
             setRoverLastName(membership.lastName || adminProfile?.displayName?.trim().split(/\s+/).slice(1).join(" ") || "");
         }).catch((error) => {
-            console.error("Unable to load Rover membership:", error);
-            if (active) setRoverError("Unable to check your Rover membership.");
+            if (active) setRoverError(applicationErrorMessage(error, "Unable to check your Rover membership.", "LeaderProfile"));
         }).finally(() => { if (active) setRoverLoading(false); });
         return () => { active = false; };
     }, [adminProfile?.displayName]);
@@ -112,8 +111,7 @@ export default function LeaderProfile() {
             });
             setProfileMessage("Your leader details have been updated.");
         } catch (error) {
-            console.error("Unable to update leader profile:", error);
-            setProfileError("Unable to update your details. Please try again.");
+            setProfileError(applicationErrorMessage(error, "Unable to update your details. Please try again.", "LeaderProfile"));
         } finally {
             setSavingProfile(false);
         }
@@ -146,8 +144,7 @@ export default function LeaderProfile() {
             setConfirmPassword("");
             setPasswordMessage("Your password has been changed successfully.");
         } catch (error) {
-            console.error("Unable to change leader password:", error);
-            setPasswordError("Unable to change your password. Check your current password and try again.");
+            setPasswordError(applicationErrorMessage(error, "Unable to change your password. Check your current password and try again.", "LeaderProfile"));
         } finally {
             setChangingPassword(false);
         }
@@ -161,8 +158,7 @@ export default function LeaderProfile() {
             setRoverActive(membership.active);
             setRoverMessage(enabled ? "Your Rover membership is active and linked to your account." : "Your Rover membership has ended. Your member history and other section memberships remain." );
         } catch (error) {
-            console.error("Unable to update Rover membership:", error);
-            setRoverError(error instanceof Error ? error.message : "Unable to update Rover membership.");
+            setRoverError(applicationErrorMessage(error, "Unable to update Rover membership.", "LeaderProfile"));
         } finally { setRoverSaving(false); }
     };
 

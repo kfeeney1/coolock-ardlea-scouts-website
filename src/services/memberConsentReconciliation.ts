@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -23,9 +24,9 @@ const value = (data: Record<string, unknown>, key: string) => typeof data[key] =
 const identity = (name: string, dob: string) => `${name.trim().toLocaleLowerCase()}::${dob.trim()}`;
 async function currentProfile() {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
-  if (!snapshot.exists() || snapshot.data().active !== true) throw new Error("Active leader profile is required.");
+  if (!snapshot.exists() || snapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
   return { user, profile: snapshot.data() };
 }
 
@@ -36,7 +37,7 @@ export async function isCurrentUserSuperAdmin(): Promise<boolean> {
 
 export async function reconcileUnlinkedConsents(): Promise<ConsentReconciliationState> {
   const { user, profile } = await currentProfile();
-  if (!["admin", "super-admin"].includes(String(profile.role))) throw new Error("Administrator access is required.");
+  if (!["admin", "super-admin"].includes(String(profile.role))) throw new UserFacingError("Administrator access is required.");
 
   const [membersSnapshot, consentsSnapshot] = await Promise.all([
     getDocs(collection(db, "members")),
@@ -82,7 +83,7 @@ export async function reconcileUnlinkedConsents(): Promise<ConsentReconciliation
 
 export async function loadReconciliationCandidates(): Promise<ReconciliationCandidate[]> {
   const { profile } = await currentProfile();
-  if (profile.role !== "super-admin") throw new Error("Super Admin access is required.");
+  if (profile.role !== "super-admin") throw new UserFacingError("Super Admin access is required.");
   const snapshot = await getDocs(collection(db, "members"));
   return snapshot.docs.map((member) => {
     const data = member.data();
@@ -96,15 +97,15 @@ export async function loadReconciliationCandidates(): Promise<ReconciliationCand
 
 export async function manuallyReconcileConsent(consentId: string, memberId: string, reason: string): Promise<void> {
   const { user, profile } = await currentProfile();
-  if (profile.role !== "super-admin") throw new Error("Super Admin access is required.");
-  if (!reason.trim()) throw new Error("A reconciliation reason is required.");
+  if (profile.role !== "super-admin") throw new UserFacingError("Super Admin access is required.");
+  if (!reason.trim()) throw new UserFacingError("A reconciliation reason is required.");
 
   const [consentSnapshot, memberSnapshot] = await Promise.all([
     getDoc(doc(db, "consentApplications", consentId)),
     getDoc(doc(db, "members", memberId))
   ]);
-  if (!consentSnapshot.exists() || consentSnapshot.data().formType !== "youth-activity-consent") throw new Error("Consent record was not found.");
-  if (!memberSnapshot.exists()) throw new Error("Member record was not found.");
+  if (!consentSnapshot.exists() || consentSnapshot.data().formType !== "youth-activity-consent") throw new UserFacingError("Consent record was not found.");
+  if (!memberSnapshot.exists()) throw new UserFacingError("Member record was not found.");
 
   const previousMemberId = value(consentSnapshot.data(), "memberId");
   if (previousMemberId === memberId) return;
@@ -123,17 +124,17 @@ export async function manuallyReconcileConsent(consentId: string, memberId: stri
 
 export async function createMemberFromYouthConsent(consentId: string): Promise<string> {
   const { user, profile } = await currentProfile();
-  if (profile.role !== "super-admin") throw new Error("Super Admin access is required.");
+  if (profile.role !== "super-admin") throw new UserFacingError("Super Admin access is required.");
 
   const consentRef = doc(db, "consentApplications", consentId);
   const memberRef = doc(collection(db, "members"));
   const draft = await runTransaction(db, async (transaction) => {
     const consentSnapshot = await transaction.get(consentRef);
     if (!consentSnapshot.exists() || consentSnapshot.data().formType !== "youth-activity-consent") {
-      throw new Error("Youth consent record was not found.");
+      throw new UserFacingError("Youth consent record was not found.");
     }
     const consent = consentSnapshot.data();
-    if (value(consent, "memberId")) throw new Error("This consent is already linked to a member.");
+    if (value(consent, "memberId")) throw new UserFacingError("This consent is already linked to a member.");
     const next = memberDraftFromYouthConsent(consent);
     transaction.set(memberRef, {
       ...next,

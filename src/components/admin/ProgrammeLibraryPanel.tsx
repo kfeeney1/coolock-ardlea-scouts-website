@@ -1,3 +1,4 @@
+import { reportApplicationError, applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
@@ -53,7 +54,7 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
     try {
       setItems(await loadProgrammeLibrary([section]));
     } catch (loadFailure) {
-      console.error(loadFailure);
+      reportApplicationError(loadFailure, { area: "ProgrammeLibraryPanel", operation: "ProgrammeLibraryPanel operation" });
       setLoadError(loadFailure);
     } finally {
       setLoading(false);
@@ -74,7 +75,7 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
       setMessage(`${source.activity} saved to the ${section} programme library.`);
       setActivityId("");
       await refresh();
-    } catch (saveError) { console.error(saveError); setError("Unable to save this activity to the programme library."); }
+    } catch (saveError) { setError(applicationErrorMessage(saveError, "Unable to save this activity to the programme library.", "ProgrammeLibraryPanel")); }
   };
 
   const saveBadgework = async () => {
@@ -86,7 +87,7 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
       setMessage(`${source.badge} saved to the ${section} programme library.`);
       setBadgeworkId("");
       await refresh();
-    } catch (saveError) { console.error(saveError); setError("Unable to save this badgework to the programme library."); }
+    } catch (saveError) { setError(applicationErrorMessage(saveError, "Unable to save this badgework to the programme library.", "ProgrammeLibraryPanel")); }
   };
 
   const insertSelected = () => {
@@ -104,7 +105,7 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
       setSelectedId("");
       setMessage(`${selected.name} removed from the programme library.`);
       await refresh();
-    } catch (removeError) { console.error(removeError); setError("Unable to remove this programme library item."); }
+    } catch (removeError) { setError(applicationErrorMessage(removeError, "Unable to remove this programme library item.", "ProgrammeLibraryPanel")); }
   };
 
   const failureKind = loadError ? classifyFirestoreFailure(loadError) : null;

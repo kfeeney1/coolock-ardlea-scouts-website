@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -84,8 +85,7 @@ export default function AttendanceInsights() {
                     setMeetings(loadedMeetings);
                 }
             } catch (loadError) {
-                console.error("Unable to load attendance insights:", loadError);
-                if (!cancelled) setError("Unable to load attendance history for your permitted sections.");
+                if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load attendance history for your permitted sections.", "AttendanceInsights"));
             } finally {
                 if (!cancelled) setLoading(false);
             }

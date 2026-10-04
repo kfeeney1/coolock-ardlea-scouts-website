@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
   collection,
   doc,
@@ -58,7 +59,7 @@ export type ReturnRequest = {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to use Equipment & Stores.");
+  if (!uid) throw new ServiceFailure("You must be signed in to use Equipment & Stores.", "auth/unauthenticated");
   return uid;
 }
 
@@ -119,9 +120,9 @@ async function allocateEquipment(request: CheckoutRequest, reservation = false):
   const uid = currentUid();
   const section = request.section.trim();
   const lines = request.lines.filter((line) => Number.isInteger(line.quantity) && line.quantity > 0);
-  if (!section) throw new Error("Choose the section taking the equipment.");
+  if (!section) throw new UserFacingError("Choose the section taking the equipment.");
   if (!request.expectedReturnDate) throw new Error(reservation ? "Choose the reservation date." : "Choose an expected return date.");
-  if (lines.length === 0) throw new Error("Select at least one equipment item.");
+  if (lines.length === 0) throw new UserFacingError("Select at least one equipment item.");
 
   const loanRef = doc(collection(db, "equipmentLoans"));
   let auditSummary = "";
@@ -135,7 +136,7 @@ async function allocateEquipment(request: CheckoutRequest, reservation = false):
     for (let index = 0; index < snapshots.length; index += 1) {
       const snapshot = snapshots[index];
       const requested = lines[index];
-      if (!snapshot.exists()) throw new Error("One of the selected equipment items no longer exists.");
+      if (!snapshot.exists()) throw new UserFacingError("One of the selected equipment items no longer exists.");
       const data = snapshot.data();
       const item: Pick<EquipmentItem, "name" | "totalQuantity" | "checkedOutQuantity" | "unavailableQuantity" | "archived"> = {
         name: typeof data.name === "string" ? data.name : "Equipment",
@@ -206,7 +207,7 @@ export async function checkoutEquipment(request: CheckoutRequest): Promise<strin
 
 export async function reserveEquipment(request: ReservationRequest): Promise<string> {
   const sourceId = request.sourceId.trim();
-  if (!sourceId) throw new Error("A programme source is required before equipment can be reserved.");
+  if (!sourceId) throw new UserFacingError("A programme source is required before equipment can be reserved.");
   return allocateEquipment({
     section: request.section,
     expectedReturnDate: request.reservationDate,
@@ -223,9 +224,9 @@ export async function cancelEquipmentReservation(reservationId: string): Promise
 
   await runTransaction(db, async (transaction) => {
     const loanSnapshot = await transaction.get(loanRef);
-    if (!loanSnapshot.exists()) throw new Error("That equipment reservation no longer exists.");
+    if (!loanSnapshot.exists()) throw new UserFacingError("That equipment reservation no longer exists.");
     const loan = mapLoan(loanSnapshot.id, loanSnapshot.data());
-    if (!loan || loan.status !== "open" || !isEquipmentReservationLoan(loan)) throw new Error("That equipment reservation is no longer active.");
+    if (!loan || loan.status !== "open" || !isEquipmentReservationLoan(loan)) throw new UserFacingError("That equipment reservation is no longer active.");
 
     const outstanding = loan.lines
       .map((line) => ({ line, quantity: outstandingLoanQuantity(line) }))
@@ -267,7 +268,7 @@ export async function cancelEquipmentReservation(reservationId: string): Promise
 
 export async function convertEquipmentReservation(reservationId: string, expectedReturnDate: string, notes: string): Promise<string> {
   const uid = currentUid();
-  if (!expectedReturnDate) throw new Error("Choose an expected return date.");
+  if (!expectedReturnDate) throw new UserFacingError("Choose an expected return date.");
   const reservationRef = doc(db, "equipmentLoans", reservationId);
   const checkoutRef = doc(collection(db, "equipmentLoans"));
   let auditSection = "Group";
@@ -276,14 +277,14 @@ export async function convertEquipmentReservation(reservationId: string, expecte
 
   await runTransaction(db, async (transaction) => {
     const reservationSnapshot = await transaction.get(reservationRef);
-    if (!reservationSnapshot.exists()) throw new Error("That equipment reservation no longer exists.");
+    if (!reservationSnapshot.exists()) throw new UserFacingError("That equipment reservation no longer exists.");
     const reservation = mapLoan(reservationSnapshot.id, reservationSnapshot.data());
-    if (!reservation || reservation.status !== "open" || !isEquipmentReservationLoan(reservation)) throw new Error("That equipment reservation is no longer active.");
+    if (!reservation || reservation.status !== "open" || !isEquipmentReservationLoan(reservation)) throw new UserFacingError("That equipment reservation is no longer active.");
 
     const checkoutLines = reservation.lines
       .map((line) => ({ ...line, quantity: outstandingLoanQuantity(line), returnedQuantity: 0, incidentQuantity: 0 }))
       .filter((line) => line.quantity > 0);
-    if (!checkoutLines.length) throw new Error("That reservation has no equipment left to check out.");
+    if (!checkoutLines.length) throw new UserFacingError("That reservation has no equipment left to check out.");
 
     const refs = checkoutLines.map((line) => doc(db, "equipmentItems", line.itemId));
     const itemSnapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
@@ -347,15 +348,15 @@ export async function returnEquipment(request: ReturnRequest): Promise<void> {
 
   await runTransaction(db, async (transaction) => {
     const loanSnapshot = await transaction.get(loanRef);
-    if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
+    if (!loanSnapshot.exists()) throw new UserFacingError("That equipment checkout no longer exists.");
     const loan = mapLoan(loanSnapshot.id, loanSnapshot.data());
-    if (!loan || loan.status !== "open") throw new Error("That equipment checkout is already closed.");
-    if (isEquipmentReservationLoan(loan)) throw new Error("Use the programme equipment reservation controls to cancel a reservation before checkout.");
+    if (!loan || loan.status !== "open") throw new UserFacingError("That equipment checkout is already closed.");
+    if (isEquipmentReservationLoan(loan)) throw new UserFacingError("Use the programme equipment reservation controls to cancel a reservation before checkout.");
 
     const selected = loan.lines
       .map((line) => ({ line, quantity: request.quantities[line.itemId] ?? 0 }))
       .filter(({ quantity }) => Number.isInteger(quantity) && quantity > 0);
-    if (selected.length === 0) throw new Error("Enter at least one quantity to return.");
+    if (selected.length === 0) throw new UserFacingError("Enter at least one quantity to return.");
     for (const { line, quantity } of selected) {
       if (quantity > outstandingLoanQuantity(line)) throw new Error(`You cannot return more ${line.itemName} than remain checked out.`);
     }

@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import type { EquipmentLoan } from "./equipmentLoans";
@@ -31,7 +32,7 @@ export type EquipmentProgrammeRequirement = {
 
 function uid(): string {
   const value = auth.currentUser?.uid;
-  if (!value) throw new Error("Leader authentication is required.");
+  if (!value) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   return value;
 }
 
@@ -125,8 +126,8 @@ export async function copyEquipmentRequirement(
 }
 
 export async function reserveEquipmentRequirement(requirement: EquipmentProgrammeRequirement): Promise<string> {
-  if (!requirement.lines.length) throw new Error("Add planned equipment before creating a reservation.");
-  if (requirement.loanId) throw new Error("This equipment plan is already allocated.");
+  if (!requirement.lines.length) throw new UserFacingError("Add planned equipment before creating a reservation.");
+  if (requirement.loanId) throw new UserFacingError("This equipment plan is already allocated.");
   const reservationId = await reserveEquipment({
     section: requirement.section,
     reservationDate: requirement.date,
@@ -139,13 +140,13 @@ export async function reserveEquipmentRequirement(requirement: EquipmentProgramm
 }
 
 export async function cancelEquipmentRequirementReservation(requirement: EquipmentProgrammeRequirement): Promise<void> {
-  if (!requirement.loanId) throw new Error("This equipment plan does not have an active reservation.");
+  if (!requirement.loanId) throw new UserFacingError("This equipment plan does not have an active reservation.");
   await cancelEquipmentReservation(requirement.loanId);
   await saveEquipmentRequirement(requirementInput(requirement), "");
 }
 
 export async function checkoutEquipmentRequirement(requirement: EquipmentProgrammeRequirement, expectedReturnDate: string): Promise<string> {
-  if (!requirement.lines.length) throw new Error("Add planned equipment before creating a checkout.");
+  if (!requirement.lines.length) throw new UserFacingError("Add planned equipment before creating a checkout.");
   const loanId = requirement.loanId
     ? await convertEquipmentReservation(requirement.loanId, expectedReturnDate, `${requirement.sourceLabel} · reserved equipment`)
     : await checkoutEquipment({

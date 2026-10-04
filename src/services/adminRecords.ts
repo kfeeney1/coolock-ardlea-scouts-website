@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
     collection,
     doc,
@@ -111,11 +112,11 @@ async function scopedDocuments(
 
 export async function loadAdminRecords(): Promise<AdminRecord[]> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new Error("Active leader profile is required.");
+        throw new UserFacingError("Active leader profile is required.");
     }
 
     const profile = profileSnapshot.data();

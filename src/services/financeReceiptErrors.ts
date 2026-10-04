@@ -1,4 +1,5 @@
-export function financeReceiptErrorMessage(error: unknown, operation: "check" | "upload" | "remove" | "open"): string {
+import { reportApplicationError, diagnosticErrorCode } from "./applicationErrors.ts";
+function receiptDescription(error: unknown, operation: "check" | "upload" | "remove" | "open"): string {
   const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
     ? error.code : "";
   const action = operation === "check" ? "Receipt check" : operation === "upload" ? "Receipt upload" : operation === "open" ? "Receipt opening" : "Receipt removal";
@@ -18,4 +19,9 @@ export function financeReceiptErrorMessage(error: unknown, operation: "check" | 
   }
   if (code === "storage/canceled") return `${action} was cancelled. You can retry.${detail}`;
   return `${action} failed. Retry, and contact an administrator if the problem continues.${detail}`;
+}
+
+export function financeReceiptErrorMessage(error: unknown, operation: "check" | "upload" | "remove" | "open", identifiers?: { transactionId?: string; section?: string }): string {
+  const description = receiptDescription({ code: diagnosticErrorCode(error) }, operation);
+  return reportApplicationError(error, { area: "Finance receipts", operation: `Receipt ${operation}`, userMessage: description, identifiers }).userMessage;
 }

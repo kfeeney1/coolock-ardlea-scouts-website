@@ -1,3 +1,4 @@
+import { UserInputError } from "./applicationErrors.ts";
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
 export const ALLOWED_EVENT_GALLERY_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -20,20 +21,20 @@ export interface ValidatedAttachmentUpload extends AttachmentUploadInput {
 export function sanitiseAttachmentFileName(fileName: string): string {
   const trimmed = fileName.trim();
   const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  if (!safe || safe === "." || safe === "..") throw new Error("Attachment file name is required.");
+  if (!safe || safe === "." || safe === "..") throw new UserInputError("Attachment file name is required.");
   return safe.slice(0, 120);
 }
 
 export function validateAttachmentUpload(input: AttachmentUploadInput): ValidatedAttachmentUpload {
   const ownerId = input.ownerId.trim();
   const section = input.section.trim();
-  if (!ownerId) throw new Error("Attachment owner is required.");
-  if (!section) throw new Error("Attachment section is required.");
+  if (!ownerId) throw new UserInputError("Attachment owner is required.");
+  if (!section) throw new UserInputError("Attachment section is required.");
   if (!Number.isInteger(input.size) || input.size <= 0 || input.size > MAX_ATTACHMENT_BYTES) {
-    throw new Error("Attachment must be between 1 byte and 10 MB.");
+    throw new UserInputError("Attachment must be between 1 byte and 10 MB.");
   }
   if (!ALLOWED_ATTACHMENT_TYPES.includes(input.contentType as typeof ALLOWED_ATTACHMENT_TYPES[number])) {
-    throw new Error("Attachment must be a JPEG, PNG, WebP image or PDF.");
+    throw new UserInputError("Attachment must be a JPEG, PNG, WebP image or PDF.");
   }
   return {
     ...input,
@@ -45,17 +46,17 @@ export function validateAttachmentUpload(input: AttachmentUploadInput): Validate
 }
 
 export function validateEventGalleryUpload(input: AttachmentUploadInput): ValidatedAttachmentUpload {
-  if (input.ownerType !== "event-gallery") throw new Error("Event gallery uploads must use the event-gallery owner type.");
+  if (input.ownerType !== "event-gallery") throw new UserInputError("Event gallery uploads must use the event-gallery owner type.");
   const validated = validateAttachmentUpload(input);
   if (!ALLOWED_EVENT_GALLERY_TYPES.includes(validated.contentType as typeof ALLOWED_EVENT_GALLERY_TYPES[number])) {
-    throw new Error("Event gallery uploads must be a JPEG, PNG or WebP image.");
+    throw new UserInputError("Event gallery uploads must be a JPEG, PNG or WebP image.");
   }
   return validated;
 }
 
 function sanitiseStorageSegment(value: string, errorMessage: string): string {
   const safe = value.trim().replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  if (!safe) throw new Error(errorMessage);
+  if (!safe) throw new UserInputError(errorMessage);
   return safe;
 }
 
@@ -98,11 +99,11 @@ export function meetingDocumentContentType(fileName: string, reportedContentType
 }
 
 export function validateMeetingDocument(input: AttachmentUploadInput): ValidatedAttachmentUpload {
-  if (input.ownerType !== "meeting-document") throw new Error("Meeting documents must use the meeting-document owner type.");
-  if (!input.ownerId.trim() || !input.section.trim()) throw new Error("Meeting and section are required.");
-  if (!Number.isInteger(input.size) || input.size <= 0 || input.size > MAX_ATTACHMENT_BYTES) throw new Error("Meeting document must be between 1 byte and 10 MB.");
+  if (input.ownerType !== "meeting-document") throw new UserInputError("Meeting documents must use the meeting-document owner type.");
+  if (!input.ownerId.trim() || !input.section.trim()) throw new UserInputError("Meeting and section are required.");
+  if (!Number.isInteger(input.size) || input.size <= 0 || input.size > MAX_ATTACHMENT_BYTES) throw new UserInputError("Meeting document must be between 1 byte and 10 MB.");
   const contentType = meetingDocumentContentType(input.fileName, input.contentType);
-  if (!contentType) throw new Error("Choose a PDF, Word, OpenDocument, text, Markdown or HTML document.");
+  if (!contentType) throw new UserInputError("Choose a PDF, Word, OpenDocument, text, Markdown or HTML document.");
   return { ...input, contentType, ownerId: input.ownerId.trim(), section: input.section.trim(), fileName: input.fileName.trim(), safeFileName: sanitiseAttachmentFileName(input.fileName) };
 }
 

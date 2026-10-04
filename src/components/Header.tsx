@@ -1,5 +1,6 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
-    AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography
+    Alert, AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useState } from "react";
@@ -21,6 +22,7 @@ function roleSummary(profile: ReturnType<typeof useAdminAuth>["adminProfile"]): 
 
 export default function Header() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [signOutError, setSignOutError] = useState("");
     const [signingOut, setSigningOut] = useState(false);
     const { user, adminProfile, authorised, loading, logout } = useAdminAuth();
     const { pathname } = useLocation();
@@ -36,17 +38,18 @@ export default function Header() {
         if (signingOut) return;
         const destination = pathname.startsWith("/leader") ? "/leader/login" : "/";
         setSigningOut(true);
+        setSignOutError("");
         try {
             await logout();
             navigate(destination, { replace: true });
         } catch (error) {
-            console.error("Unable to sign out:", error);
+            setSignOutError(applicationErrorMessage(error, "Sign out did not complete.", "Header"));
             setSigningOut(false);
             setAnchorEl(null);
         }
     };
 
-    return <AppBar data-site-sticky-header data-theme-surface="header" position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
+    return <><AppBar data-site-sticky-header data-theme-surface="header" position="sticky" elevation={3} sx={{ backgroundColor: "primary.main", borderBottom: `4px solid ${brandColours.navy}` }}>
         <Toolbar sx={{ minHeight: { xs: 72, md: 82 }, gap: 1 }}>
             <Box component={Link} to="/" sx={{ display: "flex", alignItems: "center", textDecoration: "none", color: "inherit", flexGrow: 1, minWidth: 0 }}>
                 <Box component="img" src={logo} alt={content.group.name} sx={{ width: { xs: 52, md: 64 }, height: { xs: 52, md: 64 }, objectFit: "contain", mr: { xs: 1.25, md: 2 }, flexShrink: 0 }} />
@@ -64,5 +67,5 @@ export default function Header() {
             </Box>
             <Box sx={{ display: { xs: "flex", md: "none" } }}><IconButton color="inherit" onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Open navigation menu"><MenuIcon /></IconButton><Menu anchorEl={anchorEl} open={Boolean(anchorEl) && menuHistoryReady} onClose={() => setAnchorEl(null)}>{menuItems.map((item) => <MenuItem key={item.path} component={Link} to={item.path} replace>{item.label}</MenuItem>)}<MenuItem component={Link} to="/join" replace sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem>{showDashboardReturn && <MenuItem component={Link} to="/leader" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Dashboard</MenuItem>}{!loading && <MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>{user ? "Parent Portal" : "Parent Login"}</MenuItem>}{user ? <MenuItem component="button" disabled={signingOut} onClick={() => void handleSignOut()} sx={{ color: "secondary.main", fontWeight: 800, width: "100%" }}>{signingOut ? "Signing Out…" : "Sign Out"}</MenuItem> : !loading ? <MenuItem component={Link} to="/leader/login" replace sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem> : null}</Menu></Box>
         </Toolbar>
-    </AppBar>;
+    </AppBar>{signOutError && <Alert severity="error" role="alert">{signOutError}</Alert>}</>;
 }

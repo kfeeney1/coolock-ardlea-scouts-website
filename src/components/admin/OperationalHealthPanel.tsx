@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
@@ -41,8 +42,7 @@ export default function OperationalHealthPanel() {
         try {
             setItems(await loadOperationalHealth());
         } catch (refreshError) {
-            console.error("Unable to load operational health:", refreshError);
-            setError("Unable to load operational status right now.");
+            setError(applicationErrorMessage(refreshError, "Unable to load operational status right now.", "OperationalHealthPanel"));
         } finally {
             setLoading(false);
         }
@@ -59,8 +59,7 @@ export default function OperationalHealthPanel() {
             setDataHealth(result);
             setItems((current) => current.map((item) => item.id === "data-integrity" ? result.item : item));
         } catch (checkError) {
-            console.error("Unable to check operational data integrity:", checkError);
-            setError("Unable to complete the read-only data check right now.");
+            setError(applicationErrorMessage(checkError, "Unable to complete the read-only data check right now.", "OperationalHealthPanel"));
         } finally {
             setCheckingData(false);
         }

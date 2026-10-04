@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { deleteObject, ref, uploadBytesResumable } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { financeReceiptStoragePath, validateAttachmentUpload } from "./attachmentLogic";
@@ -19,7 +20,7 @@ const FINANCE_RECEIPT_UPLOAD_TIMEOUT_MS = 60000;
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to upload attachments.");
+  if (!uid) throw new ServiceFailure("You must be signed in to upload attachments.", "auth/unauthenticated");
   return uid;
 }
 
@@ -56,7 +57,7 @@ export async function uploadFinanceReceipt(
     const timer = setTimeout(() => {
       unsubscribe();
       task.cancel();
-      reject(new Error("Receipt upload timed out."));
+      reject(new ServiceFailure("Receipt upload timed out.", "storage/upload-timeout"));
     }, FINANCE_RECEIPT_UPLOAD_TIMEOUT_MS);
     const unsubscribe = task.on(
       "state_changed",

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import BadgeworkOverview from "../components/admin/BadgeworkOverview.tsx";
@@ -92,7 +93,7 @@ export default function BadgeworkTracking() {
   useEffect(() => {
     void (async () => {
       try { setMembers(await loadMembers()); }
-      catch (loadError) { console.error("Unable to load badgework members:", loadError); setError("Unable to load children for badgework tracking."); }
+      catch (loadError) { setError(applicationErrorMessage(loadError, "Unable to load children for badgework tracking.", "BadgeworkTracking")); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -106,7 +107,7 @@ export default function BadgeworkTracking() {
 
   useEffect(() => {
     if (workflowStep !== "badgework") return;
-    void refreshProgress(selectedIds).catch((loadError) => { console.error(loadError); setError("Unable to load Adventure Skills progress."); });
+    void refreshProgress(selectedIds).catch((loadError) => { setError(applicationErrorMessage(loadError, "Unable to load Adventure Skills progress.", "BadgeworkTracking")); });
   }, [workflowStep, selectedIds.join("|")]);
 
   useEffect(() => {
@@ -123,8 +124,7 @@ export default function BadgeworkTracking() {
         setOverviewLoaded(true);
       })
       .catch((loadError) => {
-        console.error("Unable to load badgework overview:", loadError);
-        setOverviewError("Unable to load the Badgework Overview. Please try again.");
+        setOverviewError(applicationErrorMessage(loadError, "Unable to load the Badgework Overview. Please try again.", "BadgeworkTracking"));
       })
       .finally(() => setOverviewLoading(false));
   }, [activeMembers, mode, overviewError, overviewLoaded, overviewLoading]);
@@ -221,13 +221,11 @@ export default function BadgeworkTracking() {
       try {
         await refreshProgress(selectedIds);
       } catch (loadError) {
-        console.error("Badgework saved but progress could not be refreshed:", loadError);
-        setError("Badgework changes were saved, but the latest progress could not be reloaded. Refresh the page to see the saved state.");
+        setError(applicationErrorMessage(loadError, "Badgework changes were saved, but the latest progress could not be reloaded. Refresh the page to see the saved state.", "BadgeworkTracking"));
       }
       if (returnToSource && sourceContext) navigate(sourceContext.returnTo);
     } catch (saveError) {
-      console.error("Unable to save badgework changes:", saveError);
-      setError("Unable to save badgework changes. Your unsaved selections are still shown; please try again.");
+      setError(applicationErrorMessage(saveError, "Unable to save badgework changes. Your unsaved selections are still shown; please try again.", "BadgeworkTracking"));
     } finally { setSaving(false); }
   };
 
@@ -241,12 +239,10 @@ export default function BadgeworkTracking() {
       try {
         await refreshProgress(selectedIds);
       } catch (loadError) {
-        console.error("Badge award updated but progress could not be refreshed:", loadError);
-        setError("The badge award was updated, but the latest progress could not be reloaded. Refresh the page to see the saved state.");
+        setError(applicationErrorMessage(loadError, "The badge award was updated, but the latest progress could not be reloaded. Refresh the page to see the saved state.", "BadgeworkTracking"));
       }
     } catch (awardError) {
-      console.error("Unable to update award:", awardError);
-      setError("Unable to update the badge award. Please try again.");
+      setError(applicationErrorMessage(awardError, "Unable to update the badge award. Please try again.", "BadgeworkTracking"));
     } finally { setSaving(false); }
   };
 

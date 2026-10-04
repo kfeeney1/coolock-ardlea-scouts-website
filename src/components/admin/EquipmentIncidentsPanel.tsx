@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -151,14 +152,12 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
         try {
           await sendEquipmentIncidentNotification(incidentId);
         } catch (notificationError) {
-          console.error("Unable to send equipment incident email:", notificationError);
-          onError("The equipment issue was recorded and is visible on the dashboard, but the email notification could not be sent.");
+          onError(applicationErrorMessage(notificationError, "The equipment issue was recorded and is visible on the dashboard, but the email notification could not be sent.", "EquipmentIncidentsPanel"));
         }
       }
       await onChanged();
     } catch (error) {
-      console.error("Unable to report equipment issue:", error);
-      onError(error instanceof Error ? error.message : "Unable to report the equipment issue.");
+      onError(applicationErrorMessage(error, "Unable to report the equipment issue.", "EquipmentIncidentsPanel"));
     } finally {
       setSaving(false);
     }
@@ -171,8 +170,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       await startEquipmentIncidentInvestigation(incident);
       await onChanged();
     } catch (error) {
-      console.error("Unable to start equipment investigation:", error);
-      onError(error instanceof Error ? error.message : "Unable to update the equipment issue.");
+      onError(applicationErrorMessage(error, "Unable to update the equipment issue.", "EquipmentIncidentsPanel"));
     } finally {
       setSaving(false);
     }
@@ -195,8 +193,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       setResolving(null);
       await onChanged();
     } catch (error) {
-      console.error("Unable to resolve equipment issue:", error);
-      onError(error instanceof Error ? error.message : "Unable to resolve the equipment issue.");
+      onError(applicationErrorMessage(error, "Unable to resolve the equipment issue.", "EquipmentIncidentsPanel"));
     } finally {
       setSaving(false);
     }

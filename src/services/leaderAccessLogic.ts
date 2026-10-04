@@ -1,3 +1,4 @@
+import { diagnosticErrorCode } from "./applicationErrors.ts";
 import { sortScoutSections } from "./sectionOrder.ts";
 import {
     isGroupScopedAppointment,
@@ -111,4 +112,11 @@ export function sortLeaderAccessRecords<T extends LeaderAccessOrderRecord>(
 
         return left.displayName.localeCompare(right.displayName) || left.uid.localeCompare(right.uid);
     });
+}
+
+// These Firestore reads are deliberately denied to parent-only/inactive users.
+// Absence of leader authorization is a valid fail-closed role-probe result.
+export function isDeniedLeaderProfileProbe(error: unknown): boolean {
+    const code = diagnosticErrorCode(error);
+    return code === "permission-denied" || code === "firestore/permission-denied";
 }

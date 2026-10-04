@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+    isDeniedLeaderProfileProbe,
     canonicalLeaderAppointments,
     canonicalOrganisationSection,
     normalizeLeaderRole,
@@ -112,4 +113,11 @@ test("SW-257 preserves name and UID ordering when all sections are selected", ()
         sortLeaderAccessRecords(orderingRecords, "").map(({ uid }) => uid),
         ["secondary-a", "secondary-z", "primary-a", "primary-b"]
     );
+});
+
+test("background leader role probe preserves expected denial while service and unknown failures remain errors", () => {
+    assert.equal(isDeniedLeaderProfileProbe({ code: "permission-denied" }), true);
+    assert.equal(isDeniedLeaderProfileProbe({ code: "firestore/permission-denied" }), true);
+    assert.equal(isDeniedLeaderProfileProbe({ code: "unavailable" }), false);
+    assert.equal(isDeniedLeaderProfileProbe(new Error("missing or insufficient permissions")), false);
 });

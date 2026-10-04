@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 export type EquipmentIncidentType = "damaged" | "lost" | "missing" | "maintenance";
 export type EquipmentIncidentStatus = "reported" | "investigating" | "resolved";
 export type EquipmentNotificationState = "pending" | "sent" | "failed";
@@ -62,12 +63,12 @@ export function resolvedEquipmentQuantities(
   incidentQuantity: number,
   resolution: EquipmentIncidentResolution
 ): { totalQuantity: number; unavailableQuantity: number } {
-  if (!Number.isInteger(incidentQuantity) || incidentQuantity <= 0) throw new Error("Incident quantity must be a whole number greater than zero.");
-  if (incidentQuantity > item.unavailableQuantity) throw new Error("The incident quantity is greater than the equipment currently marked unavailable.");
+  if (!Number.isInteger(incidentQuantity) || incidentQuantity <= 0) throw new UserFacingError("Incident quantity must be a whole number greater than zero.");
+  if (incidentQuantity > item.unavailableQuantity) throw new UserFacingError("The incident quantity is greater than the equipment currently marked unavailable.");
   const unavailableQuantity = item.unavailableQuantity - incidentQuantity;
   const totalQuantity = resolution === "written-off" ? item.totalQuantity - incidentQuantity : item.totalQuantity;
   if (totalQuantity < 0 || item.checkedOutQuantity + unavailableQuantity > totalQuantity) {
-    throw new Error("Resolving this incident would make the equipment stock totals inconsistent.");
+    throw new UserFacingError("Resolving this incident would make the equipment stock totals inconsistent.");
   }
   return { totalQuantity, unavailableQuantity };
 }

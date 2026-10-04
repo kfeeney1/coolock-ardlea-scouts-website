@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Chip, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -39,8 +40,7 @@ export default function ActivityLog() {
     try {
       setEntries(await loadAuditLog());
     } catch (err) {
-      console.error(err);
-      setError("Unable to load the activity log.");
+      setError(applicationErrorMessage(err, "Unable to load the activity log.", "ActivityLog"));
     } finally {
       setLoading(false);
     }

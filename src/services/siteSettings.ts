@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -41,7 +42,7 @@ export async function loadSessionSettings(): Promise<SessionSettings> {
 
 export async function saveSessionSettings(settings: SessionSettings): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("You must be signed in to change site settings.");
+    if (!user) throw new ServiceFailure("You must be signed in to change site settings.", "auth/unauthenticated");
 
     const normalised = normaliseSessionSettings(settings);
     if (

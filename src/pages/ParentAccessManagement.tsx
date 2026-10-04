@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import {
@@ -45,8 +46,7 @@ export default function ParentAccessManagement() {
             setMembers(loadedMembers);
             setSelected(Object.fromEntries(loadedParents.map((parent) => [parent.uid, parent.memberIds])));
         } catch (loadError) {
-            console.error("Unable to load parent management:", loadError);
-            setError("Unable to load parent management.");
+            setError(applicationErrorMessage(loadError, "Unable to load parent management.", "ParentAccessManagement"));
         } finally { setLoading(false); }
     };
     useEffect(() => { void load(); }, []);
@@ -104,8 +104,7 @@ export default function ParentAccessManagement() {
             setMessage(`${parent.displayName || parent.email} access updated.${status === "approved" && parent.matchingLeaderStatus ? " Parent access is now attached to the same login as the matching Leader registration." : ""}${status === "approved" ? ` ${linked} existing consent record${linked === 1 ? " was" : "s were"} linked.` : ""}`);
             void load();
         } catch (saveError) {
-            console.error("Unable to update parent access:", saveError);
-            setError("Unable to update parent access or link the consent records.");
+            setError(applicationErrorMessage(saveError, "Unable to update parent access or link the consent records.", "ParentAccessManagement"));
         } finally { setWorkingUid(""); }
     };
 

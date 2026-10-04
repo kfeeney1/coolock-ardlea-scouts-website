@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
   addDoc,
   collection,
@@ -48,7 +49,7 @@ export type EquipmentItemInput = Omit<EquipmentItem, "id" | "createdBy" | "updat
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage equipment.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage equipment.", "auth/unauthenticated");
   return uid;
 }
 
@@ -229,11 +230,11 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
   const uid = currentUid();
   const itemRef = doc(db, "equipmentItems", itemId);
   const current = await getDoc(itemRef);
-  if (!current.exists()) throw new Error("That equipment item no longer exists.");
+  if (!current.exists()) throw new UserFacingError("That equipment item no longer exists.");
   const currentLocation = typeof current.data().location === "string" ? normaliseEquipmentLabel(current.data().location) : "";
   const nextLocation = normaliseEquipmentLabel(input.location);
   if (currentLocation.toLowerCase() !== nextLocation.toLowerCase()) {
-    throw new Error("Use History / move to change an equipment storage location so the stock movement is recorded correctly.");
+    throw new UserFacingError("Use History / move to change an equipment storage location so the stock movement is recorded correctly.");
   }
   await updateDoc(itemRef, {
     ...input,
@@ -268,7 +269,7 @@ export async function updateEquipmentItem(itemId: string, input: EquipmentItemIn
 
 export async function setEquipmentArchived(item: EquipmentItem, archived: boolean): Promise<void> {
   if (archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)) {
-    throw new Error("Resolve all checked-out or unavailable stock before archiving this item.");
+    throw new UserFacingError("Resolve all checked-out or unavailable stock before archiving this item.");
   }
   const uid = currentUid();
   await setDoc(doc(db, "equipmentItems", item.id), {

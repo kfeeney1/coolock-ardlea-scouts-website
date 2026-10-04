@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import {
   collection,
   doc,
@@ -60,7 +61,7 @@ export type ReportEquipmentIncidentRequest = {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage an equipment issue.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage an equipment issue.", "auth/unauthenticated");
   return uid;
 }
 
@@ -122,9 +123,9 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
   const section = request.section.trim();
   const description = request.description.trim();
   const loanId = request.loanId?.trim() || "";
-  if (!section) throw new Error("Choose the section connected to this issue.");
-  if (!description) throw new Error("Describe what happened to the equipment.");
-  if (!Number.isInteger(request.quantity) || request.quantity <= 0) throw new Error("Issue quantity must be a whole number greater than zero.");
+  if (!section) throw new UserFacingError("Choose the section connected to this issue.");
+  if (!description) throw new UserFacingError("Describe what happened to the equipment.");
+  if (!Number.isInteger(request.quantity) || request.quantity <= 0) throw new UserFacingError("Issue quantity must be a whole number greater than zero.");
 
   const incidentRef = doc(collection(db, "equipmentIncidents"));
   const itemRef = doc(db, "equipmentItems", request.itemId);
@@ -133,7 +134,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
 
   await runTransaction(db, async (transaction) => {
     const itemSnapshot = await transaction.get(itemRef);
-    if (!itemSnapshot.exists()) throw new Error("That equipment item no longer exists.");
+    if (!itemSnapshot.exists()) throw new UserFacingError("That equipment item no longer exists.");
     const itemData = itemSnapshot.data();
     itemName = text(itemData.name) || "Equipment";
     itemLocation = text(itemData.location);
@@ -147,10 +148,10 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
     if (loanId) {
       loanRef = doc(db, "equipmentLoans", loanId);
       loanSnapshot = await transaction.get(loanRef);
-      if (!loanSnapshot.exists()) throw new Error("That equipment checkout no longer exists.");
+      if (!loanSnapshot.exists()) throw new UserFacingError("That equipment checkout no longer exists.");
       const loanData = loanSnapshot.data() as Record<string, unknown>;
       if (loanData.status !== "open" || text(loanData.section) !== section || !Array.isArray(loanData.lines)) {
-        throw new Error("That checkout is not open for the selected section.");
+        throw new UserFacingError("That checkout is not open for the selected section.");
       }
 
       const nextLines = loanData.lines.map((rawLine: unknown) => {
@@ -245,9 +246,9 @@ export async function startEquipmentIncidentInvestigation(incident: EquipmentInc
   const incidentRef = doc(db, "equipmentIncidents", incident.id);
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(incidentRef);
-    if (!snapshot.exists()) throw new Error("That equipment issue no longer exists.");
+    if (!snapshot.exists()) throw new UserFacingError("That equipment issue no longer exists.");
     const current = snapshot.data();
-    if (current.status !== "reported") throw new Error("Only newly reported equipment issues can be moved to investigating.");
+    if (current.status !== "reported") throw new UserFacingError("Only newly reported equipment issues can be moved to investigating.");
     transaction.update(incidentRef, {
       status: "investigating",
       updatedBy: uid,
@@ -285,7 +286,7 @@ export async function resolveEquipmentIncident(
   const safeNotes = notes.trim();
   const validation = validateIncidentResolution(resolution, safeNotes);
   if (validation) throw new Error(validation);
-  if (incident.status === "resolved") throw new Error("This equipment issue has already been resolved.");
+  if (incident.status === "resolved") throw new UserFacingError("This equipment issue has already been resolved.");
 
   const incidentRef = doc(db, "equipmentIncidents", incident.id);
   const itemRef = doc(db, "equipmentItems", incident.itemId);
@@ -294,10 +295,10 @@ export async function resolveEquipmentIncident(
       transaction.get(incidentRef),
       transaction.get(itemRef)
     ]);
-    if (!incidentSnapshot.exists()) throw new Error("That equipment issue no longer exists.");
-    if (!itemSnapshot.exists()) throw new Error("The linked equipment item no longer exists.");
+    if (!incidentSnapshot.exists()) throw new UserFacingError("That equipment issue no longer exists.");
+    if (!itemSnapshot.exists()) throw new UserFacingError("The linked equipment item no longer exists.");
     const incidentData = incidentSnapshot.data();
-    if (incidentData.status === "resolved") throw new Error("This equipment issue has already been resolved.");
+    if (incidentData.status === "resolved") throw new UserFacingError("This equipment issue has already been resolved.");
     const quantity = integer(incidentData.quantity);
     const itemData = itemSnapshot.data();
     const stockAdjusted = incidentData.stockAdjusted === true || Boolean(text(incidentData.loanId));
@@ -360,7 +361,7 @@ export async function sendEquipmentIncidentNotification(incidentId: string): Pro
     try {
       await updateDoc(doc(db, "equipmentIncidents", incidentId), { notificationState: "failed" });
     } catch (markerError) {
-      console.error("Unable to mark equipment incident notification failure:", markerError);
+      reportApplicationError(markerError, { area: "equipmentIncidents", operation: "Unable to mark equipment incident notification failure" });
     }
     throw error;
   }

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { DEFAULT_PUBLIC_SITE_CONTENT } from "../content/defaultPublicSiteContent";
@@ -20,8 +21,7 @@ export function PublicSiteContentProvider({ children }: { children: ReactNode })
         setError("");
       })
       .catch((loadError) => {
-        console.error("Unable to load canonical public website content; using built-in fallback:", loadError);
-        if (active) setError("Unable to refresh website content from the database.");
+        if (active) setError(applicationErrorMessage(loadError, "Unable to refresh website content from the database.", "PublicSiteContentProvider"));
       });
     return () => { active = false; };
   }, []);

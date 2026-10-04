@@ -1,3 +1,4 @@
+import { reportApplicationError } from "./applicationErrors.ts";
 export async function trySecondaryRefresh(
   refresh: () => Promise<void>,
   context: string
@@ -6,7 +7,7 @@ export async function trySecondaryRefresh(
     await refresh();
     return true;
   } catch (error) {
-    console.error(`Unable to refresh ${context} after a successful save:`, error);
+    reportApplicationError(error, { area: "secondaryRefresh", operation: `Refresh ${context} after a successful save` });
     return false;
   }
 }

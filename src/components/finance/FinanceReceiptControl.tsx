@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { useEffect, useState } from "react";
 import { financeReceiptErrorMessage } from "../../services/financeReceiptErrors";
 import {
@@ -67,8 +68,8 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
       setReceipts((current) => current.map((item) => item.id === receipt.id ? { ...item, viewUrl } : item));
       setViewingReceipt({ ...receipt, viewUrl });
     } catch (openError) {
-      console.error("Unable to open finance receipt:", openError);
-      setOpenError(financeReceiptErrorMessage(openError, "open"));
+      reportApplicationError(openError, { area: "FinanceReceiptControl", operation: "Unable to open finance receipt" });
+      setOpenError(financeReceiptErrorMessage(openError, "open", { transactionId, section }));
     } finally {
       setOpening(false);
     }
@@ -86,8 +87,8 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
         return matching;
       });
     } catch (loadError) {
-      console.error("Unable to load finance receipts:", loadError);
-      setError(financeReceiptErrorMessage(loadError, "check"));
+      reportApplicationError(loadError, { area: "FinanceReceiptControl", operation: "Unable to load finance receipts" });
+      setError(financeReceiptErrorMessage(loadError, "check", { transactionId, section }));
     } finally {
       setLoading(false);
     }
@@ -114,9 +115,9 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
       setUploadProgress(100);
       await refresh();
     } catch (uploadError) {
-      console.error("Unable to upload finance receipt:", uploadError);
+      reportApplicationError(uploadError, { area: "FinanceReceiptControl", operation: "Unable to upload finance receipt" });
       setFailedFile(file);
-      setError(financeReceiptErrorMessage(uploadError, "upload"));
+      setError(financeReceiptErrorMessage(uploadError, "upload", { transactionId, section }));
     } finally {
       setUploading(false);
     }
@@ -131,8 +132,8 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
       setReceiptToRemove(null);
       await refresh();
     } catch (removeError) {
-      console.error("Unable to remove finance receipt:", removeError);
-      setError(financeReceiptErrorMessage(removeError, "remove"));
+      reportApplicationError(removeError, { area: "FinanceReceiptControl", operation: "Unable to remove finance receipt" });
+      setError(financeReceiptErrorMessage(removeError, "remove", { transactionId, section }));
     } finally {
       setRemoving(false);
     }

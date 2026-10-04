@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +35,7 @@ export default function CreateWeeklyMeetingPage() {
 
   useEffect(() => {
     void loadWeeklyAccess().then((access) => setCanViewAll(access.canViewAll))
-      .catch(() => setError("Unable to load meeting access."))
+      .catch((failure) => setError(applicationErrorMessage(failure, "Unable to load meeting access.", "CreateWeeklyMeetingPage")))
       .finally(() => setAccessLoaded(true));
   }, []);
 
@@ -80,8 +81,7 @@ export default function CreateWeeklyMeetingPage() {
       await recordAuditEvent({ category: "system", action: "weekly-meeting-create", targetId: id, targetLabel: `${section} Weekly Meeting · ${date}`, description: "Created weekly meeting from dedicated creation workflow.", section });
       navigate(`/leader/weekly?meeting=${encodeURIComponent(id)}`);
     } catch (saveError) {
-      console.error(saveError);
-      setError(saveError instanceof Error ? saveError.message : "Unable to create this meeting.");
+      setError(applicationErrorMessage(saveError, "Unable to create this meeting.", "CreateWeeklyMeetingPage"));
     } finally {
       setSaving(false);
     }

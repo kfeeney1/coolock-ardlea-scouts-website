@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan } from "./weeklyTracker";
 
 export type ProgrammeLibraryKind = "activity" | "badgework";
@@ -107,9 +108,9 @@ export async function loadProgrammeLibrary(sections: string[]): Promise<Programm
 export async function createProgrammeLibraryItem(input: ProgrammeLibraryInput): Promise<string> {
   const { addDoc, collection, serverTimestamp, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
+  if (!user) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   const cleaned = cleanProgrammeLibraryInput(input);
-  if (!cleaned.section || !cleaned.name) throw new Error("Section and name are required.");
+  if (!cleaned.section || !cleaned.name) throw new UserFacingError("Section and name are required.");
   const ref = await addDoc(collection(db, "programmeLibrary"), {
     ...cleaned,
     createdBy: user.uid,
@@ -123,15 +124,15 @@ export async function createProgrammeLibraryItem(input: ProgrammeLibraryInput): 
 export async function updateProgrammeLibraryItem(id: string, input: ProgrammeLibraryInput): Promise<void> {
   const { doc, serverTimestamp, updateDoc, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
+  if (!user) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   const cleaned = cleanProgrammeLibraryInput(input);
-  if (!cleaned.section || !cleaned.name) throw new Error("Section and name are required.");
+  if (!cleaned.section || !cleaned.name) throw new UserFacingError("Section and name are required.");
   await updateDoc(doc(db, "programmeLibrary", id), { ...cleaned, updatedBy: user.uid, updatedAt: serverTimestamp() });
 }
 
 export async function deleteProgrammeLibraryItem(id: string): Promise<void> {
   const { deleteDoc, doc, auth, db } = await firestoreRuntime();
   const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
+  if (!user) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   await deleteDoc(doc(db, "programmeLibrary", id));
 }

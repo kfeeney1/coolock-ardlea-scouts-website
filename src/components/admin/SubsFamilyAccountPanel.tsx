@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -45,7 +46,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
     try {
       total = familyTotalFor(selectedPolicy, familyType, selectedMembers.length);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Rate not configured";
+      const message = applicationErrorMessage(error, "Rate not configured.", "Family subscriptions");
       rateError = message.startsWith("Rate not configured") ? "Rate not configured" : message;
     }
   }
@@ -72,7 +73,7 @@ export default function SubsFamilyAccountPanel({ members, policies, assignments,
         onMessage("Family billing account was created successfully, but the dependent finance data could not be refreshed. Reload this page to retry; the saved account has not been rolled back.");
       }
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Unable to create family billing account.");
+      onError(applicationErrorMessage(error, "Unable to create family billing account.", "SubsFamilyAccountPanel"));
     } finally {
       onSaving(false);
     }

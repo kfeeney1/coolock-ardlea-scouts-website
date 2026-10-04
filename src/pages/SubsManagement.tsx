@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -94,8 +95,7 @@ export default function SubsManagement() {
       const currentPolicy = resolveCurrentSubsPolicy(p);
       setPeriod((current) => current && p.some((policy) => policy.period === current) ? current : currentPolicy?.period ?? "");
     } catch (e) {
-      console.error(e);
-      if (version === loadVersion.current) setError("Unable to load Subs data. Try again.");
+      if (version === loadVersion.current) setError(applicationErrorMessage(e, "Unable to load Subs data. Try again.", "SubsManagement"));
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
@@ -147,7 +147,7 @@ export default function SubsManagement() {
       setMessage(selectedAssignment.accountId ? "Family subs payment recorded. Group finance can view the complete shared balance." : "Subs payment recorded.");
       void load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to record payment.");
+      setError(applicationErrorMessage(e, "Unable to record payment.", "SubsManagement"));
     } finally {
       paymentSubmission.current = false;
       setSaving(false);
@@ -163,7 +163,7 @@ export default function SubsManagement() {
       setMessage("Payment correction recorded as a linked reversal.");
       void load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to correct payment.");
+      setError(applicationErrorMessage(e, "Unable to correct payment.", "SubsManagement"));
     } finally {
       setSaving(false);
     }
@@ -175,7 +175,7 @@ export default function SubsManagement() {
       if (!paymentOperationId.current) paymentOperationId.current = crypto.randomUUID();
       setConfirmOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Enter a valid amount.");
+      setError(applicationErrorMessage(e, "Enter a valid amount.", "SubsManagement"));
     }
   };
   const paymentReady = useMemo(() => {

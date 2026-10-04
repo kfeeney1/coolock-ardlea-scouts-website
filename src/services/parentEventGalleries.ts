@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
@@ -220,7 +221,7 @@ async function loadAuthorizedPhotos(event: CandidateEvent): Promise<ParentGaller
 }
 
 export async function loadParentEventGalleries(sections: string[]): Promise<ParentEventGallery[]> {
-    if (!auth.currentUser) throw new Error("You must be signed in to view event galleries.");
+    if (!auth.currentUser) throw new ServiceFailure("You must be signed in to view event galleries.", "auth/unauthenticated");
     const candidates = await loadCandidateEvents(sections);
     const galleries: ParentEventGallery[] = [];
 

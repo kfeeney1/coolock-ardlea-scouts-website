@@ -1,3 +1,4 @@
+import { UserInputError } from "./applicationErrors.ts";
 export type FinanceTransactionType = "opening-float" | "income" | "expense" | "transfer-in" | "transfer-out" | "adjustment";
 
 export type FinanceTransaction = {
@@ -60,14 +61,14 @@ export function normaliseFinanceText(value: string): string {
 
 export function signedAmountCents(transaction: Pick<FinanceTransaction, "type" | "amountCents">): number {
   if (!Number.isInteger(transaction.amountCents)) {
-    throw new Error("Finance amounts must be stored as whole cents.");
+    throw new UserInputError("Finance amounts must be stored as whole cents.");
   }
   if (transaction.type === "adjustment") {
-    if (transaction.amountCents === 0) throw new Error("Adjustments cannot be zero.");
+    if (transaction.amountCents === 0) throw new UserInputError("Adjustments cannot be zero.");
     return transaction.amountCents;
   }
   if (transaction.amountCents < 0) {
-    throw new Error("Non-adjustment finance amounts must be non-negative whole cents.");
+    throw new UserInputError("Non-adjustment finance amounts must be non-negative whole cents.");
   }
   if (POSITIVE_TYPES.has(transaction.type)) return transaction.amountCents;
   if (NEGATIVE_TYPES.has(transaction.type)) return -transaction.amountCents;
@@ -99,11 +100,11 @@ export function financeFloatIsOpen(transactions: FinanceTransaction[]): boolean 
 
 export function assertNonNegativeFinanceBalance(currentBalanceCents: number, movementCents: number): number {
   if (!Number.isInteger(currentBalanceCents) || currentBalanceCents < 0) {
-    throw new Error("The current float balance is invalid and must be reconciled before adding another transaction.");
+    throw new UserInputError("The current float balance is invalid and must be reconciled before adding another transaction.");
   }
-  if (!Number.isInteger(movementCents)) throw new Error("Finance movement must be stored as whole cents.");
+  if (!Number.isInteger(movementCents)) throw new UserInputError("Finance movement must be stored as whole cents.");
   const nextBalanceCents = currentBalanceCents + movementCents;
-  if (nextBalanceCents < 0) throw new Error("This transaction would take the section float below €0.00.");
+  if (nextBalanceCents < 0) throw new UserInputError("This transaction would take the section float below €0.00.");
   return nextBalanceCents;
 }
 
@@ -112,7 +113,7 @@ export function reconcileFinanceFloat(
   countedBalanceCents: number
 ): FinanceReconciliation {
   if (!Number.isInteger(countedBalanceCents) || countedBalanceCents < 0) {
-    throw new Error("Counted balance must be a non-negative whole-cent amount.");
+    throw new UserInputError("Counted balance must be a non-negative whole-cent amount.");
   }
   const expectedBalanceCents = calculateLedgerBalanceCents(transactions);
   const differenceCents = countedBalanceCents - expectedBalanceCents;
@@ -132,9 +133,9 @@ export function createFinanceReconciliationWrite(
 ): FinanceReconciliationWrite {
   const section = normaliseFinanceText(sectionValue);
   const note = normaliseFinanceText(noteValue);
-  if (!section) throw new Error("Select a section.");
+  if (!section) throw new UserInputError("Select a section.");
   const result = reconcileFinanceFloat(transactions, countedBalanceCents);
-  if (!result.balanced && !note) throw new Error("Add a note explaining the cash difference.");
+  if (!result.balanced && !note) throw new UserInputError("Add a note explaining the cash difference.");
   return {
     section,
     expectedBalanceCents: result.expectedBalanceCents,
@@ -150,21 +151,21 @@ export function validateFinanceTransactionInput(input: FinanceTransactionInput):
   const description = normaliseFinanceText(input.description);
   const transactionDate = input.transactionDate.trim();
 
-  if (!section) throw new Error("Select a section.");
-  if (!Number.isInteger(input.amountCents)) throw new Error("Enter an amount in whole cents.");
+  if (!section) throw new UserInputError("Select a section.");
+  if (!Number.isInteger(input.amountCents)) throw new UserInputError("Enter an amount in whole cents.");
   if (input.type === "adjustment") {
-    if (input.amountCents === 0) throw new Error("Enter a non-zero adjustment amount.");
+    if (input.amountCents === 0) throw new UserInputError("Enter a non-zero adjustment amount.");
   } else if (input.amountCents <= 0) {
-    throw new Error("Enter an amount greater than zero.");
+    throw new UserInputError("Enter an amount greater than zero.");
   }
-  if (!category) throw new Error("Select or enter a finance category.");
-  if (!description) throw new Error("Enter a transaction description.");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) throw new Error("Enter a valid transaction date.");
+  if (!category) throw new UserInputError("Select or enter a finance category.");
+  if (!description) throw new UserInputError("Enter a transaction description.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) throw new UserInputError("Enter a valid transaction date.");
   if (input.type === "adjustment" && !input.reversalOfTransactionId.trim()) {
-    throw new Error("Adjustments must reference the transaction being corrected.");
+    throw new UserInputError("Adjustments must reference the transaction being corrected.");
   }
   if (input.type !== "adjustment" && input.reversalOfTransactionId.trim()) {
-    throw new Error("Only adjustment transactions may reverse an earlier transaction.");
+    throw new UserInputError("Only adjustment transactions may reverse an earlier transaction.");
   }
 
   return {

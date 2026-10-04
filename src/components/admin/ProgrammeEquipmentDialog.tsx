@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import type { EquipmentItem } from "../../services/equipment";
@@ -34,7 +35,7 @@ export default function ProgrammeEquipmentDialog({ open, sourceType, sourceId, s
     await onChanged();
   };
 
-  useEffect(() => { if (!open || !sourceId) return; setError(""); setReturnDate(defaultReturnDate(date)); void loadEquipmentRequirement(sourceType, sourceId).then((loaded) => { setRequirement(loaded); setQuantities(Object.fromEntries((loaded?.lines ?? []).map((line) => [line.itemId, line.quantity]))); }).catch(() => setError("Unable to load planned equipment.")); }, [open, sourceType, sourceId, date]);
+  useEffect(() => { if (!open || !sourceId) return; setError(""); setReturnDate(defaultReturnDate(date)); void loadEquipmentRequirement(sourceType, sourceId).then((loaded) => { setRequirement(loaded); setQuantities(Object.fromEntries((loaded?.lines ?? []).map((line) => [line.itemId, line.quantity]))); }).catch((failure) => setError(applicationErrorMessage(failure, "Unable to load planned equipment.", "ProgrammeEquipmentDialog"))); }, [open, sourceType, sourceId, date]);
 
   const savePlan = async () => {
     setSaving(true); setError("");
@@ -42,28 +43,28 @@ export default function ProgrammeEquipmentDialog({ open, sourceType, sourceId, s
       const lines = activeItems.map((item) => ({ itemId: item.id, itemName: item.name, quantity: quantities[item.id] ?? 0 })).filter((line) => Number.isInteger(line.quantity) && line.quantity > 0);
       await saveEquipmentRequirement({ sourceType, sourceId, sourceLabel, section, date, lines }, requirement?.loanId ?? "");
       await reload();
-    } catch (e) { setError(e instanceof Error ? e.message : "Unable to save planned equipment."); } finally { setSaving(false); }
+    } catch (e) { setError(applicationErrorMessage(e, "Unable to save planned equipment.", "ProgrammeEquipmentDialog")); } finally { setSaving(false); }
   };
 
   const reserve = async () => {
     if (!requirement) return;
     setSaving(true); setError("");
     try { await reserveEquipmentRequirement(requirement); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to reserve this equipment."); } finally { setSaving(false); }
+    catch (e) { setError(applicationErrorMessage(e, "Unable to reserve this equipment.", "ProgrammeEquipmentDialog")); } finally { setSaving(false); }
   };
 
   const cancelReservation = async () => {
     if (!requirement) return;
     setSaving(true); setError("");
     try { await cancelEquipmentRequirementReservation(requirement); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to cancel this reservation."); } finally { setSaving(false); }
+    catch (e) { setError(applicationErrorMessage(e, "Unable to cancel this reservation.", "ProgrammeEquipmentDialog")); } finally { setSaving(false); }
   };
 
   const checkout = async () => {
     if (!requirement) return;
     setSaving(true); setError("");
     try { await checkoutEquipmentRequirement(requirement, returnDate); await reload(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to create checkout from this plan."); } finally { setSaving(false); }
+    catch (e) { setError(applicationErrorMessage(e, "Unable to create checkout from this plan.", "ProgrammeEquipmentDialog")); } finally { setSaving(false); }
   };
 
   return <Dialog open={open} onClose={() => !saving && onClose()} fullWidth maxWidth="md"><DialogTitle>Equipment · {sourceLabel}</DialogTitle><DialogContent dividers><Stack spacing={2}>

@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
     collection,
     doc,
@@ -101,11 +102,11 @@ function mapConsent(snapshot: DocumentSnapshot<DocumentData>): ConsentAdminRecor
 
 export async function loadConsentAdminRecord(consentId: string): Promise<ConsentAdminRecord | null> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new Error("Active leader profile is required.");
+        throw new UserFacingError("Active leader profile is required.");
     }
 
     // Direct record reads deliberately use the document path. Firestore Rules are
@@ -120,11 +121,11 @@ export async function loadConsentAdminRecord(consentId: string): Promise<Consent
 
 export async function loadConsentAdminRecords(): Promise<ConsentAdminRecord[]> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new Error("Active leader profile is required.");
+        throw new UserFacingError("Active leader profile is required.");
     }
 
     const profile = profileSnapshot.data();

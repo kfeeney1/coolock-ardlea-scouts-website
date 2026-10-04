@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 // Objects can disappear between listing and reading (for example when another
 // leader removes a photo). Only that case is recoverable: permission and network
 // failures must still reach the gallery's error/retry state.
@@ -26,10 +27,10 @@ export async function loadGalleryItems<TItem, TPhoto>(
 }
 
 export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message = "Operation timed out."): Promise<T> {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return Promise.reject(new Error(message));
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return Promise.reject(new ServiceFailure(message, "storage/deadline-exceeded"));
 
   return new Promise<T>((resolve, reject) => {
-    const timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+    const timeoutId = setTimeout(() => reject(new ServiceFailure(message, "storage/deadline-exceeded")), timeoutMs);
 
     promise.then(
       (value) => {
@@ -54,7 +55,7 @@ export function completeGalleryUpload(
     const timer = setTimeout(() => {
       unsubscribe();
       task.cancel();
-      reject(new Error("Gallery upload timed out."));
+      reject(new ServiceFailure("Gallery upload timed out.", "storage/upload-timeout"));
     }, deadlineMs);
     const unsubscribe = task.on("state_changed", undefined, (error) => {
       clearTimeout(timer);

@@ -115,10 +115,25 @@ test("SW-281 receipt status does not download bodies and corrected receipts surv
   await persistedRow.getByRole("button", { name: "View receipt", exact: true }).click();
   const viewer = page.getByRole("dialog", { name: "sw281-receipt.pdf" });
   await expect(viewer.getByText(/Receipt opening was denied/)).toBeVisible();
+  await expect(viewer.getByRole("alert")).toContainText(/Reference: ERR-[A-F0-9]{12}/);
   await viewer.getByRole("button", { name: "Close", exact: true }).click();
   await expect(persistedRow.getByText("Receipt attached", { exact: true })).toBeVisible();
   denyDownload = false;
   await persistedRow.getByRole("button", { name: "View receipt", exact: true }).click();
   await expect(viewer.getByRole("link", { name: "Open receipt in new tab" })).toHaveAttribute("href", /^blob:/);
   await viewer.getByRole("button", { name: "Close", exact: true }).click();
+  // SW-286: a rejected second upload must preserve the existing receipt and
+  // cannot retain the earlier successful-upload status.
+  await page.route(url => url.port === "9199" && url.searchParams.has("name"), async route => {
+    if (route.request().method() === "POST") await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: 403, message: "PRIVATE_RECEIPT_PAYLOAD" } }) });
+    else await route.continue();
+  });
+  await persistedRow.locator('input[type="file"]').setInputFiles({ name: "sw286-denied.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });
+  await expect(persistedRow.getByRole("alert")).toContainText(/Receipt upload was denied/);
+  await expect(persistedRow.getByRole("alert")).toContainText(/Reference: ERR-[A-F0-9]{12}/);
+  await expect(persistedRow.getByRole("alert")).toContainText("storage/unauthorized");
+  await expect(persistedRow.getByRole("alert")).not.toContainText("PRIVATE_RECEIPT_PAYLOAD");
+  await expect(persistedRow.getByText("Receipt upload complete", { exact: true })).toHaveCount(0);
+  await expect(persistedRow.getByRole("button", { name: "Retry upload", exact: true })).toBeVisible();
+  await expect(persistedRow.getByText("Receipt attached", { exact: true })).toBeVisible();
 });

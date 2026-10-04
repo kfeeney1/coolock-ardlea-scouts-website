@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 export type FamilyMemberLike = {
   id: string;
   familyId?: string;
@@ -19,15 +20,15 @@ export function planFamilyLink(
   siblingId: string,
   newFamilyId: string
 ): FamilyAssignment[] {
-  if (!memberId || !siblingId || memberId === siblingId) throw new Error("Choose a different member to link as a sibling.");
+  if (!memberId || !siblingId || memberId === siblingId) throw new UserFacingError("Choose a different member to link as a sibling.");
   const member = members.find((item) => item.id === memberId);
   const sibling = members.find((item) => item.id === siblingId);
-  if (!member || !sibling) throw new Error("Both members must be available in Member Management.");
+  if (!member || !sibling) throw new UserFacingError("Both members must be available in Member Management.");
 
   if (member.familyId && member.familyId === sibling.familyId) return [];
 
   const targetFamilyId = member.familyId || sibling.familyId || newFamilyId;
-  if (!targetFamilyId) throw new Error("Unable to create a family identifier.");
+  if (!targetFamilyId) throw new UserFacingError("Unable to create a family identifier.");
 
   const familyIdsToMerge = new Set([member.familyId, sibling.familyId].filter(Boolean));
   const affectedIds = new Set([member.id, sibling.id]);

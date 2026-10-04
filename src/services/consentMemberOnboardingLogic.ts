@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 const text = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? String(data[key]).trim() : "";
 const YOUTH_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
 
@@ -21,9 +22,9 @@ export function memberDraftFromYouthConsent(data: Record<string, unknown>): Cons
   const lastName = parts.join(" ");
   const section = text(data, "section");
   const dateOfBirth = text(data, "childDOB");
-  if (!firstName || !lastName) throw new Error("The consent child name must include a first name and surname before a member can be created.");
-  if (!dateOfBirth) throw new Error("The consent date of birth is required before a member can be created.");
-  if (!YOUTH_SECTIONS.has(section)) throw new Error("The consent must have a canonical youth section before a member can be created.");
+  if (!firstName || !lastName) throw new UserFacingError("The consent child name must include a first name and surname before a member can be created.");
+  if (!dateOfBirth) throw new UserFacingError("The consent date of birth is required before a member can be created.");
+  if (!YOUTH_SECTIONS.has(section)) throw new UserFacingError("The consent must have a canonical youth section before a member can be created.");
   return {
     firstName, lastName, displayName, dateOfBirth, section,
     parentName: text(data, "parent1Name"),

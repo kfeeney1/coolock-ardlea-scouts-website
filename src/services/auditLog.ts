@@ -1,3 +1,4 @@
+import { reportApplicationError } from "./applicationErrors.ts";
 import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -30,7 +31,7 @@ export async function recordAuditEvent(event: AuditWrite) {
       createdAt: serverTimestamp()
     });
   } catch (error) {
-    console.error("Unable to record audit event:", error);
+    reportApplicationError(error, { area: "auditLog", operation: "Unable to record audit event" });
   }
 }
 

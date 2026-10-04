@@ -1,3 +1,4 @@
+import { applicationErrorMessage, ServiceFailure } from "./applicationErrors.ts";
 export type OperationalHealthStatus = "healthy" | "warning" | "unavailable";
 
 export type OperationalHealthItem = {
@@ -91,10 +92,10 @@ export async function loadOperationalHealth(): Promise<OperationalHealthItem[]> 
     let release: OperationalHealthItem;
     try {
         const response = await fetch(`/build-info.json?t=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error(`build-info returned ${response.status}`);
+        if (!response.ok) throw new ServiceFailure("Build evidence request failed.", "backend/request-failed", { status: response.status });
         release = buildReleaseHealth(await response.json() as BuildInfoPayload);
-    } catch {
-        release = { id: "release", label: "Deployed release", status: "unavailable", detail: "Unable to read deployed build evidence." };
+    } catch (error) {
+        release = { id: "release", label: "Deployed release", status: "unavailable", detail: applicationErrorMessage(error, "Unable to read deployed build evidence.", "Operational health") };
     }
 
     return [

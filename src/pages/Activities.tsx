@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -37,8 +38,7 @@ export default function Activities() {
             try {
                 setEvents(await loadUpcomingPublicEvents());
             } catch (loadError) {
-                console.error("Unable to load upcoming activities:", loadError);
-                setError("Unable to load upcoming activities at the moment.");
+                setError(applicationErrorMessage(loadError, "Unable to load upcoming activities at the moment.", "Activities"));
             } finally {
                 setLoading(false);
             }

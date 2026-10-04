@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import type { DocumentData, DocumentSnapshot, Timestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -159,9 +160,9 @@ export async function loadMeetingRecordVersions(meetingId: string): Promise<Meet
 
 export async function createMeetingRecord(input: MeetingInput, file?: File | null): Promise<string> {
   const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
+  if (!user) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   const cleaned = cleanInput(input);
-  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new Error("Meeting does not match the canonical data contract.");
+  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new UserFacingError("Meeting does not match the canonical data contract.");
   const recordRef = doc(collection(db, "meetingRecords"));
   let uploaded: MeetingDocument | null = null;
   try {
@@ -169,21 +170,21 @@ export async function createMeetingRecord(input: MeetingInput, file?: File | nul
     await setDoc(recordRef, { ...toStoredInput({ ...cleaned, attachment: uploaded ?? cleaned.attachment }), createdBy: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: user.uid });
     return recordRef.id;
   } catch (error) {
-    if (uploaded) await removeMeetingDocument(uploaded.path).catch(() => undefined);
+    if (uploaded) await removeMeetingDocument(uploaded.path).catch((cleanupError) => { reportApplicationError(cleanupError, { area: "Meeting records", operation: "Remove superseded or unpublished document" }); });
     throw error;
   }
 }
 
 export async function updateMeetingRecord(id: string, input: MeetingInput, file?: File | null): Promise<void> {
   const user = auth.currentUser;
-  if (!user) throw new Error("Leader authentication is required.");
+  if (!user) throw new ServiceFailure("Leader authentication is required.", "auth/unauthenticated");
   const cleaned = cleanInput(input);
-  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new Error("Meeting does not match the canonical data contract.");
+  if (!cleaned.title || !cleaned.meetingDate || !cleaned.section) throw new UserFacingError("Meeting does not match the canonical data contract.");
 
   const recordRef = doc(db, "meetingRecords", id);
   const currentSnapshot = await getDoc(recordRef);
   const current = mapMeeting(currentSnapshot);
-  if (!current) throw new Error("Existing meeting record does not match the canonical data contract.");
+  if (!current) throw new UserFacingError("Existing meeting record does not match the canonical data contract.");
 
   const previous: MeetingInput = {
     title: current.title,
@@ -220,9 +221,9 @@ export async function updateMeetingRecord(id: string, input: MeetingInput, file?
   });
   try {
     await batch.commit();
-    if (uploaded && current.attachment?.path && current.attachment.path !== uploaded.path) await removeMeetingDocument(current.attachment.path).catch(() => undefined);
+    if (uploaded && current.attachment?.path && current.attachment.path !== uploaded.path) await removeMeetingDocument(current.attachment.path).catch((cleanupError) => { reportApplicationError(cleanupError, { area: "Meeting records", operation: "Remove superseded or unpublished document" }); });
   } catch (error) {
-    if (uploaded) await removeMeetingDocument(uploaded.path).catch(() => undefined);
+    if (uploaded) await removeMeetingDocument(uploaded.path).catch((cleanupError) => { reportApplicationError(cleanupError, { area: "Meeting records", operation: "Remove superseded or unpublished document" }); });
     throw error;
   }
 }

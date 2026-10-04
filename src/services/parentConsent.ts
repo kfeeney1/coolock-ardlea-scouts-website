@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -255,7 +256,7 @@ export function validateParentConsentRecord(values: Partial<ParentConsentRecord>
 
 export async function updateParentConsent(consentId: string, values: Partial<ParentConsentRecord>): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in parent.");
+    if (!user) throw new UserFacingError("No signed-in parent.");
     const validationMessage = firstYouthConsentValidationMessage(validateParentConsentRecord(values));
     if (validationMessage) throw new Error(validationMessage);
 
@@ -299,18 +300,18 @@ export async function updateParentConsent(consentId: string, values: Partial<Par
     }
 
     const memberId = values.memberId?.trim() ?? "";
-    if (!memberId) throw new Error("A linked member is required to create consent.");
+    if (!memberId) throw new UserFacingError("A linked member is required to create consent.");
 
     // Re-read the linked member so identity fields cannot be supplied or changed by the form.
     // Firestore rules only allow an approved parent to read a member linked to their account.
     const memberSnapshot = await getDoc(doc(db, "members", memberId));
-    if (!memberSnapshot.exists()) throw new Error("The linked member could not be found.");
+    if (!memberSnapshot.exists()) throw new UserFacingError("The linked member could not be found.");
     const member = memberSnapshot.data();
     const childName = stringValue(member, "displayName");
     const childDOB = stringValue(member, "dateOfBirth");
     const section = stringValue(member, "section");
     if (!childName || !childDOB || !section) {
-        throw new Error("The linked member is missing required identity information.");
+        throw new UserFacingError("The linked member is missing required identity information.");
     }
 
     await addDoc(collection(db, "consentApplications"), {
@@ -329,7 +330,7 @@ export async function updateParentConsent(consentId: string, values: Partial<Par
 
 export async function linkConsentRecordsToMembers(memberIds: string[]): Promise<number> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const consentSnapshot = await getDocs(collection(db, "consentApplications"));
     let linked = 0;

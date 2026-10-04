@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -43,7 +44,7 @@ export default function JoinManagement() {
   const load = async () => {
     setLoading(true); setError("");
     try { setRecords(await loadJoinApplications()); }
-    catch (loadError) { console.error("Unable to load Join Us enquiries:", loadError); setError("Unable to load Join Us enquiries."); }
+    catch (loadError) { setError(applicationErrorMessage(loadError, "Unable to load Join Us enquiries.", "JoinManagement")); }
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);

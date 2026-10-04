@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -41,8 +42,7 @@ export default function CreateEventPage() {
         setMembers(loadedMembers);
       })
       .catch((loadError) => {
-        console.error("Unable to load event creation data:", loadError);
-        if (active) setLoadError("Unable to load event creation data. Retry before selecting an audience or creating this event.");
+        if (active) setLoadError(applicationErrorMessage(loadError, "Unable to load event creation data. Retry before selecting an audience or creating this event.", "CreateEventPage"));
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -122,8 +122,7 @@ export default function CreateEventPage() {
       const eventId = await createEvent({ ...draft, audience: buildEventAudience(sectionIds, selectedIds, members) });
       navigate(`/leader/events/${encodeURIComponent(eventId)}`, { replace: true });
     } catch (saveError) {
-      console.error("Unable to save event:", saveError);
-      setError("Unable to save the event.");
+      setError(applicationErrorMessage(saveError, "Unable to save the event.", "CreateEventPage"));
     } finally {
       setSaving(false);
     }

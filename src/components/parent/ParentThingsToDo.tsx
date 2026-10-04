@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -62,7 +63,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
             ]);
             setSummary(summariseParentTasks(events, members, consents));
         } catch (error) {
-            console.error("Unable to load parent task summary:", error);
+            reportApplicationError(error, { area: "ParentThingsToDo", operation: "Unable to load parent task summary" });
             setLoadError(error);
         } finally {
             setLoading(false);

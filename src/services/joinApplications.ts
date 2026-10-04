@@ -1,3 +1,4 @@
+import { reportSecondaryFailure } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -77,7 +78,7 @@ export async function submitJoinApplication(
     } catch (emailError) {
         // The application is already safely stored in Firestore. Email failure must
         // not make the parent think their application was lost or resubmit it.
-        console.error("Unable to send Join Us admin email notification:", emailError);
+        reportSecondaryFailure(emailError, { area: "joinApplications", operation: "Unable to send Join Us admin email notification" });
     }
 
     return documentReference.id;

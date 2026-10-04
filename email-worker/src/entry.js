@@ -1,3 +1,4 @@
+import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
 import { handleProductionRoute } from "./productionRoutes.js";
 
@@ -20,6 +21,7 @@ function corsHeaders(request, env) {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0] || "",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Expose-Headers": "X-Error-Reference",
     Vary: "Origin"
   };
 }
@@ -33,6 +35,18 @@ function json(request, env, status, body) {
 
 export function privacySafeDiagnostic(args) {
   const values = Array.isArray(args) ? args : [args];
+  const report = values[1];
+  if (values[0] === "Backend failure" && report?.schema === "application-error-v1") {
+    return { label: "Backend failure", detail: {
+      code: approvedBackendCode(report.code) || "backend/request-failed",
+      reference: /^ERR-[A-F0-9]{12}$/.test(report.reference) ? report.reference : undefined,
+      timestamp: /^\d{4}-\d{2}-\d{2}T[0-9:.]+Z$/.test(report.timestamp) ? report.timestamp : undefined,
+      operation: /^\/[a-z-]{1,60}$/.test(report.operation) ? report.operation : "backend request",
+      status: Number.isInteger(report.status) && report.status >= 400 && report.status <= 599 ? report.status : undefined,
+      environment: ["production", "test"].includes(report.environment) ? report.environment : "unknown",
+      upstream: ["firestore", "email-provider", "authentication", "configuration"].includes(report.upstream) ? report.upstream : "unknown",
+    } };
+  }
   const label = typeof values[0] === "string" && values[0].trim()
     ? values[0].trim().slice(0, 120)
     : "Email worker error";
@@ -177,23 +191,11 @@ export default {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error || "");
-        const diagnosticCode =
-          message.startsWith("Firebase service-account credentials") ? "firebase-service-credentials-missing" :
-          message.startsWith("Firebase service-account token request failed with ") ? "firebase-service-token-failed" :
-          message.startsWith("Firebase service-account token response") ? "firebase-service-token-incomplete" :
-          message.startsWith("Firestore list ") ? "firestore-list-failed" :
-          message.startsWith("Resend returned ") ? "resend-submit-failed" :
-          /ACTION_LINK_SECRET|secure action/i.test(message) ? "secure-action-link-failed" :
-          "authoritative-route-unclassified";
-        const statusMatch = message.match(/(?:failed with|returned)\s+(\d{3})/i);
-        console.error(JSON.stringify({
-          code: "email-worker-error",
-          diagnosticCode,
-          ...(statusMatch ? { upstreamStatus: Number(statusMatch[1]) } : {}),
-          route: path
-        }));
-        return json(request, env, 500, { ok: false, error: "Unable to complete the requested communication action." });
+        const diagnostic = backendFailureDiagnostic(error, path, env.EMAIL_DELIVERY_MODE);
+        rawConsoleError("Backend failure", diagnostic);
+        const response = json(request, env, 500, { ok: false, error: "Unable to complete the requested communication action.", reference: diagnostic.reference });
+        response.headers.set("X-Error-Reference", diagnostic.reference);
+        return response;
       }
     }
 

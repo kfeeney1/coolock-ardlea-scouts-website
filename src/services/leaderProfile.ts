@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 import {
     EmailAuthProvider,
     reauthenticateWithCredential,
@@ -30,14 +31,14 @@ const clean = (
 
 export async function loadLeaderProfile(): Promise<LeaderProfileData> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader was found.");
+    if (!user) throw new UserFacingError("No signed-in leader was found.");
 
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!snapshot.exists()) throw new Error("Leader profile was not found.");
+    if (!snapshot.exists()) throw new UserFacingError("Leader profile was not found.");
 
     const data = snapshot.data();
     const sections = normalizeLeaderSections(data);
-    if (sections.length === 0) throw new Error("Leader profile has no canonical section assignment.");
+    if (sections.length === 0) throw new UserFacingError("Leader profile has no canonical section assignment.");
 
     return {
         displayName: typeof data.displayName === "string" ? data.displayName : "",
@@ -52,14 +53,14 @@ export async function updateLeaderProfile(
     profile: Pick<LeaderProfileData, "displayName" | "mobileNumber" | "section">
 ): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader was found.");
+    if (!user) throw new UserFacingError("No signed-in leader was found.");
 
     const profileRef = doc(db, "adminUsers", user.uid);
     const snapshot = await getDoc(profileRef);
-    if (!snapshot.exists()) throw new Error("Leader profile was not found.");
+    if (!snapshot.exists()) throw new UserFacingError("Leader profile was not found.");
 
     const existingSections = normalizeLeaderSections(snapshot.data());
-    if (existingSections.length === 0) throw new Error("Leader profile has no canonical section assignment.");
+    if (existingSections.length === 0) throw new UserFacingError("Leader profile has no canonical section assignment.");
 
     await updateDoc(profileRef, {
         displayName: clean(profile.displayName, 150),
@@ -73,7 +74,7 @@ export async function changeLeaderPassword(
     newPassword: string
 ): Promise<void> {
     const user = auth.currentUser;
-    if (!user || !user.email) throw new Error("No password-based leader account was found.");
+    if (!user || !user.email) throw new UserFacingError("No password-based leader account was found.");
 
     const credential = EmailAuthProvider.credential(user.email, currentPassword);
     await reauthenticateWithCredential(user, credential);

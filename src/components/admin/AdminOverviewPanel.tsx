@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -40,8 +41,7 @@ export default function AdminOverviewPanel() {
     try {
       setOverview(await loadAdminOverview(adminProfile));
     } catch (overviewError) {
-      console.error("Unable to load operations overview:", overviewError);
-      setError("Unable to load the operations overview right now.");
+      setError(applicationErrorMessage(overviewError, "Unable to load the operations overview right now.", "AdminOverviewPanel"));
     } finally {
       setLoading(false);
     }
