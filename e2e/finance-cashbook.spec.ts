@@ -74,7 +74,9 @@ test("SW-281 receipt status does not download bodies and corrected receipts surv
   // Fund this isolated expense through the ordinary authorised float workflow.
   const type = page.getByRole("combobox", { name: "Transaction", exact: true });
   await type.click();
-  await page.getByRole("option", { name: "Float top up", exact: true }).click();
+  await expect(page.getByText("Loading section float…", { exact: true })).toBeHidden();
+  const emptyFloat = await page.getByText("No float transactions have been recorded for this section.", { exact: true }).isVisible();
+  await page.getByRole("option", { name: emptyFloat ? "Open float" : "Float top up", exact: true }).click();
   await page.getByLabel("Amount (€)").fill("1.00");
   await page.getByRole("button", { name: "Save transaction", exact: true }).click();
   await expect(page.getByLabel("Amount (€)")).toHaveValue("");
