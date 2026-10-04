@@ -104,17 +104,6 @@ export default function WeeklySectionTracker() {
   };
   useEffect(()=>{void refresh();},[availableSections,isAdmin,requestedMeetingId]);
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
-  useEffect(()=>{
-    let active=true;
-    if(!selected){setShareAdventureBadgework([]);setShareBadgeworkError("");setShareBadgeworkLoading(false);return()=>{active=false;};}
-    const memberIds=selected.entries.filter(entry=>entry.attendance==="present").map(entry=>entry.memberId);
-    setShareBadgeworkLoading(true);setShareBadgeworkError("");
-    void loadWeeklyMeetingAdventureBadgework(memberIds,selected.id)
-      .then(items=>{if(active)setShareAdventureBadgework(items);})
-      .catch(e=>{if(active){setShareAdventureBadgework([]);setShareBadgeworkError(applicationErrorMessage(e,"Unable to load completed Adventure Skills for meeting sharing.","WeeklySectionTracker"));}})
-      .finally(()=>{if(active)setShareBadgeworkLoading(false);});
-    return()=>{active=false;};
-  },[selected?.id,selected?.entries]);
   useEffect(()=>{if(!hasUnsavedChanges&&!copyHasMeaningfulChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[hasUnsavedChanges,copyHasMeaningfulChanges]);
 
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
