@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, decodeWeeklyBadgeworkSources, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
@@ -44,4 +44,24 @@ test("open roster reconciliation adds newly eligible members once and preserves 
 test("weekly attendance ordering is human-friendly with stable member-id tie break",()=>{
  const entries=[newWeeklyEntry("b","zoe scout"),newWeeklyEntry("c","Áine Scout"),newWeeklyEntry("a","Zoe Scout")];
  assert.deepEqual(sortWeeklyEntries(entries).map(x=>x.memberId),["c","a","b"]);
+});
+
+test("legacy Badgework sources survive an empty current plan and merge without duplicates", () => {
+  const plan = decodeWeeklyBadgeworkSources({
+    badgeworkPlan: [],
+    plannedBadgework: JSON.stringify({ marker: "weekly-badgework-v1", items: [{ badge: "Navigation" }] }),
+    badgework: [{ badgeName: "Pioneering" }, { title: "navigation" }]
+  });
+  assert.deepEqual(plan.map((item) => item.badge), ["Navigation", "Pioneering"]);
+});
+
+test("Badgework plan accepts a serialized value in badgeworkPlan", () => {
+  const plan = decodeWeeklyBadgeworkSources({
+    badgeworkPlan: JSON.stringify({ marker: "weekly-badgework-v1", items: ["Teamwork"] })
+  });
+  assert.deepEqual(plan.map((item) => item.badge), ["Teamwork"]);
+});
+
+test("Badgework section stays empty when every legacy source is empty", () => {
+  assert.deepEqual(decodeWeeklyBadgeworkSources({ badgeworkPlan: [], plannedBadgework: "", badgework: [] }), []);
 });
