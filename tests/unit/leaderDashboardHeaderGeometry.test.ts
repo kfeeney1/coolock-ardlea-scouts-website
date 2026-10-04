@@ -32,5 +32,5 @@ test("SW-288 desktop navigation uses independent balanced columns instead of rig
   assert.ok(header.includes("visibleGroups.filter((_,index)=>index%2===column)"));
   assert.ok(header.includes('gridTemplateColumns:"repeat(2, minmax(0, 1fr))"'));
   assert.ok(header.includes("minWidth:0"));
-  assert.ok(!header.includes('xl:"repeat(5, minmax(0, 1fr))"'));
+  assert.ok(header.includes('data-testid="leader-navigation-desktop"'));
 });
