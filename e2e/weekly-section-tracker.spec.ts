@@ -44,7 +44,7 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
   await expect(page.getByLabel("Theme")).toBeDisabled();
   await expect(page.getByLabel("Location")).toBeDisabled();
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
-  const completedBadgework = page.getByLabel(`Badges · ${scoutMemberName}`);
+  const completedBadgework = page.getByLabel(`Other completed badges · ${scoutMemberName}`);
   await expect(completedBadgework).toBeVisible();
   await expect(completedBadgework).toBeDisabled();
   await page.getByRole("button", { name: "Notes", exact: true }).click();
@@ -95,7 +95,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes"); await expect(page.getByTestId("programme-duration-warning")).toContainText("15 minutes longer than the standard 1½-hour meeting");
 
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
-  await page.getByLabel(`Badges · ${scoutMemberName}`).fill("Pioneering Stage 2");
+  await page.getByLabel(`Other completed badges · ${scoutMemberName}`).fill("Pioneering Stage 2");
 
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); if (!await page.getByText(/Small graze during wide game/).count()) { await page.getByLabel("Member").click(); await page.getByRole("option", { name: scoutMemberName }).click(); await page.getByLabel("Injury / medical concern").fill("Small graze during wide game"); await page.getByLabel("Severity").click(); await page.getByRole("option", { name: "Minor" }).click(); await page.getByLabel("Action taken").fill("Cleaned and covered"); await page.getByRole("checkbox", { name: "Parent informed" }).check(); await page.getByRole("button", { name: "Add Incident", exact: true }).click(); } await expect(page.getByText(/Small graze during wide game/)).toBeVisible();
   await page.getByRole("button", { name: "Notes", exact: true }).click(); await page.getByLabel("Additional meeting notes").fill("Visitors and equipment issue recorded after meeting."); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
@@ -110,6 +110,18 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering");
   await expect(firstBadgeworkLeader(page)).toBeChecked();
   await expect(page.getByLabel("Programme notes")).toHaveValue("Reusable opening and patrol rotation.");
+
+  // SW-290: prove completed Badgework survives the real save/reload path and reaches the WhatsApp payload.
+  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
+  await expect(page.getByLabel(`Other completed badges · ${scoutMemberName}`)).toHaveValue("Pioneering Stage 2");
+  const whatsappShare = page.getByTestId("weekly-whatsapp-share");
+  await expect(whatsappShare).toBeEnabled();
+  const whatsappHref = await whatsappShare.getAttribute("href");
+  expect(whatsappHref).toMatch(/^https:\/\/wa\.me\/\?text=/);
+  const whatsappText = decodeURIComponent(whatsappHref!.split("?text=")[1] || "");
+  expect(whatsappText).toContain("Badgework:");
+  expect(whatsappText).toContain("Pioneering Stage 2");
+  expect(whatsappText).not.toContain(scoutMemberName);
 
   const editorTop = page.getByTestId("weekly-meeting-editor-top");
   await expect(editorTop).toBeVisible();
@@ -130,7 +142,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByRole("button", { name: "Meetings", exact: true }).click(); const priorCopy = page.getByRole("button", { name: /8 Mar 2099 · Scouts/ }); if (await priorCopy.count()) { await priorCopy.first().click(); } else { const closedCard=page.getByTestId(/meeting-history-/).filter({hasText:"1 Mar 2099 · Scouts"}); await closedCard.getByRole("button",{name:"Copy Meeting", exact:true}).click(); await page.getByLabel("Choose date").fill(copyDate); await page.getByRole("button",{name:"Create Copy", exact:true}).click(); await expect(page.getByText(/Meeting copied\. Planner rows and planned equipment were retained/)).toBeVisible(); }
   await page.getByRole("button", { name: "Attendance", exact: true }).click(); await expect(page.getByText(/Present/).first()).toBeVisible();
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Navigation Night"); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Equipment 1", { exact: true })).toHaveValue("Cones and maps"); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes");
-  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByLabel(`Badges · ${scoutMemberName}`)).toHaveValue("Pioneering Stage 2");
+  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByLabel(`Other completed badges · ${scoutMemberName}`)).toHaveValue("Pioneering Stage 2");
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); await expect(page.getByText(/Small graze during wide game/)).toHaveCount(1); await page.getByRole("button", { name: "Notes", exact: true }).click(); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("Visitors and equipment issue recorded after meeting.");
 });
 
