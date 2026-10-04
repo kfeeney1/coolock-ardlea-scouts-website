@@ -65,3 +65,10 @@ test("Badgework plan accepts a serialized value in badgeworkPlan", () => {
 test("Badgework section stays empty when every legacy source is empty", () => {
   assert.deepEqual(decodeWeeklyBadgeworkSources({ badgeworkPlan: [], plannedBadgework: "", badgework: [] }), []);
 });
+
+test("an explicitly blank Badgework planner row remains editable after reload", () => {
+  const plan = decodeWeeklyBadgeworkSources({
+    plannedBadgework: JSON.stringify({ marker: "weekly-badgework-v1", items: [{ id: "blank-row", badge: "" }] })
+  });
+  assert.deepEqual(plan.map((item) => item.badge), [""]);
+});
