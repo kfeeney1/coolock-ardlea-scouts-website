@@ -183,7 +183,7 @@ export function reportApplicationError(error: unknown, context: ErrorContext): R
     `Code: ${normalizedCode}`,
     `Reference: ${reference}`,
     `Action: ${nextAction[category]}`,
-  ].join("\n");
+  ].join(" ");
   const result = { userMessage, diagnostic, cause: error };
   Object.defineProperty(result, "cause", { value: error, enumerable: false });
   if (error && typeof error === "object") {
