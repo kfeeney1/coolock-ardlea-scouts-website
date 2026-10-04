@@ -70,7 +70,7 @@ test("SW-290 completed Badgework entered in UI survives save reload and WhatsApp
   await page.getByLabel("Meeting date").fill("2099-04-12");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
-  const planned = page.getByLabel(/Badgework \\d+/).first();
+  const planned = page.getByLabel(/^Badgework 1$/);
   await expect(planned).toBeVisible();
   await planned.fill("SW-290 Planned Badgework");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
