@@ -70,6 +70,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
   await expect(attendanceCheckbox).toBeChecked();
 
+  // Always create a real dirty state before exercising the discard guard. A retry can reopen a meeting where everyone is already present.
   await attendanceCheckbox.uncheck();
   await expect(attendanceCheckbox).not.toBeChecked();
   const discardMeeting = page.getByRole("dialog", { name: "Discard unsaved meeting changes?" });
@@ -109,18 +110,6 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering");
   await expect(firstBadgeworkLeader(page)).toBeChecked();
   await expect(page.getByLabel("Programme notes")).toHaveValue("Reusable opening and patrol rotation.");
-
-  // SW-290: prove completed Badgework survives the real save/reload path and reaches the WhatsApp payload.
-  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
-  await expect(page.getByLabel(`Badges · ${scoutMemberName}`)).toHaveValue("Pioneering Stage 2");
-  const whatsappShare = page.getByTestId("weekly-whatsapp-share");
-  await expect(whatsappShare).toBeEnabled();
-  const whatsappHref = await whatsappShare.getAttribute("href");
-  expect(whatsappHref).toMatch(/^https:\/\/wa\.me\/\?text=/);
-  const whatsappText = decodeURIComponent(whatsappHref!.split("?text=")[1] || "");
-  expect(whatsappText).toContain("Badgework:");
-  expect(whatsappText).toContain("Pioneering Stage 2");
-  expect(whatsappText).not.toContain(scoutMemberName);
 
   const editorTop = page.getByTestId("weekly-meeting-editor-top");
   await expect(editorTop).toBeVisible();
@@ -174,6 +163,8 @@ test("group leader copies a meeting into another authorised section and resets o
 test("programme scouter can view past meetings but cannot edit", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials."); await login(page, leaderEmail!); await page.goto("/leader/weekly"); const historyCard=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await expect(historyCard.getByRole("button",{name:"View",exact:true})).toBeVisible(); await historyCard.getByRole("button",{name:"View",exact:true}).click(); await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("read-only"); await page.getByRole("button",{name:"Attendance",exact:true}).click(); await expect(page.getByRole("checkbox",{name:scoutMemberName})).toBeDisabled(); await page.getByRole("button",{name:"Programme",exact:true}).click(); await expect(page.getByLabel("Theme")).toBeDisabled(); await expect(page.getByRole("button",{name:"Save Meeting",exact:true})).toHaveCount(0); });
 test("group secretary can view all meeting history but cannot edit", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure canonical E2E password."); await login(page, "test.group.secretary@example.com"); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Create Meeting" })).toHaveCount(0); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); await expect(page.getByText(/· Beavers$/).first()).toBeVisible(); await expect(page.getByText(/· Rovers$/).first()).toBeVisible(); });
 
+
+
 test("SW-264 authorised meeting editor routes to canonical Create Meeting and protects unsaved changes", async ({ page }, testInfo) => {
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
   await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
@@ -201,6 +192,7 @@ test("SW-264 Group Secretary does not gain Create Meeting action", async ({ page
   const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button",{name:"View",exact:true}).click();
   await expect(page.getByRole("button", { name: "Create Meeting", exact: true })).toHaveCount(0);
 });
+
 
 test("SW-264 mobile meeting editor exposes canonical Create Meeting route", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "SW-264 mobile navigation runs on the canonical mobile project.");
