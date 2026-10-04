@@ -28,7 +28,7 @@ emitted for successful calls.
 The diagnostic contains a timestamp, configured environment, operation/area,
 category, approved Firebase/application code, HTTP status, reference, safe source
 locations, cause types/codes/statuses, and optional allow-listed identifiers.
-Unknown exceptions remain unexpected; a bare TypeError is not guessed to mean
+Unknown exceptions remain unexpected; legacy Firestore classification also uses codes instead of guessing denial/quota from arbitrary text; a bare TypeError is not guessed to mean
 network failure. Firebase `unavailable` means the service could not complete the
 request; it is distinguished from an explicit network error and from denial.
 

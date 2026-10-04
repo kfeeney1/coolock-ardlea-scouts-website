@@ -1,4 +1,4 @@
-import { applicationErrorMessage } from "./applicationErrors.ts";
+import { applicationErrorMessage, diagnosticErrorCode } from "./applicationErrors.ts";
 export type FirestoreFailureKind =
   | "permission"
   | "quota"
@@ -7,27 +7,14 @@ export type FirestoreFailureKind =
   | "network"
   | "unknown";
 
-function errorCode(error: unknown): string {
-  if (!error || typeof error !== "object") return "";
-  const value = (error as { code?: unknown }).code;
-  return typeof value === "string" ? value.replace(/^firestore\//, "") : "";
-}
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (!error || typeof error !== "object") return String(error ?? "");
-  const value = (error as { message?: unknown }).message;
-  return typeof value === "string" ? value : "";
-}
-
 export function classifyFirestoreFailure(error: unknown): FirestoreFailureKind {
-  const code = errorCode(error);
-  const message = errorMessage(error).toLowerCase();
+  const code = diagnosticErrorCode(error)?.replace(/^firestore\//, "");
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
 
-  if (code === "permission-denied" || message.includes("missing or insufficient permissions")) {
+  if (code === "permission-denied") {
     return "permission";
   }
-  if (code === "resource-exhausted" || message.includes("resource-exhausted") || message.includes("quota")) {
+  if (code === "resource-exhausted") {
     return "quota";
   }
   if (code === "failed-precondition" && message.includes("index")) {

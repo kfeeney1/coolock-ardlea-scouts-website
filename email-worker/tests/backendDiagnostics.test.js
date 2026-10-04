@@ -24,3 +24,14 @@ test("untrusted backend context cannot put payloads in diagnostics", () => {
   assert.equal(report.status, undefined);
   assert.doesNotMatch(JSON.stringify(report), /PRIVATE|example.com/);
 });
+
+test("backend code vocabulary excludes code-shaped secrets while retaining causes in memory", () => {
+  const cause = Object.assign(new TypeError("PRIVATE_MEDICAL"), { code: "backend/private-secret" });
+  const report = backendFailureDiagnostic(cause, "/join-application", "production");
+  assert.equal(report.cause, cause);
+  assert.equal(report.type, "TypeError");
+  assert.equal(report.code, "backend/request-failed");
+  assert.doesNotMatch(JSON.stringify(report), /PRIVATE_MEDICAL|private-secret/);
+  const permitted = backendFailureDiagnostic({ code: "firestore/permission-denied" }, "/join-application", "production");
+  assert.equal(privacySafeDiagnostic(["Backend failure", permitted]).detail.code, "firestore/permission-denied");
+});

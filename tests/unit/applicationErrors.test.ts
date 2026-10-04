@@ -122,3 +122,23 @@ test("unknown error-code payloads and accidental serialization cannot leak the o
   assert.doesNotMatch(JSON.stringify(report), /private-secret|PRIVATE_/);
   assert.equal((report.cause as { secret: string }).secret, "PRIVATE_TOKEN");
 });
+
+test("legacy Firestore UI classification never guesses permissions or quota from arbitrary text", async () => {
+  const { classifyFirestoreFailure } = await import("../../src/services/firestoreErrors.ts");
+  assert.equal(classifyFirestoreFailure(new Error("missing or insufficient permissions")), "unknown");
+  assert.equal(classifyFirestoreFailure(new Error("quota mentioned in a unrelated exception")), "unknown");
+  assert.equal(classifyFirestoreFailure({ code: "permission-denied" }), "permission");
+  assert.equal(classifyFirestoreFailure({ code: "firestore/resource-exhausted" }), "quota");
+});
+
+test("unclassified exceptions at fetch boundary remain unexpected with their original cause", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const cause = new Error("PRIVATE_CONFIGURATION_EXCEPTION");
+  let failure: unknown;
+  try { await requestBackend("https://service.invalid/action", {}, async () => { throw cause; }); }
+  catch (error) { failure = error; }
+  assert.ok(failure instanceof ServiceFailure);
+  assert.equal(failure.cause, cause);
+  assert.equal(errorCategory(failure), "unexpected");
+  assert.doesNotMatch(JSON.stringify(reportApplicationError(failure, { area: "Backend", operation: "Request" })), /PRIVATE_/);
+});

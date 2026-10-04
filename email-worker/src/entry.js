@@ -1,4 +1,4 @@
-import { backendFailureDiagnostic } from "./backendDiagnostics.js";
+import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
 import { handleProductionRoute } from "./productionRoutes.js";
 
@@ -38,7 +38,7 @@ export function privacySafeDiagnostic(args) {
   const report = values[1];
   if (values[0] === "Backend failure" && report?.schema === "application-error-v1") {
     return { label: "Backend failure", detail: {
-      code: /^backend\/[a-z-]{2,60}$/.test(report.code) ? report.code : "backend/request-failed",
+      code: approvedBackendCode(report.code) || "backend/request-failed",
       reference: /^ERR-[A-F0-9]{12}$/.test(report.reference) ? report.reference : undefined,
       timestamp: /^\d{4}-\d{2}-\d{2}T[0-9:.]+Z$/.test(report.timestamp) ? report.timestamp : undefined,
       operation: /^\/[a-z-]{1,60}$/.test(report.operation) ? report.operation : "backend request",

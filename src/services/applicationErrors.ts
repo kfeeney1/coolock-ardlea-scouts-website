@@ -54,7 +54,7 @@ function statusOf(error: unknown): number | undefined {
 }
 function typeOf(error: unknown): string {
   const name = field(error, "name");
-  return typeof name === "string" && ["Error", "TypeError", "RangeError", "SyntaxError", "FirebaseError", "ServiceFailure", "DOMException", "AbortError"].includes(name) ? name : "Error";
+  return typeof name === "string" && ["Error", "TypeError", "RangeError", "SyntaxError", "AggregateError", "FirebaseError", "ServiceFailure", "DOMException", "AbortError"].includes(name) ? name : "Error";
 }
 export function errorCategory(error: unknown): ErrorCategory {
   const code = diagnosticErrorCode(error)?.split("/").at(-1);
@@ -64,7 +64,7 @@ export function errorCategory(error: unknown): ErrorCategory {
   if (["permission-denied", "unauthorized"].includes(code || "") || status === 403) return "permission";
   if (["network-request-failed", "network-error", "offline"].includes(code || "")) return "network";
   if (["unavailable", "deadline-exceeded", "retry-limit-exceeded", "receipt-check-timeout", "upload-timeout", "internal", "resource-exhausted", "service-not-configured", "too-many-requests"].includes(code || "") || (status !== undefined && status >= 500)) return "unavailable";
-  if (["not-found", "object-not-found"].includes(code || "") || status === 404) return "not-found";
+  if (["not-found", "object-not-found"].includes(code || "") || status === 404 || status === 410) return "not-found";
   if (["already-exists", "aborted"].includes(code || "") || status === 409) return "conflict";
   if (diagnosticErrorCode(error)?.startsWith("storage/")) return "storage";
   // A TypeError can be a programming bug. Do not assume it is a network failure.
