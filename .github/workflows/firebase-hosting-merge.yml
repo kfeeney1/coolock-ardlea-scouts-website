@@ -148,6 +148,11 @@ jobs:
           trap 'rm -f /tmp/firebase-service-account.json firebase.production.generated.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
 
+          # Firebase tooling consumes Application Default Credentials directly, while
+          # gcloud CLI commands require an explicitly selected account. Activate the
+          # same validated production service account before managing bucket CORS.
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --project="$FIREBASE_PROJECT_ID"
+
           # Protected receipt downloads use an authenticated browser fetch. Apply the
           # reviewed custom-domain CORS policy to the exact production bucket before
           # deploying rules/hosting so a successful media response is readable by the site.
