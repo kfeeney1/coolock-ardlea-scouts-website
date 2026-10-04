@@ -37,7 +37,7 @@ test("WhatsApp meeting text includes equipment but excludes attendance, incident
 
 test("SW-290 WhatsApp share includes completed meeting badgework without duplicates", () => {
   const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(source), [
-    "Pioneering Stage 2",
+    "Adventure Skills: Pioneering · Stage 2",
     "Adventure Skills: Camping · Stage 1",
     "Adventure Skills: Camping · Stage 1"
   ]);
@@ -46,7 +46,7 @@ test("SW-290 WhatsApp share includes completed meeting badgework without duplica
   assert.match(text, /Equipment: Cones and compass/);
   assert.match(text, /Badgework:/);
   assert.match(text, /• Pioneering \(30 min\)/);
-  assert.match(text, /• Pioneering Stage 2/);
+  assert.match(text, /• Adventure Skills: Pioneering · Stage 2/);
   assert.match(text, /• Adventure Skills: Camping · Stage 1/);
   assert.equal(text.match(/Adventure Skills: Camping · Stage 1/g)?.length, 1);
   assert.match(text, /Location: Scout Den/);
