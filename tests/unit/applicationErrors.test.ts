@@ -18,7 +18,7 @@ test("Firestore denial retains original cause/code and reference without private
   assert.equal(report.diagnostic.category, "permission");
   assert.equal(report.diagnostic.environment, "production");
   assert.deepEqual(report.diagnostic.stack, ["Member.tsx:42:7"]);
-  assert.match(report.userMessage, /Member save failed.*permission.*Reference: ERR-[A-F0-9]{12}/);
+  assert.match(report.userMessage, /Member save failed.*Diagnostic:.*not authorised.*Operation: Save member.*Service: Cloud Firestore.*Code: PERMISSION_DENIED.*Reference: ERR-[A-F0-9]{12}.*Action:/);
   assert.ok(report.userMessage.includes(report.diagnostic.reference));
   assert.doesNotMatch(JSON.stringify([logs, report.userMessage]), /PRIVATE_|private.example|customData/);
   assert.equal(reportApplicationError(cause, { area: "Members", operation: "Save member" }), report);
@@ -61,7 +61,7 @@ test("network rejection is distinct from permissions and retains original except
   assert.equal(failure.cause, cause);
   const report = reportApplicationError(failure, { area: "Backend", operation: "Send notification" });
   assert.equal(report.diagnostic.category, "network");
-  assert.match(report.userMessage, /connection/);
+  assert.match(report.userMessage, /Service: Application backend.*Code: NETWORK_ERROR.*Action: Check your connection/);
   assert.doesNotMatch(JSON.stringify(report.diagnostic), /PRIVATE_NETWORK_PAYLOAD/);
   assert.equal(errorCategory(cause), "unexpected");
 });
@@ -85,7 +85,7 @@ test("unknown and nested errors are safe, retain causes, and never guessed as pe
   assert.equal(report.diagnostic.causes[0].code, "storage/unauthorized");
   assert.deepEqual(report.diagnostic.identifiers, {});
   assert.doesNotMatch(JSON.stringify(report.diagnostic) + report.userMessage, /PRIVATE_|example.com/);
-  assert.match(applicationErrorMessage(null, "Save failed.", "Medical"), /Save failed.*Reference: ERR-/);
+  assert.match(applicationErrorMessage(null, "Save failed.", "Medical"), /Save failed.*Code: UNKNOWN_FAILURE.*Reference: ERR-/);
 });
 
 test("successful backend requests create no error diagnostics", async (t) => {
@@ -141,4 +141,22 @@ test("unclassified exceptions at fetch boundary remain unexpected with their ori
   assert.equal(failure.cause, cause);
   assert.equal(errorCategory(failure), "unexpected");
   assert.doesNotMatch(JSON.stringify(reportApplicationError(failure, { area: "Backend", operation: "Request" })), /PRIVATE_/);
+});
+
+
+test("safe user diagnostics distinguish representative failure classes without duplicate generic guidance", (t) => {
+  t.mock.method(console, "error", () => {});
+  for (const [error, expected] of [
+    [{ code: "storage/unauthorized" }, /Diagnostic: Firebase Storage rejected access.*Service: Firebase Storage.*Code: UNAUTHORIZED/],
+    [{ code: "auth/unauthenticated" }, /Diagnostic:.*session.*Service: Firebase Authentication.*Code: UNAUTHENTICATED/],
+    [{ code: "storage/object-not-found" }, /Diagnostic:.*requested object.*Service: Firebase Storage.*Code: OBJECT_NOT_FOUND/],
+    [{ code: "storage/network-error" }, /Diagnostic:.*CORS-level.*Service: Firebase Storage.*Code: NETWORK_ERROR/],
+    [new Error("PRIVATE_UNKNOWN"), /Diagnostic:.*unclassified failure.*Service: Application.*Code: UNKNOWN_FAILURE/],
+  ] as const) {
+    const report = reportApplicationError(error, { area: "Finance receipts", operation: "Open finance receipt", userMessage: "Receipt opening failed." });
+    assert.match(report.userMessage, expected);
+    assert.equal((report.userMessage.match(/Reference:/g) ?? []).length, 1);
+    assert.equal((report.userMessage.match(/Action:/g) ?? []).length, 1);
+    assert.doesNotMatch(report.userMessage, /PRIVATE_UNKNOWN/);
+  }
 });
