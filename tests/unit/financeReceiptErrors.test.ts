@@ -13,7 +13,7 @@ test("receipt access failures retain permission and authentication codes", () =>
 });
 
 test("missing receipt files, configuration and timeouts are distinct", () => {
-  assert.match(financeReceiptErrorMessage({ code: "storage/object-not-found" }, "check"), /could not find a stored receipt file/);
+  assert.match(financeReceiptErrorMessage({ code: "storage/object-not-found" }, "check"), /could not find the stored receipt/);
   assert.match(financeReceiptErrorMessage({ code: "storage/bucket-not-found" }, "check"), /not configured correctly/);
   assert.match(financeReceiptErrorMessage({ code: "storage/receipt-check-timeout" }, "check"), /timed out/);
 });
