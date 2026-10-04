@@ -19,6 +19,15 @@ test("SW-281 protected download sends an ID token to the canonical object media 
   assert.equal(seenAuth, "Bearer token-value");
 });
 
+test("SW-281 protected download honors an explicit emulator endpoint", async () => {
+  let seenUrl = "";
+  await fetchProtectedStorageBlob("demo-bucket", "attachments/receipt.pdf", "token", {
+    endpointBase: "http://127.0.0.1:9199/",
+    fetchImpl: (async (input) => { seenUrl = String(input); return response(200); }) as typeof fetch,
+  });
+  assert.equal(seenUrl, "http://127.0.0.1:9199/v0/b/demo-bucket/o/attachments%2Freceipt.pdf?alt=media");
+});
+
 test("SW-281 protected download preserves authorization, missing-object and service distinctions", async () => {
   for (const [status, code] of [[401, "storage/unauthenticated"], [403, "storage/unauthorized"], [404, "storage/object-not-found"], [429, "storage/retry-limit-exceeded"], [503, "storage/unknown"]] as const) {
     await assert.rejects(
