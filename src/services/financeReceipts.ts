@@ -1,9 +1,10 @@
 import { ServiceFailure } from "./applicationErrors.ts";
-import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
+import { getMetadata, listAll, ref } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { deleteStoredAttachment, uploadFinanceReceipt, type AttachmentUploadProgress } from "./attachments";
 import { recordAuditEvent } from "./auditLog";
 import { loadReceiptMetadata } from "./financeReceiptLoadLogic";
+import { fetchProtectedStorageBlob } from "./protectedStorageDownload";
 
 export interface FinanceReceipt {
   id: string;
@@ -26,7 +27,11 @@ function currentUid(): string {
 export async function openFinanceReceipt(receipt: FinanceReceipt): Promise<string> {
   currentUid();
   const { storagePath: path, contentType } = receipt;
-  const blob = await getBlob(ref(storage, path));
+  const user = auth.currentUser;
+  if (!user) throw new ServiceFailure("You must be signed in to open finance receipts.", "auth/unauthenticated");
+  const bucket = storage.app.options.storageBucket || "";
+  const idToken = await user.getIdToken();
+  const blob = await fetchProtectedStorageBlob(bucket, path, idToken);
   const typedBlob = blob.type || !contentType ? blob : blob.slice(0, blob.size, contentType);
   return URL.createObjectURL(typedBlob);
 }
