@@ -41,7 +41,7 @@ test("SW-281 protected download has its own abortable timeout instead of hanging
 test("SW-281 protected download rejects missing auth/configuration before network access", async () => {
   let calls = 0;
   const fetchImpl = (async () => { calls++; return response(200); }) as typeof fetch;
-  await assert.rejects(fetchProtectedStorageBlob("", "path", "token", { fetchImpl }), (e: any) => e.code === "storage/bucket-not-configured");
-  await assert.rejects(fetchProtectedStorageBlob("bucket", "path", "", { fetchImpl }), (e: any) => e.code === "storage/unauthenticated");
+  await assert.rejects(fetchProtectedStorageBlob("", "path", "token", { fetchImpl }), (e: unknown) => typeof e === "object" && e !== null && "code" in e && e.code === "storage/bucket-not-configured");
+  await assert.rejects(fetchProtectedStorageBlob("bucket", "path", "", { fetchImpl }), (e: unknown) => typeof e === "object" && e !== null && "code" in e && e.code === "storage/unauthenticated");
   assert.equal(calls, 0);
 });
