@@ -44,6 +44,7 @@ test("leader WhatsApp share includes programme equipment but excludes private me
 
   const share = page.getByTestId("weekly-whatsapp-share");
   await expect(share).toBeVisible();
+  await expect(share).toBeEnabled();
   const href = await share.getAttribute("href");
   expect(href).toBeTruthy();
   expect(href).toMatch(/^https:\/\/wa\.me\/\?text=/);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildParentWeeklyMeetingProgramme, buildWeeklyMeetingWhatsAppText } from "../../src/services/weeklyMeetingProgramme.ts";
+import { buildParentWeeklyMeetingProgramme, buildWeeklyMeetingWhatsAppText, mergeWeeklyMeetingShareBadgework } from "../../src/services/weeklyMeetingProgramme.ts";
 
 const source = {
   section: "Scouts",
@@ -32,4 +32,31 @@ test("WhatsApp meeting text includes equipment but excludes attendance, incident
   for (const privateValue of ["Child Name", "Completed Badge", "Private injury", "Private Leader", "Private instructions", "Leader-only programme note", "Post-meeting note"]) {
     assert.equal(text.includes(privateValue), false, `${privateValue} must not appear in the share text`);
   }
+});
+
+
+test("SW-290 WhatsApp share includes completed meeting badgework without duplicates", () => {
+  const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(source), [
+    "Adventure Skills: Pioneering · Stage 2",
+    "Adventure Skills: Camping · Stage 1",
+    "Adventure Skills: Camping · Stage 1"
+  ]);
+  const text = buildWeeklyMeetingWhatsAppText(programme);
+  assert.match(text, /Activities \/ Games:\n• Wide game \(25 min\)/);
+  assert.match(text, /Equipment: Cones and compass/);
+  assert.match(text, /Badgework:/);
+  assert.match(text, /• Pioneering \(30 min\)/);
+  assert.match(text, /• Adventure Skills: Pioneering · Stage 2/);
+  assert.match(text, /• Adventure Skills: Camping · Stage 1/);
+  assert.equal(text.match(/Adventure Skills: Camping · Stage 1/g)?.length, 1);
+  assert.match(text, /Location: Scout Den/);
+  assert.match(text, /Theme: Navigation Night/);
+});
+
+test("SW-290 WhatsApp share omits Badgework heading when no badgework exists", () => {
+  const emptySource = { ...source, badgeworkPlan: [], entries: source.entries.map((entry) => ({ ...entry, badges: [] })) };
+  const text = buildWeeklyMeetingWhatsAppText(mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(emptySource), []));
+  assert.equal(text.includes("Badgework:"), false);
+  assert.match(text, /Activities \/ Games:/);
+  assert.match(text, /Equipment: Cones and compass/);
 });
