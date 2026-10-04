@@ -18,7 +18,7 @@ import type { User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "../../firebase";
-import { normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
+import { isDeniedLeaderProfileProbe, normalizeLeaderRole, normalizeLeaderSections } from "../../services/leaderAccessLogic";
 import { normalizeScoutingAppointmentAssignments, type ScoutingAppointmentAssignment } from "../../security/scoutingAppointments";
 import {
     remainingInactivityMs,
@@ -140,7 +140,11 @@ export function AdminAuthProvider({ children }: Props) {
             if (profileResult.status === "fulfilled") {
                 setAdminProfile(profileResult.value);
             } else {
-                setAccessError(applicationErrorMessage(profileResult.reason, "Leader access could not be checked.", "Authentication", "Load leader access profile"));
+                if (isDeniedLeaderProfileProbe(profileResult.reason)) {
+                    reportApplicationError(profileResult.reason, { area: "Authentication", operation: "Denied background leader role probe" });
+                } else {
+                    setAccessError(applicationErrorMessage(profileResult.reason, "Leader access could not be checked.", "Authentication", "Load leader access profile"));
+                }
                 setAdminProfile(null);
             }
 

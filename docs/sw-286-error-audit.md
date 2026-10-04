@@ -75,3 +75,18 @@ required remote evidence. Exact results/SHAs are recorded in the PR and Jira.
 
 Client diagnostics remain console-only; no new persistent client logging service,
 permissions expansion, Production deployment or Production PMT pass is implied.
+
+## Deterministic CI corrections
+
+The first full browser run caught expected background parent-only role-probe
+permission denial being treated as an operational profile-load failure, which
+prevented the normal parent redirect. Retain that exact code-based fail-closed
+fallback while logging its safe diagnostic; network/unexpected profile failures
+still have retry UI, and explicit leader login denial remains a reported failure.
+The unchanged parent-only browser assertions verify no leader access is granted.
+
+The same run caught a Join Us selector matching both the newly visible saved-record
+notification warning and the submission success alert. Scope the success assertion
+to its application-reference content; retain the persisted-application assertion
+and the separate warning rather than suppressing either state. These failures
+were deterministic SW-286 regressions, not classified as flaky or dismissed.

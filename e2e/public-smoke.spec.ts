@@ -77,7 +77,7 @@ test("Join Us submits on mobile and desktop without collecting emergency contact
   await page.getByLabel("I consent to being contacted about this joining enquiry.").check();
   await page.getByRole("button", { name: "Submit joining enquiry" }).click();
 
-  await expect(page.getByRole("alert")).toContainText("Application reference:");
+  await expect(page.getByRole("alert").filter({ hasText: "Application reference:" })).toContainText("Application reference:");
 });
 
 test("build information lives on About rather than the public footer", async ({ page }) => {
