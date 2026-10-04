@@ -102,6 +102,80 @@ export function newBadgeworkPlan(id: string = crypto.randomUUID()): WeeklyBadgew
   return { id, badge: "", leader: "", notes: "", equipment: "", durationMinutes: 0 };
 }
 
+
+export function decodeWeeklyBadgeworkSources(data: Record<string, unknown>, legacyPlannedBadgework = ""): WeeklyBadgeworkPlan[] {
+  const candidates = [data.badgeworkPlan, data.plannedBadgework, data.badgework, legacyPlannedBadgework];
+  const plans: WeeklyBadgeworkPlan[] = [];
+  const seen = new Set<string>();
+
+  const append = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(append);
+      return;
+    }
+    if (typeof value === "string") {
+      const text = value.trim();
+      if (!text) return;
+      try {
+        const parsed: unknown = JSON.parse(text);
+        if (parsed && typeof parsed === "object") {
+          const object = parsed as Record<string, unknown>;
+          if (Array.isArray(object.items)) {
+            append(object.items);
+            return;
+          }
+          if (["weekly-badgework-v1", "weekly-plan-v1"].includes(String(object.marker ?? ""))) return;
+          append(object);
+          return;
+        }
+      } catch {
+        // Older records stored a single Badgework name as plain text.
+      }
+      append({ badge: text });
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const item = value as Record<string, unknown>;
+    if (Array.isArray(item.items)) {
+      append(item.items);
+      return;
+    }
+    const badge = [item.badge, item.name, item.badgeName, item.activity, item.title]
+      .find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0)?.trim() ?? "";
+    if (!badge) {
+      if (typeof item.badge === "string" && !item.badge.trim() && !plans.some((plan) => plan.badge === "")) {
+        plans.push({
+          id: typeof item.id === "string" && item.id ? item.id : `legacy-badgework-${plans.length + 1}`,
+          badge: "",
+          leader: typeof item.leader === "string" ? item.leader : "",
+          notes: typeof item.notes === "string" ? item.notes : "",
+          equipment: typeof item.equipment === "string" ? item.equipment : "",
+          durationMinutes: typeof item.durationMinutes === "number" && Number.isFinite(item.durationMinutes)
+            ? Math.max(0, Math.min(360, Math.round(item.durationMinutes)))
+            : 0
+        });
+      }
+      return;
+    }
+    const key = badge.toLocaleLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    plans.push({
+      id: typeof item.id === "string" && item.id ? item.id : `legacy-badgework-${plans.length + 1}`,
+      badge,
+      leader: typeof item.leader === "string" ? item.leader : "",
+      notes: typeof item.notes === "string" ? item.notes : "",
+      equipment: typeof item.equipment === "string" ? item.equipment : "",
+      durationMinutes: typeof item.durationMinutes === "number" && Number.isFinite(item.durationMinutes)
+        ? Math.max(0, Math.min(360, Math.round(item.durationMinutes)))
+        : 0
+    });
+  };
+
+  candidates.forEach(append);
+  return plans;
+}
+
 export function defaultActivityPlans(): WeeklyActivityPlan[] {
   return [newActivityPlan(), newActivityPlan()];
 }
