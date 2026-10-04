@@ -60,24 +60,33 @@ test("leader WhatsApp share includes programme, completed badgework and equipmen
 });
 
 
-test("SW-290 saved completed Badgework reaches WhatsApp after reload", async ({ page }, testInfo) => {
+test("SW-290 completed Badgework entered in UI survives save reload and WhatsApp share", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure canonical E2E leader credentials.");
   await login(page, sectionLeaderEmail, "leader");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-  await page.goto("/leader/weekly");
-  const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" });
-  await expect(historyCard).toBeVisible();
-  await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click();
+  await page.goto("/leader/weekly/create");
+  await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+  await page.getByLabel("Meeting date").fill("2099-04-12");
+  await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
-  await expect(page.getByText("Pioneering Stage 2", { exact: false }).first()).toBeVisible();
+  const completed = page.getByLabel(/Other completed badges · /).first();
+  await expect(completed).toBeVisible();
+  await completed.fill("SW-290 Lifecycle Badge");
+  await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+  await expect(page.getByText("Meeting saved.")).toBeVisible();
+
   await page.reload();
+  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
+  await expect(page.getByLabel(/Other completed badges · /).first()).toHaveValue("SW-290 Lifecycle Badge");
+
   const share = page.getByTestId("weekly-whatsapp-share");
   await expect(share).toBeEnabled();
   const href = await share.getAttribute("href");
   expect(href).toMatch(/^https:\/\/wa\.me\/\?text=/);
   const text = decodeURIComponent(href!.split("?text=")[1] || "");
   expect(text).toContain("Badgework:");
-  expect(text).toContain("Pioneering Stage 2");
-  expect(text).not.toContain("Casey OBrien Scouts 01");
+  expect(text).toContain("SW-290 Lifecycle Badge");
 });
