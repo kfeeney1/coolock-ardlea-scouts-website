@@ -33,8 +33,7 @@ export function useWeeklyMeetingShare(meeting: WeeklyMeetingRecord | null) {
 
   const url = useMemo(() => {
     if (!meeting) return "";
-    const completedBadges = [...new Set(meeting.entries.flatMap((entry) => entry.badges).map((badge) => badge.trim()).filter(Boolean))];
-    const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(meeting), [...completedBadges, ...adventureBadgework]);
+    const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(meeting), adventureBadgework);
     return buildWeeklyMeetingWhatsAppUrl(programme);
   }, [meeting, adventureBadgework]);
 
