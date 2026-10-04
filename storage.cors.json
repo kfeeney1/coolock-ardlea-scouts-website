@@ -1,0 +1,16 @@
+[
+  {
+    "origin": [
+      "https://coolockardleascouts.ie",
+      "https://www.coolockardleascouts.ie"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Disposition",
+      "ETag"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
