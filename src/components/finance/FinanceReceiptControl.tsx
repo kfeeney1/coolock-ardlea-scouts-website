@@ -17,6 +17,7 @@ import {
 import {
   addFinanceReceipt,
   loadFinanceReceipts,
+  openFinanceReceipt,
   removeFinanceReceipt,
   revokeFinanceReceiptUrls,
   type FinanceReceipt,
@@ -53,6 +54,25 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
   const [receiptToRemove, setReceiptToRemove] = useState<FinanceReceipt | null>(null);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState("");
+  const [viewingReceipt, setViewingReceipt] = useState<FinanceReceipt | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState("");
+
+  const openReceipt = async (receipt: FinanceReceipt) => {
+    setViewingReceipt(receipt);
+    setOpening(true);
+    setOpenError("");
+    try {
+      const viewUrl = receipt.viewUrl || await withTimeout(openFinanceReceipt(receipt), 30000, "Receipt opening timed out.");
+      setReceipts((current) => current.map((item) => item.id === receipt.id ? { ...item, viewUrl } : item));
+      setViewingReceipt({ ...receipt, viewUrl });
+    } catch (openError) {
+      console.error("Unable to open finance receipt:", openError);
+      setOpenError(financeReceiptErrorMessage(openError, "open"));
+    } finally {
+      setOpening(false);
+    }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -144,20 +164,36 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
 
     {receipts.length > 0 && <Stack spacing={1} sx={{ width: "100%" }}>
       {receipts.map((receipt, index) => <Stack key={receipt.id} direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
-        <Button component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" size="small" variant="contained" color="secondary">
+        <Button onClick={() => void openReceipt(receipt)} size="small" variant="contained" color="secondary">
           {receipts.length === 1 ? "View receipt" : `View receipt ${index + 1}`}
         </Button>
         <Typography variant="caption" color="text.secondary">{receipt.fileName}</Typography>
         <Button size="small" color="error" variant="text" onClick={() => setReceiptToRemove(receipt)} disabled={uploading || removing} aria-label={`Remove receipt ${receipt.fileName}`}>
           Remove receipt
         </Button>
-        {receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
+        {receipt.viewUrl && receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
           <Box component="img" src={receipt.viewUrl} alt={`Receipt ${receipt.fileName}`} sx={{ width: 88, height: 88, objectFit: "cover", display: "block" }} />
         </Box>}
       </Stack>)}
     </Stack>}
 
     {error && <Alert severity="error" sx={{ py: 0 }} role="alert">{error}</Alert>}
+
+    <Dialog open={viewingReceipt !== null} onClose={() => { if (!opening) setViewingReceipt(null); }} fullWidth maxWidth="md" aria-labelledby="view-receipt-title">
+      <DialogTitle id="view-receipt-title">{viewingReceipt?.fileName || "Receipt"}</DialogTitle>
+      <DialogContent>
+        {opening && <LinearProgress aria-label="Loading receipt file" />}
+        {openError && <Alert severity="error">{openError}</Alert>}
+        {viewingReceipt?.viewUrl && (viewingReceipt.contentType.startsWith("image/")
+          ? <Box component="img" src={viewingReceipt.viewUrl} alt={`Receipt ${viewingReceipt.fileName}`} sx={{ width: "100%", objectFit: "contain" }} />
+          : <Box component="iframe" src={viewingReceipt.viewUrl} title={`Receipt ${viewingReceipt.fileName}`} sx={{ width: "100%", height: "60vh", border: 0 }} />)}
+      </DialogContent>
+      <DialogActions>
+        {openError && viewingReceipt && <Button onClick={() => void openReceipt(viewingReceipt)} disabled={opening}>Retry opening receipt</Button>}
+        {viewingReceipt?.viewUrl && <Button component="a" href={viewingReceipt.viewUrl} target="_blank" rel="noopener noreferrer">Open receipt in new tab</Button>}
+        <Button onClick={() => setViewingReceipt(null)} disabled={opening}>Close</Button>
+      </DialogActions>
+    </Dialog>
 
     <Dialog open={receiptToRemove !== null} onClose={() => { if (!removing) setReceiptToRemove(null); }} aria-labelledby="remove-receipt-title">
       <DialogTitle id="remove-receipt-title">Remove receipt?</DialogTitle>

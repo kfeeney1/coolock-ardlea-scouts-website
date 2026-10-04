@@ -1,7 +1,7 @@
-export function financeReceiptErrorMessage(error: unknown, operation: "check" | "upload" | "remove"): string {
+export function financeReceiptErrorMessage(error: unknown, operation: "check" | "upload" | "remove" | "open"): string {
   const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
     ? error.code : "";
-  const action = operation === "check" ? "Receipt check" : operation === "upload" ? "Receipt upload" : "Receipt removal";
+  const action = operation === "check" ? "Receipt check" : operation === "upload" ? "Receipt upload" : operation === "open" ? "Receipt opening" : "Receipt removal";
   const detail = code ? ` (${code})` : "";
   if (code === "storage/unauthorized" || code === "permission-denied") {
     return `${action} was denied. Your account does not have permission for this receipt operation.${detail}`;
