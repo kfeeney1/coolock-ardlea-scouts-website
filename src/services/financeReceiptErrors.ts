@@ -11,10 +11,10 @@ function receiptDescription(error: unknown, operation: "check" | "upload" | "rem
   if (code === "storage/object-not-found") {
     return `${action} could not find a stored receipt file. Retry the receipt check; the file may have been removed.${detail}`;
   }
-  if (code === "storage/bucket-not-found" || code === "storage/no-default-bucket" || code === "storage/project-not-found") {
+  if (code === "storage/bucket-not-found" || code === "storage/no-default-bucket" || code === "storage/project-not-found" || code === "storage/bucket-not-configured") {
     return `${action} failed because receipt storage is not configured correctly. Contact an administrator.${detail}`;
   }
-  if (code === "storage/retry-limit-exceeded" || code === "storage/receipt-check-timeout") {
+  if (code === "storage/retry-limit-exceeded" || code === "storage/receipt-check-timeout" || code === "storage/download-timeout") {
     return `${action} timed out. Check your connection and retry.${detail}`;
   }
   if (code === "storage/canceled") return `${action} was cancelled. You can retry.${detail}`;
