@@ -29,6 +29,11 @@ const rules = [
     message: "Avoid networkidle for Firebase-driven UI; wait for a user-visible state instead."
   },
   {
+    name: "positional option selection",
+    pattern: /getByRole\(\s*["\']option["\'][^\n]*\)\.nth\s*\(/g,
+    message: "Select dynamic options by stable name/value instead of list position."
+  },
+  {
     name: "focused tests",
     pattern: /\btest(?:\.describe)?\.only\s*\(/g,
     message: "Focused tests must not be committed."

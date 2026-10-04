@@ -194,8 +194,10 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     await childSelect.click();
     const options = page.getByRole("option");
     await expect(options).toHaveCount(2);
-    const secondChild = await options.nth(1).getAttribute("data-value");
-    await options.nth(1).click();
+    const secondChildOption = page.getByRole("option", { name: /Morgan Kavanagh/ });
+    const secondChild = await secondChildOption.getAttribute("data-value");
+    expect(secondChild).toBeTruthy();
+    await secondChildOption.click();
     await expect(page).toHaveURL(new RegExp(`child=${secondChild}`));
     await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
     await page.getByRole("link", { name: "Meetings & Events" }).click();

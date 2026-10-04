@@ -72,7 +72,7 @@ test("combined leader and parent can switch contexts, reload and sign in again w
   const children = await expectChildOptions(page, 2);
   expect(children).toEqual(["TEST_member_beaver_05", "TEST_member_beaver_06"]);
   await page.getByRole("combobox", { name: "Viewing information for" }).click();
-  await page.getByRole("option").nth(1).click();
+  await page.locator('[role="option"][data-value="TEST_member_beaver_06"]').click();
   await expect(page).toHaveURL(/child=TEST_member_beaver_06/);
   await page.reload();
   await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
