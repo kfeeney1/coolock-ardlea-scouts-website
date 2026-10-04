@@ -12,10 +12,11 @@ async function signIn(page: Page) {
 }
 
 async function chooseEquipmentIssueOption(page: Page, field: Locator, optionName: string) {
-  const listbox = page.getByRole("listbox");
   await field.click();
+  const listbox = page.getByRole("listbox").filter({ has: page.getByRole("option", { name: optionName, exact: true }) });
   await expect(listbox).toBeVisible();
-  await page.getByRole("option", { name: optionName, exact: true }).click();
+  await listbox.getByRole("option", { name: optionName, exact: true }).click();
+  await expect(field).toHaveText(optionName);
   await expect(listbox).toBeHidden();
 }
 
