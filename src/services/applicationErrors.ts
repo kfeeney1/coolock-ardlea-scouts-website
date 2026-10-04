@@ -35,7 +35,7 @@ export function diagnosticErrorCode(error: unknown): string | undefined {
   // Codes are a vocabulary, never an arbitrary message/payload.
   if (typeof value !== "string" || !/^(?:(?:auth|firestore|storage|functions|app|backend)\/)?[a-z][a-z-]{1,60}$/.test(value)) return undefined;
   const knownCodes = new Set([
-    "validation", "operation-rejected", "request-failed", "network-error", "invalid-response", "service-not-configured",
+    "validation", "operation-rejected", "request-failed", "network-error", "invalid-response", "service-not-configured", "download-timeout",
     "permission-denied", "unauthorized", "unauthenticated", "invalid-credential", "wrong-password", "user-not-found",
     "user-token-expired", "invalid-user-token", "requires-recent-login", "user-disabled", "network-request-failed",
     "offline", "unavailable", "deadline-exceeded", "retry-limit-exceeded", "receipt-check-timeout", "upload-timeout",
@@ -81,6 +81,48 @@ const nextAction: Record<ErrorCategory, string> = {
   storage: "The file operation could not be completed. Retry; contact an administrator if it continues.",
   unexpected: "Try again; contact an administrator if the problem continues.",
 };
+function diagnosticService(code: string | undefined): string {
+  if (code?.startsWith("storage/")) return "Firebase Storage";
+  if (code?.startsWith("auth/")) return "Firebase Authentication";
+  if (code?.startsWith("firestore/")) return "Cloud Firestore";
+  if (code?.startsWith("functions/")) return "Firebase Functions";
+  if (code?.startsWith("backend/")) return "Application backend";
+  return "Application";
+}
+function normalizedDiagnosticCode(code: string | undefined, category: ErrorCategory): string {
+  if (!code) return category === "network" ? "NETWORK_FAILURE" : "UNKNOWN_FAILURE";
+  return code.replace(/^(?:auth|firestore|storage|functions|app|backend)\//, "").replace(/-/g, "_").toUpperCase();
+}
+function safeTechnicalReason(category: ErrorCategory, code: string | undefined, status: number | undefined): string {
+  const leaf = code?.split("/").at(-1);
+  const reasons: Record<string, string> = {
+    "permission-denied": "The backend rejected this operation because the signed-in account is not authorised.",
+    unauthorized: "Firebase Storage rejected access to the requested object.",
+    unauthenticated: "The backend could not authenticate the current session for this operation.",
+    "object-not-found": "Firebase Storage could not find the requested object.",
+    "not-found": "The requested backend record or object was not found.",
+    "network-error": "The browser could not complete the network request. A connectivity or CORS-level failure may have prevented a response.",
+    "network-request-failed": "The browser could not complete the network request.",
+    offline: "The client is offline and could not reach the backend.",
+    "download-timeout": "The protected file request exceeded its download timeout.",
+    "receipt-check-timeout": "The receipt status request exceeded its timeout.",
+    "retry-limit-exceeded": "The service could not complete the request within its retry limit.",
+    unavailable: "The backend service reported that it is temporarily unavailable.",
+    "bucket-not-found": "The configured Firebase Storage bucket was not found.",
+    "no-default-bucket": "No default Firebase Storage bucket is configured.",
+    "project-not-found": "The configured Firebase project was not found.",
+    "invalid-argument": "The operation was rejected because required request information was missing or invalid.",
+  };
+  if (leaf && reasons[leaf]) return reasons[leaf];
+  if (status) return `${diagnosticService(code)} returned HTTP ${status} without a more specific safe error classification.`;
+  if (category === "network") return "The browser could not complete the network request.";
+  if (category === "storage") return "Firebase Storage rejected or could not complete the file operation.";
+  if (category === "permission") return "The backend rejected the operation because the account is not authorised.";
+  if (category === "authentication") return "The current session could not be authenticated for this operation.";
+  if (category === "not-found") return "The requested record or file could not be found.";
+  if (category === "unavailable") return "The backend service could not complete the request.";
+  return "The application encountered an unclassified failure; no safe lower-level reason was available.";
+}
 function safeLabel(value: string): string {
   return /^[A-Za-z0-9 .:_/-]{1,120}$/.test(value) ? value : "application operation";
 }
@@ -130,7 +172,19 @@ export function reportApplicationError(error: unknown, context: ErrorContext): R
     stack: stackLocations(error), causes, identifiers: safeIdentifiers(context.identifiers),
   };
   const description = error instanceof UserInputError || error instanceof UserFacingError ? error.message : context.userMessage || `${safeLabel(context.operation)} failed.`;
-  const result = { userMessage: `${description} ${nextAction[category]} Reference: ${reference}`, diagnostic, cause: error };
+  const service = diagnosticService(code);
+  const normalizedCode = normalizedDiagnosticCode(code, category);
+  const reason = safeTechnicalReason(category, code, status);
+  const userMessage = [
+    description,
+    `Diagnostic: ${reason}`,
+    `Operation: ${diagnostic.operation}`,
+    `Service: ${service}`,
+    `Code: ${normalizedCode}`,
+    `Reference: ${reference}`,
+    `Action: ${nextAction[category]}`,
+  ].join("\n");
+  const result = { userMessage, diagnostic, cause: error };
   Object.defineProperty(result, "cause", { value: error, enumerable: false });
   if (error && typeof error === "object") {
     const entries = cache ?? new Map<string, ReportedError>();
