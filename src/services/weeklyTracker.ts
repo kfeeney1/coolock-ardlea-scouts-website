@@ -25,6 +25,7 @@ export type { WeeklyLeaderOption } from "./weeklyLeaderOptions";
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const LEGACY_PLAN_MARKER = "weekly-plan-v1";
 const ACTIVITY_MARKER = "weekly-activities-v1";
+const BADGEWORK_MARKER = "weekly-badgework-v1";
 const PROGRAMME_MARKER = "weekly-programme-v1";
 
 function clean(value: string, max: number) { return value.trim().slice(0, max); }
