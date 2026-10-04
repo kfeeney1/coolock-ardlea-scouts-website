@@ -11,6 +11,7 @@ import {
 import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
+import { adventureSkillsById } from "../data/adventureSkills/index.ts";
 import {
   completionTargetsForRequirement,
   completionTargetsForStage,
@@ -200,4 +201,22 @@ export async function setStageAwardForMembers(memberIds: string[], skillId: stri
       awardedBy: userId
     });
   }));
+}
+
+
+export async function loadWeeklyMeetingAdventureBadgework(memberIds: string[], meetingId: string): Promise<string[]> {
+  const sourceId = meetingId.trim();
+  const ids = [...new Set(memberIds.map((memberId) => memberId.trim()).filter(Boolean))];
+  if (!sourceId || ids.length === 0) return [];
+  const progress = await Promise.all(ids.map(loadMemberAdventureProgress));
+  const labels = new Set<string>();
+  for (const member of progress) {
+    for (const requirement of member.requirements) {
+      if (requirement.sourceType !== "weeklyMeeting" || requirement.sourceId !== sourceId) continue;
+      const skill = adventureSkillsById.get(requirement.skillId);
+      if (!skill) continue;
+      labels.add(`Adventure Skills: ${skill.name} · Stage ${requirement.stage}`);
+    }
+  }
+  return [...labels].sort((a, b) => a.localeCompare(b, "en-IE"));
 }
