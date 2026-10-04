@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { financeReceiptErrorMessage } from "../../services/financeReceiptErrors";
 import {
   Alert,
   Box,
@@ -35,7 +36,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+        timeoutId = setTimeout(() => reject(Object.assign(new Error(message), { code: "storage/receipt-check-timeout" })), timeoutMs);
       }),
     ]);
   } finally {
@@ -66,7 +67,7 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
       });
     } catch (loadError) {
       console.error("Unable to load finance receipts:", loadError);
-      setError("Receipt storage is unavailable right now. You can retry the check or attach a receipt once Storage is available.");
+      setError(financeReceiptErrorMessage(loadError, "check"));
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,7 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
     } catch (uploadError) {
       console.error("Unable to upload finance receipt:", uploadError);
       setFailedFile(file);
-      setError("Receipt upload failed. The payment record remains unchanged; you can retry this receipt without reloading the page.");
+      setError(financeReceiptErrorMessage(uploadError, "upload"));
     } finally {
       setUploading(false);
     }
@@ -111,7 +112,7 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
       await refresh();
     } catch (removeError) {
       console.error("Unable to remove finance receipt:", removeError);
-      setError("Receipt removal failed. The payment record and receipt have not been changed; please retry.");
+      setError(financeReceiptErrorMessage(removeError, "remove"));
     } finally {
       setRemoving(false);
     }
