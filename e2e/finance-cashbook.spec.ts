@@ -115,7 +115,12 @@ test("SW-281 receipt status does not download bodies and corrected receipts surv
   await persistedRow.getByRole("button", { name: "View receipt", exact: true }).click();
   const viewer = page.getByRole("dialog", { name: "sw281-receipt.pdf" });
   await expect(viewer.getByText(/Receipt opening was denied/)).toBeVisible();
-  await expect(viewer.getByRole("alert")).toContainText("Service: Firebase Storage");\n  await expect(viewer.getByRole("alert")).toContainText("Code: UNAUTHORIZED");\n  await expect(viewer.getByRole("alert")).toContainText("Operation: Receipt open");\n  await expect(viewer.getByRole("alert")).toContainText(/Reference: ERR-[A-F0-9]{12}/);\n  await expect(viewer.getByRole("alert")).toContainText("Action:");\n  await expect(viewer.getByRole("alert")).not.toContainText(/Retry.*Try again|contact an administrator.*contact an administrator/i);
+  await expect(viewer.getByRole("alert")).toContainText("Service: Firebase Storage");
+  await expect(viewer.getByRole("alert")).toContainText("Code: UNAUTHORIZED");
+  await expect(viewer.getByRole("alert")).toContainText("Operation: Receipt open");
+  await expect(viewer.getByRole("alert")).toContainText(/Reference: ERR-[A-F0-9]{12}/);
+  await expect(viewer.getByRole("alert")).toContainText("Action:");
+  await expect(viewer.getByRole("alert")).not.toContainText(/Retry.*Try again|contact an administrator.*contact an administrator/i);
   await viewer.getByRole("button", { name: "Close", exact: true }).click();
   await expect(persistedRow.getByText("Receipt attached", { exact: true })).toBeVisible();
   denyDownload = false;
