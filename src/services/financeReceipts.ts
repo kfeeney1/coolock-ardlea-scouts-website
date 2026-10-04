@@ -31,7 +31,9 @@ export async function openFinanceReceipt(receipt: FinanceReceipt): Promise<strin
   if (!user) throw new ServiceFailure("You must be signed in to open finance receipts.", "auth/unauthenticated");
   const bucket = storage.app.options.storageBucket || "";
   const idToken = await user.getIdToken();
-  const blob = await fetchProtectedStorageBlob(bucket, path, idToken);
+  const emulatorHost = import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_HOST?.trim();
+  const endpointBase = emulatorHost ? `http://${emulatorHost}` : undefined;
+  const blob = await fetchProtectedStorageBlob(bucket, path, idToken, { endpointBase });
   const typedBlob = blob.type || !contentType ? blob : blob.slice(0, blob.size, contentType);
   return URL.createObjectURL(typedBlob);
 }
