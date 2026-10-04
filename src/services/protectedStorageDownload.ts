@@ -12,7 +12,7 @@ export async function fetchProtectedStorageBlob(
   bucket: string,
   path: string,
   idToken: string,
-  options: { timeoutMs?: number; fetchImpl?: typeof fetch } = {},
+  options: { timeoutMs?: number; fetchImpl?: typeof fetch; endpointBase?: string } = {},
 ): Promise<Blob> {
   if (!bucket) throw storageDownloadError("storage/bucket-not-configured", "Storage bucket is not configured.");
   if (!path) throw storageDownloadError("storage/invalid-argument", "Receipt storage path is missing.");
@@ -22,7 +22,8 @@ export async function fetchProtectedStorageBlob(
   const timeoutMs = options.timeoutMs ?? 20_000;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const fetchImpl = options.fetchImpl ?? fetch;
-  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media`;
+  const endpointBase = (options.endpointBase || "https://firebasestorage.googleapis.com").replace(/\/$/, "");
+  const url = `${endpointBase}/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media`;
 
   try {
     const response = await fetchImpl(url, {
