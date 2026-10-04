@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../services/applicationErrors.ts";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -89,7 +90,7 @@ export default function PublicWhosWho() {
         }
       })
       .catch((reason) => {
-        console.error("Unable to load public Who's Who:", reason);
+        reportApplicationError(reason, { area: "PublicWhosWho", operation: "Unable to load public Who's Who" });
         if (!cancelled) setError(true);
       })
       .finally(() => {

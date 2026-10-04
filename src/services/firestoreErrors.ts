@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "./applicationErrors.ts";
 export type FirestoreFailureKind =
   | "permission"
   | "quota"
@@ -40,18 +41,5 @@ export function classifyFirestoreFailure(error: unknown): FirestoreFailureKind {
 }
 
 export function firestoreFailureMessage(error: unknown, fallback: string): string {
-  switch (classifyFirestoreFailure(error)) {
-    case "permission":
-      return "Your account is signed in, but this Firestore query is outside the records permitted for your role or assigned sections.";
-    case "quota":
-      return "Firestore has exhausted its current read allowance. Data access will remain unreliable until quota is available again.";
-    case "index":
-      return "This Firestore query requires an index that has not been deployed yet.";
-    case "unauthenticated":
-      return "Your Firebase session is no longer authenticated. Please sign in again.";
-    case "network":
-      return "Firestore is temporarily unreachable. Check the connection and try again.";
-    default:
-      return fallback;
-  }
+  return applicationErrorMessage(error, fallback, "Firestore");
 }

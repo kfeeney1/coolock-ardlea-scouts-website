@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import {
   Accordion,
   AccordionDetails,
@@ -42,7 +43,7 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
       setProgressByMember(new Map(progress.map((item) => [item.memberId, item])));
       setSelectedMemberId((current) => current && linkedMembers.some((member) => member.id === current) ? current : linkedMembers[0]?.id ?? "");
     } catch (error) {
-      console.error("Unable to load parent Adventure Skills progress:", error);
+      reportApplicationError(error, { area: "ParentAdventureSkillsSection", operation: "Unable to load parent Adventure Skills progress" });
       setLoadError(error);
     } finally {
       setLoading(false);

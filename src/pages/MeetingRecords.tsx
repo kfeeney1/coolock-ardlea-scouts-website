@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -78,8 +79,7 @@ export default function MeetingRecords() {
     try {
       setRecords(await loadMeetingRecords(sections, hasFullMeetingHistoryAccess));
     } catch (loadError) {
-      console.error("Unable to load meeting records:", loadError);
-      setError("Unable to load meeting records for your permitted scope.");
+      setError(applicationErrorMessage(loadError, "Unable to load meeting records for your permitted scope.", "MeetingRecords"));
     } finally {
       setLoading(false);
     }
@@ -132,9 +132,8 @@ export default function MeetingRecords() {
         : `No recognisable meeting information was found in ${file.name}. You can continue manually.`);
       window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (importError) {
-      console.error("Unable to parse meeting document:", importError);
       setImportMessage(`Selected ${file.name}. The original file can still be attached when the meeting is saved.`);
-      setError(importError instanceof Error ? importError.message : "Unable to parse this meeting document. Enter the meeting details manually.");
+      setError(applicationErrorMessage(importError, "Unable to parse this meeting document. Enter the meeting details manually.", "MeetingRecords"));
     } finally {
       setParseBusy(false);
     }
@@ -212,8 +211,7 @@ export default function MeetingRecords() {
       resetForm();
       void refresh();
     } catch (saveError) {
-      console.error("Unable to save meeting record:", saveError);
-      setError("Unable to save this meeting record. Check your permissions and try again.");
+      setError(applicationErrorMessage(saveError, "Unable to save this meeting record. Check your permissions and try again.", "MeetingRecords"));
     } finally {
       setSaving(false);
     }
@@ -255,8 +253,7 @@ export default function MeetingRecords() {
       const versions = await loadMeetingRecordVersions(record.id);
       setVersionsByMeeting((current) => ({ ...current, [record.id]: versions }));
     } catch (loadError) {
-      console.error("Unable to load meeting record versions:", loadError);
-      setError("Unable to load the version history for this meeting.");
+      setError(applicationErrorMessage(loadError, "Unable to load the version history for this meeting.", "MeetingRecords"));
     } finally {
       setVersionLoadingId(null);
     }

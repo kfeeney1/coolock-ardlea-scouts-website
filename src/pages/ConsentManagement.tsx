@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Container } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,8 +27,7 @@ export default function ConsentManagement() {
             if (await isCurrentUserSuperAdmin()) await reconcileUnlinkedConsents();
             setRecords(await loadConsentAdminRecords());
         } catch (loadError) {
-            console.error("Unable to load consent management records:", loadError);
-            setError("Unable to load consent records.");
+            setError(applicationErrorMessage(loadError, "Unable to load consent records.", "ConsentManagement"));
         } finally {
             setLoading(false);
         }

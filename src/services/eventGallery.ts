@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { deleteObject, getBlob, getMetadata, listAll, ref, uploadBytesResumable } from "firebase/storage";
 
 import { auth, storage } from "../firebase";
@@ -18,7 +19,7 @@ export interface EventGalleryPhoto {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage event gallery photos.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage event gallery photos.", "auth/unauthenticated");
   return uid;
 }
 

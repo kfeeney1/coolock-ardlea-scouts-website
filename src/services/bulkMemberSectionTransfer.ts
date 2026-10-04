@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -36,12 +37,12 @@ function timestampMillis(value: unknown): number | null {
 
 async function loadTransferScope(): Promise<{ allSections: boolean; sections: string[] }> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   const [profileSnapshot, organisationSnapshot] = await Promise.all([
     getDoc(doc(db, "adminUsers", user.uid)),
     getDoc(doc(db, "organisationLeadership", user.uid))
   ]);
-  if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new Error("Active leader profile is required.");
+  if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
   const profile = profileSnapshot.data();
   const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
   const allSections = profile.role === "admin" || profile.role === "super-admin"
@@ -59,16 +60,16 @@ export async function bulkTransferMembersSection(
   destinationSection: string
 ): Promise<BulkSectionTransferResult> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
-  if (!isYouthSection(destinationSection)) throw new Error("Select a valid youth section.");
-  if (selectedMembers.length === 0) throw new Error("Select at least one member.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+  if (!isYouthSection(destinationSection)) throw new UserFacingError("Select a valid youth section.");
+  if (selectedMembers.length === 0) throw new UserFacingError("Select at least one member.");
   if (selectedMembers.length > MAX_BULK_TRANSFER_MEMBERS) throw new Error(`A maximum of ${MAX_BULK_TRANSFER_MEMBERS} members can be moved in one operation.`);
-  if (new Set(selectedMembers.map((member) => member.id)).size !== selectedMembers.length) throw new Error("Duplicate members were selected.");
-  if (selectedMembers.some((member) => member.status !== "active")) throw new Error("Only active members can be moved in bulk.");
-  if (selectedMembers.every((member) => member.section === destinationSection)) throw new Error("All selected members are already in that section.");
+  if (new Set(selectedMembers.map((member) => member.id)).size !== selectedMembers.length) throw new UserFacingError("Duplicate members were selected.");
+  if (selectedMembers.some((member) => member.status !== "active")) throw new UserFacingError("Only active members can be moved in bulk.");
+  if (selectedMembers.every((member) => member.section === destinationSection)) throw new UserFacingError("All selected members are already in that section.");
 
   const scope = await loadTransferScope();
-  if (!scope.allSections && !scope.sections.includes(destinationSection)) throw new Error("You are not authorised to move members to that section.");
+  if (!scope.allSections && !scope.sections.includes(destinationSection)) throw new UserFacingError("You are not authorised to move members to that section.");
 
   const operationId = `bulk-section-transfer-${crypto.randomUUID()}`;
   const memberRefs = selectedMembers.map((member) => doc(db, "members", member.id));
@@ -81,7 +82,7 @@ export async function bulkTransferMembersSection(
       const data = snapshot.data();
       const currentSection = typeof data.section === "string" ? data.section : "";
       const currentStatus = status(data.status);
-      if (!currentSection || !currentStatus) throw new Error("A selected member no longer matches the member schema. Refresh and try again.");
+      if (!currentSection || !currentStatus) throw new UserFacingError("A selected member no longer matches the member schema. Refresh and try again.");
       if (currentStatus !== "active") throw new Error(`${expected.displayName} is no longer an active member. Refresh and review the selection.`);
       if (currentSection !== expected.section) throw new Error(`${expected.displayName}'s section changed after selection. Refresh and review the selection.`);
       const expectedUpdated = expected.updatedAt?.getTime() ?? null;
@@ -89,7 +90,7 @@ export async function bulkTransferMembersSection(
       if (expectedUpdated !== null && actualUpdated !== null && expectedUpdated !== actualUpdated) {
         throw new Error(`${expected.displayName} changed after selection. Refresh and review the selection.`);
       }
-      if (!scope.allSections && !scope.sections.includes(currentSection)) throw new Error("Your access to a selected member changed. Refresh and try again.");
+      if (!scope.allSections && !scope.sections.includes(currentSection)) throw new UserFacingError("Your access to a selected member changed. Refresh and try again.");
       return { expected, currentSection, currentStatus };
     });
 

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -446,13 +447,9 @@ export default function YouthConsentForm({
             setReference(id);
             setSubmitted(true);
         } catch (error) {
-            console.error(
-                "Unable to submit youth activity consent:",
-                error
-            );
 
             setSubmitError(
-                "Unable to submit the consent form. Please try again."
+                applicationErrorMessage(error, "Unable to submit the consent form. Please try again.", "YouthConsentForm")
             );
         } finally {
             setIsSubmitting(false);

@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,7 +23,7 @@ export default function BulkMemberSectionTransfer({ members, visibleMembers, onT
 
   useEffect(() => {
     if (!active) return;
-    void loadBulkTransferDestinations().then(setDestinations).catch(() => setError("Unable to load authorised destination sections."));
+    void loadBulkTransferDestinations().then(setDestinations).catch((failure) => setError(applicationErrorMessage(failure, "Unable to load authorised destination sections.", "BulkMemberSectionTransfer")));
   }, [active]);
 
   const selected = useMemo(() => members.filter((member) => selectedIds.has(member.id)), [members, selectedIds]);
@@ -66,7 +67,7 @@ export default function BulkMemberSectionTransfer({ members, visibleMembers, onT
       setReviewOpen(false);
       setActive(false);
     } catch (transferError) {
-      setError(transferError instanceof Error ? transferError.message : "The transfer was safely rejected. Refresh and try again.");
+      setError(applicationErrorMessage(transferError, "The transfer was safely rejected. Refresh and try again.", "BulkMemberSectionTransfer"));
       setReviewOpen(false);
     } finally {
       setSaving(false);

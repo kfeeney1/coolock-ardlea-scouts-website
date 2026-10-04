@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -38,8 +39,7 @@ export default function EquipmentHistoryDialog({ item, onClose, onError }: Props
     void loadEquipmentHistory(item.id)
       .then(setHistory)
       .catch((error) => {
-        console.error("Unable to load equipment history:", error);
-        onError("Unable to load the history for that equipment item.");
+        onError(applicationErrorMessage(error, "Unable to load the history for that equipment item.", "EquipmentHistoryDialog"));
       })
       .finally(() => setLoading(false));
   }, [item, onError]);

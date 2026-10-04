@@ -1,3 +1,4 @@
+import { applicationErrorMessage, ServiceFailure, reportApplicationError } from "../../services/applicationErrors.ts";
 import {
     createContext,
     useCallback,
@@ -50,6 +51,7 @@ type AdminAuthContextValue = {
     adminProfile: AdminProfile | null;
     loading: boolean;
     authorised: boolean;
+    accessError: string;
     sessionSettings: SessionSettings;
     refreshSessionSettings: () => Promise<void>;
     setUiTheme: (theme: ThemeName) => Promise<void>;
@@ -95,6 +97,7 @@ type Props = { children: ReactNode };
 
 export function AdminAuthProvider({ children }: Props) {
     const [user, setUser] = useState<User | null>(null);
+    const [accessError, setAccessError] = useState("");
     const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
     const [sessionSettings, setSessionSettings] = useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
     const [loading, setLoading] = useState(true);
@@ -104,7 +107,7 @@ export function AdminAuthProvider({ children }: Props) {
         try {
             setSessionSettings(await loadSessionSettings());
         } catch (error) {
-            console.error("Unable to load session settings; using defaults:", error);
+            reportApplicationError(error, { area: "AdminAuthProvider", operation: "Unable to load session settings; using defaults" });
             setSessionSettings(DEFAULT_SESSION_SETTINGS);
         }
     };
@@ -113,6 +116,7 @@ export function AdminAuthProvider({ children }: Props) {
         const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
             const version = ++authStateVersion.current;
             setLoading(true);
+            setAccessError("");
             setUser(nextUser);
             if (!nextUser) {
                 setAdminProfile(null);
@@ -136,14 +140,14 @@ export function AdminAuthProvider({ children }: Props) {
             if (profileResult.status === "fulfilled") {
                 setAdminProfile(profileResult.value);
             } else {
-                console.error("Unable to validate leader access:", profileResult.reason);
+                setAccessError(applicationErrorMessage(profileResult.reason, "Leader access could not be checked.", "Authentication", "Load leader access profile"));
                 setAdminProfile(null);
             }
 
             if (settingsResult.status === "fulfilled") {
                 setSessionSettings(settingsResult.value);
             } else {
-                console.error("Unable to load session settings; using defaults:", settingsResult.reason);
+                reportApplicationError(settingsResult.reason, { area: "AdminAuthProvider", operation: "Unable to load session settings; using defaults" });
                 setSessionSettings(DEFAULT_SESSION_SETTINGS);
             }
             setLoading(false);
@@ -184,7 +188,7 @@ export function AdminAuthProvider({ children }: Props) {
                 await signOut(auth);
             } catch (error) {
                 signingOut = false;
-                console.error("Unable to sign out inactive session:", error);
+                reportApplicationError(error, { area: "AdminAuthProvider", operation: "Unable to sign out inactive session" });
             }
         };
 
@@ -241,7 +245,7 @@ export function AdminAuthProvider({ children }: Props) {
         const profile = await loadAdminProfile(credential.user);
         if (!profile) {
             await signOut(auth);
-            throw new Error("This account is not approved for leader access.");
+            throw new ServiceFailure("This account is not approved for leader access.", "app/permission-denied");
         }
         setUser(credential.user);
         setAdminProfile(profile);
@@ -271,13 +275,14 @@ export function AdminAuthProvider({ children }: Props) {
         user,
         adminProfile,
         loading,
+        accessError,
         authorised: Boolean(user) && Boolean(adminProfile),
         sessionSettings,
         refreshSessionSettings,
         setUiTheme,
         login,
         logout
-    }), [user, adminProfile, loading, sessionSettings, setUiTheme]);
+    }), [user, adminProfile, loading, accessError, sessionSettings, setUiTheme]);
 
     return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }

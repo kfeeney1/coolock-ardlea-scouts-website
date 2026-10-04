@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -31,7 +32,7 @@ import { loadLeaderChildRelationshipsForMembers } from "./leaderChildRelationshi
 
 const uid = () => {
   const value = auth.currentUser?.uid;
-  if (!value) throw new Error("You must be signed in to manage subs.");
+  if (!value) throw new ServiceFailure("You must be signed in to manage subs.", "auth/unauthenticated");
   return value;
 };
 
@@ -57,7 +58,7 @@ export async function loadSubsMembers(sections?: string[]): Promise<MemberRecord
       try {
         return (await getDocs(query(collection(db, "members"), where("sections", "array-contains", section)))).docs;
       } catch (error) {
-        console.warn(`Unable to load concurrent subs memberships for ${section}; preserving legacy member results.`, error);
+        reportApplicationError(error, { area: "subsLedger", operation: "subsLedger operation" });
         return [];
       }
     })).then((snapshots) => snapshots.flat()),
@@ -199,12 +200,12 @@ export async function createSubsFamilyAccount(
   const uniqueMembers = [...members]
     .filter((member, index, list) => list.findIndex((candidate) => candidate.id === member.id) === index)
     .sort((a, b) => a.id.localeCompare(b.id));
-  if (uniqueMembers.length !== validated.memberIds.length) throw new Error("Select each child exactly once.");
+  if (uniqueMembers.length !== validated.memberIds.length) throw new UserFacingError("Select each child exactly once.");
 
   const amountDueCents = familyTotalFor(policy, familyType, uniqueMembers.length);
   const accountId = subsFamilyAccountId(policy.period, uniqueMembers.map((member) => member.id));
   const accountRef = doc(db, "subsAccounts", accountId);
-  if ((await getDoc(accountRef)).exists()) throw new Error("This family already has a subs account for the selected Scout year.");
+  if ((await getDoc(accountRef)).exists()) throw new UserFacingError("This family already has a subs account for the selected Scout year.");
 
   const sections = [...new Set(uniqueMembers.map((member) => member.section))].sort();
   const batch = writeBatch(db);
@@ -269,10 +270,10 @@ export async function reclassifySubsFamilyAccount(
   const actor = uid();
   const validated = validateFamilyAccountSelection(members.map((member) => member.id), classificationNote);
   const uniqueMembers = [...members].filter((member, index, list) => list.findIndex((candidate) => candidate.id === member.id) === index).sort((a, b) => a.id.localeCompare(b.id));
-  if (uniqueMembers.length !== validated.memberIds.length) throw new Error("Select each child exactly once.");
-  if (current.period !== policy.period || current.policyId !== policy.id) throw new Error("Reclassification must use the account's existing Scout-year policy.");
-  if ([...current.memberIds].sort().join("|") !== uniqueMembers.map((member) => member.id).join("|")) throw new Error("Reclassification cannot change the family membership.");
-  if (current.familyType === familyType) throw new Error("This family already has the requested Subs classification.");
+  if (uniqueMembers.length !== validated.memberIds.length) throw new UserFacingError("Select each child exactly once.");
+  if (current.period !== policy.period || current.policyId !== policy.id) throw new UserFacingError("Reclassification must use the account's existing Scout-year policy.");
+  if ([...current.memberIds].sort().join("|") !== uniqueMembers.map((member) => member.id).join("|")) throw new UserFacingError("Reclassification cannot change the family membership.");
+  if (current.familyType === familyType) throw new UserFacingError("This family already has the requested Subs classification.");
 
   const revision = (current.revision ?? 1) + 1;
   const accountId = subsFamilyAccountRevisionId(policy.period, uniqueMembers.map((member) => member.id), revision);
@@ -309,9 +310,9 @@ export async function reconcileCurrentLeaderFamilySubs(memberId: string, dateIso
   const account = accounts.find((item) => item.period === currentPeriod && item.memberIds.includes(memberId));
   if (!account) return null;
   const policy = resolveCurrentSubsPolicy(policies, dateIso);
-  if (!policy || policy.id !== account.policyId) throw new Error("The current family account policy could not be loaded.");
+  if (!policy || policy.id !== account.policyId) throw new UserFacingError("The current family account policy could not be loaded.");
   const accountMembers = account.memberIds.map((id) => members.find((member) => member.id === id)).filter((member): member is MemberRecord => Boolean(member));
-  if (accountMembers.length !== account.memberIds.length) throw new Error("The current family account contains a member that could not be loaded.");
+  if (accountMembers.length !== account.memberIds.length) throw new UserFacingError("The current family account contains a member that could not be loaded.");
   const relationships = await loadLeaderChildRelationshipsForMembers(account.memberIds);
   const familyType = familyTypeForLeaderRelationships(account.memberIds, relationships);
   if (familyType === account.familyType) return account.id;
@@ -363,7 +364,7 @@ export async function recordSubsPayment(input: {
   const valid = validatePayment({ ...paymentInput, accountId: paymentInput.accountId ?? "", reversalOfPaymentId: "" });
   const generatedId = doc(collection(db, "subsPayments")).id;
   const id = operationId ?? generatedId;
-  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid payment operation identifier.");
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new UserFacingError("Invalid payment operation identifier.");
   // Firestore transactions must read before writing. A section-scoped leader cannot
   // read a payment document that does not exist yet under the finance rules, so a
   // transaction-based create fails before the create rule is evaluated. Use a

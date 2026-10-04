@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Card, CardActions, CardContent, Chip, Container, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -29,8 +30,7 @@ export default function PolicyDocuments() {
       const next = await loadPolicyDocuments();
       setDocuments((current) => { revokePolicyDocumentUrls(current); return next; });
     } catch (loadError) {
-      console.error("Unable to load policy documents:", loadError);
-      setError("Unable to load policy documents.");
+      setError(applicationErrorMessage(loadError, "Unable to load policy documents.", "PolicyDocuments"));
     } finally { setLoading(false); }
   };
 
@@ -50,7 +50,7 @@ export default function PolicyDocuments() {
       setFile(null); setReplaceDocumentId(""); setTitle(""); setDescription(""); setCategory(""); setEffectiveDate(""); setSourceOwner("");
       await refresh();
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : "Unable to publish policy document.");
+      setError(applicationErrorMessage(publishError, "Unable to publish policy document.", "PolicyDocuments"));
     } finally { setPublishing(false); }
   };
 
@@ -63,7 +63,7 @@ export default function PolicyDocuments() {
       setRemoveTarget(null);
       await refresh();
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : "Unable to withdraw policy document.");
+      setError(applicationErrorMessage(removeError, "Unable to withdraw policy document.", "PolicyDocuments"));
     } finally { setPublishing(false); }
   };
 

@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { deleteObject, getBlob, ref, uploadBytes } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { meetingDocumentStoragePath, validateMeetingDocument } from "./attachmentLogic";
@@ -6,7 +7,7 @@ export type MeetingDocument = { path: string; fileName: string; contentType: str
 
 export async function uploadMeetingDocument(section: string, meetingId: string, file: File): Promise<MeetingDocument> {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to upload meeting documents.");
+  if (!uid) throw new ServiceFailure("You must be signed in to upload meeting documents.", "auth/unauthenticated");
   const validated = validateMeetingDocument({ ownerType: "meeting-document", ownerId: meetingId, section, fileName: file.name, contentType: file.type, size: file.size });
   const path = meetingDocumentStoragePath(section, meetingId, crypto.randomUUID(), validated.safeFileName);
   await uploadBytes(ref(storage, path), file, { contentType: validated.contentType, customMetadata: { ownerType: "meeting-document", ownerId: meetingId, section, uploadedBy: uid, originalFileName: validated.fileName } });

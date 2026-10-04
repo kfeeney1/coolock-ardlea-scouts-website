@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -69,8 +70,7 @@ export default function JoinRecordPage() {
       setConversionConfirmationOpen(false);
       if (!found) setError("This joining enquiry could not be found or is outside your permitted sections.");
     } catch (loadError) {
-      console.error("Unable to load joining enquiry:", loadError);
-      setError("Unable to load this joining enquiry.");
+      setError(applicationErrorMessage(loadError, "Unable to load this joining enquiry.", "JoinRecordPage"));
     } finally {
       setLoading(false);
     }
@@ -97,8 +97,7 @@ export default function JoinRecordPage() {
       setRecord({ ...record, status });
       setMessage("Status updated.");
     } catch (statusError) {
-      console.error("Unable to update Join Us status:", statusError);
-      setError("Unable to update the enquiry status.");
+      setError(applicationErrorMessage(statusError, "Unable to update the enquiry status.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 
@@ -110,8 +109,7 @@ export default function JoinRecordPage() {
       setRecord({ ...record, notes: notesDraft });
       setMessage("Leader notes saved.");
     } catch (notesError) {
-      console.error("Unable to save leader notes:", notesError);
-      setError("Unable to save leader notes.");
+      setError(applicationErrorMessage(notesError, "Unable to save leader notes.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 
@@ -124,8 +122,7 @@ export default function JoinRecordPage() {
       await load();
       setMessage("Contact history updated.");
     } catch (contactError) {
-      console.error("Unable to add contact history:", contactError);
-      setError("Unable to add the contact-history entry.");
+      setError(applicationErrorMessage(contactError, "Unable to add the contact-history entry.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 
@@ -138,8 +135,7 @@ export default function JoinRecordPage() {
       setRecord({ ...record, memberId });
       setMessage("Member record created successfully.");
     } catch (conversionError) {
-      console.error("Unable to convert enquiry to member:", conversionError);
-      setError("Unable to create the member record. Ensure the enquiry is Accepted and has not already been converted.");
+      setError(applicationErrorMessage(conversionError, "Unable to create the member record. Ensure the enquiry is Accepted and has not already been converted.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 

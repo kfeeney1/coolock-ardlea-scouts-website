@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -179,10 +180,10 @@ async function syncEventProjections(eventId: string, input: EventInput): Promise
 
 export async function loadEvents(): Promise<EventRecord[]> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new Error("Active leader profile is required.");
+    if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
 
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
@@ -202,10 +203,10 @@ export async function loadEvents(): Promise<EventRecord[]> {
 
 export async function createEvent(input: EventInput): Promise<string> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
     const title = clean(input.title, 200);
-    if (!title) throw new Error("Event title is required.");
-    if (input.status !== "draft" && input.status !== "open") throw new Error("New events must start as Draft or Open.");
+    if (!title) throw new UserFacingError("Event title is required.");
+    if (input.status !== "draft" && input.status !== "open") throw new UserFacingError("New events must start as Draft or Open.");
 
     const eventRef = await addDoc(collection(db, "events"), {
         title,
@@ -243,14 +244,14 @@ export async function createEvent(input: EventInput): Promise<string> {
 
 export async function updateEvent(eventId: string, input: EventInput): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const eventRef = doc(db, "events", eventId);
     const currentSnapshot = await getDoc(eventRef);
-    if (!currentSnapshot.exists()) throw new Error("Event not found.");
+    if (!currentSnapshot.exists()) throw new UserFacingError("Event not found.");
     const current = currentSnapshot.data();
     const currentStatus = current.status as EventStatus;
-    if (!EVENT_STATUSES.includes(currentStatus)) throw new Error("Event has an invalid current status.");
+    if (!EVENT_STATUSES.includes(currentStatus)) throw new UserFacingError("Event has an invalid current status.");
     if (!canTransitionEventStatus(currentStatus, input.status)) {
         throw new Error(`Event status cannot move directly from ${currentStatus} to ${input.status}.`);
     }
@@ -316,12 +317,12 @@ export async function updateEventRoster(
     consent: Record<string, EventConsentStatus>
 ): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const eventRef = doc(db, "events", eventId);
     const currentSnapshot = await getDoc(eventRef);
-    if (!currentSnapshot.exists()) throw new Error("Event not found.");
-    if (currentSnapshot.data().status === "completed") throw new Error("Completed event rosters are read-only.");
+    if (!currentSnapshot.exists()) throw new UserFacingError("Event not found.");
+    if (currentSnapshot.data().status === "completed") throw new UserFacingError("Completed event rosters are read-only.");
 
     await updateDoc(eventRef, {
         attendance,

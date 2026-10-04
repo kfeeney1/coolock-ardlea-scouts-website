@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { addDoc, collection, getDocs, query, serverTimestamp, Timestamp, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -9,7 +10,7 @@ import {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to reconcile section finance.");
+  if (!uid) throw new ServiceFailure("You must be signed in to reconcile section finance.", "auth/unauthenticated");
   return uid;
 }
 

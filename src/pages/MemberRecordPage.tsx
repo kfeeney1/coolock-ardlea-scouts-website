@@ -1,3 +1,4 @@
+import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Alert, Box, Button, Chip, CircularProgress, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -61,8 +62,7 @@ export default function MemberRecordPage() {
       setHistory(loadedHistory);
       setConsents(loadedConsents);
     } catch (loadError) {
-      console.error("Unable to load member record:", loadError);
-      setError("Unable to load this member record.");
+      setError(applicationErrorMessage(loadError, "Unable to load this member record.", "MemberRecordPage"));
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function MemberRecordPage() {
       const parents = await loadParentAccounts();
       return parentLifecycleCandidates(parents, members, member.id, nextStatus);
     } catch (parentError) {
-      console.error("Unable to evaluate linked parent lifecycle:", parentError);
+      reportApplicationError(parentError, { area: "MemberRecordPage", operation: "Unable to evaluate linked parent lifecycle" });
       return [];
     }
   };
@@ -156,8 +156,7 @@ export default function MemberRecordPage() {
       setMessage(disableParents && lifecycleCandidates.length > 0 ? "Member status and selected Parent Portal access updated." : "Member details updated.");
       setLifecycleCandidates([]);
     } catch (saveError) {
-      console.error("Unable to save member:", saveError);
-      setError("Unable to update the member record.");
+      setError(applicationErrorMessage(saveError, "Unable to update the member record.", "MemberRecordPage"));
     } finally {
       setSaving(false);
     }

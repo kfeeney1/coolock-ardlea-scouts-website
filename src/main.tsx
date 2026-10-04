@@ -1,3 +1,4 @@
+import UnhandledErrorNotice from "./components/UnhandledErrorNotice";
 import React from "react";
 import ReactDOM from "react-dom/client";
 
@@ -35,6 +36,7 @@ ReactDOM
       <AppErrorBoundary>
         <BrowserRouter>
           <TestEnvironmentBanner />
+          <UnhandledErrorNotice />
           <App />
         </BrowserRouter>
       </AppErrorBoundary>

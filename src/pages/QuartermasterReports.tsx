@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, CircularProgress, Container } from "@mui/material";
 import { useEffect, useState } from "react";
 import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
@@ -39,8 +40,7 @@ export default function QuartermasterReports() {
           setIncidents(nextIncidents);
         }
       } catch (loadError) {
-        console.error("Unable to load QM reports:", loadError);
-        if (!cancelled) setError("Unable to load Quartermaster / Bo’sun reports.");
+        if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load Quartermaster / Bo’sun reports.", "QuartermasterReports"));
       } finally {
         if (!cancelled) setLoading(false);
       }

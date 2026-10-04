@@ -1,3 +1,4 @@
+import { applicationErrorMessage, reportApplicationError } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
@@ -50,8 +51,7 @@ export default function SubsSettingsPanel() {
         if (activePolicy.leaderFamilyRatesCents?.length) setLeaderRates(activePolicy.leaderFamilyRatesCents.map(euroValue));
       }
     } catch (loadError) {
-      console.error("Unable to load subs settings:", loadError);
-      setError("Unable to load subs rates and classifications.");
+      setError(applicationErrorMessage(loadError, "Unable to load subs rates and classifications.", "SubsSettingsPanel"));
       throw loadError;
     } finally {
       setLoading(false);
@@ -89,12 +89,12 @@ export default function SubsSettingsPanel() {
       );
       setMessage(`Subs policy ${period} saved. The period runs ${periodStart} to ${periodEnd}.`);
       if (!result.refreshed) {
-        console.error("Subs policy saved but dependent state refresh failed:", result.refreshError);
+        reportApplicationError(result.refreshError, { area: "SubsSettingsPanel", operation: "Subs policy saved but dependent state refresh failed" });
         setError("");
         setRefreshWarning("Subs policy was saved successfully, but the dependent finance data could not be refreshed. Reload this page to retry; the saved policy has not been rolled back.");
       }
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save subs policy.");
+      setError(applicationErrorMessage(saveError, "Unable to save subs policy.", "SubsSettingsPanel"));
     } finally { setSaving(false); }
   };
 

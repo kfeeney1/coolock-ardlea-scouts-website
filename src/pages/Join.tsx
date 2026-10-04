@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -86,8 +87,7 @@ export default function Join() {
             setReference(id);
             setSubmitted(true);
         } catch (submitError) {
-            console.error("Unable to submit Join Us application:", submitError);
-            setError("Unable to submit the joining enquiry. Please try again.");
+            setError(applicationErrorMessage(submitError, "Unable to submit the joining enquiry. Please try again.", "Join"));
         } finally {
             setSubmitting(false);
         }

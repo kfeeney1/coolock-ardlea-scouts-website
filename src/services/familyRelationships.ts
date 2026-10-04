@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -7,10 +8,10 @@ import { planFamilyLink, planFamilyUnlink } from "./familyRelationshipLogic";
 
 async function requireAdmin(): Promise<void> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   const profile = await getDoc(doc(db, "adminUsers", user.uid));
   if (!profile.exists() || profile.data().active !== true || !["admin", "super-admin"].includes(profile.data().role)) {
-    throw new Error("Administrator access is required to manage family relationships.");
+    throw new UserFacingError("Administrator access is required to manage family relationships.");
   }
 }
 
@@ -21,17 +22,17 @@ function nextFamilyId(): string {
 
 async function applyAssignments(members: readonly MemberRecord[], assignments: Array<{ memberId: string; familyId: string }>): Promise<void> {
   const user = auth.currentUser;
-  if (!user) throw new Error("No signed-in leader.");
+  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   if (!assignments.length) return;
 
   const expectedFamilyById = new Map(members.map((member) => [member.id, member.familyId || ""]));
   await runTransaction(db, async (transaction) => {
     const snapshots = await Promise.all(assignments.map(({ memberId }) => transaction.get(doc(db, "members", memberId))));
     snapshots.forEach((snapshot, index) => {
-      if (!snapshot.exists()) throw new Error("A member record changed or was removed. Refresh and try again.");
+      if (!snapshot.exists()) throw new UserFacingError("A member record changed or was removed. Refresh and try again.");
       const actualFamilyId = typeof snapshot.data().familyId === "string" ? snapshot.data().familyId : "";
       if (actualFamilyId !== (expectedFamilyById.get(assignments[index].memberId) || "")) {
-        throw new Error("A family relationship changed while you were editing. Refresh and review the family before trying again.");
+        throw new UserFacingError("A family relationship changed while you were editing. Refresh and review the family before trying again.");
       }
     });
     assignments.forEach(({ memberId, familyId }) => transaction.update(doc(db, "members", memberId), {
@@ -45,7 +46,7 @@ async function applyAssignments(members: readonly MemberRecord[], assignments: A
 export async function linkSiblings(members: readonly MemberRecord[], memberId: string, siblingIds: readonly string[]): Promise<void> {
   await requireAdmin();
   const uniqueSiblingIds = [...new Set(siblingIds.filter((id) => id && id !== memberId))];
-  if (!uniqueSiblingIds.length) throw new Error("Choose at least one different member to link as a sibling.");
+  if (!uniqueSiblingIds.length) throw new UserFacingError("Choose at least one different member to link as a sibling.");
   let plannedMembers = members.map((member) => ({ ...member }));
   const assignmentsById = new Map<string, string>();
   for (const siblingId of uniqueSiblingIds) {

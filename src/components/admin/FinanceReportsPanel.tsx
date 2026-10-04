@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
@@ -56,8 +57,7 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
           setReceipts(receiptGroups.flat());
         }
       } catch (loadError) {
-        console.error("Unable to load section float reporting data:", loadError);
-        if (!cancelled) setError("Unable to load section float reporting data for your permitted sections.");
+        if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load section float reporting data for your permitted sections.", "FinanceReportsPanel"));
       } finally {
         if (!cancelled) setLoading(false);
       }

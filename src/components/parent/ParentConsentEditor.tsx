@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -53,8 +54,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
             setMessage("Consent and medical details updated successfully.");
             await onSaved();
         } catch (saveError) {
-            console.error("Unable to update parent consent:", saveError);
-            setError("Unable to save the consent and medical details.");
+            setError(applicationErrorMessage(saveError, "Unable to save the consent and medical details.", "ParentConsentEditor"));
         } finally {
             setSaving(false);
         }

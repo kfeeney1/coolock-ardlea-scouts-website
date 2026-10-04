@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -79,7 +80,7 @@ export default function LeaderRegister() {
             setTransitionInvitation(invitation);
             setFormData((form) => ({ ...form, fullName: `${invitation.firstName} ${invitation.lastName}`.trim(), email: invitation.emailAddress, mobileNumber: invitation.mobileNumber, requestedSection: invitation.section as RequestedSection }));
         }).catch((error) => {
-            if (current) setTransitionLoadError(error instanceof Error ? error.message : "This leader registration link is unavailable or has expired.");
+            if (current) setTransitionLoadError(applicationErrorMessage(error, "This leader registration link is unavailable or has expired.", "LeaderRegister"));
         }).finally(() => { if (current) setTransitionLoading(false); });
         return () => { current = false; };
     }, [transitionId]);
@@ -125,10 +126,7 @@ export default function LeaderRegister() {
             setSubmitted(true);
             window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (error) {
-            console.error("Unable to register leader:", error);
-            setSubmitError(usingExistingAccount
-                ? "Unable to create the leader registration for this account. A request may already exist; contact an administrator if needed."
-                : "Unable to create the leader registration. If this email is already used for Parent access, use the same password so the registrations can be linked during approval.");
+            setSubmitError(applicationErrorMessage(error, "Unable to create the leader registration. If this email is already used for Parent access, use the same password so the registrations can be linked during approval.", "LeaderRegister"));
         } finally {
             setSubmitting(false);
         }

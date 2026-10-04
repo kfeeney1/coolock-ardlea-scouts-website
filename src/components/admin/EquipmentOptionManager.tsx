@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { EquipmentItem, EquipmentOption } from "../../services/equipment";
@@ -43,7 +44,7 @@ export default function EquipmentOptionManager({ kind, options, activeItems, ope
     const existing = [...options.map((x) => x.name), ...(kind === "categories" ? [...DEFAULT_EQUIPMENT_CATEGORIES, ...values] : values)];
     if (isDuplicateEquipmentLabel(safe, existing)) return onError(`That ${label} already exists.`);
     try { await addEquipmentOption(kind, safe); setOptionName(""); await onChanged(); }
-    catch (error) { onError(error instanceof Error ? error.message : `Unable to add that ${label}.`); }
+    catch (error) { onError(applicationErrorMessage(error, `Unable to add that ${label}.`, "Equipment options")); }
   };
 
   const renameOption = async (option: EquipmentOption) => {
@@ -52,13 +53,13 @@ export default function EquipmentOptionManager({ kind, options, activeItems, ope
     const existing = kind === "categories" ? [...DEFAULT_EQUIPMENT_CATEGORIES, ...values, ...options.filter((x) => x.id !== option.id).map((x) => x.name)] : [...values, ...options.filter((x) => x.id !== option.id).map((x) => x.name)];
     if (isDuplicateEquipmentLabel(safe, existing.filter((x) => keyOf(x) !== keyOf(option.name)))) return onError(`That ${label} already exists.`);
     try { await updateEquipmentOption(kind, option, safe); await onChanged(); }
-    catch (error) { onError(error instanceof Error ? error.message : `Unable to rename that ${label}.`); }
+    catch (error) { onError(applicationErrorMessage(error, `Unable to rename that ${label}.`, "Equipment options")); }
   };
 
   const removeOption = async (option: EquipmentOption) => {
     if (!canDeleteEquipmentOption(option.name, values)) return;
     try { await deleteEquipmentOption(kind, option); await onChanged(); }
-    catch (error) { onError(error instanceof Error ? error.message : `Unable to delete that ${label}.`); }
+    catch (error) { onError(applicationErrorMessage(error, `Unable to delete that ${label}.`, "Equipment options")); }
   };
 
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">

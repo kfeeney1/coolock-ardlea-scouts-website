@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -93,8 +94,7 @@ export default function LeaderAccessManagement() {
       setBaselineByUid(Object.fromEntries(loaded.map((record) => [record.uid, record])));
       setError("");
     } catch (e) {
-      console.error(e);
-      setError("Unable to load leader access records.");
+      setError(applicationErrorMessage(e, "Unable to load leader access records.", "LeaderAccessManagement"));
     }
   };
   useEffect(() => { void refresh(); }, []);
@@ -105,7 +105,7 @@ export default function LeaderAccessManagement() {
     void Promise.all([loadSubsMembers(), loadLeaderChildRelationships(selectedRecord.uid)]).then(([members, relationships]) => {
       setFamilyMembers(members);
       setLinkedChildIds(relationships.filter((relationship) => relationship.active).map((relationship) => relationship.memberId));
-    }).catch((e) => { console.error(e); setError("Unable to load linked children for this leader."); });
+    }).catch((e) => { setError(applicationErrorMessage(e, "Unable to load linked children for this leader.", "LeaderAccessManagement")); });
   }, [selectedRecord?.uid, selectedRecord?.role]);
   const filteredRecords = useMemo(() => {
     const filtered = records.filter((record) => {
@@ -153,8 +153,7 @@ export default function LeaderAccessManagement() {
       navigate({ pathname: "/leader/access", search: filterParams.toString() ? `?${filterParams.toString()}` : "" });
       void refresh();
     } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : "Unable to update this leader. Check that your role permits this change.");
+      setError(applicationErrorMessage(e, "Unable to update this leader. Check that your role permits this change.", "LeaderAccessManagement"));
     } finally {
       setWorkingUid("");
     }
@@ -263,9 +262,9 @@ export default function LeaderAccessManagement() {
             <TextField select fullWidth label="Child member" value={childToLink} onChange={(e) => setChildToLink(e.target.value)}>
               <MenuItem value="">Select child</MenuItem>{familyMembers.filter((member) => !linkedChildIds.includes(member.id)).map((member) => <MenuItem key={member.id} value={member.id}>{member.displayName} · {member.section}</MenuItem>)}
             </TextField>
-            <Button variant="outlined" disabled={!childToLink || familyWorking} onClick={() => { setFamilyWorking(true); void setLeaderChildRelationship(record.uid, childToLink, true).then(async () => { setLinkedChildIds((ids) => [...new Set([...ids, childToLink])]); const memberId = childToLink; setChildToLink(""); await reconcileCurrentLeaderFamilySubs(memberId); setMessage("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled."); }).catch((e) => setError(e instanceof Error ? e.message : "Unable to link child.")).finally(() => setFamilyWorking(false)); }}>Link child</Button>
+            <Button variant="outlined" disabled={!childToLink || familyWorking} onClick={() => { setFamilyWorking(true); void setLeaderChildRelationship(record.uid, childToLink, true).then(async () => { setLinkedChildIds((ids) => [...new Set([...ids, childToLink])]); const memberId = childToLink; setChildToLink(""); await reconcileCurrentLeaderFamilySubs(memberId); setMessage("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled."); }).catch((e) => setError(applicationErrorMessage(e, "Unable to link child.", "LeaderAccessManagement"))).finally(() => setFamilyWorking(false)); }}>Link child</Button>
           </Stack>
-          <Stack spacing={1} sx={{ mt: 1.5 }}>{linkedChildIds.map((memberId) => { const member = familyMembers.find((item) => item.id === memberId); return <Box key={memberId} sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "center" }}><Typography>{member?.displayName || memberId}{member ? ` · ${member.section}` : ""}</Typography><Button color="error" size="small" disabled={familyWorking} onClick={() => { setFamilyWorking(true); void setLeaderChildRelationship(record.uid, memberId, false).then(async () => { setLinkedChildIds((ids) => ids.filter((id) => id !== memberId)); await reconcileCurrentLeaderFamilySubs(memberId); setMessage("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled."); }).catch((e) => setError(e instanceof Error ? e.message : "Unable to unlink child.")).finally(() => setFamilyWorking(false)); }}>Unlink</Button></Box>; })}</Stack>
+          <Stack spacing={1} sx={{ mt: 1.5 }}>{linkedChildIds.map((memberId) => { const member = familyMembers.find((item) => item.id === memberId); return <Box key={memberId} sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "center" }}><Typography>{member?.displayName || memberId}{member ? ` · ${member.section}` : ""}</Typography><Button color="error" size="small" disabled={familyWorking} onClick={() => { setFamilyWorking(true); void setLeaderChildRelationship(record.uid, memberId, false).then(async () => { setLinkedChildIds((ids) => ids.filter((id) => id !== memberId)); await reconcileCurrentLeaderFamilySubs(memberId); setMessage("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled."); }).catch((e) => setError(applicationErrorMessage(e, "Unable to unlink child.", "LeaderAccessManagement"))).finally(() => setFamilyWorking(false)); }}>Unlink</Button></Box>; })}</Stack>
           {linkedChildIds.length === 0 && <Alert severity="info" sx={{ mt: 1.5 }}>No children are linked to this leader.</Alert>}
         </Box>}
         <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid || !isDirty(record)} onClick={() => requestSave(record)}>{workingUid === record.uid ? "Saving…" : "Save Leader"}</Button>

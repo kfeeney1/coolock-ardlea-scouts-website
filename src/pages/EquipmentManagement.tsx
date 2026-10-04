@@ -1,3 +1,4 @@
+import { applicationErrorMessage, UserInputError } from "../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -132,8 +133,7 @@ export default function EquipmentManagement() {
       setHistoryItem((current) => current ? nextItems.find((item) => item.id === current.id) ?? current : null);
       setHasLoaded(true);
     } catch (loadError) {
-      console.error("Unable to load equipment:", loadError);
-      setError("Unable to load Equipment & Stores right now.");
+      setError(applicationErrorMessage(loadError, "Unable to load Equipment & Stores right now.", "EquipmentManagement"));
     } finally {
       setLoading(false);
     }
@@ -203,27 +203,26 @@ export default function EquipmentManagement() {
       let category = form.category;
       if (category === OTHER) {
         const safe = normaliseEquipmentLabel(newCategory);
-        if (!safe) throw new Error("Enter the new category name.");
-        if (isDuplicateEquipmentLabel(safe, categoryNames)) throw new Error("That category already exists. Select it from the list instead.");
+        if (!safe) throw new UserInputError("Enter the new category name.");
+        if (isDuplicateEquipmentLabel(safe, categoryNames)) throw new UserInputError("That category already exists. Select it from the list instead.");
         category = (await addEquipmentOption("categories", safe)).name;
       }
 
       let location = form.location;
       if (location === OTHER) {
         const safe = normaliseEquipmentLabel(newLocation);
-        if (!safe) throw new Error("Enter the new Store name.");
-        if (isDuplicateEquipmentLabel(safe, locationNames)) throw new Error("That Store already exists. Select it from the list instead.");
+        if (!safe) throw new UserInputError("Enter the new Store name.");
+        if (isDuplicateEquipmentLabel(safe, locationNames)) throw new UserInputError("That Store already exists. Select it from the list instead.");
         location = (await addEquipmentOption("locations", safe)).name;
       }
-      if (!category || !location) throw new Error("Choose a category and Store.");
+      if (!category || !location) throw new UserInputError("Choose a category and Store.");
 
       const payload: EquipmentItemInput = { ...form, totalQuantity: form.totalQuantity, name, category, location };
       await createEquipmentItem(payload);
       await refresh();
       setEditing(undefined);
     } catch (saveError) {
-      console.error("Unable to save equipment:", saveError);
-      setError(saveError instanceof Error ? saveError.message : "Unable to save the equipment item.");
+      setError(applicationErrorMessage(saveError, "Unable to save the equipment item.", "EquipmentManagement"));
     } finally {
       setSaving(false);
     }
@@ -236,8 +235,7 @@ export default function EquipmentManagement() {
       setArchiveTarget(null);
       void refresh();
     } catch (archiveError) {
-      console.error("Unable to update equipment archive state:", archiveError);
-      setError(archiveError instanceof Error ? archiveError.message : "Unable to update that equipment item.");
+      setError(applicationErrorMessage(archiveError, "Unable to update that equipment item.", "EquipmentManagement"));
     }
   };
 

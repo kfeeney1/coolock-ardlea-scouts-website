@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -388,13 +389,9 @@ export default function ScouterConsentForm({
             setReference(id);
             setSubmitted(true);
         } catch (error) {
-            console.error(
-                "Unable to submit Scouter ES3 form:",
-                error
-            );
 
             setSubmitError(
-                "Unable to submit the Scouter form. Please try again."
+                applicationErrorMessage(error, "Unable to submit the Scouter form. Please try again.", "ScouterConsentForm")
             );
         } finally {
             setIsSubmitting(false);

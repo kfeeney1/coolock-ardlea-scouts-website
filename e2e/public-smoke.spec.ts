@@ -122,3 +122,36 @@ test("leader login includes password recovery", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Forgot Password?" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Request Leader Access" })).toBeVisible();
 });
+
+test("SW-286 uncaught actions show safe references and retain diagnostic categories", async ({ page }) => {
+  const diagnostics: Record<string, unknown>[] = [];
+  page.on("console", async (message) => {
+    if (message.type() === "error" && message.text().startsWith("Application failure")) {
+      const value = await message.args()[1]?.jsonValue();
+      if (value) diagnostics.push(value);
+    }
+  });
+  await page.goto("/privacy");
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+  await expect(page.getByTestId("application-errors-ready")).toBeAttached();
+  for (const [code, category, action] of [
+    ["firestore/permission-denied", "permission", "permission"],
+    ["storage/unauthorized", "permission", "permission"],
+    ["functions/unavailable", "unavailable", "service"],
+    ["auth/network-request-failed", "network", "connection"],
+    ["", "unexpected", "Try again"],
+  ]) {
+    await page.evaluate((code) => {
+      const error = Object.assign(new Error("PRIVATE_PASSWORD PRIVATE_MEDICATION PRIVATE_TOKEN"), { code });
+      window.dispatchEvent(new PromiseRejectionEvent("unhandledrejection", { reason: error, promise: Promise.resolve() }));
+    }, code);
+    const alert = page.getByRole("alert").filter({ hasText: "An application action could not be completed" });
+    await expect(alert).toContainText(action);
+    await expect(alert).toContainText(/Reference: ERR-[A-F0-9]{12}/);
+    await expect(alert).not.toContainText(/PRIVATE_|FirebaseError|stack/);
+    await expect.poll(() => diagnostics.some((item) => item.category === category && (code ? item.code === code : !item.code))).toBeTruthy();
+    expect(JSON.stringify(diagnostics)).not.toMatch(/PRIVATE_/);
+    await alert.getByRole("button", { name: "Dismiss" }).click();
+    await expect(alert).toHaveCount(0);
+  }
+});

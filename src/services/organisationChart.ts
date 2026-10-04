@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 import {
   collection,
   deleteDoc,
@@ -82,7 +83,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     updatedAt: serverTimestamp()
   };
   if (!safe.displayName || !safe.scoutingRole || !safe.organisationSection) {
-    throw new Error("Organisation leader does not match the canonical data contract.");
+    throw new UserFacingError("Organisation leader does not match the canonical data contract.");
   }
 
   await setDoc(privateRef, safe);

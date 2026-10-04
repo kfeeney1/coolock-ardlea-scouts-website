@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -79,13 +80,10 @@ export default function ParentEventGallerySection({ sections }: Props) {
                 }
                 setGalleries(loaded);
             } catch (loadError) {
-                console.error("Unable to load parent event galleries:", loadError);
                 if (!cancelled) {
                     const denied = isPermissionFailure(loadError);
                     setPermissionDenied(denied);
-                    setError(denied
-                        ? "Your signed-in account does not currently have permission to load these event gallery photos."
-                        : "Unable to load event galleries right now. Please try again.");
+                    setError(applicationErrorMessage(loadError, "Unable to load event galleries right now. Please try again.", "ParentEventGallerySection"));
                 }
             } finally {
                 if (!cancelled) setLoading(false);

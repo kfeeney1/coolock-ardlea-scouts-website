@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Chip } from "@mui/material";
 import { useState } from "react";
 
@@ -117,8 +118,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
           setAwardMessage(`${selectedCandidates.length} ready badge ${selectedCandidates.length === 1 ? "award was" : "awards were"} recorded.`);
           onRetry();
         } catch (queueError) {
-          console.error("Unable to award selected badgework:", queueError);
-          setAwardError("Unable to award the selected ready badgework. No competency progress was changed; review the remaining queue and try again.");
+          setAwardError(applicationErrorMessage(queueError, "Unable to award the selected ready badgework. No competency progress was changed; review the remaining queue and try again.", "BadgeworkOverview"));
           throw queueError;
         } finally { setAwarding(false); }
       };

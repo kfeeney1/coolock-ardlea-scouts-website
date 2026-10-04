@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
@@ -44,9 +45,8 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
             replacePhotos(loadedPhotos);
         }
         catch (loadError) {
-            console.error("Unable to load event gallery:", loadError);
             setLoadFailed(true);
-            setError("Unable to load this event gallery. Please check your connection and try again.");
+            setError(applicationErrorMessage(loadError, "Unable to load this event gallery. Please check your connection and try again.", "EventGalleryDialog"));
         }
         finally { setLoading(false); }
     };
@@ -74,10 +74,13 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
             setMessage(`${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded${failed ? `; ${failed} failed.` : "."}`);
             await refresh();
         }
-        if (failed && !uploaded) setError("The selected photo(s) could not be uploaded. Use JPEG, PNG or WebP images up to 10 MB each.");
+        if (failed) {
+            const failures = results.flatMap((result) => result.status === "rejected"
+                ? [applicationErrorMessage(result.reason, "Photo upload failed. Reopen the gallery to check which photos were saved before retrying.", "EventGalleryDialog", "Photo upload")] : []);
+            setError([...new Set(failures)].join(" "));
+        }
         } catch (uploadError) {
-            console.error("Unable to finish gallery upload:", uploadError);
-            setError("Unable to finish uploading. Reopen the gallery to check which photos were saved before trying again.");
+            setError(applicationErrorMessage(uploadError, "Unable to finish uploading. Reopen the gallery to check which photos were saved before trying again.", "EventGalleryDialog"));
         } finally {
         setUploading(false);
         if (galleryInput.current) galleryInput.current.value = "";
@@ -96,9 +99,8 @@ export default function EventGalleryDialog({ event, onClose }: Props) {
             setMessage("Photo removed.");
             await refresh();
         } catch (deleteError) {
-            console.error("Unable to remove gallery photo:", deleteError);
             setPhotoToRemove(null);
-            setError("Unable to remove that photo.");
+            setError(applicationErrorMessage(deleteError, "Unable to remove that photo.", "EventGalleryDialog"));
         } finally { setDeleting(false); }
     };
 

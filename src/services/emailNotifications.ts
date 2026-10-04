@@ -1,3 +1,5 @@
+import { ServiceFailure } from "./applicationErrors.ts";
+import { requestBackend } from "./backendRequest.ts";
 import { auth } from "../firebase";
 import type { JoinApplication } from "./joinApplications";
 import type { ParentAccount } from "./parentPortal";
@@ -6,30 +8,19 @@ const emailApiUrl = (import.meta.env.VITE_EMAIL_API_URL || "").replace(/\/$/, ""
 
 async function post<T = void>(path: string, body: Record<string, unknown>, authenticated: boolean): Promise<T> {
     if (!emailApiUrl) {
-        console.warn("VITE_EMAIL_API_URL is not configured; email notification skipped.");
-        return undefined as T;
+        throw new ServiceFailure("Email service is not configured.", "backend/service-not-configured");
     }
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (authenticated) {
         const user = auth.currentUser;
-        if (!user) throw new Error("No signed-in user for authenticated email notification.");
+        if (!user) throw new ServiceFailure("Sign-in is required.", "auth/unauthenticated");
         headers.Authorization = `Bearer ${await user.getIdToken()}`;
     }
 
-    const response = await fetch(`${emailApiUrl}${path}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body)
+    return requestBackend<T>(`${emailApiUrl}${path}`, {
+        method: "POST", headers, body: JSON.stringify(body)
     });
-
-    if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(`Email service returned ${response.status}: ${detail}`);
-    }
-
-    if (response.status === 204) return undefined as T;
-    return await response.json() as T;
 }
 
 export async function notifyJoinApplication(applicationId: string, _application?: JoinApplication): Promise<void> {

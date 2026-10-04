@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import {
@@ -63,8 +64,7 @@ export default function LeaderRequests() {
         try {
             setRequests(await loadLeaderRegistrationRequests());
         } catch (err) {
-            console.error(err);
-            setError("Unable to load leader registration requests.");
+            setError(applicationErrorMessage(err, "Unable to load leader registration requests.", "LeaderRequests"));
         } finally {
             setLoading(false);
         }
@@ -152,8 +152,7 @@ export default function LeaderRequests() {
             setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]);
             await refresh();
         } catch (err) {
-            console.error(err);
-            setError("Unable to review this leader request.");
+            setError(applicationErrorMessage(err, "Unable to review this leader request.", "LeaderRequests"));
         } finally {
             setSaving(false);
         }

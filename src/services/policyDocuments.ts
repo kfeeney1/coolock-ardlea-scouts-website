@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { deleteObject, getBlob, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
@@ -56,17 +57,17 @@ function safeSegment(value: string, fallback: string): string {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to publish policy documents.");
+  if (!uid) throw new ServiceFailure("You must be signed in to publish policy documents.", "auth/unauthenticated");
   return uid;
 }
 
 function validate(input: PublishPolicyInput): void {
-  if (!input.title.trim()) throw new Error("A document title is required.");
-  if (!input.category.trim()) throw new Error("A category is required.");
-  if (!POLICY_AUDIENCES.includes(input.audience)) throw new Error("Choose a valid audience.");
-  if (!input.file || input.file.size <= 0) throw new Error("Choose a non-empty PDF file.");
-  if (input.file.size > MAX_BYTES) throw new Error("Policy documents must be 10 MB or smaller.");
-  if (!ALLOWED_TYPES.has(input.file.type)) throw new Error("Policy documents must be PDF files.");
+  if (!input.title.trim()) throw new UserFacingError("A document title is required.");
+  if (!input.category.trim()) throw new UserFacingError("A category is required.");
+  if (!POLICY_AUDIENCES.includes(input.audience)) throw new UserFacingError("Choose a valid audience.");
+  if (!input.file || input.file.size <= 0) throw new UserFacingError("Choose a non-empty PDF file.");
+  if (input.file.size > MAX_BYTES) throw new UserFacingError("Policy documents must be 10 MB or smaller.");
+  if (!ALLOWED_TYPES.has(input.file.type)) throw new UserFacingError("Policy documents must be PDF files.");
 }
 
 function rootFor(audience: PolicyAudience): string {
@@ -187,7 +188,7 @@ export async function publishPolicyDocument(input: PublishPolicyInput): Promise<
       });
     });
   } catch (error) {
-    try { await deleteObject(ref(storage, path)); } catch (cleanupError) { console.error("Unable to clean up unpublished policy upload:", cleanupError); }
+    try { await deleteObject(ref(storage, path)); } catch (cleanupError) { reportApplicationError(cleanupError, { area: "policyDocuments", operation: "Unable to clean up unpublished policy upload" }); }
     throw error;
   }
 
@@ -200,7 +201,7 @@ export async function withdrawPolicyDocument(document: PolicyDocument): Promise<
   await runTransaction(db, async (transaction) => {
     const current = await transaction.get(metadataRef);
     if (!current.exists() || current.data().versionId !== document.versionId || current.data().state !== "current") {
-      throw new Error("This policy version is no longer current. Refresh the catalogue and try again.");
+      throw new UserFacingError("This policy version is no longer current. Refresh the catalogue and try again.");
     }
     transaction.update(metadataRef, { state: "withdrawn", withdrawnBy: uid, withdrawnAt: serverTimestamp(), updatedBy: uid, updatedAt: serverTimestamp() });
   });

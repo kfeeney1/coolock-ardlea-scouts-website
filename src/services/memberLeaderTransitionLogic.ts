@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 type TransitionRequest = {
   transitionInvitationId?: string;
   transitionEndMemberMembership?: boolean;
@@ -42,17 +43,17 @@ export function validateMemberLeaderTransition(
     || email(request.email) !== email(invitation.emailAddress)
     || submittedName !== expectedName
     || text(request.mobileNumber) !== text(invitation.mobileNumber)) {
-    throw new Error("The request identity does not match the member transition.");
+    throw new UserFacingError("The request identity does not match the member transition.");
   }
   const memberName = `${text(member.firstName)} ${text(member.lastName)}`.trim().toLocaleLowerCase();
   if (email(member.emailAddress) !== email(request.email) || memberName !== submittedName) {
-    throw new Error("Member identity changed after the transition link was prepared.");
+    throw new UserFacingError("Member identity changed after the transition link was prepared.");
   }
   if (member.accountUid && member.accountUid !== accountUid) {
-    throw new Error("This member is already linked to another account.");
+    throw new UserFacingError("This member is already linked to another account.");
   }
   if (member.status !== "active" && member.status !== "inactive" && member.status !== "left") {
-    throw new Error("The member record has an unsupported status.");
+    throw new UserFacingError("The member record has an unsupported status.");
   }
   return invitation.endMemberMembership ? "left" : member.status;
 }

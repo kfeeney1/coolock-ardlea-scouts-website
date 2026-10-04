@@ -1,3 +1,4 @@
+import { ServiceFailure } from "./applicationErrors.ts";
 import { getBlob, getMetadata, listAll, ref } from "firebase/storage";
 import { auth, storage } from "../firebase";
 import { deleteStoredAttachment, uploadFinanceReceipt, type AttachmentUploadProgress } from "./attachments";
@@ -18,7 +19,7 @@ export interface FinanceReceipt {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage finance receipts.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage finance receipts.", "auth/unauthenticated");
   return uid;
 }
 

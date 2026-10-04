@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportApplicationError } from "./applicationErrors.ts";
 import {
   addDoc,
   collection,
@@ -35,7 +36,7 @@ export type EquipmentHistoryWrite = Omit<EquipmentHistoryEntry, "id" | "createdB
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage equipment history.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage equipment history.", "auth/unauthenticated");
   return uid;
 }
 
@@ -86,7 +87,7 @@ export async function recordEquipmentHistory(entry: EquipmentHistoryWrite): Prom
       createdAt: serverTimestamp()
     });
   } catch (error) {
-    console.error("Unable to record equipment history:", error);
+    reportApplicationError(error, { area: "equipmentHistory", operation: "Unable to record equipment history" });
   }
 }
 
@@ -104,7 +105,7 @@ export async function moveEquipmentStock(item: EquipmentItem, quantity: number, 
 
   await runTransaction(db, async (transaction) => {
     const sourceSnapshot = await transaction.get(sourceRef);
-    if (!sourceSnapshot.exists()) throw new Error("That equipment item no longer exists.");
+    if (!sourceSnapshot.exists()) throw new UserFacingError("That equipment item no longer exists.");
     const data = sourceSnapshot.data();
     const totalQuantity = integer(data.totalQuantity);
     const checkedOutQuantity = integer(data.checkedOutQuantity);

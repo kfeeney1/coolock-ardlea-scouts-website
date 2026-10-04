@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError, reportSecondaryFailure } from "./applicationErrors.ts";
 import {
     collection,
     doc,
@@ -123,11 +124,11 @@ function mapJoin(snapshot: QueryDocumentSnapshot<DocumentData>): JoinApplication
 
 export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
-        throw new Error("Active leader profile is required.");
+        throw new UserFacingError("Active leader profile is required.");
     }
 
     const profile = profileSnapshot.data();
@@ -161,7 +162,7 @@ export async function updateJoinStatus(applicationId: string, status: JoinStatus
         } catch (emailError) {
             // The status is already safely persisted. A delivery error is reported
             // without reverting the leader's decision or inviting a duplicate edit.
-            console.error("Unable to send Join Us status email:", emailError);
+            reportSecondaryFailure(emailError, { area: "joinAdmin", operation: "Unable to send Join Us status email" });
         }
     }
 }
@@ -179,7 +180,7 @@ export async function addContactHistoryEntry(
     note: string
 ): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const entry: ContactHistoryEntry = {
         id: crypto.randomUUID(),
@@ -198,20 +199,20 @@ export async function addContactHistoryEntry(
 
 export async function convertJoinApplicationToMember(application: JoinApplicationRecord): Promise<string> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const applicationRef = doc(db, "joinApplications", application.id);
     const memberRef = doc(collection(db, "members"));
 
     await runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(applicationRef);
-        if (!snapshot.exists()) throw new Error("The joining application no longer exists.");
+        if (!snapshot.exists()) throw new UserFacingError("The joining application no longer exists.");
 
         const current = snapshot.data();
         if (current.memberId && typeof current.memberId === "string") {
-            throw new Error("This enquiry has already been converted to a member.");
+            throw new UserFacingError("This enquiry has already been converted to a member.");
         }
-        if (current.status !== "accepted") throw new Error("Only accepted joining enquiries can be converted to members.");
+        if (current.status !== "accepted") throw new UserFacingError("Only accepted joining enquiries can be converted to members.");
 
         transaction.set(memberRef, {
             firstName: application.childFirstName,

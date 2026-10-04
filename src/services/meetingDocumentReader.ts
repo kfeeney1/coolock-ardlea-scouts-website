@@ -1,3 +1,4 @@
+import { UserInputError } from "./applicationErrors.ts";
 export type MeetingDocumentReadResult = { text: string; warnings: string[] };
 
 const MAX_PARSE_BYTES = 10 * 1024 * 1024;
@@ -5,8 +6,8 @@ const MAX_PARSE_BYTES = 10 * 1024 * 1024;
 function extension(name: string): string { return name.toLowerCase().split(".").pop() ?? ""; }
 
 function assertSafeSize(file: File): void {
-  if (file.size <= 0) throw new Error("The meeting document is empty.");
-  if (file.size > MAX_PARSE_BYTES) throw new Error("The meeting document is too large to parse safely.");
+  if (file.size <= 0) throw new UserInputError("The meeting document is empty.");
+  if (file.size > MAX_PARSE_BYTES) throw new UserInputError("The meeting document is too large to parse safely.");
 }
 
 function decodeEntities(value: string): string {
@@ -28,7 +29,7 @@ function utf8(bytes: Uint8Array): string {
 }
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") throw new Error("Compressed document extraction is not supported by this browser.");
+  if (typeof DecompressionStream === "undefined") throw new UserInputError("Compressed document extraction is not supported by this browser.");
   const copy = Uint8Array.from(data);
   const stream = new Blob([copy.buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -49,16 +50,16 @@ async function findZipText(bytes: Uint8Array, entryName: string): Promise<string
       const data = bytes.subarray(dataStart, dataStart + compressedSize);
       if (method === 0) return utf8(data);
       if (method === 8) return utf8(await inflateRaw(data));
-      throw new Error("This document uses an unsupported ZIP compression method. Enter the meeting details manually.");
+      throw new UserInputError("This document uses an unsupported ZIP compression method. Enter the meeting details manually.");
     }
     offset = dataStart + compressedSize;
   }
-  throw new Error("This document is malformed or missing its main content.");
+  throw new UserInputError("This document is malformed or missing its main content.");
 }
 
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
   const source = new TextDecoder("latin1").decode(bytes);
-  if (source.includes("/Encrypt")) throw new Error("Password-protected or encrypted PDFs cannot be parsed.");
+  if (source.includes("/Encrypt")) throw new UserInputError("Password-protected or encrypted PDFs cannot be parsed.");
   const chunks: string[] = [];
   for (const stream of source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     let body = stream[1];
@@ -77,7 +78,7 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
     }
   }
   const text = chunks.join(" ").replace(/\s+/g, " ").trim();
-  if (!text) throw new Error("This PDF contains no safely extractable text. It may be scanned or compressed; enter the meeting details manually.");
+  if (!text) throw new UserInputError("This PDF contains no safely extractable text. It may be scanned or compressed; enter the meeting details manually.");
   return text;
 }
 
@@ -92,12 +93,12 @@ export async function readMeetingDocument(file: File): Promise<MeetingDocumentRe
   const ext = extension(file.name);
   if (file.type.startsWith("text/") || ["txt", "md", "html", "htm"].includes(ext)) {
     const text = (await file.text()).trim();
-    if (!text) throw new Error("The meeting document is empty.");
+    if (!text) throw new UserInputError("The meeting document is empty.");
     return { text, warnings: [] };
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (file.type === "application/pdf" || ext === "pdf") return { text: await extractPdfText(bytes), warnings: [] };
   if (file.type.includes("wordprocessingml") || ext === "docx") return { text: xmlText(await findZipText(bytes, "word/document.xml")), warnings: [] };
   if (file.type.includes("opendocument.text") || ext === "odt") return { text: xmlText(await findZipText(bytes, "content.xml")), warnings: [] };
-  throw new Error("This document type can be attached but cannot be parsed. Enter the meeting details manually.");
+  throw new UserInputError("This document type can be attached but cannot be parsed. Enter the meeting details manually.");
 }

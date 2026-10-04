@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -74,10 +75,10 @@ function stringValue(data: DocumentData, key: string): string {
 
 async function currentLeaderProfile(): Promise<DocumentData> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
-    if (!snapshot.exists() || snapshot.data().active !== true) throw new Error("Active leader profile is required.");
+    if (!snapshot.exists() || snapshot.data().active !== true) throw new UserFacingError("Active leader profile is required.");
     return snapshot.data();
 }
 
@@ -169,7 +170,7 @@ function publicEventPayload(event: EventRecord) {
 
 export async function ensurePublicEventLink(event: EventRecord): Promise<PublicEventLink> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     const existing = await getDocs(
         query(collection(db, "eventConsentLinks"), where("eventId", "==", event.id), where("section", "==", event.section))
@@ -180,7 +181,7 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
         await setDoc(snapshot.ref, publicEventPayload(event), { merge: true });
         const refreshed = await getDoc(snapshot.ref);
         const mapped = mapLink(refreshed.id, refreshed.data() || {});
-        if (!mapped) throw new Error("Event consent link does not match the canonical data contract.");
+        if (!mapped) throw new UserFacingError("Event consent link does not match the canonical data contract.");
         return mapped;
     }
 
@@ -193,7 +194,7 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
     });
     const created = await getDoc(linkRef);
     const mapped = mapLink(created.id, created.data() || {});
-    if (!mapped) throw new Error("New event consent link does not match the canonical data contract.");
+    if (!mapped) throw new UserFacingError("New event consent link does not match the canonical data contract.");
     return mapped;
 }
 
@@ -251,7 +252,7 @@ export async function loadEventConsentResponses(eventId: string): Promise<EventC
 
 export async function markEventConsentResponseMatched(responseId: string, memberId: string): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     await updateDoc(doc(db, "eventConsentResponses", responseId), {
         processingStatus: "matched",
@@ -263,7 +264,7 @@ export async function markEventConsentResponseMatched(responseId: string, member
 
 export async function ignoreEventConsentResponse(responseId: string): Promise<void> {
     const user = auth.currentUser;
-    if (!user) throw new Error("No signed-in leader.");
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
     await updateDoc(doc(db, "eventConsentResponses", responseId), {
         processingStatus: "ignored",

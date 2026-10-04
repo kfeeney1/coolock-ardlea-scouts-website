@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -7,7 +8,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { sendPasswordResetEmail } from "firebase/auth";
+import { requestPasswordReset } from "../services/passwordReset";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -48,8 +49,7 @@ export default function AdminLogin() {
             await login(email.trim(), password);
             navigate(state?.from || "/leader", { replace: true });
         } catch (loginError) {
-            console.error("Leader login failed:", loginError);
-            setError("Unable to sign in. Check your password and make sure an administrator has approved your leader account.");
+            setError(applicationErrorMessage(loginError, "Unable to sign in. Check your password and make sure an administrator has approved your leader account.", "AdminLogin"));
         } finally {
             setSubmitting(false);
         }
@@ -67,15 +67,10 @@ export default function AdminLogin() {
         setError("");
         setMessage("");
 
-        try {
-            await sendPasswordResetEmail(auth, trimmedEmail);
-            setMessage("If an account exists for that email address, Firebase has sent a password-reset email. Check your inbox and spam folder.");
-        } catch (resetError) {
-            console.error("Unable to send leader password reset email:", resetError);
-            setMessage("If an account exists for that email address, a password-reset email will be sent. Check your inbox and spam folder.");
-        } finally {
-            setResettingPassword(false);
-        }
+        const result = await requestPasswordReset(auth, trimmedEmail, "AdminLogin");
+        setMessage(result.message);
+        setError(result.error);
+        setResettingPassword(false);
     };
 
     return (

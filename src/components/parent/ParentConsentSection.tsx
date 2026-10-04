@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { Alert, Box, Chip, Collapse, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -39,7 +40,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
       setRecords(loadedRecords);
       setMembers(loadedMembers);
     } catch (error) {
-      console.error("Unable to load linked parent consent records:", error);
+      reportApplicationError(error, { area: "ParentConsentSection", operation: "Unable to load linked parent consent records" });
       setLoadError(error);
     } finally {
       setLoading(false);

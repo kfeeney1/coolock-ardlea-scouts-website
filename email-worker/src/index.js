@@ -1,3 +1,4 @@
+import { backendFailureDiagnostic } from "./backendDiagnostics.js";
 import { equipmentIncidentActionUrl, joinApplicationActionUrl, leaderRequestActionUrl, parentAccessActionUrl } from "./emailActionLinks.js";
 
 const BRAND = {
@@ -18,7 +19,8 @@ function brandedEmail({ heading, intro, bodyHtml = "", actionLabel, actionUrl })
   return `<!doctype html><html><body style="margin:0;background:${BRAND.background};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;background:${BRAND.background}"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border-radius:10px;overflow:hidden"><tr><td style="padding:28px;background:${BRAND.navy};color:#fff;text-align:center"><div style="font-size:24px;font-weight:800">${BRAND.groupName}</div><div style="font-size:14px;margin-top:6px;opacity:.92">Scout Group Communications</div></td></tr><tr><td style="padding:32px"><h1 style="margin:0 0 16px;font-size:26px;color:${BRAND.navy}">${escapeHtml(heading)}</h1><p style="font-size:16px;line-height:1.6;margin:0 0 16px">${escapeHtml(intro)}</p>${bodyHtml}${action}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:${BRAND.muted};font-size:12px;line-height:1.5">This message was sent by the Coolock Ardlea Scout Group website.</td></tr></table></td></tr></table></body></html>`;
 }
 function allowedOrigins(env) { return String(env.ALLOWED_ORIGINS || "").split(",").map(v => v.trim()).filter(Boolean); }
-function corsHeaders(request, env) { const origin = request.headers.get("Origin") || ""; const allowed = allowedOrigins(env); return { "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0] || "", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Vary": "Origin" }; }
+function corsHeaders(request, env) { const origin = request.headers.get("Origin") || ""; const allowed = allowedOrigins(env); return { "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0] || "", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Expose-Headers": "X-Error-Reference", "Vary": "Origin" }; }
 function json(request, env, status, body) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...corsHeaders(request, env) } }); }
 function originAllowed(request, env) { const allowed = allowedOrigins(env); if (!allowed.length) return true; return allowed.includes(request.headers.get("Origin") || ""); }
 function decodeFirebaseUid(token) { try { const payload = token.split(".")[1]; if (!payload) return ""; const normalised = payload.replaceAll("-", "+").replaceAll("_", "/"); const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, "="); const decoded = JSON.parse(atob(padded)); return clean(decoded.user_id || decoded.sub, 200); } catch { return ""; } }
@@ -316,8 +318,11 @@ export default {
       if (path === "/equipment-incident") return await handleEquipmentIncident(request, env, body);
       return json(request, env, 404, { ok: false, error: "Not found." });
     } catch (error) {
-      console.error("Email worker error", error);
-      return json(request, env, 500, { ok: false, error: "Unable to send email." });
+      const diagnostic = backendFailureDiagnostic(error, new URL(request.url).pathname, env.EMAIL_DELIVERY_MODE);
+      console.error("Backend failure", diagnostic);
+      const response = json(request, env, 500, { ok: false, error: "Unable to send email.", reference: diagnostic.reference });
+      response.headers.set("X-Error-Reference", diagnostic.reference);
+      return response;
     }
   }
 };

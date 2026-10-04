@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -62,8 +63,7 @@ export default function LeaderCommunications() {
                 const loaded = await loadCommunicationRecipients(scope);
                 if (!cancelled) setRecipients(loaded);
             } catch (loadError) {
-                console.error("Unable to load communication recipients:", loadError);
-                if (!cancelled) setError("Unable to load members for your permitted sections.");
+                if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load members for your permitted sections.", "LeaderCommunications"));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -166,8 +166,7 @@ export default function LeaderCommunications() {
             });
             setSelectedIds([]);
         } catch (sendError) {
-            console.error("Unable to send leader communication:", sendError);
-            setError("Unable to send the communication. Check the email service logs if this continues.");
+            setError(applicationErrorMessage(sendError, "Unable to send the communication. Check the email service logs if this continues.", "LeaderCommunications"));
         } finally {
             setSending(false);
         }

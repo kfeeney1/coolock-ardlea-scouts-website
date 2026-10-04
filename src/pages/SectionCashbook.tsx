@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -117,8 +118,7 @@ export default function SectionCashbook() {
       setSuccess("New " + createdSection + " float created with an opening balance of " + formatEuro(amountCents) + ".");
       if (section === createdSection) await refresh(); else setSection(createdSection);
     } catch (creationError) {
-      console.error("Unable to create section float:", creationError);
-      setError(creationError instanceof Error ? creationError.message : "Unable to create this section float.");
+      setError(applicationErrorMessage(creationError, "Unable to create this section float.", "SectionCashbook"));
     } finally { setSaving(false); }
   };
 
@@ -128,8 +128,7 @@ export default function SectionCashbook() {
     try {
       const [nextTransactions, nextReconciliations] = await Promise.all([loadFinanceTransactions(section), loadFinanceReconciliations(section)]);
       setTransactions(nextTransactions); setReconciliations(nextReconciliations);
-    } catch (refreshError) {
-      console.error("Unable to load section floats:", refreshError); setError("Unable to load this section float.");
+    } catch (refreshError) { setError(applicationErrorMessage(refreshError, "Unable to load this section float.", "SectionCashbook"));
     } finally { setLoading(false); }
   };
   useEffect(() => { void refresh(); }, [section]);
@@ -170,8 +169,7 @@ export default function SectionCashbook() {
       setDescription("");
       await refresh();
     } catch (submitError) {
-      console.error("Unable to add section float transaction:", submitError);
-      setError(submitError instanceof Error ? submitError.message : "Unable to save this transaction.");
+      setError(applicationErrorMessage(submitError, "Unable to save this transaction.", "SectionCashbook"));
       return;
     } finally {
       setSaving(false);
@@ -189,8 +187,7 @@ export default function SectionCashbook() {
       setReceiptRefreshKey((value) => value + 1);
       setSuccess("Money out saved and receipt uploaded successfully.");
     } catch (receiptError) {
-      console.error("Money out saved but receipt upload failed:", receiptError);
-      setError("Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.");
+      setError(applicationErrorMessage(receiptError, "Money out was saved, but the receipt did not finish uploading. Attach it from Transaction history below.", "SectionCashbook"));
       setReceiptFile(null);
     } finally {
       setUploadingReceipt(false);
@@ -201,7 +198,7 @@ export default function SectionCashbook() {
     if (countedCents === null) { setError("Enter the physical cash counted with no more than two decimal places."); return; }
     setSaving(true); setError("");
     try { await createFinanceReconciliation(section, transactions, countedCents, reconciliationNote); setCountedCash(""); setReconciliationNote(""); await refresh(); }
-    catch (reconciliationError) { console.error("Unable to reconcile section float:", reconciliationError); setError(reconciliationError instanceof Error ? reconciliationError.message : "Unable to save this reconciliation."); }
+    catch (reconciliationError) { setError(applicationErrorMessage(reconciliationError, "Unable to save this reconciliation.", "SectionCashbook")); }
     finally { setSaving(false); }
   };
 
@@ -209,7 +206,7 @@ export default function SectionCashbook() {
     if (!correction) return;
     setSaving(true); setError("");
     try { await reverseFinanceTransaction(correction, correctionDate, correctionReason.trim() || undefined); setCorrection(null); setCorrectionReason(""); setCorrectionDate(today()); await refresh(); }
-    catch (correctionError) { console.error("Unable to correct finance transaction:", correctionError); setError(correctionError instanceof Error ? correctionError.message : "Unable to create the correction."); }
+    catch (correctionError) { setError(applicationErrorMessage(correctionError, "Unable to create the correction.", "SectionCashbook")); }
     finally { setSaving(false); }
   };
 

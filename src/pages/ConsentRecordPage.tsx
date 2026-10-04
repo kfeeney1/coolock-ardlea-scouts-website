@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
   Box,
@@ -50,8 +51,7 @@ export default function ConsentRecordPage() {
         if (!found) setError("This consent record could not be found or is outside your permitted sections.");
       } catch (loadError) {
         if (cancelled) return;
-        console.error("Unable to load consent record:", loadError);
-        setError("Unable to load this consent record.");
+        setError(applicationErrorMessage(loadError, "Unable to load this consent record.", "ConsentRecordPage"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -66,7 +66,7 @@ export default function ConsentRecordPage() {
       if (cancelled) return;
       setSuperAdmin(allowed);
       if (allowed) setCandidates(await loadReconciliationCandidates());
-    }).catch(() => undefined);
+    }).catch((failure) => { if (!cancelled) setError(applicationErrorMessage(failure, "Unable to check consent reconciliation access.", "ConsentRecordPage")); });
     return () => { cancelled = true; };
   }, [consentId]);
 
@@ -83,8 +83,7 @@ export default function ConsentRecordPage() {
       setRecord(records.find((item) => item.id === record.id) ?? null);
       setReason(""); setConfirmCorrection(false);
     } catch (reconcileError) {
-      console.error("Unable to reconcile consent:", reconcileError);
-      setError(reconcileError instanceof Error ? reconcileError.message : "Unable to reconcile this consent record.");
+      setError(applicationErrorMessage(reconcileError, "Unable to reconcile this consent record.", "ConsentRecordPage"));
     } finally { setReconciling(false); }
   };
 
@@ -97,8 +96,7 @@ export default function ConsentRecordPage() {
       setRecord(records.find((item) => item.id === record.id) ?? null);
       setCandidateId(memberId);
     } catch (createError) {
-      console.error("Unable to create member from consent:", createError);
-      setError(createError instanceof Error ? createError.message : "Unable to create the member record.");
+      setError(applicationErrorMessage(createError, "Unable to create the member record.", "ConsentRecordPage"));
     } finally { setCreatingMember(false); }
   };
 

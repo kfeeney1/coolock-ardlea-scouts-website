@@ -1,3 +1,4 @@
+import { UserFacingError, reportSecondaryFailure } from "./applicationErrors.ts";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
@@ -27,7 +28,7 @@ export async function registerLeader(input: LeaderRegistrationInput): Promise<vo
     if (existingUser) {
         const existingEmail = normalizeEmail(existingUser.email || "");
         if (!existingEmail || existingEmail !== requestedEmail) {
-            throw new Error("Leader request email must match the signed-in account.");
+            throw new UserFacingError("Leader request email must match the signed-in account.");
         }
     } else {
         try {
@@ -42,16 +43,16 @@ export async function registerLeader(input: LeaderRegistrationInput): Promise<vo
         }
     }
 
-    if (!user) throw new Error("Unable to determine the Firebase user for this request.");
+    if (!user) throw new UserFacingError("Unable to determine the Firebase user for this request.");
 
     try {
         const requestRef = doc(db, "leaderRegistrationRequests", user.uid);
         const existingRequest = await getDoc(requestRef);
         if (existingRequest.exists()) {
             const status = existingRequest.data().status;
-            if (status === "pending") throw new Error("A leader access request is already pending for this account.");
-            if (status === "approved") throw new Error("This account already has an approved leader request.");
-            throw new Error("A previous leader access request exists for this account. Contact an administrator to review it.");
+            if (status === "pending") throw new UserFacingError("A leader access request is already pending for this account.");
+            if (status === "approved") throw new UserFacingError("This account already has an approved leader request.");
+            throw new UserFacingError("A previous leader access request exists for this account. Contact an administrator to review it.");
         }
 
         await setDoc(requestRef, {
@@ -71,7 +72,7 @@ export async function registerLeader(input: LeaderRegistrationInput): Promise<vo
             reviewedBy: "",
             reviewNote: ""
         });
-        try { await notifyLeaderRegistration(); } catch (emailError) { console.error("Unable to send leader registration emails:", emailError); }
+        try { await notifyLeaderRegistration(); } catch (emailError) { reportSecondaryFailure(emailError, { area: "leaderRegistrations", operation: "Unable to send leader registration emails" }); }
     } finally {
         if (shouldSignOut) await signOut(auth);
     }
@@ -97,7 +98,7 @@ export async function loadLeaderRegistrationRequests(): Promise<LeaderRegistrati
 
 export async function approveLeaderRegistration(request: LeaderRegistrationRequest, reviewerUid: string, reviewNote: string, selectedAppointments: readonly string[] = [DEFAULT_NEW_LEADER_APPOINTMENT]): Promise<void> {
     const section = request.requestedSection.trim();
-    if (!section) throw new Error("A canonical section is required before approving leader access.");
+    if (!section) throw new UserFacingError("A canonical section is required before approving leader access.");
     const appointments = newLeaderAppointments(section, selectedAppointments);
 
     await runTransaction(db, async (transaction) => {
@@ -105,29 +106,29 @@ export async function approveLeaderRegistration(request: LeaderRegistrationReque
         const adminRef = doc(db, "adminUsers", request.uid);
         const organisationRef = doc(db, "organisationLeadership", request.uid);
         const snapshot = await transaction.get(requestRef);
-        if (!snapshot.exists()) throw new Error("Registration request no longer exists.");
-        if (snapshot.data().status !== "pending") throw new Error("Only pending requests can be approved.");
+        if (!snapshot.exists()) throw new UserFacingError("Registration request no longer exists.");
+        if (snapshot.data().status !== "pending") throw new UserFacingError("Only pending requests can be approved.");
         const existingAdmin = await transaction.get(adminRef);
         const existingOrganisation = await transaction.get(organisationRef);
         if (request.transitionInvitationId) {
             const invitationRef = doc(db, "leaderTransitionInvitations", request.transitionInvitationId);
             const invitationSnapshot = await transaction.get(invitationRef);
-            if (!invitationSnapshot.exists() || invitationSnapshot.data().status !== "pending") throw new Error("The member transition link is no longer available.");
+            if (!invitationSnapshot.exists() || invitationSnapshot.data().status !== "pending") throw new UserFacingError("The member transition link is no longer available.");
             const invitation = invitationSnapshot.data();
-            if (!(invitation.expiresAt instanceof Timestamp) || invitation.expiresAt.toDate().getTime() <= Date.now()) throw new Error("The member transition link has expired.");
+            if (!(invitation.expiresAt instanceof Timestamp) || invitation.expiresAt.toDate().getTime() <= Date.now()) throw new UserFacingError("The member transition link has expired.");
             const persistedRequest = snapshot.data();
             if (persistedRequest.transitionInvitationId !== request.transitionInvitationId
-                || persistedRequest.transitionEndMemberMembership !== (invitation.endMemberMembership === true)) throw new Error("The transition details do not match the member's approved link.");
+                || persistedRequest.transitionEndMemberMembership !== (invitation.endMemberMembership === true)) throw new UserFacingError("The transition details do not match the member's approved link.");
             const memberRef = doc(db, "members", String(invitation.memberId || ""));
             const memberSnapshot = await transaction.get(memberRef);
-            if (!memberSnapshot.exists()) throw new Error("The original member record no longer exists.");
+            if (!memberSnapshot.exists()) throw new UserFacingError("The original member record no longer exists.");
             const member = memberSnapshot.data();
             const nextStatus = validateMemberLeaderTransition(request, { ...invitation, id: request.transitionInvitationId || "", memberId: String(invitation.memberId || ""), firstName: String(invitation.firstName || ""), lastName: String(invitation.lastName || ""), emailAddress: String(invitation.emailAddress || ""), mobileNumber: String(invitation.mobileNumber || ""), section: String(invitation.section || ""), endMemberMembership: invitation.endMemberMembership === true }, member, request.uid);
             if (existingAdmin.exists() && existingAdmin.data().active === true && existingAdmin.data().role !== "leader") {
-                throw new Error("An existing administrator account cannot be converted through Leader registration.");
+                throw new UserFacingError("An existing administrator account cannot be converted through Leader registration.");
             }
             if (existingAdmin.exists() && existingAdmin.data().active === true && existingAdmin.data().role === "leader") {
-                if (!existingOrganisation.exists() || existingOrganisation.data().active !== true) throw new Error("The existing Leader profile is incomplete; reconcile it before approval.");
+                if (!existingOrganisation.exists() || existingOrganisation.data().active !== true) throw new UserFacingError("The existing Leader profile is incomplete; reconcile it before approval.");
             } else {
                 transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
                 transaction.set(organisationRef, {
@@ -168,7 +169,7 @@ export async function approveLeaderRegistration(request: LeaderRegistrationReque
         });
         transaction.update(requestRef, { status: "approved", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     });
-    try { await notifyLeaderAccessStatus(request.uid, "approved"); } catch (emailError) { console.error("Unable to send leader approval email:", emailError); }
+    try { await notifyLeaderAccessStatus(request.uid, "approved"); } catch (emailError) { reportSecondaryFailure(emailError, { area: "leaderRegistrations", operation: "Unable to send leader approval email" }); }
 }
 
 export async function rejectLeaderRegistration(requestUid: string, reviewerUid: string, reviewNote: string): Promise<void> {
@@ -177,6 +178,6 @@ export async function rejectLeaderRegistration(requestUid: string, reviewerUid: 
     const request = snapshot.exists() ? mapRequest(snapshot.id, snapshot.data()) : null;
     await updateDoc(requestRef, { status: "rejected", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
     if (request) {
-        try { await notifyLeaderAccessStatus(request.uid, "rejected"); } catch (emailError) { console.error("Unable to send leader rejection email:", emailError); }
+        try { await notifyLeaderAccessStatus(request.uid, "rejected"); } catch (emailError) { reportSecondaryFailure(emailError, { area: "leaderRegistrations", operation: "Unable to send leader rejection email" }); }
     }
 }

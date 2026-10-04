@@ -1,3 +1,4 @@
+import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { loadInternalOrganisation } from "../../services/organisationChart";
@@ -33,7 +34,7 @@ export default function OrganisationChartContent() {
         }
       })
       .catch((reason) => {
-        console.error("Unable to load internal organisation chart:", reason);
+        reportApplicationError(reason, { area: "OrganisationChartContent", operation: "Unable to load internal organisation chart" });
         if (!cancelled) setError(true);
       })
       .finally(() => {

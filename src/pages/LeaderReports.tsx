@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -78,8 +79,7 @@ export default function LeaderReports() {
                     setSelectedEventId((current) => current || eventRows[0]?.id || "");
                 }
             } catch (loadError) {
-                console.error("Unable to load reporting data:", loadError);
-                if (!cancelled) setError("Unable to load reporting data for your permitted sections.");
+                if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load reporting data for your permitted sections.", "LeaderReports"));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -153,8 +153,7 @@ export default function LeaderReports() {
                 await auditExport("Outstanding consent report exported", selectedEvent.id, selectedEvent.title, "Exported members whose consent is still outstanding for this event.", selectedEvent.section);
             }
         } catch (exportError) {
-            console.error("Unable to export event report:", exportError);
-            setError("Unable to export that event report.");
+            setError(applicationErrorMessage(exportError, "Unable to export that event report.", "LeaderReports"));
         } finally {
             setExportingEvent(false);
         }

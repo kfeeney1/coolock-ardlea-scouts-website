@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
     Box,
@@ -52,8 +53,7 @@ export default function SiteSettings() {
                 const loaded = await loadSessionSettings();
                 if (!cancelled) setSettings(loaded);
             } catch (loadError) {
-                console.error("Unable to load site settings:", loadError);
-                if (!cancelled) setError("Unable to load site settings.");
+                if (!cancelled) setError(applicationErrorMessage(loadError, "Unable to load site settings.", "SiteSettings"));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -82,8 +82,7 @@ export default function SiteSettings() {
                 ? "Site settings saved. New inactivity limits apply immediately to this session and when other signed-in users next load the settings."
                 : "Site settings saved, but this screen could not refresh the active session. Reload the page before relying on the new inactivity limit in this session.");
         } catch (saveError) {
-            console.error("Unable to save site settings:", saveError);
-            setError(saveError instanceof Error ? saveError.message : "Unable to save site settings.");
+            setError(applicationErrorMessage(saveError, "Unable to save site settings.", "SiteSettings"));
         } finally {
             setSaving(false);
         }

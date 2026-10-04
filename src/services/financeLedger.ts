@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { addDoc, collection, doc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -16,7 +17,7 @@ import {
 
 function currentUid(): string {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("You must be signed in to manage section finance.");
+  if (!uid) throw new ServiceFailure("You must be signed in to manage section finance.", "auth/unauthenticated");
   return uid;
 }
 
@@ -62,17 +63,17 @@ export async function createFinanceTransaction(input: FinanceTransactionInput): 
   const uid = currentUid();
   const validated = validateFinanceTransactionInput(input);
   if (["adjustment", "transfer-in", "transfer-out"].includes(validated.type)) {
-    throw new Error("Use the dedicated finance workflow for corrections and transfers.");
+    throw new UserFacingError("Use the dedicated finance workflow for corrections and transfers.");
   }
 
   const currentTransactions = await loadFinanceTransactions(validated.section);
   const currentBalanceCents = calculateLedgerBalanceCents(currentTransactions);
   const floatIsOpen = financeFloatIsOpen(currentTransactions);
   if (validated.type === "opening-float" && floatIsOpen) {
-    throw new Error("Close the current section float before opening another one.");
+    throw new UserFacingError("Close the current section float before opening another one.");
   }
   if (validated.type !== "opening-float" && !floatIsOpen) {
-    throw new Error("Open the section float before recording money in or out.");
+    throw new UserFacingError("Open the section float before recording money in or out.");
   }
   assertNonNegativeFinanceBalance(currentBalanceCents, signedAmountCents(validated));
 
@@ -136,7 +137,7 @@ export async function createFinanceTransfer(input: FinanceTransferInput): Promis
 }
 
 export async function reverseFinanceTransaction(original: FinanceTransaction, transactionDate: string, description?: string): Promise<string> {
-  if (original.type === "adjustment") throw new Error("An adjustment cannot itself be reversed from this workflow.");
+  if (original.type === "adjustment") throw new UserFacingError("An adjustment cannot itself be reversed from this workflow.");
   const uid = currentUid();
   const reversal = createReversalInput(original, transactionDate, description);
   const currentBalanceCents = calculateLedgerBalanceCents(await loadFinanceTransactions(original.section));

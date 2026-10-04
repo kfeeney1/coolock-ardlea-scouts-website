@@ -1,3 +1,4 @@
+import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import EventConsentEventPanel from "../components/admin/EventConsentEventPanel";
@@ -76,8 +77,7 @@ export default function EventConsentManagement() {
             );
             setResponses(Object.fromEntries(responseEntries));
         } catch (loadError) {
-            console.error("Unable to load parent event consent:", loadError);
-            setError("Unable to load event consent information.");
+            setError(applicationErrorMessage(loadError, "Unable to load event consent information.", "EventConsentManagement"));
             if (reportFailure) throw loadError;
         } finally {
             setLoading(false);
@@ -116,8 +116,7 @@ export default function EventConsentManagement() {
                     : "The link was created, but it will only be available while the event is Open and requires consent."
             );
         } catch (linkError) {
-            console.error("Unable to create event consent link:", linkError);
-            setError("Unable to create or refresh the parent consent link.");
+            setError(applicationErrorMessage(linkError, "Unable to create or refresh the parent consent link.", "EventConsentManagement"));
         } finally {
             setWorkingEventId("");
         }
@@ -171,8 +170,7 @@ export default function EventConsentManagement() {
             const label = kind === "reminder" ? "consent reminder" : kind === "update" ? "event update" : "event notice";
             setMessage(`${label.charAt(0).toUpperCase() + label.slice(1)} queued for ${targets.length} member${targets.length === 1 ? "" : "s"}.`);
         } catch (notificationError) {
-            console.error("Unable to send event notification:", notificationError);
-            setError("Unable to send the event notification. Check the email Worker logs if this continues.");
+            setError(applicationErrorMessage(notificationError, "Unable to send the event notification. Check the email Worker logs if this continues.", "EventConsentManagement"));
         } finally {
             setWorkingNotification("");
         }
@@ -228,8 +226,7 @@ export default function EventConsentManagement() {
                 (refreshed ? "" : " The changes were saved, but the screen could not refresh. Reload the page to see them.")
             );
         } catch (syncError) {
-            console.error("Unable to sync event consent responses:", syncError);
-            setError("Unable to sync parent responses into the event roster.");
+            setError(applicationErrorMessage(syncError, "Unable to sync parent responses into the event roster.", "EventConsentManagement"));
         } finally {
             setWorkingEventId("");
         }
@@ -253,15 +250,14 @@ export default function EventConsentManagement() {
             try {
                 await notifyEventConsentProcessed(event.id, memberId);
             } catch (emailError) {
-                console.error("Unable to send event response confirmation:", emailError);
+                reportApplicationError(emailError, { area: "EventConsentManagement", operation: "Unable to send event response confirmation" });
             }
             const refreshed = await trySecondaryRefresh(() => load(true), "event consent responses");
             const member = members.find((candidate) => candidate.id === memberId);
             setMessage(`Response for ${response.childName} matched to ${member?.displayName || "the selected member"}.` +
                 (refreshed ? "" : " The match was saved, but the screen could not refresh. Reload the page to see it."));
         } catch (matchError) {
-            console.error("Unable to manually match response:", matchError);
-            setError("Unable to match the parent response to the selected member.");
+            setError(applicationErrorMessage(matchError, "Unable to match the parent response to the selected member.", "EventConsentManagement"));
         } finally {
             setWorkingResponseId("");
         }
@@ -277,8 +273,7 @@ export default function EventConsentManagement() {
             setMessage(`Response for ${response.childName} marked as ignored.` +
                 (refreshed ? "" : " The change was saved, but the screen could not refresh. Reload the page to see it."));
         } catch (ignoreError) {
-            console.error("Unable to ignore response:", ignoreError);
-            setError("Unable to mark the parent response as ignored.");
+            setError(applicationErrorMessage(ignoreError, "Unable to mark the parent response as ignored.", "EventConsentManagement"));
         } finally {
             setWorkingResponseId("");
         }

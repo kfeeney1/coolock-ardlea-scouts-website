@@ -1,3 +1,4 @@
+import { Alert, Button } from "@mui/material";
 import {
     Box,
     CircularProgress
@@ -24,7 +25,8 @@ export default function ProtectedAdminRoute({
     const {
         user,
         loading,
-        authorised
+        authorised,
+        accessError
     } = useAdminAuth();
 
     const location = useLocation();
@@ -43,6 +45,8 @@ export default function ProtectedAdminRoute({
             </Box>
         );
     }
+
+    if (accessError) return <Box sx={{ p: 3 }}><Alert severity="error" role="alert">{accessError}</Alert><Button onClick={() => window.location.reload()}>Retry access check</Button></Box>;
 
     // A Firebase login by itself never grants leader access.
     // Parent-only users remain authenticated for /parent, but are explicitly

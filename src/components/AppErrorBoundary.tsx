@@ -1,4 +1,5 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
+import { Component, type ReactNode } from "react";
 import { Alert, Box, Button, Container, Stack, Typography } from "@mui/material";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
 
 type State = {
   hasError: boolean;
+  errorMessage?: string;
 };
 
 export default class AppErrorBoundary extends Component<Props, State> {
@@ -16,8 +18,8 @@ export default class AppErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error("Unhandled application render error", error, info);
+  componentDidCatch(error: Error): void {
+    this.setState({ errorMessage: applicationErrorMessage(error, "The page could not be displayed.", "Application", "Render page") });
   }
 
   private retry = (): void => {
@@ -44,7 +46,7 @@ export default class AppErrorBoundary extends Component<Props, State> {
           </Box>
 
           <Alert severity="error" role="alert">
-            Try reloading the page. If the problem continues, return to the home page and try again later.
+            {this.state.errorMessage || "Try reloading the page. If the problem continues, return to the home page and try again later."}
           </Alert>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>

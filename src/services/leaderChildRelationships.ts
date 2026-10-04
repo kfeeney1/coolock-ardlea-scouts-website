@@ -1,3 +1,4 @@
+import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -11,13 +12,13 @@ export type LeaderChildRelationship = {
 
 function actorUid(): string {
   const value = auth.currentUser?.uid;
-  if (!value) throw new Error("You must be signed in to manage leader family relationships.");
+  if (!value) throw new ServiceFailure("You must be signed in to manage leader family relationships.", "auth/unauthenticated");
   return value;
 }
 
 function relationshipId(leaderUid: string, memberId: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(leaderUid) || !/^[A-Za-z0-9_-]{1,128}$/.test(memberId)) {
-    throw new Error("Leader and member records must use canonical identifiers.");
+    throw new UserFacingError("Leader and member records must use canonical identifiers.");
   }
   return `${leaderUid}--${memberId}`;
 }
@@ -49,7 +50,7 @@ export async function loadLeaderChildRelationshipsForMembers(memberIds: string[]
 export async function setLeaderChildRelationship(leaderUid: string, memberId: string, active: boolean): Promise<void> {
   const actor = actorUid();
   const actorEmail = auth.currentUser?.email || "";
-  if (!actorEmail) throw new Error("Your signed-in account must have an email address to audit leader family changes.");
+  if (!actorEmail) throw new UserFacingError("Your signed-in account must have an email address to audit leader family changes.");
   const id = relationshipId(leaderUid, memberId);
   const relationshipRef = doc(db, "leaderChildRelationships", id);
   const leaderRef = doc(db, "adminUsers", leaderUid);
@@ -63,10 +64,10 @@ export async function setLeaderChildRelationship(leaderUid: string, memberId: st
       transaction.get(relationshipRef)
     ]);
     if (!leaderSnapshot.exists() || leaderSnapshot.data().active !== true || leaderSnapshot.data().role !== "leader") {
-      throw new Error("Select an active leader account.");
+      throw new UserFacingError("Select an active leader account.");
     }
     if (!memberSnapshot.exists() || memberSnapshot.data().status !== "active") {
-      throw new Error("Select an active youth member.");
+      throw new UserFacingError("Select an active youth member.");
     }
     if (currentSnapshot.exists() && currentSnapshot.data().active === active) return;
 

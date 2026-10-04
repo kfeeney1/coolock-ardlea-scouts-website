@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -58,8 +59,7 @@ export default function EventRecordPage() {
             setEquipmentLoans(loadedLoans);
             if (!requested) setError("This event could not be found or is outside your permitted sections.");
         } catch (loadError) {
-            console.error("Unable to load event record:", loadError);
-            setError("Unable to load this event record.");
+            setError(applicationErrorMessage(loadError, "Unable to load this event record.", "EventRecordPage"));
             if (reportFailure) throw loadError;
         } finally {
             setLoading(false);
@@ -105,8 +105,7 @@ export default function EventRecordPage() {
                 ? "Attendance and consent roster updated."
                 : "Attendance and consent roster saved, but the screen could not refresh. Reload the page to see the saved roster.");
         } catch (saveError) {
-            console.error("Unable to save event roster:", saveError);
-            setError("Unable to save the attendance and consent roster.");
+            setError(applicationErrorMessage(saveError, "Unable to save the attendance and consent roster.", "EventRecordPage"));
         } finally {
             setSavingRoster(false);
         }

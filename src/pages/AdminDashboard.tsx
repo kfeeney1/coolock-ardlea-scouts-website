@@ -1,3 +1,4 @@
+import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import AdminOverviewPanel from "../components/admin/AdminOverviewPanel";
@@ -90,8 +91,7 @@ export default function AdminDashboard() {
         try {
             setRecords(await loadAdminRecords());
         } catch (refreshError) {
-            console.error("Unable to load leader records:", refreshError);
-            setError("Unable to load submissions. Check that this leader account is authorised in Firestore.");
+            setError(applicationErrorMessage(refreshError, "Unable to load submissions. Check that this leader account is authorised in Firestore.", "AdminDashboard"));
         } finally {
             setLoading(false);
         }
@@ -114,8 +114,7 @@ export default function AdminDashboard() {
             setRecords((current) => current.map((item) => item.id === record.id && item.kind === record.kind ? { ...item, status } : item));
             if (selected?.id === record.id && selected.kind === record.kind) setSelected({ ...selected, status });
         } catch (statusError) {
-            console.error("Unable to update status:", statusError);
-            setError("Unable to update the record status.");
+            setError(applicationErrorMessage(statusError, "Unable to update the record status.", "AdminDashboard"));
         } finally {
             setUpdating(false);
         }

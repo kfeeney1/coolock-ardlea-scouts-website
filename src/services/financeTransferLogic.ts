@@ -1,3 +1,4 @@
+import { UserFacingError } from "./applicationErrors.ts";
 export interface FinanceTransferInput {
   fromSection: string;
   toSection: string;
@@ -15,15 +16,15 @@ export function validateFinanceTransferInput(input: FinanceTransferInput): Finan
   const toSection = normalise(input.toSection);
   const description = normalise(input.description);
 
-  if (!fromSection) throw new Error("Choose the section the money is moving from.");
-  if (!toSection) throw new Error("Choose the section the money is moving to.");
-  if (fromSection === toSection) throw new Error("A transfer must move money between two different sections.");
+  if (!fromSection) throw new UserFacingError("Choose the section the money is moving from.");
+  if (!toSection) throw new UserFacingError("Choose the section the money is moving to.");
+  if (fromSection === toSection) throw new UserFacingError("A transfer must move money between two different sections.");
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
-    throw new Error("Transfer amount must be a positive whole number of cents.");
+    throw new UserFacingError("Transfer amount must be a positive whole number of cents.");
   }
-  if (!description) throw new Error("Enter a transfer description.");
+  if (!description) throw new UserFacingError("Enter a transfer description.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transactionDate)) {
-    throw new Error("Transfer date must use YYYY-MM-DD format.");
+    throw new UserFacingError("Transfer date must use YYYY-MM-DD format.");
   }
 
   return {
