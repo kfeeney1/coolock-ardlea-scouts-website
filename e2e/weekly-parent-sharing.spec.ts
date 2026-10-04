@@ -31,7 +31,7 @@ test("approved parent sees programme and badgework but never leader-only meeting
   await expect(programme).not.toContainText("Section Leader");
 });
 
-test("leader WhatsApp share includes programme equipment but excludes private meeting data", async ({ page }, testInfo) => {
+test("leader WhatsApp share includes programme, completed badgework and equipment without member identity", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure canonical E2E leader credentials.");
   await login(page, sectionLeaderEmail, "leader");
@@ -52,7 +52,9 @@ test("leader WhatsApp share includes programme equipment but excludes private me
   expect(text).toContain("Opening game");
   expect(text).toContain("Adventure Skills");
   expect(text).toContain("Equipment: Cones");
-  for (const privateValue of ["TEST Completed Badge", "TEST minor graze", "Historical post-meeting note", "Section Leader", "Fast opener", "Reusable programme template"]) {
+  expect(text).toContain("Badgework:");
+  expect(text).toContain("TEST Completed Badge");
+  for (const privateValue of ["TEST minor graze", "Historical post-meeting note", "Section Leader", "Fast opener", "Reusable programme template"]) {
     expect(text).not.toContain(privateValue);
   }
 });
