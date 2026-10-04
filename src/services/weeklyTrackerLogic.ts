@@ -142,7 +142,21 @@ export function decodeWeeklyBadgeworkSources(data: Record<string, unknown>, lega
     }
     const badge = [item.badge, item.name, item.badgeName, item.activity, item.title]
       .find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0)?.trim() ?? "";
-    if (!badge) return;
+    if (!badge) {
+      if (typeof item.badge === "string" && !item.badge.trim() && !plans.some((plan) => plan.badge === "")) {
+        plans.push({
+          id: typeof item.id === "string" && item.id ? item.id : `legacy-badgework-${plans.length + 1}`,
+          badge: "",
+          leader: typeof item.leader === "string" ? item.leader : "",
+          notes: typeof item.notes === "string" ? item.notes : "",
+          equipment: typeof item.equipment === "string" ? item.equipment : "",
+          durationMinutes: typeof item.durationMinutes === "number" && Number.isFinite(item.durationMinutes)
+            ? Math.max(0, Math.min(360, Math.round(item.durationMinutes)))
+            : 0
+        });
+      }
+      return;
+    }
     const key = badge.toLocaleLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
