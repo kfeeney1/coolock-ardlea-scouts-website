@@ -148,10 +148,10 @@ test("safe user diagnostics distinguish representative failure classes without d
   t.mock.method(console, "error", () => {});
   for (const [error, expected] of [
     [{ code: "storage/unauthorized" }, /Diagnostic: Firebase Storage rejected access.*Service: Firebase Storage.*Code: UNAUTHORIZED/],
-    [{ code: "auth/unauthenticated" }, /Service: Firebase Authentication.*Code: UNAUTHENTICATED.*session/],
-    [{ code: "storage/object-not-found" }, /Service: Firebase Storage.*Code: OBJECT_NOT_FOUND.*requested object/],
-    [{ code: "storage/network-error" }, /Service: Firebase Storage.*Code: NETWORK_ERROR.*CORS-level/],
-    [new Error("PRIVATE_UNKNOWN"), /Service: Application.*Code: UNKNOWN_FAILURE.*unclassified failure/],
+    [{ code: "auth/unauthenticated" }, /Diagnostic:.*session.*Service: Firebase Authentication.*Code: UNAUTHENTICATED/],
+    [{ code: "storage/object-not-found" }, /Diagnostic:.*requested object.*Service: Firebase Storage.*Code: OBJECT_NOT_FOUND/],
+    [{ code: "storage/network-error" }, /Diagnostic:.*CORS-level.*Service: Firebase Storage.*Code: NETWORK_ERROR/],
+    [new Error("PRIVATE_UNKNOWN"), /Diagnostic:.*unclassified failure.*Service: Application.*Code: UNKNOWN_FAILURE/],
   ] as const) {
     const report = reportApplicationError(error, { area: "Finance receipts", operation: "Open finance receipt", userMessage: "Receipt opening failed." });
     assert.match(report.userMessage, expected);
