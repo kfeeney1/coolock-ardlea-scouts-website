@@ -93,6 +93,24 @@ export async function loadParentWeeklyMeetingProgrammes(sections: string[]): Pro
     .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 }
 
+export function mergeWeeklyMeetingShareBadgework(
+  programme: Omit<ParentWeeklyMeetingProgramme, "id">,
+  completedBadgeworkNames: string[]
+): Omit<ParentWeeklyMeetingProgramme, "id"> {
+  const seen = new Set(programme.badgework.map((item) => item.name.trim().toLocaleLowerCase()).filter(Boolean));
+  const completed = completedBadgeworkNames
+    .map((name) => clean(name, 240))
+    .filter((name) => {
+      if (!name) return false;
+      const key = name.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((name) => ({ name, durationMinutes: 0, equipment: "" }));
+  return { ...programme, badgework: [...programme.badgework, ...completed].slice(0, 30) };
+}
+
 export function buildWeeklyMeetingWhatsAppText(programme: Omit<ParentWeeklyMeetingProgramme, "id">): string {
   const lines = [`${programme.section} Weekly Meeting · ${programme.meetingDate}`];
   if (programme.location) lines.push(`Location: ${programme.location}`);
