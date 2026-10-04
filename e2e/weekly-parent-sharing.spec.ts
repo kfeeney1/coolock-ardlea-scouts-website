@@ -69,6 +69,10 @@ test("SW-290 completed Badgework entered in UI survives save reload and WhatsApp
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
   await page.getByLabel("Meeting date").fill("2099-04-12");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  const planned = page.getByLabel(/^Badgework 1$/);
+  await expect(planned).toBeVisible();
+  await planned.fill("SW-290 Planned Badgework");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
@@ -89,4 +93,5 @@ test("SW-290 completed Badgework entered in UI survives save reload and WhatsApp
   const text = decodeURIComponent(href!.split("?text=")[1] || "");
   expect(text).toContain("Badgework:");
   expect(text).toContain("SW-290 Lifecycle Badge");
+  expect(text).toContain("SW-290 Planned Badgework");
 });
