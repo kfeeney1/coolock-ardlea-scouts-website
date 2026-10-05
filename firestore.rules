@@ -25,22 +25,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
     }
-    function roverSectionLeaderAppointmentAt(data, index) {
-      return data.keys().hasAny(["appointments"])
-        && data.appointments is list && data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment == "Section Leader"
-        && data.appointments[index].scope == "Rovers";
-    }
     function isRoverSectionLeader() {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return isActiveLeader() && exists(organisationPath)
+      return isActiveLeader() && profileHasSection("Rovers")
+        && exists(organisationPath)
         && get(organisationPath).data.active == true
-        && (roverSectionLeaderAppointmentAt(get(organisationPath).data, 0)
-          || roverSectionLeaderAppointmentAt(get(organisationPath).data, 1)
-          || roverSectionLeaderAppointmentAt(get(organisationPath).data, 2)
-          || roverSectionLeaderAppointmentAt(get(organisationPath).data, 3));
+        && get(organisationPath).data.scoutingRole == "Section Leader";
     }
     function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
     function isEligibleAdultUid(uid) {
