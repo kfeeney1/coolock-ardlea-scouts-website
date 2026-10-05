@@ -1,8 +1,10 @@
-import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 
 import YesNoField from "./YesNoField";
-import type { MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
+import { loadAuthorisedScouterOptions } from "../../services/consentApplications";
+import type { AuthorisedScouterOption, MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 import { sanitizePhoneInput } from "../../services/phoneInput";
 
@@ -15,6 +17,7 @@ type Props = {
     errors: Errors;
     onChange: (next: MedicationManagementData) => void;
     sharedIdentity?: SharedIdentity;
+    memberSection?: string;
 };
 
 export function createMedicationEntry(authFrom = "", authTo = ""): MedicationEntry {
@@ -33,7 +36,7 @@ export function createMedicationData(today: string, _legacyUntil: string): Medic
         enabled: false, medications: [entry], memberName: "", dateOfBirth: "", address: "",
         medicineName: "", dosage: "", frequency: "", quantitySupplied: "", doctorName: "", doctorTel: "",
         pharmacyName: "", pharmacyTel: "", method: "", otherInfo: "", selfAdmin: "", authFrom: today,
-        authTo: entry.authTo, scouter1: "", scouter2: "", signature: "", signatureDate: today
+        authTo: entry.authTo, scouter1: "", scouter1Id: "", scouter2: "", scouter2Id: "", signature: "", signatureDate: today
     };
 }
 
@@ -89,8 +92,29 @@ export function validateMedication(data: MedicationManagementData, mode: "youth"
     return errors;
 }
 
-export default function MedicationManagementForm({ mode, value, errors, onChange, sharedIdentity }: Props) {
+export default function MedicationManagementForm({ mode, value, errors, onChange, sharedIdentity, memberSection = "" }: Props) {
     const entries = medicationEntries(value);
+    const [scouters, setScouters] = useState<AuthorisedScouterOption[]>([]);
+    const [scouterLoadError, setScouterLoadError] = useState("");
+    useEffect(() => {
+        if (mode !== "youth") return;
+        let active = true;
+        void loadAuthorisedScouterOptions(memberSection).then((options) => {
+            if (active) { setScouters(options); setScouterLoadError(""); }
+        }).catch(() => {
+            if (active) setScouterLoadError("Registered Scouters could not be loaded. Please try again before signing.");
+        });
+        return () => { active = false; };
+    }, [mode, memberSection]);
+    const selectScouter = (slot: 1 | 2, uid: string) => {
+        const selected = scouters.find((item) => item.uid === uid);
+        if (!selected) return;
+        onChange({
+            ...value,
+            [slot === 1 ? "scouter1Id" : "scouter2Id"]: selected.uid,
+            [slot === 1 ? "scouter1" : "scouter2"]: selected.displayName
+        });
+    };
     const update = <K extends keyof MedicationManagementData>(field: K, nextValue: MedicationManagementData[K]) => onChange({ ...value, [field]: nextValue });
     const textChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const field = event.target.name as keyof MedicationManagementData;
@@ -160,9 +184,24 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
 
             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2 }}>{mode === "youth" ? "Parent / Guardian Declaration" : "Self Declaration"}</Typography>
             <Alert severity="info">{mode === "youth" ? "I confirm that I have provided full and accurate medication information. I request and authorise the named Scouters to administer the medication described above." : "I confirm that the medical information above is correct and provide it for emergency reference purposes."}</Alert>
-            {mode === "youth" && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
-                <TextField label="Scouter 1" name="scouter1" value={value.scouter1} onChange={textChange} />
-                <TextField label="Scouter 2" name="scouter2" value={value.scouter2} onChange={textChange} />
+            {mode === "youth" && <Box sx={{ mt: 3 }}>
+                {scouterLoadError && <Alert severity="error" sx={{ mb: 2 }}>{scouterLoadError}</Alert>}
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
+                    <FormControl>
+                        <InputLabel>Scouter 1</InputLabel>
+                        <Select label="Scouter 1" value={value.scouter1Id || ""} onChange={(event) => selectScouter(1, String(event.target.value))}>
+                            <MenuItem value="">Select registered Scouter</MenuItem>
+                            {scouters.map((scouter) => <MenuItem key={scouter.uid} value={scouter.uid}>{scouter.displayName} · {scouter.sections.join(", ") || "Group"} · {scouter.scoutingRole}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                    <FormControl>
+                        <InputLabel>Scouter 2</InputLabel>
+                        <Select label="Scouter 2" value={value.scouter2Id || ""} onChange={(event) => selectScouter(2, String(event.target.value))}>
+                            <MenuItem value="">Select registered Scouter</MenuItem>
+                            {scouters.map((scouter) => <MenuItem key={scouter.uid} value={scouter.uid}>{scouter.displayName} · {scouter.sections.join(", ") || "Group"} · {scouter.scoutingRole}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                </Box>
             </Box>}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
                 <TextField required label={mode === "youth" ? "Signature of parent / guardian" : "Signature (full name)"} name="signature" value={value.signature} onChange={textChange} error={Boolean(errors.signature)} helperText={errors.signature ?? "Type the full name as the electronic signature."} />

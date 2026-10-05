@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadAdminOverview, type AdminOverview } from "../../services/adminOverview";
 import { useAdminAuth } from "./AdminAuthProvider";
+import { leaderMedicalNeedsDashboardAction, loadOwnLeaderMedicalState, type LeaderMedicalState } from "../../services/leaderMedicalLifecycle";
 
 const emptyOverview: AdminOverview = {
   pendingParents: 0,
@@ -31,6 +32,7 @@ export default function AdminOverviewPanel() {
   const [overview, setOverview] = useState<AdminOverview>(emptyOverview);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
@@ -39,7 +41,9 @@ export default function AdminOverviewPanel() {
     setLoading(true);
     setError("");
     try {
-      setOverview(await loadAdminOverview(adminProfile));
+      const [nextOverview, nextMedicalState] = await Promise.all([loadAdminOverview(adminProfile), loadOwnLeaderMedicalState()]);
+      setOverview(nextOverview);
+      setMedicalState(nextMedicalState);
     } catch (overviewError) {
       setError(applicationErrorMessage(overviewError, "Unable to load the operations overview right now.", "AdminOverviewPanel"));
     } finally {
@@ -91,6 +95,12 @@ export default function AdminOverviewPanel() {
             <Alert severity="warning" sx={{ mb: 2 }}>No sections are assigned to this leader account. Ask an administrator to update Leader Access before using section data.</Alert>
           )}
 
+          {medicalState && leaderMedicalNeedsDashboardAction(medicalState.status) && (
+            <Alert severity="warning" data-testid="leader-medical-action" sx={{ mb: 2 }}
+              action={<Button component={Link} to="/leader/profile/consent" color="inherit" size="small">Open My Form</Button>}>
+              {medicalState.status === "lapsed" ? "Your Scouter Consent & Medical Form has lapsed. Review and renew it now." : "Complete your Scouter Consent & Medical Form."}
+            </Alert>
+          )}
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Today &amp; Needs Attention</Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1.4fr" }, gap: 2, mb: 3 }}>
             <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="next-meeting-card">

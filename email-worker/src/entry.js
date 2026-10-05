@@ -1,6 +1,6 @@
 import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
-import { handleProductionRoute } from "./productionRoutes.js";
+import { handleProductionRoute, runLeaderMedicalRenewalReminders } from "./productionRoutes.js";
 
 const PRODUCTION_HOST = "https://coolockardleascouts.ie";
 const PRODUCTION_DOMAIN = "coolockardleascouts.ie";
@@ -158,6 +158,7 @@ async function authoritativeStatusRequest(request, env, body, path) {
 }
 
 const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
+  "/registered-scouters",
   "/leader-communication",
   "/event-notification",
   "/event-consent-processed",
@@ -186,7 +187,7 @@ export default {
     }
 
     if (path === "/join-application" || AUTHORITATIVE_PRODUCTION_ROUTES.has(path)) {
-      if (path !== "/join-application" && !bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+      if (!["/join-application", "/registered-scouters"].includes(path) && !bearer(request)) return json(request, env, 401, { ok: false, error: "Sign-in required." });
       try {
         const response = await handleProductionRoute(request, env, body, path);
         if (response) return response;
@@ -214,5 +215,8 @@ export default {
       body: JSON.stringify(resolved.body)
     });
     return worker.fetch(rewritten, env);
+  },
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runLeaderMedicalRenewalReminders(env));
   }
 };

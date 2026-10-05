@@ -15,7 +15,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
     ChangeEvent,
     FormEvent
@@ -29,6 +29,7 @@ import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
+import { loadScouterConsentPrefill } from "../../services/scouterConsentPrefill";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -147,6 +148,14 @@ export default function ScouterConsentForm({
     const [submitted, setSubmitted] = useState(false);
     const [reference, setReference] = useState("");
     const formRef = useRef<HTMLFormElement | null>(null);
+    const [prefillLoading, setPrefillLoading] = useState(true);
+    useEffect(() => {
+        let active = true;
+        void loadScouterConsentPrefill(formData).then((next) => { if (active) setFormData(next); })
+            .catch((error) => setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm")))
+            .finally(() => { if (active) setPrefillLoading(false); });
+        return () => { active = false; };
+    }, []);
 
     const progress = useMemo(
         () =>
@@ -397,6 +406,10 @@ export default function ScouterConsentForm({
             setIsSubmitting(false);
         }
     };
+
+    if (prefillLoading) {
+        return <Paper elevation={2} sx={{ p: 4 }}><Typography>Loading your existing leader details…</Typography><LinearProgress sx={{ mt: 2 }} /></Paper>;
+    }
 
     if (submitted) {
         return (

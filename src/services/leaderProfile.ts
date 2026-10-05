@@ -24,6 +24,32 @@ export type LeaderProfileData = {
     role: string;
 };
 
+export type LeaderMedicalDefaults = {
+    name: string;
+    dob: string;
+    address: string;
+    mobile: string;
+    homePhone: string;
+    workPhone: string;
+};
+
+export async function loadLeaderMedicalDefaults(): Promise<LeaderMedicalDefaults> {
+    const user = auth.currentUser;
+    if (!user) throw new UserFacingError("No signed-in leader was found.");
+    const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    if (!snapshot.exists() || snapshot.data().active !== true) throw new UserFacingError("Leader profile was not found.");
+    const data = snapshot.data();
+    const text = (key: string) => typeof data[key] === "string" ? data[key].trim() : "";
+    return {
+        name: text("displayName") || user.displayName || "",
+        dob: text("dateOfBirth") || text("dob"),
+        address: text("address") || text("homeAddress"),
+        mobile: text("mobileNumber") || text("mobile"),
+        homePhone: text("homePhone"),
+        workPhone: text("workPhone")
+    };
+}
+
 const clean = (
     value: string,
     maxLength: number

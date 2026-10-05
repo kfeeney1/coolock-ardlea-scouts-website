@@ -146,7 +146,7 @@ test.describe("leader permissions", () => {
     await loginLeader(page, account!);
     await page.goto("/leader/profile");
     const tile = page.getByTestId("scouter-consent-tile");
-    await expect(tile).toContainText("Status: Available");
+    await expect(tile).toContainText(/Status: (?:Available|Current to \d{4}-08-31)/);
     const openForm = tile.getByRole("link", { name: "Open My Form" });
     await openForm.focus();
     await expect(openForm).toBeFocused();

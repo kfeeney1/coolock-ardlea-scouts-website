@@ -707,12 +707,17 @@ service cloud.firestore {
         && request.resource.data.section is string
         && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
         && request.resource.data.formVersion is string
+        && (request.resource.data.formType != "scouter-es3-medical-advice"
+          || (isActiveLeader()
+            && request.resource.data.submittedByUid == request.auth.uid
+            && request.resource.data.validityFrom is string
+            && request.resource.data.validityTo is string))
         && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"])
         && ((!request.resource.data.keys().hasAny(["memberId"]))
           || (request.resource.data.formType == "youth-activity-consent"
             && request.resource.data.memberId is string
             && isApprovedParentForMember(request.resource.data.memberId)));
-      allow read: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data)
+      allow read: if (isActiveLeader() && ((resource.data.formType == "scouter-es3-medical-advice" && resource.data.submittedByUid == request.auth.uid) || isAdmin() || hasResourceSection(resource.data)
           || (resource.data.memberId is string
             && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
             && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data))))

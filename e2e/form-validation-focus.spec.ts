@@ -17,14 +17,16 @@ test("SW-263 focuses and reveals the highest invalid mandatory field without cle
   await page.goto("/leader/profile/consent");
   await expect(page.getByRole("heading", { name: "Scouter Medical Advice Form" })).toBeVisible();
 
+  const applicantName = page.getByLabel("Applicant name");
+  await expect(applicantName).toHaveValue(/\S+/);
   await page.getByLabel("Address").fill("TEST retained address");
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.getByRole("button", { name: "Continue" }).click();
 
-  const first = page.getByLabel("Applicant name");
+  const first = page.getByLabel("Date of birth");
   await expect(first).toBeFocused();
   await expect(first).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Date of birth")).toHaveAttribute("aria-invalid", "true");
+  await expect(applicantName).toHaveAttribute("aria-invalid", "false");
   await expect(page.getByLabel("Address")).toHaveValue("TEST retained address");
   await expect(first).toBeInViewport();
   const unobscured = await first.evaluate((input) => {
@@ -34,9 +36,9 @@ test("SW-263 focuses and reveals the highest invalid mandatory field without cle
   });
   expect(unobscured).toBe(true);
 
-  await first.fill("TEST Focus User");
+  await first.fill("1985-01-01");
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByLabel("Date of birth")).toBeFocused();
-  await expect(page.getByLabel("Applicant name")).toHaveValue("TEST Focus User");
-  await expect(page.getByLabel("Address")).toHaveValue("TEST retained address");
+  await expect(page.getByLabel("Name")).toBeVisible();
+  await expect(page.getByLabel("Mobile")).toBeVisible();
+  await expect(applicantName).toHaveCount(0);
 });

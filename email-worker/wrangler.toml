@@ -11,6 +11,7 @@ compatibility_date = "2026-08-01"
 # Do not add a named [env.production] here: modern Wrangler deploys named
 # environments as separate Workers such as `coolock-ardlea-scouts-email-production`.
 [vars]
+LEADER_MEDICAL_REMINDER_DAYS = "45"
 # Non-production secret used only for local/TEST action-link encryption.
 ACTION_LINK_SECRET = "test-only-action-link-secret-rotate-freely"
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
@@ -22,3 +23,6 @@ ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
 # ADMIN_EMAILS and TEST_EMAIL_REDIRECT are intentionally not versioned here.
 # Provide them through the Cloudflare deployment environment / Wrangler secrets
 # or local .dev.vars. Test mode fails closed when TEST_EMAIL_REDIRECT is absent.
+
+[triggers]
+crons = ["0 8 * * *"]

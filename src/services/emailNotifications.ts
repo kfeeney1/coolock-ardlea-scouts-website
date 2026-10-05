@@ -23,6 +23,14 @@ async function post<T = void>(path: string, body: Record<string, unknown>, authe
     });
 }
 
+
+export type RegisteredScouterOption = { uid: string; displayName: string; scoutingRole: string; sections: string[] };
+
+export async function loadRegisteredScouterOptions(): Promise<RegisteredScouterOption[]> {
+    const result = await post<{ ok: true; scouters: RegisteredScouterOption[] }>("/registered-scouters", {}, false);
+    return Array.isArray(result.scouters) ? result.scouters : [];
+}
+
 export async function notifyJoinApplication(applicationId: string, _application?: JoinApplication): Promise<void> {
     await post("/join-application", { applicationId }, false);
 }

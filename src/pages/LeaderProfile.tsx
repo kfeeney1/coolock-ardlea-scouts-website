@@ -28,6 +28,7 @@ import {
 } from "../services/leaderProfile";
 import type { LeaderProfileData } from "../services/leaderProfile";
 import { loadRoverSelfMembership, setRoverSelfMembership } from "../services/memberAdmin";
+import { loadOwnLeaderMedicalState, type LeaderMedicalState } from "../services/leaderMedicalLifecycle";
 
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
@@ -58,13 +59,16 @@ export default function LeaderProfile() {
     const [roverSaving, setRoverSaving] = useState(false);
     const [roverError, setRoverError] = useState("");
     const [roverMessage, setRoverMessage] = useState("");
+    const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             setProfileError("");
             try {
-                setProfile(await loadLeaderProfile());
+                const [nextProfile, nextMedical] = await Promise.all([loadLeaderProfile(), loadOwnLeaderMedicalState()]);
+                setProfile(nextProfile);
+                setMedicalState(nextMedical);
             } catch (error) {
                 setProfileError(applicationErrorMessage(error, "Unable to load your leader profile.", "LeaderProfile"));
             } finally {
@@ -240,7 +244,7 @@ export default function LeaderProfile() {
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>My Scouter Consent & Medical Form</Typography>
                             <Typography color="text.secondary" sx={{ mt: 0.5 }}>Complete the confidential ES3 18+ Medical Advice Form using the existing secure consent workflow.</Typography>
-                            <Typography data-testid="scouter-consent-status" sx={{ mt: 1, fontWeight: 700 }}>Status: Available</Typography>
+                            <Typography data-testid="scouter-consent-status" sx={{ mt: 1, fontWeight: 700 }}>Status: {medicalState?.status === "current" ? `Current to ${medicalState.validityTo}` : medicalState?.status === "approaching-expiry" ? `Current to ${medicalState.validityTo} · renewal due` : medicalState?.status === "lapsed" ? "Lapsed · renewal required" : medicalState?.status === "incomplete" ? "Incomplete" : "Available · completion required"}</Typography>
                         </Box>
                         <Button component={Link} to="/leader/profile/consent" variant="contained" color="secondary" sx={{ minHeight: 44, flexShrink: 0, alignSelf: { xs: "stretch", sm: "center" } }}>Open My Form</Button>
                     </Box>

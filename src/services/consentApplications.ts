@@ -1,4 +1,4 @@
-import { UserFacingError, reportApplicationError } from "./applicationErrors.ts";
+import { UserFacingError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -6,8 +6,12 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { getPublicWhosWho } from "./publicWhosWho";
+import { loadRegisteredScouterOptions } from "./emailNotifications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
+import { leaderMedicalValidityEnd } from "./leaderMedicalLifecycleCore";
+import { orderAuthorisedScouters } from "./authorisedScouterOrdering";
+import type { AuthorisedScouterOption } from "./authorisedScouterOrdering";
+export type { AuthorisedScouterOption } from "./authorisedScouterOrdering";
 
 export type YesNo = "Yes" | "No";
 
@@ -47,7 +51,9 @@ export type MedicationManagementData = {
     authFrom: string;
     authTo: string;
     scouter1: string;
+    scouter1Id?: string;
     scouter2: string;
+    scouter2Id?: string;
     signature: string;
     signatureDate: string;
 };
@@ -155,7 +161,9 @@ function cleanMedication(medication: MedicationManagementData) {
         authFrom: first.authFrom,
         authTo: first.authTo,
         scouter1: clean(medication.scouter1, 150),
+        scouter1Id: clean(medication.scouter1Id || "", 200),
         scouter2: clean(medication.scouter2, 150),
+        scouter2Id: clean(medication.scouter2Id || "", 200),
         signature: clean(medication.signature, 150),
         signatureDate: medication.signatureDate
     };
@@ -164,9 +172,14 @@ function cleanMedication(medication: MedicationManagementData) {
 let authorisedScouterPromise: Promise<string[]> | null = null;
 export const AUTHORISED_SCOUTERS: string[] = [];
 
+export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
+    const leaders = await loadRegisteredScouterOptions();
+    return orderAuthorisedScouters(leaders, memberSection);
+}
+
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
     if (!authorisedScouterPromise) {
-        authorisedScouterPromise = getPublicWhosWho()
+        authorisedScouterPromise = loadRegisteredScouterOptions()
             .then((leaders) => [...new Set(leaders.map((leader) => leader.displayName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
             .catch((error) => {
                 authorisedScouterPromise = null;
@@ -175,10 +188,6 @@ export async function loadAuthorisedScouterNames(): Promise<string[]> {
     }
     return authorisedScouterPromise;
 }
-
-void loadAuthorisedScouterNames()
-    .then((names) => AUTHORISED_SCOUTERS.splice(0, AUTHORISED_SCOUTERS.length, ...names))
-    .catch((error) => reportApplicationError(error, { area: "consentApplications", operation: "Unable to load authorised Scouters from Firestore" }));
 
 export async function submitYouthConsent(data: YouthConsentData): Promise<string> {
     const validationMessage = firstYouthConsentValidationMessage(validateYouthConsent(data));
@@ -221,6 +230,9 @@ export async function submitScouterConsent(data: ScouterConsentData): Promise<st
     const user = auth.currentUser;
     if (!user) throw new UserFacingError("An active Leader account is required to submit a Scouter form.");
 
+    const now = new Date();
+    const validityFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const validityTo = leaderMedicalValidityEnd(validityFrom);
     const { scoutSection, ...canonicalData } = data;
     const ref = await addDoc(collection(db, "consentApplications"), {
         ...canonicalData,
@@ -246,6 +258,8 @@ export async function submitScouterConsent(data: ScouterConsentData): Promise<st
         status: "active",
         source: "website",
         submittedByUid: user.uid,
+        validityFrom,
+        validityTo,
         submittedAt: serverTimestamp()
     });
     return ref.id;

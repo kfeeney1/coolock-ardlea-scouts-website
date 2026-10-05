@@ -339,7 +339,10 @@ function parentPortalUrl(env) {
 }
 
 export async function communicationIdempotencyKey(memberId, recipientUid, subject, message) {
-  const payload = `${memberId}\n${recipientUid}\n${subject}\n${message}`;
+  const payload = `${memberId}
+${recipientUid}
+${subject}
+${message}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return `leader-communication:${base64Url(new Uint8Array(digest))}`;
 }
@@ -659,7 +662,8 @@ export function resolveJoinLeaderRecipients(profiles, leadership, section, confi
 }
 
 async function joinEventKey(applicationId, event) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${applicationId}\n${event}`));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${applicationId}
+${event}`));
   return base64Url(new Uint8Array(digest));
 }
 
@@ -919,7 +923,113 @@ async function handleMemberInactivation(request, env, body) {
   return json(request, env, 200, { ok: true, alreadyInactive: false, status: "inactive" });
 }
 
+
+function localIsoDate(date = new Date()) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function daysBetweenIsoDates(from, to) {
+  const parse = (value) => {
+    const [year, month, day] = String(value).split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((parse(to) - parse(from)) / 86_400_000);
+}
+
+export async function runLeaderMedicalRenewalReminders(env, now = new Date()) {
+  const reminderDays = Math.max(1, Math.min(120, Number(env.LEADER_MEDICAL_REMINDER_DAYS || 45)));
+  const today = localIsoDate(now);
+  const [forms, leaders] = await Promise.all([
+    privilegedDocuments(env, "consentApplications"),
+    privilegedDocuments(env, "adminUsers")
+  ]);
+  const latestByUid = new Map();
+  for (const form of forms) {
+    if (fieldString(form, "formType") !== "scouter-es3-medical-advice") continue;
+    const uid = fieldString(form, "submittedByUid");
+    const validityFrom = fieldString(form, "validityFrom");
+    const validityTo = fieldString(form, "validityTo");
+    if (!uid || !validityFrom || !validityTo) continue;
+    const current = latestByUid.get(uid);
+    if (!current || validityFrom > current.validityFrom) latestByUid.set(uid, { form, validityFrom, validityTo });
+  }
+
+  let sent = 0;
+  let skipped = 0;
+  for (const leader of leaders) {
+    const uid = documentId(leader);
+    if (!uid || !fieldBoolean(leader, "active")) continue;
+    const current = latestByUid.get(uid);
+    if (!current) { skipped += 1; continue; }
+    const remaining = daysBetweenIsoDates(today, current.validityTo);
+    if (remaining < 0 || remaining > reminderDays) { skipped += 1; continue; }
+    const email = validEmail(fieldString(leader, "email"));
+    if (!email) { skipped += 1; continue; }
+
+    const cycleKey = `leader-medical-renewal:${current.validityTo}`;
+    const id = reminderDocumentId({ memberId: uid, recipientUid: uid, cycleKey, reminderType: "leader-medical-renewal" });
+    const existing = await privilegedDocument(env, "consentReminderDeliveries", id);
+    if (!shouldAttemptReminder(existing ? { status: fieldString(existing, "status") } : null)) { skipped += 1; continue; }
+    const previousAttempts = Number(existing?.fields?.attemptCount?.integerValue || 0);
+    const attemptCount = previousAttempts + 1;
+    const record = (status) => ({
+      memberId: uid,
+      recipientUid: uid,
+      formType: "scouter-es3-medical-advice",
+      cycleKey,
+      reason: "renewal",
+      status,
+      attemptCount,
+      actionPath: "/leader/profile/consent",
+      deliveryChannel: "email"
+    });
+    await persistReminderState(env, id, record("sending"), existing);
+    try {
+      const displayName = fieldString(leader, "displayName") || "Scouter";
+      const actionUrl = `${String(env.SITE_URL || "").replace(/\/$/, "")}/leader/profile/consent`;
+      await sendEmail(env, email, "Renew your Scouter Consent & Medical Form – Coolock Ardlea Scouts", brandedEmail({
+        heading: "Scouter medical form renewal",
+        intro: `Hello ${displayName}, your current Scouter Consent & Medical Form is due for review by 31 August.`,
+        bodyHtml: `<p style="font-size:16px;line-height:1.6">Please review and update your form before <strong>${escapeHtml(current.validityTo)}</strong>. For privacy, this email contains no medical details.</p>`,
+        actions: [{ label: "Review My Scouter Form", url: actionUrl }]
+      }), `leader-medical-renewal:${id}`);
+      await persistReminderState(env, id, record("sent"));
+      sent += 1;
+    } catch (error) {
+      await persistReminderState(env, id, record("failed"));
+      throw error;
+    }
+  }
+  return { sent, skipped, checked: leaders.length };
+}
+
+async function handleRegisteredScouters(request, env) {
+  const leadership = await privilegedDocuments(env, "organisationLeadership");
+  const scouters = [];
+  for (const record of leadership) {
+    if (!fieldBoolean(record, "active")) continue;
+    const uid = documentId(record);
+    const profile = await privilegedDocument(env, "adminUsers", uid);
+    if (!profile || !fieldBoolean(profile, "active")) continue;
+    const appointments = fieldMapArray(record, "appointments").filter(activeAppointment);
+    const sections = [...new Set([
+      fieldString(record, "organisationSection"),
+      fieldString(record, "primarySection"),
+      ...appointments.map((item) => fieldMapString(item, "scope"))
+    ].filter((section) => section && section !== "Group" && section !== "Other"))];
+    scouters.push({
+      uid,
+      displayName: fieldString(record, "displayName") || fieldString(profile, "displayName"),
+      scoutingRole: fieldString(record, "scoutingRole"),
+      sections
+    });
+  }
+  scouters.sort((a, b) => a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid));
+  return json(request, env, 200, { ok: true, scouters });
+}
+
 export async function handleProductionRoute(request, env, body, path) {
+  if (path === "/registered-scouters") return handleRegisteredScouters(request, env);
   if (path === "/join-application") return handleJoinApplicationLifecycle(request, env, body);
   if (path === "/join-application-status") return handleJoinApplicationStatus(request, env, body);
   if (path === "/join-consent-context") return handleJoinConsentContext(request, env, body);
