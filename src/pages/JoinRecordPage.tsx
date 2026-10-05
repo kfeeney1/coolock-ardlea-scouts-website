@@ -164,7 +164,9 @@ export default function JoinRecordPage() {
               {applicantDetails.map(([label, value]) => <Paper key={label} variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{label}</Typography>
                 <Typography sx={{ mt: .5, fontWeight: 700, wordBreak: "break-word" }}>{value || "Not provided"}</Typography>
-              </Paper>)}</>}\n            </Box>\n          </Paper>
+              </Paper>)}
+            </Box>
+          </Paper>
 
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Workflow Status</Typography>
@@ -185,10 +187,16 @@ export default function JoinRecordPage() {
               <FormControl><InputLabel id="join-contact-method-label">Method</InputLabel><Select labelId="join-contact-method-label" label="Method" value={contactMethod} onChange={(e) => setContactMethod(e.target.value as ContactMethod)}>{contactMethods.map((method) => <MenuItem key={method.value} value={method.value}>{method.label}</MenuItem>)}</Select></FormControl>
               <TextField label="Contact note" value={contactNote} onChange={(e) => setContactNote(e.target.value)} />
             </Box>
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="outlined" color="success" disabled={saving || !contactNote.trim()} onClick={stageContact}>Stage Contact</Button></Box>\n            {pendingContacts.length > 0 && <Alert severity="info" sx={{ mt: 2 }}>{pendingContacts.length} contact {pendingContacts.length === 1 ? "entry" : "entries"} staged. Press Save Changes to persist {pendingContacts.length === 1 ? "it" : "them"}.</Alert>}
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="outlined" color="success" disabled={saving || !contactNote.trim()} onClick={stageContact}>Stage Contact</Button></Box>
+            {pendingContacts.length > 0 && <Alert severity="info" sx={{ mt: 2 }}>{pendingContacts.length} contact {pendingContacts.length === 1 ? "entry" : "entries"} staged. Press Save Changes to persist {pendingContacts.length === 1 ? "it" : "them"}.</Alert>}
             <Divider sx={{ my: 3 }} />
             <Box sx={{ display: "grid", gap: 1.5 }}>
-              {record.contactHistory.length === 0 && pendingContacts.length === 0 ? <Typography color="text.secondary">No contact history recorded.</Typography> : <>{[...pendingContacts].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2, borderStyle: "dashed" }}>\n                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" color="warning" label="Pending save" /><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /></Stack>\n                <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>\n              </Paper>)}{[...record.contactHistory].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
+              {record.contactHistory.length === 0 && pendingContacts.length === 0 && <Typography color="text.secondary">No contact history recorded.</Typography>}
+              {[...pendingContacts].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2, borderStyle: "dashed" }}>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" color="warning" label="Pending save" /><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /></Stack>
+                <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>
+              </Paper>)}
+              {[...record.contactHistory].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /><Typography sx={{ fontWeight: 700 }}>{new Date(entry.date).toLocaleString("en-IE")}</Typography></Stack>
                 <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>
               </Paper>)}
