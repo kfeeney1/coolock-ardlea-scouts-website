@@ -29,8 +29,7 @@ import {
   addContactHistoryEntry,
   convertJoinApplicationToMember,
   loadJoinApplications,
-  updateJoinNotes,
-  updateJoinStatus
+  saveJoinApplication
 } from "../services/joinAdmin";
 import type { ContactMethod, JoinApplicationRecord, JoinStatus } from "../services/joinAdmin";
 
@@ -54,10 +53,12 @@ export default function JoinRecordPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
+  const [statusDraft, setStatusDraft] = useState<JoinStatus>("new");
   const [contactMethod, setContactMethod] = useState<ContactMethod>("phone");
   const [contactNote, setContactNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [conversionConfirmationOpen, setConversionConfirmationOpen] = useState(false);
+  const [leaveConfirmationOpen, setLeaveConfirmationOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -67,6 +68,7 @@ export default function JoinRecordPage() {
       const found = records.find((item) => item.id === applicationId) ?? null;
       setRecord(found);
       setNotesDraft(found?.notes ?? "");
+      setStatusDraft(found?.status ?? "new");
       setConversionConfirmationOpen(false);
       if (!found) setError("This joining enquiry could not be found or is outside your permitted sections.");
     } catch (loadError) {
@@ -89,27 +91,25 @@ export default function JoinRecordPage() {
     ["Last updated", formatDate(record.updatedAt)]
   ] : [], [record]);
 
-  const changeStatus = async (status: JoinStatus) => {
-    if (!record) return;
-    setSaving(true); setError(""); setMessage("");
-    try {
-      await updateJoinStatus(record.id, status);
-      setRecord({ ...record, status });
-      setMessage("Status updated.");
-    } catch (statusError) {
-      setError(applicationErrorMessage(statusError, "Unable to update the enquiry status.", "JoinRecordPage"));
-    } finally { setSaving(false); }
-  };
+  const dirty = Boolean(record && (statusDraft !== record.status || notesDraft !== record.notes));
 
-  const saveNotes = async () => {
-    if (!record) return;
+  useEffect(() => {
+    if (!dirty) return;
+    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [dirty]);
+
+  const saveRecord = async () => {
+    if (!record || !dirty) return;
     setSaving(true); setError(""); setMessage("");
     try {
-      await updateJoinNotes(record.id, notesDraft);
-      setRecord({ ...record, notes: notesDraft });
-      setMessage("Leader notes saved.");
-    } catch (notesError) {
-      setError(applicationErrorMessage(notesError, "Unable to save leader notes.", "JoinRecordPage"));
+      const result = await saveJoinApplication(record, statusDraft, notesDraft);
+      setRecord({ ...record, status: statusDraft, notes: notesDraft.trim().slice(0, 5000), memberId: result.memberId || record.memberId });
+      setNotesDraft(notesDraft.trim().slice(0, 5000));
+      setMessage("Join Us enquiry saved.");
+    } catch (saveError) {
+      setError(applicationErrorMessage(saveError, "Unable to save the joining enquiry.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 
@@ -145,7 +145,9 @@ export default function JoinRecordPage() {
       <LeaderPageHeader
         title={record ? record.childName : "Join Us Enquiry"}
         description="Full joining enquiry record, workflow, notes and contact history."
-        actions={<Button component={Link} to="/leader/join" variant="outlined" color="secondary">Back to enquiries</Button>}
+        actions={dirty
+          ? <Button variant="outlined" color="secondary" onClick={() => setLeaveConfirmationOpen(true)}>Back to enquiries</Button>
+          : <Button component={Link} to="/leader/join" variant="outlined" color="secondary">Back to enquiries</Button>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box> : <>
@@ -168,7 +170,7 @@ export default function JoinRecordPage() {
 
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Workflow Status</Typography>
-            <FormControl fullWidth><InputLabel id="join-record-status-label">Status</InputLabel><Select labelId="join-record-status-label" label="Status" value={record.status} disabled={saving} onChange={(e) => void changeStatus(e.target.value as JoinStatus)}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth><InputLabel id="join-record-status-label">Status</InputLabel><Select labelId="join-record-status-label" label="Status" value={statusDraft} disabled={saving} onChange={(e) => setStatusDraft(e.target.value as JoinStatus)}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {record.status === "accepted" && !record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => setConversionConfirmationOpen(true)}>Create Member Record</Button></Box>}
             {record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button component={Link} to={`/leader/members/${encodeURIComponent(record.memberId)}`} variant="contained" color="success">Open Member Record</Button></Box>}
           </Paper>
@@ -176,7 +178,7 @@ export default function JoinRecordPage() {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Leader Notes</Typography>
             <TextField fullWidth multiline minRows={5} value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} placeholder="Internal notes about this joining enquiry..." sx={{ mt: 2 }} />
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => void saveNotes()}>Save Notes</Button></Box>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving || !dirty} onClick={() => void saveRecord()}>{saving ? "Saving…" : dirty ? "Save Changes" : "Saved"}</Button></Box>
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 3 }}>
@@ -197,6 +199,15 @@ export default function JoinRecordPage() {
         </Stack>}
       </>}
     </Container>
+
+    <Dialog open={leaveConfirmationOpen} onClose={() => setLeaveConfirmationOpen(false)} aria-labelledby="join-unsaved-title">
+      <DialogTitle id="join-unsaved-title">Unsaved Join Us changes</DialogTitle>
+      <DialogContent><Typography>You have changes that have not been saved. Leave this enquiry and discard them?</Typography></DialogContent>
+      <DialogActions>
+        <Button onClick={() => setLeaveConfirmationOpen(false)}>Stay</Button>
+        <Button color="error" onClick={() => navigate("/leader/join")}>Leave without saving</Button>
+      </DialogActions>
+    </Dialog>
 
     <Dialog
       open={conversionConfirmationOpen && Boolean(record)}

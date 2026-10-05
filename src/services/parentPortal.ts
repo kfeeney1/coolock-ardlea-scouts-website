@@ -102,8 +102,8 @@ export function currentUser(): User | null {
     return auth.currentUser;
 }
 
-export async function registerParent(email: string, password: string, displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[]): Promise<void> {
-    const children = prepareRequestedChildren(requestedChildren);
+export async function registerParent(email: string, password: string, displayName: string, mobileNumber: string, requestedChildren: ParentChildRequest[] = []): Promise<void> {
+    const children = requestedChildren.length > 0 ? prepareRequestedChildren(requestedChildren) : [];
     const normalizedEmail = normalizeEmail(email);
     try {
         await createUserWithEmailAndPassword(auth, normalizedEmail, password);
