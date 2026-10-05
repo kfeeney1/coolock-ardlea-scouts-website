@@ -8,7 +8,10 @@ import {
 import { auth, db } from "../firebase";
 import { loadRegisteredScouterOptions } from "./emailNotifications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
-import { leaderMedicalValidityEnd } from "./leaderMedicalLifecycle";
+import { leaderMedicalValidityEnd } from "./leaderMedicalLifecycleCore";
+import { orderAuthorisedScouters } from "./authorisedScouterOrdering";
+import type { AuthorisedScouterOption } from "./authorisedScouterOrdering";
+export type { AuthorisedScouterOption } from "./authorisedScouterOrdering";
 
 export type YesNo = "Yes" | "No";
 
@@ -168,18 +171,6 @@ function cleanMedication(medication: MedicationManagementData) {
 
 let authorisedScouterPromise: Promise<string[]> | null = null;
 export const AUTHORISED_SCOUTERS: string[] = [];
-
-export type AuthorisedScouterOption = { uid: string; displayName: string; sections: string[]; scoutingRole: string };
-
-export function orderAuthorisedScouters(options: AuthorisedScouterOption[], memberSection = ""): AuthorisedScouterOption[] {
-    const unique = new Map<string, AuthorisedScouterOption>();
-    for (const option of options) if (!unique.has(option.uid)) unique.set(option.uid, option);
-    return [...unique.values()].sort((left, right) => {
-        const leftRelevant = memberSection && left.sections.includes(memberSection) ? 0 : 1;
-        const rightRelevant = memberSection && right.sections.includes(memberSection) ? 0 : 1;
-        return leftRelevant - rightRelevant || left.displayName.localeCompare(right.displayName) || left.uid.localeCompare(right.uid);
-    });
-}
 
 export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
     const leaders = await loadRegisteredScouterOptions();
