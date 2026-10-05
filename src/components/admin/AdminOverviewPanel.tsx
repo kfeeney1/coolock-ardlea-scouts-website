@@ -12,7 +12,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadAdminOverview, type AdminOverview } from "../../services/adminOverview";
-import { useAdminAuth } from "./AdminAuthProvider";\nimport { leaderMedicalNeedsDashboardAction, loadOwnLeaderMedicalState, type LeaderMedicalState } from "../../services/leaderMedicalLifecycle";
+import { useAdminAuth } from "./AdminAuthProvider";
+import { leaderMedicalNeedsDashboardAction, loadOwnLeaderMedicalState, type LeaderMedicalState } from "../../services/leaderMedicalLifecycle";
 
 const emptyOverview: AdminOverview = {
   pendingParents: 0,
@@ -30,7 +31,8 @@ export default function AdminOverviewPanel() {
   const { adminProfile } = useAdminAuth();
   const [overview, setOverview] = useState<AdminOverview>(emptyOverview);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");\n  const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
+  const [error, setError] = useState("");
+  const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
 
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
 
@@ -39,7 +41,9 @@ export default function AdminOverviewPanel() {
     setLoading(true);
     setError("");
     try {
-      const [nextOverview, nextMedicalState] = await Promise.all([loadAdminOverview(adminProfile), loadOwnLeaderMedicalState()]);\n      setOverview(nextOverview);\n      setMedicalState(nextMedicalState);
+      const [nextOverview, nextMedicalState] = await Promise.all([loadAdminOverview(adminProfile), loadOwnLeaderMedicalState()]);
+      setOverview(nextOverview);
+      setMedicalState(nextMedicalState);
     } catch (overviewError) {
       setError(applicationErrorMessage(overviewError, "Unable to load the operations overview right now.", "AdminOverviewPanel"));
     } finally {
