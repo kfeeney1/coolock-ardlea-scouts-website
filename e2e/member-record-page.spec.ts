@@ -150,22 +150,22 @@ test("SW-293 Back to member is dynamic for a second member and direct consent ro
   const consentLink = indicators.getByRole("link", { name: /Open consent and medical details/ }).first();
   await expect(consentLink).toBeVisible();
   await consentLink.click();
-  await expect(page).toHaveURL(/\\/leader\\/consents\\/.+$/);
+  await expect(page).toHaveURL(/\/leader\/consents\/.+$/);
   await page.getByRole("link", { name: "Back to member" }).click();
-  await expect(page).toHaveURL(/\\/leader\\/members\\/TEST_member_cub_01$/);
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_cub_01$/);
   await expect(page.getByRole("heading", { name: "Member Details" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Menu · Member Management/ })).toBeVisible();
 
   await page.goto("/leader/consents/TEST_flow_consent_youth_medication");
   await expect(page.getByRole("link", { name: "Back to consent" })).toBeVisible();
   await page.getByRole("link", { name: "Back to consent" }).click();
-  await expect(page).toHaveURL(/\\/leader\\/consents$/);
+  await expect(page).toHaveURL(/\/leader\/consents$/);
   await expect(page.getByRole("heading", { name: "Consent Management" })).toBeVisible();
 
   await page.goto("/leader/medical/TEST_flow_consent_youth_medication");
   await expect(page.getByRole("link", { name: "Back to Consent Management" })).toBeVisible();
   await page.getByRole("link", { name: "Back to Consent Management" }).click();
-  await expect(page).toHaveURL(/\\/leader\\/consents$/);
+  await expect(page).toHaveURL(/\/leader\/consents$/);
 });
 
 test("SW-156 stable consent linkage survives a member surname change", async ({ page }, testInfo) => {
