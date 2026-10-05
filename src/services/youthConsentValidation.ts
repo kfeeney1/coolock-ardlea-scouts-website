@@ -1,5 +1,5 @@
 import type { YouthConsentData } from "./consentApplications";
-import { isValidPhone } from "./phoneInput";
+import { isValidPhone } from "./phoneInput.ts";
 
 export type YouthConsentValidationErrors = Partial<Record<keyof YouthConsentData, string>>;
 
