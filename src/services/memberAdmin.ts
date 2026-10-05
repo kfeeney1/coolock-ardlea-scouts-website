@@ -169,11 +169,6 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
   if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this account. Ask an administrator to reconcile the records.");
 
   if (!member && input.enabled) {
-    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const organisationSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
-    const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
-    const isGroupFinanceOfficer = organisation?.active === true
-      && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
     const emailMatches = [await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)))];
     const firstName = clean(input.firstName, 100);
     const lastName = clean(input.lastName, 100);
