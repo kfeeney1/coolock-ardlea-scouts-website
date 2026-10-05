@@ -28,7 +28,9 @@ import MedicationManagementForm, {
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
-import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";\nimport { loadLeaderMedicalDefaults } from "../../services/leaderProfile";\nimport { loadOwnLeaderMedicalState } from "../../services/leaderMedicalLifecycle";
+import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
+import { loadLeaderMedicalDefaults } from "../../services/leaderProfile";
+import { loadOwnLeaderMedicalState } from "../../services/leaderMedicalLifecycle";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -443,7 +445,11 @@ export default function ScouterConsentForm({
         }
     };
 
-    if (prefillLoading) {\n        return <Paper elevation={2} sx={{ p: 4 }}><Typography>Loading your existing leader details…</Typography><LinearProgress sx={{ mt: 2 }} /></Paper>;\n    }\n\n    if (submitted) {
+    if (prefillLoading) {
+        return <Paper elevation={2} sx={{ p: 4 }}><Typography>Loading your existing leader details…</Typography><LinearProgress sx={{ mt: 2 }} /></Paper>;
+    }
+
+    if (submitted) {
         return (
             <Paper
                 elevation={4}
