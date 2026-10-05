@@ -4,6 +4,7 @@ import type { ChangeEvent } from "react";
 import YesNoField from "./YesNoField";
 import type { MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
+import { sanitizePhoneInput } from "../../services/phoneInput";
 
 type Errors = Partial<Record<keyof MedicationManagementData, string>>;
 type SharedIdentity = { memberName?: string; dateOfBirth?: string; address?: string };
@@ -91,7 +92,11 @@ export function validateMedication(data: MedicationManagementData, mode: "youth"
 export default function MedicationManagementForm({ mode, value, errors, onChange, sharedIdentity }: Props) {
     const entries = medicationEntries(value);
     const update = <K extends keyof MedicationManagementData>(field: K, nextValue: MedicationManagementData[K]) => onChange({ ...value, [field]: nextValue });
-    const textChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => update(event.target.name as keyof MedicationManagementData, event.target.value as never);
+    const textChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const field = event.target.name as keyof MedicationManagementData;
+        const next = field === "doctorTel" || field === "pharmacyTel" ? sanitizePhoneInput(event.target.value) : event.target.value;
+        update(field, next as never);
+    };
     const updateEntry = <K extends keyof MedicationEntry>(index: number, field: K, nextValue: MedicationEntry[K]) => {
         const next = entries.map((entry, i) => i === index ? { ...entry, [field]: nextValue } : entry);
         onChange(withEntries(value, next));
@@ -104,7 +109,11 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
 
     return <Box sx={{ mt: 4 }}>
         <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
-            <FormControlLabel control={<Checkbox color="success" checked={value.enabled} onChange={(event) => onChange(event.target.checked ? hydrateMedicationIdentity({ ...value, enabled: true }, sharedIdentity) : { ...value, enabled: false })} />}
+            <FormControlLabel control={<Checkbox color="success" checked={value.enabled} onChange={(event) => {
+                    if (!event.target.checked) return onChange({ ...value, enabled: false });
+                    const defaults = medicationAuthorisationDefaults();
+                    onChange(hydrateMedicationIdentity({ ...value, enabled: true, signatureDate: value.signatureDate || defaults.authFrom }, sharedIdentity));
+                }} />}
                 label={<Box><Typography sx={{ fontWeight: 700 }}>This member requires medication management</Typography><Typography variant="body2" color="text.secondary">SIF 20/10</Typography></Box>} />
         </Paper>
         {value.enabled && <Box sx={{ mt: 3 }}>
@@ -144,9 +153,9 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>These details are shared across all medications for this member.</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
                 <TextField label="Prescribing doctor" name="doctorName" value={value.doctorName} onChange={textChange} />
-                <TextField label="Doctor's telephone" name="doctorTel" value={value.doctorTel} onChange={textChange} />
+                <TextField type="tel" inputMode="tel" label="Doctor's telephone" name="doctorTel" value={value.doctorTel} onChange={textChange} />
                 <TextField label="Dispensing pharmacy" name="pharmacyName" value={value.pharmacyName} onChange={textChange} />
-                <TextField label="Pharmacy telephone" name="pharmacyTel" value={value.pharmacyTel} onChange={textChange} />
+                <TextField type="tel" inputMode="tel" label="Pharmacy telephone" name="pharmacyTel" value={value.pharmacyTel} onChange={textChange} />
             </Box>
 
             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2 }}>{mode === "youth" ? "Parent / Guardian Declaration" : "Self Declaration"}</Typography>

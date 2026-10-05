@@ -28,6 +28,7 @@ import MedicationManagementForm, {
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
+import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -41,7 +42,6 @@ type Errors = Partial<
     Record<keyof ScouterConsentData, string>
 >;
 
-const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
 
 const steps = [
     "Applicant",
@@ -176,7 +176,7 @@ export default function ScouterConsentForm({
 
         setFormData((current) => ({
             ...current,
-            [field]: event.target.value
+            [field]: ["mobile", "homePhone", "workPhone", "nextOfKinMobile", "nextOfKinHome", "nextOfKinWork"].includes(String(field)) ? sanitizePhoneInput(event.target.value) : event.target.value
         }));
 
         clearError(field);
@@ -224,7 +224,7 @@ export default function ScouterConsentForm({
             return;
         }
 
-        if (!PHONE_RE.test(value)) {
+        if (!isValidPhone(value)) {
             nextErrors[field] =
                 "Enter a valid phone number.";
         }
@@ -647,6 +647,8 @@ export default function ScouterConsentForm({
 
                             <TextField
                                 label="Mobile"
+                                type="tel"
+                                inputMode="tel"
                                 name="mobile"
                                 value={formData.mobile}
                                 onChange={handleTextChange}
@@ -660,6 +662,8 @@ export default function ScouterConsentForm({
 
                             <TextField
                                 label="Home"
+                                type="tel"
+                                inputMode="tel"
                                 name="homePhone"
                                 value={formData.homePhone}
                                 onChange={handleTextChange}
@@ -673,6 +677,8 @@ export default function ScouterConsentForm({
 
                             <TextField
                                 label="Work"
+                                type="tel"
+                                inputMode="tel"
                                 name="workPhone"
                                 value={formData.workPhone}
                                 onChange={handleTextChange}
@@ -742,6 +748,8 @@ export default function ScouterConsentForm({
                             <TextField
                                 required
                                 label="Mobile"
+                                type="tel"
+                                inputMode="tel"
                                 name="nextOfKinMobile"
                                 value={
                                     formData.nextOfKinMobile
@@ -757,6 +765,8 @@ export default function ScouterConsentForm({
 
                             <TextField
                                 label="Home"
+                                type="tel"
+                                inputMode="tel"
                                 name="nextOfKinHome"
                                 value={
                                     formData.nextOfKinHome
@@ -772,6 +782,8 @@ export default function ScouterConsentForm({
 
                             <TextField
                                 label="Work"
+                                type="tel"
+                                inputMode="tel"
                                 name="nextOfKinWork"
                                 value={
                                     formData.nextOfKinWork
