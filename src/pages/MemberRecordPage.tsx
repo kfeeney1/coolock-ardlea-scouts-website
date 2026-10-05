@@ -162,6 +162,8 @@ export default function MemberRecordPage() {
     }
   };
 
+  const quickMedicalConsent = consents.find((consent) => consent.hasMedicalAlert || consent.hasMedicationManagement) ?? null;
+
   const confirmStatusChange = (disableParents: boolean) => {
     setStatusConfirmationOpen(false);
     void save(true, disableParents);
@@ -184,6 +186,7 @@ export default function MemberRecordPage() {
             <Typography variant="h4" color="secondary" sx={{ fontWeight: 800 }}>Member Details</Typography>
             <Chip label={statusLabel(draft.status)} color={draft.status === "active" ? "success" : draft.status === "inactive" ? "warning" : "default"} />
             {draft.sections.map((section) => <Chip key={section} label={section} variant="outlined" />)}
+            {quickMedicalConsent && <Chip component={Link} to={`/leader/medical/${quickMedicalConsent.consentId}`} state={{ returnTo: location.pathname, returnLabel: "Back to member" }} clickable color="warning" label="Medical information" aria-label={`Open quick medical information for ${draft.displayName}`} data-testid="member-quick-medical" sx={{ minHeight: 44, fontWeight: 800 }} />}
           </Stack>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
             <TextField label="First name" value={draft.firstName} onChange={(event) => { const firstName = event.target.value; setDraft({ ...draft, firstName, displayName: draft.displayNameMode === "auto" ? automaticDisplayName(firstName, draft.lastName) : draft.displayName }); }} />
