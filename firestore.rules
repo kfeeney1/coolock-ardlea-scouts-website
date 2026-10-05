@@ -495,7 +495,7 @@ service cloud.firestore {
       allow read: if isActiveLeader()
         && ((request.auth.token.email is string && resource.data.emailAddress == request.auth.token.email)
           || (profileHasSection("Rovers") && resource.data.keys().hasAny(["accountUid"])));
-      allow update: if (isActiveLeader() && isYouthSection(request.resource.data.section) && (!request.resource.data.keys().hasAny(["sections"]) || (request.resource.data.sections is list && request.resource.data.sections.size() > 0 && request.resource.data.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) && request.resource.data.section in request.resource.data.sections)) && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
+      allow update: if isManagedRoverMemberChange() || (isActiveLeader() && isYouthSection(request.resource.data.section) && (!request.resource.data.keys().hasAny(["sections"]) || (request.resource.data.sections is list && request.resource.data.sections.size() > 0 && request.resource.data.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) && request.resource.data.section in request.resource.data.sections)) && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && (memberId != "rover_" + request.auth.uid || resource.data.accountUid == request.auth.uid)
           && request.resource.data.status in ["active", "inactive", "left"]
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && request.resource.data.accountUid is string
@@ -506,7 +506,7 @@ service cloud.firestore {
           && request.resource.data.familyUpdatedBy == request.auth.uid
           && request.resource.data.familyUpdatedAt == request.time
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));
-      allow update: if isSelfManagedRoverMember() || isManagedRoverMemberChange();
+      allow update: if isSelfManagedRoverMember();
       allow delete: if false;
     }
 
