@@ -86,7 +86,7 @@ test.describe("approved parent journey", () => {
     await save.click();
     await expect(page.getByText(/required|Select Yes or No/i).first()).toBeVisible();
     await expect(page.getByLabel("GP name")).toHaveAttribute("aria-invalid", "true");
-    await expect(page.getByLabel("Parent / guardian 1")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByLabel("Parent / guardian 1", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");
 
     await page.getByLabel("Consent from").fill("2026-09-01");
@@ -96,7 +96,7 @@ test.describe("approved parent journey", () => {
     await page.getByLabel("GP name").fill("Dr Test");
     await page.getByLabel("GP telephone").fill("012345678");
     await page.getByLabel("GP address").fill("Test Clinic");
-    await page.getByLabel("Parent / guardian 1").fill("Test Parent");
+    await page.getByLabel("Parent / guardian 1", { exact: true }).fill("Test Parent");
     await page.getByLabel("Parent / guardian 1 mobile").fill("087abc1234567");
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveValue("0871234567");
     await page.getByLabel("Email").fill(parentEmail!);
