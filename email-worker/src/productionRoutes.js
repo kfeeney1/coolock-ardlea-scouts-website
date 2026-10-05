@@ -110,7 +110,9 @@ function textBase64Url(text) {
 }
 
 async function importServicePrivateKey(pem) {
-  const normalised = String(pem || "").replaceAll("\\n", "\n").trim();
+  const normalised = String(pem || "").replaceAll("\
+", "
+").trim();
   const body = normalised
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
@@ -339,7 +341,10 @@ function parentPortalUrl(env) {
 }
 
 export async function communicationIdempotencyKey(memberId, recipientUid, subject, message) {
-  const payload = `${memberId}\n${recipientUid}\n${subject}\n${message}`;
+  const payload = `${memberId}
+${recipientUid}
+${subject}
+${message}`;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return `leader-communication:${base64Url(new Uint8Array(digest))}`;
 }
@@ -367,7 +372,8 @@ async function handleLeaderCommunication(request, env, body) {
     const resolution = await authoritativeParentRecipients(env, memberId);
     if (!resolution.recipients.length) { skip(resolution.reason || "no-eligible-linked-parent"); continue; }
     const memberName = fieldString(authorised.member, "displayName") || "your linked member";
-    const messageHtml = escapeHtml(message).replaceAll("\n", "<br/>");
+    const messageHtml = escapeHtml(message).replaceAll("
+", "<br/>");
     let deliveredForMember = false;
     for (const recipient of resolution.recipients) {
       if (delivered.has(recipient.email)) continue;
@@ -659,7 +665,8 @@ export function resolveJoinLeaderRecipients(profiles, leadership, section, confi
 }
 
 async function joinEventKey(applicationId, event) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${applicationId}\n${event}`));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${applicationId}
+${event}`));
   return base64Url(new Uint8Array(digest));
 }
 
@@ -999,7 +1006,33 @@ export async function runLeaderMedicalRenewalReminders(env, now = new Date()) {
   return { sent, skipped, checked: leaders.length };
 }
 
+async function handleRegisteredScouters(request, env) {
+  const leadership = await privilegedDocuments(env, "organisationLeadership");
+  const scouters = [];
+  for (const record of leadership) {
+    if (!fieldBoolean(record, "active")) continue;
+    const uid = documentId(record);
+    const profile = await privilegedDocument(env, "adminUsers", uid);
+    if (!profile || !fieldBoolean(profile, "active")) continue;
+    const appointments = fieldMapArray(record, "appointments").filter(activeAppointment);
+    const sections = [...new Set([
+      fieldString(record, "organisationSection"),
+      fieldString(record, "primarySection"),
+      ...appointments.map((item) => fieldMapString(item, "scope"))
+    ].filter((section) => section && section !== "Group" && section !== "Other"))];
+    scouters.push({
+      uid,
+      displayName: fieldString(record, "displayName") || fieldString(profile, "displayName"),
+      scoutingRole: fieldString(record, "scoutingRole"),
+      sections
+    });
+  }
+  scouters.sort((a, b) => a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid));
+  return json(request, env, 200, { ok: true, scouters });
+}
+
 export async function handleProductionRoute(request, env, body, path) {
+  if (path === "/registered-scouters") return handleRegisteredScouters(request, env);
   if (path === "/join-application") return handleJoinApplicationLifecycle(request, env, body);
   if (path === "/join-application-status") return handleJoinApplicationStatus(request, env, body);
   if (path === "/join-consent-context") return handleJoinConsentContext(request, env, body);
