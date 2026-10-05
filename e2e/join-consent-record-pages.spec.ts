@@ -34,6 +34,33 @@ test("Join Us enquiry tiles open full-page records", async ({ page }, testInfo) 
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("SW-296 Join Us edits remain local until explicit Save and persist after Save", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/join/TEST_flow_join_contacted");
+
+  const notes = page.getByPlaceholder("Internal notes about this joining enquiry...");
+  await expect(notes).toHaveValue("");
+  const save = page.getByRole("button", { name: "Saved", exact: true });
+  await expect(save).toBeDisabled();
+
+  await notes.fill("SW-296 unsaved draft");
+  await expect(page.getByRole("button", { name: "Save Changes", exact: true })).toBeEnabled();
+  await page.reload();
+  await expect(notes).toHaveValue("");
+
+  await notes.fill("SW-296 persisted draft");
+  await page.getByRole("button", { name: "Save Changes", exact: true }).click();
+  await expect(page.getByText("Join Us enquiry saved.", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(notes).toHaveValue("SW-296 persisted draft");
+
+  await notes.fill("");
+  await page.getByRole("button", { name: "Save Changes", exact: true }).click();
+  await expect(page.getByText("Join Us enquiry saved.", { exact: true })).toBeVisible();
+});
+
 test("Join application action deep link preserves login target and hides out-of-scope records", async ({ browser }) => {
   const applicationPath = "/leader/join/TEST_flow_join_accepted";
   const emailTarget = `${applicationPath}?source=email#application`;
