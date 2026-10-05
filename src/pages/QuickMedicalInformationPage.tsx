@@ -76,7 +76,7 @@ export default function QuickMedicalInformationPage() {
         <Box component="section" aria-labelledby="quick-medication">
           <Typography id="quick-medication" variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Medication</Typography>
           {medication?.enabled ? <Paper variant="outlined" sx={{ p: 2 }} data-testid="quick-medication-details">
-            {[["Medicine", medication.medicineName], ["Dosage", medication.dosage], ["Frequency", medication.frequency], ["Method", medication.method], ["Self administration", medication.selfAdmin], ["Instructions", medication.otherInfo]].filter(([, value]) => String(value ?? "").trim()).map(([label, value]) => <Box key={String(label)} sx={{ mb: 1.25 }}><Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>{label}</Typography><Typography sx={{ overflowWrap: "anywhere" }}>{String(value)}</Typography></Box>)}
+            {[["Medicine", medication.medicineName], ["Dosage", medication.dosage], ["Frequency", medication.frequency], ["Method", medication.method], ["Self administration", medication.selfAdmin], ["Instructions", medication.otherInfo]].filter(([, value]) => String(value ?? "").trim()).map(([label, value]) => <Box key={String(label)} sx={{ mb: 1.25 }}><Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>{String(label)}</Typography><Typography sx={{ overflowWrap: "anywhere" }}>{String(value)}</Typography></Box>)}
           </Paper> : <Alert severity="info">No medication-management requirement is recorded.</Alert>}
         </Box>
 
