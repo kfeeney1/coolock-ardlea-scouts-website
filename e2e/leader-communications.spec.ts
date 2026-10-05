@@ -38,7 +38,25 @@ async function openLeaderMenu(page: import("@playwright/test").Page) {
     await expect(page.getByRole("link", { name: "Parent Communications" })).toBeVisible();
 }
 
-test("communications route rejects unauthenticated users", async ({ page }) => {
+test("communications route rejects unauthenticated users", async ({ page, context }) => {
+    // Firebase Auth persists sessions in IndexedDB. The full suite intentionally
+    // reuses one emulator dataset, so make this test's unauthenticated precondition
+    // explicit instead of depending on the previous test/spec having signed out.
+    await context.clearCookies();
+    await page.goto("/leader/login");
+    await page.evaluate(async () => {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+        await new Promise<void>((resolve, reject) => {
+            const request = indexedDB.deleteDatabase("firebaseLocalStorageDb");
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => resolve();
+        });
+    });
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+
     await page.goto("/leader/communications");
     await expect(page).toHaveURL(/\/leader\/login$/);
 });
