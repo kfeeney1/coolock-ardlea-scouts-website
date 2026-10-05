@@ -119,6 +119,7 @@ test("SW-270 initial notices read authoritative data and repeated requests do no
         active: { booleanValue: true }, role: { stringValue: "leader" },
         sections: { arrayValue: { values: [{ stringValue: "Beavers" }] } }
       } });
+      if (url.includes("/organisationLeadership/leader-1")) return new Response("", { status: 404 });
       if (url.includes("/parentAccounts/parent-1")) return Response.json({ fields: {
         status: { stringValue: "approved" }, email: { stringValue: "parent@example.com" },
         memberIds: { arrayValue: { values: [{ stringValue: "member-1" }] } }

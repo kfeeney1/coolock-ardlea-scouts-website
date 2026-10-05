@@ -751,7 +751,9 @@ async function handleJoinApplicationStatus(request, env, body) {
   const role = fieldString(leader, "role");
   const leaderSections = fieldStringArray(leader, "sections");
   const legacySection = fieldString(leader, "section");
-  if (!new Set(["admin", "super-admin"]).has(role) && !leaderSections.includes(fieldString(application, "section")) && legacySection !== fieldString(application, "section")) return json(request, env, 403, { ok: false, error: "You are not authorised for this Join Us section." });
+  const leadership = await getDocumentWithToken(env, bearer(request), "organisationLeadership", uid);
+  const groupLeader = leadership && fieldBoolean(leadership, "active") && new Set(["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]).has(fieldString(leadership, "scoutingRole"));
+  if (!new Set(["admin", "super-admin"]).has(role) && !groupLeader && !leaderSections.includes(fieldString(application, "section")) && legacySection !== fieldString(application, "section")) return json(request, env, 403, { ok: false, error: "You are not authorised for this Join Us section." });
   const email = validEmail(fieldString(application, "emailAddress"));
   if (!email) return json(request, env, 422, { ok: false, error: "Application has no valid parent email." });
   const childName = joinChildName(application);
@@ -765,7 +767,7 @@ async function handleJoinApplicationStatus(request, env, body) {
   } : {
     heading: "Join Us application accepted",
     intro: `Hello ${parentName}, ${childName}'s application to ${section} has been accepted.`,
-    bodyHtml: `<p style="font-size:16px;line-height:1.6">Next, sign in or create your Parent Portal account. A leader will verify and link your child to your account; once that access is approved, complete the consent and medical form for ${escapeHtml(childName)}.</p>`,
+    bodyHtml: `<p style="font-size:16px;line-height:1.6">Next, sign in or create your Parent Portal account using the email address from this application. This secure acceptance link will connect ${escapeHtml(childName)} to your account after sign-in so you can complete the consent and medical form. If your child does not appear, contact the Group rather than adding a different child.</p>`,
     actions: [{ label: "Sign in or register for Parent Portal", url: `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent?joinToken=${encodeURIComponent(await issueJoinConsentToken(env, applicationId))}#parent-medical-consent` }]
   };
   await sendJoinLifecycleEmail(env, applicationId, `status-${status}`, [email], waiting ? "Join Us application update — waiting list" : "Join Us application accepted — complete your consent form", content);

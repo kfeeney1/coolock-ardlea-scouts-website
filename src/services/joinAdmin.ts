@@ -134,9 +134,12 @@ export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
 
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
+    const leadershipSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
+    const leadership = leadershipSnapshot.exists() ? leadershipSnapshot.data() : null;
+    const isGroupLeader = leadership?.active === true && ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"].includes(String(leadership.scoutingRole ?? ""));
 
     let documents: QueryDocumentSnapshot<DocumentData>[];
-    if (isAdmin) {
+    if (isAdmin || isGroupLeader) {
         documents = (await getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc")))).docs;
     } else {
         const sections = normalizeLeaderSections(profile);
@@ -217,26 +220,49 @@ async function ensureAcceptedMember(application: JoinApplicationRecord): Promise
     return memberRef.id;
 }
 
-export async function saveJoinApplication(application: JoinApplicationRecord, status: JoinStatus, notes: string): Promise<{ memberId: string }> {
+export async function saveJoinApplication(
+    application: JoinApplicationRecord,
+    status: JoinStatus,
+    notes: string,
+    stagedContacts: Array<{ method: ContactMethod; note: string }> = []
+): Promise<{ memberId: string; status: JoinStatus; contactHistory: ContactHistoryEntry[] }> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+
     const applicationRef = doc(db, "joinApplications", application.id);
     const previousStatus = application.status;
+    const now = new Date().toISOString();
+    const newContacts = stagedContacts
+        .map(({ method, note }) => ({ method, note: note.trim().slice(0, 1500) }))
+        .filter(({ method, note }) => CONTACT_METHODS.includes(method) && Boolean(note))
+        .map(({ method, note }) => ({
+            id: crypto.randomUUID(),
+            date: now,
+            method,
+            note,
+            leaderUid: user.uid
+        }));
+    const contactHistory = [...application.contactHistory, ...newContacts];
+    const finalStatus: JoinStatus = status === "new" && newContacts.length > 0 ? "contacted" : status;
+
     await updateDoc(applicationRef, {
-        status,
+        status: finalStatus,
         notes: notes.trim().slice(0, 5000),
+        contactHistory,
         updatedAt: serverTimestamp()
     });
 
     let memberId = application.memberId;
-    if (status === "accepted") memberId = await ensureAcceptedMember({ ...application, status, notes });
+    if (finalStatus === "accepted") memberId = await ensureAcceptedMember({ ...application, status: finalStatus, notes, contactHistory });
 
-    if ((status === "waiting-list" || status === "accepted") && status !== previousStatus) {
+    if ((finalStatus === "waiting-list" || finalStatus === "accepted") && finalStatus !== previousStatus) {
         try {
-            await notifyJoinApplicationStatus(application.id, status);
+            await notifyJoinApplicationStatus(application.id, finalStatus);
         } catch (emailError) {
             reportSecondaryFailure(emailError, { area: "joinAdmin", operation: "Unable to send Join Us status email" });
         }
     }
-    return { memberId };
+    return { memberId, status: finalStatus, contactHistory };
 }
 
 export async function updateJoinStatus(applicationId: string, status: JoinStatus): Promise<void> {
@@ -251,29 +277,6 @@ export async function updateJoinNotes(applicationId: string, notes: string): Pro
     const application = records.find((item) => item.id === applicationId);
     if (!application) throw new UserFacingError("The joining application could not be found.");
     await saveJoinApplication(application, application.status, notes);
-}
-
-export async function addContactHistoryEntry(
-    application: JoinApplicationRecord,
-    method: ContactMethod,
-    note: string
-): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
-
-    const entry: ContactHistoryEntry = {
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
-        method,
-        note: note.trim().slice(0, 1500),
-        leaderUid: user.uid
-    };
-
-    await updateDoc(doc(db, "joinApplications", application.id), {
-        contactHistory: [...application.contactHistory, entry],
-        status: application.status === "new" ? "contacted" : application.status,
-        updatedAt: serverTimestamp()
-    });
 }
 
 export async function convertJoinApplicationToMember(application: JoinApplicationRecord): Promise<string> {

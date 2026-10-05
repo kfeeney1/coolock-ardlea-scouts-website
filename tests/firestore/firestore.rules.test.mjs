@@ -483,3 +483,51 @@ test("consentReminderDeliveries are server-only and cannot be forged by clients"
     await assertSucceeds(getDoc(doc(db, "consentReminderDeliveries/reminder-1")));
   });
 });
+
+
+test("SW-296 accepted Join Us reconciliation is allowed in scope and denied out of scope", async () => {
+  await seedDocuments([
+    ["adminUsers/cubs-programme", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/beavers-programme", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
+    ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["joinApplications/join-cub", {
+      childFirstName: "Hal", childLastName: "Example", dateOfBirth: "2017-01-01",
+      parentName: "Tony Example", emailAddress: "tony@example.com", mobileNumber: "0870000000",
+      section: "Cubs", status: "contacted", notes: "", contactHistory: [], source: "website"
+    }],
+    ["members/existing-hal", {
+      firstName: "Hal", lastName: "Example", displayName: "Hal Example", dateOfBirth: "2017-01-01",
+      section: "Cubs", sections: ["Cubs"], status: "active", source: "manual"
+    }],
+  ]);
+
+  const reconcile = async (uid) => {
+    const db = testEnv.authenticatedContext(uid, { email: uid + "@example.com" }).firestore();
+    return updateDoc(doc(db, "joinApplications/join-cub"), {
+      status: "accepted",
+      memberId: "existing-hal",
+      reconciledMemberAt: serverTimestamp(),
+      reconciledMemberBy: uid,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  await assertFails(reconcile("beavers-programme"));
+  await assertSucceeds(reconcile("cubs-programme"));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), "joinApplications/join-cub"), {
+      status: "contacted", memberId: "", reconciledMemberAt: null, reconciledMemberBy: ""
+    });
+  });
+  await assertSucceeds(reconcile("group-leader"));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), "joinApplications/join-cub"), {
+      status: "contacted", memberId: "", reconciledMemberAt: null, reconciledMemberBy: ""
+    });
+  });
+  await assertSucceeds(reconcile("super-admin"));
+});

@@ -33,6 +33,9 @@ service cloud.firestore {
         && get(organisationPath).data.scoutingRole == "Section Leader";
     }
     function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
+    function canManageJoinSection(section) {
+      return isActiveLeader() && (isAdmin() || isGroupLeader() || profileHasSection(section));
+    }
     function isEligibleAdultUid(uid) {
       return uid is string
         && exists(/databases/$(database)/documents/adminUsers/$(uid))
@@ -420,15 +423,15 @@ service cloud.firestore {
         && request.resource.data.informationConfirmed == true && request.resource.data.contactConsent == true
         && request.resource.data.status == "new" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time
         && !request.resource.data.keys().hasAny(["childDob", "dob", "childName", "name", "phone", "phoneNumber", "parentPhone", "parentMobile", "scoutSection"]);
-      allow read: if isActiveLeader() && hasSection(resource.data.section);
-      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+      allow read: if canManageJoinSection(resource.data.section);
+      allow update: if canManageJoinSection(resource.data.section) && canManageJoinSection(request.resource.data.section)
         && request.resource.data.status in ["new", "contacted", "waiting-list", "accepted", "closed"]
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy", "reconciledMemberAt", "reconciledMemberBy"]);
       allow delete: if false;
     }
 
     match /members/{memberId} {
-      allow create: if isActiveLeader() && isYouthSection(request.resource.data.section) && hasSection(request.resource.data.section)
+      allow create: if isActiveLeader() && isYouthSection(request.resource.data.section) && (hasSection(request.resource.data.section) || (request.resource.data.source == "join-application" && isGroupLeader()))
         && (!request.resource.data.keys().hasAny(["sections"]) || (
           request.resource.data.sections is list
           && request.resource.data.sections.size() > 0
