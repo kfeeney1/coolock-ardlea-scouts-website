@@ -166,12 +166,14 @@ export default function AdminDashboard() {
                     <DialogTitle>{selected.title}</DialogTitle>
                     <DialogContent dividers>
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
-                            <FormControl size="small" sx={{ minWidth: 180 }}>
-                                <InputLabel>Status</InputLabel>
-                                <Select label="Status" value={selected.status} disabled={updating} onChange={(event) => void changeStatus(selected, event.target.value)}>
-                                    {(selected.kind === "join" ? ["new", "contacted", "waiting-list", "accepted", "closed"] : ["active", "reviewed", "expired", "archived"]).map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
-                                </Select>
-                            </FormControl>
+                            {selected.kind === "join"
+                                ? <Chip label={`Join status: ${selected.status}`} variant="outlined" />
+                                : <FormControl size="small" sx={{ minWidth: 180 }}>
+                                    <InputLabel>Status</InputLabel>
+                                    <Select label="Status" value={selected.status} disabled={updating} onChange={(event) => void changeStatus(selected, event.target.value)}>
+                                        {["active", "reviewed", "expired", "archived"].map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
+                                    </Select>
+                                </FormControl>}
                         </Stack>
                         <Divider sx={{ mb: 2 }} />
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
