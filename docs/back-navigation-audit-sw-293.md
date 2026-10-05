@@ -9,7 +9,7 @@ Audited against the Member Management workflow and the application's record-rout
 | Quick Medical Information | exact operational origin when supplied; otherwise Consent Management | explicit `returnTo` + `returnLabel`; no manufactured history | member-record-page |
 | Event record/editor | Events & Activities / originating record | record parent + browser POP when observed | event-record-page, mobile-back-navigation |
 | Join enquiry record | Join Us Management | explicit parent; unsaved-change guard retained | join-consent-record-pages |
-| Equipment record | Equipment & Stores | explicit deep-link-safe parent; no raw history dependency | damaged-equipment-issues / equipment suites |
+| Equipment record | Equipment & Stores | existing operational previous-screen return retained; covered from dashboard/record origins | damaged-equipment-issues / equipment suites |
 | Equipment store move | equipment record | explicit record path | equipment suites |
 | Create event / meeting | originating list | existing unsaved-change exit handling retained | event/weekly suites |
 | Scouter consent | My Profile | explicit profile destination | leader/profile suites |
@@ -24,4 +24,4 @@ Audited against the Member Management workflow and the application's record-rout
 4. Return navigation must restore page identity/context, not only a URL.
 5. Cross-module medical quick access uses the same rule: explicit origin state when present, safe Consent Management fallback when absent.
 
-The audit found and corrected the raw-history Equipment Record Back control. No redesign was introduced.
+The audit did not change established module-local returns where existing Playwright coverage demonstrates intentional previous-screen behaviour. The cross-module Member/Consent defect is addressed with explicit origin state; no redesign was introduced.
