@@ -370,8 +370,7 @@ async function handleLeaderCommunication(request, env, body) {
     const resolution = await authoritativeParentRecipients(env, memberId);
     if (!resolution.recipients.length) { skip(resolution.reason || "no-eligible-linked-parent"); continue; }
     const memberName = fieldString(authorised.member, "displayName") || "your linked member";
-    const messageHtml = escapeHtml(message).replaceAll("
-", "<br/>");
+    const messageHtml = escapeHtml(message).replaceAll("\\n", "<br/>");
     let deliveredForMember = false;
     for (const recipient of resolution.recipients) {
       if (delivered.has(recipient.email)) continue;
