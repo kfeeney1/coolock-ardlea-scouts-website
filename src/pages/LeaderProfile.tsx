@@ -27,7 +27,8 @@ import {
     updateLeaderProfile
 } from "../services/leaderProfile";
 import type { LeaderProfileData } from "../services/leaderProfile";
-import { loadRoverSelfMembership, setRoverSelfMembership } from "../services/memberAdmin";\nimport { loadOwnLeaderMedicalState, type LeaderMedicalState } from "../services/leaderMedicalLifecycle";
+import { loadRoverSelfMembership, setRoverSelfMembership } from "../services/memberAdmin";
+import { loadOwnLeaderMedicalState, type LeaderMedicalState } from "../services/leaderMedicalLifecycle";
 
 const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
@@ -57,14 +58,17 @@ export default function LeaderProfile() {
     const [roverLoading, setRoverLoading] = useState(true);
     const [roverSaving, setRoverSaving] = useState(false);
     const [roverError, setRoverError] = useState("");
-    const [roverMessage, setRoverMessage] = useState("");\n    const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
+    const [roverMessage, setRoverMessage] = useState("");
+    const [medicalState, setMedicalState] = useState<LeaderMedicalState | null>(null);
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             setProfileError("");
             try {
-                const [nextProfile, nextMedical] = await Promise.all([loadLeaderProfile(), loadOwnLeaderMedicalState()]);\n                setProfile(nextProfile);\n                setMedicalState(nextMedical);
+                const [nextProfile, nextMedical] = await Promise.all([loadLeaderProfile(), loadOwnLeaderMedicalState()]);
+                setProfile(nextProfile);
+                setMedicalState(nextMedical);
             } catch (error) {
                 setProfileError(applicationErrorMessage(error, "Unable to load your leader profile.", "LeaderProfile"));
             } finally {
