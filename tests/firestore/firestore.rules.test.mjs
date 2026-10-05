@@ -145,7 +145,7 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Leader", email: "cubs@example.com" }],
     ["members/target-member", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", accountUid: "target-adult", status: "active", source: "manual" }],
   ]);
-  const change = (actor) => ({ accountUid: "target-adult", section: "Cubs", sections: ["Cubs", "Rovers"], sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor });
+  const change = (actor) => ({ accountUid: "target-adult", section: "Cubs", sections: ["Cubs", "Rovers"], sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp() });
   for (const actor of ["rover-section-leader", "group-leader", "super-admin"]) {
     const db = testEnv.authenticatedContext(actor, { email: actor + "@example.com" }).firestore();
     await assertSucceeds(updateDoc(doc(db, "members/target-member"), change(actor)));
