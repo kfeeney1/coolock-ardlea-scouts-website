@@ -6,6 +6,7 @@ import {
     getDocs,
     orderBy,
     query,
+    setDoc,
     runTransaction,
     serverTimestamp,
     updateDoc,
@@ -154,24 +155,102 @@ export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
         .sort((left, right) => (right.submittedAt?.getTime() ?? 0) - (left.submittedAt?.getTime() ?? 0));
 }
 
-export async function updateJoinStatus(applicationId: string, status: JoinStatus): Promise<void> {
-    await updateDoc(doc(db, "joinApplications", applicationId), { status, updatedAt: serverTimestamp() });
-    if (status === "waiting-list" || status === "accepted") {
-        try {
-            await notifyJoinApplicationStatus(applicationId, status);
-        } catch (emailError) {
-            // The status is already safely persisted. A delivery error is reported
-            // without reverting the leader's decision or inviting a duplicate edit.
-            reportSecondaryFailure(emailError, { area: "joinAdmin", operation: "Unable to send Join Us status email" });
-        }
+async function ensureAcceptedMember(application: JoinApplicationRecord): Promise<string> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+
+    const applicationRef = doc(db, "joinApplications", application.id);
+    const currentApplication = await getDoc(applicationRef);
+    if (!currentApplication.exists()) throw new UserFacingError("The joining application no longer exists.");
+    const existingMemberId = stringValue(currentApplication.data(), "memberId");
+    if (existingMemberId) return existingMemberId;
+
+    const sourceMatches = await getDocs(query(collection(db, "members"), where("sourceJoinApplicationId", "==", application.id)));
+    const exactSource = sourceMatches.docs[0];
+    if (exactSource) {
+        await updateDoc(applicationRef, { memberId: exactSource.id, convertedAt: serverTimestamp(), convertedBy: user.uid, updatedAt: serverTimestamp() });
+        return exactSource.id;
     }
+
+    const dobMatches = await getDocs(query(collection(db, "members"), where("dateOfBirth", "==", application.childDob)));
+    const identityMatch = dobMatches.docs.find((item) => {
+        const data = item.data();
+        const displayName = stringValue(data, "displayName").toLowerCase();
+        return displayName === application.childName.trim().toLowerCase();
+    });
+    if (identityMatch) {
+        await updateDoc(applicationRef, {
+            memberId: identityMatch.id,
+            reconciledMemberAt: serverTimestamp(),
+            reconciledMemberBy: user.uid,
+            updatedAt: serverTimestamp()
+        });
+        return identityMatch.id;
+    }
+
+    const memberRef = doc(collection(db, "members"));
+    await setDoc(memberRef, {
+        firstName: application.childFirstName,
+        lastName: application.childLastName,
+        displayName: application.childName,
+        dateOfBirth: application.childDob,
+        section: canonicalMemberSection(application.section),
+        parentName: application.parentName,
+        emailAddress: application.emailAddress,
+        mobileNumber: application.mobileNumber,
+        emergencyContactName: stringValue(currentApplication.data(), "emergencyContactName"),
+        emergencyContactPhone: stringValue(currentApplication.data(), "emergencyContactPhone"),
+        status: "active",
+        source: "join-application",
+        sourceJoinApplicationId: application.id,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+    });
+    await updateDoc(applicationRef, {
+        memberId: memberRef.id,
+        convertedAt: serverTimestamp(),
+        convertedBy: user.uid,
+        updatedAt: serverTimestamp()
+    });
+    return memberRef.id;
 }
 
-export async function updateJoinNotes(applicationId: string, notes: string): Promise<void> {
-    await updateDoc(doc(db, "joinApplications", applicationId), {
+export async function saveJoinApplication(application: JoinApplicationRecord, status: JoinStatus, notes: string): Promise<{ memberId: string }> {
+    const applicationRef = doc(db, "joinApplications", application.id);
+    const previousStatus = application.status;
+    await updateDoc(applicationRef, {
+        status,
         notes: notes.trim().slice(0, 5000),
         updatedAt: serverTimestamp()
     });
+
+    let memberId = application.memberId;
+    if (status === "accepted") memberId = await ensureAcceptedMember({ ...application, status, notes });
+
+    if ((status === "waiting-list" || status === "accepted") && status !== previousStatus) {
+        try {
+            await notifyJoinApplicationStatus(application.id, status);
+        } catch (emailError) {
+            reportSecondaryFailure(emailError, { area: "joinAdmin", operation: "Unable to send Join Us status email" });
+        }
+    }
+    return { memberId };
+}
+
+export async function updateJoinStatus(applicationId: string, status: JoinStatus): Promise<void> {
+    const records = await loadJoinApplications();
+    const application = records.find((item) => item.id === applicationId);
+    if (!application) throw new UserFacingError("The joining application could not be found.");
+    await saveJoinApplication(application, status, application.notes);
+}
+
+export async function updateJoinNotes(applicationId: string, notes: string): Promise<void> {
+    const records = await loadJoinApplications();
+    const application = records.find((item) => item.id === applicationId);
+    if (!application) throw new UserFacingError("The joining application could not be found.");
+    await saveJoinApplication(application, application.status, notes);
 }
 
 export async function addContactHistoryEntry(
