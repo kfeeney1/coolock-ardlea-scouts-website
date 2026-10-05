@@ -1,4 +1,3 @@
-import { Alert, Box } from "@mui/material";
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
@@ -16,7 +15,7 @@ export default function ProtectedJoinManagementRoute({ children }: Props) {
     .some((item) => item.appointment === "Section Leader" || isGroupLeadershipAppointment(item.appointment));
 
   if (!isAdmin && !permittedAppointment) {
-    return <Box sx={{ p: 3 }}><Alert severity="error">Join Us Management is restricted to Section Leaders and Group Leadership.</Alert></Box>;
+    return <Navigate to="/leader" replace />;
   }
 
   return <>{children}</>;
