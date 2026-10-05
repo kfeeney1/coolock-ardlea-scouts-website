@@ -548,6 +548,48 @@ function stringField(value) {
   return { stringValue: String(value ?? "") };
 }
 
+function stringArrayField(values) {
+  return { arrayValue: { values: [...new Set(values.filter(Boolean))].map((value) => stringField(value)) } };
+}
+
+async function reconcileAcceptedJoinParent(env, uid, signedInEmail, application, memberId) {
+  const member = await privilegedDocument(env, "members", memberId);
+  if (!member || fieldString(member, "status") !== "active") throw new Error("Accepted Join Us member is unavailable.");
+  const section = fieldString(member, "section");
+  const existing = await privilegedDocument(env, "parentAccounts", uid);
+  const memberIds = [...new Set([...(existing ? fieldStringArray(existing, "memberIds") : []), memberId])].slice(0, 8);
+  const linkedSections = [...new Set([...(existing ? fieldStringArray(existing, "linkedSections") : []), section].filter(Boolean))];
+  const displayName = existing ? fieldString(existing, "displayName") : fieldString(application, "parentName");
+  const mobileNumber = existing ? fieldString(existing, "mobileNumber") : fieldString(application, "mobileNumber");
+  const fields = {
+    uid: stringField(uid),
+    email: stringField(signedInEmail),
+    displayName: stringField(displayName || "Parent / Guardian"),
+    mobileNumber: stringField(mobileNumber || "Not provided"),
+    status: stringField("approved"),
+    memberIds: stringArrayField(memberIds),
+    linkedSections: stringArrayField(linkedSections),
+    requestedChildren: existing?.fields?.requestedChildren || { arrayValue: { values: [] } }
+  };
+  const write = {
+    update: { name: documentName(env, "parentAccounts", uid), fields },
+    updateTransforms: [{ fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" }]
+  };
+  if (existing) {
+    write.updateMask = { fieldPaths: ["uid", "email", "displayName", "mobileNumber", "status", "memberIds", "linkedSections", "requestedChildren"] };
+    write.currentDocument = { updateTime: existing.updateTime };
+  } else {
+    write.updateTransforms.unshift({ fieldPath: "createdAt", setToServerValue: "REQUEST_TIME" });
+    write.currentDocument = { exists: false };
+  }
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents:commit`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await serviceAccessToken(env)}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ writes: [write] })
+  });
+  if (!response.ok) throw new Error(`Firestore accepted-parent reconciliation failed with ${response.status}.`);
+}
+
 async function linkedApprovedParents(env, memberId) {
   return (await privilegedDocuments(env, "parentAccounts")).filter((account) =>
     fieldString(account, "status") === "approved" && fieldStringArray(account, "memberIds").includes(memberId)
@@ -740,9 +782,10 @@ async function handleJoinConsentContext(request, env, body) {
     return json(request, env, 403, { ok: false, error: "This link is not available to this signed-in parent." });
   }
   const memberId = fieldString(application, "memberId");
-  if (!memberId) return json(request, env, 409, { ok: false, error: "Parent access and child membership linking must be completed before consent is available." });
-  const parent = await authenticatedParentMember(request, env, memberId);
-  if (!parent || validEmail(fieldString(parent.account, "email")) !== signedInEmail) return json(request, env, 403, { ok: false, error: "This child is not linked to the signed-in parent account." });
+  if (!memberId) return json(request, env, 409, { ok: false, error: "The accepted application has not been linked to a member record yet." });
+  const uid = clean(claims.user_id || claims.sub, 200);
+  if (!uid) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+  await reconcileAcceptedJoinParent(env, uid, signedInEmail, application, memberId);
   return json(request, env, 200, { ok: true, memberId });
 }
 
