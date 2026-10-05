@@ -1,6 +1,6 @@
 import { approvedBackendCode, backendFailureDiagnostic } from "./backendDiagnostics.js";
 import worker from "./index.js";
-import { handleProductionRoute } from "./productionRoutes.js";
+import { handleProductionRoute, runLeaderMedicalRenewalReminders } from "./productionRoutes.js";
 
 const PRODUCTION_HOST = "https://coolockardleascouts.ie";
 const PRODUCTION_DOMAIN = "coolockardleascouts.ie";
@@ -214,5 +214,8 @@ export default {
       body: JSON.stringify(resolved.body)
     });
     return worker.fetch(rewritten, env);
+  },
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runLeaderMedicalRenewalReminders(env));
   }
 };
