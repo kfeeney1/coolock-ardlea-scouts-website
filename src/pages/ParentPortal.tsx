@@ -123,27 +123,28 @@ export default function ParentPortal() {
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
     useEffect(() => {
-        if (!joinConsentToken || !user || !account || account.status !== "approved" || handledJoinConsentTokenRef.current === joinConsentToken) return;
+        if (!joinConsentToken || !user || handledJoinConsentTokenRef.current === joinConsentToken) return;
         handledJoinConsentTokenRef.current = joinConsentToken;
         let cancelled = false;
-        void resolveJoinConsentContext(joinConsentToken).then(({ memberId }) => {
+        void resolveJoinConsentContext(joinConsentToken).then(async ({ memberId }) => {
             if (cancelled) return;
-            if (!account.memberIds.includes(memberId)) {
-                setJoinConsentNotice("This accepted application is not linked to your approved Parent Portal account. Please contact a leader for help.");
-                return;
-            }
+            const refreshed = await loadParentAccount(user.uid);
+            if (cancelled) return;
+            setAccount(refreshed);
+            setAccountReady(true);
             const next = new URLSearchParams(searchParams);
             next.delete("joinToken");
             next.set("child", memberId);
-            setJoinConsentNotice("Your child’s consent form is ready. Review and submit the form below.");
+            setJoinConsentNotice("Your accepted child is linked to this Parent Portal account. Review and submit the consent form below.");
             navigate({ pathname: "/parent", search: next.toString(), hash: "#parent-medical-consent" }, { replace: true, state: location.state });
         }).catch((contextError) => {
             if (cancelled) return;
+            handledJoinConsentTokenRef.current = "";
             reportApplicationError(contextError, { area: "ParentPortal", operation: "Unable to resolve accepted Join Us consent context" });
-            setJoinConsentNotice("This consent link is unavailable for this account. Confirm that you are signed in with the parent email used for the application and that your child is linked to your approved account.");
+            setJoinConsentNotice("This accepted-child link is unavailable for this account. Confirm that you are signed in with the parent email used for the application or contact a leader.");
         });
         return () => { cancelled = true; };
-    }, [joinConsentToken, user, account, searchParams, navigate, location.state]);
+    }, [joinConsentToken, user, searchParams, navigate, location.state]);
 
     const rememberChildSelection = (childId: string) => {
         if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
@@ -194,7 +195,7 @@ export default function ParentPortal() {
     const validateRegistration = () => {
         if (!displayName.trim()) return "Your name is required.";
         if (!mobileNumber.trim()) return "Your mobile number is required.";
-        if (children.length === 0 || children.some((child) => !child.firstName.trim() || !child.lastName.trim() || !child.dateOfBirth.trim())) return "Enter a first name, surname and date of birth for each child.";
+        if (!joinConsentToken && (children.length === 0 || children.some((child) => !child.firstName.trim() || !child.lastName.trim() || !child.dateOfBirth.trim()))) return "Enter a first name, surname and date of birth for each child.";
         return "";
     };
 
@@ -204,7 +205,7 @@ export default function ParentPortal() {
             if (mode === "register") {
                 const validation = validateRegistration();
                 if (validation) { setError(validation); return; }
-                await registerParent(email, password, displayName, mobileNumber, children);
+                await registerParent(email, password, displayName, mobileNumber, joinConsentToken ? [] : children);
                 const newUser = auth.currentUser;
                 if (newUser) { setAccountLoadError(null); setAccount(await loadParentAccount(newUser.uid)); setAccountReady(true); }
             } else await loginParent(email, password);
@@ -232,7 +233,7 @@ export default function ParentPortal() {
         if (validation) { setError(validation); return; }
         setWorking(true); setError("");
         try {
-            await createParentAccessForCurrentUser(displayName, mobileNumber, children);
+            await createParentAccessForCurrentUser(displayName, mobileNumber, joinConsentToken ? [] : children);
             const current = auth.currentUser;
             if (current) { setAccountLoadError(null); setAccount(await loadParentAccount(current.uid)); }
         } catch (setupError) { setError(applicationErrorMessage(setupError, "Unable to submit parent registration for this account.", "ParentPortal")); }
@@ -250,7 +251,7 @@ export default function ParentPortal() {
         return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{permissionDenied ? <OperationalPermissionState title="Parent access record restricted" actionLabel="Retry" onAction={() => void loadAccount()}>{loadMessage}</OperationalPermissionState> : <OperationalErrorState title="Parent access record could not be loaded" actionLabel="Retry" onAction={() => void loadAccount()}>{loadMessage}</OperationalErrorState>}<Button onClick={() => void logoutParent()}>Sign Out</Button></Paper></Container></Box>;
     }
 
-    if (user && !account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography>}{leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access.</Alert>}<Alert severity="info" sx={{ my: 2 }}>Submit parent registration by identifying your child or children. The details are reviewed separately from any Leader access and never grant child access automatically.</Alert><Stack spacing={2}><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} /><ChildFields children={children} setChildren={setChildren} />{error && <Alert severity="error">{error}</Alert>}<Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Submit Parent Registration"}</Button><Button onClick={() => void logoutParent()}>Sign Out</Button></Stack></Paper></Container></Box>;
+    if (user && !account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography>}{leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access.</Alert>}<Alert severity="info" sx={{ my: 2 }}>Submit parent registration by identifying your child or children. The details are reviewed separately from any Leader access and never grant child access automatically.</Alert><Stack spacing={2}><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />{!joinConsentToken && <ChildFields children={children} setChildren={setChildren} />}{joinConsentToken && <Alert severity="info">This registration came from an accepted Join Us email. Sign in or submit your parent details; the accepted child will be linked securely from that application.</Alert>}{error && <Alert severity="error">{error}</Alert>}<Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Submit Parent Registration"}</Button><Button onClick={() => void logoutParent()}>Sign Out</Button></Stack></Paper></Container></Box>;
 
     if (account) {
         const activeMemberIds = selectedChild ? [selectedChild.id] : [];
