@@ -46,18 +46,24 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-test("ordinary leaders must scope join application list queries to assigned sections", async () => {
+test("Programme Scouters cannot query Join Us while Section Leaders remain section scoped", async () => {
   await seed([
-    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/programme-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["organisationLeadership/programme-cubs", { active: true, scoutingRole: "Programme Scouter", organisationSection: "Cubs" }],
+    ["adminUsers/section-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["organisationLeadership/section-cubs", { active: true, scoutingRole: "Section Leader", organisationSection: "Cubs" }],
     ["joinApplications/cub", { section: "Cubs", status: "new" }],
     ["joinApplications/scout", { section: "Scouts", status: "new" }],
   ]);
 
-  const db = testEnv.authenticatedContext("leader-cubs").firestore();
+  const programmeDb = testEnv.authenticatedContext("programme-cubs").firestore();
+  await assertFails(getDocs(query(collection(programmeDb, "joinApplications"), where("section", "==", "Cubs"))));
+
+  const sectionDb = testEnv.authenticatedContext("section-cubs").firestore();
   await assertSucceeds(
-    getDocs(query(collection(db, "joinApplications"), where("section", "==", "Cubs")))
+    getDocs(query(collection(sectionDb, "joinApplications"), where("section", "==", "Cubs")))
   );
-  await assertFails(getDocs(collection(db, "joinApplications")));
+  await assertFails(getDocs(collection(sectionDb, "joinApplications")));
 });
 
 test("ordinary leaders can query canonical consent section fields and legacy section aliases are denied", async () => {

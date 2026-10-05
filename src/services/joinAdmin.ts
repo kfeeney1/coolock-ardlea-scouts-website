@@ -16,8 +16,8 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { notifyJoinApplicationStatus } from "./emailNotifications";
-import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { canonicalMemberSection } from "./memberIdentityLogic";
+import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "../security/scoutingAppointments";
 
 export type JoinStatus = "new" | "contacted" | "waiting-list" | "accepted" | "closed";
 export type ContactMethod = "phone" | "email" | "text" | "in-person" | "other";
@@ -123,29 +123,64 @@ function mapJoin(snapshot: QueryDocumentSnapshot<DocumentData>): JoinApplication
     };
 }
 
-export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
+type JoinManagementAccess = { allSections: boolean; sections: string[] };
+
+async function requireJoinManagementAccess(): Promise<JoinManagementAccess> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
-    const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    const [profileSnapshot, leadershipSnapshot] = await Promise.all([
+        getDoc(doc(db, "adminUsers", user.uid)),
+        getDoc(doc(db, "organisationLeadership", user.uid))
+    ]);
     if (!profileSnapshot.exists() || profileSnapshot.data().active !== true) {
         throw new UserFacingError("Active leader profile is required.");
     }
 
     const profile = profileSnapshot.data();
-    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const leadershipSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
+    if (profile.role === "admin" || profile.role === "super-admin") return { allSections: true, sections: [] };
+
     const leadership = leadershipSnapshot.exists() ? leadershipSnapshot.data() : null;
-    const isGroupLeader = leadership?.active === true && ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"].includes(String(leadership.scoutingRole ?? ""));
+    if (!leadership || leadership.active !== true) {
+        throw new UserFacingError("Join Us Management is restricted to Section Leaders and Group Leadership.");
+    }
+
+    const appointments = activeScoutingAppointments(normalizeScoutingAppointmentAssignments(
+        leadership.appointments,
+        leadership.scoutingRole,
+        leadership.organisationSection
+    ));
+    if (appointments.some((item) => isGroupLeadershipAppointment(item.appointment))) {
+        return { allSections: true, sections: [] };
+    }
+
+    const sections = [...new Set(appointments
+        .filter((item) => item.appointment === "Section Leader" && item.scope !== "Group")
+        .map((item) => item.scope))];
+    if (sections.length === 0) {
+        throw new UserFacingError("Join Us Management is restricted to Section Leaders and Group Leadership.");
+    }
+    return { allSections: false, sections };
+}
+
+function assertJoinSectionAccess(access: JoinManagementAccess, section: string): void {
+    if (!access.allSections && !access.sections.includes(section)) {
+        throw new UserFacingError("You do not have Join Us Management access for this section.");
+    }
+}
+
+export async function loadJoinApplications(): Promise<JoinApplicationRecord[]> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+
+    const access = await requireJoinManagementAccess();
 
     let documents: QueryDocumentSnapshot<DocumentData>[];
-    if (isAdmin || isGroupLeader) {
+    if (access.allSections) {
         documents = (await getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc")))).docs;
     } else {
-        const sections = normalizeLeaderSections(profile);
-        if (sections.length === 0) return [];
         const snapshots = await Promise.all(
-            sections.map((section) => getDocs(query(collection(db, "joinApplications"), where("section", "==", section))))
+            access.sections.map((section) => getDocs(query(collection(db, "joinApplications"), where("section", "==", section))))
         );
         const byId = new Map<string, QueryDocumentSnapshot<DocumentData>>();
         snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => byId.set(item.id, item)));
@@ -228,6 +263,8 @@ export async function saveJoinApplication(
 ): Promise<{ memberId: string; status: JoinStatus; contactHistory: ContactHistoryEntry[] }> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+    const access = await requireJoinManagementAccess();
+    assertJoinSectionAccess(access, application.section);
 
     const applicationRef = doc(db, "joinApplications", application.id);
     const previousStatus = application.status;
@@ -282,6 +319,8 @@ export async function updateJoinNotes(applicationId: string, notes: string): Pro
 export async function convertJoinApplicationToMember(application: JoinApplicationRecord): Promise<string> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+    const access = await requireJoinManagementAccess();
+    assertJoinSectionAccess(access, application.section);
 
     const applicationRef = doc(db, "joinApplications", application.id);
     const memberRef = doc(collection(db, "members"));

@@ -1,7 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
-const leaderEmail = process.env.E2E_LEADER_EMAIL;
+const leaderEmail = process.env.E2E_PARENT_LEADER_EMAIL || "test.beaver.section.leader@example.com";
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Operations overview checks run once on desktop Chromium.");

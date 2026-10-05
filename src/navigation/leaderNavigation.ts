@@ -8,6 +8,7 @@ export type LeaderNavItem = {
   leaderAccessOnly?: boolean;
   activityLogOnly?: boolean;
   settingsOnly?: boolean;
+  joinManagementOnly?: boolean;
   appointments?: string[];
 };
 
@@ -25,7 +26,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   ]},
   { id: "people-parents", label: "People & Parents", items: [
     { id: "member-management", label: "Member Management", path: "/leader/members", pageId: "member-management" },
-    { id: "join-management", label: "Join Us Management", path: "/leader/join", pageId: "join-management" },
+    { id: "join-management", label: "Join Us Management", path: "/leader/join", pageId: "join-management", joinManagementOnly: true },
     { id: "consent-management", label: "Consent Management", path: "/leader/consents", pageId: "consent-management" },
     { id: "event-consent", label: "Event Consent", path: "/leader/event-consent", pageId: "event-consent" },
     { id: "parent-communications", label: "Parent Communications", path: "/leader/communications", pageId: "parent-communications" },

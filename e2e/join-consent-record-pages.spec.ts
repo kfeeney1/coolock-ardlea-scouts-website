@@ -103,7 +103,7 @@ test("Join application action deep link preserves login target and hides out-of-
   const sectionPage = await sectionContext.newPage();
   await sectionPage.goto(applicationPath);
   await expect(sectionPage).toHaveURL(/\/leader\/login$/);
-  await sectionPage.getByLabel("Email address").fill(process.env.E2E_MULTI_SECTION_LEADER_EMAIL || "test.multi.section.leader@example.com");
+  await sectionPage.getByLabel("Email address").fill(process.env.E2E_PARENT_LEADER_EMAIL || "test.beaver.section.leader@example.com");
   await sectionPage.getByLabel("Password").fill(password!);
   await sectionPage.getByRole("button", { name: "Sign In" }).click();
   await expect(sectionPage).toHaveURL(new RegExp(applicationPath + "$"));
