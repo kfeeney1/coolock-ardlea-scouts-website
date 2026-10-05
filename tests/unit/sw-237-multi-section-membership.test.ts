@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { canonicalMemberSections, memberBelongsToSection } from "../../src/services/memberSectionCore.mjs";
+import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSections, isMemberProgrammeSection, memberBelongsToSection, memberProgrammeSections } from "../../src/services/memberSectionCore.mjs";
 import { filterMemberRecords } from "../../src/services/memberManagementLogic.ts";
 import { resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
 import { subsFamilyAccountId } from "../../src/services/subsLogic.ts";
@@ -53,4 +53,13 @@ test("SW-237 event audiences include a member through either active section", ()
 
 test("SW-237 billing identity stays member-based rather than section-based", () => {
   assert.equal(subsFamilyAccountId("2026-27", [member.id]), subsFamilyAccountId("2026-27", [member.id]));
+});
+
+
+test("SW-292 programme membership domain excludes Group and Other without corrupting legacy reads", () => {
+  assert.deepEqual(MEMBER_PROGRAMME_SECTIONS, ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
+  assert.equal(isMemberProgrammeSection("Group"), false);
+  assert.equal(isMemberProgrammeSection("Other"), false);
+  assert.deepEqual(memberProgrammeSections(["Group", "Cub", "Other", "Scouts"], "Group"), ["Cubs", "Scouts"]);
+  assert.deepEqual(canonicalMemberSections(["Group", "Cub", "Other"], "Group"), ["Group", "Cubs", "Other"]);
 });
