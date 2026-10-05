@@ -70,7 +70,6 @@ const SystemInformation = lazy(() => import("./pages/SystemInformation"));
 function protectedRoute(element: ReactNode) { return <ProtectedAdminRoute>{element}</ProtectedAdminRoute>; }
 function protectedSettingsRoute(element: ReactNode) { return protectedRoute(<ProtectedSiteSettingsRoute>{element}</ProtectedSiteSettingsRoute>); }
 function protectedSuperAdminRoute(element: ReactNode) { return protectedRoute(<ProtectedSuperAdminRoute>{element}</ProtectedSuperAdminRoute>); }
-function protectedJoinManagementRoute(element: ReactNode) { return protectedRoute(<ProtectedJoinManagementRoute>{element}</ProtectedJoinManagementRoute>); }
 
 export default function App() {
   return (
@@ -116,8 +115,8 @@ export default function App() {
         <Route path="/leader/consents/:consentId" element={protectedRoute(<ConsentRecordPage />)} />
         <Route path="/leader/medical/:consentId" element={protectedRoute(<QuickMedicalInformationPage />)} />
         <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
-        <Route path="/leader/join" element={protectedJoinManagementRoute(<JoinManagement />)} />
-        <Route path="/leader/join/:applicationId" element={protectedJoinManagementRoute(<JoinRecordPage />)} />
+        <Route path="/leader/join" element={protectedRoute(<ProtectedJoinManagementRoute><JoinManagement /></ProtectedJoinManagementRoute>)} />
+        <Route path="/leader/join/:applicationId" element={protectedRoute(<ProtectedJoinManagementRoute><JoinRecordPage /></ProtectedJoinManagementRoute>)} />
         <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
         <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
         <Route path="/leader/subs" element={protectedRoute(<SubsManagement />)} />
