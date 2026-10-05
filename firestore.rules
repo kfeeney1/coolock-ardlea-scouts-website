@@ -33,14 +33,26 @@ service cloud.firestore {
         && get(organisationPath).data.scoutingRole == "Section Leader";
     }
     function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
+    function joinSectionLeaderAppointmentAt(data, index, section) {
+      return data.keys().hasAny(["appointments"])
+        && data.appointments is list && data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].appointment == "Section Leader"
+        && data.appointments[index].scope == section;
+    }
+    function hasJoinSectionLeaderAppointment(data, section) {
+      return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
+        || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
+    }
     function isJoinSectionLeader(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       let leadership = get(organisationPath).data;
       return isActiveLeader()
         && exists(organisationPath)
         && leadership.active == true
-        && leadership.scoutingRole == "Section Leader"
-        && leadership.organisationSection == section;
+        && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == section)
+          || hasJoinSectionLeaderAppointment(leadership, section));
     }
     function canManageJoinSection(section) {
       return isActiveLeader() && (isAdmin() || isGroupLeader() || isJoinSectionLeader(section));
@@ -433,7 +445,8 @@ service cloud.firestore {
         && request.resource.data.status == "new" && request.resource.data.source == "website" && request.resource.data.submittedAt == request.time
         && !request.resource.data.keys().hasAny(["childDob", "dob", "childName", "name", "phone", "phoneNumber", "parentPhone", "parentMobile", "scoutSection"]);
       allow read: if canManageJoinSection(resource.data.section);
-      allow update: if canManageJoinSection(resource.data.section) && canManageJoinSection(request.resource.data.section)
+      allow update: if canManageJoinSection(resource.data.section)
+        && request.resource.data.section == resource.data.section
         && request.resource.data.status in ["new", "contacted", "waiting-list", "accepted", "closed"]
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "notes", "contactHistory", "updatedAt", "memberId", "convertedAt", "convertedBy", "reconciledMemberAt", "reconciledMemberBy"]);
       allow delete: if false;
