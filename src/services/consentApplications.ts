@@ -166,22 +166,24 @@ export const AUTHORISED_SCOUTERS: string[] = [];
 
 export type AuthorisedScouterOption = { uid: string; displayName: string; sections: string[]; scoutingRole: string };
 
-export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
-    const leaders = await getPublicWhosWho();
+export function orderAuthorisedScouters(options: AuthorisedScouterOption[], memberSection = ""): AuthorisedScouterOption[] {
     const unique = new Map<string, AuthorisedScouterOption>();
-    for (const leader of leaders) {
-        if (!unique.has(leader.uid)) unique.set(leader.uid, {
-            uid: leader.uid,
-            displayName: leader.displayName,
-            sections: leader.organisationSections,
-            scoutingRole: leader.scoutingRole
-        });
-    }
+    for (const option of options) if (!unique.has(option.uid)) unique.set(option.uid, option);
     return [...unique.values()].sort((left, right) => {
         const leftRelevant = memberSection && left.sections.includes(memberSection) ? 0 : 1;
         const rightRelevant = memberSection && right.sections.includes(memberSection) ? 0 : 1;
         return leftRelevant - rightRelevant || left.displayName.localeCompare(right.displayName) || left.uid.localeCompare(right.uid);
     });
+}
+
+export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
+    const leaders = await getPublicWhosWho();
+    return orderAuthorisedScouters(leaders.map((leader) => ({
+        uid: leader.uid,
+        displayName: leader.displayName,
+        sections: leader.organisationSections,
+        scoutingRole: leader.scoutingRole
+    })), memberSection);
 }
 
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
