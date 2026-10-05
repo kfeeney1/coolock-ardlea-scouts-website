@@ -15,7 +15,7 @@ import {
     TextField,
     Typography
 } from "@mui/material";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
     ChangeEvent,
     FormEvent
@@ -28,7 +28,7 @@ import MedicationManagementForm, {
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
-import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
+import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";\nimport { loadLeaderMedicalDefaults } from "../../services/leaderProfile";\nimport { loadOwnLeaderMedicalState } from "../../services/leaderMedicalLifecycle";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -398,7 +398,7 @@ export default function ScouterConsentForm({
         }
     };
 
-    if (submitted) {
+    if (prefillLoading) {\n        return <Paper elevation={2} sx={{ p: 4 }}><Typography>Loading your existing leader details…</Typography><LinearProgress sx={{ mt: 2 }} /></Paper>;\n    }\n\n    if (submitted) {
         return (
             <Paper
                 elevation={4}
