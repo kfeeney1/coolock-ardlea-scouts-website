@@ -117,7 +117,7 @@ export default function EquipmentRecordPage() {
     <LeaderDashboardHeader />
     <LeaderPageHeader title={item?.id === equipmentId ? item.name : "Equipment record"} description="Equipment record, condition, history, Store movement and issue reporting." />
     {loading && (!item || item.id !== equipmentId) ? <Alert severity="info" role="status">Loading equipment record…</Alert> : !item || !form || item.id !== equipmentId ? <><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></> : <>
-    <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
+    <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment &amp; Stores</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {storeMove?.itemId === item.id && <Alert severity="success" sx={{ mb: 2 }} data-testid="equipment-store-move-success">Moved {storeMove.quantity} × {item.name} to {storeMove.destination}.{storeMove.destinationItemId ? " The moved stock has its own destination record." : " The existing equipment record was kept."}</Alert>}
