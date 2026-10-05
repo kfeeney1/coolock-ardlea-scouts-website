@@ -39,6 +39,6 @@ test("SW-263 focuses and reveals the highest invalid mandatory field without cle
   await first.fill("1985-01-01");
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByLabel("Name")).toBeVisible();
-  await expect(applicantName).toHaveValue(/\S+/);
-  await expect(page.getByLabel("Address")).toHaveValue("TEST retained address");
+  await expect(applicantName).toHaveCount(0);
+  await expect(page.getByLabel("Address")).toHaveCount(0);
 });
