@@ -29,8 +29,7 @@ import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
-import { loadLeaderMedicalDefaults } from "../../services/leaderProfile";
-import { loadOwnLeaderMedicalState } from "../../services/leaderMedicalLifecycle";
+import { loadScouterConsentPrefill } from "../../services/scouterConsentPrefill";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -150,50 +149,15 @@ export default function ScouterConsentForm({
     const [reference, setReference] = useState("");
     const formRef = useRef<HTMLFormElement | null>(null);
     const [prefillLoading, setPrefillLoading] = useState(true);
-
     useEffect(() => {
         let active = true;
-        void Promise.all([loadLeaderMedicalDefaults(), loadOwnLeaderMedicalState()]).then(([profile, medical]) => {
-            if (!active) return;
-            const previous = medical.data ?? {};
-            const previousText = (key: string) => typeof previous[key] === "string" ? String(previous[key]) : "";
-            setFormData((current) => ({
-                ...current,
-                name: previousText("name") || profile.name || current.name,
-                dob: previousText("dob") || profile.dob || current.dob,
-                address: previousText("address") || profile.address || current.address,
-                mobile: previousText("mobile") || profile.mobile || current.mobile,
-                homePhone: previousText("homePhone") || profile.homePhone || current.homePhone,
-                workPhone: previousText("workPhone") || profile.workPhone || current.workPhone,
-                nextOfKinName: previousText("nextOfKinName") || current.nextOfKinName,
-                nextOfKinAddress: previousText("nextOfKinAddress") || current.nextOfKinAddress,
-                nextOfKinMobile: previousText("nextOfKinMobile") || current.nextOfKinMobile,
-                nextOfKinHome: previousText("nextOfKinHome") || current.nextOfKinHome,
-                nextOfKinWork: previousText("nextOfKinWork") || current.nextOfKinWork,
-                epilepsy: (previousText("epilepsy") as YesNo | "") || current.epilepsy,
-                diabetes: (previousText("diabetes") as YesNo | "") || current.diabetes,
-                asthma: (previousText("asthma") as YesNo | "") || current.asthma,
-                heartDisease: (previousText("heartDisease") as YesNo | "") || current.heartDisease,
-                highBloodPressure: (previousText("highBloodPressure") as YesNo | "") || current.highBloodPressure,
-                skinAllergies: (previousText("skinAllergies") as YesNo | "") || current.skinAllergies,
-                hearingDifficulties: (previousText("hearingDifficulties") as YesNo | "") || current.hearingDifficulties,
-                otherMedical: previousText("otherMedical") || current.otherMedical,
-                previousInjuries: previousText("previousInjuries") || current.previousInjuries,
-                onMedication: (previousText("onMedication") as YesNo | "") || current.onMedication,
-                medicationDetails: previousText("medicationDetails") || current.medicationDetails,
-                allergies: previousText("allergies") || current.allergies,
-                medicationManagement: previous.medicationManagement && typeof previous.medicationManagement === "object"
-                    ? { ...current.medicationManagement, ...(previous.medicationManagement as MedicationManagementData), signature: "", signatureDate: current.signatureDate }
-                    : current.medicationManagement,
-                signature: "",
-                declarationConfirmed: false
-            }));
-        }).catch((error) => {
-            setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm"));
-        }).finally(() => { if (active) setPrefillLoading(false); });
+        void loadScouterConsentPrefill(formData).then((next) => { if (active) setFormData(next); })
+            .catch((error) => setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm")))
+            .finally(() => { if (active) setPrefillLoading(false); });
         return () => { active = false; };
+        // Initial defaults are loaded once for the authenticated owner.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
 
     const progress = useMemo(
         () =>
