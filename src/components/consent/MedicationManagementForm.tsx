@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 
 import YesNoField from "./YesNoField";
@@ -16,6 +17,7 @@ type Props = {
     errors: Errors;
     onChange: (next: MedicationManagementData) => void;
     sharedIdentity?: SharedIdentity;
+    memberSection?: string;
 };
 
 export function createMedicationEntry(authFrom = "", authTo = ""): MedicationEntry {
@@ -90,8 +92,29 @@ export function validateMedication(data: MedicationManagementData, mode: "youth"
     return errors;
 }
 
-export default function MedicationManagementForm({ mode, value, errors, onChange, sharedIdentity }: Props) {
+export default function MedicationManagementForm({ mode, value, errors, onChange, sharedIdentity, memberSection = "" }: Props) {
     const entries = medicationEntries(value);
+    const [scouters, setScouters] = useState<AuthorisedScouterOption[]>([]);
+    const [scouterLoadError, setScouterLoadError] = useState("");
+    useEffect(() => {
+        if (mode !== "youth") return;
+        let active = true;
+        void loadAuthorisedScouterOptions(memberSection).then((options) => {
+            if (active) { setScouters(options); setScouterLoadError(""); }
+        }).catch(() => {
+            if (active) setScouterLoadError("Registered Scouters could not be loaded. Please try again before signing.");
+        });
+        return () => { active = false; };
+    }, [mode, memberSection]);
+    const selectScouter = (slot: 1 | 2, uid: string) => {
+        const selected = scouters.find((item) => item.uid === uid);
+        if (!selected) return;
+        onChange({
+            ...value,
+            [slot === 1 ? "scouter1Id" : "scouter2Id"]: selected.uid,
+            [slot === 1 ? "scouter1" : "scouter2"]: selected.displayName
+        });
+    };
     const update = <K extends keyof MedicationManagementData>(field: K, nextValue: MedicationManagementData[K]) => onChange({ ...value, [field]: nextValue });
     const textChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const field = event.target.name as keyof MedicationManagementData;
