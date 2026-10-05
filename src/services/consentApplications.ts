@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { getPublicWhosWho } from "./publicWhosWho";
+import { loadRegisteredScouterOptions } from "./emailNotifications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
 
 export type YesNo = "Yes" | "No";
@@ -177,13 +177,8 @@ export function orderAuthorisedScouters(options: AuthorisedScouterOption[], memb
 }
 
 export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
-    const leaders = await getPublicWhosWho();
-    return orderAuthorisedScouters(leaders.map((leader) => ({
-        uid: leader.uid,
-        displayName: leader.displayName,
-        sections: leader.organisationSections,
-        scoutingRole: leader.scoutingRole
-    })), memberSection);
+    const leaders = await loadRegisteredScouterOptions();
+    return orderAuthorisedScouters(leaders, memberSection);
 }
 
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
