@@ -7,6 +7,7 @@ compatibility_date = "2026-08-01"
 # separate Workers (for example `<name>-production`), which is not the intended
 # architecture here. This file targets the existing production Worker directly.
 [vars]
+LEADER_MEDICAL_REMINDER_DAYS = "45"
 FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
 SITE_URL = "https://coolockardleascouts.ie"
 EMAIL_DELIVERY_MODE = "production"
@@ -16,3 +17,6 @@ ADMIN_EMAILS = "kfeeney1@hotmail.com"
 
 # TEST_EMAIL_REDIRECT must remain unset in production; entry.js fails closed
 # if a production deployment contains a redirect.
+
+[triggers]
+crons = ["0 8 * * *"]
