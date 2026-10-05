@@ -58,6 +58,7 @@ export default function JoinRecordPage() {
   const [contactNote, setContactNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [conversionConfirmationOpen, setConversionConfirmationOpen] = useState(false);
+  const [leaveConfirmationOpen, setLeaveConfirmationOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -144,7 +145,9 @@ export default function JoinRecordPage() {
       <LeaderPageHeader
         title={record ? record.childName : "Join Us Enquiry"}
         description="Full joining enquiry record, workflow, notes and contact history."
-        actions={<Button component={Link} to="/leader/join" variant="outlined" color="secondary" onClick={(event) => { if (dirty && !window.confirm("You have unsaved Join Us changes. Leave without saving?")) event.preventDefault(); }}>Back to enquiries</Button>}
+        actions={dirty
+          ? <Button variant="outlined" color="secondary" onClick={() => setLeaveConfirmationOpen(true)}>Back to enquiries</Button>
+          : <Button component={Link} to="/leader/join" variant="outlined" color="secondary">Back to enquiries</Button>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box> : <>
@@ -196,6 +199,15 @@ export default function JoinRecordPage() {
         </Stack>}
       </>}
     </Container>
+
+    <Dialog open={leaveConfirmationOpen} onClose={() => setLeaveConfirmationOpen(false)} aria-labelledby="join-unsaved-title">
+      <DialogTitle id="join-unsaved-title">Unsaved Join Us changes</DialogTitle>
+      <DialogContent><Typography>You have changes that have not been saved. Leave this enquiry and discard them?</Typography></DialogContent>
+      <DialogActions>
+        <Button onClick={() => setLeaveConfirmationOpen(false)}>Stay</Button>
+        <Button color="error" onClick={() => navigate("/leader/join")}>Leave without saving</Button>
+      </DialogActions>
+    </Dialog>
 
     <Dialog
       open={conversionConfirmationOpen && Boolean(record)}
