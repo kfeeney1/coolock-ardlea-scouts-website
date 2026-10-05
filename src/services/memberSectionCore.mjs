@@ -1,3 +1,5 @@
+export const MEMBER_PROGRAMME_SECTIONS = Object.freeze(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
+
 const SECTION_ALIASES = new Map([
   ["beaver", "Beavers"], ["beavers", "Beavers"], ["beaver scout", "Beavers"], ["beaver scouts", "Beavers"],
   ["cub", "Cubs"], ["cubs", "Cubs"], ["cub scout", "Cubs"], ["cub scouts", "Cubs"],
@@ -31,6 +33,14 @@ export function canonicalMemberSections(value, legacySection = "") {
   const legacy = canonicalMemberSection(legacySection);
   if (legacy) sections.push(legacy);
   return [...new Set(sections)];
+}
+
+export function isMemberProgrammeSection(value) {
+  return MEMBER_PROGRAMME_SECTIONS.includes(canonicalMemberSection(value));
+}
+
+export function memberProgrammeSections(value, legacySection = "") {
+  return canonicalMemberSections(value, legacySection).filter(isMemberProgrammeSection);
 }
 
 export function memberBelongsToSection(member, section) {
