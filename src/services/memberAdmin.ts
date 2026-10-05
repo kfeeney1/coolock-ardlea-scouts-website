@@ -17,7 +17,7 @@ import type { DocumentData, QueryDocumentSnapshot, Timestamp } from "firebase/fi
 
 import { auth, db } from "../firebase";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
-import { canonicalMemberSections, memberSectionStorageAliases } from "./memberSectionCore.mjs";
+import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSections, memberSectionStorageAliases } from "./memberSectionCore.mjs";
 import { recordAuditEvent } from "./auditLog";
 import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
@@ -87,8 +87,6 @@ export type MemberLifecycleHistoryRecord = {
 };
 
 const MEMBER_STATUSES = ["active", "inactive", "left"] as const;
-const MEMBER_PROGRAMME_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
-
 function validMemberProgrammeSections(sections: string[]): boolean {
   return sections.length > 0 && sections.every((section) => MEMBER_PROGRAMME_SECTIONS.includes(section as typeof MEMBER_PROGRAMME_SECTIONS[number]));
 }
