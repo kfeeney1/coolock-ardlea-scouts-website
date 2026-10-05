@@ -33,8 +33,33 @@ service cloud.firestore {
         && get(organisationPath).data.scoutingRole == "Section Leader";
     }
     function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
+    function joinSectionLeaderAppointmentAt(data, index, section) {
+      return data.keys().hasAny(["appointments"])
+        && data.appointments is list && data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].appointment == "Section Leader"
+        && data.appointments[index].scope == section;
+    }
+    function hasJoinSectionLeaderAppointment(data, section) {
+      return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
+        || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section)
+        || joinSectionLeaderAppointmentAt(data, 4, section) || joinSectionLeaderAppointmentAt(data, 5, section)
+        || joinSectionLeaderAppointmentAt(data, 6, section) || joinSectionLeaderAppointmentAt(data, 7, section)
+        || joinSectionLeaderAppointmentAt(data, 8, section) || joinSectionLeaderAppointmentAt(data, 9, section)
+        || joinSectionLeaderAppointmentAt(data, 10, section) || joinSectionLeaderAppointmentAt(data, 11, section);
+    }
+    function isJoinSectionLeader(section) {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      return isActiveLeader()
+        && exists(organisationPath)
+        && get(organisationPath).data.active == true
+        && ((get(organisationPath).data.scoutingRole == "Section Leader"
+            && get(organisationPath).data.organisationSection == section)
+          || hasJoinSectionLeaderAppointment(get(organisationPath).data, section));
+    }
     function canManageJoinSection(section) {
-      return isActiveLeader() && (isAdmin() || isGroupLeader() || profileHasSection(section));
+      return isActiveLeader() && (isAdmin() || isGroupLeader() || isJoinSectionLeader(section));
     }
     function isEligibleAdultUid(uid) {
       return uid is string
