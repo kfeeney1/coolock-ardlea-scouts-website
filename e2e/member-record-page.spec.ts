@@ -106,6 +106,31 @@ test("SW-134/135 medical indicators reflow and open the stable protected consent
 });
 
 
+test("SW-293/294/136 member medical quick access preserves Member Management context", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Quick medical workflow runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members/TEST_member_beaver_01");
+
+  const quick = page.getByTestId("member-quick-medical");
+  await expect(quick).toBeVisible();
+  await expect(quick).toHaveAccessibleName(/Open quick medical information/);
+  await quick.click();
+
+  await expect(page).toHaveURL(/\/leader\/medical\/.+$/);
+  await expect(page.getByRole("heading", { name: "Quick Medical Information" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Medical conditions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Medication" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Parents / guardians" })).toBeVisible();
+  await expect(page.getByText("Medical or medication information is recorded below. Review the recorded details and established action information.")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+
+  await page.getByRole("link", { name: "Back to member" }).click();
+  await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
+  await expect(page.getByRole("heading", { name: "Member Details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Menu · Member Management/ })).toBeVisible();
+});
+
 test("SW-156 stable consent linkage survives a member surname change", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
