@@ -125,6 +125,39 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+      - name: Deploy matching PRODUCTION email Worker
+        working-directory: email-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ACTION_LINK_SECRET: ${{ secrets.ACTION_LINK_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test "${#ACTION_LINK_SECRET}" -ge 32
+          npm install --no-audit --no-fund
+          node --test tests/*.test.js
+          printf '%s' "$ACTION_LINK_SECRET" | npx wrangler secret put ACTION_LINK_SECRET --config wrangler.production.toml
+          npm run deploy:production
+      - name: Verify required Join Us notification route is addressable
+        env:
+          EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -o /tmp/join-status-probe.json -w '%{http_code}' -X POST             -H 'Content-Type: application/json'             --data '{"applicationId":"deployment-probe","status":"accepted"}'             "${EMAIL_API_URL%/}/join-application-status")"
+          if [ "$status" = "404" ]; then
+            echo '::error::Join Us status endpoint is not deployed.'
+            cat /tmp/join-status-probe.json
+            exit 1
+          fi
+          test "$status" = "401" || test "$status" = "403" || {
+            echo "::error::Unexpected Join Us status route probe HTTP $status"
+            cat /tmp/join-status-probe.json
+            exit 1
+          }
       - name: Build PRODUCTION artifact
         run: npm run build
         env:
