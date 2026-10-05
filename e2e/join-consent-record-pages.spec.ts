@@ -47,6 +47,7 @@ test("SW-296 Join Us edits remain local until explicit Save and persist after Sa
 
   await notes.fill("SW-296 unsaved draft");
   await expect(page.getByRole("button", { name: "Save Changes", exact: true })).toBeEnabled();
+  page.once("dialog", (dialog) => void dialog.accept());
   await page.reload();
   await expect(notes).toHaveValue("");
 
