@@ -178,7 +178,6 @@ service cloud.firestore {
         && request.resource.data.roverManagementAt == request.time
         && canManageRoverMembership()
         && request.resource.data.accountUid is string
-        && isEligibleAdultUid(request.resource.data.accountUid)
         && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == request.resource.data.accountUid)
         && request.resource.data.sections is list
         && request.resource.data.sections.size() > 0
@@ -490,10 +489,6 @@ service cloud.firestore {
       allow read: if isApprovedParentForMember(memberId);
       allow read: if signedIn() && resource.data.keys().hasAny(["accountUid"])
         && resource.data.accountUid == request.auth.uid;
-      // Rover-scoped leaders may resolve an already-linked adult member identity.
-      // Write authority remains stricter and requires the Section Leader appointment.
-      allow read: if isActiveLeader() && profileHasSection("Rovers")
-        && resource.data.keys().hasAny(["accountUid"]);
       // Preserve the proven legacy scalar rule as an independent allow path.
       // Firestore can authorize section-constrained legacy queries against this
       // rule without needing to reason about the concurrent-membership branch.
