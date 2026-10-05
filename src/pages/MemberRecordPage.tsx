@@ -13,11 +13,11 @@ import MemberSectionChecklist from "../components/admin/MemberSectionChecklist";
 import MemberYouthRoleControls from "../components/admin/MemberYouthRoleControls";
 import { automaticDisplayName, loadMemberConsentSummaries, loadMemberLifecycleHistory, loadMembers, updateMember, type MemberConsentSummary, type MemberLifecycleHistoryRecord, type MemberRecord, type MemberStatus } from "../services/memberAdmin";
 import { lifecycleChangeLabel } from "../services/memberLifecycleLogic";
+import { MEMBER_PROGRAMME_SECTIONS } from "../services/memberSectionCore.mjs";
 import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates, type ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
 import { loadParentAccounts } from "../services/parentPortal";
 
-const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const statuses: MemberStatus[] = ["active", "inactive", "left"];
 const statusLabel = (status: MemberStatus) => status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Left";
 const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Date unavailable";
