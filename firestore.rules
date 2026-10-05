@@ -43,20 +43,16 @@ service cloud.firestore {
     }
     function hasJoinSectionLeaderAppointment(data, section) {
       return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
-        || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section)
-        || joinSectionLeaderAppointmentAt(data, 4, section) || joinSectionLeaderAppointmentAt(data, 5, section)
-        || joinSectionLeaderAppointmentAt(data, 6, section) || joinSectionLeaderAppointmentAt(data, 7, section)
-        || joinSectionLeaderAppointmentAt(data, 8, section) || joinSectionLeaderAppointmentAt(data, 9, section)
-        || joinSectionLeaderAppointmentAt(data, 10, section) || joinSectionLeaderAppointmentAt(data, 11, section);
+        || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
     }
     function isJoinSectionLeader(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let leadership = get(organisationPath).data;
       return isActiveLeader()
         && exists(organisationPath)
-        && get(organisationPath).data.active == true
-        && ((get(organisationPath).data.scoutingRole == "Section Leader"
-            && get(organisationPath).data.organisationSection == section)
-          || hasJoinSectionLeaderAppointment(get(organisationPath).data, section));
+        && leadership.active == true
+        && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == section)
+          || hasJoinSectionLeaderAppointment(leadership, section));
     }
     function canManageJoinSection(section) {
       return isActiveLeader() && (isAdmin() || isGroupLeader() || isJoinSectionLeader(section));
