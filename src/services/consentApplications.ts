@@ -164,6 +164,26 @@ function cleanMedication(medication: MedicationManagementData) {
 let authorisedScouterPromise: Promise<string[]> | null = null;
 export const AUTHORISED_SCOUTERS: string[] = [];
 
+export type AuthorisedScouterOption = { uid: string; displayName: string; sections: string[]; scoutingRole: string };
+
+export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<AuthorisedScouterOption[]> {
+    const leaders = await getPublicWhosWho();
+    const unique = new Map<string, AuthorisedScouterOption>();
+    for (const leader of leaders) {
+        if (!unique.has(leader.uid)) unique.set(leader.uid, {
+            uid: leader.uid,
+            displayName: leader.displayName,
+            sections: leader.organisationSections,
+            scoutingRole: leader.scoutingRole
+        });
+    }
+    return [...unique.values()].sort((left, right) => {
+        const leftRelevant = memberSection && left.sections.includes(memberSection) ? 0 : 1;
+        const rightRelevant = memberSection && right.sections.includes(memberSection) ? 0 : 1;
+        return leftRelevant - rightRelevant || left.displayName.localeCompare(right.displayName) || left.uid.localeCompare(right.uid);
+    });
+}
+
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
     if (!authorisedScouterPromise) {
         authorisedScouterPromise = getPublicWhosWho()
