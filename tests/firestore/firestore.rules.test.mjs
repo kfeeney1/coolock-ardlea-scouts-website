@@ -118,9 +118,43 @@ test("Rover self-service read is limited to records carrying the caller's email 
     ["members/other-rover", { section: "Rovers", sections: ["Rovers"], emailAddress: "other@example.com", accountUid: "other-user" }],
   ]);
   const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
-  const own = await assertSucceeds(getDocs(query(collection(db, "members"), where("emailAddress", "==", "rover@example.com"), where("section", "==", "Cubs"))));
+  const own = await assertSucceeds(getDocs(query(collection(db, "members"), where("emailAddress", "==", "rover@example.com"))));
   assert.deepEqual(own.docs.map((snapshot) => snapshot.id), ["own-rover"]);
   await assertFails(getDoc(doc(db, "members/other-rover")));
+});
+
+test("member writes reject Group and Other as member or Primary sections", async () => {
+  await seedDocuments([["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }]]);
+  const db = testEnv.authenticatedContext("admin-1", { email: "admin@example.com" }).firestore();
+  const base = { firstName: "Test", lastName: "Member", displayName: "Test Member", dateOfBirth: "2010-01-01",
+    sectionRoles: {}, status: "active", source: "manual", createdBy: "admin-1" };
+  await assertFails(setDoc(doc(db, "members/group-member"), { ...base, section: "Group", sections: ["Group"], createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(db, "members/other-member"), { ...base, section: "Other", sections: ["Other"], createdAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(db, "members/valid-member"), { ...base, section: "Cubs", sections: ["Cubs", "Scouts"], createdAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(db, "members/valid-member"), { section: "Group", sections: ["Group", "Cubs"], updatedAt: serverTimestamp(), updatedBy: "admin-1" }));
+});
+
+test("Rover Section Leader, Group Leader and super-admin may manage Rover membership while ordinary leaders may not", async () => {
+  await seedDocuments([
+    ["adminUsers/target-adult", { active: true, role: "leader", sections: ["Cubs"], displayName: "Target Adult", email: "target@example.com" }],
+    ["adminUsers/rover-section-leader", { active: true, role: "leader", sections: ["Rovers"], displayName: "Rover SL", email: "roversl@example.com" }],
+    ["organisationLeadership/rover-section-leader", { active: true, scoutingRole: "Section Leader", appointments: [{ appointment: "Section Leader", scope: "Rovers", active: true }] }],
+    ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"], displayName: "Group Leader", email: "gl@example.com" }],
+    ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
+    ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"], displayName: "Super Admin", email: "admin@example.com" }],
+    ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Leader", email: "cubs@example.com" }],
+    ["members/target-member", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", accountUid: "target-adult", status: "active", source: "manual" }],
+  ]);
+  const change = (actor) => ({ accountUid: "target-adult", section: "Cubs", sections: ["Cubs", "Rovers"], sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor });
+  for (const actor of ["rover-section-leader", "group-leader", "super-admin"]) {
+    const db = testEnv.authenticatedContext(actor, { email: actor + "@example.com" }).firestore();
+    await assertSucceeds(updateDoc(doc(db, "members/target-member"), change(actor)));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "members/target-member"), { section: "Cubs", sections: ["Cubs"], updatedBy: "reset" });
+    });
+  }
+  const denied = testEnv.authenticatedContext("cubs-leader", { email: "cubs@example.com" }).firestore();
+  await assertFails(updateDoc(doc(denied, "members/target-member"), change("cubs-leader")));
 });
 
 test("a reserved Rover ID cannot overwrite an unrelated member record", async () => {
