@@ -109,6 +109,7 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
     sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, retainedSections),
     status: enabled ? "active" : (nextSections.length === 0 ? "left" : memberStatus(data.status)),
     updatedAt: now,
-    updatedBy: user.uid
+    updatedBy: user.uid,
+    roverManagementAt: now
   });
 }
