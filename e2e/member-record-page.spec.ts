@@ -110,6 +110,15 @@ test("SW-293/294/136 member medical quick access preserves Member Management con
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Quick medical workflow runs on desktop and Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
+  await page.goto("/leader/members");
+  const listQuick = page.getByTestId("member-list-medical-TEST_member_beaver_01");
+  await expect(listQuick).toBeVisible();
+  await listQuick.click();
+  await expect(page).toHaveURL(/\/leader\/medical\/.+$/);
+  await page.getByRole("link", { name: "Back to Member Management" }).click();
+  await expect(page).toHaveURL(/\/leader\/members/);
+  await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
+
   await page.goto("/leader/members/TEST_member_beaver_01");
 
   const quick = page.getByTestId("member-quick-medical");
