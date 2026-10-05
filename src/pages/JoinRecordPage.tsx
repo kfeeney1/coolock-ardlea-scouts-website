@@ -26,7 +26,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import {
-  addContactHistoryEntry,
   convertJoinApplicationToMember,
   loadJoinApplications,
   saveJoinApplication
@@ -56,6 +55,7 @@ export default function JoinRecordPage() {
   const [statusDraft, setStatusDraft] = useState<JoinStatus>("new");
   const [contactMethod, setContactMethod] = useState<ContactMethod>("phone");
   const [contactNote, setContactNote] = useState("");
+  const [pendingContacts, setPendingContacts] = useState<Array<{ id: string; method: ContactMethod; note: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [conversionConfirmationOpen, setConversionConfirmationOpen] = useState(false);
   const [leaveConfirmationOpen, setLeaveConfirmationOpen] = useState(false);
@@ -70,6 +70,8 @@ export default function JoinRecordPage() {
       setNotesDraft(found?.notes ?? "");
       setStatusDraft(found?.status ?? "new");
       setConversionConfirmationOpen(false);
+      setPendingContacts([]);
+      setContactNote("");
       if (!found) setError("This joining enquiry could not be found or is outside your permitted sections.");
     } catch (loadError) {
       setError(applicationErrorMessage(loadError, "Unable to load this joining enquiry.", "JoinRecordPage"));
@@ -91,7 +93,7 @@ export default function JoinRecordPage() {
     ["Last updated", formatDate(record.updatedAt)]
   ] : [], [record]);
 
-  const dirty = Boolean(record && (statusDraft !== record.status || notesDraft !== record.notes));
+  const dirty = Boolean(record && (statusDraft !== record.status || notesDraft !== record.notes || pendingContacts.length > 0));
 
   useEffect(() => {
     if (!dirty) return;
@@ -104,26 +106,24 @@ export default function JoinRecordPage() {
     if (!record || !dirty) return;
     setSaving(true); setError(""); setMessage("");
     try {
-      const result = await saveJoinApplication(record, statusDraft, notesDraft);
-      setRecord({ ...record, status: statusDraft, notes: notesDraft.trim().slice(0, 5000), memberId: result.memberId || record.memberId });
+      const result = await saveJoinApplication(record, statusDraft, notesDraft, pendingContacts.map(({ method, note }) => ({ method, note })));
+      setRecord({ ...record, status: result.status, notes: notesDraft.trim().slice(0, 5000), contactHistory: result.contactHistory, memberId: result.memberId || record.memberId });
+      setStatusDraft(result.status);
       setNotesDraft(notesDraft.trim().slice(0, 5000));
+      setPendingContacts([]);
+      setContactNote("");
       setMessage("Join Us enquiry saved.");
     } catch (saveError) {
       setError(applicationErrorMessage(saveError, "Unable to save the joining enquiry.", "JoinRecordPage"));
     } finally { setSaving(false); }
   };
 
-  const addContact = async () => {
-    if (!record || !contactNote.trim()) { setError("Enter a note describing the contact."); return; }
-    setSaving(true); setError(""); setMessage("");
-    try {
-      await addContactHistoryEntry(record, contactMethod, contactNote);
-      setContactNote("");
-      await load();
-      setMessage("Contact history updated.");
-    } catch (contactError) {
-      setError(applicationErrorMessage(contactError, "Unable to add the contact-history entry.", "JoinRecordPage"));
-    } finally { setSaving(false); }
+  const stageContact = () => {
+    const note = contactNote.trim().slice(0, 1500);
+    if (!note) { setError("Enter a note describing the contact."); return; }
+    setError("");
+    setPendingContacts((current) => [...current, { id: crypto.randomUUID(), method: contactMethod, note }]);
+    setContactNote("");
   };
 
   const convertToMember = async () => {
@@ -164,9 +164,7 @@ export default function JoinRecordPage() {
               {applicantDetails.map(([label, value]) => <Paper key={label} variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{label}</Typography>
                 <Typography sx={{ mt: .5, fontWeight: 700, wordBreak: "break-word" }}>{value || "Not provided"}</Typography>
-              </Paper>)}
-            </Box>
-          </Paper>
+              </Paper>)}</>}\n            </Box>\n          </Paper>
 
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Workflow Status</Typography>
@@ -187,10 +185,10 @@ export default function JoinRecordPage() {
               <FormControl><InputLabel id="join-contact-method-label">Method</InputLabel><Select labelId="join-contact-method-label" label="Method" value={contactMethod} onChange={(e) => setContactMethod(e.target.value as ContactMethod)}>{contactMethods.map((method) => <MenuItem key={method.value} value={method.value}>{method.label}</MenuItem>)}</Select></FormControl>
               <TextField label="Contact note" value={contactNote} onChange={(e) => setContactNote(e.target.value)} />
             </Box>
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => void addContact()}>Add Contact</Button></Box>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="outlined" color="success" disabled={saving || !contactNote.trim()} onClick={stageContact}>Stage Contact</Button></Box>\n            {pendingContacts.length > 0 && <Alert severity="info" sx={{ mt: 2 }}>{pendingContacts.length} contact {pendingContacts.length === 1 ? "entry" : "entries"} staged. Press Save Changes to persist {pendingContacts.length === 1 ? "it" : "them"}.</Alert>}
             <Divider sx={{ my: 3 }} />
             <Box sx={{ display: "grid", gap: 1.5 }}>
-              {record.contactHistory.length === 0 ? <Typography color="text.secondary">No contact history recorded.</Typography> : [...record.contactHistory].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
+              {record.contactHistory.length === 0 && pendingContacts.length === 0 ? <Typography color="text.secondary">No contact history recorded.</Typography> : <>{[...pendingContacts].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2, borderStyle: "dashed" }}>\n                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" color="warning" label="Pending save" /><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /></Stack>\n                <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>\n              </Paper>)}{[...record.contactHistory].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /><Typography sx={{ fontWeight: 700 }}>{new Date(entry.date).toLocaleString("en-IE")}</Typography></Stack>
                 <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>
               </Paper>)}
