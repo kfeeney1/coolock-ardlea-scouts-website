@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { orderAuthorisedScouters } from "../../src/services/consentApplications.ts";
+import { orderAuthorisedScouters } from "../../src/services/authorisedScouterOrdering.ts";
 
 test("SW-301 orders section Scouters first and de-duplicates people by canonical uid", () => {
   const ordered = orderAuthorisedScouters([
