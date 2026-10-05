@@ -1,4 +1,4 @@
-import { UserFacingError, reportApplicationError } from "./applicationErrors.ts";
+import { UserFacingError } from "./applicationErrors.ts";
 import {
     addDoc,
     collection,
@@ -47,7 +47,9 @@ export type MedicationManagementData = {
     authFrom: string;
     authTo: string;
     scouter1: string;
+    scouter1Id?: string;
     scouter2: string;
+    scouter2Id?: string;
     signature: string;
     signatureDate: string;
 };
@@ -155,7 +157,9 @@ function cleanMedication(medication: MedicationManagementData) {
         authFrom: first.authFrom,
         authTo: first.authTo,
         scouter1: clean(medication.scouter1, 150),
+        scouter1Id: clean(medication.scouter1Id || "", 200),
         scouter2: clean(medication.scouter2, 150),
+        scouter2Id: clean(medication.scouter2Id || "", 200),
         signature: clean(medication.signature, 150),
         signatureDate: medication.signatureDate
     };
@@ -183,7 +187,7 @@ export async function loadAuthorisedScouterOptions(memberSection = ""): Promise<
 
 export async function loadAuthorisedScouterNames(): Promise<string[]> {
     if (!authorisedScouterPromise) {
-        authorisedScouterPromise = getPublicWhosWho()
+        authorisedScouterPromise = loadRegisteredScouterOptions()
             .then((leaders) => [...new Set(leaders.map((leader) => leader.displayName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
             .catch((error) => {
                 authorisedScouterPromise = null;
@@ -192,10 +196,6 @@ export async function loadAuthorisedScouterNames(): Promise<string[]> {
     }
     return authorisedScouterPromise;
 }
-
-void loadAuthorisedScouterNames()
-    .then((names) => AUTHORISED_SCOUTERS.splice(0, AUTHORISED_SCOUTERS.length, ...names))
-    .catch((error) => reportApplicationError(error, { area: "consentApplications", operation: "Unable to load authorised Scouters from Firestore" }));
 
 export async function submitYouthConsent(data: YouthConsentData): Promise<string> {
     const validationMessage = firstYouthConsentValidationMessage(validateYouthConsent(data));
