@@ -17,7 +17,7 @@ import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates, type ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
 import { loadParentAccounts } from "../services/parentPortal";
 
-const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
+const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const statuses: MemberStatus[] = ["active", "inactive", "left"];
 const statusLabel = (status: MemberStatus) => status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Left";
 const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Date unavailable";

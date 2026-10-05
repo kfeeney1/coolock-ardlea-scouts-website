@@ -87,6 +87,11 @@ export type MemberLifecycleHistoryRecord = {
 };
 
 const MEMBER_STATUSES = ["active", "inactive", "left"] as const;
+const MEMBER_PROGRAMME_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
+
+function validMemberProgrammeSections(sections: string[]): boolean {
+  return sections.length > 0 && sections.every((section) => MEMBER_PROGRAMME_SECTIONS.includes(section as typeof MEMBER_PROGRAMME_SECTIONS[number]));
+}
 const LIFECYCLE_TYPES = ["created", "section-transfer", "status-change", "section-and-status-change"] as const;
 
 function timestampToDate(value: unknown): Date | null {
@@ -164,20 +169,7 @@ export async function setRoverSelfMembership(input: { firstName: string; lastNam
   if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this account. Ask an administrator to reconcile the records.");
 
   if (!member && input.enabled) {
-    const isAdmin = profile.role === "admin" || profile.role === "super-admin";
-    const organisationSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
-    const organisation = organisationSnapshot.exists() ? organisationSnapshot.data() : null;
-    const isGroupFinanceOfficer = organisation?.active === true
-      && hasGroupFinanceAppointment(organisation.appointments, organisation.scoutingRole);
-    const emailMatches = isAdmin || isGroupFinanceOfficer
-      ? [await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)))]
-      : (await Promise.all(normalizeLeaderSections(profile).flatMap((section) => {
-          const scopedQueries = memberSectionStorageAliases(section).map((storedSection) =>
-            getDocs(query(collection(db, "members"), where("emailAddress", "==", email), where("section", "==", storedSection)))
-          );
-          scopedQueries.push(getDocs(query(collection(db, "members"), where("emailAddress", "==", email), where("sections", "array-contains", section))));
-          return scopedQueries;
-        }))).flat();
+    const emailMatches = [await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)))];
     const firstName = clean(input.firstName, 100);
     const lastName = clean(input.lastName, 100);
     const candidates = [...new Map(emailMatches.flatMap((snapshot) => snapshot.docs).map((candidate) => [candidate.id, candidate])).values()].filter((candidate) => {
@@ -324,7 +316,7 @@ export async function createMember(input: CreateMemberInput): Promise<string> {
   const displayName = displayNameMode === "custom" ? requestedName : automaticName;
   if (displayNameMode === "custom" && !displayName) throw new UserFacingError("Custom display name is required.");
   const requestedSections = canonicalMemberSections(input.sections, input.section);
-  if (requestedSections.length === 0) throw new UserFacingError("Select at least one section.");
+  if (!validMemberProgrammeSections(requestedSections)) throw new UserFacingError("Select at least one valid programme section (Beavers, Cubs, Scouts, Ventures or Rovers).");
   const primarySection = requestedSections[0];
   const memberRef = await addDoc(collection(db, "members"), {
     firstName: clean(input.firstName, 100),
@@ -384,7 +376,7 @@ export async function updateMember(
   if (!previousSection || !previousStatus) throw new UserFacingError("Member record does not match the canonical seed schema.");
 
   const nextSections = canonicalMemberSections(updates.sections, updates.section);
-  if (nextSections.length === 0) throw new UserFacingError("Select at least one section.");
+  if (!validMemberProgrammeSections(nextSections)) throw new UserFacingError("Select at least one valid programme section (Beavers, Cubs, Scouts, Ventures or Rovers).");
   const nextSection = nextSections[0];
   const sectionRoles = normalizeMemberSectionRoles(updates.sectionRoles, nextSections);
   const changeType = detectMemberLifecycleChange(

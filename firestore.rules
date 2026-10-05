@@ -25,6 +25,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
     }
+    function isRoverSectionLeader() {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      return isActiveLeader() && profileHasSection("Rovers")
+        && exists(organisationPath)
+        && get(organisationPath).data.active == true
+        && get(organisationPath).data.scoutingRole == "Section Leader";
+    }
+    function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
+    function isEligibleAdultUid(uid) {
+      return uid is string
+        && exists(/databases/$(database)/documents/adminUsers/$(uid))
+        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
+        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader";
+    }
     function isApprovedParent() {
       return signedIn()
         && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
@@ -149,6 +163,27 @@ service cloud.firestore {
             && request.resource.data.sections == ["Rovers"]
             && memberHasSection(resource.data, "Rovers")));
     }
+    function isManagedRoverMemberChange() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(["roverManagementAt"])
+        && request.resource.data.roverManagementAt == request.time
+        && canManageRoverMembership()
+        && request.resource.data.accountUid is string
+        && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == request.resource.data.accountUid)
+        && request.resource.data.sections is list
+        && request.resource.data.sections.size() > 0
+        && request.resource.data.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"])
+        && request.resource.data.section in request.resource.data.sections
+        && request.resource.data.status in ["active", "inactive", "left"]
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy", "roverManagementAt"])
+        && ((request.resource.data.sections.hasAny(["Rovers"])
+              && (!resource.data.keys().hasAny(["sections"]) || request.resource.data.sections.hasAll(resource.data.sections)))
+          || (!request.resource.data.sections.hasAny(["Rovers"])
+              && resource.data.sections is list && resource.data.sections.hasAny(["Rovers"])
+              && resource.data.sections.hasAll(request.resource.data.sections))
+          || (request.resource.data.status == "left" && request.resource.data.sections == ["Rovers"] && memberHasSection(resource.data, "Rovers")));
+    }
     function isYouthSection(section) {
       return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
     }
@@ -258,7 +293,7 @@ service cloud.firestore {
 
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
-      allow list: if isAdmin() || isGroupLeader();
+      allow list: if isAdmin() || isGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
       allow create: if isAdmin()
         && request.resource.data.role == "leader"
         && request.resource.data.active == true
@@ -393,11 +428,12 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow create: if isActiveLeader() && hasSection(request.resource.data.section)
+      allow create: if isActiveLeader() && isYouthSection(request.resource.data.section) && hasSection(request.resource.data.section)
         && (!request.resource.data.keys().hasAny(["sections"]) || (
           request.resource.data.sections is list
           && request.resource.data.sections.size() > 0
           && request.resource.data.section in request.resource.data.sections
+          && request.resource.data.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"])
           && (isAdmin() || request.resource.data.sections.hasAny(profile().sections))
         ))
         && request.resource.data.createdBy == request.auth.uid
@@ -421,6 +457,20 @@ service cloud.firestore {
           && request.resource.data.status == "active"
           && request.resource.data.source == "rover-self-service"
           && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time)
+        || (canManageRoverMembership()
+          && request.resource.data.accountUid is string
+          && isEligibleAdultUid(request.resource.data.accountUid)
+          && request.resource.data.emailAddress == get(/databases/$(database)/documents/adminUsers/$(request.resource.data.accountUid)).data.email
+          && request.resource.data.firstName is string && request.resource.data.firstName.size() > 0
+          && request.resource.data.lastName is string && request.resource.data.lastName.size() > 0
+          && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0
+          && request.resource.data.dateOfBirth == ""
+          && request.resource.data.section == "Rovers"
+          && request.resource.data.sections == ["Rovers"]
+          && request.resource.data.status == "active"
+          && request.resource.data.source == "rover-authorized-management"
+          && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time);
       // Preserve the existing group-wide readers without repeated profile checks.
       allow read: if signedIn() && canReadAllMembers();
@@ -439,11 +489,13 @@ service cloud.firestore {
         && resource.data.keys().hasAny(["sections"])
         && resource.data.sections is list
         && resource.data.sections.hasAny(profile().sections);
+      // Adult self-service can reconcile by the caller's authenticated email.
+      // Rover-scoped leaders can resolve account-linked adult identities for the
+      // separate, stricter managed-write path without gaining write authority here.
       allow read: if isActiveLeader()
-        && request.auth.token.email is string
-        && resource.data.emailAddress == request.auth.token.email
-        && (canAccessMemberSections(resource.data) || canViewAllFinance() || isGroupSecretary());
-      allow update: if (isActiveLeader() && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
+        && ((request.auth.token.email is string && resource.data.emailAddress == request.auth.token.email)
+          || (profileHasSection("Rovers") && resource.data.keys().hasAny(["accountUid"])));
+      allow update: if isManagedRoverMemberChange() || (isActiveLeader() && isYouthSection(request.resource.data.section) && (!request.resource.data.keys().hasAny(["sections"]) || (request.resource.data.sections is list && request.resource.data.sections.size() > 0 && request.resource.data.sections.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) && request.resource.data.section in request.resource.data.sections)) && canAccessMemberSections(resource.data) && (canAccessMemberSections(request.resource.data) || canTransferMember(resource.data.section, request.resource.data.section))
           && (memberId != "rover_" + request.auth.uid || resource.data.accountUid == request.auth.uid)
           && request.resource.data.status in ["active", "inactive", "left"]
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && request.resource.data.accountUid is string

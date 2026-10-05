@@ -159,6 +159,11 @@ test("SW-258 section checklist preserves memberships and explicit Primary sectio
 
   const sections = page.getByRole("group", { name: "Member sections" });
   await expect(sections.getByRole("checkbox", { name: "Beavers" })).toBeChecked();
+  for (const validSection of ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]) {
+    await expect(sections.getByRole("checkbox", { name: validSection })).toBeVisible();
+  }
+  await expect(sections.getByRole("checkbox", { name: "Group" })).toHaveCount(0);
+  await expect(sections.getByRole("checkbox", { name: "Other" })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Primary section" })).toHaveText("Beavers");
 
   await sections.getByRole("checkbox", { name: "Cubs" }).check();
