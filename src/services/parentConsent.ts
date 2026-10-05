@@ -44,6 +44,7 @@ export type ParentConsentRecord = {
     parent2Name: string;
     homePhone: string;
     mobile1: string;
+    mobile2: string;
     workPhone: string;
     email: string;
     homeAddress: string;
@@ -129,6 +130,7 @@ function mapConsent(id: string, data: Record<string, unknown>): ParentConsentRec
         parent2Name: stringValue(data, "parent2Name"),
         homePhone: stringValue(data, "homePhone"),
         mobile1: stringValue(data, "mobile1"),
+        mobile2: stringValue(data, "mobile2"),
         workPhone: stringValue(data, "workPhone"),
         email: stringValue(data, "email"),
         homeAddress: stringValue(data, "homeAddress"),
@@ -157,8 +159,8 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
         childName: member.displayName,
         childDOB: member.dateOfBirth,
         scoutSection: member.section,
-        consentFrom: "",
-        consentTo: "",
+        consentFrom: medicationDates.authFrom,
+        consentTo: medicationDates.authTo,
         photoConsent: "",
         waterActivities: "",
         canSwim: "",
@@ -177,6 +179,7 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
         parent2Name: "",
         homePhone: "",
         mobile1: "",
+        mobile2: "",
         workPhone: "",
         email: "",
         homeAddress: "",
@@ -188,7 +191,8 @@ export function createParentConsentDraft(member: ParentLinkedMember): ParentCons
             memberName: member.displayName,
             dateOfBirth: member.dateOfBirth,
             authFrom: medicationDates.authFrom,
-            authTo: medicationDates.authTo
+            authTo: medicationDates.authTo,
+            signatureDate: medicationDates.authFrom
         },
         updatedByParent: false,
         submittedAt: null,
@@ -243,7 +247,7 @@ function parentValidationData(values: Partial<ParentConsentRecord>): YouthConsen
         medicalFurtherInfo: values.medicalFurtherInfo ?? "",
         gpName: values.gpName ?? "", gpTel: values.gpTel ?? "", gpAddress: values.gpAddress ?? "", lastCheckup: values.lastCheckup ?? "",
         parent1Name: values.parent1Name ?? "", parent2Name: values.parent2Name ?? "", homePhone: values.homePhone ?? "",
-        mobile1: values.mobile1 ?? "", workPhone: values.workPhone ?? "", email: values.email ?? "", homeAddress: values.homeAddress ?? "",
+        mobile1: values.mobile1 ?? "", mobile2: values.mobile2 ?? "", workPhone: values.workPhone ?? "", email: values.email ?? "", homeAddress: values.homeAddress ?? "",
         altContactName: values.altContactName ?? "", altContactPhone: values.altContactPhone ?? "", additionalInfo: values.additionalInfo ?? "",
         sig1Name: "Parent Portal retained declaration", sig2Name: "", sigDate: values.parentUpdatedAt?.toISOString().slice(0, 10) ?? "retained",
         declarationConfirmed: true, medicationManagement: values.medicationManagement ?? { ...EMPTY_MEDICATION }
@@ -281,6 +285,7 @@ export async function updateParentConsent(consentId: string, values: Partial<Par
         parent2Name: values.parent2Name ?? "",
         homePhone: values.homePhone ?? "",
         mobile1: values.mobile1 ?? "",
+        mobile2: values.mobile2 ?? "",
         workPhone: values.workPhone ?? "",
         email: (values.email ?? "").trim().toLowerCase(),
         homeAddress: values.homeAddress ?? "",

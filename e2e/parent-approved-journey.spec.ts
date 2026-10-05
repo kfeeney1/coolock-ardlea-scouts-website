@@ -74,8 +74,20 @@ test.describe("approved parent journey", () => {
       .click();
     const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
     await expect(save).toBeVisible();
+    const expectedToday = await page.evaluate(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    });
+    await expect(page.getByLabel("Consent from")).toHaveValue(expectedToday);
+    await expect(page.getByLabel("Consent to")).toHaveValue(`${Number(expectedToday.slice(0, 4)) + 1}-08-31`);
+    await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("type", "tel");
+    await expect(page.getByLabel("Parent / guardian 2 mobile")).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await save.click();
     await expect(page.getByText(/required|Select Yes or No/i).first()).toBeVisible();
+    await expect(page.getByLabel("GP name")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByLabel("Parent / guardian 1", { exact: true })).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");
 
     await page.getByLabel("Consent from").fill("2026-09-01");
     await page.getByLabel("Consent to").fill("2027-07-31");
@@ -84,8 +96,9 @@ test.describe("approved parent journey", () => {
     await page.getByLabel("GP name").fill("Dr Test");
     await page.getByLabel("GP telephone").fill("012345678");
     await page.getByLabel("GP address").fill("Test Clinic");
-    await page.getByLabel("Parent / guardian 1").fill("Test Parent");
-    await page.getByLabel("Mobile").fill("0871234567");
+    await page.getByLabel("Parent / guardian 1", { exact: true }).fill("Test Parent");
+    await page.getByLabel("Parent / guardian 1 mobile").fill("087abc1234567");
+    await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveValue("0871234567");
     await page.getByLabel("Email").fill(parentEmail!);
     await page.getByLabel("Home address").fill("1 Test Road");
     await page.getByLabel("Alternative emergency contact").fill("Other Adult");

@@ -76,6 +76,7 @@ export type YouthConsentData = {
     parent2Name: string;
     homePhone: string;
     mobile1: string;
+    mobile2: string;
     workPhone: string;
     email: string;
     homeAddress: string;
@@ -196,6 +197,7 @@ export async function submitYouthConsent(data: YouthConsentData): Promise<string
         parent2Name: clean(data.parent2Name, 150),
         homePhone: clean(data.homePhone, 40),
         mobile1: clean(data.mobile1, 40),
+        mobile2: clean(data.mobile2, 40),
         workPhone: clean(data.workPhone, 40),
         email: clean(data.email, 254).toLowerCase(),
         homeAddress: clean(data.homeAddress, 400),

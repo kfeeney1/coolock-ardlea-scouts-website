@@ -29,6 +29,8 @@ import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { validateYouthConsent } from "../../services/youthConsentValidation";
+import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
+import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
 import {
     AUTHORISED_SCOUTERS,
     submitYouthConsent
@@ -44,7 +46,6 @@ type Errors = Partial<
     Record<keyof YouthConsentData, string>
 >;
 
-const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const steps = [
@@ -56,26 +57,9 @@ const steps = [
     "Declaration"
 ];
 
-function localDateString(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-}
-
 function defaultDates() {
-    const today = new Date();
-    const july31 = new Date(today.getFullYear(), 6, 31);
-
-    if (today > july31) {
-        july31.setFullYear(july31.getFullYear() + 1);
-    }
-
-    return {
-        today: localDateString(today),
-        july31: localDateString(july31)
-    };
+    const defaults = medicationAuthorisationDefaults();
+    return { today: defaults.authFrom, august31: defaults.authTo };
 }
 
 function createInitialData(
@@ -88,7 +72,7 @@ function createInitialData(
         childName: "",
         childDOB: "",
         consentFrom: dates.today,
-        consentTo: dates.july31,
+        consentTo: dates.august31,
 
         photoConsent: "",
         waterActivities: "",
@@ -111,6 +95,7 @@ function createInitialData(
         parent2Name: "",
         homePhone: "",
         mobile1: "",
+        mobile2: "",
         workPhone: "",
         email: "",
         homeAddress: "",
@@ -128,7 +113,7 @@ function createInitialData(
         medicationManagement:
             createMedicationData(
                 dates.today,
-                dates.july31
+                dates.august31
             )
     };
 }
@@ -188,7 +173,7 @@ export default function YouthConsentForm({
 
         setFormData((current) => ({
             ...current,
-            [field]: event.target.value
+            [field]: ["gpTel", "homePhone", "mobile1", "mobile2", "workPhone", "altContactPhone"].includes(String(field)) ? sanitizePhoneInput(event.target.value) : event.target.value
         }));
 
         clearError(field);
@@ -236,7 +221,7 @@ export default function YouthConsentForm({
             return;
         }
 
-        if (!PHONE_RE.test(value)) {
+        if (!isValidPhone(value)) {
             nextErrors[field] =
                 "Enter a valid phone number.";
         }
@@ -336,6 +321,7 @@ export default function YouthConsentForm({
             );
             phone(nextErrors, "homePhone", false);
             phone(nextErrors, "mobile1", true);
+            phone(nextErrors, "mobile2", Boolean(formData.parent2Name.trim()));
             phone(nextErrors, "workPhone", false);
 
             if (!formData.email.trim()) {
@@ -923,6 +909,8 @@ export default function YouthConsentForm({
 
                             <TextField
                                 required
+                                type="tel"
+                                inputMode="tel"
                                 label="GP telephone"
                                 name="gpTel"
                                 value={formData.gpTel}
@@ -1006,8 +994,13 @@ export default function YouthConsentForm({
                                 ],
                                 [
                                     "mobile1",
-                                    "Mobile",
+                                    "Parent/Guardian 1 mobile",
                                     true
+                                ],
+                                [
+                                    "mobile2",
+                                    "Parent/Guardian 2 mobile",
+                                    false
                                 ],
                                 [
                                     "workPhone",
@@ -1027,6 +1020,8 @@ export default function YouthConsentForm({
                                 ]) => (
                                     <TextField
                                         key={String(field)}
+                                        type={["homePhone", "mobile1", "mobile2", "workPhone"].includes(String(field)) ? "tel" : undefined}
+                                        inputMode={["homePhone", "mobile1", "mobile2", "workPhone"].includes(String(field)) ? "tel" : undefined}
                                         required={
                                             Boolean(
                                                 isRequired
@@ -1121,6 +1116,8 @@ export default function YouthConsentForm({
 
                             <TextField
                                 required
+                                type="tel"
+                                inputMode="tel"
                                 label="Phone number"
                                 name="altContactPhone"
                                 value={

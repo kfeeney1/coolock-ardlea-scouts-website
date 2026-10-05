@@ -1,8 +1,8 @@
 import type { YouthConsentData } from "./consentApplications";
+import { isValidPhone } from "./phoneInput.ts";
 
 export type YouthConsentValidationErrors = Partial<Record<keyof YouthConsentData, string>>;
 
-const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MEDICAL_QUESTIONS: Array<keyof YouthConsentData> = [
   "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"
@@ -27,7 +27,7 @@ function phone(errors: YouthConsentValidationErrors, data: YouthConsentData, fie
     if (requiredField) errors[field] = "Phone number is required.";
     return;
   }
-  if (!PHONE_RE.test(value)) errors[field] = "Enter a valid phone number.";
+  if (!isValidPhone(value)) errors[field] = "Enter a valid phone number.";
 }
 
 export function validateYouthConsent(data: YouthConsentData): YouthConsentValidationErrors {
@@ -51,6 +51,7 @@ export function validateYouthConsent(data: YouthConsentData): YouthConsentValida
   required(errors, data, "parent1Name", "Parent/guardian name is required.");
   phone(errors, data, "homePhone", false);
   phone(errors, data, "mobile1", true);
+  phone(errors, data, "mobile2", Boolean(data.parent2Name.trim()));
   phone(errors, data, "workPhone", false);
   if (!data.email.trim()) errors.email = "Email address is required.";
   else if (!EMAIL_RE.test(data.email.trim())) errors.email = "Enter a valid email address.";
