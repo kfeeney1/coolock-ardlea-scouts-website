@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { daysBetweenLocalDates, leaderMedicalNeedsDashboardAction, leaderMedicalStateFromRecords, leaderMedicalValidityEnd } from "../../src/services/leaderMedicalLifecycle.ts";
+import { daysBetweenLocalDates, leaderMedicalNeedsDashboardAction, leaderMedicalStateFromPlainRecords, leaderMedicalValidityEnd } from "../../src/services/leaderMedicalLifecycleCore.ts";
 
 test("leader medical validity uses Scout-year 31 August boundary without late-August near-expiry", () => {
   assert.equal(leaderMedicalValidityEnd("2026-06-30"), "2026-08-31");
@@ -13,18 +13,18 @@ test("leader medical validity uses Scout-year 31 August boundary without late-Au
 });
 
 test("leader medical status is shared across missing, current, renewal and lapsed states", () => {
-  assert.equal(leaderMedicalStateFromRecords([], "2026-07-01").status, "missing");
+  assert.equal(leaderMedicalStateFromPlainRecords([], "2026-07-01").status, "missing");
   const records = [{ id: "form-1", data: { declarationConfirmed: true, signature: "Leader", validityFrom: "2025-09-01", validityTo: "2026-08-31" } }];
-  assert.equal(leaderMedicalStateFromRecords(records, "2026-07-01").status, "current");
-  assert.equal(leaderMedicalStateFromRecords(records, "2026-08-01").status, "approaching-expiry");
-  assert.equal(leaderMedicalStateFromRecords(records, "2026-08-31").status, "approaching-expiry");
-  assert.equal(leaderMedicalStateFromRecords(records, "2026-09-01").status, "lapsed");
+  assert.equal(leaderMedicalStateFromPlainRecords(records, "2026-07-01").status, "current");
+  assert.equal(leaderMedicalStateFromPlainRecords(records, "2026-08-01").status, "approaching-expiry");
+  assert.equal(leaderMedicalStateFromPlainRecords(records, "2026-08-31").status, "approaching-expiry");
+  assert.equal(leaderMedicalStateFromPlainRecords(records, "2026-09-01").status, "lapsed");
   assert.equal(leaderMedicalNeedsDashboardAction("lapsed"), true);
   assert.equal(leaderMedicalNeedsDashboardAction("current"), false);
 });
 
 test("newer renewal record becomes authoritative without deleting history", () => {
-  const state = leaderMedicalStateFromRecords([
+  const state = leaderMedicalStateFromPlainRecords([
     { id: "old", data: { declarationConfirmed: true, signature: "Leader", validityFrom: "2025-09-01", validityTo: "2026-08-31" } },
     { id: "renewal", data: { declarationConfirmed: true, signature: "Leader", validityFrom: "2026-08-10", validityTo: "2027-08-31" } }
   ], "2026-08-20");
