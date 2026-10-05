@@ -18,6 +18,7 @@ import type {
 
 import { auth, db } from "../firebase";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
+import { activeScoutingAppointments, isGroupLeadershipAppointment, normalizeScoutingAppointmentAssignments } from "../security/scoutingAppointments";
 
 export type RecordKind = "join" | "consent";
 
@@ -122,16 +123,23 @@ export async function loadAdminRecords(): Promise<AdminRecord[]> {
     const profile = profileSnapshot.data();
     const isAdmin = profile.role === "admin" || profile.role === "super-admin";
     const sections = normalizeLeaderSections(profile);
+    const leadershipSnapshot = await getDoc(doc(db, "organisationLeadership", user.uid));
+    const leadership = leadershipSnapshot.exists() ? leadershipSnapshot.data() : null;
+    const appointments = leadership?.active === true
+        ? activeScoutingAppointments(normalizeScoutingAppointmentAssignments(leadership.appointments, leadership.scoutingRole, leadership.organisationSection))
+        : [];
+    const hasGroupJoinAccess = isAdmin || appointments.some((item) => isGroupLeadershipAppointment(item.appointment));
+    const joinSections = [...new Set(appointments
+        .filter((item) => item.appointment === "Section Leader" && item.scope !== "Group")
+        .map((item) => item.scope))];
 
-    const [joinDocuments, consentDocuments] = isAdmin
-        ? await Promise.all([
-              getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs),
-              getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs)
-          ])
-        : await Promise.all([
-              scopedDocuments("joinApplications", sections),
-              scopedDocuments("consentApplications", sections)
-          ]);
+    const joinPromise = hasGroupJoinAccess
+        ? getDocs(query(collection(db, "joinApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs)
+        : joinSections.length > 0 ? scopedDocuments("joinApplications", joinSections) : Promise.resolve([]);
+    const consentPromise = isAdmin
+        ? getDocs(query(collection(db, "consentApplications"), orderBy("submittedAt", "desc"), limit(200))).then((snapshot) => snapshot.docs)
+        : scopedDocuments("consentApplications", sections);
+    const [joinDocuments, consentDocuments] = await Promise.all([joinPromise, consentPromise]);
 
     return [
         ...joinDocuments.map(mapJoin),
@@ -146,6 +154,8 @@ export async function loadAdminRecords(): Promise<AdminRecord[]> {
 }
 
 export async function updateRecordStatus(record: AdminRecord, status: string): Promise<void> {
-    const collectionName = record.kind === "join" ? "joinApplications" : "consentApplications";
-    await updateDoc(doc(db, collectionName, record.id), { status });
+    if (record.kind === "join") {
+        throw new UserFacingError("Join Us status changes must be made in Join Us Management.");
+    }
+    await updateDoc(doc(db, "consentApplications", record.id), { status });
 }
