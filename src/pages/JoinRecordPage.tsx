@@ -168,7 +168,7 @@ export default function JoinRecordPage() {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Workflow Status</Typography>
             <FormControl fullWidth><InputLabel id="join-record-status-label">Status</InputLabel><Select labelId="join-record-status-label" label="Status" value={statusDraft} disabled={saving} onChange={(e) => setStatusDraft(e.target.value as JoinStatus)}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
-            {statusDraft === "accepted" && !record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => setConversionConfirmationOpen(true)}>Create Member Record</Button></Box>}
+            {record.status === "accepted" && !record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button variant="contained" color="success" disabled={saving} onClick={() => setConversionConfirmationOpen(true)}>Create Member Record</Button></Box>}
             {record.memberId && <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}><Button component={Link} to={`/leader/members/${encodeURIComponent(record.memberId)}`} variant="contained" color="success">Open Member Record</Button></Box>}
           </Paper>
 
