@@ -124,6 +124,7 @@ export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
     const priority = [
         ["Immediate warnings and emergency action", ["seriousIllness", "medAllergies", "allergies", "epilepsy", "diabetes", "asthma", "heartDisease", "skinAllergies"]],
         ["Medication administration", ["regularMeds", "onMedication"]],
+        ["Parents / guardians", ["parent1Name", "mobile1", "homePhone", "workPhone", "parent2Name", "mobile2", "altContactName", "altContactPhone"]],
         ["Ongoing conditions and support", ["dietaryReqs", "medicalFurtherInfo", "hearingDifficulties", "highBloodPressure", "additionalInfo"]],
         ["Supporting and administrative information", ["gpName", "gpTel", "gpAddress", "lastCheckup", "vaccinated"]]
     ] as const;
