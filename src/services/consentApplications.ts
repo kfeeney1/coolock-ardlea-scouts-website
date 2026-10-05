@@ -8,6 +8,7 @@ import {
 import { auth, db } from "../firebase";
 import { loadRegisteredScouterOptions } from "./emailNotifications";
 import { firstYouthConsentValidationMessage, validateYouthConsent } from "./youthConsentValidation";
+import { leaderMedicalValidityEnd } from "./leaderMedicalLifecycle";
 
 export type YesNo = "Yes" | "No";
 
@@ -238,6 +239,9 @@ export async function submitScouterConsent(data: ScouterConsentData): Promise<st
     const user = auth.currentUser;
     if (!user) throw new UserFacingError("An active Leader account is required to submit a Scouter form.");
 
+    const now = new Date();
+    const validityFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const validityTo = leaderMedicalValidityEnd(validityFrom);
     const { scoutSection, ...canonicalData } = data;
     const ref = await addDoc(collection(db, "consentApplications"), {
         ...canonicalData,
@@ -263,6 +267,8 @@ export async function submitScouterConsent(data: ScouterConsentData): Promise<st
         status: "active",
         source: "website",
         submittedByUid: user.uid,
+        validityFrom,
+        validityTo,
         submittedAt: serverTimestamp()
     });
     return ref.id;
