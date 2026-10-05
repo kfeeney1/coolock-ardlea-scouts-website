@@ -2,7 +2,8 @@ import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Stack, TextField
 import type { ChangeEvent } from "react";
 
 import YesNoField from "./YesNoField";
-import { loadAuthorisedScouterOptions } from "../../services/consentApplications";\nimport type { AuthorisedScouterOption, MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
+import { loadAuthorisedScouterOptions } from "../../services/consentApplications";
+import type { AuthorisedScouterOption, MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 import { sanitizePhoneInput } from "../../services/phoneInput";
 
