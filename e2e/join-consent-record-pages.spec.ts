@@ -29,7 +29,7 @@ test("Join Us enquiry tiles open full-page records", async ({ page }, testInfo) 
 
   await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
   await expect(page.locator('[data-testid^="join-record-page-"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save Notes", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add Contact", exact: true })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
