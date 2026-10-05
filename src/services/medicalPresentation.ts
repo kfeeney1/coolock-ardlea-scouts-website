@@ -1,6 +1,6 @@
 import type { ConsentAdminRecord } from "./consentAdmin.ts";
 
-export type MedicalPresentationGroupId = "immediate" | "medication" | "ongoing" | "supporting";
+export type MedicalPresentationGroupId = "immediate" | "medication" | "contacts" | "ongoing" | "supporting";
 
 export type MedicalPresentationItem = {
   key: string;
@@ -25,6 +25,11 @@ const GROUPS: Array<{ id: MedicalPresentationGroupId; heading: string; fields: s
     id: "medication",
     heading: "Medication administration",
     fields: ["regularMeds", "onMedication"]
+  },
+  {
+    id: "contacts",
+    heading: "Parents / guardians",
+    fields: ["parent1Name", "mobile1", "homePhone", "workPhone", "parent2Name", "mobile2", "altContactName", "altContactPhone"]
   },
   {
     id: "ongoing",

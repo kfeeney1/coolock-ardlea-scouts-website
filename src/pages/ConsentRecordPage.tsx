@@ -100,7 +100,15 @@ export default function ConsentRecordPage() {
     } finally { setCreatingMember(false); }
   };
 
-  const returnPath = typeof location.state === "object" && location.state && "fromMemberPath" in location.state && typeof location.state.fromMemberPath === "string" ? location.state.fromMemberPath : "/leader/consents";
+  const navigationState = typeof location.state === "object" && location.state ? location.state as { fromMemberPath?: unknown; returnTo?: unknown; returnLabel?: unknown } : null;
+  const returnPath = typeof navigationState?.returnTo === "string" && navigationState.returnTo.startsWith("/leader/")
+    ? navigationState.returnTo
+    : typeof navigationState?.fromMemberPath === "string" && navigationState.fromMemberPath.startsWith("/leader/members/")
+      ? navigationState.fromMemberPath
+      : "/leader/consents";
+  const returnLabel = typeof navigationState?.returnLabel === "string" && navigationState.returnLabel.trim()
+    ? navigationState.returnLabel
+    : returnPath.startsWith("/leader/members/") ? "Back to member" : "Back to consent";
 
   const printRecord = () => {
     if (!record) return;
@@ -122,7 +130,7 @@ export default function ConsentRecordPage() {
       <LeaderPageHeader
         title={record ? record.memberName : "Consent Record"}
         description="Full consent and medical-information record."
-        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={returnPath} variant="outlined" color="secondary">{returnPath.startsWith("/leader/members/") ? "Back to member" : "Back to consent"}</Button>{record && <Button variant="contained" color="success" onClick={printRecord}>Print / Save PDF</Button>}</Stack>}
+        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={returnPath} variant="outlined" color="secondary">{returnLabel}</Button>{record && <Button variant="contained" color="success" onClick={printRecord}>Print / Save PDF</Button>}</Stack>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <>
@@ -154,7 +162,7 @@ export default function ConsentRecordPage() {
           </Paper>}
           <Paper id="important-medical-information" tabIndex={-1} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderWidth: 2, borderColor: hasImportantMedicalInformation(record) ? "warning.main" : "divider", scrollMarginTop: 16 }}>
             <Typography variant="h4" component="h2" color="secondary" sx={{ fontWeight: 800 }}>Important medical information</Typography>
-            <Typography sx={{ mt: 1 }}>{hasImportantMedicalInformation(record) ? "Medical or medication information is recorded below. Review the recorded details and established action information." : "No medical alert or medication-management requirement is recorded in this consent summary."}</Typography>
+            {hasImportantMedicalInformation(record) ? <Button component={Link} to={`/leader/medical/${record.id}`} state={{ returnTo: returnPath, returnLabel }} variant="contained" color="warning" sx={{ mt: 1.5 }}>Open Quick Medical Information</Button> : <Typography sx={{ mt: 1 }}>No medical alert or medication-management requirement is recorded.</Typography>}
           </Paper>
           {medicalPresentationGroups(record, formatFieldName, displayValue).map((group) => group.items.length > 0 && <Box component="section" key={group.id} aria-labelledby={`medical-group-${group.id}`}>
             <Typography id={`medical-group-${group.id}`} variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>{group.heading}</Typography>

@@ -52,6 +52,7 @@ const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
 const OrganisationChart = lazy(() => import("./pages/OrganisationChart"));
 const ConsentManagement = lazy(() => import("./pages/ConsentManagement"));
 const ConsentRecordPage = lazy(() => import("./pages/ConsentRecordPage"));
+const QuickMedicalInformationPage = lazy(() => import("./pages/QuickMedicalInformationPage"));
 const LeaderInfo = lazy(() => import("./pages/LeaderInfo"));
 const JoinManagement = lazy(() => import("./pages/JoinManagement"));
 const JoinRecordPage = lazy(() => import("./pages/JoinRecordPage"));
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="/leader/organisation" element={protectedRoute(<OrganisationChart />)} />
         <Route path="/leader/consents" element={protectedRoute(<ConsentManagement />)} />
         <Route path="/leader/consents/:consentId" element={protectedRoute(<ConsentRecordPage />)} />
+        <Route path="/leader/medical/:consentId" element={protectedRoute(<QuickMedicalInformationPage />)} />
         <Route path="/leader/info" element={protectedRoute(<LeaderInfo />)} />
         <Route path="/leader/join" element={protectedRoute(<JoinManagement />)} />
         <Route path="/leader/join/:applicationId" element={protectedRoute(<JoinRecordPage />)} />
