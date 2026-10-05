@@ -73,7 +73,8 @@
     "/leader/equipment/:equipmentId/move-store": "leader",
     "/leader/weekly/create": "leader",
     "/leader/events/:eventId/edit": "leader",
-    "/leader/system": "super-admin"
+    "/leader/system": "super-admin",
+    "/leader/medical/:consentId": "leader"
   },
   "firestore": {
     "adminUsers": "system-role",
