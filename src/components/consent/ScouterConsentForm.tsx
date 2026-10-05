@@ -155,8 +155,6 @@ export default function ScouterConsentForm({
             .catch((error) => setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm")))
             .finally(() => { if (active) setPrefillLoading(false); });
         return () => { active = false; };
-        // Initial defaults are loaded once for the authenticated owner.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const progress = useMemo(
