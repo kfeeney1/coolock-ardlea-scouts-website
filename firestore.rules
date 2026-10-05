@@ -162,7 +162,7 @@ service cloud.firestore {
         && request.resource.data.status in ["active", "inactive", "left"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy", "roverManagementAt"])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy"])
         && ((request.resource.data.sections.hasAny(["Rovers"])
             && (!resource.data.keys().hasAny(["sections"]) || request.resource.data.sections.hasAll(resource.data.sections)))
           || (!request.resource.data.sections.hasAny(["Rovers"])
@@ -187,7 +187,7 @@ service cloud.firestore {
         && request.resource.data.status in ["active", "inactive", "left"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy"])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy", "roverManagementAt"])
         && ((request.resource.data.sections.hasAny(["Rovers"])
               && (!resource.data.keys().hasAny(["sections"]) || request.resource.data.sections.hasAll(resource.data.sections)))
           || (!request.resource.data.sections.hasAny(["Rovers"])
