@@ -1322,7 +1322,7 @@ export default function YouthConsentForm({
                                 formData.medicationManagement
                             }
                             errors={medicationErrors}
-                            sharedIdentity={{ memberName: formData.childName, dateOfBirth: formData.childDOB, address: formData.homeAddress }}
+                            sharedIdentity={{ memberName: formData.childName, dateOfBirth: formData.childDOB, address: formData.homeAddress }}\n                            memberSection={formData.scoutSection}
                             onChange={(medication) => {
                                 setFormData(
                                     (current) => ({
