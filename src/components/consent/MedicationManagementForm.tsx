@@ -2,7 +2,7 @@ import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Stack, TextField
 import type { ChangeEvent } from "react";
 
 import YesNoField from "./YesNoField";
-import type { MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
+import { loadAuthorisedScouterOptions } from "../../services/consentApplications";\nimport type { AuthorisedScouterOption, MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 import { sanitizePhoneInput } from "../../services/phoneInput";
 
@@ -33,7 +33,7 @@ export function createMedicationData(today: string, _legacyUntil: string): Medic
         enabled: false, medications: [entry], memberName: "", dateOfBirth: "", address: "",
         medicineName: "", dosage: "", frequency: "", quantitySupplied: "", doctorName: "", doctorTel: "",
         pharmacyName: "", pharmacyTel: "", method: "", otherInfo: "", selfAdmin: "", authFrom: today,
-        authTo: entry.authTo, scouter1: "", scouter2: "", signature: "", signatureDate: today
+        authTo: entry.authTo, scouter1: "", scouter1Id: "", scouter2: "", scouter2Id: "", signature: "", signatureDate: today
     };
 }
 
@@ -160,9 +160,24 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
 
             <Typography variant="h5" color="secondary" sx={{ mt: 4, mb: 2 }}>{mode === "youth" ? "Parent / Guardian Declaration" : "Self Declaration"}</Typography>
             <Alert severity="info">{mode === "youth" ? "I confirm that I have provided full and accurate medication information. I request and authorise the named Scouters to administer the medication described above." : "I confirm that the medical information above is correct and provide it for emergency reference purposes."}</Alert>
-            {mode === "youth" && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
-                <TextField label="Scouter 1" name="scouter1" value={value.scouter1} onChange={textChange} />
-                <TextField label="Scouter 2" name="scouter2" value={value.scouter2} onChange={textChange} />
+            {mode === "youth" && <Box sx={{ mt: 3 }}>
+                {scouterLoadError && <Alert severity="error" sx={{ mb: 2 }}>{scouterLoadError}</Alert>}
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
+                    <FormControl>
+                        <InputLabel>Scouter 1</InputLabel>
+                        <Select label="Scouter 1" value={value.scouter1Id || ""} onChange={(event) => selectScouter(1, String(event.target.value))}>
+                            <MenuItem value="">Select registered Scouter</MenuItem>
+                            {scouters.map((scouter) => <MenuItem key={scouter.uid} value={scouter.uid}>{scouter.displayName} · {scouter.sections.join(", ") || "Group"} · {scouter.scoutingRole}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                    <FormControl>
+                        <InputLabel>Scouter 2</InputLabel>
+                        <Select label="Scouter 2" value={value.scouter2Id || ""} onChange={(event) => selectScouter(2, String(event.target.value))}>
+                            <MenuItem value="">Select registered Scouter</MenuItem>
+                            {scouters.map((scouter) => <MenuItem key={scouter.uid} value={scouter.uid}>{scouter.displayName} · {scouter.sections.join(", ") || "Group"} · {scouter.scoutingRole}</MenuItem>)}
+                        </Select>
+                    </FormControl>
+                </Box>
             </Box>}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
                 <TextField required label={mode === "youth" ? "Signature of parent / guardian" : "Signature (full name)"} name="signature" value={value.signature} onChange={textChange} error={Boolean(errors.signature)} helperText={errors.signature ?? "Type the full name as the electronic signature."} />
