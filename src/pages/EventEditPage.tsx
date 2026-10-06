@@ -98,7 +98,12 @@ export default function EventEditPage() {
   };
 
   const leaveAfterSave = async () => {
-    if (await persist()) guard.continueNavigation();
+    const destination = guard.destination;
+    if (!(await persist())) return;
+    // Capture the requested route before persistence updates the draft and the
+    // guard's dirty state. Navigate to that route directly after the save.
+    if (destination?.kind === "path") guard.navigateTo(destination.path);
+    else guard.continueNavigation();
   };
 
   if (!ready || !draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
