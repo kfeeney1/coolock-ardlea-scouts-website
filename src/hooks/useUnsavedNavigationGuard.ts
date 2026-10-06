@@ -9,7 +9,6 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
   const dirtyRef = useRef(dirty);
   const [destination, setDestination] = useState<UnsavedDestination | null>(null);
   const destinationRef = useRef<UnsavedDestination | null>(null);
-  const guardInstalledRef = useRef(false);
   dirtyRef.current = dirty;
 
   const ask = useCallback((next: UnsavedDestination) => {
@@ -35,32 +34,21 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
     setDestination(null);
     if (!next) return;
     if (next.kind === "path") navigate(next.path);
-    else {
-      // While dirty, one same-route history entry is installed as a Back guard.
-      // Skip both that guard and the editor entry to honour the user's Back action.
-      window.history.go(-2);
-    }
+    else navigate(-1);
   }, [navigate]);
 
   useEffect(() => {
-    if (!dirty) {
-      guardInstalledRef.current = false;
-      return;
-    }
+    if (!dirty) return;
     const currentUrl = `${location.pathname}${location.search}${location.hash}`;
-    const marker = { ...(window.history.state ?? {}), unsavedEditorGuard: true };
-    if (!guardInstalledRef.current) {
-      window.history.pushState(marker, "", currentUrl);
-      guardInstalledRef.current = true;
-    }
     const beforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     const popState = () => {
       if (!dirtyRef.current) return;
-      // Restore the same editor URL before React Router can leave it.
-      window.history.pushState(marker, "", currentUrl);
+      // The browser Back action has already moved history. Restore the editor
+      // route, then ask whether the user wants to discard/save the dirty draft.
+      window.history.forward();
       destinationRef.current = { kind: "back" };
       setDestination({ kind: "back" });
     };
