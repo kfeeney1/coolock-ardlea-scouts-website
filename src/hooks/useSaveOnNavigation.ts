@@ -18,6 +18,11 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     saveRef.current = saveDraft;
   }, [dirty, saveDraft]);
 
+  const navigateWithoutSave = useCallback((path: string, replace = false) => {
+    dirtyRef.current = false;
+    navigate(path, { replace });
+  }, [navigateWithoutSave]);
+
   const navigateAfterSave = useCallback(async (path: string, replace = false) => {
     if (navigationInFlightRef.current) return false;
     if (!dirtyRef.current) {
@@ -28,8 +33,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     navigationInFlightRef.current = true;
     try {
       if (!(await saveRef.current())) return false;
-      dirtyRef.current = false;
-      navigate(path, { replace });
+      navigateWithoutSave(path, replace);
       return true;
     } finally {
       navigationInFlightRef.current = false;
@@ -105,5 +109,5 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     };
   }, [dirty, location.hash, location.pathname, location.search, navigateAfterSave]);
 
-  return { navigateAfterSave };
+  return { navigateAfterSave, navigateWithoutSave };
 }
