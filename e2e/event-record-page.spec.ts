@@ -59,6 +59,7 @@ test("event editor saves before navigation, stays on demand, and discards only e
   await page.getByRole("button", { name: "Back to Event", exact: true }).click();
   const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
   await leaveDialog.getByRole("button", { name: "Stay and keep editing", exact: true }).click();
+  await expect(leaveDialog).toBeHidden();
   await expect(page.getByLabel("Event title")).toHaveValue("Unsaved event title");
   await page.getByRole("button", { name: "Back to Event", exact: true }).click();
   await leaveDialog.getByRole("button", { name: "Discard and leave", exact: true }).click();
