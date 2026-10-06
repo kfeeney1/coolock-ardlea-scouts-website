@@ -25,6 +25,7 @@ test("meeting copy exposes authorised destination section and resets operational
   const weekly = readFileSync("src/pages/WeeklySectionTracker.tsx", "utf8");
   assert.match(weekly, /label="Destination section"/);
   assert.match(weekly, /availableSections\.includes\(copySection\)/);
-  assert.match(weekly, /entries:roster\.length\?roster:fallback,injuries:\[\]/);
+  assert.match(weekly, /entries:roster,injuries:\[\]/);
+  assert.match(weekly, /roster\.length===0.*No eligible members are available/s);
   assert.match(weekly, /notes:""/);
 });

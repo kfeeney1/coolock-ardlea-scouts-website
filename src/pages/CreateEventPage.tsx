@@ -1,14 +1,15 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
 import type { EventInput, EventRecord } from "../services/eventAdmin";
-import { EMPTY_EVENT, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, eventAudienceSummary, eventStatusLabel, isDuplicateEventIdentity } from "../services/eventManagementLogic";
+import { EMPTY_EVENT, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, eventStatusLabel, isDuplicateEventIdentity } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -20,7 +21,6 @@ export default function CreateEventPage() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [draft, setDraft] = useState<EventInput>(EMPTY_EVENT);
-  const [memberSearch, setMemberSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -66,11 +66,6 @@ export default function CreateEventPage() {
   }, [hasMeaningfulDraft]);
 
   const activeMembers = useMemo(() => dataReady ? members.filter((member) => member.status === "active") : [], [dataReady, members]);
-  const visibleMembers = useMemo(() => {
-    const query = memberSearch.trim().toLowerCase();
-    return activeMembers.filter((member) => !query || `${member.displayName} ${member.section}`.toLowerCase().includes(query));
-  }, [activeMembers, memberSearch]);
-
   const audience = useMemo(() => {
     const selectedIds = draft.audience?.memberIds ?? [];
     const sectionIds = draft.audience?.sectionIds
@@ -78,24 +73,10 @@ export default function CreateEventPage() {
     return buildEventAudience(sectionIds, selectedIds, members);
   }, [activeMembers, draft.audience, draft.section, members]);
 
-  const updateSection = (section: string) => {
-    const memberIds = draft.audience?.memberIds ?? [];
-    const sectionIds = section === "All Sections" ? [] : [section];
-    setDraft({ ...draft, section, audience: buildEventAudience(sectionIds, memberIds, members) });
-  };
-
-  const toggleMember = (memberId: string) => {
-    const selected = new Set(draft.audience?.memberIds ?? []);
-    if (selected.has(memberId)) selected.delete(memberId);
-    else selected.add(memberId);
-    const sectionIds = draft.audience?.sectionIds
-      ?? (draft.section === "All Sections" ? [] : [draft.section]);
-    setDraft({ ...draft, audience: buildEventAudience(sectionIds, [...selected], members) });
-  };
+  const updateSection = (section: string) => setDraft({ ...draft, section });
 
   const clear = () => {
     setDraft(EMPTY_EVENT);
-    setMemberSearch("");
     setError("");
   };
 
@@ -110,16 +91,14 @@ export default function CreateEventPage() {
     if (!draft.title.trim()) return setError("Event title is required.");
     if (!draft.startDate) return setError("Start date is required.");
     if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
+    if (draft.audience?.mode === "members" && draft.audience.memberIds.length === 0) return setError("Select at least one member for this event.");
+    if (audience.resolvedMemberIds.length === 0) return setError("Choose at least one section or member for the event audience.");
     if (isDuplicateEventIdentity(draft, events)) return setError("An event with this title, start date and section already exists. Open the existing event instead.");
 
     setSaving(true);
     setError("");
     try {
-      const selectedIds = draft.audience?.memberIds ?? [];
-      const sectionIds = draft.audience
-        ? draft.audience.sectionIds
-        : (draft.section === "All Sections" ? [...new Set(activeMembers.map((member) => member.section))] : [draft.section]);
-      const eventId = await createEvent({ ...draft, audience: buildEventAudience(sectionIds, selectedIds, members) });
+      const eventId = await createEvent({ ...draft, audience });
       navigate(`/leader/events/${encodeURIComponent(eventId)}`, { replace: true });
     } catch (saveError) {
       setError(applicationErrorMessage(saveError, "Unable to save the event.", "CreateEventPage"));
@@ -139,23 +118,11 @@ export default function CreateEventPage() {
           <TextField required label="Event title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
             <FormControl fullWidth><InputLabel id="event-type-label">Event type</InputLabel><Select labelId="event-type-label" id="event-type" label="Event type" value={draft.eventType} onChange={(event) => setDraft({ ...draft, eventType: event.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-            <FormControl fullWidth disabled={!dataReady}><InputLabel id="event-section-label">Section</InputLabel><Select labelId="event-section-label" id="event-section" label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+            <FormControl fullWidth disabled={!dataReady}><InputLabel id="event-section-label">Event section</InputLabel><Select labelId="event-section-label" id="event-section" label="Event section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
           </Box>
 
-          <Box>
-            <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Event audience</Typography>
-            {!dataReady && !loadError && <Typography role="status">Loading event audience and duplicate checks…</Typography>}
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Choose whole sections, individual members, or both. {eventAudienceSummary(audience.sectionIds, audience.memberIds, audience.resolvedMemberIds.length)}
-            </Typography>
-            <TextField fullWidth disabled={!dataReady} label="Search members" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} sx={{ mb: 1.5 }} />
-            <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
-              {visibleMembers.map((member) => {
-                const selected = (draft.audience?.memberIds ?? []).includes(member.id);
-                return <Chip key={member.id} label={`${member.displayName} · ${member.section}`} color={selected ? "primary" : "default"} variant={selected ? "filled" : "outlined"} disabled={!dataReady} onClick={() => toggleMember(member.id)} />;
-              })}
-            </Stack>
-          </Box>
+          {!dataReady && !loadError && <Typography role="status">Loading event audience and duplicate checks…</Typography>}
+          <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? audience} members={dataReady ? activeMembers : []} onChange={(nextAudience) => setDraft({ ...draft, audience: nextAudience })} />
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
             <TextField required label="Start date" type="date" value={draft.startDate} onChange={(event) => setDraft({ ...draft, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />

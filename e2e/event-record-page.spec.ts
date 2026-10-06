@@ -43,7 +43,7 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeVisible();
 });
 
-test("event editor uses a dedicated page and cancel does not persist changes", async ({ page }, testInfo) => {
+test("event editor saves before navigation, stays on demand, and discards only explicitly", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
@@ -56,7 +56,12 @@ test("event editor uses a dedicated page and cancel does not persist changes", a
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open\/edit$/);
   await expect(page.getByRole("heading", { name: /Edit event · TEST Beavers Open Day Trip/ })).toBeVisible();
   await page.getByLabel("Event title").fill("Unsaved event title");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
+  await leaveDialog.getByRole("button", { name: "Stay and keep editing", exact: true }).click();
+  await expect(page.getByLabel("Event title")).toHaveValue("Unsaved event title");
+  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  await leaveDialog.getByRole("button", { name: "Discard and leave", exact: true }).click();
 
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
   await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
@@ -89,7 +94,7 @@ test("Add Event opens the dedicated full-page editor on desktop and mobile", asy
   await expect(page.getByRole("heading", { name: "Create Event" })).toBeVisible();
   await expect(page.getByTestId("event-editor-dialog")).toHaveCount(0);
   await expect(page.getByLabel("Event title")).toBeVisible();
-  await expect(page.getByText("Event audience", { exact: true })).toBeVisible();
+  await expect(page.getByText("Invited audience", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -145,7 +150,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByLabel("Event title").fill(title);
   await page.getByRole("combobox", { name: "Event type" }).click();
   await page.getByRole("option", { name: "Day Trip", exact: true }).click();
-  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("combobox", { name: "Event section" }).click();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
   await page.getByLabel("Start date").fill("2099-05-10");
   await page.getByLabel("End date").fill("2099-05-10");
@@ -158,12 +163,20 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByLabel("Description").fill("TEST event description");
   await page.getByLabel("Leader notes").fill("TEST leader notes");
 
-  await expect(page.getByText(/Audience: .*Beavers/)).toBeVisible();
+  await expect(page.getByTestId("event-audience-builder")).toContainText("Event section: Beavers");
+  await page.getByRole("button", { name: "Selected members", exact: true }).click();
+  await page.getByRole("button", { name: "Clear all", exact: true }).click();
+  await page.getByRole("button", { name: "Beavers", exact: true }).click();
+  await page.getByRole("checkbox").first().check();
+  await expect(page.getByTestId("event-audience-summary")).toContainText("selected member");
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
 
   await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByText("1 invited", { exact: true })).toBeVisible();
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {

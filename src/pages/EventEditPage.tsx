@@ -1,22 +1,134 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Switch, FormControlLabel, TextField } from "@mui/material";
+import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
-import { eventInput, buildEventAudience, eventAudienceSummary, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, eventStatusLabel } from "../services/eventManagementLogic";
+import { useUnsavedNavigationGuard } from "../hooks/useUnsavedNavigationGuard";
+import { eventInput, buildEventAudience, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadEvents, updateEvent } from "../services/eventAdmin";
 import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
-export default function EventEditPage(){
- const {eventId=""}=useParams();const navigate=useNavigate();const [event,setEvent]=useState<EventRecord|null>(null);const [draft,setDraft]=useState<EventInput|null>(null);const [members,setMembers]=useState<MemberRecord[]>([]);const [saving,setSaving]=useState(false);const [error,setError]=useState("");const [saveState,setSaveState]=useState<"saved"|"unsaved"|"saving"|"failed">("saved");const savedDraft=useRef<EventInput|null>(null);
- useEffect(()=>{void (async()=>{try{const [events,loadedMembers]=await Promise.all([loadEvents(),loadMembers()]);const found=events.find(e=>e.id===eventId)??null;setEvent(found);const initial=found?eventInput(found):null;setDraft(initial);savedDraft.current=initial;setMembers(loadedMembers);if(!found)setError("This event could not be found or is outside your permitted sections.");}catch(e){setError(applicationErrorMessage(e, "Unable to load this event.", "EventEditPage"));}})();},[eventId]);
- useEffect(()=>{if(!draft||!savedDraft.current)return;setSaveState(JSON.stringify(draft)===JSON.stringify(savedDraft.current)?"saved":"unsaved");},[draft]);
- useEffect(()=>{if(saveState!=="unsaved")return;const warn=(ev:BeforeUnloadEvent)=>{ev.preventDefault();ev.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[saveState]);
- const selectedIds=draft?.audience?.memberIds??[];const activeMembers=useMemo(()=>members.filter(m=>m.status==="active"),[members]);
- const save=async()=>{if(!event||!draft||saving)return;if(!draft.title.trim()||!draft.startDate){setError("Event title and start date are required.");return;}setSaving(true);setSaveState("saving");setError("");try{const sectionIds=draft.audience?.sectionIds??(draft.section==="All Sections"?[]:[draft.section]);const memberIds=draft.audience?.memberIds??[];const audience=buildEventAudience(sectionIds,memberIds,members);const committed={...draft,audience};await updateEvent(event.id,committed);savedDraft.current=committed;setSaveState("saved");navigate(`/leader/events/${encodeURIComponent(event.id)}`);}catch(e){setSaveState("failed");setError(applicationErrorMessage(e, "Unable to save the event.", "EventEditPage"));}finally{setSaving(false);}};
- if(!draft)return <Box sx={{minHeight:"100vh",py:4}}><Container maxWidth="lg"><LeaderDashboardHeader/><LeaderPageHeader title="Edit Event" description=""/>{error&&<Alert severity="error">{error}</Alert>}</Container></Box>;
- return <Box sx={{minHeight:"100vh",backgroundColor:"background.default",py:{xs:2,md:5}}}><Container maxWidth="lg"><LeaderDashboardHeader/><LeaderPageHeader title={`Edit event · ${event?.title??""}`} description=""/>{error&&<Alert severity="error" sx={{mb:2}}>{error}</Alert>}<Paper variant="outlined" sx={{p:{xs:2,md:3}}}><Stack spacing={2}><TextField required label="Event title" value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/><Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",md:"1fr 1fr"},gap:2}}><FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={e=>setDraft({...draft,eventType:e.target.value})}>{EVENT_TYPES.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><FormControl><InputLabel id="event-edit-section-label">Section</InputLabel><Select labelId="event-edit-section-label" label="Section" value={draft.section} onChange={e=>{const section=e.target.value;setDraft({...draft,section,audience:{version:2,semantics:"snapshot",mode:draft.audience?.mode??"sections",sectionIds:section==="All Sections"?[]:[section],memberIds:draft.audience?.memberIds??[],resolvedMemberIds:draft.audience?.resolvedMemberIds??[]}})}}>{EVENT_SECTIONS.map(x=><MenuItem key={x} value={x}>{x}</MenuItem>)}</Select></FormControl><TextField required type="date" label="Start date" value={draft.startDate} onChange={e=>setDraft({...draft,startDate:e.target.value})} slotProps={{inputLabel:{shrink:true}}}/><TextField type="date" label="End date" value={draft.endDate} onChange={e=>setDraft({...draft,endDate:e.target.value})} slotProps={{inputLabel:{shrink:true}}}/></Box><TextField label="Location" value={draft.location} onChange={e=>setDraft({...draft,location:e.target.value})}/><TextField multiline minRows={3} label="Description" value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/><TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={e=>setDraft({...draft,meetingPoint:e.target.value})}/><TextField label="Return / collection details" value={draft.returnDetails} onChange={e=>setDraft({...draft,returnDetails:e.target.value})}/><TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={e=>setDraft({...draft,leaderNotes:e.target.value})}/><FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value as EventStatus})}>{EVENT_STATUSES.map(x=><MenuItem key={x} value={x}>{eventStatusLabel(x)}</MenuItem>)}</Select></FormControl><FormControlLabel control={<Switch checked={draft.consentRequired} onChange={e=>setDraft({...draft,consentRequired:e.target.checked})}/>} label="Event consent required"/><Box><Alert severity="info" sx={{mb:1}}>{eventAudienceSummary(draft.audience?.sectionIds??[],selectedIds,buildEventAudience(draft.audience?.sectionIds??[],selectedIds,members).resolvedMemberIds.length)}</Alert><Stack direction="row" spacing={1} sx={{mb:1}}><Button variant={selectedIds.length?"outlined":"contained"} onClick={()=>setDraft({...draft,audience:{version:2,semantics:"snapshot",mode:"sections",sectionIds:draft.section==="All Sections"?[]:[draft.section],memberIds:[],resolvedMemberIds:[]}})}>Whole section</Button><Button variant={selectedIds.length?"contained":"outlined"} onClick={()=>setDraft({...draft,audience:{version:2,semantics:"snapshot",mode:"members",sectionIds:draft.section==="All Sections"?[]:[draft.section],memberIds:selectedIds,resolvedMemberIds:[]}})}>Selected members</Button></Stack>{draft.audience?.mode==="members"&&<Stack direction="row" sx={{flexWrap:"wrap",gap:1}}>{activeMembers.map(m=>{const selected=selectedIds.includes(m.id);return <Chip key={m.id} label={`${m.displayName} · ${m.section}`} clickable variant={selected?"filled":"outlined"} onClick={()=>{const ids=selected?selectedIds.filter(id=>id!==m.id):[...selectedIds,m.id];setDraft({...draft,audience:{version:2,semantics:"snapshot",mode:"members",sectionIds:draft.audience?.sectionIds??[],memberIds:ids,resolvedMemberIds:[]}})}}/>})}</Stack>}</Box><Alert severity={saveState==="failed"?"error":"info"} role="status">{saveState==="saving"?"Saving…":saveState==="unsaved"?"Unsaved changes":saveState==="failed"?"Save failed — your edits are still here.":"Saved"}</Alert><Stack direction={{xs:"column",sm:"row"}} spacing={1}><Button variant="contained" color="success" disabled={saving||(draft.audience?.mode==="members"&&selectedIds.length===0)} onClick={()=>void save()}>{saving?"Saving…":"Save Event"}</Button><Button variant="outlined" disabled={saving} onClick={()=>navigate(`/leader/events/${encodeURIComponent(eventId)}`)}>Cancel</Button></Stack></Stack></Paper></Container></Box>;
+const sameDraft = (a: EventInput | null, b: EventInput | null) => JSON.stringify(a) === JSON.stringify(b);
+
+export default function EventEditPage() {
+  const { eventId = "" } = useParams();
+  const [event, setEvent] = useState<EventRecord | null>(null);
+  const [draft, setDraft] = useState<EventInput | null>(null);
+  const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "failed">("saved");
+  const [ready, setReady] = useState(false);
+  const savedDraft = useRef<EventInput | null>(null);
+  const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft.current);
+  const guard = useUnsavedNavigationGuard(dirty);
+
+  useEffect(() => {
+    let active = true;
+    setReady(false);
+    void (async () => {
+      try {
+        const [events, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
+        if (!active) return;
+        const found = events.find((candidate) => candidate.id === eventId) ?? null;
+        const initial = found ? eventInput(found) : null;
+        setEvent(found);
+        setDraft(initial);
+        savedDraft.current = initial;
+        setMembers(loadedMembers);
+        setReady(true);
+        if (!found) setError("This event could not be found or is outside your permitted sections.");
+      } catch (loadError) {
+        if (active) setError(applicationErrorMessage(loadError, "Unable to load this event.", "EventEditPage"));
+      }
+    })();
+    return () => { active = false; };
+  }, [eventId]);
+
+  useEffect(() => {
+    if (draft && ready) setSaveState(sameDraft(draft, savedDraft.current) ? "saved" : "unsaved");
+  }, [draft, ready]);
+
+  const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+
+  const persist = async (): Promise<boolean> => {
+    if (!event || !draft || saving) return false;
+    if (!draft.title.trim() || !draft.startDate) {
+      setError("Event title and start date are required.");
+      return false;
+    }
+    if (draft.endDate && draft.endDate < draft.startDate) {
+      setError("End date cannot be before the start date.");
+      return false;
+    }
+    if (draft.audience?.mode === "members" && draft.audience.memberIds.length === 0) {
+      setError("Select at least one member for this event.");
+      return false;
+    }
+    const audience = buildEventAudience(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], activeMembers);
+    if (audience.resolvedMemberIds.length === 0) {
+      setError("Choose at least one section or member for the event audience.");
+      return false;
+    }
+    const committed = { ...draft, audience: { ...audience, mode: draft.audience?.mode ?? audience.mode } };
+    setSaving(true);
+    setSaveState("saving");
+    setError("");
+    try {
+      await updateEvent(event.id, committed);
+      savedDraft.current = committed;
+      setDraft(committed);
+      setSaveState("saved");
+      return true;
+    } catch (saveError) {
+      setSaveState("failed");
+      setError(applicationErrorMessage(saveError, "Unable to save the event. Your edits are still here.", "EventEditPage"));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const leaveAfterSave = async () => {
+    if (await persist()) guard.continueNavigation();
+  };
+
+  if (!ready || !draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
+
+  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}><Container maxWidth="lg">
+    <LeaderDashboardHeader />
+    <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
+    {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Stack spacing={2}>
+      <TextField required label="Event title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+        <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(e) => setDraft({ ...draft, eventType: e.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <FormControl><InputLabel id="event-edit-section-label">Event section</InputLabel><Select labelId="event-edit-section-label" label="Event section" value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <TextField required type="date" label="Start date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+        <TextField type="date" label="End date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+      </Box>
+      <TextField label="Location" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
+      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(e) => setDraft({ ...draft, meetingPoint: e.target.value })} />
+      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(e) => setDraft({ ...draft, returnDetails: e.target.value })} />
+      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(e) => setDraft({ ...draft, leaderNotes: e.target.value })} />
+      <FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as EventStatus })}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
+      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(e) => setDraft({ ...draft, consentRequired: e.target.checked })} />} label="Event consent required" />
+      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? null} members={activeMembers} onChange={(audience) => setDraft({ ...draft, audience })} />
+      <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
+        <Button variant="outlined" disabled={saving} onClick={() => guard.ask({ kind: "path", path: `/leader/events/${encodeURIComponent(eventId)}` })}>Back to Event</Button>
+      </Stack>
+    </Stack></Paper>
+    <Dialog open={Boolean(guard.destination)} onClose={guard.stay} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
+      <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
+      <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
+      <DialogActions><Button disabled={saving} onClick={guard.stay}>Stay and keep editing</Button><Button disabled={saving} color="warning" onClick={guard.continueNavigation}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
+    </Dialog>
+  </Container></Box>;
 }
