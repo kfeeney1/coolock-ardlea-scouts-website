@@ -139,10 +139,10 @@ export default function EventEditPage() {
         <Button component={Link} to={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
-    <Dialog open={Boolean(guard.destination)} onClose={stayAndEdit} closeAfterTransition={false} transitionDuration={0} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
+    {guard.destination && <Dialog open onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
       <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
-    </Dialog>
+    </Dialog>}
   </Container></Box>;
 }
