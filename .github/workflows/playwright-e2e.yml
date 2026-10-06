@@ -179,7 +179,7 @@ jobs:
         run: npx --no-install playwright test --list
 
       - name: Preflight known event editor journeys
-        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && matrix.id == '1' }}
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: >-
           npx --no-install playwright test e2e/event-record-page.spec.ts
           --project=chromium
