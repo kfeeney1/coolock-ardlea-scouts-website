@@ -14,14 +14,9 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
   dirtyRef.current = dirty;
 
   const ask = useCallback((next: UnsavedDestination) => {
-    if (!dirtyRef.current) {
-      if (next.kind === "path") navigate(next.path);
-      else navigate(-1);
-      return;
-    }
     destinationRef.current = next;
     setDestination(next);
-  }, [navigate]);
+  }, []);
 
   const stay = useCallback(() => {
     destinationRef.current = null;
