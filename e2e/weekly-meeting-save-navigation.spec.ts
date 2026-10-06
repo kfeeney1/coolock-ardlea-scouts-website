@@ -18,6 +18,8 @@ test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) =
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await page.getByLabel("Theme").fill(theme);
+  await page.getByLabel("Activity 1", { exact: true }).fill(`${theme} activity`);
+  await page.getByLabel("Badgework 1", { exact: true }).fill(`${theme} badgework`);
   await page.getByRole("button", { name: "Copy Meeting", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
   await dialog.getByRole("button", { name: "Save and leave", exact: true }).click();
@@ -27,4 +29,6 @@ test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) =
   await page.getByRole("button", { name: new RegExp(`1 Nov 2099 · Scouts`) }).click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toHaveValue(theme);
+  await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue(`${theme} activity`);
+  await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue(`${theme} badgework`);
 });

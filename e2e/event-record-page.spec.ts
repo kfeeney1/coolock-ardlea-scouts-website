@@ -177,8 +177,18 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Save changes before leaving?" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  const updatedTitle = `${title} updated`;
+  await page.getByLabel("Event title").fill(updatedTitle);
+  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  await page.getByRole("dialog", { name: "Save changes before leaving?" }).getByRole("button", { name: "Save and leave", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events\/[a-zA-Z0-9_-]+$/);
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
   await expect(page.getByText("1 invited", { exact: true })).toBeVisible();
 });
 
