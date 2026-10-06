@@ -9,7 +9,10 @@ test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) =
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/weekly/create");
-  const date = "2099-11-01";
+  const meetingDay = new Date(Date.UTC(2099, 0, 1 + (Date.now() % 365)));
+  const date = meetingDay.toISOString().slice(0, 10);
+  const day = meetingDay.getUTCDate();
+  const month = meetingDay.toLocaleString("en-IE", { month: "short", timeZone: "UTC" });
   const theme = `SW-170 save before copy ${Date.now()}`;
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
@@ -25,7 +28,7 @@ test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) =
   await dialog.getByRole("button", { name: "Save and leave", exact: true }).click();
   await expect(page.getByTestId("weekly-meeting-copy-form")).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.getByRole("button", { name: new RegExp(`1 Nov 2099 · Scouts`) }).click();
+  await page.getByRole("button", { name: new RegExp(`${day} ${month} 2099 · Scouts`) }).click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toHaveValue(theme);
   await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue(`${theme} activity`);
