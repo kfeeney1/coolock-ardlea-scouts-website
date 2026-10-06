@@ -63,7 +63,7 @@ test("event editor saves before navigation, stays on demand, and discards only e
   await page.evaluate(() => window.sessionStorage.removeItem("event-stay-handler"));
   await leaveDialog.getByRole("button", { name: "Stay and keep editing", exact: true }).click();
   const stayDiagnostic = { handler: await page.evaluate(() => window.sessionStorage.getItem("event-stay-handler")), dialogVisible: await leaveDialog.isVisible(), promptOpen: await page.getByTestId("event-unsaved-dialog").getAttribute("data-prompt-open"), navigationKind: await page.getByTestId("event-unsaved-dialog").getAttribute("data-navigation-kind"), url: page.url() };
-  await expect(leaveDialog).toBeHidden({ timeout: 1500 });
+  await expect(leaveDialog, JSON.stringify(stayDiagnostic)).toBeHidden({ timeout: 1500 });
   expect(stayDiagnostic.handler, JSON.stringify(stayDiagnostic)).toBe("called");
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open\/edit$/);
   await expect(page.getByLabel("Event title")).toHaveValue("Unsaved event title");
