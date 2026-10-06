@@ -123,11 +123,11 @@ export default function CreateEventPage() {
     return pending;
   };
 
-  const { navigateAfterSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
+  const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
   const requestExit = () => { if (!saving) void navigateAfterSave("/leader/events", true); };
   const save = async () => {
     if (!(await createDraft(true)) || !createdEventId.current) return;
-    navigate(`/leader/events/${encodeURIComponent(createdEventId.current)}`, { replace: true });
+    navigateWithoutSave(`/leader/events/${encodeURIComponent(createdEventId.current)}`, true);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }} data-testid="event-create-page">
