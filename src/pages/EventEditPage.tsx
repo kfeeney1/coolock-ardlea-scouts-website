@@ -1,6 +1,6 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
@@ -24,6 +24,11 @@ export default function EventEditPage() {
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "failed">("saved");
   const [ready, setReady] = useState(false);
   const [savedDraft, setSavedDraft] = useState<EventInput | null>(null);
+  const dirtyRef = useRef(false);
+  const updateDraft = (next: EventInput) => {
+    dirtyRef.current = !sameDraft(next, savedDraft);
+    setDraft(next);
+  };
   const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
   const [explicitLeaveRequested, setExplicitLeaveRequested] = useState(false);
@@ -46,6 +51,7 @@ export default function EventEditPage() {
           ? { ...loadedInput, audience: buildEventAudience(loadedInput.section === "All Sections" ? [...new Set(loadedMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))] : [loadedInput.section], [], loadedMembers) }
           : loadedInput;
         setEvent(found);
+        dirtyRef.current = false;
         setDraft(initial);
         setSavedDraft(initial);
         setMembers(loadedMembers);
@@ -90,6 +96,7 @@ export default function EventEditPage() {
     setError("");
     try {
       await updateEvent(event.id, committed);
+      dirtyRef.current = false;
       setSavedDraft(committed);
       setDraft(committed);
       setSaveState("saved");
@@ -116,25 +123,25 @@ export default function EventEditPage() {
     <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Stack spacing={2}>
-      <TextField required label="Event title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+      <TextField required label="Event title" value={draft.title} onChange={(e) => updateDraft({ ...draft, title: e.target.value })} />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-        <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(e) => setDraft({ ...draft, eventType: e.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <FormControl><InputLabel id="event-edit-section-label">Event section</InputLabel><Select labelId="event-edit-section-label" label="Event section" value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <TextField required type="date" label="Start date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField type="date" label="End date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+        <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(e) => updateDraft({ ...draft, eventType: e.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <FormControl><InputLabel id="event-edit-section-label">Event section</InputLabel><Select labelId="event-edit-section-label" label="Event section" value={draft.section} onChange={(e) => updateDraft({ ...draft, section: e.target.value })}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <TextField required type="date" label="Start date" value={draft.startDate} onChange={(e) => updateDraft({ ...draft, startDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+        <TextField type="date" label="End date" value={draft.endDate} onChange={(e) => updateDraft({ ...draft, endDate: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
       </Box>
-      <TextField label="Location" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
-      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(e) => setDraft({ ...draft, meetingPoint: e.target.value })} />
-      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(e) => setDraft({ ...draft, returnDetails: e.target.value })} />
-      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(e) => setDraft({ ...draft, leaderNotes: e.target.value })} />
-      <FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as EventStatus })}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
-      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(e) => setDraft({ ...draft, consentRequired: e.target.checked })} />} label="Event consent required" />
-      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? null} members={activeMembers} onChange={(audience) => setDraft({ ...draft, audience })} />
+      <TextField label="Location" value={draft.location} onChange={(e) => updateDraft({ ...draft, location: e.target.value })} />
+      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(e) => updateDraft({ ...draft, description: e.target.value })} />
+      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(e) => updateDraft({ ...draft, meetingPoint: e.target.value })} />
+      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(e) => updateDraft({ ...draft, returnDetails: e.target.value })} />
+      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(e) => updateDraft({ ...draft, leaderNotes: e.target.value })} />
+      <FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(e) => updateDraft({ ...draft, status: e.target.value as EventStatus })}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
+      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(e) => updateDraft({ ...draft, consentRequired: e.target.checked })} />} label="Event consent required" />
+      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? null} members={activeMembers} onChange={(audience) => updateDraft({ ...draft, audience })} />
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button variant="outlined" disabled={saving} onClick={() => { const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirty) setExplicitLeaveRequested(true); else guard.navigateTo(path); }}>Back to Event</Button>
+        <Button variant="outlined" disabled={saving} onClick={() => { const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirtyRef.current || dirty || saveState === "unsaved") setExplicitLeaveRequested(true); else guard.navigateTo(path); }}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
     <Dialog open={explicitLeaveRequested} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
