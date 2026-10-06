@@ -1,5 +1,5 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
+import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -108,6 +108,14 @@ export default function EventEditPage() {
   const leaveAfterSave = async () => {
     if (!(await persist())) return;
     guard.stay();
+    // Let React commit the saved draft first so the navigation guard has removed
+    // its dirty-link listener before we leave the editor.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`);
+  };
+  const saveAndReturn = async () => {
+    if (!(await persist())) return;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`);
   };
 
@@ -135,14 +143,20 @@ export default function EventEditPage() {
       <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? null} members={activeMembers} onChange={(audience) => updateDraft({ ...draft, audience })} />
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
+        <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void saveAndReturn(); }}>{saving ? "Saving…" : "Save Event"}</Button>
         <Button component={Link} to={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
-    {guard.destination && <Dialog open onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
-      <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
-      <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
-      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
-    </Dialog>}
+    {guard.destination && <Box sx={{ position: "fixed", inset: 0, zIndex: "modal", display: "grid", placeItems: "center", p: 2, bgcolor: "rgba(0, 0, 0, 0.48)" }}>
+      <Paper role="dialog" aria-modal="true" aria-labelledby="event-unsaved-title" sx={{ width: "100%", maxWidth: 560, p: 3, boxShadow: 24 }}>
+        <Typography id="event-unsaved-title" variant="h6" component="h2" sx={{ mb: 2 }}>Save changes before leaving?</Typography>
+        <Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert>
+        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+          <Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button>
+          <Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button>
+          <Button type="button" disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button>
+        </Stack>
+      </Paper>
+    </Box>}
   </Container></Box>;
 }
