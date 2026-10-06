@@ -1,0 +1,30 @@
+import { expect, test } from "@playwright/test";
+
+test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) => {
+  const password = process.env.E2E_TEST_USER_PASSWORD;
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await page.goto("/leader/login");
+  await page.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
+  await page.getByLabel("Password").fill(password!);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+  await page.goto("/leader/weekly/create");
+  const date = "2099-11-01";
+  const theme = `SW-170 save before copy ${Date.now()}`;
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await page.getByLabel("Meeting date").fill(date);
+  await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await page.getByLabel("Theme").fill(theme);
+  await page.getByRole("button", { name: "Copy Meeting", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
+  await dialog.getByRole("button", { name: "Save and leave", exact: true }).click();
+  await expect(page.getByTestId("weekly-meeting-copy-form")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Meetings", exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(`1 Nov 2099 · Scouts`) }).click();
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await expect(page.getByLabel("Theme")).toHaveValue(theme);
+});
