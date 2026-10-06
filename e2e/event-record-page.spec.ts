@@ -57,9 +57,11 @@ test("event editor saves before navigation, stays on demand, and discards only e
   await expect(page.getByRole("heading", { name: /Edit event · TEST Beavers Open Day Trip/ })).toBeVisible();
   await page.getByLabel("Event title").fill("Unsaved event title");
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toHaveText("Unsaved changes");
-  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  const backButton = page.getByRole("button", { name: "Back to Event", exact: true });
+  const beforeBack = await backButton.evaluate((el) => ({ tag: el.tagName, html: el.outerHTML, ancestorLink: el.closest("a")?.outerHTML ?? null, form: el.closest("form")?.outerHTML.slice(0, 500) ?? null }));
+  await backButton.click();
   const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
-  const eventLeaveDiagnostic = { url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
+  const eventLeaveDiagnostic = { beforeBack, handler: await page.evaluate(() => (window as Window & { __eventBackHandler?: string }).__eventBackHandler), url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
   expect(await leaveDialog.count(), JSON.stringify(eventLeaveDiagnostic)).toBe(1);
   await expect(leaveDialog).toBeVisible();
   await leaveDialog.getByRole("button", { name: "Stay and keep editing", exact: true }).click();
@@ -189,9 +191,11 @@ test("full-page Create Event preserves fields and audience and saves to the even
   const updatedTitle = `${title} updated`;
   await page.getByLabel("Event title").fill(updatedTitle);
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toHaveText("Unsaved changes");
-  await page.getByRole("button", { name: "Back to Event", exact: true }).click();
+  const backButton = page.getByRole("button", { name: "Back to Event", exact: true });
+  const beforeBack = await backButton.evaluate((el) => ({ tag: el.tagName, html: el.outerHTML, ancestorLink: el.closest("a")?.outerHTML ?? null, form: el.closest("form")?.outerHTML.slice(0, 500) ?? null }));
+  await backButton.click();
   const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
-  const createLeaveDiagnostic = { url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
+  const createLeaveDiagnostic = { beforeBack, handler: await page.evaluate(() => (window as Window & { __eventBackHandler?: string }).__eventBackHandler), url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
   expect(await leaveDialog.count(), JSON.stringify(createLeaveDiagnostic)).toBe(1);
   await expect(leaveDialog).toBeVisible();
   await leaveDialog.getByRole("button", { name: "Save and leave", exact: true }).click();
