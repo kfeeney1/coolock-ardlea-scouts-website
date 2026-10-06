@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -31,12 +31,7 @@ export default function EventEditPage() {
   };
   const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
-  const [explicitLeaveRequested, setExplicitLeaveRequested] = useState(false);
-
-  const stayAndEdit = () => {
-    setExplicitLeaveRequested(false);
-    guard.stay();
-  };
+  const stayAndEdit = () => guard.stay();
 
   useEffect(() => {
     let active = true;
@@ -141,13 +136,13 @@ export default function EventEditPage() {
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button type="button" variant="outlined" disabled={saving} onClick={(clickEvent) => { clickEvent.preventDefault(); clickEvent.stopPropagation(); const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirtyRef.current || dirty || saveState === "unsaved") setExplicitLeaveRequested(true); else guard.navigateTo(path); }}>Back to Event</Button>
+        <Button component={Link} to={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
-    <Dialog open={explicitLeaveRequested} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
+    <Dialog open={Boolean(guard.destination)} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
-      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => { setExplicitLeaveRequested(false); guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
+      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
     </Dialog>
   </Container></Box>;
 }
