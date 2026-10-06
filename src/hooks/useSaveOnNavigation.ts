@@ -21,7 +21,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const navigateWithoutSave = useCallback((path: string, replace = false) => {
     dirtyRef.current = false;
     navigate(path, { replace });
-  }, [navigateWithoutSave]);
+  }, [navigate]);
 
   const navigateAfterSave = useCallback(async (path: string, replace = false) => {
     if (navigationInFlightRef.current) return false;
@@ -38,7 +38,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     } finally {
       navigationInFlightRef.current = false;
     }
-  }, [navigate]);
+  }, [navigateWithoutSave]);
 
   useEffect(() => {
     if (!dirty) return;
