@@ -98,12 +98,9 @@ export default function EventEditPage() {
   };
 
   const leaveAfterSave = async () => {
-    const destination = guard.destination;
     if (!(await persist())) return;
-    // Capture the requested route before persistence updates the draft and the
-    // guard's dirty state. Navigate to that route directly after the save.
-    if (destination?.kind === "path") guard.navigateTo(destination.path);
-    else guard.continueNavigation();
+    guard.stay();
+    guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`);
   };
 
   if (!ready || !draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
@@ -137,7 +134,7 @@ export default function EventEditPage() {
     <Dialog open={Boolean(guard.destination)} onClose={guard.stay} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
-      <DialogActions><Button disabled={saving} onClick={guard.stay}>Stay and keep editing</Button><Button disabled={saving} color="warning" onClick={guard.continueNavigation}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
+      <DialogActions><Button type="button" disabled={saving} onClick={(event) => { event.preventDefault(); event.stopPropagation(); guard.stay(); }}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={guard.continueNavigation}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
     </Dialog>
   </Container></Box>;
 }
