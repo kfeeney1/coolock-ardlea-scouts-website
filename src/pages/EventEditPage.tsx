@@ -31,7 +31,16 @@ export default function EventEditPage() {
   };
   const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
-  const stayAndEdit = () => guard.stay();
+  const [leavePromptOpen, setLeavePromptOpen] = useState(false);
+
+  useEffect(() => {
+    setLeavePromptOpen(Boolean(guard.destination));
+  }, [guard.destination]);
+
+  const stayAndEdit = () => {
+    setLeavePromptOpen(false);
+    guard.stay();
+  };
 
   useEffect(() => {
     let active = true;
@@ -107,6 +116,7 @@ export default function EventEditPage() {
 
   const leaveAfterSave = async () => {
     if (!(await persist())) return;
+    setLeavePromptOpen(false);
     guard.stay();
     guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`);
   };
@@ -139,10 +149,10 @@ export default function EventEditPage() {
         <Button component={Link} to={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
-    <Dialog open={Boolean(guard.destination)} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
+    <Dialog open={leavePromptOpen} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
-      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
+      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => { setLeavePromptOpen(false); guard.continueNavigation(); }}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
     </Dialog>
   </Container></Box>;
 }
