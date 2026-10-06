@@ -59,7 +59,8 @@ test("event editor saves before navigation, stays on demand, and discards only e
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toHaveText("Unsaved changes");
   await page.getByRole("button", { name: "Back to Event", exact: true }).click();
   const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
-  console.log("EVENT_LEAVE_DIAGNOSTIC", JSON.stringify({ url: page.url(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), body: (await page.locator("body").innerText()).slice(-1600) }));
+  const eventLeaveDiagnostic = { url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
+  expect(await leaveDialog.count(), JSON.stringify(eventLeaveDiagnostic)).toBe(1);
   await expect(leaveDialog).toBeVisible();
   await leaveDialog.getByRole("button", { name: "Stay and keep editing", exact: true }).click();
   await expect(leaveDialog).toBeHidden();
@@ -190,7 +191,8 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toHaveText("Unsaved changes");
   await page.getByRole("button", { name: "Back to Event", exact: true }).click();
   const leaveDialog = page.getByRole("dialog", { name: "Save changes before leaving?" });
-  console.log("CREATE_EVENT_LEAVE_DIAGNOSTIC", JSON.stringify({ url: page.url(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), body: (await page.locator("body").innerText()).slice(-1600) }));
+  const createLeaveDiagnostic = { url: page.url(), title: await page.title(), dialogs: await page.getByRole("dialog").count(), targetDialog: await leaveDialog.count(), status: await page.getByRole("status").allTextContents(), body: (await page.locator("body").innerText()).slice(-1200) };
+  expect(await leaveDialog.count(), JSON.stringify(createLeaveDiagnostic)).toBe(1);
   await expect(leaveDialog).toBeVisible();
   await leaveDialog.getByRole("button", { name: "Save and leave", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/[a-zA-Z0-9_-]+$/);
