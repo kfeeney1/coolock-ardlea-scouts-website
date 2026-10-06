@@ -1,5 +1,5 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
+import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -151,7 +151,7 @@ export default function EventEditPage() {
       <Paper role="dialog" aria-modal="true" aria-labelledby="event-unsaved-title" sx={{ width: "100%", maxWidth: 560, p: 3, boxShadow: 24 }}>
         <Typography id="event-unsaved-title" variant="h6" component="h2" sx={{ mb: 2 }}>Save changes before leaving?</Typography>
         <Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert>
-        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+        <Stack direction="row" spacing={1} sx={{ mt: 2, justifyContent: "flex-end" }}>
           <Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button>
           <Button type="button" disabled={saving} color="warning" onClick={() => guard.continueNavigation()}>Discard and leave</Button>
           <Button type="button" disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button>
