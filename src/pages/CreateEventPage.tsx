@@ -103,9 +103,9 @@ export default function CreateEventPage() {
     const pending = (async () => {
       try {
         const selectedIds = draft.audience?.memberIds ?? [];
-        const sectionIds = draft.audience
-          ? draft.audience.sectionIds
-          : (draft.section === "All Sections" ? [...new Set(activeMembers.map((member) => member.section))] : [draft.section]);
+        const sectionIds = draft.section === "All Sections"
+          ? [...new Set(activeMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))]
+          : (draft.audience?.sectionIds?.length ? draft.audience.sectionIds : [draft.section]);
         createdEventId.current = await createEvent({ ...draft, audience: buildEventAudience(sectionIds, selectedIds, members) });
         return true;
       } catch (saveError) {
