@@ -148,6 +148,8 @@ test("full-page Create Event preserves fields and audience and saves to the even
 
   const title = `TEST full-page event ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
+  const beaversAudienceSection = page.getByRole("checkbox", { name: /Beavers \(\d+\)/ });
+  await expect(beaversAudienceSection).toBeChecked();
   await page.getByRole("combobox", { name: "Event type" }).click();
   await page.getByRole("option", { name: "Day Trip", exact: true }).click();
   await page.getByRole("combobox", { name: "Event section" }).click();
@@ -164,6 +166,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByLabel("Leader notes").fill("TEST leader notes");
 
   await expect(page.getByTestId("event-audience-builder")).toContainText("Event section: Beavers");
+  await expect(beaversAudienceSection).toBeChecked();
   await page.getByRole("button", { name: "Selected members", exact: true }).click();
   await page.getByRole("button", { name: "Clear all", exact: true }).click();
   await page.getByRole("button", { name: "Beavers", exact: true }).click();

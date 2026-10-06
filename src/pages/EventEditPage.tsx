@@ -1,6 +1,6 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
@@ -23,8 +23,8 @@ export default function EventEditPage() {
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "failed">("saved");
   const [ready, setReady] = useState(false);
-  const savedDraft = useRef<EventInput | null>(null);
-  const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft.current);
+  const [savedDraft, setSavedDraft] = useState<EventInput | null>(null);
+  const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
 
   useEffect(() => {
@@ -35,10 +35,13 @@ export default function EventEditPage() {
         const [events, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
         if (!active) return;
         const found = events.find((candidate) => candidate.id === eventId) ?? null;
-        const initial = found ? eventInput(found) : null;
+        const loadedInput = found ? eventInput(found) : null;
+        const initial = loadedInput && !loadedInput.audience
+          ? { ...loadedInput, audience: buildEventAudience(loadedInput.section === "All Sections" ? [...new Set(loadedMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))] : [loadedInput.section], [], loadedMembers) }
+          : loadedInput;
         setEvent(found);
         setDraft(initial);
-        savedDraft.current = initial;
+        setSavedDraft(initial);
         setMembers(loadedMembers);
         setReady(true);
         if (!found) setError("This event could not be found or is outside your permitted sections.");
@@ -50,8 +53,8 @@ export default function EventEditPage() {
   }, [eventId]);
 
   useEffect(() => {
-    if (draft && ready) setSaveState(sameDraft(draft, savedDraft.current) ? "saved" : "unsaved");
-  }, [draft, ready]);
+    if (draft && ready) setSaveState(sameDraft(draft, savedDraft) ? "saved" : "unsaved");
+  }, [draft, ready, savedDraft]);
 
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
 
@@ -69,7 +72,8 @@ export default function EventEditPage() {
       setError("Select at least one member for this event.");
       return false;
     }
-    const audience = buildEventAudience(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], activeMembers);
+    const sectionIds = draft.audience?.sectionIds ?? (draft.section === "All Sections" ? [...new Set(activeMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))] : [draft.section]);
+    const audience = buildEventAudience(sectionIds, draft.audience?.memberIds ?? [], activeMembers);
     if (audience.resolvedMemberIds.length === 0) {
       setError("Choose at least one section or member for the event audience.");
       return false;
@@ -80,7 +84,7 @@ export default function EventEditPage() {
     setError("");
     try {
       await updateEvent(event.id, committed);
-      savedDraft.current = committed;
+      setSavedDraft(committed);
       setDraft(committed);
       setSaveState("saved");
       return true;

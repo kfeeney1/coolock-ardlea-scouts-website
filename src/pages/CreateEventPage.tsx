@@ -69,7 +69,7 @@ export default function CreateEventPage() {
   const audience = useMemo(() => {
     const selectedIds = draft.audience?.memberIds ?? [];
     const sectionIds = draft.audience?.sectionIds
-      ?? (draft.section === "All Sections" ? [...new Set(activeMembers.map((member) => member.section))] : [draft.section]);
+      ?? [...new Set(activeMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))];
     return buildEventAudience(sectionIds, selectedIds, members);
   }, [activeMembers, draft.audience, draft.section, members]);
 
