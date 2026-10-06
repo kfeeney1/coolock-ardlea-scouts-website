@@ -1,8 +1,6 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -14,7 +12,6 @@ import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
 export default function CreateEventPage() {
-  const navigate = useNavigate();
   const { user, adminProfile } = useAdminAuth();
   const scopeKey = JSON.stringify([user?.uid, adminProfile?.role, adminProfile?.sections]);
   const [loadedScope, setLoadedScope] = useState("");
