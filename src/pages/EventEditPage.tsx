@@ -22,20 +22,12 @@ export default function EventEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "failed">("saved");
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [savedDraft, setSavedDraft] = useState<EventInput | null>(null);
   const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
 
-  useEffect(() => {
-    if (guard.destination) setLeaveDialogOpen(true);
-  }, [guard.destination]);
-
-  const stayAndEdit = () => {
-    setLeaveDialogOpen(false);
-    guard.stay();
-  };
+  const stayAndEdit = () => guard.stay();
 
   useEffect(() => {
     let active = true;
@@ -141,7 +133,7 @@ export default function EventEditPage() {
         <Button variant="outlined" disabled={saving} onClick={() => guard.ask({ kind: "path", path: `/leader/events/${encodeURIComponent(eventId)}` })}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
-    <Dialog open={leaveDialogOpen} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
+    <Dialog open={Boolean(guard.destination)} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
       <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={guard.continueNavigation}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
