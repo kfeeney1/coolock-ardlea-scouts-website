@@ -178,6 +178,13 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright test --list
 
+      - name: Preflight known event editor journeys
+        if: ${{ (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') && matrix.id == '1' }}
+        run: >-
+          npx --no-install playwright test e2e/event-record-page.spec.ts
+          --project=chromium
+          --grep "event editor saves before navigation|full-page Create Event preserves fields and audience and saves to the event record"
+
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         shell: bash
