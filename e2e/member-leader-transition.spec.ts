@@ -149,6 +149,14 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await approvalDialog.getByRole("button", { name: /Confirm Approval/ }).click();
   await expect(page.getByText(`${firstName} ${lastName} has been approved as a Leader`)).toBeVisible();
 
+  // The success alert is rendered before finish() completes its audit write,
+  // closes the approval dialog and refreshes the request list. Navigating on
+  // the alert alone races that still-running lifecycle and can abort page.goto.
+  // Wait for the authoritative post-approval UI state instead.
+  await expect(approvalDialog).toBeHidden();
+  const approvedRequest = page.getByRole("button", { name: `Open Leader Access for ${firstName} ${lastName}` });
+  await expect(approvedRequest).toBeVisible();
+
   await page.goto(`/leader/members?status=all&q=${encodeURIComponent(lastName)}`);
   const updatedMember = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
   await expect(updatedMember).toBeVisible();

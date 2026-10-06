@@ -28,14 +28,19 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
   const [search, setSearch] = useState("");
   const [openMemberId, setOpenMemberId] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  // ParentPortal can re-render while committing child-selection/router state. Depend on
+  // the member IDs themselves rather than the caller's array identity so an unrelated
+  // parent render cannot reload and unmount an in-progress consent editor.
+  const memberIdsKey = memberIds.join("\u0000");
 
   const load = useCallback(async () => {
+    const requestedMemberIds = memberIdsKey ? memberIdsKey.split("\u0000") : [];
     setLoading(true);
     setLoadError(null);
     try {
       const [loadedRecords, loadedMembers] = await Promise.all([
-        loadParentConsents(memberIds),
-        loadLinkedMembers(memberIds)
+        loadParentConsents(requestedMemberIds),
+        loadLinkedMembers(requestedMemberIds)
       ]);
       setRecords(loadedRecords);
       setMembers(loadedMembers);
@@ -45,7 +50,7 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [memberIds]);
+  }, [memberIdsKey]);
 
   useEffect(() => { void load(); }, [load]);
 
