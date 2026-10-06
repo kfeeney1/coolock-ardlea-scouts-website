@@ -141,7 +141,7 @@ export default function EventEditPage() {
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button type="button" variant="outlined" disabled={saving} onClick={(clickEvent) => { window.sessionStorage.setItem("event-back-handler", "called"); clickEvent.preventDefault(); clickEvent.stopPropagation(); const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirtyRef.current || dirty || saveState === "unsaved") setExplicitLeaveRequested(true); else guard.navigateTo(path); }}>Back to Event</Button>
+        <Button type="button" variant="outlined" disabled={saving} onClick={(clickEvent) => { clickEvent.preventDefault(); clickEvent.stopPropagation(); const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirtyRef.current || dirty || saveState === "unsaved") setExplicitLeaveRequested(true); else guard.navigateTo(path); }}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
     <Dialog open={explicitLeaveRequested} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
