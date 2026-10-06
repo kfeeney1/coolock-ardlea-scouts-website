@@ -130,7 +130,7 @@ export default function EventEditPage() {
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && (draft.audience.memberIds.length === 0))} onClick={() => { void persist().then((saved) => { if (saved) guard.navigateTo(`/leader/events/${encodeURIComponent(eventId)}`); }); }}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button variant="outlined" disabled={saving} onClick={() => guard.ask({ kind: "path", path: `/leader/events/${encodeURIComponent(eventId)}` })}>Back to Event</Button>
+        <Button variant="outlined" disabled={saving} onClick={() => { const path = `/leader/events/${encodeURIComponent(eventId)}`; if (dirty) guard.ask({ kind: "path", path }); else guard.navigateTo(path); }}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
     <Dialog open={Boolean(guard.destination)} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
