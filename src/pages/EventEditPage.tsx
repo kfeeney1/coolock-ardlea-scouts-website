@@ -31,7 +31,7 @@ export default function EventEditPage() {
   };
   const dirty = ready && Boolean(draft) && !sameDraft(draft, savedDraft);
   const guard = useUnsavedNavigationGuard(dirty);
-  const stayAndEdit = () => guard.stay();
+  const stayAndEdit = () => { console.info("EVENT_GUARD_STAY_HANDLER"); guard.stay(); };
 
   useEffect(() => {
     let active = true;
@@ -148,7 +148,7 @@ export default function EventEditPage() {
       </Stack>
     </Stack></Paper>
     {guard.destination && <Box sx={{ position: "fixed", inset: 0, zIndex: "modal", display: "grid", placeItems: "center", p: 2, bgcolor: "rgba(0, 0, 0, 0.48)" }}>
-      <Paper role="dialog" aria-modal="true" aria-labelledby="event-unsaved-title" sx={{ width: "100%", maxWidth: 560, p: 3, boxShadow: 24 }}>
+      <Paper role="dialog" data-destination={guard.destination.kind} aria-modal="true" aria-labelledby="event-unsaved-title" sx={{ width: "100%", maxWidth: 560, p: 3, boxShadow: 24 }}>
         <Typography id="event-unsaved-title" variant="h6" component="h2" sx={{ mb: 2 }}>Save changes before leaving?</Typography>
         <Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert>
         <Stack direction="row" spacing={1} sx={{ mt: 2, justifyContent: "flex-end" }}>
