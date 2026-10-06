@@ -152,7 +152,7 @@ export default function EventEditPage() {
     <Dialog open={leavePromptOpen} onClose={stayAndEdit} aria-labelledby="event-unsaved-title" fullWidth maxWidth="sm">
       <DialogTitle id="event-unsaved-title">Save changes before leaving?</DialogTitle>
       <DialogContent><Alert severity="info">This event has unsaved edits. Save them before navigating, stay and keep editing, or discard them explicitly.</Alert></DialogContent>
-      <DialogActions><Button type="button" disabled={saving} onClick={stayAndEdit}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => { setLeavePromptOpen(false); guard.continueNavigation(); }}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
+      <DialogActions><Button type="button" disabled={saving} onClick={() => { window.sessionStorage.setItem("event-stay-handler", "called"); stayAndEdit(); }}>Stay and keep editing</Button><Button type="button" disabled={saving} color="warning" onClick={() => { setLeavePromptOpen(false); guard.continueNavigation(); }}>Discard and leave</Button><Button disabled={saving} variant="contained" onClick={() => { void leaveAfterSave(); }}>Save and leave</Button></DialogActions>
     </Dialog>
   </Container></Box>;
 }
