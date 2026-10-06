@@ -183,6 +183,8 @@ jobs:
         run: >-
           npx --no-install playwright test e2e/event-record-page.spec.ts
           --project=chromium
+          --retries=0
+          --timeout=30000
           --grep "event editor saves before navigation|full-page Create Event preserves fields and audience and saves to the event record"
 
       - name: Run Playwright tests
