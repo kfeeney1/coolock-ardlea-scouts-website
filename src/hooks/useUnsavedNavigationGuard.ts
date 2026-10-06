@@ -9,6 +9,7 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
   const dirtyRef = useRef(dirty);
   const [destination, setDestination] = useState<UnsavedDestination | null>(null);
   const destinationRef = useRef<UnsavedDestination | null>(null);
+  const guardInstalledRef = useRef(false);
   dirtyRef.current = dirty;
 
   const ask = useCallback((next: UnsavedDestination) => {
@@ -42,10 +43,16 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
   }, [navigate]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty) {
+      guardInstalledRef.current = false;
+      return;
+    }
     const currentUrl = `${location.pathname}${location.search}${location.hash}`;
     const marker = { ...(window.history.state ?? {}), unsavedEditorGuard: true };
-    window.history.pushState(marker, "", currentUrl);
+    if (!guardInstalledRef.current) {
+      window.history.pushState(marker, "", currentUrl);
+      guardInstalledRef.current = true;
+    }
     const beforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
