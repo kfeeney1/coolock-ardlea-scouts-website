@@ -25,7 +25,6 @@ test("SW-170 saves weekly edits before opening Copy Meeting", async ({ page }) =
   await dialog.getByRole("button", { name: "Save and leave", exact: true }).click();
   await expect(page.getByTestId("weekly-meeting-copy-form")).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.getByRole("button", { name: "Meetings", exact: true }).click();
   await page.getByRole("button", { name: new RegExp(`1 Nov 2099 · Scouts`) }).click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toHaveValue(theme);
