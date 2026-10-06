@@ -7,6 +7,8 @@ export function useUnsavedNavigationGuard(dirty: boolean) {
   const location = useLocation();
   const navigate = useNavigate();
   const dirtyRef = useRef(dirty);
+  // Keep this synchronous with render so an explicit navigation click immediately
+  // after editing cannot observe the previous clean value before effects run.
   const [destination, setDestination] = useState<UnsavedDestination | null>(null);
   const destinationRef = useRef<UnsavedDestination | null>(null);
   dirtyRef.current = dirty;
