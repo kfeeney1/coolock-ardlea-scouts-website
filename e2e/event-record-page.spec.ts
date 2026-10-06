@@ -43,24 +43,57 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(page.getByRole("link", { name: "Edit Event", exact: true })).toBeVisible();
 });
 
-test("event editor uses a dedicated page and cancel does not persist changes", async ({ page }, testInfo) => {
+test("event editor saves valid edits before app and browser back navigation", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
-  await page.goto("/leader/events/TEST_flow_event_beavers_open");
-
-  const record = page.getByTestId("event-record-TEST_flow_event_beavers_open");
-  await expect(record.getByText("Open", { exact: true })).toBeVisible();
-
+  await page.goto("/leader/events/create");
+  const title = `TEST event autosave ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
+  const eventUrl = page.url();
+  const eventPath = new URL(eventUrl).pathname;
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
-  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open\/edit$/);
-  await expect(page.getByRole("heading", { name: /Edit event · TEST Beavers Open Day Trip/ })).toBeVisible();
-  await page.getByLabel("Event title").fill("Unsaved event title");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
+  await expect(page.getByRole("heading", { name: new RegExp(`Edit event · ${title}`) })).toBeVisible();
+  await page.getByLabel("Event title").fill("");
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
+  await expect(page.getByRole("alert").filter({ hasText: "Event title and start date are required" })).toBeVisible();
+  const updatedTitle = `${title} updated`;
+  await page.getByLabel("Event title").fill(updatedTitle);
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
 
-  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
-  await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
-  await expect(page.getByText("Unsaved event title")).toHaveCount(0);
+  await expect(page).toHaveURL(eventUrl);
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  const browserBackTitle = `${updatedTitle} browser back`;
+  await page.getByLabel("Event title").fill(browserBackTitle);
+  await page.goBack();
+  await expect(page).toHaveURL(eventUrl);
+  await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
+});
+
+test("mobile event editor saves valid edits before navigating away", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Event auto-save mobile regression runs on the canonical mobile project.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+  const title = `TEST mobile event autosave ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Start date").fill("2099-05-11");
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  const updatedTitle = `${title} updated`;
+  await page.getByLabel("Event title").fill(updatedTitle);
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
 });
 
 test("blocked event report pop-ups use in-page error feedback", async ({ page }, testInfo) => {
@@ -111,7 +144,7 @@ test("Clear resets the full-page event form without persisting or leaving it", a
   await expect(page.getByLabel("Description")).toHaveValue("");
 });
 
-test("Back and Cancel return to Events without persisting a new event", async ({ page }) => {
+test("Back and Cancel avoid empty events and save a valid draft before leaving", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events/create");
@@ -123,16 +156,8 @@ test("Back and Cancel return to Events without persisting a new event", async ({
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-04-05");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-
-  const discard = page.getByRole("dialog", { name: "Discard this new event?" });
-  await expect(discard).toBeVisible();
-  await discard.getByRole("button", { name: "Keep editing" }).click();
-  await expect(page.getByLabel("Event title")).toHaveValue(title);
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.getByRole("dialog", { name: "Discard this new event?" }).getByRole("button", { name: "Discard and cancel" }).click();
-
   await expect(page).toHaveURL(/\/leader\/events$/);
-  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
 });
 
 test("full-page Create Event preserves fields and audience and saves to the event record", async ({ page }, testInfo) => {

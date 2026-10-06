@@ -7,6 +7,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import ProgrammeEquipmentDialog from "../components/admin/ProgrammeEquipmentDialog";
 import ProgrammeLibraryPanel from "../components/admin/ProgrammeLibraryPanel";
 import WeeklyMeetingHistoryPanel from "../components/admin/WeeklyMeetingHistoryPanel";
+import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import type { AttendanceInsightMember } from "../services/attendanceInsightsLogic";
@@ -30,7 +31,7 @@ const LEADER_SEPARATOR = " | ";
 const STANDARD_MEETING_MINUTES = 90;
 const today = new Date().toISOString().slice(0, 10);
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
-type DiscardAction = "meetings" | "copy" | "create";
+type NavigationAction = "meetings" | "copy" | "create";
 const displayDate = (value: string) => { const d = new Date(`${value}T00:00:00`); return Number.isNaN(d.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(d); };
 const initialStepForDate = (value: string): Step => value > today ? "programme" : "attendance";
 const leaderParts = (value: string) => value === ALL_LEADERS ? [ALL_LEADERS] : value.split(LEADER_SEPARATOR).map((part) => part.trim()).filter(Boolean);
@@ -64,9 +65,9 @@ export default function WeeklySectionTracker() {
   const [injuryParentInformed,setInjuryParentInformed]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
+  const saveInFlight=useRef<Promise<boolean>|null>(null);
   const [error,setError]=useState("");
   const [success,setSuccess]=useState("");
-  const [pendingDiscard,setPendingDiscard]=useState<DiscardAction|null>(null);
   const editorTopRef=useRef<HTMLDivElement|null>(null);
 
   const readOnly=!isAdmin&&access.readOnly;
@@ -103,13 +104,38 @@ export default function WeeklySectionTracker() {
     finally{setLoading(false);}
   };
   useEffect(()=>{void refresh();},[availableSections,isAdmin,requestedMeetingId]);
+  useEffect(()=>{if(!requestedMeetingId){setSelected(null);setSavedSelected(null);}},[requestedMeetingId]);
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
-  useEffect(()=>{if(!hasUnsavedChanges&&!copyHasMeaningfulChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[hasUnsavedChanges,copyHasMeaningfulChanges]);
+  useEffect(()=>{if(!copyHasMeaningfulChanges)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[copyHasMeaningfulChanges]);
 
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
-  const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{const editingPast=selected?.id===next.id&&selected.status==="closed";if(editingPast&&!editMode.canEditOperationalFields)return false;if(!editingPast&&readOnly)return false;setSaving(true);setError("");setSuccess("");try{const{id,...input}=next;if(editingPast)await updatePastWeeklyMeeting(id,{entries:sortWeeklyEntries(next.entries),injuries:next.injuries,notes:next.notes});else await updateWeeklyMeeting(id,input);await auditWeeklyMeeting(next,action,message);setSelected(next);setSavedSelected(next);const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?message:`${message} The meeting was saved, but the screen could not refresh. Reload the page to see the saved record.`);return true;}catch(e){setError(applicationErrorMessage(e, "Unable to save this meeting.", "WeeklySectionTracker"));return false;}finally{setSaving(false);} };
+  const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{
+    if(saveInFlight.current)return saveInFlight.current;
+    const editingPast=selected?.id===next.id&&selected.status==="closed";
+    if(editingPast&&!editMode.canEditOperationalFields)return false;
+    if(!editingPast&&readOnly)return false;
+    setSaving(true);setError("");setSuccess("");
+    const pending=(async()=>{
+      try{
+        const{id,...input}=next;
+        if(editingPast)await updatePastWeeklyMeeting(id,{entries:sortWeeklyEntries(next.entries),injuries:next.injuries,notes:next.notes});
+        else await updateWeeklyMeeting(id,input);
+        await auditWeeklyMeeting(next,action,message);
+        setSelected(next);setSavedSelected(next);
+        const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");
+        setSuccess(refreshed?message:`${message} The meeting was saved, but the screen could not refresh. Reload the page to see the saved record.`);
+        return true;
+      }catch(e){setError(applicationErrorMessage(e, "Unable to save this meeting.", "WeeklySectionTracker"));return false;}
+      finally{setSaving(false);saveInFlight.current=null;}
+    })();
+    saveInFlight.current=pending;
+    return pending;
+  };
   const save=async()=>{if(!selected)return; if(await persist(selected,"Meeting saved.")){requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));}};
+
+  const saveForNavigation=async()=>!!selected&&(!weeklyMeetingHasChanges(selected,savedSelected)||await persist(selected,"Meeting saved."));
+  useSaveOnNavigation(hasUnsavedChanges,saveForNavigation);
 
   const copyMeeting=async()=>{
     if(!copySource||!copyDate)return;
@@ -138,8 +164,8 @@ export default function WeeklySectionTracker() {
     const current=leaderParts(badgework.leader).filter((value)=>value!==ALL_LEADERS);
     updateBadgework(badgework.id,{leader:joinLeaders(checked?[...current,name]:current.filter((value)=>value!==name))});
   };
-  const applyDiscardAction=(action:DiscardAction)=>{const current=selected;setSelected(null);setSavedSelected(null);setPendingDiscard(null);if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);}else if(action==="create"){navigate("/leader/weekly/create");}};
-  const requestDiscardAction=(action:DiscardAction)=>{if(hasUnsavedChanges)setPendingDiscard(action);else applyDiscardAction(action);};
+  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;setSelected(null);setSavedSelected(null);if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);}else if(action==="create"){navigate("/leader/weekly/create");}};
+  const requestNavigationAction=async(action:NavigationAction)=>{if(hasUnsavedChanges&&selected&&!(await persist(selected,"Meeting saved.")))return;applyNavigationAction(action);};
 
   const openRecords=records.filter(r=>r.status==="open"),history=records.filter(r=>r.status==="closed");
   const present=selected?.entries.filter(e=>e.attendance==="present").length??0,total=selected?.entries.length??0;
@@ -154,7 +180,7 @@ export default function WeeklySectionTracker() {
     {copySource&&<Paper data-testid="weekly-meeting-copy-form" variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography sx={{fontWeight:800,mb:1}}>Copy {displayDate(copySource.meetingDate)} · {copySource.section}</Typography><Stack direction={{xs:"column",sm:"row"}} spacing={1}><Button fullWidth variant="outlined" onClick={()=>setCopyDate(today)}>Today</Button><TextField select fullWidth label="Destination section" value={copySection} onChange={e=>setCopySection(e.target.value)}>{availableSections.map(section=><MenuItem key={section} value={section}>{section}</MenuItem>)}</TextField><TextField fullWidth label="Choose date" type="date" value={copyDate} onChange={e=>setCopyDate(e.target.value)} slotProps={{inputLabel:{shrink:true}}}/><Button fullWidth variant="contained" onClick={()=>void copyMeeting()} disabled={saving}>Create Copy</Button><Button fullWidth disabled={saving} onClick={()=>copyHasMeaningfulChanges?setConfirmCopyDiscard(true):setCopySource(null)}>Cancel</Button></Stack></Paper>}
     <Dialog open={confirmCopyDiscard} onClose={()=>setConfirmCopyDiscard(false)} aria-labelledby="discard-copy-meeting-title" fullWidth maxWidth="sm"><DialogTitle id="discard-copy-meeting-title">Discard this new meeting copy?</DialogTitle><DialogContent><Typography>Your destination or date has changed. Cancel creation and discard these details?</Typography></DialogContent><DialogActions><Button disabled={saving} onClick={()=>setConfirmCopyDiscard(false)}>Keep editing</Button><Button disabled={saving} color="warning" variant="contained" onClick={()=>{setConfirmCopyDiscard(false);setCopySource(null);}}>Discard and cancel</Button></DialogActions></Dialog>
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
-    <Paper ref={editorTopRef} data-testid="weekly-meeting-editor-top" variant="outlined" sx={{p:{xs:1.5,sm:2},minWidth:0,scrollMarginTop:16}}><Stack direction={{xs:"column",md:"row"}} spacing={1} sx={{justifyContent:"space-between",alignItems:{md:"center"}}}><Box sx={{minWidth:0}}><Typography variant="h5" sx={{fontWeight:800,overflowWrap:"anywhere"}}>{selected.section} · {displayDate(selected.meetingDate)}</Typography><Chip size="small" label={selected.status==="open"?"Open":"Closed"}/></Box><Stack direction={{xs:"column",sm:"row"}} spacing={1} useFlexGap sx={{flexWrap:"wrap"}}><Button fullWidth onClick={()=>requestDiscardAction("meetings")}>Meetings</Button>{!readOnly&&<Button fullWidth variant="contained" color="success" onClick={()=>requestDiscardAction("create")}>Create Meeting</Button>}<Button fullWidth variant="outlined" color="secondary" onClick={()=>setEquipmentOpen(true)} data-testid="weekly-equipment-button">Equipment</Button><Button fullWidth component="a" href={shareLoading||shareError?undefined:whatsappUrl} target="_blank" rel="noreferrer" variant="outlined" color="success" disabled={shareLoading||Boolean(shareError)} data-testid="weekly-whatsapp-share">{shareLoading?"Preparing share…":"Share in WhatsApp"}</Button>{!readOnly&&<Button fullWidth onClick={()=>requestDiscardAction("copy")}>Copy Meeting</Button>}</Stack></Stack></Paper>
+    <Paper ref={editorTopRef} data-testid="weekly-meeting-editor-top" variant="outlined" sx={{p:{xs:1.5,sm:2},minWidth:0,scrollMarginTop:16}}><Stack direction={{xs:"column",md:"row"}} spacing={1} sx={{justifyContent:"space-between",alignItems:{md:"center"}}}><Box sx={{minWidth:0}}><Typography variant="h5" sx={{fontWeight:800,overflowWrap:"anywhere"}}>{selected.section} · {displayDate(selected.meetingDate)}</Typography><Chip size="small" label={selected.status==="open"?"Open":"Closed"}/></Box><Stack direction={{xs:"column",sm:"row"}} spacing={1} useFlexGap sx={{flexWrap:"wrap"}}><Button fullWidth onClick={()=>void requestNavigationAction("meetings")}>Meetings</Button>{!readOnly&&<Button fullWidth variant="contained" color="success" onClick={()=>void requestNavigationAction("create")}>Create Meeting</Button>}<Button fullWidth variant="outlined" color="secondary" onClick={()=>setEquipmentOpen(true)} data-testid="weekly-equipment-button">Equipment</Button><Button fullWidth component="a" href={shareLoading||shareError?undefined:whatsappUrl} target="_blank" rel="noreferrer" variant="outlined" color="success" disabled={shareLoading||Boolean(shareError)} data-testid="weekly-whatsapp-share">{shareLoading?"Preparing share…":"Share in WhatsApp"}</Button>{!readOnly&&<Button fullWidth onClick={()=>void requestNavigationAction("copy")}>Copy Meeting</Button>}</Stack></Stack></Paper>
     {selected.status==="closed"&&<Alert severity="info" data-testid="past-meeting-edit-notice">{operationalReadOnly?"This past meeting is read-only. Section Leaders, the Group Leader and Deputy Group Leader can update attendance, medical issues and additional notes.":"Past meeting: only attendance, injuries / medical issues and additional notes can be changed. Programme and completed badgework are locked."}</Alert>}
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}} data-testid="weekly-meeting-summary"><Typography variant="h6" sx={{fontWeight:800,mb:1}}>Meeting summary</Typography><Stack direction="row" spacing={1} useFlexGap sx={{flexWrap:"wrap",mb:1.25}}><Chip size="small" label={`${selected.activities.length} activities / games`}/><Chip size="small" label={`${selected.badgeworkPlan.length} badgework`}/><Chip size="small" label={`${programmeDuration} min planned`}/><Chip size="small" color="success" label={`${present}/${total} present`}/><Chip size="small" label={`${selected.injuries.length} incident${selected.injuries.length===1?"":"s"}`}/></Stack><Typography variant="body2"><strong>Location:</strong> {selected.location||"Not set"}</Typography><Typography variant="body2"><strong>Theme:</strong> {selected.theme||"Not set"}</Typography></Paper>
     <Box data-testid="weekly-step-nav" sx={{display:"grid",gridTemplateColumns:{xs:"repeat(2,minmax(0,1fr))",sm:"repeat(3,minmax(0,1fr))",md:"repeat(5,minmax(0,1fr))"},gap:1}}>{(["attendance","programme","badgework","injuries","notes"] as Step[]).map(s=><Button key={s} fullWidth variant={step===s?"contained":"outlined"} onClick={()=>setStep(s)} sx={{minWidth:0,px:1}}>{s==="badgework"?"Completed Badgework":s==="injuries"?"Injuries / Medical":s[0].toUpperCase()+s.slice(1)}</Button>)}</Box>
@@ -166,6 +192,5 @@ export default function WeeklySectionTracker() {
     <ProgrammeEquipmentDialog open={equipmentOpen} sourceType="weeklyMeeting" sourceId={selected.id} sourceLabel={`${selected.section} Weekly Meeting · ${selected.meetingDate}`} section={selected.section} date={selected.meetingDate} items={equipmentItems} loans={equipmentLoans} readOnly={planningReadOnly} onClose={()=>setEquipmentOpen(false)} onChanged={async()=>{setEquipmentLoans(await loadEquipmentLoans());}} />
     {!operationalReadOnly&&<Paper data-testid="weekly-sticky-actions" elevation={3} sx={{position:"sticky",bottom:"calc(8px + env(safe-area-inset-bottom))",p:1.25,zIndex:2,backgroundColor:"background.paper"}}><Stack direction={{xs:"column",sm:"row"}} spacing={1} sx={{justifyContent:"flex-end"}}><Button fullWidth variant="outlined" onClick={()=>void save()} disabled={saving}>Save Meeting</Button>{selected.status==="open"&&<Button fullWidth variant="contained" color="success" onClick={()=>void persist({...selected,status:"closed"},"Meeting closed and added to history.","weekly-meeting-close")} disabled={saving}>Close Meeting</Button>}</Stack></Paper>}
   </Stack>}
-  <Dialog open={Boolean(pendingDiscard)} onClose={()=>setPendingDiscard(null)} aria-labelledby="discard-weekly-meeting-title" fullWidth maxWidth="sm"><DialogTitle id="discard-weekly-meeting-title">Discard unsaved meeting changes?</DialogTitle><DialogContent><Typography>You have unsaved changes to this meeting. Continuing will discard them without updating the meeting record.</Typography></DialogContent><DialogActions><Button onClick={()=>setPendingDiscard(null)}>Keep editing</Button><Button color="warning" variant="contained" onClick={()=>pendingDiscard&&applyDiscardAction(pendingDiscard)}>Discard and continue</Button></DialogActions></Dialog>
   </Container></Box>;
 }

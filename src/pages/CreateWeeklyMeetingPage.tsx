@@ -1,9 +1,10 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { Alert, Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import { createWeeklyMeeting, defaultActivityPlans, defaultBadgeworkPlans, loadWeeklyAccess } from "../services/weeklyTracker";
@@ -26,7 +27,8 @@ export default function CreateWeeklyMeetingPage() {
   const [error, setError] = useState("");
   const [accessLoaded, setAccessLoaded] = useState(false);
   const [canViewAll, setCanViewAll] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const createdMeetingId = useRef<string | null>(null);
+  const createInFlight = useRef<Promise<boolean> | null>(null);
   const sections = useMemo(() => adminProfile ? effectiveOperationalSections(adminProfile.role, adminProfile.sections, adminProfile.appointments) : [], [adminProfile]);
   const defaultSection = sections[0] ?? "";
   const hasMeaningfulDraft = Boolean(
@@ -43,16 +45,6 @@ export default function CreateWeeklyMeetingPage() {
     if (!section && sections.length) setSection(sections[0]);
   }, [section, sections]);
 
-  useEffect(() => {
-    if (!hasMeaningfulDraft) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [hasMeaningfulDraft]);
-
   const clear = () => {
     setSection(defaultSection);
     setDate(today);
@@ -62,29 +54,42 @@ export default function CreateWeeklyMeetingPage() {
     setError("");
   };
 
-  const cancel = () => {
-    if (hasMeaningfulDraft) setConfirmDiscard(true);
-    else navigate("/leader/weekly");
-  };
+  const createDraft = async (force = false): Promise<boolean> => {
+    if (createInFlight.current) return createInFlight.current;
+    if (createdMeetingId.current) return true;
+    if (!hasMeaningfulDraft && !force) return true;
+    if (saving) return false;
+    if (!section || !date) { setError("Choose a section and meeting date before leaving this meeting."); return false; }
 
-  const save = async () => {
-    if (saving) return;
-    if (!section || !date) { setError("Choose a section and meeting date."); return; }
     setSaving(true);
     setError("");
-    try {
-      const members = await loadAttendanceInsightMembers({ isAdmin: Boolean(isAdmin || canViewAll), sections: adminProfile?.sections ?? [] });
-      const roster = reconcileOpenWeeklyRoster([], members, section);
-      if (!roster.length) throw new Error("No active members are available for that section.");
-      const input = { section, meetingDate: date, status: "open" as const, location, theme, activities: defaultActivityPlans(), badgeworkPlan: defaultBadgeworkPlans(), programmeNotes, notes: "", entries: roster, injuries: [] };
-      const id = await createWeeklyMeeting(input);
-      await recordAuditEvent({ category: "system", action: "weekly-meeting-create", targetId: id, targetLabel: `${section} Weekly Meeting · ${date}`, description: "Created weekly meeting from dedicated creation workflow.", section });
-      navigate(`/leader/weekly?meeting=${encodeURIComponent(id)}`);
-    } catch (saveError) {
-      setError(applicationErrorMessage(saveError, "Unable to create this meeting.", "CreateWeeklyMeetingPage"));
-    } finally {
-      setSaving(false);
-    }
+    const pending = (async () => {
+      try {
+        const members = await loadAttendanceInsightMembers({ isAdmin: Boolean(isAdmin || canViewAll), sections: adminProfile?.sections ?? [] });
+        const roster = reconcileOpenWeeklyRoster([], members, section);
+        if (!roster.length) throw new Error("No active members are available for that section.");
+        const input = { section, meetingDate: date, status: "open" as const, location, theme, activities: defaultActivityPlans(), badgeworkPlan: defaultBadgeworkPlans(), programmeNotes, notes: "", entries: roster, injuries: [] };
+        const id = await createWeeklyMeeting(input);
+        await recordAuditEvent({ category: "system", action: "weekly-meeting-create", targetId: id, targetLabel: `${section} Weekly Meeting · ${date}`, description: "Created weekly meeting from dedicated creation workflow.", section });
+        createdMeetingId.current = id;
+        return true;
+      } catch (saveError) {
+        setError(applicationErrorMessage(saveError, "Unable to save this meeting. Your edits are still here.", "CreateWeeklyMeetingPage"));
+        return false;
+      } finally {
+        setSaving(false);
+        createInFlight.current = null;
+      }
+    })();
+    createInFlight.current = pending;
+    return pending;
+  };
+
+  const { navigateAfterSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
+  const cancel = () => { if (!saving) void navigateAfterSave("/leader/weekly"); };
+  const save = async () => {
+    if (!(await createDraft(true)) || !createdMeetingId.current) return;
+    navigate(`/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}>
@@ -107,14 +112,6 @@ export default function CreateWeeklyMeetingPage() {
           </Stack>
         </Stack>
       </Paper>}
-      <Dialog open={confirmDiscard} onClose={() => setConfirmDiscard(false)} aria-labelledby="discard-new-meeting-title">
-        <DialogTitle id="discard-new-meeting-title">Discard this new meeting?</DialogTitle>
-        <DialogContent><Typography>Your meeting details have not been saved. Cancel creation and discard them?</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDiscard(false)}>Keep editing</Button>
-          <Button color="warning" variant="contained" onClick={() => navigate("/leader/weekly")}>Discard and cancel</Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   </Box>;
 }
