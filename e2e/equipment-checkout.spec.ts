@@ -360,7 +360,7 @@ test("equipment store filters retain their viewport when applied, changed and cl
   const selectStore = async (name: string) => {
     await storeFilter.click();
     await page.getByRole("option", { name, exact: true }).click();
-    await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(name);
+    await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(name === "All Stores" ? null : name);
     await assertStoreFilterVisible();
   };
 
