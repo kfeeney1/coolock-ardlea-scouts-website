@@ -146,7 +146,7 @@ export default function EventEditPage() {
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && selectedIds.length === 0)} onClick={() => void navigateAfterSave(`/leader/events/${encodeURIComponent(eventId)}`)}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button variant="outlined" disabled={saving} onClick={() => void navigateAfterSave(`/leader/events/${encodeURIComponent(eventId)}`)}>Back to Event</Button>
+        <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving} onClick={(clickEvent) => { clickEvent.preventDefault(); void navigateAfterSave(`/leader/events/${encodeURIComponent(eventId)}`); }}>Back to Event</Button>
       </Stack>
     </Stack></Paper>
     <Box sx={{ mt: 2 }} data-testid="event-audience-summary">{eventAudienceSummary(draft.audience?.sectionIds ?? [], selectedIds, buildEventAudience(draft.audience?.sectionIds ?? [], selectedIds, activeMembers).resolvedMemberIds.length)}</Box>
