@@ -39,7 +39,8 @@ export const FIRESTORE_ROOT_COLLECTIONS = Object.freeze([
   "subsAssignments",
   "subsPayments",
   "subsRatePolicies",
-  "weeklyMeetings"
+  "weeklyMeetings",
+  "weeklyRosterMembers"
 ]);
 
 export const FIRESTORE_ROOT_COLLECTION_SET = new Set(FIRESTORE_ROOT_COLLECTIONS);

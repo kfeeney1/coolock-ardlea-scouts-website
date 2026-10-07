@@ -28,7 +28,7 @@ test("programme scouter can view past meetings but cannot edit", async ({ page }
   await viewButton.click();
   await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("read-only");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  await expect(page.getByRole("checkbox", { name: scoutMemberName })).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: scoutMemberName, exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toBeDisabled();
   await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toHaveCount(0);

@@ -84,6 +84,10 @@ function membersForSection(plan) {
 }
 
 const members = sections.flatMap(membersForSection);
+const dualSectionMember = members.find((member) => member.id === "TEST_member_cub_06");
+if (!dualSectionMember) throw new Error("Canonical Cubs member 06 is required for the dual-section scenario.");
+dualSectionMember.displayName = "TEST Dual Section Member";
+dualSectionMember.sections = ["Cubs", "Scouts"];
 
 function groupLeaders() {
   return groupRoles.map((entry) => ({
@@ -240,6 +244,17 @@ async function deleteAllSeededDocs(collectionName) {
 async function seedMember(member) {
   const { id, ...data } = member;
   await replace("members", id, { ...data, createdAt: FieldValue.serverTimestamp() });
+  const memberSections = Array.isArray(data.sections) && data.sections.length ? data.sections : [data.section];
+  for (const section of memberSections) {
+    await replace("weeklyRosterMembers", `${section}--${id}`, {
+      memberId: id,
+      displayName: data.displayName,
+      primarySection: data.section,
+      section,
+      sections: memberSections,
+      status: data.status
+    });
+  }
 }
 
 async function seedParentAccount(user) {
@@ -310,6 +325,10 @@ async function seedLeader(user) {
 async function seed() {
   console.log("Seeding minimal canonical TEST population for Playwright...");
   await pruneSeededDocs("members", new Set(members.map((member) => member.id)));
+  await pruneSeededDocs("weeklyRosterMembers", new Set(members.flatMap((member) => {
+    const memberSections = Array.isArray(member.sections) && member.sections.length ? member.sections : [member.section];
+    return memberSections.map((section) => `${section}--${member.id}`);
+  })));
   for (const user of authUsers) await upsertAuthUser(user);
   for (const member of members) await seedMember(member);
   for (const leader of leaders) await seedLeader(leader);
@@ -328,7 +347,7 @@ async function cleanup() {
   for (const user of authUsers) {
     try { await auth.deleteUser(user.uid); } catch (error) { if (error?.code !== "auth/user-not-found") throw error; }
   }
-  for (const collectionName of ["members", "adminUsers", "organisationLeadership", "publicLeadership", "parentAccounts"]) {
+  for (const collectionName of ["members", "weeklyRosterMembers", "adminUsers", "organisationLeadership", "publicLeadership", "parentAccounts"]) {
     await deleteAllSeededDocs(collectionName);
   }
   console.log("Canonical comprehensive TEST population cleanup complete.");

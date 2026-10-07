@@ -10,14 +10,14 @@ import { createWeeklyMeeting, defaultActivityPlans, defaultBadgeworkPlans, loadW
 import { reconcileOpenWeeklyRoster } from "../services/weeklyTrackerLogic";
 import { recordAuditEvent } from "../services/auditLog";
 import { effectiveOperationalSections } from "../services/leaderAccessLogic";
-
-const today = new Date().toISOString().slice(0, 10);
+import { nextSectionMeetingDate } from "../services/weeklyMeetingDate.mjs";
 
 export default function CreateWeeklyMeetingPage() {
   const { adminProfile } = useAdminAuth();
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [section, setSection] = useState("");
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState("");
+  const dateManuallyChanged = useRef(false);
   const [location, setLocation] = useState("");
   const [theme, setTheme] = useState("");
   const [programmeNotes, setProgrammeNotes] = useState("");
@@ -30,7 +30,8 @@ export default function CreateWeeklyMeetingPage() {
   const draftRef = useRef({ section, date, location, theme, programmeNotes });
   const sections = useMemo(() => adminProfile ? effectiveOperationalSections(adminProfile.role, adminProfile.sections, adminProfile.appointments) : [], [adminProfile]);
   const defaultSection = sections[0] ?? "";
-  const hasMeaningfulDraft = Boolean((section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim());
+  const defaultDate = section ? nextSectionMeetingDate(section) : "";
+  const hasMeaningfulDraft = Boolean((section && section !== defaultSection) || (date && date !== defaultDate) || location.trim() || theme.trim() || programmeNotes.trim());
   draftRef.current = { section, date, location, theme, programmeNotes };
 
   useEffect(() => {
@@ -40,12 +41,17 @@ export default function CreateWeeklyMeetingPage() {
   }, []);
 
   useEffect(() => {
-    if (!section && sections.length) setSection(sections[0]);
+    if (!section && sections.length) {
+      const initialSection = sections[0];
+      setSection(initialSection);
+      if (!dateManuallyChanged.current) setDate(nextSectionMeetingDate(initialSection));
+    }
   }, [section, sections]);
 
   const clear = () => {
+    dateManuallyChanged.current = false;
     setSection(defaultSection);
-    setDate(today);
+    setDate(defaultSection ? nextSectionMeetingDate(defaultSection) : "");
     setLocation("");
     setTheme("");
     setProgrammeNotes("");
@@ -56,7 +62,8 @@ export default function CreateWeeklyMeetingPage() {
     if (createInFlight.current) return createInFlight.current;
     if (createdMeetingId.current) return true;
     const draft = draftRef.current;
-    const meaningful = Boolean((draft.section && draft.section !== defaultSection) || draft.date !== today || draft.location.trim() || draft.theme.trim() || draft.programmeNotes.trim());
+    const expectedDate = draft.section ? nextSectionMeetingDate(draft.section) : "";
+    const meaningful = Boolean((draft.section && draft.section !== defaultSection) || (draft.date && draft.date !== expectedDate) || draft.location.trim() || draft.theme.trim() || draft.programmeNotes.trim());
     if (!meaningful && !force) return true;
     if (saving) return false;
     if (!draft.section || !draft.date) { setError("Choose a section and meeting date before leaving this meeting."); return false; }
@@ -106,8 +113,8 @@ export default function CreateWeeklyMeetingPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {!accessLoaded ? <Typography role="status">Loading meeting access…</Typography> : <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack spacing={2}>
-          <TextField select required label="Section" value={section} onChange={(event) => setSection(event.target.value)}>{sections.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-          <TextField required label="Meeting date" type="date" value={date} onChange={(event) => setDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField select required label="Section" value={section} onChange={(event) => { const nextSection=event.target.value; setSection(nextSection); if(!dateManuallyChanged.current)setDate(nextSectionMeetingDate(nextSection)); }}>{sections.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
+          <TextField required label="Meeting date" type="date" value={date} onChange={(event) => { dateManuallyChanged.current=true; setDate(event.target.value); }} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="Location" value={location} onChange={(event) => setLocation(event.target.value)} />
           <TextField label="Theme / programme title" value={theme} onChange={(event) => setTheme(event.target.value)} />
           <TextField multiline minRows={4} label="Programme notes" value={programmeNotes} onChange={(event) => setProgrammeNotes(event.target.value)} />

@@ -66,7 +66,8 @@ export const DATA_RETENTION_CONTRACT = Object.freeze([
   policy("subsAssignments", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Period-specific subs assignments snapshot historical liability and classification provenance and must not be routinely deleted."),
   policy("subsPayments", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Subs payments and linked reversals are an auditable financial ledger and must not be routinely deleted."),
   policy("subsRatePolicies", "finance", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "finance-governance-review", "Versioned subs rates explain historical balances and require an explicit financial-governance review before any removal."),
-  policy("weeklyMeetings", "meetings", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "governance-review", "Weekly meetings can contain attendance, notes, medical issues and badgework context and must not be routinely purged.")
+  policy("weeklyMeetings", "meetings", DATA_SENSITIVITY.SENSITIVE, RETENTION_DISPOSITIONS.NO_ROUTINE_DELETE, "governance-review", "Weekly meetings can contain attendance, notes, medical issues and badgework context and must not be routinely purged."),
+  policy("weeklyRosterMembers", "member-programme", DATA_SENSITIVITY.PERSONAL, RETENTION_DISPOSITIONS.SOURCE_PROJECTION, "source-member-membership-changed", "Section-scoped roster documents are minimal derived projections and must follow the canonical member membership lifecycle.", "members")
 ]);
 
 export function validateDataRetentionContract(contract = DATA_RETENTION_CONTRACT, rootCollections = FIRESTORE_ROOT_COLLECTIONS) {

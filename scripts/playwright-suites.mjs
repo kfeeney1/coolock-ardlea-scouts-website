@@ -48,6 +48,8 @@ export const suiteSpecs = {
     "weekly-parent-sharing.spec.ts",
     "weekly-planner-followup.spec.ts",
     "weekly-record-integrity.spec.ts",
+    "weekly-meeting-date-defaults.spec.ts",
+    "weekly-meeting-navigation.spec.ts",
     "weekly-section-tracker.spec.ts",
     "weekly-meeting-history-access.spec.ts"
   ],
@@ -120,6 +122,8 @@ export function suitesForChangedPath(file) {
   if (file.startsWith("docs/") || file === "README.md") return [];
   if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
+  if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
+  if (["src/services/weeklyTracker.ts", "src/services/weeklyTrackerLogic.ts", "src/services/weeklyMeetingDate.mjs", "src/services/weeklyMeetingDate.d.mts", "src/services/reporting.ts", "src/services/attendanceInsightsLogic.ts", "src/components/admin/WeeklyAttendancePanel.tsx", "src/components/admin/WeeklyMeetingSummary.tsx"].includes(file)) return ["activities-programme"];
 
   // Test infrastructure, shared application infrastructure, dependencies, Firebase rules,
   // workflow changes, and unknown paths are deliberately full-suite changes.
