@@ -40,14 +40,12 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
 
   useEffect(() => {
     if (!dirty) return;
-    const editorUrl=location.pathname+location.search+location.hash;
     const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
     const popState=(event:PopStateEvent)=>{
       if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
       const destination=window.location.pathname+window.location.search+window.location.hash;
       event.stopImmediatePropagation();
       navigationInFlightRef.current=true;
-      window.history.replaceState(window.history.state,"",editorUrl);
       void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(destination,{replace:true});}}).finally(()=>{navigationInFlightRef.current=false;});
     };
     window.addEventListener("beforeunload",beforeUnload);
