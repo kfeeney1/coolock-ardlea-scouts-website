@@ -279,7 +279,7 @@ export default function EquipmentManagement() {
         hasActiveFilters={hasActiveFilters}
         loading={loading}
         resultCount={visibleItems.length}
-        onSearchChange={(value) => updateFilterParam("q", value, "", true)}
+        onSearchChange={(value) => updateFilterParam("q", value, "")}
         onStatusChange={(value) => updateFilterParam("status", value)}
         onCategoryChange={(value) => updateFilterParam("category", value)}
         onStoreChange={(value) => updateFilterParam("store", value)}
