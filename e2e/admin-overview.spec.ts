@@ -102,6 +102,34 @@ test("section leader sees a scoped operations overview with linked tiles", async
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
 
+test("SW-319 dashboard medical reminder opens the leader's own form with a readable mobile action", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scouter form reminder runs on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.webadmin@example.com");
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  const reminder = page.getByTestId("leader-medical-action");
+  const openForm = reminder.getByRole("link", { name: "Open My Form" });
+  await expect(openForm).toBeVisible();
+  await expect(openForm).toHaveAttribute("href", "/leader/profile/consent");
+  await expect(openForm).toHaveCSS("white-space", "nowrap");
+  if (testInfo.project.name === "mobile-chromium") {
+    const dimensions = await openForm.evaluate((element) => ({
+      viewport: document.documentElement.clientWidth,
+      right: element.getBoundingClientRect().right,
+      labelWidth: element.scrollWidth,
+      contentWidth: element.clientWidth
+    }));
+    expect(dimensions.right).toBeLessThanOrEqual(dimensions.viewport);
+    expect(dimensions.labelWidth).toBeLessThanOrEqual(dimensions.contentWidth);
+  }
+
+  await openForm.click();
+  await expect(page).toHaveURL(/\/leader\/profile\/consent$/);
+  await expect(page.getByRole("heading", { name: "Scouter Medical Advice Form" })).toBeVisible();
+});
+
 test("Group Leader loads the operations overview within authorised account sections", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
