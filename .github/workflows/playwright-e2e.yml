@@ -307,9 +307,8 @@ jobs:
   # wall time without introducing shared-state parallelism inside Playwright.
   e2e:
     name: e2e
-    needs:
-      - e2e_shard
     if: ${{ always() }}
+    needs: e2e_shard
     runs-on: ubuntu-latest
     env:
       E2E_SHARD_RESULT: ${{ needs.e2e_shard.result }}
