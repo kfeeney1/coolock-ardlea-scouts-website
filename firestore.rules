@@ -452,6 +452,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /weeklyRosterMembers/{rosterId} {
+      // Minimal roster projections make concurrent memberships queryable without
+      // granting section leaders broad access to the underlying member document.
+      allow read: if isActiveLeader() && resource.data.section is string && hasSection(resource.data.section);
+      allow write: if false;
+    }
+
     match /members/{memberId} {
       allow create: if isActiveLeader() && isYouthSection(request.resource.data.section) && (hasSection(request.resource.data.section) || (request.resource.data.source == "join-application" && isGroupLeader()))
         && (!request.resource.data.keys().hasAny(["sections"]) || (
@@ -508,12 +515,7 @@ service cloud.firestore {
       // Firestore can authorize section-constrained legacy queries against this
       // rule without needing to reason about the concurrent-membership branch.
       allow read: if isActiveLeader() && hasSection(resource.data.section);
-      // Concurrent roster membership is denormalised into scalar-queryable
-      // roster keys. This avoids unbounded array-rule evaluation for list queries.
-      allow read: if isActiveLeader()
-        && resource.data.keys().hasAny(["sectionRosterKeys"])
-        && resource.data.sectionRosterKeys is list
-        && resource.data.sectionRosterKeys.hasAny(profile().sections);
+
       // Adult self-service can reconcile by the caller's authenticated email.
       // Rover-scoped leaders can resolve account-linked adult identities for the
       // separate, stricter managed-write path without gaining write authority here.
