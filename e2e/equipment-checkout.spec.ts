@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 type Credentials = { email: string; password: string };
 
@@ -393,9 +393,9 @@ test("section Scouter can check equipment in and out from Programme without QM m
   await expect(page.getByTestId("page-programme-equipment")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Programme Equipment" })).toBeVisible();
 
-  const availableRows = page.locator('[data-testid="programme-equipment-availability"] > .MuiPaper-root');
-  await expect(availableRows.first()).toBeVisible();
-  const availableBefore = async (row: ReturnType<typeof page.locator>) => {
+  const itemCards = page.locator('[data-testid^="programme-equipment-item-"]');
+  await expect(itemCards.first()).toBeVisible();
+  const availableBefore = async (row: Locator) => {
     const label = await row.getByText(/Available · \d+/).textContent();
     return Number(label?.match(/Available · (\d+)/)?.[1] ?? 0);
   };
