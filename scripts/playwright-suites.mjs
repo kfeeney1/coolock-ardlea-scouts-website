@@ -50,7 +50,8 @@ export const suiteSpecs = {
     "weekly-record-integrity.spec.ts",
     "weekly-meeting-date-defaults.spec.ts",
     "weekly-meeting-navigation.spec.ts",
-    "weekly-section-tracker.spec.ts"
+    "weekly-section-tracker.spec.ts",
+    "weekly-meeting-history-access.spec.ts"
   ],
   badgework: [
     "adventure-skills-badgework.spec.ts",
