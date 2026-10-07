@@ -84,6 +84,10 @@ function membersForSection(plan) {
 }
 
 const members = sections.flatMap(membersForSection);
+const dualSectionMember = members.find((member) => member.id === "TEST_member_cub_06");
+if (!dualSectionMember) throw new Error("Canonical Cubs member 06 is required for the dual-section scenario.");
+dualSectionMember.displayName = "TEST Dual Section Member";
+dualSectionMember.sections = ["Cubs", "Scouts"];
 
 function groupLeaders() {
   return groupRoles.map((entry) => ({
