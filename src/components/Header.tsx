@@ -3,7 +3,7 @@ import {
     Alert, AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../assets/logo.png";
@@ -24,6 +24,7 @@ export default function Header() {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [signOutError, setSignOutError] = useState("");
     const [signingOut, setSigningOut] = useState(false);
+    const signOutInFlight = useRef(false);
     const { user, adminProfile, authorised, loading, logout } = useAdminAuth();
     const { pathname } = useLocation();
     const navigate = useNavigate();
@@ -34,8 +35,14 @@ export default function Header() {
     const identity = adminProfile ? `${adminProfile.displayName} · ${roleSummary(adminProfile)}` : "";
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
 
+    useEffect(() => {
+        setSigningOut(false);
+        setSignOutError("");
+    }, [user?.uid, pathname]);
+
     const handleSignOut = async () => {
-        if (signingOut) return;
+        if (signOutInFlight.current) return;
+        signOutInFlight.current = true;
         const destination = pathname.startsWith("/leader") ? "/leader/login" : "/";
         setSigningOut(true);
         setSignOutError("");
@@ -44,8 +51,10 @@ export default function Header() {
             navigate(destination, { replace: true });
         } catch (error) {
             setSignOutError(applicationErrorMessage(error, "Sign out did not complete.", "Header"));
-            setSigningOut(false);
             setAnchorEl(null);
+        } finally {
+            signOutInFlight.current = false;
+            setSigningOut(false);
         }
     };
 
