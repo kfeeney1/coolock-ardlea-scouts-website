@@ -42,7 +42,7 @@ export default function WeeklySectionTracker() {
   const { adminProfile } = useAdminAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const requestedMeetingId = searchParams.get("meeting") ?? "";
+  const meetingId=searchParams.get("meeting")??"";
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [access,setAccess]=useState<WeeklyAccess>({scoutingRole:"",canViewAll:false,canEditAll:false,readOnly:false});
   const [members,setMembers]=useState<AttendanceInsightMember[]>([]);
@@ -97,14 +97,14 @@ export default function WeeklySectionTracker() {
         loadEquipmentLoans()
       ]);
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
-      const requested=requestedMeetingId?r.find(x=>x.id===requestedMeetingId):null;
+      const requested=meetingId?r.find(x=>x.id===meetingId):null;
       if(requested){setSelected(requested);setSavedSelected(requested);setStep("badgework");}
       else if(selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
     } catch(e){setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
     finally{setLoading(false);}
   };
-  useEffect(()=>{void refresh();},[availableSections,isAdmin,requestedMeetingId]);
-  useEffect(()=>{if(!requestedMeetingId){setSelected(null);setSavedSelected(null);}},[requestedMeetingId]);
+  useEffect(()=>{void refresh();},[availableSections,isAdmin,meetingId]);
+  useEffect(()=>{if(!meetingId){setSelected(null);setSavedSelected(null);}},[meetingId]);
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
   useEffect(()=>{if(!copyChanged)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[copyChanged]);
 
