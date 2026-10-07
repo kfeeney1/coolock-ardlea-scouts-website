@@ -36,12 +36,7 @@ async function scopedDocs(collectionName: string, scope: Scope) {
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
     if (!uniqueSections.length) return [];
     const snapshots = await Promise.all(
-        uniqueSections.flatMap((section) => [
-            getDocs(query(collection(db, collectionName), where("section", "==", section))),
-            ...(collectionName === "members"
-                ? [getDocs(query(collection(db, collectionName), where("sections", "array-contains", section)))]
-                : [])
-        ])
+        uniqueSections.map((section) => getDocs(query(collection(db, collectionName), where("section", "==", section))))
     );
 
     const byId = new Map<string, NonNullable<(typeof snapshots)[number]>["docs"][number]>();
