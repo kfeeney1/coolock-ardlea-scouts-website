@@ -192,3 +192,10 @@ export function weeklyMeetingHasChanges(current: WeeklyMeetingRecord | null, sav
   if (!current || !saved || current.id !== saved.id) return false;
   return JSON.stringify(current) !== JSON.stringify(saved);
 }
+
+
+export const displayWeeklyDate=(value:string)=>{const d=new Date(`${value}T00:00:00`);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat("en-IE",{dateStyle:"medium"}).format(d);};
+export const initialWeeklyStep=(value:string)=>value>new Date().toISOString().slice(0,10)?"programme":"attendance";
+export const splitWeeklyLeaders=(value:string)=>value==="All leaders"?[value]:value.split(" | ").map(v=>v.trim()).filter(Boolean);
+export const joinWeeklyLeaders=(values:string[])=>[...new Set(values.map(v=>v.trim()).filter(Boolean))].join(" | ");
+export const nonNegativeWeeklyNumber=(value:string)=>value===""?0:Math.max(0,Number(value)||0);
