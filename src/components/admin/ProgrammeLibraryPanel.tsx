@@ -72,9 +72,9 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
     setError(""); setMessage("");
     try {
       await createProgrammeLibraryItem({ section, kind: "activity", name: source.activity, leader: source.leader, notes: source.notes, equipment: source.equipment, durationMinutes: source.durationMinutes });
-      setMessage(`${source.activity} saved to the ${section} programme library.`);
       setActivityId("");
       await refresh();
+      setMessage(`${source.activity} saved to the ${section} programme library.`);
     } catch (saveError) { setError(applicationErrorMessage(saveError, "Unable to save this activity to the programme library.", "ProgrammeLibraryPanel")); }
   };
 
@@ -84,9 +84,9 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
     setError(""); setMessage("");
     try {
       await createProgrammeLibraryItem({ section, kind: "badgework", name: source.badge, leader: source.leader, notes: source.notes, equipment: source.equipment, durationMinutes: source.durationMinutes });
-      setMessage(`${source.badge} saved to the ${section} programme library.`);
       setBadgeworkId("");
       await refresh();
+      setMessage(`${source.badge} saved to the ${section} programme library.`);
     } catch (saveError) { setError(applicationErrorMessage(saveError, "Unable to save this badgework to the programme library.", "ProgrammeLibraryPanel")); }
   };
 
