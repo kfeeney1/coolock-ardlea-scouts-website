@@ -8,6 +8,7 @@ const lifecycleDate = "2099-03-01";
 const copyDate = "2099-03-08";
 const scoutMemberName = "Casey OBrien Scouts 01";
 const scoutSectionLeader = "Scouts Section Leader · Section Leader";
+const dualSectionMember = "TEST Dual Section Member";
 
 type LifecycleMeetingState = "created" | "open" | "closed";
 
@@ -66,6 +67,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName });
+  await expect(page.getByRole("checkbox", { name: dualSectionMember, exact: true })).toHaveCount(1);
   if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
   await expect(attendanceCheckbox).toBeChecked();
@@ -161,6 +163,7 @@ test("group leader copies a meeting into another authorised section and resets o
   await expect(page.getByTestId("weekly-meeting-editor-top")).toContainText("Cubs");
   await page.getByRole("button",{name:"Attendance",exact:true}).click();
   await expect(page.getByText(scoutMemberName)).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: dualSectionMember, exact: true })).toHaveCount(1);
   await page.getByRole("button",{name:"Completed Badgework",exact:true}).click();
   await expect(page.getByText("Pioneering Stage 2")).toHaveCount(0);
   await page.getByRole("button",{name:"Injuries / Medical",exact:true}).click();
