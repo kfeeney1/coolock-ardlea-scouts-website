@@ -49,6 +49,7 @@ test("leader can save, insert and remove a reusable programme activity", async (
 
   await panel.getByLabel("Save activity / game").click();
   await page.getByRole("option", { name: "Library Capture the Flag" }).click();
+  await expect(panel.getByLabel("Save activity / game")).toContainText("Library Capture the Flag");
   await expect(page.locator(".MuiModal-root")).toHaveCount(0, { timeout: 5_000 });
   await panel.getByRole("button", { name: "Save activity" }).click({ timeout: 5_000 });
   await expect(panel.getByText(/saved to the Scouts programme library/)).toBeVisible();
