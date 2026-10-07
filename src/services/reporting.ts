@@ -36,12 +36,7 @@ async function scopedDocs(collectionName: string, scope: Scope) {
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
     if (!uniqueSections.length) return [];
     const snapshots = await Promise.all(
-        uniqueSections.flatMap((section) => [
-            getDocs(query(collection(db, collectionName), where("section", "==", section))),
-            ...(collectionName === "members"
-                ? [getDocs(query(collection(db, collectionName), where("sectionRosterKeys", "array-contains", section)))]
-                : [])
-        ])
+        uniqueSections.map((section) => getDocs(query(collection(db, collectionName), where("section", "==", section))))
     );
 
     const byId = new Map<string, NonNullable<(typeof snapshots)[number]>["docs"][number]>();
@@ -85,10 +80,35 @@ export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRo
 
 export async function loadAttendanceInsightMembers(scope: Scope): Promise<AttendanceInsightMember[]> {
     const docs = await scopedDocs("members", scope);
-    return docs.flatMap((item) => {
+    const members = docs.flatMap((item) => {
         const member = canonicalMember(item);
         return member ? [{ id: member.id, displayName: member.displayName, section: member.section, sections: member.sections, status: member.status }] : [];
     });
+    if (scope.isAdmin) return members;
+
+    const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
+    const rosterSnapshots = await Promise.all(
+        uniqueSections.map((section) => getDocs(query(collection(db, "weeklyRosterMembers"), where("section", "==", section))))
+    );
+    const byId = new Map(members.map((member) => [member.id, member]));
+    for (const snapshot of rosterSnapshots) {
+        for (const item of snapshot.docs) {
+            const data = item.data() as Record<string, unknown>;
+            const id = stringValue(data, "memberId");
+            const displayName = stringValue(data, "displayName");
+            const primarySection = stringValue(data, "primarySection");
+            const section = stringValue(data, "section");
+            const status = stringValue(data, "status");
+            if (!id || !displayName || !primarySection || !section || !MEMBER_STATUSES.has(status)) continue;
+            const existing = byId.get(id);
+            if (existing) {
+                if (!existing.sections.includes(section)) existing.sections = [...existing.sections, section];
+            } else {
+                byId.set(id, { id, displayName, section: primarySection, sections: canonicalMemberSections(data.sections, primarySection), status });
+            }
+        }
+    }
+    return [...byId.values()];
 }
 
 export async function loadEventReportRecords(scope: Scope): Promise<EventReportRecord[]> {
