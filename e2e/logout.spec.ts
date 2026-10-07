@@ -8,7 +8,7 @@ for (const navigation of ["leader", "parent"] as const) {
     const password = process.env.E2E_TEST_USER_PASSWORD;
     if (!email || !password) throw new Error("Configure the canonical E2E logout credentials.");
     await page.goto(navigation === "leader" ? "/leader/login" : "/parent");
-    await page.getByLabel(navigation === "leader" ? "Email address" : "Email", { exact: true }).fill(email);
+    await page.getByLabel(navigation === "leader" ? "Email address" : "Email").fill(email);
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: "Sign In", exact: true }).click();
     await expect(navigation === "leader" ? page.getByTestId("leader-dashboard-header") : page.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
@@ -32,7 +32,11 @@ for (const navigation of ["leader", "parent"] as const) {
       if (navigation === "leader") await page.getByRole("button", { name: /Open Leader Menu|Hide Leader Menu|Menu ·/ }).click();
       else if (page.viewportSize()!.width < 900) await page.getByRole("button", { name: "Open navigation menu" }).click();
     };
-    const signOut = () => page.getByRole(navigation === "parent" && page.viewportSize()!.width < 900 ? "menuitem" : "button", { name: "Sign Out", exact: true });
+    const signOut = () => navigation === "leader"
+      ? page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out", exact: true })
+      : page.viewportSize()!.width < 900
+        ? page.getByRole("menuitem", { name: "Sign Out", exact: true })
+        : page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
     await openNavigation();
     // Dispatch duplicate taps in one task, before React can disable the control.
     await signOut().evaluate((button) => { (button as HTMLElement).click(); (button as HTMLElement).click(); });
