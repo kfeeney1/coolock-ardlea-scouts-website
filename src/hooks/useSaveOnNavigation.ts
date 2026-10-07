@@ -44,16 +44,17 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     if (!dirty) return;
     const editorUrl=location.pathname+location.search+location.hash;
     const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
-    const popState=()=>{
+    const popState=(event:PopStateEvent)=>{
       if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
       const destination=window.location.pathname+window.location.search+window.location.hash;
+      event.stopImmediatePropagation();
       navigationInFlightRef.current=true;
-      navigate(editorUrl,{replace:true});
+      window.history.replaceState(window.history.state,"",editorUrl);
       void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(destination,{replace:true});}}).finally(()=>{navigationInFlightRef.current=false;});
     };
     window.addEventListener("beforeunload",beforeUnload);
-    window.addEventListener("popstate",popState);
-    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("popstate",popState);};
+    window.addEventListener("popstate",popState,true);
+    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("popstate",popState,true);};
   },[dirty,location.hash,location.pathname,location.search,navigate]);
 
   return { navigateAfterSave, navigateWithoutSave };
