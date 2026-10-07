@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { backDismissStack } from "../services/backDismissHistory";
 
 type SaveDraft = () => Promise<boolean>;
 
 /** Saves a valid dirty editor before explicit navigation or browser Back leaves it. */
 export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const navigate = useNavigate();
+  const location = useLocation();
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
@@ -44,9 +47,18 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
       event.preventDefault();
       event.returnValue = "";
     };
+    const marker="sw170SaveGuard";
+    const state=location.state&&typeof location.state==="object"?location.state:{};
+    if (!(state as Record<string,unknown>)[marker]) navigate(location.pathname+location.search+location.hash,{state:{...state,[marker]:true}});
+    const popState=()=>{
+      if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
+      navigationInFlightRef.current=true;
+      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(-1);}}).finally(()=>{navigationInFlightRef.current=false;});
+    };
     window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [dirty]);
+    window.addEventListener("popstate",popState);
+    return () => {window.removeEventListener("beforeunload", beforeUnload);window.removeEventListener("popstate",popState);};
+  }, [dirty,location,navigate]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
