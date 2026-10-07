@@ -34,14 +34,13 @@ async function scopedDocs(collectionName: string, scope: Scope) {
     if (scope.isAdmin) return (await getDocs(collection(db, collectionName))).docs;
 
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
-    const snapshots = await Promise.all(
-        uniqueSections.flatMap((section) => [
-            getDocs(query(collection(db, collectionName), where("section", "==", section))),
-            collectionName === "members"
-                ? getDocs(query(collection(db, collectionName), where("sections", "array-contains", section)))
-                : Promise.resolve(null)
-        ])
+    const legacySnapshots = await Promise.all(
+        uniqueSections.map((section) => getDocs(query(collection(db, collectionName), where("section", "==", section))))
     );
+    const membershipSnapshot = collectionName === "members"
+        ? await getDocs(query(collection(db, collectionName), where("sections", "array-contains-any", uniqueSections)))
+        : null;
+    const snapshots = membershipSnapshot ? [...legacySnapshots, membershipSnapshot] : legacySnapshots;
 
     const byId = new Map<string, NonNullable<(typeof snapshots)[number]>["docs"][number]>();
     for (const snapshot of snapshots) {
