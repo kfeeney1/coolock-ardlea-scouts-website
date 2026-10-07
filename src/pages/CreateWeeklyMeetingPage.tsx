@@ -63,7 +63,7 @@ export default function CreateWeeklyMeetingPage() {
     setError("");
     const pending = (async () => {
       try {
-        const members = await loadAttendanceInsightMembers({ isAdmin: Boolean(isAdmin || canViewAll), sections: adminProfile?.sections ?? [] });
+        const members = await loadAttendanceInsightMembers({ isAdmin: Boolean(isAdmin || canViewAll), sections });
         const roster = reconcileOpenWeeklyRoster([], members, section);
         if (!roster.length) throw new Error("No active members are available for that section.");
         const input = { section, meetingDate: date, status: "open" as const, location, theme, activities: defaultActivityPlans(), badgeworkPlan: defaultBadgeworkPlans(), programmeNotes, notes: "", entries: roster, injuries: [] };
