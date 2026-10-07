@@ -27,9 +27,11 @@ export default function CreateWeeklyMeetingPage() {
   const [canViewAll, setCanViewAll] = useState(false);
   const createdMeetingId = useRef<string | null>(null);
   const createInFlight = useRef<Promise<boolean> | null>(null);
+  const draftRef = useRef({ section, date, location, theme, programmeNotes });
   const sections = useMemo(() => adminProfile ? effectiveOperationalSections(adminProfile.role, adminProfile.sections, adminProfile.appointments) : [], [adminProfile]);
   const defaultSection = sections[0] ?? "";
   const hasMeaningfulDraft = Boolean((section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim());
+  draftRef.current = { section, date, location, theme, programmeNotes };
 
   useEffect(() => {
     void loadWeeklyAccess().then((access) => setCanViewAll(access.canViewAll))
@@ -53,21 +55,22 @@ export default function CreateWeeklyMeetingPage() {
   const createDraft = async (force = false): Promise<boolean> => {
     if (createInFlight.current) return createInFlight.current;
     if (createdMeetingId.current) return true;
-    const meaningful = Boolean((section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim());
+    const draft = draftRef.current;
+    const meaningful = Boolean((draft.section && draft.section !== defaultSection) || draft.date !== today || draft.location.trim() || draft.theme.trim() || draft.programmeNotes.trim());
     if (!meaningful && !force) return true;
     if (saving) return false;
-    if (!section || !date) { setError("Choose a section and meeting date before leaving this meeting."); return false; }
+    if (!draft.section || !draft.date) { setError("Choose a section and meeting date before leaving this meeting."); return false; }
 
     setSaving(true);
     setError("");
     const pending = (async () => {
       try {
         const members = await loadAttendanceInsightMembers({ isAdmin: Boolean(isAdmin || canViewAll), sections });
-        const roster = reconcileOpenWeeklyRoster([], members, section);
+        const roster = reconcileOpenWeeklyRoster([], members, draft.section);
         if (!roster.length) throw new Error("No active members are available for that section.");
-        const input = { section, meetingDate: date, status: "open" as const, location, theme, activities: defaultActivityPlans(), badgeworkPlan: defaultBadgeworkPlans(), programmeNotes, notes: "", entries: roster, injuries: [] };
+        const input = { section: draft.section, meetingDate: draft.date, status: "open" as const, location: draft.location, theme: draft.theme, activities: defaultActivityPlans(), badgeworkPlan: defaultBadgeworkPlans(), programmeNotes: draft.programmeNotes, notes: "", entries: roster, injuries: [] };
         const id = await createWeeklyMeeting(input);
-        await recordAuditEvent({ category: "system", action: "weekly-meeting-create", targetId: id, targetLabel: `${section} Weekly Meeting · ${date}`, description: "Created weekly meeting from dedicated creation workflow.", section });
+        await recordAuditEvent({ category: "system", action: "weekly-meeting-create", targetId: id, targetLabel: `${draft.section} Weekly Meeting · ${draft.date}`, description: "Created weekly meeting from dedicated creation workflow.", section: draft.section });
         createdMeetingId.current = id;
         return true;
       } catch (saveError) {
