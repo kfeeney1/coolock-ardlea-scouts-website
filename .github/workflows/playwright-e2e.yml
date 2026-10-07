@@ -18,7 +18,7 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
       options: --user 1001
-    timeout-minutes: 10
+    timeout-minutes: 6
     defaults:
       run:
         shell: bash
@@ -92,11 +92,11 @@ jobs:
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
       - name: Run focused changed-area tests
-        run: npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --focused
+        run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
 
   e2e_shard:
     needs: focused_pr
-    name: e2e shard ${{ matrix.id }}/2
+    name: e2e shard ${{ matrix.id }} of 2
     strategy:
       fail-fast: false
       matrix:
