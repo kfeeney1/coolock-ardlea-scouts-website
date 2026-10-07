@@ -387,8 +387,8 @@ test("section Scouter can check equipment in and out from Programme without QM m
   await loginLeader(page, { email: email!, password: password! });
   await page.goto("/leader/weekly");
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
-  await expect(page.getByTestId("leader-nav-programme-equipment")).toBeVisible();
-  await page.getByTestId("leader-nav-programme-equipment").click();
+  await expect(page.locator('[data-testid="leader-nav-programme-equipment"]:visible')).toBeVisible();
+  await page.locator('[data-testid="leader-nav-programme-equipment"]:visible').click();
   await expect(page.getByTestId("page-programme-equipment")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Programme Equipment" })).toBeVisible();
 
