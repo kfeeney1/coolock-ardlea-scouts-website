@@ -13,7 +13,7 @@ permissions:
 jobs:
   focused_pr:
     name: focused PR assurance
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -87,11 +87,14 @@ jobs:
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
       - name: Run focused changed-area tests
+        if: ${{ github.event_name == 'pull_request' }}
         run: npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --focused
+      - name: Main does not need preliminary PR selection
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "Focused selection is a pull-request preflight; main proceeds to the full shards."
 
   e2e_shard:
     needs: focused_pr
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.focused_pr.result == 'success') }}
     name: e2e shard ${{ matrix.id }}/2
     strategy:
       fail-fast: false
@@ -302,14 +305,18 @@ jobs:
   # wall time without introducing shared-state parallelism inside Playwright.
   e2e:
     if: ${{ always() }}
-    needs: e2e_shard
+    needs: [focused_pr, e2e_shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every Playwright shard
         shell: bash
         run: |
+          if [ "${{ needs.focused_pr.result }}" != "success" ]; then
+            echo "::error::Focused PR assurance failed or was cancelled."
+            exit 1
+          fi
           if [ "${{ needs.e2e_shard.result }}" != "success" ]; then
             echo "::error::One or more Playwright shards failed or were cancelled."
             exit 1
           fi
-          echo "All Playwright shards passed."
+          echo "Focused assurance and all Playwright shards passed."
