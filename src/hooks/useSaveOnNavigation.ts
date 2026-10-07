@@ -39,9 +39,10 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
-    const timer=window.setTimeout(()=>{if(dirtyRef.current&&!navigationInFlightRef.current)void saveRef.current();},0);
+    const pageHide=()=>{if(dirtyRef.current&&!navigationInFlightRef.current)void saveRef.current();};
     window.addEventListener("beforeunload",beforeUnload);
-    return()=>{window.clearTimeout(timer);window.removeEventListener("beforeunload",beforeUnload);};
+    window.addEventListener("pagehide",pageHide);
+    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("pagehide",pageHide);};
   },[dirty,saveDraft]);
 
   return { navigateAfterSave, navigateWithoutSave };
