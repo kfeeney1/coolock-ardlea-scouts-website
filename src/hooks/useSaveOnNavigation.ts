@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack } from "../services/backDismissHistory";
@@ -13,10 +13,8 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
 
-  useLayoutEffect(() => {
-    dirtyRef.current = dirty;
-    saveRef.current = saveDraft;
-  }, [dirty, saveDraft]);
+  dirtyRef.current = dirty;
+  saveRef.current = saveDraft;
 
   const navigateWithoutSave = useCallback((path: string, replace = false) => {
     dirtyRef.current = false;
