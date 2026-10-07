@@ -40,7 +40,7 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
   await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("only attendance, injuries / medical issues and additional notes can be changed");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   await expect(page.getByRole("button", { name: "Mark all present", exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: scoutMemberName })).toBeEnabled();
+  await expect(page.getByRole("checkbox", { name: scoutMemberName, exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toBeDisabled();
   await expect(page.getByLabel("Location")).toBeDisabled();
@@ -66,7 +66,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
 
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName });
+  const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName, exact: true });
   if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
   await expect(attendanceCheckbox).toBeChecked();
