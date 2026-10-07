@@ -73,7 +73,7 @@ export function buildWeeklyMemberSummaries(records: WeeklyMeetingRecord[]): Week
     .sort((a, b) => a.memberName.localeCompare(b.memberName));
 }
 
-export type WeeklyRosterMember = { id: string; displayName: string; section: string; status: string };
+export type WeeklyRosterMember = { id: string; displayName: string; section: string; sections?: string[]; status: string };
 
 const rosterCollator = new Intl.Collator("en-IE", { sensitivity: "base", numeric: true, usage: "sort" });
 
@@ -84,14 +84,15 @@ export function sortWeeklyEntries(entries: WeeklyMemberEntry[]): WeeklyMemberEnt
 export function reconcileOpenWeeklyRoster(entries: WeeklyMemberEntry[], members: WeeklyRosterMember[], section: string): WeeklyMemberEntry[] {
   const byId = new Map(entries.map((entry) => [entry.memberId, entry] as const));
   for (const member of members) {
-    if (member.status !== "active" || member.section !== section || byId.has(member.id)) continue;
+    const memberships = new Set([member.section, ...(member.sections ?? [])]);
+    if (member.status !== "active" || !memberships.has(section) || byId.has(member.id)) continue;
     byId.set(member.id, newWeeklyEntry(member.id, member.displayName));
   }
   return sortWeeklyEntries([...byId.values()]);
 }
 
 export function newWeeklyEntry(memberId: string, memberName: string): WeeklyMemberEntry {
-  return { memberId, memberName, attendance: "unrecorded", subsPaid: false, subsAmount: 0, badges: [] };
+  return { memberId, memberName, attendance: "unrecorded", uniform: false, subsPaid: false, subsAmount: 0, badges: [] };
 }
 
 export function newActivityPlan(id: string = crypto.randomUUID()): WeeklyActivityPlan {
@@ -199,3 +200,15 @@ export const initialWeeklyStep=(value:string)=>value>new Date().toISOString().sl
 export const splitWeeklyLeaders=(value:string)=>value==="All leaders"?[value]:value.split(" | ").map(v=>v.trim()).filter(Boolean);
 export const joinWeeklyLeaders=(values:string[])=>[...new Set(values.map(v=>v.trim()).filter(Boolean))].join(" | ");
 export const nonNegativeWeeklyNumber=(value:string)=>value===""?0:Math.max(0,Number(value)||0);
+
+
+export function sortOpenWeeklyMeetings(records: WeeklyMeetingRecord[]): WeeklyMeetingRecord[] {
+  const validDate = /^\d{4}-\d{2}-\d{2}$/;
+  return [...records].sort((a, b) => {
+    const aValid = validDate.test(a.meetingDate);
+    const bValid = validDate.test(b.meetingDate);
+    if (aValid !== bValid) return aValid ? -1 : 1;
+    const byDate = a.meetingDate.localeCompare(b.meetingDate);
+    return byDate || a.section.localeCompare(b.section) || a.id.localeCompare(b.id);
+  });
+}
