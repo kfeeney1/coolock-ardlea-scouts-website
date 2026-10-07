@@ -42,6 +42,7 @@ function parentProgramme(section, meetingDate, activityItems, badgeItems) {
 const scoutMember = await requireDoc("members", "TEST_member_scout_01");
 const scoutMemberName = scoutMember.displayName;
 if (typeof scoutMemberName !== "string" || !scoutMemberName.trim()) throw new Error("TEST_member_scout_01 must have a canonical displayName.");
+await db.collection("members").doc("TEST_member_dual_section").set({ displayName: "TEST Dual Section Member", section: "Cubs", sections: ["Cubs", "Scouts"], status: "active", ...marker });
 const scoutLeader = await requireDoc("organisationLeadership", "TEST_uid_scout_programme_scouter");
 const groupLeader = await requireDoc("organisationLeadership", "TEST_uid_group_leader");
 
