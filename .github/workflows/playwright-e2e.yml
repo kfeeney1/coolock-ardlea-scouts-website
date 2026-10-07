@@ -94,7 +94,7 @@ jobs:
       - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
       - name: Run focused blocking regressions
-        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|section leader completes lifecycle with flexible planner rows, summary and retained save state"
+        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|section leader completes lifecycle with flexible planner rows, summary and retained save state|group leader copies a meeting into another authorised section and resets operational history"
 
   e2e_shard:
     name: e2e shard ${{ matrix.id }} of 2
