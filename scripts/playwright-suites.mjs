@@ -111,6 +111,7 @@ export function suiteForSpec(specName) {
 }
 
 export function suitesForChangedPath(file) {
+  if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
   if (file.startsWith("e2e/") && file.endsWith(".spec.ts")) {
     const suite = suiteForSpec(file.slice("e2e/".length));
     return suite ? [suite] : null;
