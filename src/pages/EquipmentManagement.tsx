@@ -19,7 +19,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
@@ -72,7 +72,8 @@ export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
   const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
+  const filterParamsRef = useRef(searchParams);
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
   const [incidents, setIncidents] = useState<EquipmentIncident[]>([]);
@@ -105,13 +106,22 @@ export default function EquipmentManagement() {
   const pageIdentity = navigationView === "quartermaster" ? "qm-equipment-stores" : navigationView === "group-operations" ? "group-equipment-stores" : "equipment-stores";
   const pageTitle = navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
 
-  const updateFilterParam = (key: string, value: string, defaultValue = "all", replace = false) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      if (!value || value === defaultValue) next.delete(key);
-      else next.set(key, value);
-      return next;
-    }, { replace });
+  const applyFilterParams = (next: URLSearchParams) => {
+    filterParamsRef.current = next;
+    setSearchParams(next);
+    const searchString = next.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${searchString ? `?${searchString}` : ""}${window.location.hash}`
+    );
+  };
+
+  const updateFilterParam = (key: string, value: string, defaultValue = "all") => {
+    const next = new URLSearchParams(filterParamsRef.current);
+    if (!value || value === defaultValue) next.delete(key);
+    else next.set(key, value);
+    applyFilterParams(next);
   };
 
   const refresh = async () => {
@@ -168,13 +178,13 @@ export default function EquipmentManagement() {
 
   const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || statusFilter !== "all" || showArchived);
 
-  const resetFilters = () => setSearchParams(new URLSearchParams());
+  const resetFilters = () => applyFilterParams(new URLSearchParams());
 
   const showInventoryFilter = (filter: EquipmentDashboardFilter) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(filterParamsRef.current);
     if (filter === "all") next.delete("status");
     else next.set("status", filter);
-    setSearchParams(next);
+    applyFilterParams(next);
     requestAnimationFrame(() => {
       inventoryHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       inventoryHeadingRef.current?.focus({ preventScroll: true });
