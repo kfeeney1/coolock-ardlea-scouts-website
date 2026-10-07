@@ -106,7 +106,7 @@ export default function CreateEventPage() {
         const sectionIds = draft.section === "All Sections"
           ? [...new Set(activeMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))]
           : (draft.audience?.sectionIds?.length ? draft.audience.sectionIds : [draft.section]);
-        createdEventId.current = await createEvent({ ...draft, audience: buildEventAudience(sectionIds, selectedIds, members) });
+        const persistedDraft = { ...draft, endDate: draft.endDate || draft.startDate, audience: buildEventAudience(sectionIds, selectedIds, members) };\n        createdEventId.current = await createEvent(persistedDraft);
         return true;
       } catch (saveError) {
         setError(applicationErrorMessage(saveError, "Unable to save the event. Your edits are still here.", "CreateEventPage"));
