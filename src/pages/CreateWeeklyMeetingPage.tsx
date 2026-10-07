@@ -83,7 +83,7 @@ export default function CreateWeeklyMeetingPage() {
     return pending;
   };
 
-  const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
+  const { navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
   const cancel = async () => {
     if (saving) return;
     if (!hasMeaningfulDraft) {
