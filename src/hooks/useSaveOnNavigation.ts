@@ -9,7 +9,8 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
-  const previousUrlRef = useRef<string | null>(null);
+  const backGuardArmedRef = useRef(false);
+  const completingBackRef = useRef(false);
 
   useLayoutEffect(() => {
     dirtyRef.current = dirty;
@@ -39,7 +40,10 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   }, [navigateWithoutSave]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty) {
+      backGuardArmedRef.current = false;
+      return;
+    }
 
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyRef.current) return;
@@ -47,26 +51,34 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
       event.returnValue = "";
     };
 
-    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    window.history.replaceState({ ...window.history.state, sw170ReturnUrl: currentUrl }, "");
-    previousUrlRef.current = currentUrl;
+    if (!backGuardArmedRef.current) {
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.history.pushState({ ...window.history.state, sw170BackGuard: true }, "", currentUrl);
+      backGuardArmedRef.current = true;
+    }
 
     const popState = (event: PopStateEvent) => {
-      if (!dirtyRef.current || navigationInFlightRef.current) return;
+      if (completingBackRef.current) {
+        completingBackRef.current = false;
+        return;
+      }
+      if (!dirtyRef.current || navigationInFlightRef.current || !backGuardArmedRef.current) return;
 
-      const destination = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       event.stopImmediatePropagation();
       navigationInFlightRef.current = true;
+      backGuardArmedRef.current = false;
 
       void (async () => {
         try {
           if (!(await saveRef.current())) {
-            const returnUrl = previousUrlRef.current;
-            if (returnUrl) navigate(returnUrl, { replace: true });
+            const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.history.pushState({ ...window.history.state, sw170BackGuard: true }, "", currentUrl);
+            backGuardArmedRef.current = true;
             return;
           }
           dirtyRef.current = false;
-          navigate(destination, { replace: true });
+          completingBackRef.current = true;
+          window.history.back();
         } finally {
           navigationInFlightRef.current = false;
         }
@@ -79,7 +91,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("popstate", popState, true);
     };
-  }, [dirty, navigate]);
+  }, [dirty]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
