@@ -50,6 +50,27 @@ after(async () => {
   await testEnv.cleanup();
 });
 
+test("weeklyRosterMembers are section-scoped read-only projections", async () => {
+  await seedDocuments([
+    ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/scouts-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["weeklyRosterMembers/Cubs--member-dual", {
+      memberId: "member-dual", displayName: "Dual Member", primarySection: "Scouts",
+      section: "Cubs", sections: ["Cubs", "Scouts"], status: "active"
+    }],
+  ]);
+  const cubsDb = testEnv.authenticatedContext("cubs-leader", { email: "cubs@example.com" }).firestore();
+  const scoutsDb = testEnv.authenticatedContext("scouts-leader", { email: "scouts@example.com" }).firestore();
+
+  const visible = await assertSucceeds(getDocs(query(collection(cubsDb, "weeklyRosterMembers"), where("section", "==", "Cubs"))));
+  assert.deepEqual(visible.docs.map((snapshot) => snapshot.id), ["Cubs--member-dual"]);
+  await assertFails(getDoc(doc(scoutsDb, "weeklyRosterMembers/Cubs--member-dual")));
+  await assertFails(setDoc(doc(cubsDb, "weeklyRosterMembers/Cubs--forged"), {
+    memberId: "forged", displayName: "Forged Member", primarySection: "Cubs",
+    section: "Cubs", sections: ["Cubs"], status: "active"
+  }));
+});
+
 test("unauthenticated users cannot read member records", async () => {
   await seedDocuments([["members/member-cub", { section: "Cubs", displayName: "Test Cub" }]]);
   const db = testEnv.unauthenticatedContext().firestore();
