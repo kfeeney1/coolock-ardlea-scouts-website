@@ -400,6 +400,7 @@ test("section Scouter can check equipment in and out from Programme without QM m
     return Number(label?.match(/Available · (\d+)/)?.[1] ?? 0);
   };
   let itemName = "";
+  let itemId = "";
   let availableAtStart = 0;
   const checkoutButton = page.getByRole("button", { name: "Check out equipment" });
   await checkoutButton.click();
@@ -411,12 +412,13 @@ test("section Scouter can check equipment in and out from Programme without QM m
     const match = details.match(/(\d+) available after/);
     if (Number(match?.[1] ?? 0) < 1) continue;
     itemName = details.split("\n")[0].trim();
+    itemId = (await candidate.getAttribute("data-testid"))?.replace("equipment-checkout-item-", "") ?? "";
     availableAtStart = Number(match?.[1]);
     await candidate.getByRole("spinbutton").fill("1");
     break;
   }
   expect(itemName).not.toBe("");
-  const sectionSelect = checkoutDialog.getByRole("combobox", { name: "Section" });
+  const sectionSelect = checkoutDialog.getByRole("combobox").first();
   if (!(await sectionSelect.innerText()).trim()) {
     await sectionSelect.click();
     await page.getByRole("option").first().click();
@@ -426,7 +428,7 @@ test("section Scouter can check equipment in and out from Programme without QM m
 
   await page.reload();
   await expect(page.getByTestId("page-programme-equipment")).toBeVisible();
-  const itemCard = page.locator('[data-testid="programme-equipment-availability"] > .MuiPaper-root').filter({ hasText: itemName });
+  const itemCard = page.getByTestId(`programme-equipment-item-${itemId}`);
   await expect(itemCard.getByText(/Checked out · \d+/)).toBeVisible();
   await expect.poll(() => availableBefore(itemCard)).toBe(availableAtStart - 1);
 
@@ -444,5 +446,5 @@ test("section Scouter can check equipment in and out from Programme without QM m
   await expect(page.getByRole("button", { name: "Add equipment" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage Stores" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage categories" })).toHaveCount(0);
-  await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Equipment Reports" })).toHaveCount(0);
 });
