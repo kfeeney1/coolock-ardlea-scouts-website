@@ -60,3 +60,54 @@ test("SW-213 keeps Sign Out enabled until the user initiates logout", async ({ p
   await expect(page.getByRole("button", { name: "Sign Out", exact: true })).toBeEnabled();
   await expect(page.getByText("Signing Out…", { exact: true })).toHaveCount(0);
 });
+
+test("SW-213 clears public-header sign-out state when switching authenticated accounts", async ({ page }) => {
+  const superAdminEmail = process.env.E2E_SUPER_ADMIN_EMAIL?.trim();
+  const leaderEmail = process.env.E2E_LEADER_EMAIL?.trim();
+  const password = process.env.E2E_TEST_USER_PASSWORD;
+  if (!superAdminEmail || !leaderEmail || !password) {
+    throw new Error("Configure the seeded E2E Super Admin, leader and shared test password.");
+  }
+
+  const signIn = async (email: string) => {
+    await page.goto("/leader/login");
+    await page.getByLabel("Email address").fill(email);
+    await page.getByLabel("Password").fill(password);
+    await page.getByRole("button", { name: "Sign In" }).click();
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+  };
+  const openPublicNavigation = async () => {
+    if (page.viewportSize()!.width < 900) {
+      await page.getByRole("button", { name: "Open navigation menu" }).click();
+    }
+  };
+  const publicSignOut = () => page.viewportSize()!.width < 900
+    ? page.getByRole("menuitem", { name: "Sign Out", exact: true })
+    : page.getByRole("banner").getByRole("button", { name: "Sign Out", exact: true });
+
+  await signIn(superAdminEmail);
+  await page.goto("/");
+  const firstIdentity = page.getByTestId("authenticated-header-identity");
+  await expect(firstIdentity).toBeVisible();
+  const superAdminIdentity = await firstIdentity.innerText();
+  await openPublicNavigation();
+  await publicSignOut().click();
+  await expect(page.getByTestId("authenticated-header-identity")).toHaveCount(0);
+  if (page.viewportSize()!.width < 900) {
+    await expect(page.getByRole("menuitem", { name: "Leader Login", exact: true })).toBeVisible();
+  } else {
+    await expect(page.getByRole("banner").getByRole("button", { name: "Leader Login", exact: true })).toBeVisible();
+  }
+
+  await signIn(leaderEmail);
+  await page.goto("/");
+  const leaderIdentity = page.getByTestId("authenticated-header-identity");
+  await expect(leaderIdentity).toBeVisible();
+  await expect(leaderIdentity).not.toHaveText(superAdminIdentity);
+  await openPublicNavigation();
+
+  const secondSignOut = publicSignOut();
+  await expect(secondSignOut).toBeVisible();
+  await expect(secondSignOut).toBeEnabled();
+  await expect(page.getByText(/Signing Out(?:…|\.\.\.)/i)).toHaveCount(0);
+});
