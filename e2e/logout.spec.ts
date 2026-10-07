@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.describe.configure({ retries: 0 });
+
 for (const navigation of ["leader", "parent"] as const) {
   test(`SW-128 ${navigation} logout recovers from Firebase persistence failure`, async ({ page }) => {
     const email = process.env[navigation === "leader" ? "E2E_LEADER_EMAIL" : "E2E_PARENT_EMAIL"]?.trim();
