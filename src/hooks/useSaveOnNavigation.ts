@@ -12,7 +12,6 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
-  const backCompletedRef = useRef(false);
 
   useLayoutEffect(() => {
     dirtyRef.current = dirty;
@@ -42,24 +41,20 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   }, [navigateWithoutSave]);
 
   useEffect(() => {
-    if (!dirty) { backCompletedRef.current=false; return; }
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirtyRef.current) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    const marker="sw170SaveGuard";
-    const state=location.state&&typeof location.state==="object"?location.state:{};
-    if (!backCompletedRef.current&&!(state as Record<string,unknown>)[marker]) navigate(location.pathname+location.search+location.hash,{state:{...state,[marker]:true}});
+    if (!dirty) return;
+    const editorUrl=location.pathname+location.search+location.hash;
+    const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
     const popState=()=>{
       if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
+      const destination=window.location.pathname+window.location.search+window.location.hash;
       navigationInFlightRef.current=true;
-      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;backCompletedRef.current=true;window.setTimeout(()=>navigate(-1),0);}}).finally(()=>{navigationInFlightRef.current=false;});
+      navigate(editorUrl,{replace:true});
+      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(destination,{replace:true});}}).finally(()=>{navigationInFlightRef.current=false;});
     };
-    window.addEventListener("beforeunload", beforeUnload);
+    window.addEventListener("beforeunload",beforeUnload);
     window.addEventListener("popstate",popState);
-    return () => {window.removeEventListener("beforeunload", beforeUnload);window.removeEventListener("popstate",popState);};
-  }, [dirty,location,navigate]);
+    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("popstate",popState);};
+  },[dirty,location.hash,location.pathname,location.search,navigate]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
