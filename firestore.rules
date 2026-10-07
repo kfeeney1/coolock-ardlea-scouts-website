@@ -508,12 +508,12 @@ service cloud.firestore {
       // Firestore can authorize section-constrained legacy queries against this
       // rule without needing to reason about the concurrent-membership branch.
       allow read: if isActiveLeader() && hasSection(resource.data.section);
-      // Concurrent memberships are additive: a leader may also read a member
-      // when one of the persisted sections[] values is in their canonical scope.
+      // Concurrent roster membership is denormalised into scalar-queryable
+      // roster keys. This avoids unbounded array-rule evaluation for list queries.
       allow read: if isActiveLeader()
-        && resource.data.keys().hasAny(["sections"])
-        && resource.data.sections is list
-        && resource.data.sections.hasAny(profile().sections);
+        && resource.data.keys().hasAny(["sectionRosterKeys"])
+        && resource.data.sectionRosterKeys is list
+        && resource.data.sectionRosterKeys.hasAny(profile().sections);
       // Adult self-service can reconcile by the caller's authenticated email.
       // Rover-scoped leaders can resolve account-linked adult identities for the
       // separate, stricter managed-write path without gaining write authority here.
