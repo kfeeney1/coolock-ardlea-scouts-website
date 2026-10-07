@@ -2,6 +2,7 @@ export type AttendanceInsightMember = {
     id: string;
     displayName: string;
     section: string;
+    sections: string[];
     status: string;
 };
 
