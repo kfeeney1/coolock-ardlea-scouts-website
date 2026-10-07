@@ -1,7 +1,6 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
@@ -16,7 +15,6 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function CreateWeeklyMeetingPage() {
   const { adminProfile } = useAdminAuth();
-  const navigate = useNavigate();
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [section, setSection] = useState("");
   const [date, setDate] = useState(today);
@@ -85,11 +83,11 @@ export default function CreateWeeklyMeetingPage() {
     return pending;
   };
 
-  const { navigateAfterSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
+  const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
   const cancel = () => { if (!saving) void navigateAfterSave("/leader/weekly"); };
   const save = async () => {
     if (!(await createDraft(true)) || !createdMeetingId.current) return;
-    navigate(`/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
+    navigateWithoutSave(`/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}>
