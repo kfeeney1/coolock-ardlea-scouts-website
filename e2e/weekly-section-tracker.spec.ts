@@ -97,7 +97,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   const lifecycle = await openOrCreateLifecycleMeeting(page);
   const phases = ["create/open"];
   const created = lifecycle.created;
-  const incidentDescription = `Small graze during ${lifecycle.label}`;
+  const incidentDescription = "Small graze during wide game";
 
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
@@ -141,7 +141,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
   await page.getByLabel(`Badges · ${scoutMemberName}`).fill("Pioneering Stage 2");
 
-  await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); if (!await page.getByText(incidentDescription, { exact: true }).count()) { await page.getByLabel("Member").click(); await page.getByRole("option", { name: scoutMemberName }).click(); await expect(page.locator(".MuiModal-root")).toHaveCount(0); await page.getByLabel("Injury / medical concern").fill(incidentDescription); await page.getByLabel("Action taken").fill("Cleaned and covered"); await page.getByRole("checkbox", { name: "Parent informed" }).check(); await page.getByRole("button", { name: "Add Incident", exact: true }).click(); } await expect(page.getByText(incidentDescription, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); if (!await page.getByText(/Small graze during wide game/).count()) { await page.getByLabel("Member").click(); await page.getByRole("option", { name: scoutMemberName }).click(); await expect(page.locator(".MuiModal-root")).toHaveCount(0); await page.getByLabel("Injury / medical concern").fill(incidentDescription); await page.getByLabel("Action taken").fill("Cleaned and covered"); await page.getByRole("checkbox", { name: "Parent informed" }).check(); await page.getByRole("button", { name: "Add Incident", exact: true }).click(); } await expect(page.getByText(/Small graze during wide game/)).toBeVisible();
   await page.getByRole("button", { name: "Notes", exact: true }).click(); await page.getByLabel("Additional meeting notes").fill("Visitors and equipment issue recorded after meeting."); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
 
   await page.reload();
@@ -180,7 +180,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByRole("button", { name: "Attendance", exact: true }).click(); await expect(page.getByText(/Present/).first()).toBeVisible();
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Navigation Night"); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Equipment 1", { exact: true })).toHaveValue("Cones and maps"); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes");
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByText("Mark attendees present before recording completed badgework.")).toBeVisible();
-  await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); await expect(page.getByText(incidentDescription, { exact: true })).toHaveCount(0); await page.getByRole("button", { name: "Notes", exact: true }).click(); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
+  await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); await expect(page.getByText(/Small graze during wide game/)).toHaveCount(0); await page.getByRole("button", { name: "Notes", exact: true }).click(); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
   expect(phases).toEqual(["create/open", "attendance/uniform persistence", "programme editing", "save/reload", "meeting edit", "close/history", "copy"]);
 });
 
