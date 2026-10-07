@@ -57,9 +57,11 @@ test("unauthenticated users cannot read member records", async () => {
 });
 
 test("section leader may query canonical concurrent membership only in their section", async () => {
-  await adminDb.collection("adminUsers").doc("scouts-query-leader").set({ uid: "scouts-query-leader", email: "scouts-query@example.com", role: "leader", active: true, sections: ["Scouts"] });
-  await adminDb.collection("members").doc("dual-member").set({ displayName: "Dual Member", section: "Cubs", sections: ["Cubs", "Scouts"], status: "active" });
-  await adminDb.collection("members").doc("cubs-only").set({ displayName: "Cubs Member", section: "Cubs", sections: ["Cubs"], status: "active" });
+  await seedDocuments([
+    ["adminUsers/scouts-query-leader", { uid: "scouts-query-leader", email: "scouts-query@example.com", role: "leader", active: true, sections: ["Scouts"] }],
+    ["members/dual-member", { displayName: "Dual Member", section: "Cubs", sections: ["Cubs", "Scouts"], status: "active" }],
+    ["members/cubs-only", { displayName: "Cubs Member", section: "Cubs", sections: ["Cubs"], status: "active" }],
+  ]);
   const db = testEnv.authenticatedContext("scouts-query-leader", { email: "scouts-query@example.com" }).firestore();
   const scouts = await assertSucceeds(getDocs(query(collection(db, "members"), where("sections", "array-contains", "Scouts"))));
   assert.deepEqual(scouts.docs.map((item) => item.id), ["dual-member"]);
