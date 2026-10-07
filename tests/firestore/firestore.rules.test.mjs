@@ -56,7 +56,6 @@ test("unauthenticated users cannot read member records", async () => {
   await assertFails(getDoc(doc(db, "members/member-cub")));
 });
 
-
 test("active adult leader may self-create and end only their Rover membership", async () => {
   await seedDocuments([["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }]]);
   const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
