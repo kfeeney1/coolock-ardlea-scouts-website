@@ -72,7 +72,9 @@ export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
   const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [routeSearchParams, setRouteSearchParams] = useSearchParams();
+  const filterParamsRef = useRef(searchParams);
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
   const [incidents, setIncidents] = useState<EquipmentIncident[]>([]);
@@ -105,13 +107,22 @@ export default function EquipmentManagement() {
   const pageIdentity = navigationView === "quartermaster" ? "qm-equipment-stores" : navigationView === "group-operations" ? "group-equipment-stores" : "equipment-stores";
   const pageTitle = navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
 
-  const updateFilterParam = (key: string, value: string, defaultValue = "all", replace = false) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      if (!value || value === defaultValue) next.delete(key);
-      else next.set(key, value);
-      return next;
-    }, { replace });
+  const applyFilterParams = (next: URLSearchParams) => {
+    filterParamsRef.current = next;
+    setSearchParams(next);
+    const searchString = next.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${searchString ? `?${searchString}` : ""}${window.location.hash}`
+    );
+  };
+
+  const updateFilterParam = (key: string, value: string, defaultValue = "all") => {
+    const next = new URLSearchParams(filterParamsRef.current);
+    if (!value || value === defaultValue) next.delete(key);
+    else next.set(key, value);
+    applyFilterParams(next);
   };
 
   const refresh = async () => {
@@ -140,6 +151,11 @@ export default function EquipmentManagement() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const next = new URLSearchParams(routeSearchParams);
+    filterParamsRef.current = next;
+    setSearchParams(next);
+  }, [routeSearchParams]);
 
   const categoryNames = useMemo(() => Array.from(new Set([
     ...DEFAULT_EQUIPMENT_CATEGORIES.filter((item) => item !== "Other"),
@@ -168,13 +184,15 @@ export default function EquipmentManagement() {
 
   const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || statusFilter !== "all" || showArchived);
 
-  const resetFilters = () => setSearchParams(new URLSearchParams());
+  const resetFilters = () => applyFilterParams(new URLSearchParams());
 
   const showInventoryFilter = (filter: EquipmentDashboardFilter) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(filterParamsRef.current);
     if (filter === "all") next.delete("status");
     else next.set("status", filter);
+    filterParamsRef.current = next;
     setSearchParams(next);
+    setRouteSearchParams(next);
     requestAnimationFrame(() => {
       inventoryHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       inventoryHeadingRef.current?.focus({ preventScroll: true });
@@ -269,14 +287,14 @@ export default function EquipmentManagement() {
         hasActiveFilters={hasActiveFilters}
         loading={loading}
         resultCount={visibleItems.length}
-        onSearchChange={(value) => updateFilterParam("q", value, "", true)}
+        onSearchChange={(value) => updateFilterParam("q", value, "")}
         onStatusChange={(value) => updateFilterParam("status", value)}
         onCategoryChange={(value) => updateFilterParam("category", value)}
         onStoreChange={(value) => updateFilterParam("store", value)}
         onAddEquipment={openCreate}
         onManageStores={() => setManageLocationsOpen(true)}
         onManageCategories={() => setManageCategoriesOpen(true)}
-        onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "", false)}
+        onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "")}
         onReset={resetFilters}
       />
       </Box>
