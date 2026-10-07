@@ -25,6 +25,11 @@ import MedicationManagementForm, {
     createMedicationData,
     validateMedication
 } from "./MedicationManagementForm";
+import {
+    ScouterApplicantDetailsStep,
+    ScouterNextOfKinStep,
+    type ScouterConsentErrors
+} from "./ScouterPersonalDetailsSteps";
 import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
@@ -38,11 +43,6 @@ import type {
     ScouterConsentData,
     YesNo
 } from "../../services/consentApplications";
-
-type Errors = Partial<
-    Record<keyof ScouterConsentData, string>
->;
-
 
 const steps = [
     "Applicant",
@@ -133,7 +133,7 @@ export default function ScouterConsentForm({
         useState<ScouterConsentData>(
             createInitialData
         );
-    const [errors, setErrors] = useState<Errors>({});
+    const [errors, setErrors] = useState<ScouterConsentErrors>({});
     const [medicationErrors, setMedicationErrors] =
         useState<
             Partial<
@@ -204,7 +204,7 @@ export default function ScouterConsentForm({
     };
 
     const required = (
-        nextErrors: Errors,
+        nextErrors: ScouterConsentErrors,
         field: keyof ScouterConsentData,
         message: string
     ) => {
@@ -219,7 +219,7 @@ export default function ScouterConsentForm({
     };
 
     const phone = (
-        nextErrors: Errors,
+        nextErrors: ScouterConsentErrors,
         field: keyof ScouterConsentData,
         isRequired: boolean
     ) => {
@@ -240,7 +240,7 @@ export default function ScouterConsentForm({
     };
 
     const validateStep = () => {
-        const nextErrors: Errors = {};
+        const nextErrors: ScouterConsentErrors = {};
         let nextMedicationErrors = {};
 
         if (activeStep === 0) {
@@ -590,227 +590,19 @@ export default function ScouterConsentForm({
                 </Typography>
 
                 {activeStep === 0 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Applicant Details
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Applicant name"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.name
-                                )}
-                                helperText={errors.name}
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Date of birth"
-                                name="dob"
-                                value={formData.dob}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.dob
-                                )}
-                                helperText={errors.dob}
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                required
-                                label="Address"
-                                name="address"
-                                value={formData.address}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.address
-                                )}
-                                helperText={
-                                    errors.address
-                                }
-                                sx={{
-                                    gridColumn: {
-                                        sm: "1 / -1"
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                label="Mobile"
-                                type="tel"
-                                inputMode="tel"
-                                name="mobile"
-                                value={formData.mobile}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.mobile
-                                )}
-                                helperText={
-                                    errors.mobile
-                                }
-                            />
-
-                            <TextField
-                                label="Home"
-                                type="tel"
-                                inputMode="tel"
-                                name="homePhone"
-                                value={formData.homePhone}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.homePhone
-                                )}
-                                helperText={
-                                    errors.homePhone
-                                }
-                            />
-
-                            <TextField
-                                label="Work"
-                                type="tel"
-                                inputMode="tel"
-                                name="workPhone"
-                                value={formData.workPhone}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.workPhone
-                                )}
-                                helperText={
-                                    errors.workPhone
-                                }
-                            />
-                        </Box>
-                    </Box>
+                    <ScouterApplicantDetailsStep
+                        formData={formData}
+                        errors={errors}
+                        onTextChange={handleTextChange}
+                    />
                 )}
 
                 {activeStep === 1 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 1 }}
-                        >
-                            Next of Kin
-                        </Typography>
-
-                        <Typography
-                            color="text.secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            To be contacted in an emergency.
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Name"
-                                name="nextOfKinName"
-                                value={
-                                    formData.nextOfKinName
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.nextOfKinName
-                                )}
-                                helperText={
-                                    errors.nextOfKinName
-                                }
-                            />
-
-                            <TextField
-                                label="Address"
-                                name="nextOfKinAddress"
-                                value={
-                                    formData.nextOfKinAddress
-                                }
-                                onChange={handleTextChange}
-                            />
-
-                            <TextField
-                                required
-                                label="Mobile"
-                                type="tel"
-                                inputMode="tel"
-                                name="nextOfKinMobile"
-                                value={
-                                    formData.nextOfKinMobile
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.nextOfKinMobile
-                                )}
-                                helperText={
-                                    errors.nextOfKinMobile
-                                }
-                            />
-
-                            <TextField
-                                label="Home"
-                                type="tel"
-                                inputMode="tel"
-                                name="nextOfKinHome"
-                                value={
-                                    formData.nextOfKinHome
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.nextOfKinHome
-                                )}
-                                helperText={
-                                    errors.nextOfKinHome
-                                }
-                            />
-
-                            <TextField
-                                label="Work"
-                                type="tel"
-                                inputMode="tel"
-                                name="nextOfKinWork"
-                                value={
-                                    formData.nextOfKinWork
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.nextOfKinWork
-                                )}
-                                helperText={
-                                    errors.nextOfKinWork
-                                }
-                            />
-                        </Box>
-                    </Box>
+                    <ScouterNextOfKinStep
+                        formData={formData}
+                        errors={errors}
+                        onTextChange={handleTextChange}
+                    />
                 )}
 
                 {activeStep === 2 && (
