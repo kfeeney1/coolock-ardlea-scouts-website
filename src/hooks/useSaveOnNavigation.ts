@@ -12,6 +12,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
+  const backCompletedRef = useRef(false);
 
   useLayoutEffect(() => {
     dirtyRef.current = dirty;
@@ -41,7 +42,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   }, [navigateWithoutSave]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty) { backCompletedRef.current=false; return; }
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyRef.current) return;
       event.preventDefault();
@@ -49,11 +50,11 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
     };
     const marker="sw170SaveGuard";
     const state=location.state&&typeof location.state==="object"?location.state:{};
-    if (!(state as Record<string,unknown>)[marker]) navigate(location.pathname+location.search+location.hash,{state:{...state,[marker]:true}});
+    if (!backCompletedRef.current&&!(state as Record<string,unknown>)[marker]) navigate(location.pathname+location.search+location.hash,{state:{...state,[marker]:true}});
     const popState=()=>{
       if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
       navigationInFlightRef.current=true;
-      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(-1);}}).finally(()=>{navigationInFlightRef.current=false;});
+      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;backCompletedRef.current=true;window.setTimeout(()=>navigate(-1),0);}}).finally(()=>{navigationInFlightRef.current=false;});
     };
     window.addEventListener("beforeunload", beforeUnload);
     window.addEventListener("popstate",popState);
