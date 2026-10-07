@@ -43,20 +43,45 @@ test("new meeting Cancel exits an untouched form without a discard prompt", asyn
   await expect(page.getByRole("dialog", { name: "Discard this new meeting?" })).toHaveCount(0);
 });
 
-test("new meeting Cancel confirms and discards entered data without creating a record", async ({ page }) => {
+test("new meeting Cancel saves valid entered data without creating an empty record", async ({ page }) => {
   await login(page, adminEmail);
   await page.goto("/leader/weekly/create");
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
   await page.getByLabel("Meeting date").fill("2099-04-04");
   await page.getByLabel("Location").fill("TEST cancelled meeting location");
+  await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  const discardDialog = page.getByRole("dialog", { name: "Discard this new meeting?" });
-  await expect(discardDialog).toBeVisible();
-  await discardDialog.getByRole("button", { name: "Keep editing" }).click();
-  await expect(page.getByLabel("Location")).toHaveValue("TEST cancelled meeting location");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.getByRole("dialog", { name: "Discard this new meeting?" }).getByRole("button", { name: "Discard and cancel" }).click();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
-  await expect(page.getByText("TEST cancelled meeting location", { exact: true })).toHaveCount(0);
+  const savedMeeting = page.getByRole("button", { name: /4 Apr 2099 · Scouts/ }).first();
+  await expect(savedMeeting).toBeVisible();
+  await savedMeeting.click();
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await expect(page.getByLabel("Location")).toHaveValue("TEST cancelled meeting location");
+  await expect(page.getByLabel("Theme")).toHaveValue("TEST saved on navigation");
+});
+
+test("browser Back saves an edited meeting before returning to the previous page", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure canonical E2E password.");
+  await login(page, adminEmail);
+  await page.goto("/leader/weekly");
+  await page.getByRole("link", { name: "Create Meeting", exact: true }).click();
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await page.getByLabel("Meeting date").fill("2099-04-09");
+  await page.getByLabel("Theme / programme title").fill("TEST browser back autosave");
+  await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  const meetingId = new URL(page.url()).searchParams.get("meeting");
+  const savedTheme = "TEST browser back autosave updated";
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await page.getByLabel("Theme").fill(savedTheme);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
+  await page.goto(`/leader/weekly?meeting=${encodeURIComponent(meetingId ?? "")}`);
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await expect(page.getByLabel("Theme")).toHaveValue(savedTheme);
 });
 
 test("meeting copy Cancel exits untouched and protects a changed destination date", async ({ page }) => {

@@ -1,9 +1,8 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { Alert, Box, Button, Chip, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { createEvent, loadEvents } from "../services/eventAdmin";
@@ -13,7 +12,6 @@ import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
 export default function CreateEventPage() {
-  const navigate = useNavigate();
   const { user, adminProfile } = useAdminAuth();
   const scopeKey = JSON.stringify([user?.uid, adminProfile?.role, adminProfile?.sections]);
   const [loadedScope, setLoadedScope] = useState("");
@@ -26,7 +24,8 @@ export default function CreateEventPage() {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const createdEventId = useRef<string | null>(null);
+  const createInFlight = useRef<Promise<boolean> | null>(null);
   const dataReady = !loading && !loadError && loadedScope === scopeKey;
 
   useEffect(() => {
@@ -54,16 +53,6 @@ export default function CreateEventPage() {
     || draft.eventType !== "Activity" || draft.section !== "All Sections" || draft.status !== "draft"
     || draft.consentRequired || (draft.audience?.memberIds.length ?? 0) > 0 || (draft.audience?.sectionIds.length ?? 0) > 0
   );
-
-  useEffect(() => {
-    if (!hasMeaningfulDraft) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [hasMeaningfulDraft]);
 
   const activeMembers = useMemo(() => dataReady ? members.filter((member) => member.status === "active") : [], [dataReady, members]);
   const visibleMembers = useMemo(() => {
@@ -99,33 +88,48 @@ export default function CreateEventPage() {
     setError("");
   };
 
-  const requestExit = () => {
-    if (saving) return;
-    if (hasMeaningfulDraft) setConfirmDiscard(true);
-    else navigate("/leader/events");
-  };
-
-  const save = async () => {
-    if (saving || !dataReady) return;
-    if (!draft.title.trim()) return setError("Event title is required.");
-    if (!draft.startDate) return setError("Start date is required.");
-    if (draft.endDate && draft.endDate < draft.startDate) return setError("End date cannot be before the start date.");
-    if (isDuplicateEventIdentity(draft, events)) return setError("An event with this title, start date and section already exists. Open the existing event instead.");
+  const createDraft = async (force = false): Promise<boolean> => {
+    if (createInFlight.current) return createInFlight.current;
+    if (createdEventId.current) return true;
+    if (!hasMeaningfulDraft && !force) return true;
+    if (saving || !dataReady) return false;
+    if (!draft.title.trim()) { setError("Event title is required. Complete it before leaving this event."); return false; }
+    if (!draft.startDate) { setError("Start date is required. Complete it before leaving this event."); return false; }
+    if (draft.endDate && draft.endDate < draft.startDate) { setError("End date cannot be before the start date. Correct it before leaving this event."); return false; }
+    if (isDuplicateEventIdentity(draft, events)) { setError("An event with this title, start date and section already exists. Open the existing event instead."); return false; }
 
     setSaving(true);
     setError("");
-    try {
-      const selectedIds = draft.audience?.memberIds ?? [];
-      const sectionIds = draft.audience
-        ? draft.audience.sectionIds
-        : (draft.section === "All Sections" ? [...new Set(activeMembers.map((member) => member.section))] : [draft.section]);
-      const eventId = await createEvent({ ...draft, audience: buildEventAudience(sectionIds, selectedIds, members) });
-      navigate(`/leader/events/${encodeURIComponent(eventId)}`, { replace: true });
-    } catch (saveError) {
-      setError(applicationErrorMessage(saveError, "Unable to save the event.", "CreateEventPage"));
-    } finally {
-      setSaving(false);
-    }
+    const pending = (async () => {
+      try {
+        const selectedIds = draft.audience?.memberIds ?? [];
+        const sectionIds = draft.section === "All Sections"
+          ? [...new Set(activeMembers.flatMap((member) => member.sections?.length ? member.sections : [member.section]).filter(Boolean))]
+          : (draft.audience?.sectionIds?.length ? draft.audience.sectionIds : [draft.section]);
+        const persistedDraft = {
+          ...draft,
+          endDate: draft.endDate || draft.startDate,
+          audience: buildEventAudience(sectionIds, selectedIds, members)
+        };
+        createdEventId.current = await createEvent(persistedDraft);
+        return true;
+      } catch (saveError) {
+        setError(applicationErrorMessage(saveError, "Unable to save the event. Your edits are still here.", "CreateEventPage"));
+        return false;
+      } finally {
+        setSaving(false);
+        createInFlight.current = null;
+      }
+    })();
+    createInFlight.current = pending;
+    return pending;
+  };
+
+  const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
+  const requestExit = () => { if (!saving) void navigateAfterSave("/leader/events", true); };
+  const save = async () => {
+    if (!(await createDraft(true)) || !createdEventId.current) return;
+    navigateWithoutSave(`/leader/events/${encodeURIComponent(createdEventId.current)}`, true);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }} data-testid="event-create-page">
@@ -175,14 +179,6 @@ export default function CreateEventPage() {
           </Stack>
         </Stack>
       </Paper>
-      <Dialog open={confirmDiscard} onClose={() => setConfirmDiscard(false)} aria-labelledby="discard-new-event-title">
-        <DialogTitle id="discard-new-event-title">Discard this new event?</DialogTitle>
-        <DialogContent><Typography>Your event details have not been saved. Cancel creation and discard them?</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDiscard(false)}>Keep editing</Button>
-          <Button color="warning" variant="contained" onClick={() => navigate("/leader/events", { replace: true })}>Discard and cancel</Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   </Box>;
 }

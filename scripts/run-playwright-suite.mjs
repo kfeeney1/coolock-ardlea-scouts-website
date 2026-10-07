@@ -8,10 +8,12 @@ const modeIndex = args.indexOf("--mode");
 const baseIndex = args.indexOf("--base");
 const suiteIndex = args.indexOf("--suite");
 const shardIndex = args.indexOf("--shard");
+const focusedIndex = args.indexOf("--focused");
 const mode = modeIndex >= 0 ? args[modeIndex + 1] : "full";
 const base = baseIndex >= 0 ? args[baseIndex + 1] : null;
 const requestedSuite = suiteIndex >= 0 ? args[suiteIndex + 1] : null;
 const shard = shardIndex >= 0 ? args[shardIndex + 1] : null;
+const focused = focusedIndex >= 0;
 
 function selectedForShard(specs) {
   if (!shard) return [...new Set(specs)];
@@ -36,7 +38,8 @@ function run(specs, label) {
     console.log("No specs assigned to this shard.");
     process.exit(0);
   }
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique], {
+  const extra = focused ? ["--retries=0", "--timeout=30000"] : [];
+  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique, ...extra], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
@@ -83,6 +86,12 @@ let requiresFullSuite = false;
 for (const file of changedFiles) {
   const suites = suitesForChangedPath(file);
   if (suites === null) {
+    if (focused && file === "src/hooks/useSaveOnNavigation.ts") {
+      selectedSuites.add("activities-programme");
+      selectedSuites.add("platform-ui");
+      continue;
+    }
+    if (focused && (file.startsWith(".github/workflows/") || file.startsWith("scripts/"))) continue;
     requiresFullSuite = true;
     console.log(`Full-suite fallback triggered by: ${file}`);
     break;
