@@ -59,7 +59,7 @@ export default function ProgrammeEquipment() {
         <Stack spacing={1} sx={{ mb: 2 }} data-testid="programme-equipment-availability">
           {matchingItems.map((item) => {
             const available = availableEquipmentQuantity(item);
-            return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
+            return <Paper key={item.id} data-testid={`programme-equipment-item-${item.id}`} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                 <Box><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.category} · {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
