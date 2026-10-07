@@ -64,8 +64,9 @@ test("section leader may query members by canonical concurrent section membershi
     ["members/cubs-only", { displayName: "Cubs Only", section: "Cubs", sections: ["Cubs"], status: "active" }],
   ]);
   const db = testEnv.authenticatedContext("scouts-leader", { email: "scouts@example.com" }).firestore();
-  const snapshot = await assertSucceeds(getDocs(query(collection(db, "members"), where("sections", "array-contains-any", ["Scouts"]))));
+  const snapshot = await assertSucceeds(getDocs(query(collection(db, "members"), where("sections", "array-contains", "Scouts"))));
   assert.deepEqual(snapshot.docs.map((item) => item.id), ["dual-member"]);
+  await assertFails(getDocs(query(collection(db, "members"), where("sections", "array-contains", "Cubs"))));
 });
 
 test("active adult leader may self-create and end only their Rover membership", async () => {
