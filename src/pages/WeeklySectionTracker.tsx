@@ -135,7 +135,11 @@ export default function WeeklySectionTracker() {
   const save=async()=>{if(!selected)return; if(await persist(selected,"Meeting saved.")){requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));}};
 
   const saveForNavigation=async()=>!!selected&&(!weeklyMeetingHasChanges(selected,savedSelected)||await persist(selected,"Meeting saved."));
-  useSaveOnNavigation(hasUnsavedChanges,saveForNavigation);
+  const backgroundSave=async():Promise<boolean>=>{
+    if(!selected||!hasUnsavedChanges||readOnly||selected.status==="closed")return false;
+    try{const{id,...input}=selected;await updateWeeklyMeeting(id,input);setSavedSelected(selected);return true;}catch{return false;}
+  };
+  useSaveOnNavigation(hasUnsavedChanges,saveForNavigation,backgroundSave);
 
   const copyMeeting=async()=>{
     if(!copySource||!copyDate)return;
