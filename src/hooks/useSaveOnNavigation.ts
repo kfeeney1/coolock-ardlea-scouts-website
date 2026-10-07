@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 type SaveDraft = () => Promise<boolean>;
 
 /** Saves a valid dirty editor before explicit navigation or browser Back leaves it. */
-export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
+export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft, backgroundSave?: SaveDraft) {
   const navigate = useNavigate();
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
@@ -39,11 +39,10 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
-    const pageHide=()=>{if(dirtyRef.current&&!navigationInFlightRef.current)void saveRef.current();};
+    const timer=backgroundSave?window.setTimeout(()=>{if(dirtyRef.current&&!navigationInFlightRef.current)void backgroundSave();},0):undefined;
     window.addEventListener("beforeunload",beforeUnload);
-    window.addEventListener("pagehide",pageHide);
-    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("pagehide",pageHide);};
-  },[dirty,saveDraft]);
+    return()=>{if(timer!==undefined)window.clearTimeout(timer);window.removeEventListener("beforeunload",beforeUnload);};
+  },[backgroundSave,dirty]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
