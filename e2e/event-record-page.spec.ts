@@ -52,7 +52,7 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-05-10");
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
-  await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
+  await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
   const eventUrl = page.url();
   const eventPath = new URL(eventUrl).pathname;
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
