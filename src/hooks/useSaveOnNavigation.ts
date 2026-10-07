@@ -9,8 +9,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
-  const restoringBackRef = useRef(false);
-  const allowBackRef = useRef(false);
+  const previousUrlRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     dirtyRef.current = dirty;
@@ -48,34 +47,30 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
       event.returnValue = "";
     };
 
-    const popState = (event: PopStateEvent) => {
-      if (allowBackRef.current) {
-        allowBackRef.current = false;
-        return;
-      }
-      if (restoringBackRef.current) {
-        restoringBackRef.current = false;
-        window.setTimeout(() => {
-          void (async () => {
-            if (navigationInFlightRef.current) return;
-            navigationInFlightRef.current = true;
-            try {
-              if (!(await saveRef.current())) return;
-              dirtyRef.current = false;
-              allowBackRef.current = true;
-              window.history.back();
-            } finally {
-              navigationInFlightRef.current = false;
-            }
-          })();
-        }, 0);
-        return;
-      }
-      if (!dirtyRef.current) return;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.replaceState({ ...window.history.state, sw170ReturnUrl: currentUrl }, "");
+    previousUrlRef.current = currentUrl;
 
+    const popState = (event: PopStateEvent) => {
+      if (!dirtyRef.current || navigationInFlightRef.current) return;
+
+      const destination = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       event.stopImmediatePropagation();
-      restoringBackRef.current = true;
-      window.history.forward();
+      navigationInFlightRef.current = true;
+
+      void (async () => {
+        try {
+          if (!(await saveRef.current())) {
+            const returnUrl = previousUrlRef.current;
+            if (returnUrl) navigate(returnUrl, { replace: true });
+            return;
+          }
+          dirtyRef.current = false;
+          navigate(destination, { replace: true });
+        } finally {
+          navigationInFlightRef.current = false;
+        }
+      })();
     };
 
     window.addEventListener("beforeunload", beforeUnload);
