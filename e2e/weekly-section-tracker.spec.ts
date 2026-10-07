@@ -69,6 +69,12 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
   await expect(attendanceCheckbox).toBeChecked();
+  const uniformCheckbox = page.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
+  await uniformCheckbox.check();
+  await page.getByRole("button", { name: "Meetings", exact: true }).click();
+  await page.getByRole("button", { name: /1 Mar 2099 · Scouts/ }).first().click();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  await expect(uniformCheckbox).toBeChecked();
 
   // Always create a real dirty state before navigating away to verify it is saved.
   await attendanceCheckbox.uncheck();
@@ -126,7 +132,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 2", { exact: true })).toHaveValue("Teamwork"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework equipment 1", { exact: true })).toHaveValue("Rope and pioneering poles"); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-warning")).toBeVisible();
   await page.getByLabel("Theme").fill("Unsaved navigation draft"); await page.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await expect(page.getByTestId("weekly-meeting-copy-form")).toBeVisible(); await expect(page.getByText("Meeting saved.")).toBeVisible(); await page.getByRole("button", { name: "Cancel", exact: true }).click(); await page.getByRole("button", { name: /1 Mar 2099 · Scouts/ }).first().click(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Unsaved navigation draft"); await page.getByLabel("Theme").fill("Navigation Night"); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Close Meeting", exact: true }).click(); await expect(page.getByText("Meeting closed and added to history.")).toBeVisible(); await page.getByRole("button", { name: "Meetings", exact: true }).click(); const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" }); await expect(historyCard).toContainText("3 activities · 2 badgework"); await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click(); await expectSectionLeaderHistoryRestrictions(page);
+  await page.getByRole("button", { name: "Close Meeting", exact: true }).click(); await expect(page).toHaveURL(/\\/leader\\/weekly$/); const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "1 Mar 2099 · Scouts" }); await expect(historyCard).toContainText("3 activities · 2 badgework"); await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click(); await expectSectionLeaderHistoryRestrictions(page);
 
   await page.getByRole("button", { name: "Meetings", exact: true }).click(); const priorCopy = page.getByRole("button", { name: /8 Mar 2099 · Scouts/ }); if (await priorCopy.count()) { await priorCopy.first().click(); } else { const closedCard=page.getByTestId(/meeting-history-/).filter({hasText:"1 Mar 2099 · Scouts"}); await closedCard.getByRole("button",{name:"Copy Meeting", exact:true}).click(); await page.getByLabel("Choose date").fill(copyDate); await page.getByRole("button",{name:"Create Copy", exact:true}).click(); await expect(page.getByText(/Meeting copied\. Planner rows and planned equipment were retained/)).toBeVisible(); }
   await page.getByRole("button", { name: "Attendance", exact: true }).click(); await expect(page.getByText(/Present/).first()).toBeVisible();
@@ -205,4 +211,38 @@ test("SW-264 mobile meeting editor exposes canonical Create Meeting route", asyn
   await create.click();
   await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+});
+
+
+test("SW-326 open meeting date edits persist on the same meeting", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
+  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
+  const meeting = page.getByRole("button", { name: /1 Mar 2099 · Scouts/ }).first();
+  test.skip(!(await meeting.count()), "Lifecycle meeting is not currently open.");
+  await meeting.click();
+  await page.getByRole("button", { name: "Edit Meeting", exact: true }).click();
+  const date = page.getByLabel("Meeting date");
+  await date.fill("2099-03-02");
+  await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+  await page.reload(); await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await expect(page.getByLabel("Meeting date")).toHaveValue("2099-03-02");
+  await page.getByLabel("Meeting date").fill("2099-03-01");
+  await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+});
+
+test("SW-328 new meeting date follows section day until manually overridden", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+  await login(page, adminEmail!); await page.goto("/leader/weekly/create");
+  const section = page.getByRole("combobox", { name: "Section" });
+  const date = page.getByLabel("Meeting date");
+  const expectWeekday = async (name: string, weekday: number) => {
+    await section.click(); await page.getByRole("option", { name, exact: true }).click();
+    const value = await date.inputValue();
+    const parsed = new Date(`${value}T12:00:00`);
+    expect(parsed.getDay()).toBe(weekday);
+  };
+  await expectWeekday("Cubs", 2); await expectWeekday("Ventures", 2); await expectWeekday("Beavers", 3); await expectWeekday("Scouts", 3);
+  await date.fill("2099-04-17");
+  await section.click(); await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await expect(date).toHaveValue("2099-04-17");
 });
