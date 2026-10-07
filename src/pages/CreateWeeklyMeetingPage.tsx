@@ -84,7 +84,14 @@ export default function CreateWeeklyMeetingPage() {
   };
 
   const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
-  const cancel = () => { if (!saving) void navigateAfterSave("/leader/weekly"); };
+  const cancel = async () => {
+    if (saving) return;
+    if (!hasMeaningfulDraft) {
+      navigateWithoutSave("/leader/weekly");
+      return;
+    }
+    if (await createDraft(false)) navigateWithoutSave("/leader/weekly");
+  };
   const save = async () => {
     if (!(await createDraft(true)) || !createdMeetingId.current) return;
     navigateWithoutSave(`/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
