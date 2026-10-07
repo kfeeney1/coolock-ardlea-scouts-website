@@ -19,7 +19,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
@@ -73,6 +73,7 @@ export default function EquipmentManagement() {
   const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
   const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [routeSearchParams, setRouteSearchParams] = useSearchParams();
   const filterParamsRef = useRef(searchParams);
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
@@ -150,6 +151,11 @@ export default function EquipmentManagement() {
   };
 
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const next = new URLSearchParams(routeSearchParams);
+    filterParamsRef.current = next;
+    setSearchParams(next);
+  }, [routeSearchParams]);
 
   const categoryNames = useMemo(() => Array.from(new Set([
     ...DEFAULT_EQUIPMENT_CATEGORIES.filter((item) => item !== "Other"),
@@ -184,7 +190,9 @@ export default function EquipmentManagement() {
     const next = new URLSearchParams(filterParamsRef.current);
     if (filter === "all") next.delete("status");
     else next.set("status", filter);
-    applyFilterParams(next);
+    filterParamsRef.current = next;
+    setSearchParams(next);
+    setRouteSearchParams(next);
     requestAnimationFrame(() => {
       inventoryHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       inventoryHeadingRef.current?.focus({ preventScroll: true });
