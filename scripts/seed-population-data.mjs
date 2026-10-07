@@ -88,6 +88,7 @@ const dualSectionMember = members.find((member) => member.id === "TEST_member_cu
 if (!dualSectionMember) throw new Error("Canonical Cubs member 06 is required for the dual-section scenario.");
 dualSectionMember.displayName = "TEST Dual Section Member";
 dualSectionMember.sections = ["Cubs", "Scouts"];
+dualSectionMember.sectionRosterKeys = ["Cubs", "Scouts"];
 
 function groupLeaders() {
   return groupRoles.map((entry) => ({
