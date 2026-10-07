@@ -40,6 +40,7 @@ function defaultReturnDate(): string {
 
 type Props = {
   profile: AdminProfile | null;
+  currentUserUid?: string;
   items: EquipmentItem[];
   loans: EquipmentLoan[];
   onChanged: () => Promise<void>;
@@ -48,7 +49,7 @@ type Props = {
 
 type EditableQuantityMap = Record<string, number | null>;
 
-export default function EquipmentLoansPanel({ profile, items, loans, onChanged, onError }: Props) {
+export default function EquipmentLoansPanel({ profile, currentUserUid = "", items, loans, onChanged, onError }: Props) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState("");
   const [expectedReturnDate, setExpectedReturnDate] = useState(defaultReturnDate());
@@ -148,6 +149,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
                       <Chip label={`Due ${loan.expectedReturnDate}`} variant="outlined" />
                       {new Date(`${loan.expectedReturnDate}T23:59:59`) < new Date() && <Chip label="Overdue" color="warning" />}
+                      {currentUserUid && loan.createdBy === currentUserUid && <Chip label="Checked out by you" color="info" data-testid="equipment-loan-owner" />}
                     </Stack>
                     <Typography>{outstanding.map((line) => `${outstandingLoanQuantity(line)} × ${line.itemName}`).join(" · ")}</Typography>
                     {loan.notes && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{loan.notes}</Typography>}
