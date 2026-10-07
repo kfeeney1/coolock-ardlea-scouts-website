@@ -91,8 +91,10 @@ jobs:
           npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
-      - name: Run focused changed-area tests
+      - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
+      - name: Run focused blocking regressions
+        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|section leader completes lifecycle with flexible planner rows, summary and retained save state"
 
   e2e_shard:
     name: e2e shard ${{ matrix.id }} of 2
