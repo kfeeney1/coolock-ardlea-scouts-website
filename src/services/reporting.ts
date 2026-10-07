@@ -3,6 +3,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AttendanceInsightMember } from "./attendanceInsightsLogic";
 import { eventReportMembers, type EventReportMember, type EventReportRecord, type MemberReportRow } from "./reportingLogic";
+import { canonicalMemberSections } from "./memberSectionCore.mjs";
 
 type Scope = {
     isAdmin: boolean;
@@ -34,13 +35,17 @@ async function scopedDocs(collectionName: string, scope: Scope) {
 
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
     const snapshots = await Promise.all(
-        uniqueSections.map((section) =>
-            getDocs(query(collection(db, collectionName), where("section", "==", section)))
-        )
+        uniqueSections.flatMap((section) => [
+            getDocs(query(collection(db, collectionName), where("section", "==", section))),
+            collectionName === "members"
+                ? getDocs(query(collection(db, collectionName), where("sections", "array-contains", section)))
+                : Promise.resolve(null)
+        ])
     );
 
-    const byId = new Map<string, (typeof snapshots)[number]["docs"][number]>();
+    const byId = new Map<string, NonNullable<(typeof snapshots)[number]>["docs"][number]>();
     for (const snapshot of snapshots) {
+        if (!snapshot) continue;
         for (const item of snapshot.docs) byId.set(item.id, item);
     }
     return [...byId.values()];
@@ -52,7 +57,8 @@ function canonicalMember(item: Awaited<ReturnType<typeof scopedDocs>>[number]) {
     const section = stringValue(data, "section");
     const status = stringValue(data, "status");
     if (!displayName || !section || !MEMBER_STATUSES.has(status)) return null;
-    return { id: item.id, data, displayName, section, status };
+    const sections = canonicalMemberSections(data.sections, section);
+    return { id: item.id, data, displayName, section, sections, status };
 }
 
 export async function loadMemberReportRows(scope: Scope): Promise<MemberReportRow[]> {
@@ -80,7 +86,7 @@ export async function loadAttendanceInsightMembers(scope: Scope): Promise<Attend
     const docs = await scopedDocs("members", scope);
     return docs.flatMap((item) => {
         const member = canonicalMember(item);
-        return member ? [{ id: member.id, displayName: member.displayName, section: member.section, status: member.status }] : [];
+        return member ? [{ id: member.id, displayName: member.displayName, section: member.section, sections: member.sections, status: member.status }] : [];
     });
 }
 
