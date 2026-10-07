@@ -95,7 +95,6 @@ jobs:
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
 
   e2e_shard:
-    needs: focused_pr
     name: e2e shard ${{ matrix.id }} of 2
     strategy:
       fail-fast: false
