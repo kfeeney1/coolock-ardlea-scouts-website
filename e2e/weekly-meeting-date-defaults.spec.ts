@@ -1,8 +1,7 @@
-import { expect, test } from "@playwright/test";
-import { login } from "./helpers/auth";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-const password=process.env.E2E_TEST_PASSWORD;
-const adminEmail=process.env.E2E_ADMIN_EMAIL;
+const password=process.env.E2E_TEST_USER_PASSWORD;
+const adminEmail=process.env.E2E_ADMIN_EMAIL;\nfunction desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Meeting date defaults run once on desktop Chromium."); }\nasync function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
 
 test("SW-328 new meeting date follows section day until manually overridden", async ({ page }, testInfo) => {
   desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
