@@ -117,6 +117,8 @@ export function suitesForChangedPath(file) {
   }
 
   if (file.startsWith("docs/") || file === "README.md") return [];
+  if (file === ".github/workflows/playwright-e2e.yml") return ["activities-programme", "platform-ui"];
+  if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
 
   // Test infrastructure, shared application infrastructure, dependencies, Firebase rules,
   // workflow changes, and unknown paths are deliberately full-suite changes.
