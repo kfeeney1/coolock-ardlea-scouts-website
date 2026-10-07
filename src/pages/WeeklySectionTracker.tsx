@@ -72,8 +72,8 @@ export default function WeeklySectionTracker() {
 
   const readOnly=!isAdmin&&access.readOnly;
   const availableSections=useMemo(()=>adminProfile?effectiveOperationalSections(adminProfile.role,adminProfile.sections,adminProfile.appointments):[],[adminProfile]);
-  const canEditPast=canEditPastWeeklyMeeting(access.scoutingRole,Boolean(isAdmin));
-  const editMode=weeklyMeetingEditMode(selected?.status??"open",access.scoutingRole,Boolean(isAdmin),readOnly);
+  const canEditPast=canEditPastWeeklyMeeting(access.scoutingRole,!!isAdmin);
+  const editMode=weeklyMeetingEditMode(selected?.status??"open",access.scoutingRole,!!isAdmin,readOnly);
   const operationalReadOnly=!editMode.canEditOperationalFields;
   const planningReadOnly=!editMode.canEditPlanningFields;
   const selectedSectionLeaders=useMemo(()=>selected?leaders.filter(leader=>leader.organisationSection===selected.section):[],[leaders,selected]);
@@ -91,13 +91,13 @@ export default function WeeklySectionTracker() {
       const all=isAdmin||a.canViewAll;
       const [m,r,l,items,loans]=await Promise.all([
         loadAttendanceInsightMembers({isAdmin:Boolean(all),sections:adminProfile?.sections??[]}),
-        loadWeeklyMeetings(adminProfile?.sections??[],Boolean(isAdmin),all),
-        loadWeeklyLeaders(availableSections,Boolean(isAdmin),all),
+        loadWeeklyMeetings(adminProfile?.sections??[],!!isAdmin,all),
+        loadWeeklyLeaders(availableSections,!!isAdmin,all),
         loadEquipmentItems(),
         loadEquipmentLoans()
       ]);
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
-      const requested=meetingId?r.find(x=>x.id===meetingId):null;
+      const requested=r.find(x=>x.id===meetingId);
       if(requested){setSelected(requested);setSavedSelected(requested);setStep(initialStepForDate(requested.meetingDate));}
       else if(selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
     } catch(e){setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
