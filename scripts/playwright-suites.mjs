@@ -48,7 +48,8 @@ export const suiteSpecs = {
     "weekly-parent-sharing.spec.ts",
     "weekly-planner-followup.spec.ts",
     "weekly-record-integrity.spec.ts",
-    "weekly-section-tracker.spec.ts"
+    "weekly-section-tracker.spec.ts",
+    "weekly-meeting-history-access.spec.ts"
   ],
   badgework: [
     "adventure-skills-badgework.spec.ts",

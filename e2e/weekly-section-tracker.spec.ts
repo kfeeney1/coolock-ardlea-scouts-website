@@ -1,7 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
-const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
 const lifecycleDate = "2099-03-01";
@@ -160,11 +159,6 @@ test("group leader copies a meeting into another authorised section and resets o
   await page.getByRole("button",{name:"Notes",exact:true}).click();
   await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
 });
-
-test("programme scouter can view past meetings but cannot edit", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials."); await login(page, leaderEmail!); await page.goto("/leader/weekly"); const historyCard=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await expect(historyCard.getByRole("button",{name:"View",exact:true})).toBeVisible(); await historyCard.getByRole("button",{name:"View",exact:true}).click(); await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("read-only"); await page.getByRole("button",{name:"Attendance",exact:true}).click(); await expect(page.getByRole("checkbox",{name:scoutMemberName})).toBeDisabled(); await page.getByRole("button",{name:"Programme",exact:true}).click(); await expect(page.getByLabel("Theme")).toBeDisabled(); await expect(page.getByRole("button",{name:"Save Meeting",exact:true})).toHaveCount(0); });
-test("group secretary can view all meeting history but cannot edit", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password, "Configure canonical E2E password."); await login(page, "test.group.secretary@example.com"); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Create Meeting" })).toHaveCount(0); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); await expect(page.getByText(/· Beavers$/).first()).toBeVisible(); await expect(page.getByText(/· Rovers$/).first()).toBeVisible(); });
-
-
 
 test("SW-264 authorised meeting editor routes to canonical Create Meeting and protects unsaved changes", async ({ page }, testInfo) => {
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
