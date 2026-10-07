@@ -335,3 +335,46 @@ test("dashboard tile filters inventory through the URL and browser Back restores
     await expect(page.getByLabel("Search equipment")).toBeVisible();
   }
 });
+
+
+test("equipment store filters retain their viewport when applied, changed and cleared", async ({ page }) => {
+  const account = adminCredentials();
+  test.skip(!account, "Configure canonical E2E admin credentials.");
+  await loginLeader(page, account!);
+  await page.goto("/leader/equipment");
+
+  const storeFilter = page.getByTestId("equipment-location-filter");
+  await storeFilter.scrollIntoViewIfNeeded();
+  const initialScroll = await page.evaluate(() => window.scrollY);
+  expect(initialScroll).toBeGreaterThan(0);
+
+  const assertStoreFilterVisible = async () => {
+    const box = await storeFilter.boundingBox();
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeLessThan(viewportHeight);
+    expect(box!.y + box!.height).toBeGreaterThan(0);
+  };
+
+  const selectStore = async (name: string) => {
+    await storeFilter.click();
+    await page.getByRole("option", { name, exact: true }).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(name);
+    await assertStoreFilterVisible();
+  };
+
+  await storeFilter.click();
+  const storeNames = (await page.getByRole("option").allTextContents())
+    .map((name) => name.trim())
+    .filter((name) => name && name !== "All Stores" && name !== "No Store assigned");
+  expect(storeNames.length).toBeGreaterThanOrEqual(2);
+  await page.getByRole("option", { name: storeNames[0], exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("store")).toBe(storeNames[0]);
+  await assertStoreFilterVisible();
+
+  await selectStore(storeNames[1]);
+  await selectStore("All Stores");
+  await expect.poll(() => new URL(page.url()).searchParams.has("store")).toBe(false);
+  await assertStoreFilterVisible();
+});
