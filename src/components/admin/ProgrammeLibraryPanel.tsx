@@ -15,7 +15,8 @@ import {
   filterProgrammeLibrary,
   loadProgrammeLibrary,
   programmeLibraryItemToActivity,
-  programmeLibraryItemToBadgework
+  programmeLibraryItemToBadgework,
+  sortProgrammeLibrary
 } from "../../services/programmeLibrary";
 import type { ProgrammeLibraryDurationFilter, ProgrammeLibraryItem, ProgrammeLibraryKind } from "../../services/programmeLibrary";
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan } from "../../services/weeklyTracker";
@@ -71,9 +72,9 @@ export default function ProgrammeLibraryPanel({ section, activities, badgework, 
     if (!source?.activity.trim()) return setError("Choose a named activity to save.");
     setError(""); setMessage("");
     try {
-      await createProgrammeLibraryItem({ section, kind: "activity", name: source.activity, leader: source.leader, notes: source.notes, equipment: source.equipment, durationMinutes: source.durationMinutes });
+      const id=await createProgrammeLibraryItem({ section, kind: "activity", name: source.activity, leader: source.leader, notes: source.notes, equipment: source.equipment, durationMinutes: source.durationMinutes });
+      setItems(current=>sortProgrammeLibrary([...current,{id,section,kind:"activity",name:source.activity,leader:source.leader,notes:source.notes,equipment:source.equipment,durationMinutes:source.durationMinutes}]));
       setActivityId("");
-      await refresh();
       setMessage(`${source.activity} saved to the ${section} programme library.`);
     } catch (saveError) { setError(applicationErrorMessage(saveError, "Unable to save this activity to the programme library.", "ProgrammeLibraryPanel")); }
   };
