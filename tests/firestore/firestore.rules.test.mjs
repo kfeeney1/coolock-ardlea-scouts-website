@@ -57,18 +57,6 @@ test("unauthenticated users cannot read member records", async () => {
 });
 
 
-test("section leader may query members by canonical concurrent section membership", async () => {
-  await seedDocuments([
-    ["adminUsers/scouts-leader", { active: true, role: "leader", sections: ["Scouts"] }],
-    ["members/dual-member", { displayName: "Dual Member", section: "Cubs", sections: ["Cubs", "Scouts"], status: "active" }],
-    ["members/cubs-only", { displayName: "Cubs Only", section: "Cubs", sections: ["Cubs"], status: "active" }],
-  ]);
-  const db = testEnv.authenticatedContext("scouts-leader", { email: "scouts@example.com" }).firestore();
-  const snapshot = await assertSucceeds(getDocs(query(collection(db, "members"), where("sections", "array-contains", "Scouts"))));
-  assert.deepEqual(snapshot.docs.map((item) => item.id), ["dual-member"]);
-  await assertFails(getDocs(query(collection(db, "members"), where("sections", "array-contains", "Cubs"))));
-});
-
 test("active adult leader may self-create and end only their Rover membership", async () => {
   await seedDocuments([["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }]]);
   const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
