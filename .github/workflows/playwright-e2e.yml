@@ -306,15 +306,19 @@ jobs:
   # in isolated runners. Each shard owns its own emulator dataset, so this reduces
   # wall time without introducing shared-state parallelism inside Playwright.
   e2e:
+    name: e2e
+    needs:
+      - e2e_shard
     if: ${{ always() }}
-    needs: e2e_shard
     runs-on: ubuntu-latest
+    env:
+      E2E_SHARD_RESULT: ${{ needs.e2e_shard.result }}
     steps:
       - name: Require every Playwright shard
         shell: bash
         run: |
-          if [ "${{ needs.e2e_shard.result }}" != "success" ]; then
-            echo "::error::One or more Playwright shards failed or were cancelled."
+          if [ "$E2E_SHARD_RESULT" != "success" ]; then
+            echo "::error::One or more Playwright shards failed or were cancelled (matrix result: $E2E_SHARD_RESULT)."
             exit 1
           fi
-          echo "All Playwright shards passed."
+          echo "All Playwright shards passed; publishing protected e2e check."
