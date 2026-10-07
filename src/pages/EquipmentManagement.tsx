@@ -286,7 +286,7 @@ export default function EquipmentManagement() {
         onAddEquipment={openCreate}
         onManageStores={() => setManageLocationsOpen(true)}
         onManageCategories={() => setManageCategoriesOpen(true)}
-        onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "", false)}
+        onToggleArchived={() => updateFilterParam("archived", showArchived ? "" : "1", "")}
         onReset={resetFilters}
       />
       </Box>
