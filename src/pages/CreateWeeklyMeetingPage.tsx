@@ -29,9 +29,7 @@ export default function CreateWeeklyMeetingPage() {
   const createInFlight = useRef<Promise<boolean> | null>(null);
   const sections = useMemo(() => adminProfile ? effectiveOperationalSections(adminProfile.role, adminProfile.sections, adminProfile.appointments) : [], [adminProfile]);
   const defaultSection = sections[0] ?? "";
-  const hasMeaningfulDraft = Boolean(
-    (section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim()
-  );
+  const hasMeaningfulDraft = Boolean((section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim());
 
   useEffect(() => {
     void loadWeeklyAccess().then((access) => setCanViewAll(access.canViewAll))
@@ -55,7 +53,8 @@ export default function CreateWeeklyMeetingPage() {
   const createDraft = async (force = false): Promise<boolean> => {
     if (createInFlight.current) return createInFlight.current;
     if (createdMeetingId.current) return true;
-    if (!hasMeaningfulDraft && !force) return true;
+    const meaningful = Boolean((section && section !== defaultSection) || date !== today || location.trim() || theme.trim() || programmeNotes.trim());
+    if (!meaningful && !force) return true;
     if (saving) return false;
     if (!section || !date) { setError("Choose a section and meeting date before leaving this meeting."); return false; }
 
