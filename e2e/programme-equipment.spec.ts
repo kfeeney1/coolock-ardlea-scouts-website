@@ -27,7 +27,9 @@ test("section Scouter can check equipment in and out from Programme without QM m
   const itemCards = page.locator('[data-testid^="programme-equipment-item-"]');
   await expect(itemCards.first()).toBeVisible();
   const availableBefore = async (row: Locator) => {
-    const label = await row.getByText(/Available · \d+/).textContent();
+    const availableLabel = row.getByText(/Available · \d+/);
+    if (!(await availableLabel.count())) return 0;
+    const label = await availableLabel.textContent();
     return Number(label?.match(/Available · (\d+)/)?.[1] ?? 0);
   };
   let itemName = "", itemId = "", availableAtStart = 0;
