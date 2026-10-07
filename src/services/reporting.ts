@@ -34,6 +34,7 @@ async function scopedDocs(collectionName: string, scope: Scope) {
     if (scope.isAdmin) return (await getDocs(collection(db, collectionName))).docs;
 
     const uniqueSections = [...new Set(scope.sections.map((section) => section.trim()).filter(Boolean))];
+    if (!uniqueSections.length) return [];
     const legacySnapshots = await Promise.all(
         uniqueSections.map((section) => getDocs(query(collection(db, collectionName), where("section", "==", section))))
     );
