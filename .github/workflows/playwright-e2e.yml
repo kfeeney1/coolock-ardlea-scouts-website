@@ -90,7 +90,7 @@ jobs:
         run: npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --focused
 
   e2e_shard:
-    needs: [focused_pr]
+    needs: focused_pr
     if: ${{ always() && (github.event_name != 'pull_request' || needs.focused_pr.result == 'success') }}
     name: e2e shard ${{ matrix.id }}/2
     strategy:
