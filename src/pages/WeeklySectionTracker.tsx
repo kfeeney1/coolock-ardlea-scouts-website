@@ -15,7 +15,7 @@ import type { AttendanceInsightMember } from "../services/attendanceInsightsLogi
 import { createWeeklyMeeting, loadWeeklyAccess, loadWeeklyLeaders, loadWeeklyMeetings, newActivityPlan, reopenWeeklyMeeting, updatePastWeeklyMeeting, updateWeeklyMeeting } from "../services/weeklyTracker";
 import type { InjurySeverity, WeeklyAccess, WeeklyActivityPlan, WeeklyInjury, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
-import { displayWeeklyDate, initialWeeklyStep, joinWeeklyLeaders, newWeeklyEntry, nonNegativeWeeklyNumber, reconcileOpenWeeklyRoster, splitWeeklyLeaders, sortOpenWeeklyMeetings, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
+import { displayWeeklyDate, initialWeeklyStep, joinWeeklyLeaders, nonNegativeWeeklyNumber, reconcileOpenWeeklyRoster, splitWeeklyLeaders, sortOpenWeeklyMeetings, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
 import { useWeeklyMeetingShare } from "../hooks/useWeeklyMeetingShare";
 import { recordAuditEvent } from "../services/auditLog";
 import { badgeworkSourceHref } from "../services/adventureSkillSourceContext";
