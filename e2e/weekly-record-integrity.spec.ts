@@ -46,6 +46,8 @@ test("new meeting Cancel exits an untouched form without a discard prompt", asyn
 test("new meeting Cancel saves valid entered data without creating an empty record", async ({ page }) => {
   await login(page, adminEmail);
   await page.goto("/leader/weekly/create");
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
   await page.getByLabel("Meeting date").fill("2099-04-04");
   await page.getByLabel("Location").fill("TEST cancelled meeting location");
   await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
