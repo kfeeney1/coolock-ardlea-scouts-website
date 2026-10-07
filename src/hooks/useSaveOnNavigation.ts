@@ -84,7 +84,7 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("popstate", popState, true);
     };
-  }, [dirty]);
+  }, [dirty, navigate]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
