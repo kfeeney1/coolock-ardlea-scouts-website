@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-import { backDismissStack } from "../services/backDismissHistory";
 
 type SaveDraft = () => Promise<boolean>;
 
 /** Saves a valid dirty editor before explicit navigation or browser Back leaves it. */
 export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const navigate = useNavigate();
-  const location = useLocation();
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
@@ -41,17 +39,10 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload=(event:BeforeUnloadEvent)=>{if(!dirtyRef.current)return;event.preventDefault();event.returnValue="";};
-    const popState=(event:PopStateEvent)=>{
-      if(!dirtyRef.current||navigationInFlightRef.current||backDismissStack(history.state?.usr).length)return;
-      const destination=window.location.pathname+window.location.search+window.location.hash;
-      event.stopImmediatePropagation();
-      navigationInFlightRef.current=true;
-      void saveRef.current().then(saved=>{if(saved){dirtyRef.current=false;navigate(destination,{replace:true});}}).finally(()=>{navigationInFlightRef.current=false;});
-    };
+    const timer=window.setTimeout(()=>{if(dirtyRef.current&&!navigationInFlightRef.current)void saveRef.current();},0);
     window.addEventListener("beforeunload",beforeUnload);
-    window.addEventListener("popstate",popState,true);
-    return()=>{window.removeEventListener("beforeunload",beforeUnload);window.removeEventListener("popstate",popState,true);};
-  },[dirty,location.hash,location.pathname,location.search,navigate]);
+    return()=>{window.clearTimeout(timer);window.removeEventListener("beforeunload",beforeUnload);};
+  },[dirty,saveDraft]);
 
   return { navigateAfterSave, navigateWithoutSave };
 }
