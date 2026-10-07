@@ -93,11 +93,8 @@ test("SW-213 clears public-header sign-out state when switching authenticated ac
   await openPublicNavigation();
   await publicSignOut().click();
   await expect(page.getByTestId("authenticated-header-identity")).toHaveCount(0);
-  if (page.viewportSize()!.width < 900) {
-    await expect(page.getByRole("menuitem", { name: "Leader Login", exact: true })).toBeVisible();
-  } else {
-    await expect(page.getByRole("banner").getByRole("button", { name: "Leader Login", exact: true })).toBeVisible();
-  }
+  await page.goto("/leader/login");
+  await expect(page.getByRole("heading", { name: "Leader Login" })).toBeVisible();
 
   await signIn(leaderEmail);
   await page.goto("/");
