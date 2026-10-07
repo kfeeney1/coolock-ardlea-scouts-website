@@ -6,7 +6,9 @@ const management = fs.readFileSync(new URL("../src/pages/EquipmentManagement.tsx
 const dashboard = fs.readFileSync(new URL("../src/components/admin/EquipmentOperationsDashboard.tsx", import.meta.url), "utf8");
 
 test("equipment inventory uses one URL-backed Store/status filter model", () => {
-  assert.match(management, /useSearchParams/);
+  assert.match(management, /new URLSearchParams\(window\.location\.search\)/);
+  assert.match(management, /window\.history\.replaceState/);
+  assert.doesNotMatch(management, /useSearchParams/);
   assert.match(management, /searchParams\.get\("store"\)/);
   assert.match(management, /searchParams\.get\("status"\)/);
   assert.match(management, /All Stores/);
