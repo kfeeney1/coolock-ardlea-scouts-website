@@ -164,7 +164,7 @@ export default function WeeklySectionTracker() {
     const current=leaderParts(badgework.leader).filter((value)=>value!==ALL_LEADERS);
     updateBadgework(badgework.id,{leader:joinLeaders(checked?[...current,name]:current.filter((value)=>value!==name))});
   };
-  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;setSelected(null);setSavedSelected(null);if(action==="meetings"){navigate("/leader/weekly",{replace:true});}else if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);navigate("/leader/weekly",{replace:true});}else if(action==="create"){navigate("/leader/weekly/create");}};
+  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;setSelected(null);setSavedSelected(null);if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);}if(action==="meetings"||action==="copy")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
   const requestNavigationAction=async(action:NavigationAction)=>{if(hasUnsavedChanges&&selected&&!(await persist(selected,"Meeting saved.")))return;applyNavigationAction(action);};
 
   const openRecords=records.filter(r=>r.status==="open"),history=records.filter(r=>r.status==="closed");
