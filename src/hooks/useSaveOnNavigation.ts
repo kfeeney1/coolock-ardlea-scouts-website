@@ -9,8 +9,6 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   const dirtyRef = useRef(dirty);
   const saveRef = useRef(saveDraft);
   const navigationInFlightRef = useRef(false);
-  const backGuardArmedRef = useRef(false);
-  const completingBackRef = useRef(false);
 
   useLayoutEffect(() => {
     dirtyRef.current = dirty;
@@ -40,57 +38,14 @@ export function useSaveOnNavigation(dirty: boolean, saveDraft: SaveDraft) {
   }, [navigateWithoutSave]);
 
   useEffect(() => {
-    if (!dirty) {
-      backGuardArmedRef.current = false;
-      return;
-    }
-
+    if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
-
-    if (!backGuardArmedRef.current) {
-      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.history.pushState({ ...window.history.state, sw170BackGuard: true }, "", currentUrl);
-      backGuardArmedRef.current = true;
-    }
-
-    const popState = (event: PopStateEvent) => {
-      if (completingBackRef.current) {
-        completingBackRef.current = false;
-        return;
-      }
-      if (!dirtyRef.current || navigationInFlightRef.current || !backGuardArmedRef.current) return;
-
-      event.stopImmediatePropagation();
-      navigationInFlightRef.current = true;
-      backGuardArmedRef.current = false;
-
-      void (async () => {
-        try {
-          if (!(await saveRef.current())) {
-            const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-            window.history.pushState({ ...window.history.state, sw170BackGuard: true }, "", currentUrl);
-            backGuardArmedRef.current = true;
-            return;
-          }
-          dirtyRef.current = false;
-          completingBackRef.current = true;
-          window.history.back();
-        } finally {
-          navigationInFlightRef.current = false;
-        }
-      })();
-    };
-
     window.addEventListener("beforeunload", beforeUnload);
-    window.addEventListener("popstate", popState, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      window.removeEventListener("popstate", popState, true);
-    };
+    return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
 
   return { navigateAfterSave, navigateWithoutSave };
