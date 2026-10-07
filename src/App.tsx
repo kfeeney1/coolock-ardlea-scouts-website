@@ -47,6 +47,7 @@ const CreateEventPage = lazy(() => import("./pages/CreateEventPage"));
 const EventEditPage = lazy(() => import("./pages/EventEditPage"));
 const BadgeworkTracking = lazy(() => import("./pages/BadgeworkTracking"));
 const EquipmentManagement = lazy(() => import("./pages/EquipmentManagement"));
+const ProgrammeEquipment = lazy(() => import("./pages/ProgrammeEquipment"));
 const EquipmentRecordPage = lazy(() => import("./pages/EquipmentRecordPage"));
 const EquipmentStoreMovePage = lazy(() => import("./pages/EquipmentStoreMovePage"));
 const SectionCashbook = lazy(() => import("./pages/SectionCashbook"));
@@ -107,6 +108,7 @@ export default function App() {
         <Route path="/leader/weekly/create" element={protectedRoute(<CreateWeeklyMeetingPage />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
         <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
+        <Route path="/leader/programme-equipment" element={protectedRoute(<ProgrammeEquipment />)} />
         <Route path="/leader/equipment/:equipmentId/move-store" element={protectedRoute(<EquipmentStoreMovePage />)} />
         <Route path="/leader/equipment/:equipmentId" element={protectedRoute(<EquipmentRecordPage />)} />
         <Route path="/leader/finance" element={protectedRoute(<SectionCashbook />)} />
