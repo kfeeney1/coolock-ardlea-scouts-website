@@ -11,90 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  focused_pr:
-    name: focused PR assurance
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --user 1001
-    timeout-minutes: 10
-    defaults:
-      run:
-        shell: bash
-    env:
-      VITE_APP_ENV: local
-      VITE_FIREBASE_API_KEY: demo-api-key
-      VITE_FIREBASE_AUTH_DOMAIN: demo-coolock-ardlea-scouts.firebaseapp.com
-      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
-      VITE_FIREBASE_STORAGE_BUCKET: demo-coolock-ardlea-scouts.appspot.com
-      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
-      VITE_FIREBASE_APP_ID: 1:000000000000:web:local
-      VITE_EMAIL_API_URL: http://127.0.0.1:8787
-      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
-      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
-      VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
-      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
-      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
-      FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
-      FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
-      E2E_BASE_URL: http://127.0.0.1:4173
-      E2E_TEST_USER_PASSWORD: password1
-      E2E_DEPLOYMENT_SMOKE_CONTRACT: 'true'
-      E2E_LEADER_JOURNEY_SEEDED: 'true'
-      E2E_PARENT_EMAIL: test.beaver.parent1@example.com
-      E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
-      E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
-      E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
-      E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
-      E2E_ADMIN_EMAIL: test.webadmin@example.com
-      E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
-      E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22, cache: npm }
-      - run: npm ci --no-audit
-      - run: npm run build
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with: { distribution: temurin, java-version: '21' }
-      - run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1 "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
-      - name: Start emulators
-        run: |
-          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
-          for i in {1..45}; do if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/firebase-emulator.log; exit 1
-      - name: Create emulator credential
-        run: |
-          node <<'NODE'
-          const {generateKeyPairSync}=require("node:crypto"); const {writeFileSync,appendFileSync}=require("node:fs");
-          const {privateKey}=generateKeyPairSync("rsa",{modulusLength:2048,publicKeyEncoding:{type:"spki",format:"pem"},privateKeyEncoding:{type:"pkcs8",format:"pem"}});
-          const projectId=process.env.FIREBASE_PROJECT_ID,path="/tmp/firebase-emulator-credential.json";
-          writeFileSync(path,JSON.stringify({type:"service_account",project_id:projectId,private_key_id:"emulator-only",private_key:privateKey,client_email:`firebase-adminsdk-emulator@${projectId}.iam.gserviceaccount.com`,client_id:"000000000000000000000",auth_uri:"https://accounts.google.com/o/oauth2/auth",token_uri:"https://oauth2.googleapis.com/token"}),{mode:0o600}); appendFileSync(process.env.GITHUB_ENV,`GOOGLE_APPLICATION_CREDENTIALS=${path}\n`);
-          NODE
-      - name: Seed focused dataset
-        run: |
-          node scripts/seed-population-data.mjs seed
-          node scripts/seed-superadmin-login.mjs
-          node scripts/seed-flow-data.mjs
-          node scripts/seed-public-site-content.mjs seed
-          node scripts/seed-playwright-records.mjs
-          node scripts/rebuild-public-leadership.mjs
-      - name: Start tested build
-        run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
-          for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/vite-preview.log; exit 1
-      - name: Run focused changed-area tests
-        if: ${{ github.event_name == 'pull_request' }}
-        run: npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --focused
-      - name: Main does not need preliminary PR selection
-        if: ${{ github.event_name != 'pull_request' }}
-        run: echo "Focused selection is a pull-request preflight; main proceeds to the full shards."
-
   e2e_shard:
-    needs: focused_pr
     name: e2e shard ${{ matrix.id }}/2
     strategy:
       fail-fast: false
@@ -261,6 +178,11 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright test --list
 
+      - name: Run fast focused PR assurance
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        shell: bash
+        run: npm run test:e2e:pr -- --base "${{ github.event.pull_request.base.sha }}" --focused --shard "${{ matrix.shard }}"
+
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         shell: bash
@@ -305,18 +227,14 @@ jobs:
   # wall time without introducing shared-state parallelism inside Playwright.
   e2e:
     if: ${{ always() }}
-    needs: [focused_pr, e2e_shard]
+    needs: e2e_shard
     runs-on: ubuntu-latest
     steps:
       - name: Require every Playwright shard
         shell: bash
         run: |
-          if [ "${{ needs.focused_pr.result }}" != "success" ]; then
-            echo "::error::Focused PR assurance failed or was cancelled."
-            exit 1
-          fi
           if [ "${{ needs.e2e_shard.result }}" != "success" ]; then
             echo "::error::One or more Playwright shards failed or were cancelled."
             exit 1
           fi
-          echo "Focused assurance and all Playwright shards passed."
+          echo "All Playwright shards passed."
