@@ -97,7 +97,7 @@ export default function AdminOverviewPanel() {
 
           {medicalState && leaderMedicalNeedsDashboardAction(medicalState.status) && (
             <Alert severity="warning" data-testid="leader-medical-action" sx={{ mb: 2 }}
-              action={<Button component={Link} to="/leader/profile/consent" color="inherit" size="small">Open My Form</Button>}>
+              action={<Button component={Link} to="/leader/profile/consent" variant="contained" color="warning" size="small" sx={{ minWidth: 128, whiteSpace: "nowrap" }}>Open My Form</Button>}>
               {medicalState.status === "lapsed" ? "Your Scouter Consent & Medical Form has lapsed. Review and renew it now." : "Complete your Scouter Consent & Medical Form."}
             </Alert>
           )}
