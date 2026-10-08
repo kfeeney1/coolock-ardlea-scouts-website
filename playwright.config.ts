@@ -35,6 +35,8 @@ export default defineConfig({
   fullyParallel: false,
   workers,
   forbidOnly: Boolean(process.env.CI),
+  // Stop PR shards on the first deterministic failure; the focused job provides early coverage.
+  maxFailures: process.env.CI && process.env.GITHUB_EVENT_NAME === "pull_request" ? 1 : 0,
   // PR assurance must expose the first failure rather than spending the shard budget retrying.
   // Main retains one diagnostic retry; failOnFlakyTests still makes retry-only passes red.
   retries: process.env.CI && process.env.GITHUB_EVENT_NAME !== "pull_request" ? 1 : 0,
