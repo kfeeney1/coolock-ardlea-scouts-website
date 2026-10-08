@@ -115,7 +115,13 @@ test("SW-293/294/136 member medical quick access preserves Member Management con
   await expect(listQuick).toBeVisible();
   await listQuick.click();
   await expect(page).toHaveURL(/\/leader\/medical\/.+$/);
-  await page.getByRole("link", { name: "Back to Member Management" }).click();
+  const backToMembers = page.getByRole("link", { name: "Back to Member Management" });
+  const backToMembersBox = await backToMembers.boundingBox();
+  expect(backToMembersBox?.height).toBeGreaterThanOrEqual(44);
+  await backToMembers.focus();
+  await expect(backToMembers).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  await backToMembers.click();
   await expect(page).toHaveURL(/\/leader\/members/);
   await expect(page.getByRole("heading", { name: "Member Management" })).toBeVisible();
 
@@ -134,7 +140,11 @@ test("SW-293/294/136 member medical quick access preserves Member Management con
   await expect(page.getByText("Medical or medication information is recorded below. Review the recorded details and established action information.")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 
-  await page.getByRole("link", { name: "Back to member" }).click();
+  const backToMember = page.getByRole("link", { name: "Back to member" });
+  await expect(backToMember).toHaveAttribute("href", "/leader/members/TEST_member_beaver_01");
+  const backToMemberBox = await backToMember.boundingBox();
+  expect(backToMemberBox?.height).toBeGreaterThanOrEqual(44);
+  await backToMember.click();
   await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
   await expect(page.getByRole("heading", { name: "Member Details" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Menu · Member Management/ })).toBeVisible();

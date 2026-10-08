@@ -7,6 +7,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# PR updates run focused regressions and both shards; manual dispatch runs the full suite.
+
 permissions:
   contents: read
 
@@ -94,6 +96,8 @@ jobs:
           cat /tmp/vite-preview.log; exit 1
       - name: Run focused SW-357 poll lifecycle
         run: npx --no-install playwright test e2e/polls.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "a scoped poll is explicitly published, answered once, and persists after reload"
+      - name: Run focused SW-320 navigation regressions (desktop and mobile)
+        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts e2e/event-record-page.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
       - name: Repeat isolated SW-355 lifecycle on persistent emulator state

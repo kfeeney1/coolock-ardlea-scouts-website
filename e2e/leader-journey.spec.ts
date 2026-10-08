@@ -109,7 +109,7 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("link", { name: "Leader Access", exact: true })).toHaveCount(0);
     await page.getByLabel("Search requests").fill("Approved Section Leader");
 
-    const tile = page.getByRole("button", { name: "Open Leader Access for Approved Section Leader" });
+    const tile = page.getByRole("link", { name: "Open Leader Access for Approved Section Leader" });
     await expect(tile).toHaveCount(1);
     await expect(tile).toBeVisible();
     await expect(page.getByText("test_flow_leader_request_approved@example.com", { exact: true })).toBeVisible();

@@ -20,7 +20,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     DEFAULT_NEW_LEADER_APPOINTMENT,
@@ -204,14 +204,14 @@ export default function LeaderRequests() {
                     <Stack spacing={2}>
                         {requestedRequestId && !requests.some((request) => request.uid === requestedRequestId && request.status === "pending") && <Alert severity="warning" data-testid="leader-request-link-fallback">This leader request is no longer pending or is outside your authorised scope. Review the current request list instead.</Alert>}
                         {visible.length === 0 && <Alert severity="info">No leader registration requests match this view.</Alert>}
-                        {visible.map((request) => (
-                            <Paper
+                        {visible.map((request) => {
+                            const requestCard = <Paper
                                 key={request.uid}
                                 variant="outlined"
-                                component={request.status === "rejected" ? "div" : "button"}
-                                type={request.status === "rejected" ? undefined : "button"}
-                                onClick={() => request.status === "approved" ? navigate(`/leader/access/${encodeURIComponent(request.uid)}`) : request.status === "pending" ? (setDecision(null), setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]), setSelected(request)) : undefined}
-                                aria-label={request.status === "approved" ? `Open Leader Access for ${request.fullName}` : request.status === "pending" ? `Review leader request for ${request.fullName}` : undefined}
+                                component={request.status === "pending" ? "button" : "div"}
+                                type={request.status === "pending" ? "button" : undefined}
+                                onClick={request.status === "pending" ? () => { setDecision(null); setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]); setSelected(request); } : undefined}
+                                aria-label={request.status === "pending" ? `Review leader request for ${request.fullName}` : undefined}
                                 sx={{
                                     p: { xs: 2, sm: 2.5 },
                                     width: "100%",
@@ -223,7 +223,7 @@ export default function LeaderRequests() {
                                     font: "inherit",
                                     borderRadius: 2,
                                     overflow: "hidden",
-                                    ...(request.status !== "rejected" ? {
+                                    ...(request.status === "pending" ? {
                                         cursor: "pointer",
                                         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
                                     } : {})
@@ -263,8 +263,11 @@ export default function LeaderRequests() {
                                         ) : null}
                                     </Stack>
                                 </Box>
-                            </Paper>
-                        ))}
+                            </Paper>;
+                            return request.status === "approved"
+                                ? <Box key={request.uid} component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} aria-label={`Open Leader Access for ${request.fullName}`} sx={{ display: "block", color: "inherit", textDecoration: "none", borderRadius: 2, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>{requestCard}</Box>
+                                : requestCard;
+                        })}
                     </Stack>
                 )}
 

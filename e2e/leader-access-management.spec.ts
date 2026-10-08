@@ -106,22 +106,40 @@ test.describe("leader access management", () => {
 });
 
 
-test("leader access summary tiles filter and direct routes use stable IDs", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+test("SW-320 Leader Access page-action links preserve filters, direct routes and Back behavior on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "SW-320 navigation regression runs on desktop and Pixel 7 Chromium.");
   test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
   await loginAdmin(page);
   await page.goto("/leader/access");
   const search = page.getByLabel("Search leaders");
   await search.fill("Test Multi Section Leader");
-  const tile = page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" });
+  const tile = page.getByRole("link", { name: "Edit leader access for Test Multi Section Leader" });
   await expect(tile).toHaveCount(1);
-  await tile.press("Enter");
-  await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader/);
+  await expect(tile).toHaveAttribute("href", /\/leader\/access\/TEST_uid_multi_section_leader\?q=Test\+Multi\+Section\+Leader/);
+  await tile.focus();
+  await expect(tile).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader\?q=Test\+Multi\+Section\+Leader/);
   await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
-  await page.getByRole("button", { name: "Back to leaders" }).click();
-  await expect(search).toHaveValue("Test Multi Section Leader");
-  await page.goto("/leader/access/not-a-real-leader");
-  await expect(page.getByText("Leader record not found or is not available to you.")).toBeVisible();
+  const back = page.getByTestId("leader-access-back");
+  await expect(back).toHaveRole("link");
+  await expect(back).toHaveAttribute("href", /\/leader\/access\?q=Test\+Multi\+Section\+Leader/);
+  await expect(back).toHaveText("Back to leaders");
+  const backBox = await back.boundingBox();
+  expect(backBox?.height).toBeGreaterThanOrEqual(44);
+  expect(backBox?.width).toBeGreaterThan(100);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  await back.click();
+  await expect(page).toHaveURL(/\/leader\/access\?q=Test\+Multi\+Section\+Leader/);
+  await expect(page.getByLabel("Search leaders")).toHaveValue("Test Multi Section Leader");
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader\?q=Test\+Multi\+Section\+Leader/);
+  await page.goto("/leader/access/TEST_uid_multi_section_leader?q=Test");
+  await expect(page.getByTestId("leader-access-back")).toHaveAttribute("href", /\/leader\/access\?q=Test/);
+  await page.getByTestId("leader-access-back").click();
+  await expect(page.getByLabel("Search leaders")).toHaveValue("Test");
+  await page.goto("/privacy");
+  await expect(page.getByRole("link", { name: "Contact Us" }).first()).toHaveAttribute("href", "/contact");
 });
 
 
@@ -155,7 +173,7 @@ test("SW-153 filters preserve the working viewport on desktop, mobile, and keybo
 
     before = await filterPosition();
     await search.fill("Test Multi");
-    await expect(page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: "Edit leader access for Test Multi Section Leader" })).toHaveCount(1);
     await expectWorkingViewport(before);
 
     before = await filterPosition();
@@ -170,10 +188,10 @@ test("SW-153 filters preserve the working viewport on desktop, mobile, and keybo
     await expect(search).toHaveValue("Test");
     await expectWorkingViewport(before);
 
-    const tile = page.getByRole("button", { name: "Edit leader access for Test Multi Section Leader" });
+    const tile = page.getByRole("link", { name: "Edit leader access for Test Multi Section Leader" });
     await tile.click();
     await expect(page).toHaveURL(/\/leader\/access\/TEST_uid_multi_section_leader\?q=Test/);
-    await page.getByRole("button", { name: "Back to leaders" }).click();
+    await page.getByRole("link", { name: "Back to leaders" }).click();
     await expect(page.getByLabel("Search leaders")).toHaveValue("Test");
   };
 
@@ -182,6 +200,21 @@ test("SW-153 filters preserve the working viewport on desktop, mobile, and keybo
   await exerciseFilters(390, 500);
 });
 
+
+test("SW-320 ordinary leaders cannot open Leader Access record routes", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "SW-320 role guard runs on desktop and Pixel 7 Chromium.");
+  const email = process.env.E2E_MULTI_SECTION_LEADER_EMAIL;
+  test.skip(!email || !password, "Configure the seeded ordinary leader account.");
+  await page.goto("/leader/login");
+  await page.getByLabel("Email address").fill(email!);
+  await page.getByLabel("Password").fill(password!);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+
+  await page.goto("/leader/access/TEST_uid_multi_section_leader");
+  await expect(page.getByText("Group Leadership or Administrator access is required.")).toBeVisible();
+  await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toHaveCount(0);
+});
 
 test("SW-248 allows two leaders to retain the same Group appointment independently", async ({ page }, testInfo) => {
   desktopOnly(testInfo);

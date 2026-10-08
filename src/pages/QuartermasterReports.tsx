@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, Container } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -16,7 +16,6 @@ import { canManageEquipment } from "../services/equipmentLogic";
 
 export default function QuartermasterReports() {
   const { adminProfile } = useAdminAuth();
-  const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [loans, setLoans] = useState<EquipmentLoan[]>([]);
@@ -54,7 +53,7 @@ export default function QuartermasterReports() {
     <Container maxWidth="xl" data-testid="page-qm-reports">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="QM Reports" />
-      <Button variant="outlined" sx={{ mb: 2, width: { xs: "100%", sm: "auto" } }} onClick={() => navigate("/leader/equipment?view=quartermaster")}>Back to Equipment &amp; Stores</Button>
+      <Button component={Link} to="/leader/equipment?view=quartermaster" variant="outlined" color="secondary" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to Equipment &amp; Stores</Button>
       {!canManage ? (
         <Alert severity="error">Quartermaster / Bo’sun equipment-management access is required.</Alert>
       ) : error ? (

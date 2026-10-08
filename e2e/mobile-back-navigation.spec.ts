@@ -81,7 +81,11 @@ test("mobile application Back ignores stale history indexes after direct record 
     window.history.replaceState({ ...state, idx: 3 }, "", window.location.href);
   });
 
-  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
+  const backToEvents = page.getByRole("link", { name: "Back to Events", exact: true });
+  await expect(backToEvents).toHaveAttribute("href", "/leader/events");
+  const backBox = await backToEvents.boundingBox();
+  expect(backBox?.height).toBeGreaterThanOrEqual(44);
+  await backToEvents.click();
   await expect(page).toHaveURL(/\/leader\/events$/);
   await expect(page.getByTestId("event-card-TEST_flow_event_beavers_open")).toBeVisible();
 });

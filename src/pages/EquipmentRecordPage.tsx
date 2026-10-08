@@ -4,7 +4,7 @@ import {
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentItemReturnDialog from "../components/admin/EquipmentItemReturnDialog";
@@ -116,19 +116,19 @@ export default function EquipmentRecordPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="lg">
     <LeaderDashboardHeader />
     <LeaderPageHeader title={item?.id === equipmentId ? item.name : "Equipment record"} description="Equipment record, condition, history, Store movement and issue reporting." />
-    {loading && (!item || item.id !== equipmentId) ? <Alert severity="info" role="status">Loading equipment record…</Alert> : !item || !form || item.id !== equipmentId ? <><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate(`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`)}>Open Equipment & Stores</Button></> : <>
+    {loading && (!item || item.id !== equipmentId) ? <Alert severity="info" role="status">Loading equipment record…</Alert> : !item || !form || item.id !== equipmentId ? <><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button component={Link} to={`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`} variant="outlined" color="secondary" sx={{ mt: 2, minHeight: 44 }}>Open Equipment & Stores</Button></> : <>
     <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {storeMove?.itemId === item.id && <Alert severity="success" sx={{ mb: 2 }} data-testid="equipment-store-move-success">Moved {storeMove.quantity} × {item.name} to {storeMove.destination}.{storeMove.destinationItemId ? " The moved stock has its own destination record." : " The existing equipment record was kept."}</Alert>}
     {item.archived && <Alert severity="warning" sx={{ mb: 2 }}>This record is archived. Restore it before editing or using it in active equipment workflows.</Alert>}
-    {issueTargetUnavailable && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in this record or your account’s scope. <Button size="small" onClick={() => navigate(`/leader/equipment?issue=${encodeURIComponent(highlightedIssueId ?? "")}`)}>Review current equipment issues</Button></Alert>}
+    {issueTargetUnavailable && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in this record or your account’s scope. <Button component={Link} to={`/leader/equipment?issue=${encodeURIComponent(highlightedIssueId ?? "")}`} size="small" variant="outlined" color="secondary">Review current equipment issues</Button></Alert>}
 
     <Paper data-testid="equipment-record-summary" variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
           <Button variant="outlined" onClick={() => setHistoryOpen(true)}>History</Button>
-          {canManage && !item.archived && availableEquipmentQuantity(item) > 0 && <Button variant="outlined" onClick={() => navigate(`/leader/equipment/${encodeURIComponent(item.id)}/move-store`)}>Move Store</Button>}
+          {canManage && !item.archived && availableEquipmentQuantity(item) > 0 && <Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}/move-store`} variant="outlined">Move Store</Button>}
           {item.checkedOutQuantity > 0 && canReturnItem && <Button data-testid="equipment-record-return" variant="outlined" color="success" onClick={() => setReturnOpen(true)}>Check in / Return</Button>}
           {canManage && !item.archived && <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>}
           {canManage && <Button variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={() => setConfirmArchive(true)}>{item.archived ? "Restore" : "Archive"}</Button>}
