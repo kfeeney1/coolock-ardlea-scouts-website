@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, collectionGroup, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "../firebase";
 
@@ -22,43 +22,89 @@ function value(data: Record<string, unknown>, key: string): string {
     return typeof data[key] === "string" ? data[key] as string : "";
 }
 
+function mapLegacyLink(id: string, data: Record<string, unknown>): ParentEventConsentLink | null {
+    const audienceMemberIds = Array.isArray(data.audienceMemberIds)
+        ? data.audienceMemberIds.filter((memberId): memberId is string => typeof memberId === "string")
+        : [];
+    const link = {
+        token: id,
+        eventId: value(data, "eventId"),
+        title: value(data, "title"),
+        description: value(data, "description"),
+        eventType: value(data, "eventType"),
+        section: value(data, "section"),
+        location: value(data, "location"),
+        meetingPoint: value(data, "meetingPoint"),
+        returnDetails: value(data, "returnDetails"),
+        startDate: value(data, "startDate"),
+        endDate: value(data, "endDate"),
+        consentRequired: data.consentRequired === true,
+        audienceMemberIds,
+    };
+    return link.eventId && link.title && link.startDate ? link : null;
+}
+
 export async function loadParentEventConsentLinks(memberIds: string[]): Promise<ParentEventConsentLink[]> {
     const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
     if (linkedMemberIds.length === 0) return [];
 
-    // Restrict the query to the parent's approved linked children. Firestore Rules
-    // also verify the event audience membership, so editing query state cannot
-    // reveal a selected-member event to an unrelated parent.
-    const snapshot = await getDocs(
-        query(
-            collection(db, "eventConsentLinks"),
-            where("active", "==", true),
-            where("audienceMemberIds", "array-contains-any", linkedMemberIds)
-        )
-    );
-    const linkedMemberIdSet = new Set(linkedMemberIds);
+    // New event audiences are read through their per-member audience records.
+    // Firestore Rules authorize each result against the approved parent-child link.
+    const audienceSnapshot = await getDocs(query(
+        collectionGroup(db, "audienceMembers"),
+        where("memberId", "in", linkedMemberIds)
+    ));
+    const audienceByEvent = new Map<string, Set<string>>();
+    audienceSnapshot.docs.forEach((item) => {
+        const data = item.data() as Record<string, unknown>;
+        const eventId = value(data, "eventId");
+        const memberId = value(data, "memberId");
+        if (!eventId || !linkedMemberIds.includes(memberId)) return;
+        const members = audienceByEvent.get(eventId) ?? new Set<string>();
+        members.add(memberId);
+        audienceByEvent.set(eventId, members);
+    });
 
-    return snapshot.docs
-        .map((item) => {
-            const data = item.data() as Record<string, unknown>;
-            return {
-                token: item.id,
-                eventId: value(data, "eventId"),
-                title: value(data, "title"),
-                description: value(data, "description"),
-                eventType: value(data, "eventType"),
-                section: value(data, "section"),
-                location: value(data, "location"),
-                meetingPoint: value(data, "meetingPoint"),
-                returnDetails: value(data, "returnDetails"),
-                startDate: value(data, "startDate"),
-                endDate: value(data, "endDate"),
-                consentRequired: data.consentRequired === true,
-                audienceMemberIds: Array.isArray(data.audienceMemberIds) ? data.audienceMemberIds.filter((id): id is string => typeof id === "string") : []
-            };
-        })
-        .filter((event) => event.audienceMemberIds.some((id) => linkedMemberIdSet.has(id)))
-        .filter((event) => event.title && event.startDate)
-        .filter((event) => event.startDate >= new Date().toISOString().slice(0, 10))
+    const upcoming = new Date().toISOString().slice(0, 10);
+    const audienceEvents = await Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
+        const snapshot = await getDoc(doc(db, "events", eventId));
+        if (!snapshot.exists()) return null;
+        const data = snapshot.data() as Record<string, unknown>;
+        const token = value(data, "consentLinkToken");
+        const event = {
+            token,
+            eventId,
+            title: value(data, "title"),
+            description: value(data, "description"),
+            eventType: value(data, "eventType"),
+            section: value(data, "section"),
+            location: value(data, "location"),
+            meetingPoint: value(data, "meetingPoint"),
+            returnDetails: value(data, "returnDetails"),
+            startDate: value(data, "startDate"),
+            endDate: value(data, "endDate"),
+            consentRequired: data.consentRequired === true,
+            audienceMemberIds: [...members],
+        };
+        return data.status === "open" && event.consentRequired && token && event.title && event.startDate >= upcoming
+            ? event
+            : null;
+    }));
+
+    // Preserve access to consent links created before audience membership records
+    // were introduced. New v3 links keep their child IDs out of the public token doc.
+    const legacySnapshot = await getDocs(query(
+        collection(db, "eventConsentLinks"),
+        where("active", "==", true),
+        where("audienceVersion", "in", [1, 2]),
+        where("audienceMemberIds", "array-contains-any", linkedMemberIds)
+    ));
+    const legacyEvents = legacySnapshot.docs
+        .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>))
+        .filter((event): event is ParentEventConsentLink => Boolean(event));
+
+    return [...new Map([...audienceEvents.filter((event): event is ParentEventConsentLink => Boolean(event)), ...legacyEvents]
+        .filter((event) => event.startDate >= upcoming)
+        .map((event) => [event.eventId, event])).values()]
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
 }

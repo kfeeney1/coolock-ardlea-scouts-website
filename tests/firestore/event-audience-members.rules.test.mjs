@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
+import { collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -139,19 +139,37 @@ test("selected-event consent-link lists require a matching server-authorized aud
       startDate: "2099-05-10", endDate: "2099-05-11", active: true, audienceVersion: 3,
       audienceMemberIds: ["member-cub"],
     }],
+    ["eventConsentLinks/link-legacy", {
+      token: "link-legacy", eventId: "event-legacy", title: "Legacy Cubs event", eventType: "Camp", section: "Cubs",
+      startDate: "2099-05-12", endDate: "2099-05-13", active: true, audienceVersion: 2,
+      audienceMemberIds: ["member-cub"],
+    }],
   ]);
   const parentDb = testEnv.authenticatedContext("parent-cub").firestore();
   const otherDb = testEnv.authenticatedContext("parent-other").firestore();
 
-  const links = await assertSucceeds(getDocs(query(
+  const audience = await assertSucceeds(getDocs(query(
+    collectionGroup(parentDb, "audienceMembers"),
+    where("memberId", "in", ["member-cub"]),
+  )));
+  if (audience.size !== 1) throw new Error(`Expected one linked-parent event audience record, received ${audience.size}.`);
+  await assertSucceeds(getDoc(doc(parentDb, "events/event-1")));
+  await assertFails(getDoc(doc(otherDb, "events/event-1")));
+  const legacyLinks = await assertSucceeds(getDocs(query(
     collection(parentDb, "eventConsentLinks"),
     where("active", "==", true),
+    where("audienceVersion", "in", [1, 2]),
     where("audienceMemberIds", "array-contains-any", ["member-cub"]),
   )));
-  if (links.size !== 1) throw new Error(`Expected one linked-parent consent event, received ${links.size}.`);
+  if (legacyLinks.size !== 1 || legacyLinks.docs[0].id !== "link-legacy") throw new Error("Legacy parent event links remain available to the linked account.");
   await assertFails(getDocs(query(
     collection(otherDb, "eventConsentLinks"),
     where("active", "==", true),
+    where("audienceVersion", "in", [1, 2]),
     where("audienceMemberIds", "array-contains-any", ["member-scout"]),
+  )));
+  await assertFails(getDocs(query(
+    collectionGroup(otherDb, "audienceMembers"),
+    where("memberId", "in", ["member-scout"]),
   )));
 });

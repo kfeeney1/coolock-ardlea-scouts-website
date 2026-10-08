@@ -43,6 +43,7 @@ export type EventRecord = {
     endDate: string;
     status: EventStatus;
     consentRequired: boolean;
+    consentLinkToken: string;
     attendance: Record<string, AttendanceStatus>;
     consent: Record<string, EventConsentStatus>;
     audience: EventAudience | null;
@@ -129,6 +130,7 @@ function mapEvent(snapshot: QueryDocumentSnapshot<DocumentData>): EventRecord | 
         endDate,
         status,
         consentRequired: data.consentRequired === true,
+        consentLinkToken: stringValue(data, "consentLinkToken"),
         attendance: mapAttendance(data.attendance),
         consent: mapConsent(data.consent),
         audience: mapAudience(data.audience),
