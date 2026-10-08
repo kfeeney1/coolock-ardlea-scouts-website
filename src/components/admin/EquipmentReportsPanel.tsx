@@ -93,7 +93,6 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
     <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2 }}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>Equipment Reports</Typography>
-        <Typography color="text.secondary">Export stock and operational details, including damage, current checkout, last check-in and last-used information, plus holdings, overdue items, maintenance, usage and replacement-value reports.</Typography>
       </Box>
       {canManage && <Button variant="contained" color="success" onClick={() => downloadCsv(`all-equipment-${today}.csv`, equipmentInventoryCsv(items, {}, operationalSources))} data-testid="export-all-equipment-csv">Export all equipment CSV</Button>}
       {canManage && <Button variant="outlined" onClick={() => downloadCsv(`equipment-asset-register-${today}.csv`, equipmentAssetRegisterCsv(items))} data-testid="export-equipment-asset-register">Export asset register</Button>}
