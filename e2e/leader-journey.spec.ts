@@ -118,7 +118,7 @@ test.describe("leader journey", () => {
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
 
-    await tile.press("Space");
+    await tile.press("Enter");
     await expect(page).toHaveURL(/\/leader\/access\/TEST_flow_leader_request_approved/);
     await page.goBack();
     await expect(page).toHaveURL(/\/leader\/requests\?q=Approved\+Section\+Leader$/);
