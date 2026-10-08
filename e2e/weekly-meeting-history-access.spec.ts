@@ -122,8 +122,8 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
 
   await fromDate.fill("2100-01-01");
   await expect(page.getByTestId("weekly-history-no-results")).toBeVisible();
-  await fromDate.fill("2099-01-01");
-  await toDate.fill("2099-12-31");
+  await fromDate.fill("2098-12-01");
+  await toDate.fill("2098-12-31");
   await expect(page.locator('[data-testid^="meeting-history-"][data-section="Cubs"]').first()).toBeVisible();
   const reset = page.getByTestId("weekly-history-reset");
   await expect(reset).toBeVisible();
