@@ -9,6 +9,13 @@ async function login(page: Page, path: string, email: string) {
   await page.getByLabel(path === "/parent" ? "Email" : "Email address").fill(email);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
+  // Wait for the authenticated route before navigating elsewhere: an immediate
+  // goto can cancel the in-flight sign-in and leave the dashboard unauthorised.
+  if (path === "/leader/login") {
+    await expect(page).toHaveURL(/\/leader(?:[/?#]|$)/);
+  } else {
+    await expect(page.getByRole("button", { name: "Sign Out" }).first()).toBeVisible();
+  }
 }
 
 function desktopOnly(testInfo: TestInfo) {
