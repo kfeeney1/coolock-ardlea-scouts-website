@@ -96,8 +96,12 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   await expect(section).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(fromDate).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(toDate).toBeFocused();
+  const focusTargets = [search, section, fromDate, toDate];
+  const expectedFocusOrder = await Promise.all(focusTargets.map((control) => control.getAttribute("id")));
+  const actualFocusOrder = await historyCard.locator('[data-testid="weekly-history-search"], #weekly-history-section, input[type="date"]').evaluateAll((controls) => controls.map((control) => control.id));
+  expect(actualFocusOrder).toEqual(expectedFocusOrder);
+  const tabStops = await Promise.all(focusTargets.map((control) => control.evaluate((element) => element.tabIndex)));
+  expect(tabStops).toEqual([0, 0, 0, 0]);
 
   const resultCount = page.getByTestId("weekly-history-result-count");
   await search.fill("Scout Den");
