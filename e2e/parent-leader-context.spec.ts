@@ -99,7 +99,7 @@ test("parent-only account retains portal navigation and cannot enter Leader Dash
   await openParentFromHeader(page, testInfo);
   await expectChildOptions(page, 2);
   await page.goto("/leader");
-  await expect(page).toHaveURL(/\/parent$/);
+  await expect(page).toHaveURL(/\/parent(?:\?.*)?$/);
   await expect(page.getByText("This account does not have leader access.")).toBeVisible();
 });
 

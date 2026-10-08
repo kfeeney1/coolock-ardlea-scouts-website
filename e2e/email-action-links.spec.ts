@@ -80,9 +80,13 @@ test("broken equipment email target opens the exact issue after login and protec
   await issueDialog.getByRole("button", { name: "Report issue" }).click();
   await expect(issueDialog).toBeHidden({ timeout: 15000 });
 
+  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page).toHaveURL("/leader/equipment/issues");
   const incidentCard = page.locator('[data-testid^="equipment-incident-"]').filter({ hasText: itemName });
   await expect(incidentCard).toContainText("Broken / damaged");
   const incidentId = (await incidentCard.getAttribute("data-testid"))?.replace("equipment-incident-", "");
+  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await expect(page).toHaveURL("/leader/equipment");
   const itemId = (await inventoryCard.getAttribute("data-testid"))?.replace("equipment-inventory-card-", "");
   expect(incidentId).toBeTruthy();
   expect(itemId).toBeTruthy();
