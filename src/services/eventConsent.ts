@@ -162,7 +162,7 @@ function publicEventPayload(event: EventRecord) {
         endDate: clean(event.endDate, 30),
         consentRequired: event.consentRequired,
         active: event.status === "open" && event.consentRequired,
-        audienceMemberIds: event.audience?.resolvedMemberIds ?? [],
+        audienceMemberIds: [],
         audienceVersion: 3,
         updatedAt: serverTimestamp()
     };

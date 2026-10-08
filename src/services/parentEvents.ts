@@ -80,30 +80,21 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
     });
 
     const upcoming = new Date().toISOString().slice(0, 10);
-    const audienceEvents = await Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
-        const snapshot = await atParentEventOperation("Read selected event details", () => getDoc(doc(db, "events", eventId)));
-        if (!snapshot.exists()) return null;
-        const data = snapshot.data() as Record<string, unknown>;
-        const token = value(data, "consentLinkToken");
-        const event = {
-            token,
-            eventId,
-            title: value(data, "title"),
-            description: value(data, "description"),
-            eventType: value(data, "eventType"),
-            section: value(data, "section"),
-            location: value(data, "location"),
-            meetingPoint: value(data, "meetingPoint"),
-            returnDetails: value(data, "returnDetails"),
-            startDate: value(data, "startDate"),
-            endDate: value(data, "endDate"),
-            consentRequired: data.consentRequired === true,
-            audienceMemberIds: [...members],
-        };
-        return data.status === "open" && event.consentRequired && token && event.title && event.startDate >= upcoming
-            ? event
-            : null;
+    const selectedEventGroups = await Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
+        const links = await atParentEventOperation("Read selected event consent link projections", () => getDocs(query(
+            collection(db, "eventConsentLinks"),
+            where("eventId", "==", eventId),
+            where("active", "==", true),
+            where("audienceVersion", "==", 3)
+        )));
+        return links.docs.flatMap((item) => {
+            const event = mapLegacyLink(item.id, item.data() as Record<string, unknown>);
+            return event && event.eventId === eventId && event.consentRequired && event.startDate >= upcoming
+                ? [{ ...event, audienceMemberIds: [...members] }]
+                : [];
+        });
     }));
+    const audienceEvents = selectedEventGroups.flat();
 
     // Preserve access to consent links created before audience membership records
     // were introduced. New v3 links keep their child IDs out of the public token doc.

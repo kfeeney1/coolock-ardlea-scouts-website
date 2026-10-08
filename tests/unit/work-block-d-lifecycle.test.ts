@@ -52,7 +52,7 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.match(parentEvents,/where\("audienceVersion", "==", version\)/);
   assert.match(parentEvents,/where\("section", "in", legacySections\)/);
   assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
-  assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
+  assert.match(consent,/audienceMemberIds: \[\]/);
   assert.match(consent,/audienceVersion: 3/);
   assert.match(parentPortalSections,/const memberIds = selectedChild \? \[selectedChild\.id\] : \[\]/);
   assert.match(parentPortalSections,/memberIds=\{memberIds\}/);

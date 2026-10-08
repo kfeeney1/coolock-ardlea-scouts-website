@@ -137,7 +137,7 @@ test("selected-event consent-link lists require a matching server-authorized aud
     ["eventConsentLinks/link-1", {
       token: "link-1", eventId: "event-1", title: "Selected Cubs event", eventType: "Camp", section: "Cubs",
       startDate: "2099-05-10", endDate: "2099-05-11", active: true, audienceVersion: 3,
-      audienceMemberIds: ["member-cub"],
+      audienceMemberIds: [],
     }],
     ["eventConsentLinks/link-legacy", {
       token: "link-legacy", eventId: "event-legacy", title: "Legacy Cubs event", eventType: "Camp", section: "Cubs",
@@ -153,8 +153,28 @@ test("selected-event consent-link lists require a matching server-authorized aud
     where("memberId", "in", ["member-cub"]),
   )));
   if (audience.size !== 1) throw new Error(`Expected one linked-parent event audience record, received ${audience.size}.`);
-  await assertSucceeds(getDoc(doc(parentDb, "events/event-1")));
+  await assertFails(getDoc(doc(parentDb, "events/event-1")));
   await assertFails(getDoc(doc(otherDb, "events/event-1")));
+  const selectedLinks = await assertSucceeds(getDocs(query(
+    collection(parentDb, "eventConsentLinks"),
+    where("active", "==", true),
+    where("audienceVersion", "==", 3),
+    where("eventId", "==", "event-1"),
+  )));
+  if (selectedLinks.size !== 1 || selectedLinks.docs[0].id !== "link-1") throw new Error("An approved linked parent can read the selected event's safe consent projection.");
+  await assertFails(getDocs(query(
+    collection(otherDb, "eventConsentLinks"),
+    where("active", "==", true),
+    where("audienceVersion", "==", 3),
+    where("eventId", "==", "event-1"),
+  )));
+  const anonymousDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDocs(query(
+    collection(anonymousDb, "eventConsentLinks"),
+    where("active", "==", true),
+    where("audienceVersion", "==", 3),
+    where("eventId", "==", "event-1"),
+  )));
   const legacyLinks = await assertSucceeds(getDocs(query(
     collection(parentDb, "eventConsentLinks"),
     where("active", "==", true),
