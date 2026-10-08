@@ -92,6 +92,8 @@ jobs:
           npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
+      - name: Run focused navigation and record regressions
+        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts e2e/event-record-page.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
       - name: Repeat isolated SW-355 lifecycle on persistent emulator state
@@ -104,6 +106,7 @@ jobs:
         run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|group leader copies a meeting into another authorised section and resets operational history"
 
   e2e_shard:
+    needs: focused_pr
     name: e2e shard ${{ matrix.id }} of 2
     strategy:
       fail-fast: false
@@ -113,7 +116,7 @@ jobs:
             shard: 1/2
           - id: 2
             shard: 2/2
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.focused_pr.result == 'success') }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -314,12 +317,16 @@ jobs:
   # wall time without introducing shared-state parallelism inside Playwright.
   e2e:
     if: ${{ always() }}
-    needs: e2e_shard
+    needs: [focused_pr, e2e_shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every Playwright shard
         shell: bash
         run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.focused_pr.result }}" != "success" ]; then
+            echo "::error::Focused PR assurance failed or was cancelled; full Playwright shards were blocked."
+            exit 1
+          fi
           if [ "${{ needs.e2e_shard.result }}" != "success" ]; then
             echo "::error::One or more Playwright shards failed or were cancelled."
             exit 1
