@@ -184,7 +184,9 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByLabel("Description").fill("TEST event description");
   await page.getByLabel("Leader notes").fill("TEST leader notes");
 
-  await expect(page.getByText(/Audience: .*Beavers/)).toBeVisible();
+  await page.getByRole("button", { name: "Clear sections", exact: true }).click();
+  await page.getByRole("checkbox", { name: /^Beavers \(\d+\)$/ }).check();
+  await expect(page.getByTestId("event-audience-summary")).toContainText(/Audience: Beavers — \d+ members/);
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
 
   await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
@@ -207,15 +209,16 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("button", { name: "Selected members", exact: true }).click();
   await page.getByRole("button", { name: "Clear all members", exact: true }).click();
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
-  await page.getByLabel("Search authorized group members").fill("TEST");
-
+  const memberSearch = page.getByLabel("Search authorized group members");
+  await memberSearch.fill("Riley");
   const selectedRiley = page.getByRole("checkbox", { name: /Riley Nolan Beavers 01 · Beavers$/ });
+  await expect(selectedRiley).toBeVisible();
+  await selectedRiley.check();
+  await memberSearch.fill("");
   const selectedCub = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
   const selectedScout = page.getByRole("checkbox", { name: /· Scouts$/ }).first();
-  await expect(selectedRiley).toBeVisible();
   await expect(selectedCub).toBeVisible();
   await expect(selectedScout).toBeVisible();
-  await selectedRiley.check();
   await selectedCub.check();
   await selectedScout.check();
   const selectedNames = await Promise.all([selectedRiley, selectedCub, selectedScout].map(async (checkbox) =>
