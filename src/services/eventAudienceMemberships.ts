@@ -60,3 +60,12 @@ export function withPersistedEventAudience(audience: EventAudience): EventAudien
     resolvedMemberIds: []
   };
 }
+
+export function chunkEventAudienceMemberships<T>(memberships: T[], size = 16): T[][] {
+  if (!Number.isInteger(size) || size < 1) throw new Error("Membership batch size must be a positive integer.");
+  const chunks: T[][] = [];
+  for (let offset = 0; offset < memberships.length; offset += size) {
+    chunks.push(memberships.slice(offset, offset + size));
+  }
+  return chunks;
+}
