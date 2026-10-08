@@ -16,13 +16,17 @@ test.describe("public website", () => {
   }
 });
 
-
 test.describe("public Parent Login entry-point audit", () => {
   for (const route of publicRoutes) {
     test(`${route} does not expose Parent Login in public navigation or calls to action`, async ({ page }) => {
       await page.goto(route);
       const width = page.viewportSize()?.width ?? 1280;
-      if (width < 900) await page.getByRole("button", { name: "Open navigation menu" }).click();
+      if (width < 900) {
+        await page.getByRole("button", { name: "Open navigation menu" }).click();
+        await expect(page.getByRole("menuitem", { name: "Leader Login", exact: true })).toBeVisible();
+      } else {
+        await expect(page.getByRole("banner").getByRole("link", { name: "Leader Login", exact: true })).toBeVisible();
+      }
       await expect(page.getByText("Parent Login", { exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: "Parent Login", exact: true })).toHaveCount(0);
       await expect(page.getByRole("link", { name: "Parent Login", exact: true })).toHaveCount(0);

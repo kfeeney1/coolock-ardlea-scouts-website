@@ -41,10 +41,9 @@ test.describe("Parent Portal", () => {
     await expect(page.getByText("Parent Consent Portal")).toHaveCount(0);
   });
 
-
   test("accepted Join Us onboarding deep links still open parent registration", async ({ page }) => {
-    await page.goto("/parent?joinToken=TEST_ACCEPTED_JOIN_TOKEN");
-    await expect(page).toHaveURL(/\/parent\?joinToken=TEST_ACCEPTED_JOIN_TOKEN$/);
+    await page.goto("/parent?joinToken=accepted-join-token-placeholder");
+    await expect(page).toHaveURL(/\/parent\?joinToken=accepted-join-token-placeholder$/);
     await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
     await page.getByRole("button", { name: "Need an account? Register" }).click();
     await expect(page.getByText(/Use the parent email that received the acceptance message/i)).toBeVisible();
