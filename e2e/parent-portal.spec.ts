@@ -41,6 +41,26 @@ test.describe("Parent Portal", () => {
     await expect(page.getByText("Parent Consent Portal")).toHaveCount(0);
   });
 
+  test("accepted Join Us onboarding deep links still open parent registration", async ({ page }) => {
+    await page.goto("/parent?joinToken=accepted-join-token-placeholder");
+    await expect(page).toHaveURL(/\/parent\?joinToken=accepted-join-token-placeholder$/);
+    await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
+    await page.getByRole("button", { name: "Need an account? Register" }).click();
+    await expect(page.getByText(/Use the parent email that received the acceptance message/i)).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Child 1 first name")).toHaveCount(0);
+  });
+
+  test("signed-out users cannot see protected child consent or medical information through a direct URL", async ({ page }) => {
+    await page.goto("/parent?child=TEST_member_beaver_01#parent-medical-consent");
+    await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByTestId("parent-portal-menu")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Consent & Medical Forms" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toHaveCount(0);
+  });
+
   test("parent registration remains usable at mobile width and browser Back remains normal", async ({ page }, testInfo: TestInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Mobile parent registration regression runs once on the canonical Pixel 7 project.");
     await page.goto("/about");
