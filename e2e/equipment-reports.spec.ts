@@ -39,6 +39,15 @@ test("equipment manager sees the operational overview and can generate, open and
   await expect(dashboard.getByRole("heading", { name: "Equipment overview" })).toBeVisible();
   await expect(dashboard.getByRole("heading", { name: "Recent activity" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Detailed inventory" })).toBeVisible();
+  await expect(dashboard.getByText("A high-level view of stock health and the latest operational activity.", { exact: true })).toHaveCount(0);
+  for (const filter of ["all", "available", "unavailable", "checked-out"]) {
+    await expect(dashboard.getByTestId(`equipment-dashboard-${filter}`)).toBeVisible();
+  }
+  await dashboard.getByTestId("equipment-dashboard-available").click();
+  await expect(page).toHaveURL(/status=available/);
+  await expect(page.getByTestId("equipment-status-filter")).toHaveText("Available stock");
+  await page.getByTestId("equipment-reset-filters").click();
+  await expect(page).not.toHaveURL(/status=available/);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
   await page.getByRole("button", { name: "Open QM Reports" }).click();
   await expect(page).toHaveURL("/leader/qm-reports");
