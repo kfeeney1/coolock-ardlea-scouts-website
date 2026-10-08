@@ -73,6 +73,7 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   expect(sectionBounds).not.toBeNull();
   expect(cardBounds).not.toBeNull();
   expect(viewportWidth).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewportWidth + 1);
 
   if (testInfo.project.name === "mobile-chromium") {
     expect(sectionBounds!.y - (searchBounds!.y + searchBounds!.height)).toBeLessThan(96);
