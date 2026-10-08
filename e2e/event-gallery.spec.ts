@@ -91,6 +91,10 @@ test("completed event history keeps gallery access on its record page", async ({
     await page.goto("/leader/events");
     await page.getByRole("combobox", { name: "Status" }).click();
     await page.getByRole("option", { name: "Completed" }).click();
+    // MUI hides the closing menu from accessibility before its backdrop detaches.
+    // Wait for removal so the backdrop cannot consume the event-card click.
+    await expect(page.getByRole("listbox", { includeHidden: true })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Status" })).toHaveText("Completed");
     const completedCard = page.getByTestId("event-card-TEST_flow_event_ventures_completed");
     await expect(completedCard).toBeVisible();
     await expect(completedCard).toHaveAttribute("href", "/leader/events/TEST_flow_event_ventures_completed");
