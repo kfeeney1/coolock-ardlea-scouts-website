@@ -379,8 +379,8 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         reconciledConsent[id] ??= input.consentRequired ? "required" : "not-required";
     });
 
-    const batch = writeBatch(db);
-    batch.update(eventRef, {
+    const membershipChunks = chunkEventAudienceMemberships(memberships);
+    const updatePayload = {
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
         eventType: clean(input.eventType, 80),
@@ -398,17 +398,26 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         consent: reconciledConsent,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
-    });
-    memberships.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventId, membership.memberId)), {
-        ...membership,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
-    }));
-    await batch.commit();
+    };
+    for (const [index, chunk] of membershipChunks.entries()) {
+        const batch = writeBatch(db);
+        if (index === 0) batch.update(eventRef, updatePayload);
+        chunk.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventId, membership.memberId)), {
+            ...membership,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+        }));
+        await batch.commit();
+    }
+    if (membershipChunks.length === 0) {
+        const batch = writeBatch(db);
+        batch.update(eventRef, updatePayload);
+        await batch.commit();
+    }
     const removedMemberships = previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
-    for (let offset = 0; offset < removedMemberships.length; offset += 450) {
+    for (let offset = 0; offset < removedMemberships.length; offset += 16) {
         const cleanupBatch = writeBatch(db);
-        removedMemberships.slice(offset, offset + 450).forEach((item) => cleanupBatch.delete(item.ref));
+        removedMemberships.slice(offset, offset + 16).forEach((item) => cleanupBatch.delete(item.ref));
         await cleanupBatch.commit();
     }
 
