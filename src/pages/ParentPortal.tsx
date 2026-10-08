@@ -1,19 +1,16 @@
 import { reportApplicationError, applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Paper, Stack, TextField, Typography } from "@mui/material";
 import { requestPasswordReset } from "../services/passwordReset";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import PasswordField from "../components/PasswordField";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { OperationalErrorState, OperationalLoading, OperationalPermissionState } from "../components/admin/OperationalStates";
-import ParentAdventureSkillsSection from "../components/parent/ParentAdventureSkillsSection";
+import ParentPortalSections from "../components/parent/ParentPortalSections";
 import ParentChildRequestFields from "../components/ParentChildRequestFields";
-import ParentConsentSection from "../components/parent/ParentConsentSection";
-import ParentEventConsentSection from "../components/parent/ParentEventConsentSection";
-import ParentThingsToDo from "../components/parent/ParentThingsToDo";
 import { BACK_DISMISS_STATE_KEY, backDismissStack } from "../services/backDismissHistory";
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
@@ -237,22 +234,17 @@ export default function ParentPortal() {
     if (user && !account) return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "sm"}>{leaderHeader}<Paper sx={{ p: 4 }}>{!leaderAccount && <Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography>}{leaderAccessDenied && <Alert severity="warning" sx={{ mt: 2 }}>This account does not have leader access.</Alert>}<Alert severity="info" sx={{ my: 2 }}>Submit parent registration by identifying your child or children. The details are reviewed separately from any Leader access and never grant child access automatically.</Alert><Stack spacing={2}><TextField label="Parent / Guardian name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><TextField label="Mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />{!joinConsentToken && <ParentChildRequestFields children={children} setChildren={setChildren} />}{joinConsentToken && <Alert severity="info">This registration came from an accepted Join Us email. Sign in or submit your parent details; the accepted child will be linked securely from that application.</Alert>}{error && <Alert severity="error">{error}</Alert>}<Button variant="contained" color="success" disabled={working} onClick={() => void enableExistingAccount()}>{working ? "Please wait…" : "Submit Parent Registration"}</Button><Button onClick={() => void logoutParent()}>Sign Out</Button></Stack></Paper></Container></Box>;
 
     if (account) {
-        const activeMemberIds = selectedChild ? [selectedChild.id] : [];
-        const activeSections = selectedChild?.sections ?? [];
-        const portalLinks = [
-            ["Things to do", "parent-things-to-do"],
-            ["Badgework", "parent-adventure-skills"],
-            ["Consent & Medical", "parent-medical-consent"],
-            ["Meetings & Events", "parent-event-consent"]
-        ] as const;
         return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: 4 }}><Container maxWidth={leaderAccount ? "xl" : "lg"}>{leaderHeader}<Paper ref={portalContentRef} sx={{ p: { xs: 3, md: 4 } }}>{leaderAccessDenied && <Alert severity="warning" sx={{ mb: 3 }}>This account does not have leader access.</Alert>}{!leaderAccount && <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 2 }}><Box><Typography component="h1" variant="h3" color="secondary">Parent Portal</Typography><Typography color="text.secondary">Signed in as {account.displayName || account.email}</Typography></Box><Button variant="outlined" onClick={() => void logoutParent()}>Sign Out</Button></Box>}{account.status === "pending" && <Alert severity="info" sx={{ mt: leaderAccount ? 0 : 3 }}>Your child's details have been submitted for verification. A leader must verify and approve each relationship before any protected child information becomes available.</Alert>}{account.status === "rejected" && <Alert severity="warning" sx={{ mt: 3 }}>This access request has not been approved. Please contact the Scout Group if you believe this is incorrect.</Alert>}{account.status === "revoked" && <Alert severity="warning" sx={{ mt: 3 }}>Parent access has been revoked. No linked child information is available.</Alert>}{account.status === "approved" && <><Alert severity="success" sx={{ mb: 3 }}>Your account is approved and linked to {account.memberIds.length} member record{account.memberIds.length === 1 ? "" : "s"}.</Alert>{joinConsentNotice && <Alert severity="info" sx={{ mb: 3 }}>{joinConsentNotice}</Alert>}
-            {childrenLoadError ? <Alert severity="warning" sx={{ mb: 3 }}>Child details could not be loaded. Portal navigation remains limited to the approved linked records.</Alert> : linkedChildren.length > 0 && <FormControl fullWidth sx={{ mb: 2 }}><InputLabel id="parent-child-context-label">Viewing information for</InputLabel><Select labelId="parent-child-context-label" label="Viewing information for" value={pendingChildId ?? selectedChild?.id ?? ""} onChange={(event) => rememberChildSelection(event.target.value)} onClose={commitChildSelectionAfterClose} data-testid="parent-child-context">{linkedChildren.map((child) => <MenuItem key={child.id} value={child.id}>{child.displayName} · {child.sections.join(", ")}</MenuItem>)}</Select></FormControl>}
-            {selectedChild && <Typography role="status" aria-live="polite" sx={{ mb: 2 }}>Viewing {selectedChild.displayName} · {selectedChild.sections.join(", ")}</Typography>}
-            <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">{portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}</Box>
-            <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={activeMemberIds} sections={activeSections} refreshVersion={taskSummaryVersion} /></Box>
-            <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={activeMemberIds} /></Box>
-            <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={activeMemberIds} sections={activeSections} /></Box>
-            <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection memberIds={activeMemberIds} onSaved={() => setTaskSummaryVersion((version) => version + 1)} /></Box>
+            <ParentPortalSections
+                linkedChildren={linkedChildren}
+                selectedChild={selectedChild}
+                pendingChildId={pendingChildId}
+                childrenLoadError={childrenLoadError}
+                taskSummaryVersion={taskSummaryVersion}
+                onRememberChildSelection={rememberChildSelection}
+                onCommitChildSelectionAfterClose={commitChildSelectionAfterClose}
+                onConsentSaved={() => setTaskSummaryVersion((version) => version + 1)}
+            />
             </>}</Paper></Container></Box>;
     }
 
