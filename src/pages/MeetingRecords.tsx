@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, Container, Divider, FormControl, InputLabel, 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import MeetingRecordImportReview from "../components/MeetingRecordImportReview";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments";
 import { extractMeetingCandidates, type MeetingCandidate, type MeetingCandidateKey } from "../services/meetingRecordImport";
@@ -283,28 +284,22 @@ export default function MeetingRecords() {
 
       <Paper ref={formRef} data-testid="meeting-record-form" elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, scrollMarginTop: 16 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{editingId ? "Edit meeting record" : "Record a meeting"}</Typography>
-        {importMessage && <Alert severity="success" sx={{ mb: 2 }}>{importMessage}</Alert>}
-        {importWarnings.length > 0 && <Alert severity="warning" sx={{ mb: 2 }}><Typography sx={{ fontWeight: 700, mb: 0.5 }}>Check the imported draft</Typography>{importWarnings.map((warning) => <Typography key={warning} variant="body2">• {warning}</Typography>)}</Alert>}
-        {parseCandidates.length > 0 && <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="meeting-document-preview">
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>Review document suggestions</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Existing populated values are preserved unless you explicitly select their replacement.</Typography>
-          <Stack spacing={1.5}>
-            {parseCandidates.map((candidate) => {
-              const existing = currentCandidateValue(candidate.key);
-              const proposed = proposedCandidateValue(candidate);
-              const conflict = Boolean(existing.trim()) && existing.trim() !== proposed.trim();
-              return <Paper key={candidate.key} variant="outlined" sx={{ p: 1.5 }} data-testid={`meeting-import-candidate-${candidate.key}`}>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ alignItems: { md: "center" } }}>
-                  <Box sx={{ minWidth: { md: 180 } }}><Typography sx={{ fontWeight: 700 }}>{candidate.label}</Typography>{conflict && <Typography variant="caption" color="warning.main">Differs from existing value</Typography>}</Box>
-                  <TextField label="Existing value" value={existing} size="small" multiline disabled sx={{ flex: 1 }} />
-                  <TextField label="Proposed value" value={proposed} size="small" multiline sx={{ flex: 1 }} onChange={(event) => updateCandidate(candidate.key, event.target.value)} />
-                  <Button variant={acceptedCandidates.has(candidate.key) ? "contained" : "outlined"} onClick={() => setAcceptedCandidates((current) => { const next = new Set(current); if (next.has(candidate.key)) next.delete(candidate.key); else next.add(candidate.key); return next; })}>{acceptedCandidates.has(candidate.key) ? "Selected" : "Use value"}</Button>
-                </Stack>
-              </Paper>;
-            })}
-          </Stack>
-          <Button sx={{ mt: 2 }} variant="contained" disabled={acceptedCandidates.size === 0} onClick={applyCandidates}>Apply selected values</Button>
-        </Paper>}
+        <MeetingRecordImportReview
+          message={importMessage}
+          warnings={importWarnings}
+          candidates={parseCandidates}
+          acceptedCandidates={acceptedCandidates}
+          currentCandidateValue={currentCandidateValue}
+          proposedCandidateValue={proposedCandidateValue}
+          onCandidateChange={updateCandidate}
+          onToggleCandidate={(key) => setAcceptedCandidates((current) => {
+            const next = new Set(current);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+          })}
+          onApplyCandidates={applyCandidates}
+        />
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
           <TextField label="Meeting title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <TextField label="Meeting date and time" type="datetime-local" slotProps={{ inputLabel: { shrink: true } }} value={form.meetingDate} onChange={(event) => setForm({ ...form, meetingDate: event.target.value })} required />
