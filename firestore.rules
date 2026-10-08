@@ -1695,6 +1695,10 @@ service cloud.firestore {
     // Collection-group reads need an explicit recursive match; nested rules alone
     // do not authorise queries over audienceSections across all polls.
     match /{path=**}/audienceSections/{section} {
+      // Administrators manage every poll. This unconditional role check is
+      // provable for collection-group queries; parent-document lookups are not.
+      // Only index documents are exposed here, never poll roots or responses.
+      allow list: if isAdmin();
       allow list: if resource.data.pollId is string
         && resource.data.section == section
         && exists(/databases/$(database)/documents/polls/$(resource.data.pollId))
