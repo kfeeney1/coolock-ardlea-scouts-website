@@ -276,8 +276,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
     await parentPage.getByRole("option", { name: /Riley Nolan/ }).click();
     await expect(childSelect).toContainText("Riley Nolan");
     const parentEventSection = parentPage.locator("#parent-event-consent");
-    const parentEventSectionText = await parentEventSection.innerText();
-    if (!parentEventSectionText.includes(title)) throw new Error("Selected-member event was missing from the linked parent event panel: " + parentEventSectionText);
+    await expect(parentEventSection).toContainText(title);
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Morgan Kavanagh/ }).click();
     await expect(childSelect).toContainText("Morgan Kavanagh");
