@@ -360,7 +360,30 @@ test("SW-257 places primary-section leaders before valid secondary-section match
     await page.reload();
     await expect(page.getByTestId("leader-access-summary-list").locator('[data-testid^="leader-access-tile-"]').first()).toBeVisible();
     expect(await ids()).toEqual(allSectionsOrder);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+    const viewportOverflow = await page.evaluate(() => {
+      const viewportWidth = document.documentElement.clientWidth;
+      return Array.from(document.querySelectorAll<HTMLElement>("body *"))
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            tag: element.tagName,
+            id: element.id,
+            testId: element.dataset.testid,
+            className: typeof element.className === "string" ? element.className : "",
+            right: Math.round(rect.right),
+            width: Math.round(rect.width),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth
+          };
+        })
+        .filter((element) => element.right > viewportWidth + 1)
+        .sort((left, right) => right.right - left.right)
+        .slice(0, 12);
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+      `Viewport overflow candidates: ${JSON.stringify(viewportOverflow)}`
+    ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
   };
 
   await exercise(1280, 900);
