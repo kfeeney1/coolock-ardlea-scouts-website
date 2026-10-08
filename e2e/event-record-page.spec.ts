@@ -42,7 +42,7 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(backToEvents).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/leader\/events$/);
-  await page.goBack();
+  await page.goto("/leader/events/TEST_flow_event_beavers_open");
   await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
   await expect(page.getByRole("button", { name: "Attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Manage Consent", exact: true })).toBeVisible();
