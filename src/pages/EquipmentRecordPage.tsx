@@ -4,7 +4,7 @@ import {
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentItemReturnDialog from "../components/admin/EquipmentItemReturnDialog";
@@ -28,7 +28,6 @@ type FormState = Omit<EquipmentItemInput, "totalQuantity"> & { totalQuantity: nu
 
 export default function EquipmentRecordPage() {
   const { equipmentId = "" } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { adminProfile } = useAdminAuth();
