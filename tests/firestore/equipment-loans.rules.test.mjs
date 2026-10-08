@@ -113,4 +113,16 @@ test("ordinary leaders cannot change master stock fields", async () => {
     updatedBy: "scout-leader",
     updatedAt: serverTimestamp()
   }));
+  await assertFails(setDoc(doc(db, "equipmentItems/unauthorised-item"), {
+    ...item,
+    createdBy: "scout-leader",
+    createdAt: serverTimestamp(),
+    updatedBy: "scout-leader",
+    updatedAt: serverTimestamp()
+  }));
+  await assertFails(setDoc(doc(db, "equipmentCategories/unauthorised-category"), {
+    name: "Unauthorised category",
+    createdBy: "scout-leader",
+    createdAt: serverTimestamp()
+  }));
 });
