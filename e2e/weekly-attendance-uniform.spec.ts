@@ -15,7 +15,9 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
 
   const date = new Date(Date.UTC(2099, 2, 1 + testInfo.workerIndex + (testInfo.project.name === "mobile-chromium" ? 500 : 0)));
   const meetingDate = date.toISOString().slice(0, 10);
-  await page.goto("/leader/weekly/create");
+  await page.goto("/leader/weekly");
+  await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
+  await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
   await page.getByLabel("Meeting date").fill(meetingDate);
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
