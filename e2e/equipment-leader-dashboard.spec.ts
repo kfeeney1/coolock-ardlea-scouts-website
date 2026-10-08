@@ -18,6 +18,18 @@ test.describe("Equipment & Stores leader navigation", () => {
     await page.goto("/leader/equipment");
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+    const dashboard = page.getByTestId("equipment-operations-dashboard");
+    await expect(dashboard.getByText("A high-level view of stock health and the latest operational activity.", { exact: true })).toHaveCount(0);
+    await expect(dashboard.getByRole("heading", { name: "Recent activity" })).toBeVisible();
+    for (const filter of ["all", "available", "unavailable", "checked-out"]) {
+      const tile = dashboard.getByTestId(`equipment-dashboard-${filter}`);
+      await expect(tile).toBeVisible();
+      const bounds = await tile.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(412);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
     await page.getByRole("button", { name: "Open QM Reports" }).click();
     await expect(page).toHaveURL("/leader/qm-reports");
     await expect(page.getByTestId("page-qm-reports")).toBeVisible();
