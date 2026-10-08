@@ -31,6 +31,14 @@ test.describe("dashboard polls", () => {
     const beavers = page.getByRole("checkbox", { name: "Beavers" });
     if (!(await beavers.isChecked())) await beavers.check();
     await page.getByRole("button", { name: "Save draft" }).click();
+    // Surface Firestore permission/index errors at their source instead of timing out
+    // on an absent management card with no actionable diagnostics.
+    await expect.poll(async () => {
+      const error = await page.getByTestId("leader-polls").getByRole("alert").allTextContents();
+      if (error.length) return `Poll draft failed: ${error.join(" | ")}`;
+      const card = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+      return await card.isVisible() ? "draft visible" : "waiting for draft";
+    }, { message: "Poll draft must save and become visible without Firestore errors" }).toBe("draft visible");
     const pollCard = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
     await expect(pollCard).toBeVisible();
     await expect(pollCard.getByRole("button", { name: "Publish poll" })).toBeVisible();
