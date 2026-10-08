@@ -93,8 +93,12 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page).toHaveURL(/\/leader\/qm-reports$/);
     await expect(page.getByTestId("page-qm-reports")).toBeVisible();
     await expect(page.getByTestId("qm-report-content")).toBeVisible();
+    await expect(page.getByTestId("equipment-reports-panel")).toBeVisible();
+    await expect(page.getByLabel("Report")).toBeVisible();
     await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
 
+    await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+    await expect(page).toHaveURL("/leader/equipment?view=quartermaster");
     navigation = await exposeQuartermaster(page, testInfo);
     const reportedIssues = navigation.getByTestId("leader-nav-qm-equipment-issues");
     await expect(reportedIssues).toBeVisible();
