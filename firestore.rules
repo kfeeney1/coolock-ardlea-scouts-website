@@ -1692,6 +1692,22 @@ service cloud.firestore {
         );
     }
 
+    // Collection-group reads need an explicit recursive match; nested rules alone
+    // do not authorise queries over audienceSections across all polls.
+    match /{path=**}/audienceSections/{section} {
+      allow list: if resource.data.pollId is string
+        && resource.data.section == section
+        && exists(/databases/$(database)/documents/polls/$(resource.data.pollId))
+        && (
+          pollCanManage(get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data)
+          || (resource.data.status == "published"
+            && get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data.status == "published"
+            && ((resource.data.audienceType == "parents" && isApprovedParentForSection(section))
+              || (resource.data.audienceType == "leaders" && isActiveLeader()
+                && profile().sections.hasAny([section]))))
+        );
+    }
+
     match /polls/{pollId} {
       allow get: if pollCanReadRoot(resource.data);
       allow list: if false;
