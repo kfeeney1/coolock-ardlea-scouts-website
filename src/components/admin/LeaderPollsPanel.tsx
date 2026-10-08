@@ -52,7 +52,7 @@ export default function LeaderPollsPanel() {
 
   useEffect(() => {
     if (scopeType === "sections" && selectedSections.length === 0 && adminProfile?.sections.length) {
-      setSelectedSections([...adminProfile.sections]);
+      setSelectedSections(adminProfile.sections.filter((section) => GROUP_POLL_SECTIONS.includes(section as typeof GROUP_POLL_SECTIONS[number])));
     }
   }, [scopeType, selectedSections.length, adminProfile?.sections]);
 
