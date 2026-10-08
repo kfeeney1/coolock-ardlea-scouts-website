@@ -234,6 +234,16 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(consentPanel).toContainText("3 members");
   await consentPanel.getByRole("button", { name: "Create Parent Link", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Parent consent link is ready." })).toBeVisible();
+  let notificationRequest: { eventId?: string; memberIds?: string[]; kind?: string } | undefined;
+  await page.route("**/event-notification*", async (route) => {
+    notificationRequest = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 3, skipped: 0 }) });
+  });
+  await consentPanel.getByRole("button", { name: "Send Event Notice", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Event notice queued for 3 members." })).toBeVisible();
+  expect(notificationRequest?.eventId).toBeTruthy();
+  expect(notificationRequest?.kind).toBe("notice");
+  expect(notificationRequest?.memberIds).toHaveLength(3);
 
   const viewport = page.viewportSize();
   const parentContext = await browser.newContext({
