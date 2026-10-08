@@ -94,6 +94,15 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page.getByTestId("page-qm-reports")).toBeVisible();
     await expect(page.getByTestId("qm-report-content")).toBeVisible();
     await expect(page.getByTestId("page-secretary-reports")).toHaveCount(0);
+
+    navigation = await exposeQuartermaster(page, testInfo);
+    const reportedIssues = navigation.getByTestId("leader-nav-qm-equipment-issues");
+    await expect(reportedIssues).toBeVisible();
+    await reportedIssues.click();
+    await expect(page).toHaveURL(/\/leader\/equipment\/issues\?view=quartermaster$/);
+    await expect(page.getByTestId("page-qm-equipment-issues")).toBeVisible();
+    await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+    await expect(page).toHaveURL(/\/leader\/equipment\?view=quartermaster$/);
   });
 
   test("Treasurer Reports remains distinct from QM Reports", async ({ page }, testInfo) => {

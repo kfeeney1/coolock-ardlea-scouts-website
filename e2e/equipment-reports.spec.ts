@@ -134,8 +134,12 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
   await expect(incidentDialog).toBeHidden();
+  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page).toHaveURL("/leader/equipment/issues");
   await expect(page.getByText(damageNote, { exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await expect(page).toHaveURL("/leader/equipment");
   await page.getByTestId("export-all-equipment-csv").click();
   const content = await downloadText(await downloadPreparedReport(page));
   const itemRow = content.split("\r\n").find((line) => line.includes(itemName)) ?? "";
@@ -155,4 +159,11 @@ test("ordinary leaders cannot access equipment reports", async ({ page }, testIn
   await expect(page.getByTestId("equipment-operations-dashboard")).toHaveCount(0);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
   await expect(page.getByTestId("export-equipment-asset-register")).toHaveCount(0);
+
+  await page.goto("/leader/equipment/issues");
+  await expect(page.getByTestId("page-qm-equipment-issues")).toBeVisible();
+  const issuePanel = page.getByTestId("equipment-incidents-panel");
+  await expect(issuePanel).toBeVisible();
+  await expect(issuePanel.getByRole("button", { name: "Start investigation" })).toHaveCount(0);
+  await expect(issuePanel.getByRole("button", { name: "Resolve" })).toHaveCount(0);
 });

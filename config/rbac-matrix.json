@@ -50,6 +50,7 @@
     "/leader/weekly": "leader",
     "/leader/badgework": "leader",
     "/leader/equipment": "leader",
+    "/leader/equipment/issues": "leader",
     "/leader/programme-equipment": "leader",
     "/leader/finance": "leader",
     "/leader/subs": "leader",
