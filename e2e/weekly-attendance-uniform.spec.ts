@@ -47,6 +47,16 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
   await attendance.check();
   await expect(uniform).not.toBeChecked();
 
-  const pageWidth = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
-  expect(pageWidth.content).toBeLessThanOrEqual(pageWidth.viewport);
+  const pageWidth = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    const overflowers = [...document.body.querySelectorAll("*")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { tag: element.tagName, className: typeof element.className === "string" ? element.className : "", text: element.textContent?.trim().slice(0, 40), left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) };
+      })
+      .filter((element) => element.right > viewport + 1 || element.left < -1)
+      .slice(0, 12);
+    return { viewport, content: document.documentElement.scrollWidth, overflowers };
+  });
+  expect(pageWidth.content, JSON.stringify(pageWidth.overflowers)).toBeLessThanOrEqual(pageWidth.viewport);
 });
