@@ -37,6 +37,8 @@ function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "
 async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
 
 async function createIsolatedLifecycleMeeting(page: Page): Promise<LifecycleMeeting> {
+  await page.goto("/leader/weekly");
+  await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
   const lifecycle = await findUnusedMeetingDate(page, firstLifecycleDate);
   await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
@@ -82,8 +84,10 @@ test("weekly meetings reject unauthenticated users", async ({ page }) => { await
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByRole("link", { name: "Create Meeting" })).toBeVisible();
+  await login(page, sectionLeaderEmail);
+  const partialMeeting = await createIsolatedLifecycleMeeting(page);
   const lifecycle = await createIsolatedLifecycleMeeting(page);
+  expect(lifecycle.date).not.toBe(partialMeeting.date);
   const phases = ["create/open"];
   const incidentDescription = "Small graze during wide game";
 
