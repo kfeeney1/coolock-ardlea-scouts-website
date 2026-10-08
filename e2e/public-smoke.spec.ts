@@ -16,6 +16,25 @@ test.describe("public website", () => {
   }
 });
 
+test.describe("public Parent Login entry-point audit", () => {
+  for (const route of publicRoutes) {
+    test(`${route} does not expose Parent Login in public navigation or calls to action`, async ({ page }) => {
+      await page.goto(route);
+      const width = page.viewportSize()?.width ?? 1280;
+      if (width < 900) {
+        await page.getByRole("button", { name: "Open navigation menu" }).click();
+        await expect(page.getByRole("menuitem", { name: "Leader Login", exact: true })).toBeVisible();
+      } else {
+        await expect(page.getByRole("banner").getByRole("link", { name: "Leader Login", exact: true })).toBeVisible();
+      }
+      await expect(page.getByText("Parent Login", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Parent Login", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Parent Login", exact: true })).toHaveCount(0);
+      if (width < 900) await expect(page.getByRole("menuitem", { name: "Parent Login", exact: true })).toHaveCount(0);
+    });
+  }
+});
+
 test("homepage shows section meeting times and the canonical meeting map", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Meeting Times" })).toBeVisible();
@@ -49,10 +68,10 @@ test("homepage shows section meeting times and the canonical meeting map", async
   const width = page.viewportSize()?.width ?? 1280;
   if (width < 900) {
     await page.getByRole("button", { name: "Open navigation menu" }).click();
-    await expect(page.getByRole("menuitem", { name: "Parent Login" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Parent Login" })).toHaveCount(0);
     await expect(page.getByRole("menuitem", { name: /Consent Form/i })).toHaveCount(0);
   } else {
-    await expect(page.getByRole("link", { name: "Parent Login" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Parent Login" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Consent Form/i })).toHaveCount(0);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBeTruthy();
