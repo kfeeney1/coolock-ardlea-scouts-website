@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const parentEmail = process.env.E2E_PARENT_EMAIL;
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Event record navigation runs once on desktop Chromium.");
@@ -191,36 +192,72 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
 });
 
-test("selected-member event audience stays exact across sections, edit, save and reload on desktop and mobile", async ({ page }, testInfo) => {
+test("selected-member event audience stays exact across sections, edit, save, parent scope and reload on desktop and mobile", async ({ page, browser }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Selected-member event targeting runs on desktop Chromium and Pixel 7 Chromium.");
-  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  test.skip(!password || !parentEmail, "Configure E2E_TEST_USER_PASSWORD and E2E_PARENT_EMAIL.");
   await loginAdmin(page);
   await page.goto("/leader/events/create");
 
   const title = `TEST selected audience ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-06-10");
+  await page.getByLabel("Event consent required").check();
   await page.getByRole("button", { name: "Selected members", exact: true }).click();
   await page.getByRole("button", { name: "Clear all members", exact: true }).click();
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
   await page.getByLabel("Search authorized group members").fill("TEST");
 
+  const selectedRiley = page.getByRole("checkbox", { name: /Riley Nolan Beavers 01 · Beavers$/ });
   const selectedCub = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
   const selectedScout = page.getByRole("checkbox", { name: /· Scouts$/ }).first();
+  await expect(selectedRiley).toBeVisible();
   await expect(selectedCub).toBeVisible();
   await expect(selectedScout).toBeVisible();
+  await selectedRiley.check();
   await selectedCub.check();
   await selectedScout.check();
-  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 2 selected members");
+  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
   await expect(page.getByText("Only the members selected here will be invited")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  await expect(page.locator('[data-testid^="event-record-"]').filter({ hasText: title })).toContainText("2 invited");
-  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+  await expect(page.locator('[data-testid^="event-record-"]').filter({ hasText: title })).toContainText("3 invited");
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
 
   const eventUrl = page.url();
+  await page.getByRole("link", { name: "Manage Consent", exact: true }).click();
+  const consentPanel = page.locator(".MuiPaper-root").filter({ hasText: title }).last();
+  await expect(consentPanel).toBeVisible();
+  await consentPanel.getByRole("button", { name: "Create Parent Link", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Parent consent link is ready." })).toBeVisible();
+
+  const viewport = page.viewportSize();
+  const parentContext = await browser.newContext({
+    viewport: viewport ?? undefined,
+    isMobile: testInfo.project.name === "mobile-chromium",
+    hasTouch: testInfo.project.name === "mobile-chromium"
+  });
+  try {
+    const parentPage = await parentContext.newPage();
+    await parentPage.goto("/parent");
+    await parentPage.getByLabel("Email").fill(parentEmail!);
+    await parentPage.getByLabel("Password").fill(password!);
+    await parentPage.getByRole("button", { name: "Sign In" }).click();
+    await expect(parentPage.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
+    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toBeVisible();
+    const childSelect = parentPage.getByRole("combobox", { name: "Viewing information for" });
+    await childSelect.click();
+    await parentPage.getByRole("option", { name: /Morgan Kavanagh/ }).click();
+    await expect(childSelect).toContainText("Morgan Kavanagh");
+    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+  } finally {
+    await parentContext.close();
+  }
+
+  await page.goto(eventUrl);
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
+
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 2 selected members");
   await page.getByRole("combobox", { name: "Section" }).click();
