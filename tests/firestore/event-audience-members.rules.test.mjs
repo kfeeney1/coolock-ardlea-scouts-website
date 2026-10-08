@@ -170,6 +170,6 @@ test("selected-event consent-link lists require a matching server-authorized aud
   )));
   await assertFails(getDocs(query(
     collectionGroup(otherDb, "audienceMembers"),
-    where("memberId", "in", ["member-scout"]),
+    where("memberId", "in", ["member-cub"]),
   )));
 });
