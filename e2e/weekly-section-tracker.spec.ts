@@ -73,7 +73,7 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
   await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("only attendance, injuries / medical issues and additional notes can be changed");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   await expect(page.getByRole("button", { name: "Mark all present", exact: true })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: scoutMemberName, exact: true })).toBeEnabled();
+  await expect(page.getByRole("checkbox", { name: `Attendance · ${scoutMemberName}`, exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   await expect(page.getByLabel("Theme")).toBeDisabled();
   await expect(page.getByLabel("Location")).toBeDisabled();
@@ -202,7 +202,7 @@ test("group leader copies a meeting into another authorised section and resets o
   await expect(page.getByTestId("weekly-meeting-editor-top")).toContainText("Cubs");
   await page.getByRole("button",{name:"Attendance",exact:true}).click();
   await expect(page.getByText(scoutMemberName)).toHaveCount(0);
-  await expect(page.getByRole("checkbox", { name: dualSectionMember, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("checkbox", { name: `Attendance · ${dualSectionMember}`, exact: true })).toHaveCount(1);
   await page.getByRole("button",{name:"Completed Badgework",exact:true}).click();
   await expect(page.getByText("Pioneering Stage 2")).toHaveCount(0);
   await page.getByRole("button",{name:"Injuries / Medical",exact:true}).click();
