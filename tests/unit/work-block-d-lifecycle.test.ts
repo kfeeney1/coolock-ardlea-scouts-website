@@ -49,13 +49,13 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.match(parentEvents,/audienceMemberIds\.some\(\(id\) => linkedMemberIdSet\.has\(id\)\)/);
   assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
   assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
-  assert.match(consent,/audienceVersion: 2/);
+  assert.match(consent,/audienceVersion: 3/);
   assert.match(parentPortal,/const activeMemberIds = selectedChild \? \[selectedChild\.id\] : \[\]/);
   assert.match(parentPortal,/memberIds=\{activeMemberIds\}/);
   assert.match(parentPortal,/account\.memberIds/);
   assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds\)/);
   assert.doesNotMatch(parentTasks,/loadParentEventConsentLinks\(sections\)/);
-  assert.match(rules,/resource\.data\.active == true && isApprovedParent\(\)/);
+  assert.match(rules,/resource\.data\.active == true && isApprovedParentForEventAudience\(/);
   assert.match(flowSeed,/audienceVersion: 2, audienceMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
   assert.match(flowSeed,/semantics: "snapshot".*resolvedMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
 });

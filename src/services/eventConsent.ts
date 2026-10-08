@@ -163,7 +163,7 @@ function publicEventPayload(event: EventRecord) {
         consentRequired: event.consentRequired,
         active: event.status === "open" && event.consentRequired,
         audienceMemberIds: event.audience?.resolvedMemberIds ?? [],
-        audienceVersion: 2,
+        audienceVersion: 3,
         updatedAt: serverTimestamp()
     };
 }

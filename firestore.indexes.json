@@ -7,6 +7,14 @@
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "section", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "eventConsentLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "audienceMemberIds", "arrayConfig": "CONTAINS" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -191,6 +191,48 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
 });
 
+test("selected-member event audience stays exact across sections, edit, save and reload on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Selected-member event targeting runs on desktop Chromium and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+
+  const title = `TEST selected audience ${Date.now()}`;
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Start date").fill("2099-06-10");
+  await page.getByRole("button", { name: "Selected members", exact: true }).click();
+  await page.getByRole("button", { name: "Clear all members", exact: true }).click();
+  await page.getByRole("button", { name: "Add other group members", exact: true }).click();
+  await page.getByLabel("Search authorized group members").fill("TEST");
+
+  const selectedCub = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
+  const selectedScout = page.getByRole("checkbox", { name: /· Scouts$/ }).first();
+  await expect(selectedCub).toBeVisible();
+  await expect(selectedScout).toBeVisible();
+  await selectedCub.check();
+  await selectedScout.check();
+  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 2 selected members");
+  await expect(page.getByText("Only the members selected here will be invited")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.locator('[data-testid^="event-record-"]').filter({ hasText: title })).toContainText("2 invited");
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+
+  const eventUrl = page.url();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 2 selected members");
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "Ventures", exact: true }).click();
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page).toHaveURL(eventUrl);
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+});
+
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   await page.goto("/leader/events/create");

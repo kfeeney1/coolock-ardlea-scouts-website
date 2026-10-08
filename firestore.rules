@@ -261,6 +261,70 @@ service cloud.firestore {
         && memberIds.hasAny(parentProfile().memberIds);
     }
 
+    function isActiveMember(memberId) {
+      return memberId is string
+        && exists(/databases/$(database)/documents/members/$(memberId))
+        && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
+    }
+
+    function parentHasEventAudienceMemberAt(eventId, index) {
+      return isApprovedParent()
+        && parentProfile().memberIds is list
+        && parentProfile().memberIds.size() > index
+        && parentProfile().memberIds[index] is string
+        && isActiveMember(parentProfile().memberIds[index])
+        && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index]))
+        && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(parentProfile().memberIds[index])).data.memberId == parentProfile().memberIds[index];
+    }
+
+    function isApprovedParentForEventAudience(eventId, audienceVersion, audienceMemberIds) {
+      return isApprovedParentForAudienceMembers(audienceMemberIds)
+        && (audienceVersion != 3
+          || parentHasEventAudienceMemberAt(eventId, 0) || parentHasEventAudienceMemberAt(eventId, 1)
+          || parentHasEventAudienceMemberAt(eventId, 2) || parentHasEventAudienceMemberAt(eventId, 3)
+          || parentHasEventAudienceMemberAt(eventId, 4) || parentHasEventAudienceMemberAt(eventId, 5)
+          || parentHasEventAudienceMemberAt(eventId, 6) || parentHasEventAudienceMemberAt(eventId, 7)
+        );
+    }
+
+    function validVersion3EventAudience(data) {
+      return !data.keys().hasAny(["audience"])
+        || (data.audience is map
+          && data.audience.version == 3
+          && data.audience.mode in ["sections", "members", "mixed"]
+          && data.audience.semantics == "snapshot"
+          && data.audience.sectionIds is list
+          && data.audience.sectionIds.hasOnly(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"])
+          && (isAdmin() || data.audience.sectionIds.hasOnly(profile().sections))
+          && data.audience.memberIds is list && data.audience.memberIds.size() == 0
+          && data.audience.resolvedMemberIds is list && data.audience.resolvedMemberIds.size() == 0);
+    }
+
+    function validEventAudienceMembership(eventId, memberId) {
+      let eventPath = /databases/$(database)/documents/events/$(eventId);
+      let memberPath = /databases/$(database)/documents/members/$(memberId);
+      let eventData = getAfter(eventPath).data;
+      let memberData = get(memberPath).data;
+      return isActiveLeader()
+        && existsAfter(eventPath)
+        && eventData.audience is map && eventData.audience.version == 3
+        && hasSection(eventData.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.eventSection == eventData.section
+        && request.resource.data.memberId == memberId
+        && request.resource.data.scopeSection is string
+        && (isAdmin() || profileHasSection(request.resource.data.scopeSection))
+        && exists(memberPath) && memberData.status == "active"
+        && memberHasSection(memberData, request.resource.data.scopeSection)
+        && request.resource.data.selectedBySection is bool
+        && request.resource.data.selectedIndividually is bool
+        && (request.resource.data.selectedBySection || request.resource.data.selectedIndividually)
+        && (!request.resource.data.selectedBySection || request.resource.data.scopeSection in eventData.audience.sectionIds)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["eventId", "eventSection", "memberId", "scopeSection", "selectedBySection", "selectedIndividually", "updatedAt", "updatedBy"]);
+    }
+
     function isCanonicalAdventureSkillStage(skillId, stage) {
       return skillId in ["air-activities", "backwoods", "camping", "emergencies", "hillwalking", "paddling", "pioneering", "rowing", "sailing", "swimming"]
         && stage is number
@@ -612,11 +676,25 @@ service cloud.firestore {
       allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.title is string && request.resource.data.eventType is string
         && request.resource.data.startDate is string && request.resource.data.endDate is string
-        && request.resource.data.status in ["draft", "open", "closed", "completed"];
+        && request.resource.data.status in ["draft", "open", "closed", "completed"]
+        && validVersion3EventAudience(request.resource.data);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
+        && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
       allow delete: if false;
+    }
+
+    match /events/{eventId}/audienceMembers/{memberId} {
+      allow get, list: if (isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
+        && resource.data.eventId == eventId)
+        || (isApprovedParentForMember(memberId) && isActiveMember(memberId));
+      allow create, update: if validEventAudienceMembership(eventId, memberId);
+      allow delete: if isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
 
     match /publicEvents/{eventId} {
@@ -676,14 +754,19 @@ service cloud.firestore {
       allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
       allow list: if isSuperAdmin()
         || (isActiveLeader() && hasSection(resource.data.section))
-        || (resource.data.active == true && isApprovedParent());
+        || (resource.data.active == true && isApprovedParentForEventAudience(
+          resource.data.eventId,
+          resource.data.get("audienceVersion", 2),
+          resource.data.get("audienceMemberIds", [])
+        ));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string && request.resource.data.title is string
         && request.resource.data.eventType is string && request.resource.data.startDate is string
         && request.resource.data.endDate is string && request.resource.data.active is bool
-        && request.resource.data.audienceMemberIds is list && request.resource.data.audienceVersion == 2;
+        && request.resource.data.audienceMemberIds is list && request.resource.data.audienceVersion in [2, 3];
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
       allow delete: if false;
     }

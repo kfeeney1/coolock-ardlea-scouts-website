@@ -26,15 +26,14 @@ export async function loadParentEventConsentLinks(memberIds: string[]): Promise<
     const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
     if (linkedMemberIds.length === 0) return [];
 
-    // Fetch the small active consent-link projection, then enforce the canonical
-    // member audience locally. Firestore rules independently restrict parent list
-    // access to active links whose audience intersects the parent's linked members.
-    // Keeping the client query free of an array-contains-any constraint avoids a
-    // rules query-proof mismatch while preserving the same document-level boundary.
+    // Restrict the query to the parent's approved linked children. Firestore Rules
+    // also verify the event audience membership, so editing query state cannot
+    // reveal a selected-member event to an unrelated parent.
     const snapshot = await getDocs(
         query(
             collection(db, "eventConsentLinks"),
-            where("active", "==", true)
+            where("active", "==", true),
+            where("audienceMemberIds", "array-contains-any", linkedMemberIds)
         )
     );
     const linkedMemberIdSet = new Set(linkedMemberIds);

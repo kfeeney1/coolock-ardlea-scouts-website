@@ -5,7 +5,7 @@ import type { AttendanceStatus, EventConsentStatus, EventInput, EventRecord, Eve
 
 export const EVENT_SECTIONS = ["All Sections", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Other"];
 export const EVENT_TYPES = ["Weekly Meeting", "Activity", "Day Trip", "Camp", "Hike", "Fundraiser", "Other"];
-export const EVENT_AUDIENCE_VERSION = 2 as const;
+export const EVENT_AUDIENCE_VERSION = 3 as const;
 export const EVENT_STATUSES: EventStatus[] = ["draft", "open", "closed", "completed"];
 
 export const EMPTY_EVENT: EventInput = {
@@ -80,17 +80,28 @@ export function resolveEventAudience(sectionIds: string[], memberIds: string[], 
         .map((member) => member.id);
 }
 
-export function buildEventAudience(sectionIds: string[], memberIds: string[], members: MemberRecord[]) {
+export function buildEventAudience(sectionIds: string[], memberIds: string[], members: MemberRecord[], modeOverride?: "sections" | "members" | "mixed") {
     const uniqueSections = [...new Set(sectionIds.filter(Boolean))];
     const uniqueMembers = [...new Set(memberIds.filter(Boolean))];
     return {
         version: EVENT_AUDIENCE_VERSION,
-        mode: uniqueSections.length > 0 && uniqueMembers.length > 0 ? "mixed" as const : uniqueMembers.length > 0 ? "members" as const : "sections" as const,
+        mode: modeOverride ?? (uniqueSections.length > 0 && uniqueMembers.length > 0 ? "mixed" as const : uniqueMembers.length > 0 ? "members" as const : "sections" as const),
         semantics: "snapshot" as const,
         sectionIds: uniqueSections,
         memberIds: uniqueMembers,
         resolvedMemberIds: resolveEventAudience(uniqueSections, uniqueMembers, members)
     };
+}
+
+export function defaultEventAudienceForClassification(section: string, members: MemberRecord[]) {
+    const authorisedSections = [...new Set(members
+        .filter((member) => member.status === "active")
+        .flatMap((member) => member.sections?.length ? member.sections : [member.section])
+        .filter(Boolean))];
+    const sectionIds = section === "All Sections" || section === "Group"
+        ? authorisedSections
+        : authorisedSections.includes(section) ? [section] : [];
+    return buildEventAudience(sectionIds, [], members, "sections");
 }
 
 export function eventAudienceSummary(sectionIds: string[], memberIds: string[], resolvedCount: number): string {

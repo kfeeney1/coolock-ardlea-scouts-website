@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildEventAudience, eventAudienceSummary, eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
+import { buildEventAudience, defaultEventAudienceForClassification, eventAudienceSummary, eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
+import { buildEventAudienceMemberships, withPersistedEventAudience } from "../../src/services/eventAudienceMemberships.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -51,6 +52,11 @@ test("eventInput strips roster data and keeps editable fields", () => {
     assert.equal("consent" in draft, false);
 });
 
+test("copying an event input preserves its exact audience snapshot", () => {
+    const source = { ...event, audience: { version: 3, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m1"], resolvedMemberIds: ["m1"] } };
+    assert.deepEqual(eventInput(source as any).audience, source.audience);
+});
+
 test("event identity is stable-ID based and does not reject same-date records", () => {
     assert.equal(normaliseEventTitle("  CUB   Camp "), "cub camp");
     assert.equal(isDuplicateEventIdentity({ title: " cub camp ", startDate: "2026-10-02", section: "Cubs" }, [event]), false);
@@ -91,14 +97,43 @@ test("eventMembers uses the persisted resolved audience for new events and prese
 
 test("buildEventAudience distinguishes section, selected-member and mixed snapshots", () => {
     assert.deepEqual(buildEventAudience(["Cubs"], [], members), {
-        version: 2, mode: "sections", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: [], resolvedMemberIds: ["m1", "m2"]
+        version: 3, mode: "sections", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: [], resolvedMemberIds: ["m1", "m2"]
     });
     assert.deepEqual(buildEventAudience([], ["m4"], members), {
-        version: 2, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"]
+        version: 3, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m4"], resolvedMemberIds: ["m4"]
     });
     assert.deepEqual(buildEventAudience(["Cubs"], ["m4"], members), {
-        version: 2, mode: "mixed", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: ["m4"], resolvedMemberIds: ["m1", "m2", "m4"]
+        version: 3, mode: "mixed", semantics: "snapshot", sectionIds: ["Cubs"], memberIds: ["m4"], resolvedMemberIds: ["m1", "m2", "m4"]
     });
+});
+
+test("default audience is captured from the original event classification and group scope", () => {
+    assert.deepEqual(defaultEventAudienceForClassification("Cubs", members).sectionIds, ["Cubs"]);
+    assert.deepEqual(defaultEventAudienceForClassification("All Sections", members).resolvedMemberIds, ["m1", "m2", "m4"]);
+    assert.deepEqual(defaultEventAudienceForClassification("Group", members).resolvedMemberIds, ["m1", "m2", "m4"]);
+});
+
+test("selected-member audience ignores the event classification and persists no unauthorised roster IDs", () => {
+    const selected = buildEventAudience([], ["m4", "m4", "m3", "unknown"], members);
+    assert.deepEqual(selected.resolvedMemberIds, ["m4"]);
+    assert.equal(selected.mode, "members");
+    assert.deepEqual(withPersistedEventAudience(selected), {
+        version: 3, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: [], resolvedMemberIds: []
+    });
+    assert.equal(buildEventAudience([], [], members, "members").mode, "members");
+});
+
+test("audience membership records de-duplicate multi-section members and retain selection source", () => {
+    const multiSection = { ...members[0], sections: ["Cubs", "Scouts"] };
+    const audience = buildEventAudience(["Cubs", "Scouts"], ["m1", "m4"], [multiSection, members[1], members[3]]);
+    const memberships = buildEventAudienceMemberships("event-1", "Cubs", audience, [multiSection, members[1], members[3]]);
+    assert.deepEqual(memberships.map((item) => item.memberId), ["m1", "m2", "m4"]);
+    assert.deepEqual(memberships[0], {
+        eventId: "event-1", eventSection: "Cubs", memberId: "m1", scopeSection: "Cubs",
+        selectedBySection: true, selectedIndividually: true
+    });
+    const selectedMember = buildEventAudience([], ["m1"], [multiSection], "members");
+    assert.equal(buildEventAudienceMemberships("event-2", "Scouts", selectedMember, [multiSection], ["Scouts"])[0].scopeSection, "Scouts");
 });
 
 test("event audience summary explains the persisted audience without reopening the selector", () => {

@@ -15,7 +15,7 @@ import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
 import { loadEvents, updateEventRoster } from "../services/eventAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../services/eventAdmin";
-import { eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
+import { eventAudienceSummary, eventCounts, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
@@ -157,6 +157,7 @@ export default function EventRecordPage() {
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 2 }}>
                         <Chip label={eventStatusLabel(event.status)} color={statusColor(event.status)} />
                         <Chip label={event.section} variant="outlined" />
+                        {event.audience && <Chip data-testid="event-record-audience" label={eventAudienceSummary(event.audience.sectionIds, event.audience.memberIds, event.audience.resolvedMemberIds.length)} variant="outlined" />}
                         <Chip label={event.eventType} variant="outlined" />
                         {event.consentRequired && <Chip label="Consent required" color="warning" variant="outlined" />}
                     </Stack>
