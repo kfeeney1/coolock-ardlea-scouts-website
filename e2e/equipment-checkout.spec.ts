@@ -84,7 +84,7 @@ test("admin can add, check out and check in stock from its record and verify per
   await expect(history.getByText("Checked out", { exact: true })).toBeVisible();
   await expect(history.getByText("Returned", { exact: true })).toBeVisible();
   await history.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
 
   const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
@@ -310,7 +310,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await page.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText("Equipment record saved.", { exact: true })).toBeVisible();
   await expect(page.getByText("5 total", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/equipment$/);
   await expect(page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).getByText("5 total", { exact: true })).toBeVisible();
   await page.goto("/leader");
