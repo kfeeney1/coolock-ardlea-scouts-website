@@ -2,14 +2,15 @@ import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
 
 async function seed(entries) {
-  await testEnv.withSecurityRulesDisabled(async ({ firestore }) => {
-    for (const [path, value] of entries) await setDoc(doc(firestore(), path), value);
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    for (const [path, value] of entries) await setDoc(doc(db, path), value);
   });
 }
 async function seedPoll(id = "poll-1", { audienceType = "parents", scopeSections = ["Beavers"], scopeType = "sections", status = "published" } = {}) {
@@ -103,6 +104,7 @@ test("unapproved links and closed polls reject direct response writes", async ()
   await seedPoll();
   await seed([["parentAccounts/pending", { status: "pending", memberIds: ["member-a"] }]]);
   const pending = testEnv.authenticatedContext("pending").firestore();
+  await assertFails(getDoc(doc(pending, "polls/poll-1")));
   const parent = testEnv.authenticatedContext("parent-a").firestore();
   const makeResponse = (db, uid) => {
     const batch = writeBatch(db);
