@@ -202,6 +202,8 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-06-10");
   await page.getByLabel("Event consent required").check();
+  await page.getByRole("combobox", { name: "Status" }).click();
+  await page.getByRole("option", { name: "Open", exact: true }).click();
   await page.getByRole("button", { name: "Selected members", exact: true }).click();
   await page.getByRole("button", { name: "Clear all members", exact: true }).click();
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
@@ -227,7 +229,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
 
   const eventUrl = page.url();
   await page.getByRole("link", { name: "Manage Consent", exact: true }).click();
-  const consentPanel = page.locator(".MuiPaper-root").filter({ hasText: title }).last();
+  const consentPanel = page.locator(".MuiPaper-root").filter({ has: page.getByRole("heading", { name: title, exact: true }) }).last();
   await expect(consentPanel).toBeVisible();
   await consentPanel.getByRole("button", { name: "Create Parent Link", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Parent consent link is ready." })).toBeVisible();
@@ -259,15 +261,15 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
 
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
-  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 2 selected members");
+  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Ventures", exact: true }).click();
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
-  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
   await page.reload();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 2 selected members");
+  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {
