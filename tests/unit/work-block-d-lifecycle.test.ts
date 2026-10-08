@@ -48,7 +48,11 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
 
   assert.match(parentEvents,/collectionGroup\(db, "audienceMembers"\)/);
   assert.match(parentEvents,/where\("memberId", "in", linkedMemberIds\)/);
-  assert.match(parentEvents,/consentLinkToken/);
+  assert.match(parentEvents,/collection\(db, "eventConsentLinks"\)/);
+  assert.match(parentEvents,/where\("eventId", "==", eventId\)/);
+  assert.match(parentEvents,/where\("audienceVersion", "==", 3\)/);
+  assert.match(parentEvents,/where\("active", "==", true\)/);
+  assert.doesNotMatch(parentEvents,/getDoc\(doc\(db, "events"/);
   assert.match(parentEvents,/where\("audienceVersion", "==", version\)/);
   assert.match(parentEvents,/where\("section", "in", legacySections\)/);
   assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
@@ -60,7 +64,8 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds, sections\)/);
   assert.match(rules,/resource\.data\.get\("audienceVersion", 2\) in \[1, 2\]/);
   assert.match(rules,/isApprovedParentForSection\(resource\.data\.section\)/);
-  assert.match(rules,/resource\.data\.status == "open" && isApprovedParentForEventRecord\(eventId\)/);
+  assert.match(rules,/resource\.data\.audienceVersion == 3/);
+  assert.match(rules,/isApprovedParentForEventRecord\(resource\.data\.eventId\)/);
   assert.match(flowSeed,/audienceVersion: 2, audienceMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
   assert.match(flowSeed,/semantics: "snapshot".*resolvedMemberIds: \["TEST_member_beaver_01", "TEST_member_beaver_02"\]/);
 });
