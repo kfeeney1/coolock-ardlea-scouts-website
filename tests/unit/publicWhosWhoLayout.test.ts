@@ -9,6 +9,7 @@ function leader(overrides: Partial<PublicWhosWhoLeader> = {}): PublicWhosWhoLead
     displayName: "Public Leader",
     scoutingRole: "Scouter",
     organisationSection: "Beavers",
+    primarySection: "Beavers",
     organisationSections: ["Beavers"],
     organisationOrder: 10,
     reportsToUid: "",
@@ -36,12 +37,22 @@ describe("public Who's Who layout", () => {
     assert.deepEqual(publicLeadersForSection(leaders, "Cubs").map((item) => item.uid), ["section-a", "section-b", "programme"]);
   });
 
-  it("renders sections without a Section Leader in the existing deterministic order", () => {
+  it("orders primary-section leaders before other leaders when no Section Leader exists", () => {
     const leaders = [
-      leader({ uid: "later", displayName: "Later", organisationOrder: 20 }),
-      leader({ uid: "first", displayName: "First", organisationOrder: 10 })
+      leader({ uid: "other", displayName: "Aardvark", primarySection: "Cubs", organisationOrder: 1 }),
+      leader({ uid: "primary-b", displayName: "Zulu", primarySection: "Beavers", organisationOrder: 20 }),
+      leader({ uid: "primary-a", displayName: "Alpha", primarySection: "BEAVERS", organisationOrder: 10 })
     ];
-    assert.deepEqual(publicLeadersForSection(leaders, "Beavers").map((item) => item.uid), ["first", "later"]);
+    assert.deepEqual(publicLeadersForSection(leaders, "Beavers").map((item) => item.uid), ["primary-a", "primary-b", "other"]);
+  });
+
+  it("uses Section Leader priority before primary-section matching and keeps multi-appointed leaders once", () => {
+    const leaders = [
+      leader({ uid: "primary", primarySection: "Beavers", organisationSection: "Cubs", organisationSections: ["Cubs"], organisationOrder: 1, publicAppointments: [{ role: "Programme Scouter", section: "Cubs" }, { role: "Scouter", section: "Cubs" }] }),
+      leader({ uid: "section", primarySection: "Beavers", organisationSection: "Cubs", organisationSections: ["Cubs"], organisationOrder: 30, publicAppointments: [{ role: "Section Leader", section: "Cubs" }, { role: "Programme Scouter", section: "Cubs" }] }),
+      leader({ uid: "other", primarySection: "Cubs", organisationSection: "Cubs", organisationSections: ["Cubs"], organisationOrder: 2, publicAppointments: [{ role: "Programme Scouter", section: "Cubs" }] })
+    ];
+    assert.deepEqual(publicLeadersForSection(leaders, "Cubs").map((item) => item.uid), ["section", "other", "primary"]);
   });
 
   it("prioritises a multi-section leader only in the section where they hold the Section Leader appointment", () => {

@@ -192,6 +192,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
             displayName: safeOrg.displayName,
             scoutingRole: primaryPublicAppointment.role,
             organisationSection: primaryPublicAppointment.section,
+            primarySection: primarySection.slice(0, 80),
             organisationSections: [...new Set(publicAppointments.map((item) => item.section))],
             publicAppointments,
             organisationOrder: safeOrg.organisationOrder,
