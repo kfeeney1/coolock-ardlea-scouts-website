@@ -235,7 +235,7 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await expect(page).toHaveURL("/leader/equipment");
   await historyDialog.getByRole("button", { name: "Close" }).click();
 
-  await sourceCard.getByRole("button", { name: "Move Store", exact: true }).click();
+  await sourceCard.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const moveTarget = page.getByTestId("equipment-store-move-target");
   await expect(moveTarget).toHaveAttribute("data-equipment-id", sourceId!);
@@ -243,7 +243,7 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await page.getByRole("link", { name: "Back to equipment record" }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
-  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await page.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const cancelledMove = page.getByTestId("equipment-store-move-target");
   await cancelledMove.getByRole("combobox", { name: "Destination store" }).click();
@@ -252,13 +252,13 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
-  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await page.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const movePage = page.getByTestId("equipment-store-move-target");
   await movePage.getByRole("combobox", { name: "Destination store" }).click();
   await page.getByRole("option", { name: destination, exact: true }).click();
   await movePage.getByRole("spinbutton", { name: "Quantity to move" }).fill("2");
-  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await page.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-store-move-success")).toContainText(`Moved 2 × ${itemName} to ${destination}`);
   await page.getByRole("button", { name: "History", exact: true }).click();
