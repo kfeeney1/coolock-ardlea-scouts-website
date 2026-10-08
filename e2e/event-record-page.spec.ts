@@ -231,6 +231,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("link", { name: "Manage Consent", exact: true }).click();
   const consentPanel = page.locator(".MuiPaper-root").filter({ has: page.getByRole("heading", { name: title, exact: true }) }).last();
   await expect(consentPanel).toBeVisible();
+  await expect(consentPanel).toContainText("3 members");
   await consentPanel.getByRole("button", { name: "Create Parent Link", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Parent consent link is ready." })).toBeVisible();
 
