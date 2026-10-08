@@ -62,6 +62,10 @@ This classification does not claim that such records must be kept forever. It me
 
 Public and parent-safe projections such as `publicEvents`, `parentWeeklyMeetings` and `parentGalleryEvents` follow their canonical source lifecycle and may be rebuilt or removed when that source state changes.
 
+### Dashboard polls
+
+`polls` includes poll questions, scoped audience metadata and account-linked answer records. Responses are personal data. Closing a poll only stops new or changed votes; it does not remove answers. Any later deletion or anonymisation requires an explicit review of the poll purpose, access history and audit needs.
+
 ## What Stage 19.4 enforces
 
 The unit contract checks fail when:
