@@ -125,6 +125,7 @@ export function suitesForChangedPath(file) {
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
   if (file === "src/components/admin/LeaderChildLinksSection.tsx") return ["authentication-rbac"];
+  if (file === "src/components/admin/EquipmentItemFormDialog.tsx") return ["equipment"];
   if (file === "src/components/admin/BadgeworkTrackingDialogs.tsx") return ["badgework"];
   if (["src/services/weeklyTracker.ts", "src/services/weeklyTrackerLogic.ts", "src/services/weeklyMeetingDate.mjs", "src/services/weeklyMeetingDate.d.mts", "src/services/reporting.ts", "src/services/attendanceInsightsLogic.ts", "src/components/admin/WeeklyAttendancePanel.tsx", "src/components/admin/WeeklyMeetingSummary.tsx"].includes(file)) return ["activities-programme"];
 
