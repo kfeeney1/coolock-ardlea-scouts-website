@@ -3,16 +3,11 @@ import {
     Alert,
     Box,
     Button,
-    Checkbox,
-    FormControl,
-    FormControlLabel,
-    FormHelperText,
     LinearProgress,
     Paper,
     Step,
     StepLabel,
     Stepper,
-    TextField,
     Typography
 } from "@mui/material";
 import { useMemo, useRef, useState } from "react";
@@ -21,26 +16,25 @@ import type {
     FormEvent
 } from "react";
 
-import MedicationManagementForm, {
+import {
     createMedicationData,
     validateMedication
 } from "./MedicationManagementForm";
-import YesNoField from "./YesNoField";
 import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { validateYouthConsent } from "../../services/youthConsentValidation";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
-import {
-    AUTHORISED_SCOUTERS,
-    submitYouthConsent
-} from "../../services/consentApplications";
+import { submitYouthConsent } from "../../services/consentApplications";
 import type {
     MedicationManagementData,
     YesNo,
     YouthConsentData,
     YouthScoutSection
 } from "../../services/consentApplications";
+import YouthConsentMemberSteps from "./YouthConsentMemberSteps";
+import YouthConsentMedicalSteps from "./YouthConsentMedicalSteps";
+import YouthConsentDeclarationSteps from "./YouthConsentDeclarationSteps";
 
 type Errors = Partial<
     Record<keyof YouthConsentData, string>
@@ -442,6 +436,37 @@ export default function YouthConsentForm({
         }
     };
 
+    const stepProps = {
+        formData,
+        errors,
+        medicationErrors,
+        onTextChange: handleTextChange,
+        onYesNoChange: updateYesNo,
+        onDeclarationConfirmed: (confirmed: boolean) => {
+            setFormData((current) => ({
+                ...current,
+                declarationConfirmed: confirmed
+            }));
+            clearError("declarationConfirmed");
+        },
+        onMedicationChange: (medication: MedicationManagementData) => {
+            setFormData((current) => ({
+                ...current,
+                medicationManagement:
+                    medication.enabled &&
+                    !current.medicationManagement.enabled
+                        ? {
+                              ...medication,
+                              memberName: current.childName,
+                              dateOfBirth: current.childDOB,
+                              address: current.homeAddress
+                          }
+                        : medication
+            }));
+            setMedicationErrors({});
+        }
+    };
+
     if (submitted) {
         return (
             <Paper
@@ -610,747 +635,9 @@ export default function YouthConsentForm({
                     {steps.length}: {steps[activeStep]}
                 </Typography>
 
-                {activeStep === 0 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            General Consent
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Child's full name"
-                                name="childName"
-                                value={formData.childName}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.childName
-                                )}
-                                helperText={
-                                    errors.childName
-                                }
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Date of birth"
-                                name="childDOB"
-                                value={formData.childDOB}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.childDOB
-                                )}
-                                helperText={
-                                    errors.childDOB
-                                }
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Consent valid from"
-                                name="consentFrom"
-                                value={formData.consentFrom}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.consentFrom
-                                )}
-                                helperText={
-                                    errors.consentFrom
-                                }
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Consent valid to"
-                                name="consentTo"
-                                value={formData.consentTo}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.consentTo
-                                )}
-                                helperText={
-                                    errors.consentTo
-                                }
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-                        </Box>
-
-                        <Alert
-                            severity="info"
-                            sx={{ mt: 3 }}
-                        >
-                            I/We the parent(s)/guardian(s)
-                            give permission for our child to
-                            partake in activities organised
-                            and run by the 80th/160th Coolock
-                            Ardlea Scout Group and authorise
-                            the listed Scouters to have
-                            lawful authority over our child
-                            during the consent period.
-                        </Alert>
-                    </Box>
-                )}
-
-                {activeStep === 1 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Permissions
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gap: 2
-                            }}
-                        >
-                            <YesNoField
-                                label="Do you give permission that photographs may be taken for promotional and record purposes during activities which may include your child?"
-                                value={formData.photoConsent}
-                                error={
-                                    errors.photoConsent
-                                }
-                                onChange={(value) =>
-                                    updateYesNo(
-                                        "photoConsent",
-                                        value
-                                    )
-                                }
-                            />
-
-                            <YesNoField
-                                label="Do you give permission for your child to take part in water activities?"
-                                value={
-                                    formData.waterActivities
-                                }
-                                error={
-                                    errors.waterActivities
-                                }
-                                onChange={(value) =>
-                                    updateYesNo(
-                                        "waterActivities",
-                                        value
-                                    )
-                                }
-                            />
-
-                            <YesNoField
-                                label="Is your child able to swim?"
-                                value={formData.canSwim}
-                                error={errors.canSwim}
-                                onChange={(value) =>
-                                    updateYesNo(
-                                        "canSwim",
-                                        value
-                                    )
-                                }
-                            />
-                        </Box>
-                    </Box>
-                )}
-
-                {activeStep === 2 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Medical Details
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gap: 2
-                            }}
-                        >
-                            {[
-                                [
-                                    "seriousIllness",
-                                    "Has your child any serious illnesses?"
-                                ],
-                                [
-                                    "regularMeds",
-                                    "Does your child take any regular medications?"
-                                ],
-                                [
-                                    "medAllergies",
-                                    "Are there any medications that your child is allergic to and/or must not be prescribed?"
-                                ],
-                                [
-                                    "allergies",
-                                    "Does your child have any allergies?"
-                                ],
-                                [
-                                    "dietaryReqs",
-                                    "Has your child any special dietary requirements?"
-                                ],
-                                [
-                                    "vaccinated",
-                                    "Has your child been fully vaccinated? (3/5 in 1, Meningitis C, MMR, pre-school booster)"
-                                ]
-                            ].map(([field, label]) => (
-                                <YesNoField
-                                    key={field}
-                                    label={label}
-                                    value={
-                                        formData[
-                                            field as keyof YouthConsentData
-                                        ] as YesNo | ""
-                                    }
-                                    error={
-                                        errors[
-                                            field as keyof YouthConsentData
-                                        ]
-                                    }
-                                    onChange={(value) =>
-                                        updateYesNo(
-                                            field as keyof YouthConsentData,
-                                            value
-                                        )
-                                    }
-                                />
-                            ))}
-                        </Box>
-
-                        <TextField
-                            fullWidth
-                            multiline
-                            minRows={4}
-                            label="Further information"
-                            name="medicalFurtherInfo"
-                            value={
-                                formData.medicalFurtherInfo
-                            }
-                            onChange={handleTextChange}
-                            helperText="Provide details for any relevant Yes answers."
-                            sx={{ mt: 3 }}
-                        />
-
-                        <Typography
-                            variant="h5"
-                            color="secondary"
-                            sx={{
-                                mt: 5,
-                                mb: 2
-                            }}
-                        >
-                            Medical Consent
-                        </Typography>
-
-                        <Alert
-                            severity="info"
-                            sx={{ mb: 3 }}
-                        >
-                            In the event of your child being
-                            taken ill or injured, you consent
-                            to emergency medical, surgical or
-                            dental treatment where you cannot
-                            be contacted and authorise the
-                            Scouters to communicate that
-                            consent to a treating practitioner.
-                        </Alert>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Family GP name"
-                                name="gpName"
-                                value={formData.gpName}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.gpName
-                                )}
-                                helperText={errors.gpName}
-                            />
-
-                            <TextField
-                                required
-                                type="tel"
-                                inputMode="tel"
-                                label="GP telephone"
-                                name="gpTel"
-                                value={formData.gpTel}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.gpTel
-                                )}
-                                helperText={errors.gpTel}
-                            />
-
-                            <TextField
-                                required
-                                label="GP address"
-                                name="gpAddress"
-                                value={formData.gpAddress}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.gpAddress
-                                )}
-                                helperText={
-                                    errors.gpAddress
-                                }
-                                sx={{
-                                    gridColumn: {
-                                        sm: "1 / -1"
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                type="date"
-                                label="Date of last check-up"
-                                name="lastCheckup"
-                                value={formData.lastCheckup}
-                                onChange={handleTextChange}
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-                        </Box>
-                    </Box>
-                )}
-
-                {activeStep === 3 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Parent / Guardian Contact
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            {[
-                                [
-                                    "parent1Name",
-                                    "Parent/Guardian 1 name",
-                                    true
-                                ],
-                                [
-                                    "parent2Name",
-                                    "Parent/Guardian 2 name",
-                                    false
-                                ],
-                                [
-                                    "homePhone",
-                                    "Home phone",
-                                    false
-                                ],
-                                [
-                                    "mobile1",
-                                    "Parent/Guardian 1 mobile",
-                                    true
-                                ],
-                                [
-                                    "mobile2",
-                                    "Parent/Guardian 2 mobile",
-                                    false
-                                ],
-                                [
-                                    "workPhone",
-                                    "Work phone",
-                                    false
-                                ],
-                                [
-                                    "email",
-                                    "Email",
-                                    true
-                                ]
-                            ].map(
-                                ([
-                                    field,
-                                    label,
-                                    isRequired
-                                ]) => (
-                                    <TextField
-                                        key={String(field)}
-                                        type={["homePhone", "mobile1", "mobile2", "workPhone"].includes(String(field)) ? "tel" : undefined}
-                                        inputMode={["homePhone", "mobile1", "mobile2", "workPhone"].includes(String(field)) ? "tel" : undefined}
-                                        required={
-                                            Boolean(
-                                                isRequired
-                                            )
-                                        }
-                                        label={String(
-                                            label
-                                        )}
-                                        name={String(
-                                            field
-                                        )}
-                                        value={
-                                            formData[
-                                                field as keyof YouthConsentData
-                                            ] as string
-                                        }
-                                        onChange={
-                                            handleTextChange
-                                        }
-                                        error={Boolean(
-                                            errors[
-                                                field as keyof YouthConsentData
-                                            ]
-                                        )}
-                                        helperText={
-                                            errors[
-                                                field as keyof YouthConsentData
-                                            ]
-                                        }
-                                    />
-                                )
-                            )}
-
-                            <TextField
-                                required
-                                label="Home address"
-                                name="homeAddress"
-                                value={
-                                    formData.homeAddress
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.homeAddress
-                                )}
-                                helperText={
-                                    errors.homeAddress
-                                }
-                                sx={{
-                                    gridColumn: {
-                                        sm: "1 / -1"
-                                    }
-                                }}
-                            />
-                        </Box>
-
-                        <Typography
-                            variant="h5"
-                            color="secondary"
-                            sx={{
-                                mt: 5,
-                                mb: 2
-                            }}
-                        >
-                            Alternative Emergency Contact
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Name"
-                                name="altContactName"
-                                value={
-                                    formData.altContactName
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.altContactName
-                                )}
-                                helperText={
-                                    errors.altContactName
-                                }
-                            />
-
-                            <TextField
-                                required
-                                type="tel"
-                                inputMode="tel"
-                                label="Phone number"
-                                name="altContactPhone"
-                                value={
-                                    formData.altContactPhone
-                                }
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.altContactPhone
-                                )}
-                                helperText={
-                                    errors.altContactPhone
-                                }
-                            />
-                        </Box>
-                    </Box>
-                )}
-
-                {activeStep === 4 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Additional Information
-                        </Typography>
-
-                        <TextField
-                            fullWidth
-                            multiline
-                            minRows={5}
-                            label="Special needs, conditions or other notes"
-                            name="additionalInfo"
-                            value={
-                                formData.additionalInfo
-                            }
-                            onChange={handleTextChange}
-                            helperText="For example: travel sickness or sleepwalking."
-                        />
-
-                        <Typography
-                            variant="h5"
-                            color="secondary"
-                            sx={{
-                                mt: 5,
-                                mb: 2
-                            }}
-                        >
-                            Schedule of Authorised Scouters
-                        </Typography>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr",
-                                    md: "1fr 1fr 1fr"
-                                },
-                                gap: 1,
-                                p: 3,
-                                backgroundColor:
-                                    brandColours.navyLight,
-                                borderRadius: 3
-                            }}
-                        >
-                            {AUTHORISED_SCOUTERS.map(
-                                (name) => (
-                                    <Typography
-                                        key={name}
-                                        variant="body2"
-                                        sx={{
-                                            fontWeight: 600
-                                        }}
-                                    >
-                                        • {name}
-                                    </Typography>
-                                )
-                            )}
-                        </Box>
-                    </Box>
-                )}
-
-                {activeStep === 5 && (
-                    <Box>
-                        <Typography
-                            variant="h4"
-                            color="secondary"
-                            sx={{ mb: 3 }}
-                        >
-                            Declaration & Submission
-                        </Typography>
-
-                        <Alert
-                            severity="info"
-                            sx={{ mb: 3 }}
-                        >
-                            By submitting this form I/We
-                            confirm that the medical details
-                            provided are correct, give consent
-                            as described above, and authorise
-                            the listed Scouters to act on our
-                            behalf regarding our child's
-                            welfare during Scout activities.
-                        </Alert>
-
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                    xs: "1fr",
-                                    sm: "1fr 1fr"
-                                },
-                                gap: 3
-                            }}
-                        >
-                            <TextField
-                                required
-                                label="Full name of Signatory 1"
-                                name="sig1Name"
-                                value={formData.sig1Name}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.sig1Name
-                                )}
-                                helperText={
-                                    errors.sig1Name ??
-                                    "Type full name as the electronic signature."
-                                }
-                            />
-
-                            <TextField
-                                label="Full name of Signatory 2"
-                                name="sig2Name"
-                                value={formData.sig2Name}
-                                onChange={handleTextChange}
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Signature date"
-                                name="sigDate"
-                                value={formData.sigDate}
-                                onChange={handleTextChange}
-                                error={Boolean(
-                                    errors.sigDate
-                                )}
-                                helperText={errors.sigDate}
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-                        </Box>
-
-                        <FormControl
-                            error={Boolean(
-                                errors.declarationConfirmed
-                            )}
-                            sx={{ mt: 3 }}
-                        >
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        color="success"
-                                        checked={
-                                            formData.declarationConfirmed
-                                        }
-                                        onChange={(event) => {
-                                            setFormData(
-                                                (current) => ({
-                                                    ...current,
-                                                    declarationConfirmed:
-                                                        event
-                                                            .target
-                                                            .checked
-                                                })
-                                            );
-                                            clearError(
-                                                "declarationConfirmed"
-                                            );
-                                        }}
-                                    />
-                                }
-                                label="I/We confirm that the information provided is accurate and confirm the declaration above."
-                            />
-
-                            {errors.declarationConfirmed && (
-                                <FormHelperText>
-                                    {
-                                        errors.declarationConfirmed
-                                    }
-                                </FormHelperText>
-                            )}
-                        </FormControl>
-
-                        <MedicationManagementForm
-                            mode="youth"
-                            value={
-                                formData.medicationManagement
-                            }
-                            errors={medicationErrors}
-                            sharedIdentity={{ memberName: formData.childName, dateOfBirth: formData.childDOB, address: formData.homeAddress }}
-                            memberSection={formData.scoutSection}
-                            onChange={(medication) => {
-                                setFormData(
-                                    (current) => ({
-                                        ...current,
-                                        medicationManagement:
-                                            medication.enabled &&
-                                            !current
-                                                .medicationManagement
-                                                .enabled
-                                                ? {
-                                                      ...medication,
-                                                      memberName:
-                                                          current.childName,
-                                                      dateOfBirth:
-                                                          current.childDOB,
-                                                      address:
-                                                          current.homeAddress
-                                                  }
-                                                : medication
-                                    })
-                                );
-
-                                setMedicationErrors({});
-                            }}
-                        />
-                    </Box>
-                )}
+                <YouthConsentMemberSteps step={activeStep} {...stepProps} />
+                <YouthConsentMedicalSteps step={activeStep} {...stepProps} />
+                <YouthConsentDeclarationSteps step={activeStep} {...stepProps} />
 
                 {submitError && (
                     <Alert
