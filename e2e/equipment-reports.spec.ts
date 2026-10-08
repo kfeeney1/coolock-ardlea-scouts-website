@@ -23,17 +23,6 @@ async function downloadText(download: Download) {
   return value;
 }
 
-async function downloadPreparedReport(page: Page) {
-  const dialog = page.getByRole("dialog", { name: "Report ready" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Open report" })).toBeVisible();
-  const downloadPromise = page.waitForEvent("download");
-  await dialog.getByRole("link", { name: "Download report" }).click();
-  const download = await downloadPromise;
-  await dialog.getByRole("button", { name: "Keep working" }).click();
-  return download;
-}
-
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Equipment report downloads run once on desktop Chromium.");
 }
@@ -60,15 +49,9 @@ test("equipment manager sees the operational overview and can generate, open and
   await expect(reports.getByLabel("Report")).toBeVisible();
   await expect(reports.getByLabel("Section")).toBeVisible();
 
+  const allDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-all-equipment-csv").click();
-  const ready = page.getByRole("dialog", { name: "Report ready" });
-  await expect(ready.getByRole("button", { name: "Open report" })).toBeVisible();
-  const popupPromise = page.waitForEvent("popup");
-  await ready.getByRole("button", { name: "Open report" }).click();
-  const popup = await popupPromise;
-  await expect.poll(() => popup.url()).toMatch(/^blob:/);
-  await popup.close();
-  const allDownload = await downloadPreparedReport(page);
+  const allDownload = await allDownloadPromise;
   expect(allDownload.suggestedFilename()).toMatch(/^all-equipment-\d{4}-\d{2}-\d{2}\.csv$/);
   const allContent = await downloadText(allDownload);
   expect(allContent.startsWith("\uFEFF")).toBe(false);
@@ -85,8 +68,9 @@ test("equipment manager sees the operational overview and can generate, open and
   await page.getByRole("listbox").getByRole("option", { name: "TEST Patrol Tents", exact: true }).click();
   await reports.getByLabel("Category").click();
   await page.getByRole("listbox").getByRole("option", { name: "Camping & Sleeping", exact: true }).click();
+  const selectedDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-selected-equipment-report").click();
-  const selectedDownload = await downloadPreparedReport(page);
+  const selectedDownload = await selectedDownloadPromise;
   expect(selectedDownload.suggestedFilename()).toMatch(/^inventory-summary-\d{4}-\d{2}-\d{2}\.csv$/);
   const selectedContent = await downloadText(selectedDownload);
   expect(selectedContent).toContain("TEST Patrol Tents");
@@ -97,8 +81,9 @@ test("equipment manager sees the operational overview and can generate, open and
   await page.getByRole("button", { name: "Open QM Reports" }).click();
   await expect(page).toHaveURL("/leader/qm-reports");
 
+  const registerDownloadPromise = page.waitForEvent("download");
   await page.getByTestId("export-equipment-asset-register").click();
-  const registerDownload = await downloadPreparedReport(page);
+  const registerDownload = await registerDownloadPromise;
   expect(registerDownload.suggestedFilename()).toMatch(/^equipment-asset-register-\d{4}-\d{2}-\d{2}\.csv$/);
   const registerContent = await downloadText(registerDownload);
   expect(registerContent).toContain('"Date Purchased","Quantity","Description"');
@@ -158,8 +143,9 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment");
   await page.goto("/leader/qm-reports");
+  const contentPromise = page.waitForEvent("download");
   await page.getByTestId("export-all-equipment-csv").click();
-  const content = await downloadText(await downloadPreparedReport(page));
+  const content = await downloadText(await contentPromise);
   const itemRow = content.split("\r\n").find((line) => line.includes(itemName)) ?? "";
   expect(itemRow).toContain(damageNote);
   expect(itemRow).toContain("reported");

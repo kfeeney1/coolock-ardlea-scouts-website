@@ -18,6 +18,9 @@ test.describe("Equipment & Stores leader navigation", () => {
     await page.goto("/leader/equipment");
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+    await page.getByRole("button", { name: "Open QM Reports" }).click();
+    await expect(page).toHaveURL("/leader/qm-reports");
+    await expect(page.getByTestId("page-qm-reports")).toBeVisible();
     const assetRegister = page.getByTestId("export-equipment-asset-register");
     await expect(assetRegister).toBeVisible();
     const assetRegisterBox = await assetRegister.boundingBox();
