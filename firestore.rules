@@ -701,6 +701,14 @@ service cloud.firestore {
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
 
+    // Collection-group parent queries need a recursive match. The query itself
+    // constrains memberId to the approved parent's linked children.
+    match /{path=**}/audienceMembers/{memberId} {
+      allow list: if resource.data.memberId == memberId
+        && resource.data.eventId is string
+        && isApprovedParentForMember(memberId);
+    }
+
     match /publicEvents/{eventId} {
       function isSafePublicEvent() {
         return resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt", "testData", "testSeed", "createdBySeed"])
