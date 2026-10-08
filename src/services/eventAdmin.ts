@@ -20,7 +20,7 @@ import { recordAuditEvent } from "./auditLog";
 import { canTransitionEventStatus, eventCloseOutIssues } from "./eventLifecycleLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { loadMembers } from "./memberAdmin";
-import { buildEventAudienceMemberships, eventAudienceMembershipPath, withPersistedEventAudience } from "./eventAudienceMemberships";
+import { buildEventAudienceMemberships, chunkEventAudienceMemberships, eventAudienceMembershipPath, withPersistedEventAudience } from "./eventAudienceMemberships";
 import { buildEventAudience } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
 
@@ -283,14 +283,22 @@ export async function createEvent(input: EventInput): Promise<string> {
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     };
-    const batch = writeBatch(db);
-    batch.set(eventRef, eventPayload);
-    memberships.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventRef.id, membership.memberId)), {
-        ...membership,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
-    }));
-    await batch.commit();
+    const membershipChunks = chunkEventAudienceMemberships(memberships);
+    for (const [index, chunk] of membershipChunks.entries()) {
+        const batch = writeBatch(db);
+        if (index === 0) batch.set(eventRef, eventPayload);
+        chunk.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventRef.id, membership.memberId)), {
+            ...membership,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+        }));
+        await batch.commit();
+    }
+    if (membershipChunks.length === 0) {
+        const batch = writeBatch(db);
+        batch.set(eventRef, eventPayload);
+        await batch.commit();
+    }
 
     await syncEventProjections(eventRef.id, { ...input, title, audience: canonicalAudience });
     await recordAuditEvent({
