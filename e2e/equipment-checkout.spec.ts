@@ -297,7 +297,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
 
   const card = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(card.getByText("0 total", { exact: true })).toBeVisible();
-  await card.getByRole("button", { name: "Edit" }).click();
+  await card.getByRole("link", { name: "Edit" }).click();
   await expect(page).toHaveURL(/\/leader\/equipment\/[^/]+$/);
   const summary = page.getByTestId("equipment-record-summary");
   await summary.getByRole("button", { name: "Edit", exact: true }).click();
