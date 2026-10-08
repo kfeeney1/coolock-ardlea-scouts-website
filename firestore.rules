@@ -1699,6 +1699,12 @@ service cloud.firestore {
       // provable for collection-group queries; parent-document lookups are not.
       // Only index documents are exposed here, never poll roots or responses.
       allow list: if isAdmin();
+      // A collection-group query cannot prove a parent-document get() predicate.
+      // The published index itself is a deliberately limited discovery record;
+      // root poll reads and votes remain separately authorised.
+      allow list: if resource.data.audienceType == "parents"
+        && resource.data.status == "published"
+        && isApprovedParentForSection(resource.data.section);
       allow list: if resource.data.pollId is string
         && resource.data.section == section
         && exists(/databases/$(database)/documents/polls/$(resource.data.pollId))
