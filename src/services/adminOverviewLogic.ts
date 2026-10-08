@@ -1,6 +1,6 @@
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
-import { YOUTH_SECTION_NAMES } from "./leaderAccessLogic";
+import { YOUTH_SECTION_NAMES } from "./leaderAccessLogic.ts";
 
 type JoinOverviewProfile = Pick<AdminProfile, "role" | "scoutingRole" | "sections" | "appointments">;
 
