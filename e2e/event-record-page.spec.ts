@@ -160,7 +160,7 @@ test("Back and Cancel avoid empty events and save a valid draft before leaving",
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events/create");
-  await page.getByRole("link", { name: "Back to Events", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events$/);
 
   await page.getByRole("link", { name: "Add Event", exact: true }).click();
