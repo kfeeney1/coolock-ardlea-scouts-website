@@ -58,6 +58,7 @@ export default function CreateEventPage() {
 
   const activeMembers = useMemo(() => dataReady ? members.filter((member) => member.status === "active") : [], [dataReady, members]);
   const updateSection = (section: string) => {
+    if (!draft.audience) setInitialAudience(defaultEventAudienceForClassification(section, members));
     setDraft({ ...draft, section });
   };
 
