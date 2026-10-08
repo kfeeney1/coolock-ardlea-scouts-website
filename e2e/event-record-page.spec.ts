@@ -72,6 +72,7 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   const browserBackTitle = `${updatedTitle} browser back`;
   await page.getByLabel("Event title").fill(browserBackTitle);
+  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
@@ -274,7 +275,9 @@ test("selected-member event audience stays exact across sections, edit, save, pa
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Riley Nolan/ }).click();
     await expect(childSelect).toContainText("Riley Nolan");
-    await expect(parentPage.getByText(title, { exact: true })).toBeVisible();
+    const parentEventSection = parentPage.locator("#parent-event-consent");
+    const parentEventSectionText = await parentEventSection.innerText();
+    if (!parentEventSectionText.includes(title)) throw new Error("Selected-member event was missing from the linked parent event panel: " + parentEventSectionText);
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Morgan Kavanagh/ }).click();
     await expect(childSelect).toContainText("Morgan Kavanagh");
