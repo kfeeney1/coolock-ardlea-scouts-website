@@ -25,14 +25,23 @@ function isSectionLeaderFor(leader: PublicWhosWhoLeader, section: string): boole
   ) ?? false;
 }
 
+function matchesPrimarySection(leader: PublicWhosWhoLeader, section: string): boolean {
+  return leader.primarySection.trim().toLowerCase() === section.trim().toLowerCase();
+}
+
+function compareLeaderOrder(a: PublicWhosWhoLeader, b: PublicWhosWhoLeader): number {
+  return a.organisationOrder - b.organisationOrder
+    || a.displayName.localeCompare(b.displayName)
+    || a.uid.localeCompare(b.uid);
+}
+
 export function publicLeadersForSection(leaders: PublicWhosWhoLeader[], section: string): PublicWhosWhoLeader[] {
   return leaders
-    .filter((leader) => publicSectionsForLeader(leader).includes(section))
+    .filter((leader) => publicSectionsForLeader(leader).some((item) => item.toLowerCase() === section.trim().toLowerCase()))
     .sort((a, b) =>
       Number(isSectionLeaderFor(b, section)) - Number(isSectionLeaderFor(a, section))
-      || a.organisationOrder - b.organisationOrder
-      || a.displayName.localeCompare(b.displayName)
-      || a.uid.localeCompare(b.uid)
+      || Number(matchesPrimarySection(b, section)) - Number(matchesPrimarySection(a, section))
+      || compareLeaderOrder(a, b)
     );
 }
 
