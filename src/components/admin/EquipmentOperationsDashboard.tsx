@@ -87,7 +87,6 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents, 
     <Stack spacing={2.5}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>Equipment overview</Typography>
-        <Typography color="text.secondary">A high-level view of stock health and the latest operational activity.</Typography>
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2,minmax(0,1fr))", md: "repeat(4,minmax(0,1fr))" }, gap: 1.5 }}>
