@@ -9,7 +9,7 @@ const scoutMemberName = "Casey OBrien Scouts 01";
 const scoutSectionLeader = "Scouts Section Leader · Section Leader";
 const dualSectionMember = "TEST Dual Section Member";
 
-type LifecycleMeeting = { date: string; label: string; created: boolean };
+type LifecycleMeeting = { date: string; label: string };
 
 function displayMeetingDate(date: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -23,6 +23,8 @@ function addDays(date: string, days: number) {
 }
 
 async function findUnusedMeetingDate(page: Page, startDate: string) {
+  await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
   for (let offset = 0; offset < 400; offset += 1) {
     const date = addDays(startDate, offset);
     const label = displayMeetingDate(date);
@@ -36,25 +38,22 @@ async function findUnusedMeetingDate(page: Page, startDate: string) {
 function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Weekly meeting lifecycle runs once on desktop Chromium."); }
 async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
 
-async function openOrCreateLifecycleMeeting(page: Page): Promise<LifecycleMeeting> {
-  for (let offset = 0; offset < 400; offset += 1) {
-    const date = addDays(firstLifecycleDate, offset);
-    const label = displayMeetingDate(date);
-    const existingOpen = page.getByRole("button", { name: new RegExp(`${label} · Scouts`) });
-    if (await existingOpen.count()) {
-      await existingOpen.first().click();
-      return { date, label, created: false };
-    }
-    const existingClosed = page.getByTestId(/meeting-history-/).filter({ hasText: `${label} · Scouts` });
-    if (await existingClosed.count()) continue;
-    await page.getByRole("link", { name: "Create Meeting" }).click();
-    await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-    await page.getByLabel("Meeting date").fill(date);
-    await page.getByRole("button", { name: "Create Meeting" }).click();
-    await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
-    return { date, label, created: true };
-  }
-  throw new Error("No unused lifecycle meeting date found.");
+async function createIsolatedLifecycleMeeting(page: Page): Promise<LifecycleMeeting> {
+  await page.goto("/leader/weekly");
+  await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
+  const lifecycle = await findUnusedMeetingDate(page, firstLifecycleDate);
+  await page.getByRole("link", { name: "Create Meeting" }).click();
+  await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+  await page.getByLabel("Meeting date").fill(lifecycle.date);
+  await page.getByRole("button", { name: "Create Meeting" }).click();
+  await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  await page.goto("/leader/weekly");
+  const createdMeeting = page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) });
+  await expect(createdMeeting).toHaveCount(1);
+  await expect(createdMeeting).toBeVisible();
+  await createdMeeting.click();
+  await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  return lifecycle;
 }
 
 async function normalizePlanner(page: Page) {
@@ -93,10 +92,11 @@ test("weekly meetings reject unauthenticated users", async ({ page }) => { await
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible(); await expect(page.getByRole("link", { name: "Create Meeting" })).toBeVisible();
-  const lifecycle = await openOrCreateLifecycleMeeting(page);
+  await login(page, sectionLeaderEmail);
+  const partialMeeting = await createIsolatedLifecycleMeeting(page);
+  const lifecycle = await createIsolatedLifecycleMeeting(page);
+  expect(lifecycle.date).not.toBe(partialMeeting.date);
   const phases = ["create/open"];
-  const created = lifecycle.created;
   const incidentDescription = "Small graze during wide game";
 
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
@@ -125,14 +125,14 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(attendanceCheckbox).toBeChecked();
 
   await page.getByRole("button", { name: "Programme", exact: true }).click();
-  if (created) await expect(page.getByTestId("activity-plan-row")).toHaveCount(2);
+  await expect(page.getByTestId("activity-plan-row")).toHaveCount(2);
   await normalizePlanner(page);
   await page.getByLabel("Theme").fill("Navigation Night"); await page.getByLabel("Location").fill("Scout Den");
   await page.getByLabel("Activity 1", { exact: true }).fill("Wide game"); await firstActivityLeader(page).check(); await page.getByLabel("Equipment 1", { exact: true }).fill("Cones and maps"); await page.getByLabel("Activity duration (minutes) 1", { exact: true }).fill("25"); await page.getByLabel("Instructions / notes 1", { exact: true }).fill("Patrol navigation challenge");
   await page.getByLabel("Activity 2", { exact: true }).fill("Pioneering relay"); await page.getByLabel("Activity duration (minutes) 2", { exact: true }).fill("20");
   await page.getByRole("button", { name: "Add activity / game", exact: true }).click(); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await page.getByTestId("activity-plan-row").last().getByRole("button", { name: "Remove" }).click(); await expect(page.getByTestId("activity-plan-row")).toHaveCount(2); await page.getByRole("button", { name: "Add activity / game", exact: true }).click(); await page.getByLabel("Activity 3", { exact: true }).fill("Closing game"); await page.getByLabel("Activity duration (minutes) 3", { exact: true }).fill("10"); await page.getByLabel("Programme notes").fill("Reusable opening and patrol rotation.");
 
-  if (created) await expect(page.getByTestId("badgework-plan-row")).toHaveCount(1);
+  await expect(page.getByTestId("badgework-plan-row")).toHaveCount(1);
   const badgework1=page.getByTestId("badgework-plan-row").first(); await badgework1.getByLabel("Badgework 1", { exact: true }).fill("Adventure Skills: Pioneering"); await firstBadgeworkLeader(page).check(); await badgework1.getByLabel("Badgework equipment 1", { exact: true }).fill("Rope and pioneering poles"); await badgework1.getByLabel("Badgework duration (minutes) 1", { exact: true }).fill("40"); await badgework1.getByLabel("Badgework instructions / notes 1", { exact: true }).fill("Stage 2 lashings");
   await page.getByRole("button", { name: "Add badgework", exact: true }).click(); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await page.getByTestId("badgework-plan-row").last().getByRole("button", { name: "Remove" }).click(); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(1); await page.getByRole("button", { name: "Add badgework", exact: true }).click(); await page.getByLabel("Badgework 2", { exact: true }).fill("Teamwork"); await page.getByLabel("Badgework duration (minutes) 2", { exact: true }).fill("10");
   await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes"); await expect(page.getByTestId("programme-duration-warning")).toContainText("15 minutes longer than the standard 1½-hour meeting");
