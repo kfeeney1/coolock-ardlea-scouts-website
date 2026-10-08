@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildEventAudience, defaultEventAudienceForClassification, eventAudienceSummary, eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
-import { buildEventAudienceMemberships, withPersistedEventAudience } from "../../src/services/eventAudienceMemberships.ts";
+import { buildEventAudienceMemberships, chunkEventAudienceMemberships, withPersistedEventAudience } from "../../src/services/eventAudienceMemberships.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -140,4 +140,14 @@ test("event audience summary explains the persisted audience without reopening t
     assert.equal(eventAudienceSummary(["Cubs"], [], 2), "Audience: Cubs — 2 members");
     assert.equal(eventAudienceSummary([], ["m4"], 1), "Audience: 1 selected member");
     assert.match(eventAudienceSummary(["Cubs"], ["m4"], 3), /3 members/);
+});
+
+
+test("event audience membership writes are split below Firestore rules access-call limits", () => {
+    const memberships = Array.from({ length: 35 }, (_, index) => ({ memberId: `m${index + 1}` }));
+    const chunks = chunkEventAudienceMemberships(memberships);
+    assert.deepEqual(chunks.map((chunk) => chunk.length), [16, 16, 3]);
+    assert.deepEqual(chunks.flat(), memberships);
+    assert.ok(chunks.every((chunk) => chunk.length <= 16));
+    assert.throws(() => chunkEventAudienceMemberships(memberships, 0), /positive integer/);
 });
