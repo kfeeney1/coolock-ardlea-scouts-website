@@ -9,7 +9,7 @@ import StableSelect from "../components/StableSelect";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
-import FinanceReceiptControl from "../components/finance/FinanceReceiptControl";
+import SectionCashbookHistory from "../components/finance/SectionCashbookHistory";
 import FinanceReportsPanel from "../components/admin/FinanceReportsPanel";
 import NewSectionFloatDialog from "../components/finance/NewSectionFloatDialog";
 import { addFinanceReceipt } from "../services/financeReceipts";
@@ -32,7 +32,6 @@ const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
 type FloatAction = "opening-float" | "float-top-up" | "money-out" | "close-float";
 
 const formatEuro = (cents: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(cents / 100);
-const formatTimestamp = (value: Date) => new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value);
 const today = () => new Date().toISOString().slice(0, 10);
 function eurosToCents(value: string): number | null {
   const normalised = value.trim().replace(",", ".");
@@ -45,15 +44,6 @@ function currencyInputValue(value: string): string | null {
   const normalised = value.replace(",", ".");
   if (normalised === "" || /^\d+(\.\d{0,2})?$/.test(normalised)) return normalised;
   return null;
-}
-
-function transactionLabel(transaction: FinanceTransaction): string {
-  if (transaction.type === "opening-float") return "Open float";
-  if (transaction.type === "income") return "Float top up";
-  if (transaction.type === "expense" && transaction.category === FLOAT_CLOSE_CATEGORY) return "Close float";
-  if (transaction.type === "expense") return "Money out";
-  if (transaction.type === "adjustment") return "Correction";
-  return "Legacy transfer";
 }
 
 export default function SectionCashbook() {
@@ -265,13 +255,18 @@ export default function SectionCashbook() {
           {reconciliations.length > 0 && <Stack spacing={1} sx={{ mt: 3 }}><Typography sx={{ fontWeight: 800 }}>Recent reconciliations</Typography>{reconciliations.slice(0, 5).map((item) => <Paper key={item.id} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1 }}><Box><Typography sx={{ fontWeight: 700 }}>{item.reconciledAt ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(item.reconciledAt) : "Reconciliation pending timestamp"}</Typography>{item.note && <Typography variant="body2" color="text.secondary">{item.note}</Typography>}</Box><Chip label={item.differenceCents === 0 ? "Balanced" : `Difference ${formatEuro(item.differenceCents)}`} color={item.differenceCents === 0 ? "success" : "warning"} /></Box></Paper>)}</Stack>}
         </Paper>
 
-        <Paper elevation={2} sx={{ p: { xs: 2.5, md: 4 } }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Transaction history</Typography>
-          {loading ? <Typography color="text.secondary">Loading section float…</Typography> : transactions.length === 0 ? <Alert severity="info">No float transactions have been recorded for this section.</Alert> : <Stack spacing={1.5}>{transactions.map((transaction) => {
-            const signed = signedAmountCents(transaction); const isAdjustment = transaction.type === "adjustment"; const isTransfer = transaction.type === "transfer-in" || transaction.type === "transfer-out"; const isCorrected = reversedIds.has(transaction.id); const isReceiptEligible = transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY;
-            return <Paper key={transaction.id} data-testid={`finance-transaction-${transaction.id}`} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}><Box><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography><Chip size="small" label={transactionLabel(transaction)} variant="outlined" />{isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary">{transaction.transactionDate}{transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY ? ` · ${transaction.category}` : ""}</Typography>{isReceiptEligible && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>Entered {transaction.createdAt ? formatTimestamp(transaction.createdAt) : "timestamp pending"}</Typography>}{transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}{isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Historical linked transfer {transaction.sourceTransactionId}</Typography>}{isReceiptEligible && <FinanceReceiptControl transactionId={transaction.id} section={transaction.section} refreshKey={receiptRefreshKey} />}</Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}><Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>{!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => { setCorrection(transaction); setCorrectionReason(""); setCorrectionDate(today()); }}>Correct entry</Button>}</Stack></Box></Paper>;
-          })}</Stack>}
-        </Paper>
+        <SectionCashbookHistory
+          transactions={transactions}
+          loading={loading}
+          reversedIds={reversedIds}
+          receiptRefreshKey={receiptRefreshKey}
+          formatEuro={formatEuro}
+          onCorrect={(transaction) => {
+            setCorrection(transaction);
+            setCorrectionReason("");
+            setCorrectionDate(today());
+          }}
+        />
       </Stack>
       <Dialog open={Boolean(correction)} onClose={() => !saving && setCorrection(null)} fullWidth maxWidth="sm"><DialogTitle>Correct float entry</DialogTitle><DialogContent dividers>{correction && <Stack spacing={2}><Alert severity="warning">This does not edit or delete the original. It creates an equal and opposite correction linked to the original transaction. A correction that would take the float below €0.00 is blocked.</Alert><Typography><strong>Original:</strong> {correction.description} · {formatEuro(signedAmountCents(correction))}</Typography><TextField type="date" label="Correction date" value={correctionDate} onChange={(event) => setCorrectionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /><TextField label="Reason / note" value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder={`Correction of ${correction.description}`} multiline minRows={2} /></Stack>}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setCorrection(null)}>Cancel</Button><Button disabled={saving} variant="contained" color="warning" onClick={() => void saveCorrection()}>{saving ? "Saving…" : "Create correction"}</Button></DialogActions></Dialog>
     </Container>
