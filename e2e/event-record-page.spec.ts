@@ -243,13 +243,16 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   });
   try {
     const parentPage = await parentContext.newPage();
-    await parentPage.goto("/parent");
+    await parentPage.goto(new URL("/parent", page.url()).toString());
     await parentPage.getByLabel("Email").fill(parentEmail!);
     await parentPage.getByLabel("Password").fill(password!);
     await parentPage.getByRole("button", { name: "Sign In" }).click();
     await expect(parentPage.getByText(/Your account is approved and linked to 2 member records/i)).toBeVisible();
-    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toBeVisible();
     const childSelect = parentPage.getByRole("combobox", { name: "Viewing information for" });
+    await childSelect.click();
+    await parentPage.getByRole("option", { name: /Riley Nolan/ }).click();
+    await expect(childSelect).toContainText("Riley Nolan");
+    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Morgan Kavanagh/ }).click();
     await expect(childSelect).toContainText("Morgan Kavanagh");
