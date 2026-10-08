@@ -37,7 +37,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
     <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>Meeting History</Typography>
     {!records.length ? <Alert severity="info">No closed meetings yet.</Alert> : <>
       <OperationalFilterBar>
-        <Box sx={{ flex: "1 1 260px" }}>
+        <Box sx={{ flex: { xs: "0 0 auto", md: "1 1 260px" } }}>
           <OperationalSearchField
             label="Search meeting history"
             value={search}
