@@ -155,4 +155,11 @@ test("ordinary leaders cannot access equipment reports", async ({ page }, testIn
   await expect(page.getByTestId("equipment-operations-dashboard")).toHaveCount(0);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
   await expect(page.getByTestId("export-equipment-asset-register")).toHaveCount(0);
+
+  await page.goto("/leader/equipment/issues");
+  await expect(page.getByTestId("page-qm-equipment-issues")).toBeVisible();
+  const issuePanel = page.getByTestId("equipment-incidents-panel");
+  await expect(issuePanel).toBeVisible();
+  await expect(issuePanel.getByRole("button", { name: "Start investigation" })).toHaveCount(0);
+  await expect(issuePanel.getByRole("button", { name: "Resolve" })).toHaveCount(0);
 });

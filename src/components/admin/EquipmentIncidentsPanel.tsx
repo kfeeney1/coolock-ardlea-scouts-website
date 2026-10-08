@@ -46,6 +46,9 @@ type Props = {
   loans: EquipmentLoan[];
   incidents: EquipmentIncident[];
   highlightedIncidentId?: string | null;
+  showIssueList?: boolean;
+  showDescription?: boolean;
+  onViewAll?: () => void;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
 };
@@ -60,7 +63,7 @@ type SourceOption = {
   label: string;
 };
 
-export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, highlightedIncidentId, onChanged, onError }: Props) {
+export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, highlightedIncidentId, showIssueList = true, showDescription = true, onViewAll, onChanged, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [type, setType] = useState<EquipmentIncidentType>("damaged");
@@ -204,12 +207,15 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
         <Box>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Broken, lost &amp; missing</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Report damaged, lost, missing or maintenance issues. Equipment managers can investigate and resolve each report with a permanent audit trail.</Typography>
+          {showDescription && <Typography color="text.secondary" sx={{ mt: 0.5 }}>Report damaged, lost, missing or maintenance issues. Equipment managers can investigate and resolve each report with a permanent audit trail.</Typography>}
         </Box>
-        <Button variant="contained" color="warning" onClick={openDialog} disabled={sources.length === 0}>Report issue</Button>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          {onViewAll && <Button variant="outlined" onClick={onViewAll}>View reported issues</Button>}
+          <Button variant="contained" color="warning" onClick={openDialog} disabled={sources.length === 0}>Report issue</Button>
+        </Stack>
       </Stack>
 
-      {visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
+      {showIssueList && (visibleIncidents.length === 0 ? <Alert severity="success" sx={{ mt: 2 }}>No open equipment issues in your scope.</Alert> : <Stack spacing={1.25} sx={{ mt: 2 }}>
         {visibleIncidents.map((incident) => <Paper key={incident.id} variant="outlined" id={`equipment-issue-${incident.id}`} data-testid={`equipment-incident-${incident.id}`} aria-label={`${incidentTypeLabel(incident.type)} issue for ${incident.itemName}, ${incidentStatusLabel(incident.status)}`} sx={{ p: 1.75, minWidth: 0, borderWidth: highlightedIncidentId === incident.id ? 2 : 1, scrollMarginTop: "96px" }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
             <Box sx={{ minWidth: 0 }}>
@@ -229,7 +235,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
             </Stack>
           </Stack>
         </Paper>)}
-      </Stack>}
+      </Stack>)}
     </Paper>
 
     <Dialog open={open} onClose={() => !saving && setOpen(false)} fullWidth maxWidth="sm">
