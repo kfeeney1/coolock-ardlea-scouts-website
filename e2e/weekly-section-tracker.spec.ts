@@ -45,6 +45,8 @@ async function createIsolatedLifecycleMeeting(page: Page): Promise<LifecycleMeet
   await page.getByLabel("Meeting date").fill(lifecycle.date);
   await page.getByRole("button", { name: "Create Meeting" }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+  await page.goto("/leader/weekly");
+  await expect(page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) })).toBeVisible();
   return lifecycle;
 }
 
