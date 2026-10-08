@@ -106,15 +106,11 @@ export default function EventEditPage() {
     return pending;
   }, [activeMembers, draft, dirty, event]);
 
-  const backgroundSave=useCallback(async():Promise<boolean>=>{
-    if(!event||!draft||!dirty||!draft.title.trim()||!draft.startDate)return false;
-    const sectionIds=draft.audience?draft.audience.sectionIds:(draft.section==="All Sections"?[...new Set(activeMembers.flatMap(member=>member.sections?.length?member.sections:[member.section]).filter(Boolean))]:[draft.section]);
-    const audience=buildEventAudience(sectionIds,draft.audience?.memberIds??[],activeMembers);
-    if(!audience.resolvedMemberIds.length)return false;
-    const committed={...draft,audience:{...audience,mode:draft.audience?.mode??audience.mode}};
-    try{await updateEvent(event.id,committed);setSavedDraftJson(JSON.stringify(committed));return true;}catch{return false;}
-  },[activeMembers,draft,dirty,event]);
-  const { navigateAfterSave } = useSaveOnNavigation(dirty, saveDraft,backgroundSave);
+  const backgroundSave = useCallback(async (): Promise<boolean> => {
+    if (!draft?.title.trim() || !draft.startDate) return false;
+    return saveDraft();
+  }, [draft, saveDraft]);
+  const { navigateAfterSave } = useSaveOnNavigation(dirty, saveDraft, backgroundSave);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 

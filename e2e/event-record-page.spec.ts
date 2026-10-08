@@ -230,7 +230,8 @@ test("selected-member event audience stays exact across sections, edit, save, pa
 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  await expect(page.locator('[data-testid^="event-record-"]').filter({ hasText: title })).toContainText("3 invited");
+  const eventId = new URL(page.url()).pathname.split("/").pop()!;
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("3 invited");
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const attendanceDialog = page.getByRole("dialog");
