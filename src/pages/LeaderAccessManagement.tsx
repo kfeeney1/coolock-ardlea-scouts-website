@@ -164,7 +164,7 @@ export default function LeaderAccessManagement() {
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
   const toggleSection = (record: LeaderAccessRecord, section: string) => {
-    const nextSections =%20record.sections.includes(section)
+    const nextSections = record.sections.includes(section)
       ? record.sections.filter((value) => value !== section)
       : [...record.sections, section];
     patch(record.uid, {
@@ -222,7 +222,7 @@ export default function LeaderAccessManagement() {
         <TextField select size="small" sx={{ mt: 1.5, minWidth: 220 }} label="Primary section" value={record.primarySection || canonicalOrganisationSection(record.sections, record.organisationSection)} disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole }) || record.sections.length <= 1} onChange={(e) => patch(record.uid, { primarySection: e.target.value, organisationSection: e.target.value })}>
           {record.sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
         </TextField></Box>}
-  %20     <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
+        <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <Box sx={{ gridColumn: { md: "span 1" } }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700 }}>Scouting appointments</Typography>
