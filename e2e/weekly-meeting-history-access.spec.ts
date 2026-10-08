@@ -56,10 +56,10 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible();
 
   const historyCard = page.getByRole("heading", { name: "Meeting History" }).locator("xpath=..");
-  const search = page.getByLabel("Search meeting history");
-  const section = page.getByLabel("Meeting history section");
-  const fromDate = page.getByLabel("From date");
-  const toDate = page.getByLabel("To date");
+  const search = historyCard.getByLabel("Search meeting history");
+  const section = historyCard.getByLabel("Meeting history section");
+  const fromDate = historyCard.getByLabel("From date");
+  const toDate = historyCard.getByLabel("To date");
   await expect(search).toBeVisible();
   await expect(section).toBeVisible();
   await expect(fromDate).toBeVisible();
