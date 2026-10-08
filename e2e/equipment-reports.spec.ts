@@ -45,7 +45,7 @@ test("equipment manager sees the operational overview and can generate, open and
   }
   await dashboard.getByTestId("equipment-dashboard-available").click();
   await expect(page).toHaveURL(/status=available/);
-  await expect(page.getByTestId("equipment-status-filter")).toHaveText("Available stock");
+  await expect(page.getByRole("combobox", { name: "Status" })).toHaveText("Available stock");
   await page.getByTestId("equipment-reset-filters").click();
   await expect(page).not.toHaveURL(/status=available/);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
