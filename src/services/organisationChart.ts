@@ -107,6 +107,7 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     displayName: safe.displayName,
     scoutingRole: primaryPublicAppointment.role,
     organisationSection: primaryPublicAppointment.section,
+    primarySection: accountSections[0] || safe.organisationSection,
     organisationSections: [...new Set(publicAppointments.map((item) => item.section))],
     publicAppointments,
     organisationOrder: safe.organisationOrder,

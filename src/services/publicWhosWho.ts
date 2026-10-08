@@ -7,6 +7,7 @@ export type PublicWhosWhoLeader = {
   displayName: string;
   scoutingRole: string;
   organisationSection: string;
+  primarySection: string;
   organisationSections: string[];
   organisationOrder: number;
   reportsToUid: string;
@@ -69,6 +70,7 @@ export async function getPublicWhosWho(): Promise<PublicWhosWhoLeader[]> {
         displayName,
         scoutingRole,
         organisationSection,
+        primarySection: text(data.primarySection) || organisationSection,
         organisationSections: [...new Set([...publicSections(data.organisationSections, scoutingRole, organisationSection), ...appointments.map((item) => item.section)])],
         publicAppointments: appointments,
         organisationOrder: typeof data.organisationOrder === "number" ? data.organisationOrder : 999,
