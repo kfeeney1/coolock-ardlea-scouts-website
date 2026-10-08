@@ -41,6 +41,7 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   const parentEvents=readFileSync("src/services/parentEvents.ts","utf8");
   const consent=readFileSync("src/services/eventConsent.ts","utf8");
   const parentPortal=readFileSync("src/pages/ParentPortal.tsx","utf8");
+  const parentPortalSections=readFileSync("src/components/parent/ParentPortalSections.tsx","utf8");
   const parentTasks=readFileSync("src/components/parent/ParentThingsToDo.tsx","utf8");
   const rules=readFileSync("firestore.rules","utf8");
   const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
@@ -53,8 +54,8 @@ test("Block E parent event consent uses canonical member audience snapshots", ()
   assert.doesNotMatch(parentEvents,/where\("section", "in", uniqueSections\)/);
   assert.match(consent,/audienceMemberIds: event\.audience\?\.resolvedMemberIds \?\? \[\]/);
   assert.match(consent,/audienceVersion: 3/);
-  assert.match(parentPortal,/const activeMemberIds = selectedChild \? \[selectedChild\.id\] : \[\]/);
-  assert.match(parentPortal,/memberIds=\{activeMemberIds\}/);
+  assert.match(parentPortalSections,/const memberIds = selectedChild \? \[selectedChild\.id\] : \[\]/);
+  assert.match(parentPortalSections,/memberIds=\{memberIds\}/);
   assert.match(parentPortal,/account\.memberIds/);
   assert.match(parentTasks,/loadParentEventConsentLinks\(memberIds, sections\)/);
   assert.match(rules,/resource\.data\.get\("audienceVersion", 2\) in \[1, 2\]/);
