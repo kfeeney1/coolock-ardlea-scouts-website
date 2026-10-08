@@ -274,11 +274,11 @@ test("selected-member event audience stays exact across sections, edit, save, pa
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Riley Nolan/ }).click();
     await expect(childSelect).toContainText("Riley Nolan");
-    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toBeVisible();
+    await expect(parentPage.getByText(title, { exact: true })).toBeVisible();
     await childSelect.click();
     await parentPage.getByRole("option", { name: /Morgan Kavanagh/ }).click();
     await expect(childSelect).toContainText("Morgan Kavanagh");
-    await expect(parentPage.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
+    await expect(parentPage.getByText(title, { exact: true })).toHaveCount(0);
   } finally {
     await parentContext.close();
   }
