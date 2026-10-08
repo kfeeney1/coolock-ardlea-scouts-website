@@ -218,6 +218,9 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await selectedRiley.check();
   await selectedCub.check();
   await selectedScout.check();
+  const selectedNames = await Promise.all([selectedRiley, selectedCub, selectedScout].map(async (checkbox) =>
+    (await checkbox.locator("xpath=ancestor::label").innerText()).split(" · ")[0]
+  ));
   await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
   await expect(page.getByText("Only the members selected here will be invited")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -226,6 +229,11 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.locator('[data-testid^="event-record-"]').filter({ hasText: title })).toContainText("3 invited");
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  const attendanceDialog = page.getByRole("dialog");
+  for (const name of selectedNames) await expect(attendanceDialog.getByText(name, { exact: true })).toBeVisible();
+  await expect(attendanceDialog.getByText("Morgan Kavanagh Beavers 02", { exact: true })).toHaveCount(0);
+  await attendanceDialog.getByRole("button", { name: "Close", exact: true }).click();
 
   const eventUrl = page.url();
   await page.getByRole("link", { name: "Manage Consent", exact: true }).click();
