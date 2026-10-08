@@ -208,10 +208,11 @@ export default function LeaderRequests() {
                             const requestCard = <Paper
                                 key={request.uid}
                                 variant="outlined"
-                                component={request.status === "pending" ? "button" : "div"}
+                                component={request.status === "pending" ? "button" : request.status === "approved" ? Link : "div"}
                                 type={request.status === "pending" ? "button" : undefined}
+                                to={request.status === "approved" ? `/leader/access/${encodeURIComponent(request.uid)}` : undefined}
                                 onClick={request.status === "pending" ? () => { setDecision(null); setSelectedAppointments([DEFAULT_NEW_LEADER_APPOINTMENT]); setSelected(request); } : undefined}
-                                aria-label={request.status === "pending" ? `Review leader request for ${request.fullName}` : undefined}
+                                aria-label={request.status === "pending" ? `Review leader request for ${request.fullName}` : request.status === "approved" ? `Open Leader Access for ${request.fullName}` : undefined}
                                 sx={{
                                     p: { xs: 2, sm: 2.5 },
                                     width: "100%",
@@ -223,8 +224,9 @@ export default function LeaderRequests() {
                                     font: "inherit",
                                     borderRadius: 2,
                                     overflow: "hidden",
-                                    ...(request.status === "pending" ? {
+                                    ...(request.status === "pending" || request.status === "approved" ? {
                                         cursor: "pointer",
+                                        textDecoration: request.status === "approved" ? "none" : undefined,
                                         "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 }
                                     } : {})
                                 }}>
@@ -264,9 +266,7 @@ export default function LeaderRequests() {
                                     </Stack>
                                 </Box>
                             </Paper>;
-                            return request.status === "approved"
-                                ? <Box key={request.uid} component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} aria-label={`Open Leader Access for ${request.fullName}`} sx={{ display: "block", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", color: "inherit", textDecoration: "none", borderRadius: 2, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>{requestCard}</Box>
-                                : requestCard;
+                            return requestCard;
                         })}
                     </Stack>
                 )}
