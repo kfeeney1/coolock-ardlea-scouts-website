@@ -1,7 +1,7 @@
 import { collection, getCountFromServer, getDocs, query, where, type Query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
-import { buildLeaderToday, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
+import { buildLeaderToday, joinApplicationOverviewSections, type LeaderAttentionItem, type LeaderTodayMeeting } from "./adminOverviewLogic";
 import { canManageEquipment } from "./equipmentLogic";
 import { incidentTypeLabel } from "./equipmentIncidentLogic";
 import { findMembersNeedingFormRenewal, type FormRenewalConsent } from "./formRenewalLogic";
@@ -21,6 +21,7 @@ export type AdminOverview = {
   pendingParents: number;
   pendingLeaders: number;
   newJoinApplications: number;
+  newJoinApplicationsVisible: boolean;
   activeMembers: number;
   outstandingConsent: number;
   membersBySection: Array<{ section: string; count: number }>;
@@ -129,9 +130,8 @@ async function countDocuments(target: Query): Promise<number> {
   return snapshot.data().count;
 }
 
-async function countScopedNewJoins(profile: AdminProfile): Promise<number> {
+async function countScopedNewJoins(profile: AdminProfile, sections: string[]): Promise<number> {
   if (isAdmin(profile)) return countDocuments(query(collection(db, "joinApplications"), where("status", "==", "new")));
-  const sections = authorisedOverviewSections(profile);
   if (sections.length === 0) return 0;
   const counts = await Promise.all(sections.map((section) => countDocuments(query(collection(db, "joinApplications"), where("section", "==", section), where("status", "==", "new")))));
   return counts.reduce((total, count) => total + count, 0);
@@ -186,10 +186,11 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
   if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
 
   const admin = isAdmin(profile);
+  const joinSections = joinApplicationOverviewSections(profile);
   const [pendingParents, pendingLeaders, newJoinApplications, memberDocuments, eventDocuments, meetingDocuments, consentDocuments, equipmentAttention] = await Promise.all([
     admin ? countDocuments(query(collection(db, "parentAccounts"), where("status", "==", "pending"))) : Promise.resolve(0),
     admin ? countDocuments(query(collection(db, "leaderRegistrationRequests"), where("status", "==", "pending"))) : Promise.resolve(0),
-    countScopedNewJoins(profile),
+    countScopedNewJoins(profile, joinSections),
     loadScopedCollection("members", profile),
     loadScopedCollection("events", profile),
     loadScopedWeeklyMeetings(profile),
@@ -248,6 +249,7 @@ export async function loadAdminOverview(profile: AdminProfile, force = false): P
     pendingParents,
     pendingLeaders,
     newJoinApplications,
+    newJoinApplicationsVisible: joinSections.length > 0,
     activeMembers: activeMembers.length,
     outstandingConsent: upcomingEvents.reduce((total, event) => total + event.outstandingConsent, 0),
     membersBySection,

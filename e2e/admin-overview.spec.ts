@@ -130,6 +130,29 @@ test("SW-319 dashboard medical reminder opens the leader's own form with a reada
   await expect(page.getByRole("heading", { name: "Scouter Medical Advice Form" })).toBeVisible();
 });
 
+
+const groupYouthChampionEmail = process.env.E2E_GROUP_YOUTH_CHAMPION_EMAIL || "test.multi.section.group.youth.champion@example.com";
+
+for (const project of ["chromium", "mobile-chromium"]) {
+  test(`SW-358 Group Youth Champion loads only permitted overview data on ${project}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== project, "Run once per desktop and mobile Chromium project.");
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+    await login(page, groupYouthChampionEmail!);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    const overview = page.getByTestId("admin-overview");
+    await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
+    await expect(overview.getByText("Scope: Beavers, Scouts")).toBeVisible();
+    await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
+    await page.goto("/leader");
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await expect(page.getByTestId("admin-overview").getByText("Unable to load the operations overview right now.")).toHaveCount(0);
+  });
+}
+
 test("Group Leader loads the operations overview within authorised account sections", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");

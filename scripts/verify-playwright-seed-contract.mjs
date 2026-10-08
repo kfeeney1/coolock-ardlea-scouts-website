@@ -26,7 +26,7 @@ for (const section of generatedSections) {
 }
 for (const role of generatedGroupRoles) seededEmails.add(`test.${role}@example.com`);
 
-const envAccountKeys = ["E2E_PARENT_EMAIL","E2E_PARENT_LEADER_EMAIL","E2E_LEADER_EMAIL","E2E_MULTI_SECTION_LEADER_EMAIL","E2E_ADMIN_EMAIL","E2E_SUPER_ADMIN_EMAIL","E2E_MODERN_SUPER_ADMIN_EMAIL"];
+const envAccountKeys = ["E2E_PARENT_EMAIL","E2E_PARENT_LEADER_EMAIL","E2E_LEADER_EMAIL","E2E_MULTI_SECTION_LEADER_EMAIL","E2E_GROUP_YOUTH_CHAMPION_EMAIL","E2E_ADMIN_EMAIL","E2E_SUPER_ADMIN_EMAIL","E2E_MODERN_SUPER_ADMIN_EMAIL"];
 const problems = [];
 for (const key of envAccountKeys) {
   const match = workflow.match(new RegExp(`^\\s*${key}:\\s*([^\\s#]+)`, "m"));

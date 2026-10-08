@@ -19,6 +19,7 @@ const emptyOverview: AdminOverview = {
   pendingParents: 0,
   pendingLeaders: 0,
   newJoinApplications: 0,
+  newJoinApplicationsVisible: false,
   activeMembers: 0,
   outstandingConsent: 0,
   membersBySection: [],
@@ -62,7 +63,7 @@ export default function AdminOverviewPanel() {
   if (!adminProfile) return null;
 
   const cards = [
-    ["New Join Applications", overview.newJoinApplications, "/leader/join"],
+    ...(overview.newJoinApplicationsVisible ? [["New Join Applications", overview.newJoinApplications, "/leader/join"]] : []),
     ["Active Members", overview.activeMembers, "/leader/members"],
     ["Outstanding Event Consent", overview.outstandingConsent, "/leader/event-consent"],
     ["Upcoming Events", overview.upcomingEvents.length, "/leader/events"]

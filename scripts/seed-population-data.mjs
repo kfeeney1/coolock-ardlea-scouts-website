@@ -149,6 +149,23 @@ const scenarioLeaders = [
     reportsToUid: "TEST_uid_group_leader",
     showPublicly: false,
     kind: "multi-section-leader"
+  },
+  {
+    uid: "TEST_uid_multi_section_group_youth_champion",
+    email: "test.multi.section.group.youth.champion@example.com",
+    displayName: "Test Multi Section Group Youth Champion",
+    accessRole: "leader",
+    sections: ["Scouts", "Beavers"],
+    scoutingRole: "Group Youth Champion",
+    organisationSection: "Scouts",
+    organisationOrder: 96,
+    reportsToUid: "TEST_uid_group_leader",
+    showPublicly: false,
+    appointments: [
+      { appointment: "Section Leader", scope: "Scouts", active: true },
+      { appointment: "Group Youth Champion", scope: "Group", active: true }
+    ],
+    kind: "multi-section-group-youth-champion"
   }
 ];
 
