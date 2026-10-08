@@ -29,7 +29,10 @@ test.describe("dashboard polls", () => {
     await page.getByRole("combobox", { name: "Poll audience" }).click();
     await page.getByRole("option", { name: "Parents and guardians" }).click();
     const beavers = page.getByRole("checkbox", { name: "Beavers" });
-    if (!(await beavers.isChecked())) await beavers.check();
+    for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
+      if (await checkbox.isChecked()) await checkbox.uncheck();
+    }
+    await beavers.check();
     await page.getByRole("button", { name: "Save draft" }).click();
     // Surface Firestore permission/index errors at their source instead of timing out
     // on an absent management card with no actionable diagnostics.
