@@ -94,8 +94,14 @@ jobs:
           cat /tmp/vite-preview.log; exit 1
       - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
+      - name: Repeat isolated SW-355 lifecycle on persistent emulator state
+        run: npx --no-install playwright test e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --repeat-each=2 --timeout=30000 --grep "section leader completes lifecycle with flexible planner rows, summary and retained save state"
+      - name: Run SW-317 signed-out route alone on desktop and mobile
+        run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "communications route rejects unauthenticated users after authenticated journeys"
+      - name: Run SW-317 communications suite after authenticated journeys
+        run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused blocking regressions
-        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|section leader completes lifecycle with flexible planner rows, summary and retained save state|group leader copies a meeting into another authorised section and resets operational history"
+        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|group leader copies a meeting into another authorised section and resets operational history"
 
   e2e_shard:
     name: e2e shard ${{ matrix.id }} of 2
