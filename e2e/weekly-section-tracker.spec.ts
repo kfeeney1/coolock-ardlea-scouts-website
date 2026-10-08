@@ -23,6 +23,8 @@ function addDays(date: string, days: number) {
 }
 
 async function findUnusedMeetingDate(page: Page, startDate: string) {
+  await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
+  await expect(page.getByRole("progressbar")).toHaveCount(0);
   for (let offset = 0; offset < 400; offset += 1) {
     const date = addDays(startDate, offset);
     const label = displayMeetingDate(date);
@@ -46,7 +48,9 @@ async function createIsolatedLifecycleMeeting(page: Page): Promise<LifecycleMeet
   await page.getByRole("button", { name: "Create Meeting" }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   await page.goto("/leader/weekly");
-  await expect(page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) })).toBeVisible();
+  const createdMeeting = page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) });
+  await expect(createdMeeting).toHaveCount(1);
+  await expect(createdMeeting).toBeVisible();
   return lifecycle;
 }
 
