@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLeaderToday } from "../../src/services/adminOverviewLogic.ts";
+import { buildLeaderToday, joinApplicationOverviewSections } from "../../src/services/adminOverviewLogic.ts";
 
 const meetings = [
   { id: "past", section: "Scouts", meetingDate: "2026-08-20", status: "open", location: "Den", programmeReady: true, attendanceStarted: true },
@@ -35,4 +35,39 @@ test("leader today stays clear when nothing needs attention", () => {
   ], [], "2026-08-27");
   assert.equal(result.nextMeeting?.id, "ready");
   assert.equal(result.attentionItems.length, 0);
+});
+
+
+test("SW-358 limits join application overview sections to backend-authorized appointments", () => {
+  const combinedAppointment = {
+    uid: "champion", email: "", displayName: "Champion", role: "leader" as const,
+    sections: ["Beavers", "Scouts"], scoutingRole: "Group Youth Champion", uiTheme: "light" as const,
+    appointments: [
+      { id: "section-leader--scouts", appointment: "Section Leader" as const, scope: "Scouts", active: true },
+      { id: "group-youth-champion--group", appointment: "Group Youth Champion" as const, scope: "Group", active: true }
+    ]
+  };
+  assert.deepEqual(joinApplicationOverviewSections(combinedAppointment), ["Scouts"]);
+  assert.deepEqual(joinApplicationOverviewSections({
+    ...combinedAppointment,
+    scoutingRole: "Section Leader",
+    appointments: [combinedAppointment.appointments[0]]
+  }), ["Scouts"]);
+  assert.deepEqual(joinApplicationOverviewSections({
+    ...combinedAppointment,
+    role: "leader",
+    scoutingRole: "Programme Scouter",
+    appointments: [{ id: "programme-scouter--scouts", appointment: "Programme Scouter", scope: "Scouts", active: true }]
+  }), []);
+  assert.deepEqual(joinApplicationOverviewSections({
+    ...combinedAppointment,
+    scoutingRole: "Group Leader",
+    appointments: [{ id: "group-leader--group", appointment: "Group Leader", scope: "Group", active: true }]
+  }), ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
+  assert.deepEqual(joinApplicationOverviewSections({
+    ...combinedAppointment,
+    role: "admin",
+    scoutingRole: "",
+    appointments: []
+  }), ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]);
 });

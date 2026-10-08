@@ -1,3 +1,20 @@
+import type { AdminProfile } from "../components/admin/AdminAuthProvider";
+import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
+import { YOUTH_SECTION_NAMES } from "./leaderAccessLogic";
+
+type JoinOverviewProfile = Pick<AdminProfile, "role" | "scoutingRole" | "sections" | "appointments">;
+
+/** Mirrors the section-level joinApplications read grants in firestore.rules. */
+export function joinApplicationOverviewSections(profile: JoinOverviewProfile): string[] {
+  if (profile.role === "admin" || profile.role === "super-admin") return [...YOUTH_SECTION_NAMES];
+  if (isGroupLeadershipAppointment(profile.scoutingRole)) return [...YOUTH_SECTION_NAMES];
+
+  const appointedSections = new Set(profile.appointments
+    .filter((appointment) => appointment.active !== false && appointment.appointment === "Section Leader")
+    .map((appointment) => appointment.scope));
+  return profile.sections.filter((section) => section !== "Group" && appointedSections.has(section));
+}
+
 export type LeaderTodayMeeting = {
   id: string;
   section: string;
