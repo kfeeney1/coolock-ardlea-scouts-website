@@ -161,13 +161,20 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const submitError = page.getByRole("alert").filter({ hasText: /equipment|issue|checkout|permission|record/i });
   await expect(incidentDialog).toBeHidden({ timeout: 15000 });
 
+  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page).toHaveURL("/leader/equipment/issues");
   const incidentCard = page.locator('[data-testid^="equipment-incident-"]').filter({ hasText: incidentName });
   await expect(incidentCard).toBeVisible();
+  await expect.poll(() => notificationCalls).toBe(1);
+
+  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await expect(page).toHaveURL("/leader/equipment");
   const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
-  await expect.poll(() => notificationCalls).toBe(1);
+  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page).toHaveURL("/leader/equipment/issues");
 
   await incidentCard.getByRole("button", { name: "Start investigation" }).click();
   await expect(incidentCard.getByText("Investigating", { exact: true })).toBeVisible();
@@ -177,6 +184,8 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await resolveDialog.getByLabel("Resolution notes").fill("Found in the trailer after the return was checked.");
   await resolveDialog.getByRole("button", { name: "Confirm resolution" }).click();
 
+  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await expect(page).toHaveURL("/leader/equipment");
   const resolvedInventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(resolvedInventoryCard.getByText("2 available", { exact: true })).toBeVisible();
   await expect(resolvedInventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();

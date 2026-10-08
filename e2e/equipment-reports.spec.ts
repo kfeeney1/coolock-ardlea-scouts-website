@@ -134,8 +134,12 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
   await expect(incidentDialog).toBeHidden();
+  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page).toHaveURL("/leader/equipment/issues");
   await expect(page.getByText(damageNote, { exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await expect(page).toHaveURL("/leader/equipment");
   await page.getByTestId("export-all-equipment-csv").click();
   const content = await downloadText(await downloadPreparedReport(page));
   const itemRow = content.split("\r\n").find((line) => line.includes(itemName)) ?? "";

@@ -27,6 +27,7 @@ import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
 import EquipmentOperationsDashboard from "../components/admin/EquipmentOperationsDashboard";
 import EquipmentOptionManager from "../components/admin/EquipmentOptionManager";
 import type { EquipmentDashboardFilter } from "../components/admin/EquipmentOperationsDashboard";
+import EquipmentReportsPanel from "../components/admin/EquipmentReportsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -267,6 +268,7 @@ export default function EquipmentManagement() {
       {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues from the reported issues page.</Alert>}
 
       {hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
+      {hasLoaded && canManage && <EquipmentReportsPanel items={items} loans={loans} incidents={incidents} canManage={canManage} />}
       {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} onViewAll={() => navigate(`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`)} onChanged={refresh} onError={setError} />}
       {hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
