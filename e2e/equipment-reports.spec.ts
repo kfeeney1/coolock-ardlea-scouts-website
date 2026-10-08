@@ -49,7 +49,7 @@ test("equipment manager sees the operational overview and can generate, open and
   await page.getByTestId("equipment-reset-filters").click();
   await expect(page).not.toHaveURL(/status=available/);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
-  await page.getByRole("button", { name: "Open QM Reports" }).click();
+  await page.getByRole("link", { name: "Open QM Reports" }).click();
   await expect(page).toHaveURL("/leader/qm-reports");
   await expect(page.getByTestId("page-qm-reports")).toBeVisible();
   const reports = page.getByTestId("equipment-reports-panel");
@@ -85,9 +85,9 @@ test("equipment manager sees the operational overview and can generate, open and
   expect(selectedContent).toContain("TEST Patrol Tents");
   expect(selectedContent).not.toContain("TEST Camping Stoves");
 
-  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await page.getByRole("link", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment?view=quartermaster");
-  await page.getByRole("button", { name: "Open QM Reports" }).click();
+  await page.getByRole("link", { name: "Open QM Reports" }).click();
   await expect(page).toHaveURL("/leader/qm-reports");
 
   const registerDownloadPromise = page.waitForEvent("download");
@@ -145,11 +145,11 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await incidentDialog.getByLabel("What happened?").fill(damageNote);
   await incidentDialog.getByRole("button", { name: "Report issue" }).click();
   await expect(incidentDialog).toBeHidden();
-  await page.getByRole("button", { name: "View reported issues" }).click();
+  await page.getByRole("link", { name: "View reported issues" }).click();
   await expect(page).toHaveURL("/leader/equipment/issues");
   await expect(page.getByText(damageNote, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await page.getByRole("link", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment");
   await page.goto("/leader/qm-reports");
   const contentPromise = page.waitForEvent("download");
@@ -170,7 +170,7 @@ test("ordinary leaders cannot access equipment reports", async ({ page }, testIn
   await page.goto("/leader/equipment");
   await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
   await expect(page.getByTestId("equipment-operations-dashboard")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open QM Reports" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open QM Reports" })).toHaveCount(0);
   await expect(page.getByTestId("equipment-reports-panel")).toHaveCount(0);
   await expect(page.getByTestId("export-equipment-asset-register")).toHaveCount(0);
   await expect(page.getByTestId("export-all-equipment-csv")).toHaveCount(0);
