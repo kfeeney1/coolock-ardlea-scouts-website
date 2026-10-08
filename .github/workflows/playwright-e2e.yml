@@ -7,6 +7,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# PR updates run the focused gate and both shards; manual dispatch runs the full suite.
+
 permissions:
   contents: read
 
