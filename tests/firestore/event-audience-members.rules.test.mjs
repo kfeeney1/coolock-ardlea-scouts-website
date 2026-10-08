@@ -159,14 +159,14 @@ test("selected-event consent-link lists require a matching server-authorized aud
     collection(parentDb, "eventConsentLinks"),
     where("active", "==", true),
     where("audienceVersion", "==", 2),
-    where("audienceMemberIds", "array-contains", "member-cub"),
+    where("section", "in", ["Cubs", "Group", "All Sections"]),
   )));
   if (legacyLinks.size !== 1 || legacyLinks.docs[0].id !== "link-legacy") throw new Error("Legacy parent event links remain available to the linked account.");
   await assertFails(getDocs(query(
     collection(otherDb, "eventConsentLinks"),
     where("active", "==", true),
     where("audienceVersion", "==", 2),
-    where("audienceMemberIds", "array-contains", "member-scout"),
+    where("section", "in", ["Scouts"]),
   )));
   await assertFails(getDocs(query(
     collectionGroup(otherDb, "audienceMembers"),

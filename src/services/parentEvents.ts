@@ -44,7 +44,7 @@ function mapLegacyLink(id: string, data: Record<string, unknown>): ParentEventCo
     return link.eventId && link.title && link.startDate ? link : null;
 }
 
-export async function loadParentEventConsentLinks(memberIds: string[]): Promise<ParentEventConsentLink[]> {
+export async function loadParentEventConsentLinks(memberIds: string[], sections: string[] = []): Promise<ParentEventConsentLink[]> {
     const linkedMemberIds = [...new Set(memberIds.filter(Boolean))].slice(0, 8);
     if (linkedMemberIds.length === 0) return [];
 
@@ -93,12 +93,13 @@ export async function loadParentEventConsentLinks(memberIds: string[]): Promise<
 
     // Preserve access to consent links created before audience membership records
     // were introduced. New v3 links keep their child IDs out of the public token doc.
-    const legacySnapshots = await Promise.all(linkedMemberIds.flatMap((memberId) => [1, 2].map((version) => getDocs(query(
+    const legacySections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])];
+    const legacySnapshots = legacySections.length ? await Promise.all([1, 2].map((version) => getDocs(query(
         collection(db, "eventConsentLinks"),
         where("active", "==", true),
         where("audienceVersion", "==", version),
-        where("audienceMemberIds", "array-contains", memberId)
-    )))));
+        where("section", "in", legacySections)
+    )))) : [];
     const legacyEvents = legacySnapshots.flatMap((snapshot) => snapshot.docs
         .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>)))
         .filter((event): event is ParentEventConsentLink => Boolean(event));

@@ -768,7 +768,7 @@ service cloud.firestore {
         || (isActiveLeader() && hasSection(resource.data.section))
         || (resource.data.active == true
           && resource.data.get("audienceVersion", 2) in [1, 2]
-          && isApprovedParentForAudienceMembers(resource.data.get("audienceMemberIds", [])));
+          && isApprovedParentForSection(resource.data.section));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section)
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.eventId is string && request.resource.data.title is string

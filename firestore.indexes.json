@@ -6,7 +6,7 @@
       "fields": [
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "audienceVersion", "order": "ASCENDING" },
-        { "fieldPath": "audienceMemberIds", "arrayConfig": "CONTAINS" }
+        { "fieldPath": "section", "order": "ASCENDING" }
       ]
     },
     {

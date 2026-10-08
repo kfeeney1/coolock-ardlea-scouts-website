@@ -57,7 +57,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
         setLoadError(null);
         try {
             const [events, members, consents] = await Promise.all([
-                loadParentEventConsentLinks(memberIds),
+                loadParentEventConsentLinks(memberIds, sections),
                 loadLinkedMembers(memberIds),
                 loadParentConsents(memberIds)
             ]);

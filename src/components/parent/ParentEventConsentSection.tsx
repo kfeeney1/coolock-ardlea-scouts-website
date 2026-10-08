@@ -35,7 +35,7 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
       setError("");
       setPermissionDenied(false);
       try {
-        const loaded = await loadParentEventConsentLinks(memberIds);
+        const loaded = await loadParentEventConsentLinks(memberIds, sections);
         if (!cancelled) setEvents(loaded);
       } catch (loadError) {
         reportApplicationError(loadError, { area: "ParentEventConsentSection", operation: "Unable to load parent event consent links" });
@@ -48,7 +48,7 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
       }
     })();
     return () => { cancelled = true; };
-  }, [memberIds, retryVersion]);
+  }, [memberIds, sections, retryVersion]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
