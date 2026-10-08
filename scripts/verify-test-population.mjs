@@ -47,7 +47,7 @@ for (const doc of members) {
 }
 
 const adminUsers = await seededDocs("adminUsers");
-if (adminUsers.length !== 31) fail(`expected 31 leader/admin profiles, found ${adminUsers.length}`);
+if (adminUsers.length !== 32) fail(`expected 32 leader/admin profiles, found ${adminUsers.length}`);
 for (const doc of adminUsers) {
   const data = doc.data();
   if (!(data.role === "leader" || data.role === "admin" || data.role === "super-admin")) fail(`adminUsers/${doc.id} has invalid role`);
@@ -57,7 +57,7 @@ for (const doc of adminUsers) {
 }
 
 const organisation = await seededDocs("organisationLeadership");
-if (organisation.length !== 31) fail(`expected 31 organisation records, found ${organisation.length}`);
+if (organisation.length !== 32) fail(`expected 32 organisation records, found ${organisation.length}`);
 const publicLeadership = await seededDocs("publicLeadership");
 if (publicLeadership.length !== 27) fail(`expected 27 public leadership records, found ${publicLeadership.length}`);
 for (const doc of publicLeadership) {
@@ -125,5 +125,5 @@ console.log("Minimal canonical TEST population verified successfully.");
 console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
 console.log("- Who's Who: exactly seven Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
-console.log("- Leader/admin profiles: 27 public leaders + 1 private multi-section leader + 3 private website admins");
+console.log("- Leader/admin profiles: 27 public leaders + 2 private multi-section leaders + 3 private website admins");
 console.log("- Firebase Auth: all 41 canonical identities present");
