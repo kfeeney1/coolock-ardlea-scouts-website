@@ -362,6 +362,15 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     const eventAudience = withPersistedEventAudience(canonicalAudience);
     const memberships = buildEventAudienceMemberships(eventId, clean(input.section, 80), visibleAudience, members, authorisedSections);
     if (memberships.length !== visibleAudience.resolvedMemberIds.length) throw new UserFacingError("The event audience includes a member who is no longer active or is outside your authorised scope.");
+    const previousMembershipById = new Map(previousMembershipSnapshot.docs.map((item) => [item.id, item.data()]));
+    const changedMemberships = memberships.filter((membership) => {
+        const previous = previousMembershipById.get(membership.memberId);
+        return !previous
+            || previous.eventSection !== membership.eventSection
+            || previous.scopeSection !== membership.scopeSection
+            || previous.selectedBySection !== membership.selectedBySection
+            || previous.selectedIndividually !== membership.selectedIndividually;
+    });
     const nextMembershipIds = new Set([
         ...memberships.map((membership) => membership.memberId),
         ...retainedHiddenMemberships.map((item) => item.id)
@@ -379,7 +388,7 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         reconciledConsent[id] ??= input.consentRequired ? "required" : "not-required";
     });
 
-    const membershipChunks = chunkEventAudienceMemberships(memberships);
+    const membershipChunks = chunkEventAudienceMemberships(changedMemberships);
     const updatePayload = {
         title: clean(input.title, 200),
         description: clean(input.description, 3000),
