@@ -9,18 +9,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Stack,
-  TextField,
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
+import EquipmentItemFormDialog, { EMPTY_EQUIPMENT_FORM } from "../components/admin/EquipmentItemFormDialog";
+import type { EquipmentFormState } from "../components/admin/EquipmentItemFormDialog";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import EquipmentInventoryFilters, { UNASSIGNED_EQUIPMENT_STORE } from "../components/admin/EquipmentInventoryFilters";
 import EquipmentLoansPanel from "../components/admin/EquipmentLoansPanel";
@@ -50,21 +47,8 @@ import {
   isDuplicateEquipmentLabel,
   normaliseEquipmentLabel
 } from "../services/equipmentLogic";
-import { numericInputDisplayValue, parseOptionalNumberInput } from "../services/numericInput";
 
 const OTHER = "__other__";
-type EquipmentFormState = Omit<EquipmentItemInput, "totalQuantity"> & { totalQuantity: number | null };
-const EMPTY_FORM: EquipmentFormState = {
-  name: "",
-  category: "",
-  trackingMode: "quantity",
-  totalQuantity: 1,
-  location: "",
-  condition: "good",
-  notes: "",
-  replacementValue: null
-};
-
 type InventoryStatusFilter = EquipmentDashboardFilter;
 
 export default function EquipmentManagement() {
@@ -84,7 +68,7 @@ export default function EquipmentManagement() {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<EquipmentItem | null | undefined>(undefined);
   const [historyItem, setHistoryItem] = useState<EquipmentItem | null>(null);
-  const [form, setForm] = useState<EquipmentFormState>(EMPTY_FORM);
+  const [form, setForm] = useState<EquipmentFormState>(EMPTY_EQUIPMENT_FORM);
   const [newCategory, setNewCategory] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [saving, setSaving] = useState(false);
@@ -200,7 +184,7 @@ export default function EquipmentManagement() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm(EMPTY_EQUIPMENT_FORM);
     setNewCategory("");
     setNewLocation("");
   };
@@ -327,23 +311,21 @@ export default function EquipmentManagement() {
         </Box>
       )}
 
-      <Dialog open={editing !== undefined} onClose={() => !saving && setEditing(undefined)} fullWidth maxWidth="sm">
-        <DialogTitle>Add equipment</DialogTitle>
-        <DialogContent dividers><Stack spacing={2} sx={{ pt: 0.5 }}>
-          <TextField label="Equipment name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-          <FormControl><InputLabel id="equipment-category-label">Category</InputLabel><Select labelId="equipment-category-label" label="Category" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
-          {form.category === OTHER && <TextField label="New category" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} autoFocus />}
-          <FormControl><InputLabel id="equipment-store-label">Store</InputLabel><Select labelId="equipment-store-label" label="Store" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })}><MenuItem value=""><em>Select Store</em></MenuItem>{locationNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>
-          {editing && <Typography variant="caption" color="text.secondary">To change an item's Store, use Move Store so the stock movement remains auditable.</Typography>}
-          {form.location === OTHER && <TextField label="New Store" value={newLocation} onChange={(event) => setNewLocation(event.target.value)} />}
-          <FormControl><InputLabel>Tracking</InputLabel><Select label="Tracking" value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value as EquipmentItemInput["trackingMode"] })}><MenuItem value="quantity">Quantity</MenuItem><MenuItem value="individual">Individual assets</MenuItem></Select></FormControl>
-          <TextField label="Total quantity" type="number" slotProps={{ htmlInput: { min: 0, step: 1, "data-testid": "equipment-total-quantity" } }} value={numericInputDisplayValue(form.totalQuantity)} onChange={(event) => setForm({ ...form, totalQuantity: parseOptionalNumberInput(event.target.value) })} helperText={editing && (editing.checkedOutQuantity > 0 || editing.unavailableQuantity > 0) ? `${editing.checkedOutQuantity} checked out · ${editing.unavailableQuantity} unavailable` : undefined} />
-          <FormControl><InputLabel>Condition</InputLabel><Select label="Condition" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as EquipmentItemInput["condition"] })}><MenuItem value="not-recorded">Not recorded</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="retired">Retired</MenuItem></Select></FormControl>
-          <TextField label="Replacement value (€)" type="number" slotProps={{ htmlInput: { min: 0, step: "0.01" } }} value={form.replacementValue ?? ""} onChange={(event) => setForm({ ...form, replacementValue: event.target.value === "" ? null : Number(event.target.value) })} />
-          <TextField label="Notes" multiline minRows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
-        </Stack></DialogContent>
-        <DialogActions><Button onClick={() => setEditing(undefined)} disabled={saving}>Cancel</Button><Button variant="contained" color="success" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save equipment"}</Button></DialogActions>
-      </Dialog>
+      <EquipmentItemFormDialog
+        open={editing !== undefined}
+        editing={editing}
+        form={form}
+        categoryNames={categoryNames}
+        locationNames={locationNames}
+        newCategory={newCategory}
+        newLocation={newLocation}
+        saving={saving}
+        onFormChange={setForm}
+        onNewCategoryChange={setNewCategory}
+        onNewLocationChange={setNewLocation}
+        onClose={() => !saving && setEditing(undefined)}
+        onSave={() => void save()}
+      />
 
       <Dialog open={Boolean(archiveTarget)} onClose={() => !saving && setArchiveTarget(null)}>
         <DialogTitle>{archiveTarget?.archived ? `Restore ${archiveTarget?.name}?` : `Archive ${archiveTarget?.name}?`}</DialogTitle>
