@@ -16,6 +16,7 @@ import { matchParentChildRequest } from "../services/parentChildMatching";
 import { linkConsentRecordsToMembers } from "../services/parentConsent";
 import { loadParentAccounts, updateParentAccess } from "../services/parentPortal";
 import type { ParentAccount, ParentAccessStatus } from "../services/parentPortal";
+import { sortParentAccessRecords } from "../services/parentAccessLogic.ts";
 
 type ParentDecision = { parent: ParentAccount; status: "approved" | "rejected" };
 
@@ -65,8 +66,7 @@ export default function ParentAccessManagement() {
     const memberById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
     const filteredParents = useMemo(() => {
         const query = parentSearch.trim().toLowerCase();
-        if (!query) return parents;
-        return parents.filter((parent) => {
+        const matches = !query ? parents : parents.filter((parent) => {
             const children = parent.memberIds.map((id) => memberById.get(id)).filter((member): member is MemberRecord => Boolean(member));
             return [
                 parent.displayName,
@@ -76,6 +76,7 @@ export default function ParentAccessManagement() {
                 ...children.flatMap((member) => [member.displayName, member.section, member.status])
             ].join(" ").toLowerCase().includes(query);
         });
+        return sortParentAccessRecords(matches);
     }, [parents, parentSearch, memberById]);
 
     const toggleParent = (uid: string) => { setActiveParentUid((current) => current === uid ? "" : uid); setMemberSearch(""); setError(""); };

@@ -29,6 +29,14 @@ test.describe("parent access management", () => {
 
     if (seededJourneyData) {
       const parentSearch = page.getByLabel("Search parents");
+      await parentSearch.fill("Sort Fixture");
+      const orderedFixtureIds = await page.locator('[data-testid^="parent-access-"]:not([data-testid="parent-access-link-fallback"])').evaluateAll((cards) => cards.map((card) => card.id));
+      expect(orderedFixtureIds).toEqual([
+        "parent-access-TEST_flow_parent_sort_pending",
+        "parent-access-TEST_flow_parent_sort_approved",
+        "parent-access-TEST_flow_parent_sort_disabled"
+      ]);
+      await parentSearch.fill("");
       await parentSearch.fill("Riley Nolan");
       await expect(page.getByRole("heading", { name: "Beavers Parent 1" })).toBeVisible();
       await parentSearch.fill("Ventures");
@@ -118,5 +126,32 @@ test.describe("parent access management", () => {
     await expect(pendingCard).toBeVisible();
     await expect(pendingCard.getByText("pending", { exact: true })).toBeVisible();
     await expect(pendingCard).toContainText("0 linked children");
+  });
+
+  test("status changes move a parent to its sorted group and persist after reload", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!password || !adminEmail || !seededJourneyData, "Configure canonical seeded E2E admin data.");
+
+    await loginAdmin(page);
+    await page.goto("/leader/parent-access");
+    const transitionCard = page.getByTestId("parent-access-TEST_flow_parent_sort_transition");
+    await expect(transitionCard.getByText("pending", { exact: true })).toBeVisible();
+    await transitionCard.getByRole("button", { name: "Manage Linked Children", exact: true }).click();
+    await page.getByLabel("Search members for Transition Fixture Parent").fill("Riley Nolan");
+    await page.getByRole("checkbox").check();
+    await transitionCard.getByRole("button", { name: "Approve Access", exact: true }).click();
+    const approvalDialog = page.getByRole("dialog", { name: "Approve parent access?" });
+    await approvalDialog.getByRole("button", { name: "Approve Access", exact: true }).click();
+    await expect(transitionCard.getByText("approved", { exact: true })).toBeVisible();
+
+    const assertSortedTransition = async () => {
+      const ids = await page.locator('[data-testid^="parent-access-"]:not([data-testid="parent-access-link-fallback"])').evaluateAll((cards) => cards.map((card) => card.id));
+      expect(ids.indexOf("parent-access-TEST_flow_parent_pending")).toBeLessThan(ids.indexOf("parent-access-TEST_flow_parent_sort_transition"));
+      expect(ids.indexOf("parent-access-TEST_flow_parent_sort_transition")).toBeLessThan(ids.indexOf("parent-access-TEST_flow_parent_sort_disabled"));
+    };
+    await assertSortedTransition();
+    await page.reload();
+    await expect(page.getByTestId("parent-access-TEST_flow_parent_sort_transition").getByText("approved", { exact: true })).toBeVisible();
+    await assertSortedTransition();
   });
 });

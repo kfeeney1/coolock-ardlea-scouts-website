@@ -269,6 +269,10 @@ async function seed() {
 
   await set("parentAccounts", "TEST_flow_parent_pending", { uid: "TEST_flow_parent_pending", email: "test.parent.pending@example.com", displayName: "Test Pending Parent", mobileNumber: "0878000100", status: "pending", memberIds: [], linkedSections: [], reviewedBy: "", reviewedAt: null, createdAt: now });
   await set("parentAccounts", "TEST_flow_parent_rejected", { uid: "TEST_flow_parent_rejected", email: "test.parent.rejected@example.com", displayName: "Test Rejected Parent", mobileNumber: "0878000101", status: "rejected", memberIds: [], linkedSections: [], reviewedBy: "TEST_SEED", reviewedAt: now, createdAt: now });
+  await set("parentAccounts", "TEST_flow_parent_sort_pending", { uid: "TEST_flow_parent_sort_pending", email: "test.parent.sort.pending@example.com", displayName: "Sort Fixture Pending", mobileNumber: "0878000102", status: "pending", memberIds: [], linkedSections: [], reviewedBy: "", reviewedAt: null, createdAt: now });
+  await set("parentAccounts", "TEST_flow_parent_sort_approved", { uid: "TEST_flow_parent_sort_approved", email: "test.parent.sort.approved@example.com", displayName: "Sort Fixture Approved", mobileNumber: "0878000103", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], reviewedBy: "TEST_SEED", reviewedAt: now, createdAt: now });
+  await set("parentAccounts", "TEST_flow_parent_sort_disabled", { uid: "TEST_flow_parent_sort_disabled", email: "test.parent.sort.disabled@example.com", displayName: "Sort Fixture Disabled", mobileNumber: "0878000104", status: "revoked", memberIds: [], linkedSections: [], reviewedBy: "TEST_SEED", reviewedAt: now, createdAt: now });
+  await set("parentAccounts", "TEST_flow_parent_sort_transition", { uid: "TEST_flow_parent_sort_transition", email: "test.parent.sort.transition@example.com", displayName: "Transition Fixture Parent", mobileNumber: "0878000105", status: "pending", memberIds: [], linkedSections: [], reviewedBy: "", reviewedAt: null, createdAt: now });
 
   console.log(`Full-system canonical flow fixtures seeded relative to ${seedDate}.`);
 }
