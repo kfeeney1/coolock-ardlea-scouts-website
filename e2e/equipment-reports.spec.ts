@@ -118,7 +118,7 @@ test("recorded equipment damage subsequently appears in the inventory report", a
   await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addDialog.getByLabel("Store").click();
-  await page.getByRole("option", { name: "TEST Checkout Store", exact: true }).click();
+  await page.getByRole("option", { name: "Main Equipment Store", exact: true }).click();
   await addDialog.getByLabel("Total quantity").fill("2");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
   await expect(addDialog).toBeHidden();
