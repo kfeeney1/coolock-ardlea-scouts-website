@@ -159,7 +159,7 @@ export default function EquipmentManagement() {
     if (locationFilter !== "all" && locationFilter !== UNASSIGNED_EQUIPMENT_STORE && item.location !== locationFilter) return false;
     if (statusFilter === "available" && availableEquipmentQuantity(item) <= 0) return false;
     if (statusFilter === "checked-out" && item.checkedOutQuantity <= 0) return false;
-%20   if (statusFilter === "unavailable" && item.unavailableQuantity <= 0) return false;
+    if (statusFilter === "unavailable" && item.unavailableQuantity <= 0) return false;
     const query = search.trim().toLowerCase();
     if (!query) return true;
     return [item.name, item.category, item.location, item.notes].join(" ").toLowerCase().includes(query);
