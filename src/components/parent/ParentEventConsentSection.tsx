@@ -35,20 +35,25 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
       setError("");
       setPermissionDenied(false);
       try {
-        const loaded = await loadParentEventConsentLinks(memberIds);
+        const loaded = await loadParentEventConsentLinks(memberIds, sections);
         if (!cancelled) setEvents(loaded);
       } catch (loadError) {
+        const parentEventOperation = loadError && typeof loadError === "object" && "parentEventOperation" in loadError
+          ? Reflect.get(loadError, "parentEventOperation") : undefined;
         reportApplicationError(loadError, { area: "ParentEventConsentSection", operation: "Unable to load parent event consent links" });
         if (!cancelled) {
           setPermissionDenied(classifyFirestoreFailure(loadError) === "permission");
-          setError(firestoreFailureMessage(loadError, "Unable to load upcoming event consent requests."));
+          const fallback = typeof parentEventOperation === "string"
+            ? `Unable to load upcoming event consent requests while checking ${parentEventOperation.toLowerCase()}.`
+            : "Unable to load upcoming event consent requests.";
+          setError(firestoreFailureMessage(loadError, fallback));
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [memberIds, retryVersion]);
+  }, [memberIds, sections, retryVersion]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();

@@ -48,6 +48,16 @@ test("eligibleEventMembers keeps active members in the event section", () => {
     assert.deepEqual(eligibleEventMembers(event, members).map((member) => member.id), ["m1", "m2", "m3"]);
 });
 
+test("selected event consent and notification audiences use only persisted active audience members", () => {
+    const selectedEvent = {
+        ...event,
+        section: "All Sections",
+        audience: { version: 3, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["m1", "m4"], resolvedMemberIds: ["m1", "m4"] }
+    } as any;
+    assert.deepEqual(eligibleEventMembers(selectedEvent, members).map((member) => member.id), ["m1", "m4"]);
+    assert.deepEqual(outstandingConsentMembers(selectedEvent, members).map((member) => member.id), ["m4"]);
+});
+
 test("findMatchingMember normalises names, respects DOB and avoids reused members", () => {
     assert.equal(findMatchingMember(response, members)?.id, "m1");
     assert.equal(findMatchingMember(response, members, new Set(["m1"])), undefined);

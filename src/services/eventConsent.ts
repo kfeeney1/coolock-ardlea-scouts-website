@@ -162,8 +162,8 @@ function publicEventPayload(event: EventRecord) {
         endDate: clean(event.endDate, 30),
         consentRequired: event.consentRequired,
         active: event.status === "open" && event.consentRequired,
-        audienceMemberIds: event.audience?.resolvedMemberIds ?? [],
-        audienceVersion: 2,
+        audienceMemberIds: [],
+        audienceVersion: 3,
         updatedAt: serverTimestamp()
     };
 }
@@ -179,6 +179,7 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
     if (!existing.empty) {
         const snapshot = existing.docs[0];
         await setDoc(snapshot.ref, publicEventPayload(event), { merge: true });
+        await updateDoc(doc(db, "events", event.id), { consentLinkToken: snapshot.id, updatedAt: serverTimestamp(), updatedBy: user.uid });
         const refreshed = await getDoc(snapshot.ref);
         const mapped = mapLink(refreshed.id, refreshed.data() || {});
         if (!mapped) throw new UserFacingError("Event consent link does not match the canonical data contract.");
@@ -192,6 +193,7 @@ export async function ensurePublicEventLink(event: EventRecord): Promise<PublicE
         createdAt: serverTimestamp(),
         createdBy: user.uid
     });
+    await updateDoc(doc(db, "events", event.id), { consentLinkToken: token, updatedAt: serverTimestamp(), updatedBy: user.uid });
     const created = await getDoc(linkRef);
     const mapped = mapLink(created.id, created.data() || {});
     if (!mapped) throw new UserFacingError("New event consent link does not match the canonical data contract.");

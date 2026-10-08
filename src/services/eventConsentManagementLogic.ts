@@ -7,10 +7,14 @@ export function normaliseConsentMatchValue(value: string): string {
 }
 
 export function eligibleEventMembers(event: EventRecord, members: MemberRecord[]): MemberRecord[] {
+    const audienceMemberIds = event.audience?.resolvedMemberIds;
+    const selectedAudience = Array.isArray(audienceMemberIds) ? new Set(audienceMemberIds) : null;
     return members.filter(
         (member) =>
             member.status === "active" &&
-            (event.section === "All Sections" || member.section === event.section)
+            (selectedAudience
+                ? selectedAudience.has(member.id)
+                : event.section === "All Sections" || member.section === event.section)
     );
 }
 

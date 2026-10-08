@@ -119,7 +119,7 @@ test.describe("approved parent journey", () => {
 
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
-    const consentLink = page.getByRole("link", { name: "Complete Event Consent" });
+    const consentLink = page.getByTestId("parent-event-consent-tile-TESTFLOWBEAVERSOPEN2026").getByRole("link", { name: "Complete Event Consent" });
     const consentHref = await consentLink.getAttribute("href");
     expect(consentHref).toBeTruthy();
     await consentLink.click();
