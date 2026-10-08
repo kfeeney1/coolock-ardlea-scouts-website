@@ -62,6 +62,100 @@ test("authoritative production communication routes require authentication befor
   }
 });
 
+test("leader transition email reuses the creator's active invitation and sends only its onboarding link", async () => {
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  const reads = [];
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith("https://firestore.googleapis.com/v1/projects/test-project/")) {
+      reads.push(url);
+      if (url.endsWith("/adminUsers/leader-1")) return Response.json({ fields: { active: { booleanValue: true }, role: { stringValue: "leader" } } });
+      if (url.endsWith("/leaderTransitionInvitations/Abcdefghijklmnopqrst")) return Response.json({ fields: {
+        createdBy: { stringValue: "leader-1" }, status: { stringValue: "pending" }, expiresAt: { timestampValue: expiresAt },
+        memberId: { stringValue: "member-1" }, emailAddress: { stringValue: "leader.candidate@example.com" }
+      } });
+      if (url.endsWith("/members/member-1")) return Response.json({ fields: {
+        emailAddress: { stringValue: "leader.candidate@example.com" }, displayName: { stringValue: "Private Member Name" },
+        mobileNumber: { stringValue: "0871234567" }
+      } });
+      throw new Error(`Unexpected Firestore URL: ${url}`);
+    }
+    if (url === "https://api.resend.com/emails") {
+      sent.push(JSON.parse(init.body));
+      return Response.json({ id: `email-${sent.length}` });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+  try {
+    const env = { ...production, FIREBASE_PROJECT_ID: "test-project", RESEND_API_KEY: "test-resend-key" };
+    const token = `header.${btoa(JSON.stringify({ sub: "leader-1", user_id: "leader-1", email: "scout@example.com" })).replaceAll("=", "")}.signature`;
+    const request = () => new Request("https://email.example.test/leader-transition-link", {
+      method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ invitationId: "Abcdefghijklmnopqrst" })
+    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await entry.fetch(request(), env);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { ok: true });
+    }
+    assert.equal(sent.length, 2, "repeated sharing resends the same existing invitation without creating another one");
+    for (const message of sent) {
+      assert.deepEqual(message.to, ["leader.candidate@example.com"]);
+      assert.match(message.html, /https:\/\/coolockardleascouts\.ie\/leader\/register\?transition=Abcdefghijklmnopqrst/);
+      assert.match(message.text, /complete and submit the registration form/);
+      assert.doesNotMatch(message.text, /Private Member Name|0871234567/);
+    }
+    assert.equal(reads.filter((url) => url.includes("leaderTransitionInvitations/Abcdefghijklmnopqrst")).length, 2);
+    assert.equal(reads.filter((url) => url.includes("/members/member-1")).length, 2);
+    assert.equal(reads.some((url) => url.endsWith("/documents:commit")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("leader transition email rejects another leader's invitation and expired links", async () => {
+  const originalFetch = globalThis.fetch;
+  let expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  let creator = "leader-1";
+  let providerFails = false;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/adminUsers/other-leader") || url.endsWith("/adminUsers/leader-1")) return Response.json({ fields: { active: { booleanValue: true }, role: { stringValue: "leader" } } });
+    if (url.endsWith("/leaderTransitionInvitations/Abcdefghijklmnopqrst")) return Response.json({ fields: {
+      createdBy: { stringValue: creator }, status: { stringValue: "pending" }, expiresAt: { timestampValue: expiry },
+      memberId: { stringValue: "member-1" }, emailAddress: { stringValue: "leader.candidate@example.com" }
+    } });
+    if (url.endsWith("/members/member-1")) return Response.json({ fields: { emailAddress: { stringValue: "leader.candidate@example.com" } } });
+    if (url === "https://api.resend.com/emails") return providerFails ? new Response("provider rejected secret-link Abcdefghijklmnopqrst", { status: 500 }) : Response.json({ id: "email-1" });
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+  try {
+    const env = { ...production, FIREBASE_PROJECT_ID: "test-project", RESEND_API_KEY: "test-resend-key" };
+    const request = (uid) => {
+      const token = `header.${btoa(JSON.stringify({ sub: uid, user_id: uid, email: `${uid}@example.com` })).replaceAll("=", "")}.signature`;
+      return new Request("https://email.example.test/leader-transition-link", {
+        method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ invitationId: "Abcdefghijklmnopqrst" })
+      });
+    };
+    creator = "leader-1";
+    assert.equal((await entry.fetch(request("other-leader"), env)).status, 403);
+    expiry = new Date(Date.now() - 1000).toISOString();
+    assert.equal((await entry.fetch(request("leader-1"), env)).status, 409);
+    providerFails = true;
+    expiry = new Date(Date.now() + 60_000).toISOString();
+    const deliveryFailure = await entry.fetch(request("leader-1"), env);
+    assert.equal(deliveryFailure.status, 500);
+    const failureBody = await deliveryFailure.text();
+    assert.match(failureBody, /Unable to complete the requested communication action/);
+    assert.doesNotMatch(failureBody, /Abcdefghijklmnopqrst|secret-link|leader\.candidate@example\.com/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function firestoreLeadership(uid, appointments, active = true) {
   return {
     name: `projects/test/databases/(default)/documents/organisationLeadership/${uid}`,
@@ -184,9 +278,9 @@ test("SW-270 initial notices read authoritative data and repeated requests do no
     assert.equal(sent[1].body.to[0], "leader@example.com");
     assert.equal(sent[2].body.to[0], "parent@example.com");
     assert.match(sent[2].body.text, /complete the consent and medical form/);
-    assert.match(sent[2].body.html, /https:\/\/coolockardleascouts\.ie\/parent\?joinToken=v1\.[^\"]+#parent-medical-consent/);
+    assert.match(sent[2].body.html, /https:\/\/coolockardleascouts\.ie\/parent\?joinToken=v1\.[^"]+#parent-medical-consent/);
     assert.equal(new Set(sent.map((item) => item.key)).size, 3);
-    const joinToken = sent[2].body.html.match(/joinToken=([^&#\"]+)/)?.[1];
+    const joinToken = sent[2].body.html.match(/joinToken=([^&#"]+)/)?.[1];
     assert.ok(joinToken, "accepted email contains an opaque onboarding token");
     const parentToken = `header.${btoa(JSON.stringify({ sub: "parent-1", user_id: "parent-1", email: "parent@example.com" })).replaceAll("=", "")}.signature`;
     const consentRequest = new Request("https://email.example.test/join-consent-context", {

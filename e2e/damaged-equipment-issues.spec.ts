@@ -16,8 +16,10 @@ async function chooseEquipmentIssueOption(page: Page, field: Locator, optionName
   const listbox = page.getByRole("listbox").filter({ has: page.getByRole("option", { name: optionName, exact: true }) });
   await expect(listbox).toBeVisible();
   await listbox.getByRole("option", { name: optionName, exact: true }).click();
-  await expect(field).toHaveText(optionName);
+  // The MUI Select menu is a nested modal portal. Wait for it to release
+  // accessibility focus back to the issue dialog before querying its field.
   await expect(listbox).toBeHidden();
+  await expect(field).toHaveText(optionName);
 }
 
 test("damaged equipment issues keep independent state and dashboard tiles open their exact records", async ({ page }, testInfo) => {

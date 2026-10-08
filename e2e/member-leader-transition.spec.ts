@@ -68,6 +68,7 @@ test("invalid member transition link cannot submit a Leader Registration", async
 
 async function completeTransition(page: import("@playwright/test").Page, section: "Cubs" | "Rovers", endMembership: boolean, existingAccount = false) {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value: string) => { (window as Window & { __transitionCopied?: string }).__transitionCopied = value; } } }));
   const suffix = randomUUID().slice(0, 8);
   const firstName = "TEST Transition";
   const lastName = `Member${suffix}`;
@@ -118,6 +119,39 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await transitionDialog.getByRole("button", { name: "Prepare registration link" }).click();
   const link = await transitionDialog.getByLabel("Leader registration link").inputValue();
   fixture.invitationId = new URL(link).searchParams.get("transition") || undefined;
+
+  const whatsapp = transitionDialog.getByRole("link", { name: "WhatsApp registration link" });
+  await expect(whatsapp).toBeVisible();
+  const whatsappUrl = new URL(await whatsapp.getAttribute("href")!);
+  expect(whatsappUrl.hostname).toBe("wa.me");
+  expect(whatsappUrl.searchParams.get("text")).toContain(link);
+  expect(whatsappUrl.searchParams.get("text")).toContain("continue your Scout leader registration and onboarding");
+  expect(whatsappUrl.searchParams.get("text")).not.toContain(firstName);
+  await expect(transitionDialog).toContainText(`Email recipient: ${email}`);
+
+  let emailAttempts = 0;
+  const emailRequests: { invitationId: string }[] = [];
+  await page.route("**/leader-transition-link", async (route) => {
+    emailAttempts += 1;
+    emailRequests.push(route.request().postDataJSON() as { invitationId: string });
+    if (emailAttempts === 1) await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "Unable to complete the requested communication action.", reference: "ERR-0123456789AB" }) });
+    else await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  await transitionDialog.getByRole("button", { name: "Copy registration link" }).click();
+  await expect(transitionDialog.getByRole("alert").filter({ hasText: "Registration link copied." })).toBeVisible();
+  expect(await page.evaluate(() => (window as Window & { __transitionCopied?: string }).__transitionCopied)).toBe(link);
+  await transitionDialog.getByRole("button", { name: "Email registration link" }).click();
+  const failedEmailAlert = transitionDialog.getByRole("alert").filter({ hasText: "Email could not be sent." });
+  await expect(failedEmailAlert).toBeVisible();
+  await expect(failedEmailAlert).not.toContainText(fixture.invitationId!);
+  await transitionDialog.getByRole("button", { name: "Email registration link" }).click();
+  await expect(transitionDialog.getByRole("alert").filter({ hasText: `Registration link sent to ${email}.` })).toBeVisible();
+  await transitionDialog.getByRole("button", { name: "Email registration link" }).click();
+  await expect(transitionDialog.getByRole("alert").filter({ hasText: `Registration link sent to ${email}.` })).toBeVisible();
+  expect(emailRequests).toEqual([{ invitationId: fixture.invitationId }, { invitationId: fixture.invitationId }, { invitationId: fixture.invitationId }]);
+  const transitionDb = getFirestore(fixtureApp());
+  expect((await transitionDb.collection("leaderTransitionInvitations").where("memberId", "==", memberId).get()).size).toBe(1);
+  expect((await transitionDb.collection("members").where("emailAddress", "==", email).get()).size).toBe(1);
 
   await transitionDialog.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("link", { name: "Back to Member Management" }).click();

@@ -72,6 +72,12 @@ function fieldBoolean(document, key) {
   return document?.fields?.[key]?.booleanValue === true;
 }
 
+function fieldTimestamp(document, key) {
+  const value = document?.fields?.[key]?.timestampValue;
+  const timestamp = typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function fieldStringArray(document, key) {
   const values = document?.fields?.[key]?.arrayValue?.values;
   if (!Array.isArray(values)) return [];
@@ -391,6 +397,46 @@ async function handleLeaderCommunication(request, env, body) {
     if (!deliveredForMember) skip("duplicate-recipient");
   }
   return json(request, env, 200, { ok: true, sent, accepted: sent, deliveryState: "accepted", skipped, skippedReasons });
+}
+
+async function handleLeaderTransitionLink(request, env, body) {
+  const invitationId = clean(body.invitationId, 100);
+  if (!/^[A-Za-z0-9_-]{20,40}$/.test(invitationId)) return json(request, env, 400, { ok: false, error: "A valid registration link is required." });
+  const origin = request.headers.get("Origin") || "";
+  const approvedOrigins = String(env.ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean);
+  if (!approvedOrigins.includes(origin)) return json(request, env, 403, { ok: false, error: "This website origin is not authorised to send registration links." });
+
+  const token = bearer(request);
+  const claims = decodeFirebaseClaims(token);
+  const uid = clean(claims.user_id || claims.sub, 200);
+  if (!token || !uid) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+  const leader = await getDocumentWithToken(env, token, "adminUsers", uid);
+  if (!leader || !fieldBoolean(leader, "active") || !new Set(["leader", "admin", "super-admin"]).has(fieldString(leader, "role"))) {
+    return json(request, env, 403, { ok: false, error: "Active leader access required." });
+  }
+
+  const invitation = await getDocumentWithToken(env, token, "leaderTransitionInvitations", invitationId);
+  if (!invitation || fieldString(invitation, "createdBy") !== uid) return json(request, env, 403, { ok: false, error: "Registration link is unavailable to this account." });
+  if (fieldString(invitation, "status") !== "pending" || fieldTimestamp(invitation, "expiresAt") <= Date.now()) {
+    return json(request, env, 409, { ok: false, error: "Registration link is no longer active. Prepare a new link before sending it." });
+  }
+
+  const memberId = fieldString(invitation, "memberId");
+  const member = memberId ? await getDocumentWithToken(env, token, "members", memberId) : null;
+  if (!member) return json(request, env, 403, { ok: false, error: "Member is unavailable to this account." });
+  const email = validEmail(fieldString(invitation, "emailAddress"));
+  if (!email || email !== validEmail(fieldString(member, "emailAddress"))) {
+    return json(request, env, 409, { ok: false, error: "The saved member email has changed. Prepare a new registration link before sending it." });
+  }
+
+  const transitionUrl = `${origin}/leader/register?transition=${encodeURIComponent(invitationId)}`;
+  await sendEmail(env, email, "Continue your Scout leader registration – Coolock Ardlea Scouts", brandedEmail({
+    heading: "Continue your Leader registration",
+    intro: "A Scout leader has prepared a registration link for you.",
+    bodyHtml: `<p style="font-size:16px;line-height:1.7">Use the link below to continue your Leader registration and onboarding. Sign in or create your account with the email address this message was sent to, then complete and submit the registration form. Your access will be reviewed by the group before Leader areas become available.</p><p style="font-size:14px;line-height:1.6;color:${BRAND.muted}">This registration link expires after 14 days. If it has expired, contact your leader for a new link.</p>`,
+    actions: [{ label: "Continue Leader registration", url: transitionUrl }]
+  }));
+  return json(request, env, 200, { ok: true });
 }
 
 async function handleEventNotification(request, env, body) {
@@ -1034,6 +1080,7 @@ export async function handleProductionRoute(request, env, body, path) {
   if (path === "/join-application-status") return handleJoinApplicationStatus(request, env, body);
   if (path === "/join-consent-context") return handleJoinConsentContext(request, env, body);
   if (path === "/leader-communication") return handleLeaderCommunication(request, env, body);
+  if (path === "/leader-transition-link") return handleLeaderTransitionLink(request, env, body);
   if (path === "/event-notification") return handleEventNotification(request, env, body);
   if (path === "/event-consent-processed") return handleEventConsentProcessed(request, env, body);
   if (path === "/form-reminder") return handleFormReminder(request, env, body);

@@ -160,6 +160,7 @@ async function authoritativeStatusRequest(request, env, body, path) {
 const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
   "/registered-scouters",
   "/leader-communication",
+  "/leader-transition-link",
   "/event-notification",
   "/event-consent-processed",
   "/form-reminder",

@@ -59,6 +59,10 @@ export async function notifyLeaderRegistration(): Promise<void> {
     await post("/leader-registration", {}, true);
 }
 
+export async function sendMemberLeaderTransitionLink(invitationId: string): Promise<void> {
+    await post("/leader-transition-link", { invitationId }, true);
+}
+
 export async function notifyLeaderAccessStatus(
     leaderRequestUid: string,
     status: "approved" | "rejected"
