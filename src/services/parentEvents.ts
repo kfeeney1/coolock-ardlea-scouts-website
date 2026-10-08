@@ -22,6 +22,20 @@ function value(data: Record<string, unknown>, key: string): string {
     return typeof data[key] === "string" ? data[key] as string : "";
 }
 
+type ParentEventReadError = Error & { code?: string; parentEventOperation?: string };
+
+async function atParentEventOperation<T>(operation: string, read: () => Promise<T>): Promise<T> {
+    try {
+        return await read();
+    } catch (cause) {
+        const error = new Error(`${operation} failed`, { cause }) as ParentEventReadError;
+        const code = cause && typeof cause === "object" && "code" in cause ? Reflect.get(cause, "code") : undefined;
+        if (typeof code === "string") error.code = code;
+        error.parentEventOperation = operation;
+        throw error;
+    }
+}
+
 function mapLegacyLink(id: string, data: Record<string, unknown>): ParentEventConsentLink | null {
     const audienceMemberIds = Array.isArray(data.audienceMemberIds)
         ? data.audienceMemberIds.filter((memberId): memberId is string => typeof memberId === "string")
@@ -50,10 +64,10 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
 
     // New event audiences are read through their per-member audience records.
     // Firestore Rules authorize each result against the approved parent-child link.
-    const audienceSnapshot = await getDocs(query(
+    const audienceSnapshot = await atParentEventOperation("Query selected event audience membership records", () => getDocs(query(
         collectionGroup(db, "audienceMembers"),
         where("memberId", "in", linkedMemberIds)
-    ));
+    )));
     const audienceByEvent = new Map<string, Set<string>>();
     audienceSnapshot.docs.forEach((item) => {
         const data = item.data() as Record<string, unknown>;
@@ -67,7 +81,7 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
 
     const upcoming = new Date().toISOString().slice(0, 10);
     const audienceEvents = await Promise.all([...audienceByEvent.entries()].map(async ([eventId, members]) => {
-        const snapshot = await getDoc(doc(db, "events", eventId));
+        const snapshot = await atParentEventOperation("Read selected event details", () => getDoc(doc(db, "events", eventId)));
         if (!snapshot.exists()) return null;
         const data = snapshot.data() as Record<string, unknown>;
         const token = value(data, "consentLinkToken");
@@ -94,12 +108,15 @@ export async function loadParentEventConsentLinks(memberIds: string[], sections:
     // Preserve access to consent links created before audience membership records
     // were introduced. New v3 links keep their child IDs out of the public token doc.
     const legacySections = [...new Set([...sections.filter(Boolean), "Group", "All Sections"])];
-    const legacySnapshots = legacySections.length ? await Promise.all([1, 2].map((version) => getDocs(query(
-        collection(db, "eventConsentLinks"),
-        where("active", "==", true),
-        where("audienceVersion", "==", version),
-        where("section", "in", legacySections)
-    )))) : [];
+    const legacySnapshots = legacySections.length ? await Promise.all([1, 2].map((version) => atParentEventOperation(
+        `Query legacy parent event links version ${version}`,
+        () => getDocs(query(
+            collection(db, "eventConsentLinks"),
+            where("active", "==", true),
+            where("audienceVersion", "==", version),
+            where("section", "in", legacySections)
+        ))
+    ))) : [];
     const legacyEvents = legacySnapshots.flatMap((snapshot) => snapshot.docs
         .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>)))
         .filter((event): event is ParentEventConsentLink => Boolean(event));
