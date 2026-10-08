@@ -79,7 +79,9 @@ export default function EquipmentRecordPage() {
   const highlightedIssueId = searchParams.get("issue");
   const highlightedIssue = itemIncidents.find((incident) => incident.id === highlightedIssueId);
   const issueTargetUnavailable = Boolean(highlightedIssueId && (!highlightedIssue || !canUseEquipmentForSection(adminProfile, highlightedIssue.section)));
-  const storeMove = (location.state as { storeMove?: { itemId: string; destination: string; quantity: number; destinationItemId: string | null } } | null)?.storeMove;
+  const routeState = location.state as { storeMove?: { itemId: string; destination: string; quantity: number; destinationItemId: string | null }; fromPath?: string } | null;
+  const storeMove = routeState?.storeMove;
+  const returnTo = routeState?.fromPath === "/leader" ? "/leader" : "/leader/equipment";
   const canReturnItem = useMemo(() => Boolean(item && loans.some((loan) =>
     loan.status === "open" && !isEquipmentReservationLoan(loan) && canUseEquipmentForSection(adminProfile, loan.section)
     && loan.lines.some((line) => line.itemId === item.id && outstandingLoanQuantity(line) > 0)
@@ -117,7 +119,7 @@ export default function EquipmentRecordPage() {
     <LeaderDashboardHeader />
     <LeaderPageHeader title={item?.id === equipmentId ? item.name : "Equipment record"} description="Equipment record, condition, history, Store movement and issue reporting." />
     {loading && (!item || item.id !== equipmentId) ? <Alert severity="info" role="status">Loading equipment record…</Alert> : !item || !form || item.id !== equipmentId ? <><Alert severity="error" data-testid={highlightedIssueId ? "equipment-issue-fallback" : undefined}>{highlightedIssueId ? "This equipment record or issue is no longer available to your account." : "Equipment record not found."}</Alert><Button component={Link} to={`/leader/equipment${highlightedIssueId ? `?issue=${encodeURIComponent(highlightedIssueId)}` : ""}`} variant="outlined" color="secondary" sx={{ mt: 2, minHeight: 44 }}>Open Equipment & Stores</Button></> : <>
-    <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>Back</Button>
+    <Button component={Link} to={returnTo} variant="outlined" color="secondary" sx={{ mb: 2, minHeight: 44 }}>Back</Button>
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {feedback && <Alert severity="success" sx={{ mb: 2 }}>{feedback}</Alert>}
     {storeMove?.itemId === item.id && <Alert severity="success" sx={{ mb: 2 }} data-testid="equipment-store-move-success">Moved {storeMove.quantity} × {item.name} to {storeMove.destination}.{storeMove.destinationItemId ? " The moved stock has its own destination record." : " The existing equipment record was kept."}</Alert>}
