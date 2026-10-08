@@ -93,14 +93,14 @@ export async function loadParentEventConsentLinks(memberIds: string[]): Promise<
 
     // Preserve access to consent links created before audience membership records
     // were introduced. New v3 links keep their child IDs out of the public token doc.
-    const legacySnapshot = await getDocs(query(
+    const legacySnapshots = await Promise.all(linkedMemberIds.flatMap((memberId) => [1, 2].map((version) => getDocs(query(
         collection(db, "eventConsentLinks"),
         where("active", "==", true),
-        where("audienceVersion", "in", [1, 2]),
-        where("audienceMemberIds", "array-contains-any", linkedMemberIds)
-    ));
-    const legacyEvents = legacySnapshot.docs
-        .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>))
+        where("audienceVersion", "==", version),
+        where("audienceMemberIds", "array-contains", memberId)
+    )))));
+    const legacyEvents = legacySnapshots.flatMap((snapshot) => snapshot.docs
+        .map((item) => mapLegacyLink(item.id, item.data() as Record<string, unknown>)))
         .filter((event): event is ParentEventConsentLink => Boolean(event));
 
     return [...new Map([...audienceEvents.filter((event): event is ParentEventConsentLink => Boolean(event)), ...legacyEvents]
