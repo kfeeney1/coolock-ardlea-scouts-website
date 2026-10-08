@@ -704,9 +704,9 @@ service cloud.firestore {
     // Collection-group parent queries need a recursive match. The query itself
     // constrains memberId to the approved parent's linked children.
     match /{path=**}/audienceMembers/{memberId} {
-      allow list: if resource.data.get("memberId", "") == memberId
-        && resource.data.get("eventId", "") is string
-        && isApprovedParentForMember(memberId);
+      allow list: if resource.data.get("eventId", "") is string
+        && resource.data.get("memberId", "") is string
+        && isApprovedParentForMember(resource.data.get("memberId", ""));
     }
 
     match /publicEvents/{eventId} {
