@@ -7,9 +7,10 @@ import BadgeworkStageNavigation from "../components/admin/BadgeworkStageNavigati
 import BadgeworkSelectedMemberStageSummary from "../components/admin/BadgeworkSelectedMemberStageSummary.tsx";
 import BadgeworkGroupCompetencyControls from "../components/admin/BadgeworkGroupCompetencyControls.tsx";
 import BadgeworkSavePanel from "../components/admin/BadgeworkSavePanel.tsx";
+import BadgeworkTrackingDialogs from "../components/admin/BadgeworkTrackingDialogs.tsx";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Checkbox, Chip, CircularProgress, Container, Dialog, DialogActions,
-  DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Checkbox, Chip, CircularProgress, Container,
+  FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
   Select, Stack, TextField, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -313,26 +314,18 @@ export default function BadgeworkTracking() {
       </>}
     </Container></Box>
 
-    <Dialog open={Boolean(pendingDiscard)} onClose={() => setPendingDiscard(null)} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
-      <DialogTitle id="discard-badgework-title">Discard unsaved badgework changes?</DialogTitle>
-      <DialogContent>
-        <Typography>You have {unsavedChangeCount} unsaved badgework {unsavedChangeCount === 1 ? "change" : "changes"}. Continuing will discard those draft selections without writing them to any member record.</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setPendingDiscard(null)}>Keep editing</Button>
-        <Button color="warning" variant="contained" onClick={confirmDiscardAction}>Discard and continue</Button>
-      </DialogActions>
-    </Dialog>
-
-    <Dialog open={awardRemovalOpen} onClose={saving ? undefined : () => setAwardRemovalOpen(false)} aria-labelledby="remove-badge-award-title" fullWidth maxWidth="sm">
-      <DialogTitle id="remove-badge-award-title">Remove stage award?</DialogTitle>
-      <DialogContent>
-        <Typography>Remove the Stage {stage?.stage} {skill?.name} award for the selected {selectedIds.length === 1 ? "child" : `${selectedIds.length} children`}? Saved competency progress will remain unchanged.</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button disabled={saving} onClick={() => setAwardRemovalOpen(false)}>Cancel</Button>
-        <Button color="warning" variant="contained" disabled={saving} onClick={() => { setAwardRemovalOpen(false); void setAward(false); }}>Remove award</Button>
-      </DialogActions>
-    </Dialog>
+    <BadgeworkTrackingDialogs
+      pendingDiscard={Boolean(pendingDiscard)}
+      unsavedChangeCount={unsavedChangeCount}
+      onKeepEditing={() => setPendingDiscard(null)}
+      onConfirmDiscard={confirmDiscardAction}
+      awardRemovalOpen={awardRemovalOpen}
+      saving={saving}
+      stageNumber={stage?.stage}
+      skillName={skill?.name}
+      selectedMemberCount={selectedIds.length}
+      onCancelAwardRemoval={() => setAwardRemovalOpen(false)}
+      onConfirmAwardRemoval={() => { setAwardRemovalOpen(false); void setAward(false); }}
+    />
   </>;
 }
