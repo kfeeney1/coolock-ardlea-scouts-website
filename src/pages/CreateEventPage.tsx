@@ -116,7 +116,7 @@ export default function CreateEventPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }} data-testid="event-create-page">
     <Container maxWidth="md">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Create Event" description="" actions={<Button variant="outlined" disabled={saving} onClick={requestExit}>Back to Events</Button>} />
+      <LeaderPageHeader title="Create Event" description="" actions={<Button variant="outlined" disabled={saving || !dataReady} onClick={requestExit}>Back to Events</Button>} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loadError && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</Button>}>{loadError}</Alert>}
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -144,7 +144,7 @@ export default function CreateEventPage() {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <Button variant="contained" color="success" disabled={saving || !dataReady} onClick={() => void save()}>{saving ? "Creating…" : "Create Event"}</Button>
             <Button variant="outlined" disabled={saving} onClick={clear}>Clear</Button>
-            <Button variant="outlined" disabled={saving} onClick={requestExit}>Cancel</Button>
+            <Button variant="outlined" disabled={saving || !dataReady} onClick={requestExit}>Cancel</Button>
           </Stack>
         </Stack>
       </Paper>
