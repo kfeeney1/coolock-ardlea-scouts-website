@@ -38,27 +38,26 @@ async function openLeaderMenu(page: import("@playwright/test").Page) {
     await expect(page.getByRole("link", { name: "Parent Communications" })).toBeVisible();
 }
 
-test("communications route rejects unauthenticated users", async ({ page, context }) => {
-    // Firebase Auth persists sessions in IndexedDB. The full suite intentionally
-    // reuses one emulator dataset, so make this test's unauthenticated precondition
-    // explicit instead of depending on the previous test/spec having signed out.
-    await context.clearCookies();
-    await page.goto("/leader/login");
-    await page.evaluate(async () => {
-        window.localStorage.clear();
-        window.sessionStorage.clear();
-        await new Promise<void>((resolve, reject) => {
-            const request = indexedDB.deleteDatabase("firebaseLocalStorageDb");
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-            request.onblocked = () => resolve();
-        });
-    });
-    await page.reload();
-    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+test("communications route rejects unauthenticated users after authenticated journeys", async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error("Playwright baseURL is required for communications route isolation.");
+    const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+    try {
+        const page = await context.newPage();
+        const initialStorage = await context.storageState();
+        expect(initialStorage.cookies).toHaveLength(0);
+        expect(initialStorage.origins).toHaveLength(0);
 
-    await page.goto("/leader/communications");
-    await expect(page).toHaveURL(/\/leader\/login$/);
+        await page.goto("/leader/login");
+        await expect(page.getByLabel("Email address")).toBeVisible();
+        await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+
+        await page.goto("/leader/communications");
+        await expect(page).toHaveURL(new URL("/leader/login", baseURL).toString());
+        await expect(page.getByRole("heading", { name: "Parent Communications" })).toHaveCount(0);
+        await expect(page.getByTestId("communication-composer")).toHaveCount(0);
+    } finally {
+        await context.close();
+    }
 });
 
 test("ordinary leader composes first, then chooses recipients, while WhatsApp stays on step one", async ({ page }, testInfo) => {
