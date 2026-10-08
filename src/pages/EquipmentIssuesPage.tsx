@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, Container } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import EquipmentIncidentsPanel from "../components/admin/EquipmentIncidentsPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -15,7 +15,6 @@ import type { EquipmentLoan } from "../services/equipmentLoans";
 
 export default function EquipmentIssuesPage() {
   const { adminProfile } = useAdminAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view");
   const issueId = searchParams.get("issue");
@@ -49,7 +48,7 @@ export default function EquipmentIssuesPage() {
     <Container maxWidth="xl" data-testid="page-qm-equipment-issues">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Broken, lost & missing equipment" />
-      <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(equipmentUrl)}>Back to Equipment &amp; Stores</Button>
+      <Button component={Link} to={equipmentUrl} variant="outlined" color="secondary" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to Equipment &amp; Stores</Button>
       {error ? <Alert severity="error" role="alert">{error}</Alert> : loading ? (
         <Box sx={{ minHeight: 240, display: "grid", placeItems: "center" }}><CircularProgress color="success" aria-label="Loading equipment issues" /></Box>
       ) : <EquipmentIncidentsPanel

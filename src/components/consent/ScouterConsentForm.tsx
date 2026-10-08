@@ -16,6 +16,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import type {
     ChangeEvent,
     FormEvent
@@ -120,12 +121,12 @@ function createInitialData(): ScouterConsentData {
 }
 
 type Props = {
-    onChangeSection: () => void;
+    backTo: string;
     backLabel?: string;
 };
 
 export default function ScouterConsentForm({
-    onChangeSection,
+    backTo,
     backLabel = "Change Section"
 }: Props) {
     const [activeStep, setActiveStep] = useState(0);
@@ -470,7 +471,7 @@ export default function ScouterConsentForm({
                     <Button
                         variant="outlined"
                         color="secondary"
-                        onClick={onChangeSection}
+                        component={Link} to={backTo}
                     >
                         {backLabel}
                     </Button>
@@ -525,7 +526,7 @@ export default function ScouterConsentForm({
 
                 <Button
                     size="small"
-                    onClick={onChangeSection}
+                    component={Link} to={backTo}
                     sx={{
                         mt: 1.5,
                         color: "white",

@@ -34,6 +34,16 @@ test("clicking an event tile opens its full record with a clear list action", as
   await expect(eventRecord).toContainText(/\d{2}-\d{2}-\d{4}/);
   await expect(eventRecord).not.toContainText(/\d{4}-\d{2}-\d{2}/);
   await expect(page.getByRole("heading", { name: "TEST Beavers Open Day Trip" })).toBeVisible();
+  const backToEvents = page.getByRole("link", { name: "Back to Events", exact: true });
+  await expect(backToEvents).toHaveAttribute("href", "/leader/events");
+  const backBox = await backToEvents.boundingBox();
+  expect(backBox?.height).toBeGreaterThanOrEqual(44);
+  await backToEvents.focus();
+  await expect(backToEvents).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/leader\/events$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/leader\/events\/TEST_flow_event_beavers_open$/);
   await expect(page.getByRole("button", { name: "Attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Manage Consent", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Record Badgework", exact: true })).toBeVisible();
@@ -117,7 +127,7 @@ test("Add Event opens the dedicated full-page editor on desktop and mobile", asy
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events");
-  await page.getByRole("button", { name: "Add Event", exact: true }).click();
+  await page.getByRole("link", { name: "Add Event", exact: true }).click();
 
   await expect(page).toHaveURL(/\/leader\/events\/create$/);
   await expect(page.getByTestId("event-create-page")).toBeVisible();
@@ -153,7 +163,7 @@ test("Back and Cancel avoid empty events and save a valid draft before leaving",
   await page.getByRole("button", { name: "Back to Events", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events$/);
 
-  await page.getByRole("button", { name: "Add Event", exact: true }).click();
+  await page.getByRole("link", { name: "Add Event", exact: true }).click();
   const title = `TEST cancelled event ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-04-05");

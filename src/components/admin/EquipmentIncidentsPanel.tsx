@@ -18,6 +18,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -48,7 +49,7 @@ type Props = {
   highlightedIncidentId?: string | null;
   showIssueList?: boolean;
   showDescription?: boolean;
-  onViewAll?: () => void;
+  viewAllTo?: string;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
 };
@@ -63,7 +64,7 @@ type SourceOption = {
   label: string;
 };
 
-export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, highlightedIncidentId, showIssueList = true, showDescription = true, onViewAll, onChanged, onError }: Props) {
+export default function EquipmentIncidentsPanel({ profile, items, loans, incidents, highlightedIncidentId, showIssueList = true, showDescription = true, viewAllTo, onChanged, onError }: Props) {
   const [open, setOpen] = useState(false);
   const [sourceId, setSourceId] = useState("");
   const [type, setType] = useState<EquipmentIncidentType>("damaged");
@@ -210,7 +211,7 @@ export default function EquipmentIncidentsPanel({ profile, items, loans, inciden
           {showDescription && <Typography color="text.secondary" sx={{ mt: 0.5 }}>Report damaged, lost, missing or maintenance issues. Equipment managers can investigate and resolve each report with a permanent audit trail.</Typography>}
         </Box>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          {onViewAll && <Button variant="outlined" onClick={onViewAll}>View reported issues</Button>}
+          {viewAllTo && <Button component={Link} to={viewAllTo} variant="outlined" color="secondary">View reported issues</Button>}
           <Button variant="contained" color="warning" onClick={openDialog} disabled={sources.length === 0}>Report issue</Button>
         </Stack>
       </Stack>

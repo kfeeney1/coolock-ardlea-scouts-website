@@ -21,7 +21,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import LeaderChildLinksSection from "../components/admin/LeaderChildLinksSection";
@@ -164,7 +164,7 @@ export default function LeaderAccessManagement() {
 
   const patch = (uid: string, change: Partial<LeaderAccessRecord>) => setRecords((items) => items.map((item) => item.uid === uid ? { ...item, ...change } : item));
   const toggleSection = (record: LeaderAccessRecord, section: string) => {
-    const nextSections = record.sections.includes(section)
+    const nextSections =%20record.sections.includes(section)
       ? record.sections.filter((value) => value !== section)
       : [...record.sections, section];
     patch(record.uid, {
@@ -196,7 +196,7 @@ export default function LeaderAccessManagement() {
         <TextField select label="Status" value={activeFilter} onChange={(e) => updateFilter("active", e.target.value)}><MenuItem value="active">Active</MenuItem><MenuItem value="inactive">Inactive</MenuItem><MenuItem value="all">All</MenuItem></TextField>
       </Box>
       <Stack spacing={1.5} data-testid="leader-access-summary-list">
-        {filteredRecords.map((record) => <Paper key={record.uid} component="button" type="button" data-testid={`leader-access-tile-${record.uid}`} data-section={record.organisationSection} onClick={() => navigate(`/leader/access/${encodeURIComponent(record.uid)}?${filterParams.toString()}`)} aria-label={`Edit leader access for ${record.displayName}`} variant="outlined" sx={[{ p: 2, borderRadius: 2, width: "100%", textAlign: "left", cursor: "pointer", color: "text.primary", backgroundColor: "background.paper", font: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }, sectionCardSx(record.organisationSection)]}>
+        {filteredRecords.map((record) => <Paper key={record.uid} component={Link} to={`/leader/access/${encodeURIComponent(record.uid)}?${filterParams.toString()}`} data-testid={`leader-access-tile-${record.uid}`} data-section={record.organisationSection} aria-label={`Edit leader access for ${record.displayName}`} variant="outlined" sx={[{ p: 2, borderRadius: 2, width: "100%", textAlign: "left", cursor: "pointer", textDecoration: "none", color: "text.primary", backgroundColor: "background.paper", font: "inherit", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }, sectionCardSx(record.organisationSection)]}>
           <Box sx={{ display: "flex", gap: 1.5, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
             <Box><Typography variant="h6" sx={{ fontWeight: 700 }}>{record.displayName}</Typography><Typography variant="body2" color="text.secondary">{record.sections.join(", ") || record.organisationSection}{record.primarySection ? ` · Primary: ${record.primarySection}` : ""}</Typography><Typography variant="body2">{record.appointments.map((item) => `${item.appointment} · ${item.scope}`).join(", ") || "Programme Scouter baseline"}</Typography></Box>
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}><SectionIdentityChip section={record.organisationSection} /><Chip size="small" label={record.active ? "Active" : "Inactive"} /><Chip size="small" label={record.showPublicly ? "Public" : "Not public"} /></Stack>
@@ -205,9 +205,9 @@ export default function LeaderAccessManagement() {
         {filteredRecords.length === 0 && <Alert severity="info">No authorised leaders match these filters.</Alert>}
       </Stack>
     </>}
-    {leaderUid && !selectedRecord && records.length > 0 && <Alert severity="warning" action={<Button onClick={() => navigate("/leader/access")}>Back to leaders</Button>}>Leader record not found or is not available to you.</Alert>}
+    {leaderUid && !selectedRecord && records.length > 0 && <Alert severity="warning" action={<Button component={Link} to="/leader/access" variant="outlined" color="secondary" sx={{ minHeight: 44 }}>Back to leaders</Button>}>Leader record not found or is not available to you.</Alert>}
     {selectedRecord && <>
-      <Button sx={{ mb: 2 }} onClick={() => navigate({ pathname: "/leader/access", search: filterParams.toString() ? `?${filterParams.toString()}` : "" })}>Back to leaders</Button>
+      <Button component={Link} to={{ pathname: "/leader/access", search: filterParams.toString() ? `?${filterParams.toString()}` : "" }} variant="outlined" color="secondary" data-testid="leader-access-back" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to leaders</Button>
       <Stack spacing={2}>
       {[selectedRecord].map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
         <Box sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between" }}>
@@ -222,7 +222,7 @@ export default function LeaderAccessManagement() {
         <TextField select size="small" sx={{ mt: 1.5, minWidth: 220 }} label="Primary section" value={record.primarySection || canonicalOrganisationSection(record.sections, record.organisationSection)} disabled={!canManageSectionScope(actor, { uid: record.uid, systemRole: record.role, scoutingAppointment: record.scoutingRole }) || record.sections.length <= 1} onChange={(e) => patch(record.uid, { primarySection: e.target.value, organisationSection: e.target.value })}>
           {record.sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
         </TextField></Box>}
-        <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
+  %20     <Typography variant="h6" color="secondary" sx={{ mt: 3, mb: 1.5 }}>Organisational chart</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr 2fr" }, gap: 2 }}>
           <Box sx={{ gridColumn: { md: "span 1" } }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700 }}>Scouting appointments</Typography>
