@@ -14,7 +14,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentItemFormDialog, { EMPTY_EQUIPMENT_FORM } from "../components/admin/EquipmentItemFormDialog";
 import type { EquipmentFormState } from "../components/admin/EquipmentItemFormDialog";
@@ -53,7 +53,6 @@ type InventoryStatusFilter = EquipmentDashboardFilter;
 
 export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
-  const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
   const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
   const [routeSearchParams, setRouteSearchParams] = useSearchParams();
