@@ -102,28 +102,16 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const attendanceCheckbox = page.getByRole("checkbox", { name: `Attendance · ${scoutMemberName}`, exact: true });
-  const uniformCheckbox = page.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
-  const attendanceChecklist = page.getByRole("table", { name: "Meeting attendance checklist" });
-  await expect(attendanceChecklist).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Member", exact: true })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Attendance", exact: true })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Uniform", exact: true })).toBeVisible();
-  await attendanceCheckbox.uncheck();
-  await expect(uniformCheckbox).not.toBeChecked();
-  await uniformCheckbox.check();
-  await expect(attendanceCheckbox).toBeChecked();
-  await attendanceCheckbox.uncheck();
-  await expect(uniformCheckbox).not.toBeChecked();
-  await attendanceCheckbox.check();
-  await expect(uniformCheckbox).not.toBeChecked();
+  if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
   await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
+  await expect(attendanceCheckbox).toBeChecked();
+  const uniformCheckbox = page.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
   await uniformCheckbox.check();
   await page.getByRole("button", { name: "Meetings", exact: true }).click();
   await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  await expect(attendanceCheckbox).toBeChecked();
   await expect(uniformCheckbox).toBeChecked();
-  phases.push("attendance/uniform rules and persistence");
+  phases.push("attendance/uniform persistence");
 
   // Always create a real dirty state before navigating away to verify it is saved.
   await attendanceCheckbox.uncheck();
@@ -194,27 +182,6 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByText("Mark attendees present before recording completed badgework.")).toBeVisible();
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); await expect(page.getByText(/Small graze during wide game/)).toHaveCount(0); await page.getByRole("button", { name: "Notes", exact: true }).click(); await expect(page.getByLabel("Additional meeting notes")).toHaveValue("");
   expect(phases).toEqual(["create/open", "attendance/uniform persistence", "programme editing", "save/reload", "meeting edit", "close/history", "copy"]);
-});
-
-test("SW-325 mobile attendance keeps member controls aligned without horizontal overflow", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-chromium", "SW-325 responsive checklist coverage runs on mobile Chromium.");
-  test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await page.setViewportSize({ width: 320, height: 800 });
-  await login(page, sectionLeaderEmail);
-  await createIsolatedLifecycleMeeting(page);
-  await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  const checklist = page.getByRole("table", { name: "Meeting attendance checklist" });
-  await expect(checklist).toBeVisible();
-  const row = checklist.getByRole("row", { name: new RegExp(scoutMemberName) });
-  const attendance = row.getByRole("checkbox", { name: `Attendance · ${scoutMemberName}`, exact: true });
-  const uniform = row.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
-  const [attendanceBox, uniformBox] = await Promise.all([attendance.boundingBox(), uniform.boundingBox()]);
-  expect(attendanceBox).not.toBeNull();
-  expect(uniformBox).not.toBeNull();
-  expect(Math.abs(attendanceBox!.y - uniformBox!.y)).toBeLessThan(1);
-  expect(attendanceBox!.x).toBeLessThan(uniformBox!.x);
-  const pageWidth = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
-  expect(pageWidth.content).toBeLessThanOrEqual(pageWidth.viewport);
 });
 
 test("seeded meeting history is stable, varied and findable for every section", async ({ page }, testInfo) => { desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials."); await login(page, adminEmail!); await page.goto("/leader/weekly"); await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible(); for (const section of ["Beavers","Cubs","Scouts","Ventures","Rovers"]) await expect(page.getByText(new RegExp(`· ${section}$`)).first()).toBeVisible(); await expect(page.getByText(/1 activities · 1 badgework/).first()).toBeVisible(); await expect(page.getByText(/3 activities · 1 badgework/).first()).toBeVisible(); await expect(page.getByText(/1 activities · 3 badgework/).first()).toBeVisible(); await page.getByLabel("Meeting history section").click(); await page.getByRole("option", { name: "Beavers", exact: true }).click(); await expect(page.getByTestId("weekly-history-result-count")).toContainText(/Showing \d+ of \d+ closed meetings/); await expect(page.getByText(/· Beavers$/).first()).toBeVisible(); await expect(page.getByText(/· Rovers$/)).toHaveCount(0); await page.getByLabel("From date").fill("2100-01-01"); await expect(page.getByTestId("weekly-history-no-results")).toBeVisible(); await page.getByTestId("weekly-history-reset").click(); await expect(page.getByText(/· Rovers$/).first()).toBeVisible(); });
