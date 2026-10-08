@@ -176,7 +176,7 @@ export default function MemberRecordPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
-      <Button component={Link} to={returnTo} startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>Back to Member Management</Button>
+      <Button component={Link} to={returnTo} startIcon={<ArrowBackIcon />} sx={{ mb: 2, minHeight: 44 }}>Back to Member Management</Button>
       <LeaderPageHeader title={member?.displayName || "Member Record"} description="Member details, consent indicators and membership history in one record." />
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
