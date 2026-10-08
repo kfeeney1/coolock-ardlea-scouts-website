@@ -71,6 +71,38 @@ test("weeklyRosterMembers are section-scoped read-only projections", async () =>
   }));
 });
 
+test("Group Youth Champion retains section scope while join applications require a Section Leader appointment", async () => {
+  await seedDocuments([
+    ["adminUsers/youth-champion", { active: true, role: "leader", sections: ["Beavers", "Scouts"] }],
+    ["organisationLeadership/youth-champion", {
+      active: true,
+      scoutingRole: "Group Youth Champion",
+      organisationSection: "Scouts",
+      appointments: [
+        { appointment: "Section Leader", scope: "Scouts", active: true },
+        { appointment: "Group Youth Champion", scope: "Group", active: true },
+      ],
+    }],
+    ["joinApplications/scouts-new", { section: "Scouts", status: "new" }],
+    ["joinApplications/beavers-new", { section: "Beavers", status: "new" }],
+    ["joinApplications/cubs-new", { section: "Cubs", status: "new" }],
+    ["events/scouts-event", { section: "Scouts", title: "Scouts Event" }],
+    ["events/beavers-event", { section: "Beavers", title: "Beavers Event" }],
+    ["events/cubs-event", { section: "Cubs", title: "Cubs Event" }],
+  ]);
+  const db = testEnv.authenticatedContext("youth-champion", { email: "champion@example.com" }).firestore();
+
+  const scoutsApplications = await assertSucceeds(getDocs(query(collection(db, "joinApplications"), where("section", "==", "Scouts"))));
+  assert.deepEqual(scoutsApplications.docs.map((snapshot) => snapshot.id), ["scouts-new"]);
+  await assertFails(getDocs(query(collection(db, "joinApplications"), where("section", "==", "Beavers"))));
+  await assertFails(getDocs(query(collection(db, "joinApplications"), where("section", "==", "Cubs"))));
+
+  const beaversEvents = await assertSucceeds(getDocs(query(collection(db, "events"), where("section", "==", "Beavers"))));
+  assert.deepEqual(beaversEvents.docs.map((snapshot) => snapshot.id), ["beavers-event"]);
+  await assertSucceeds(getDocs(query(collection(db, "events"), where("section", "==", "Scouts"))));
+  await assertFails(getDocs(query(collection(db, "events"), where("section", "==", "Cubs"))));
+});
+
 test("unauthenticated users cannot read member records", async () => {
   await seedDocuments([["members/member-cub", { section: "Cubs", displayName: "Test Cub" }]]);
   const db = testEnv.unauthenticatedContext().firestore();
