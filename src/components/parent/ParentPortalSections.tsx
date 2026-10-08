@@ -4,6 +4,7 @@ import ParentAdventureSkillsSection from "./ParentAdventureSkillsSection";
 import ParentConsentSection from "./ParentConsentSection";
 import ParentEventConsentSection from "./ParentEventConsentSection";
 import ParentThingsToDo from "./ParentThingsToDo";
+import ParentPollsSection from "./ParentPollsSection";
 import type { ParentLinkedMember } from "../../services/parentConsent";
 
 type Props = {
@@ -29,6 +30,7 @@ export default function ParentPortalSections({
 }: Props) {
   const memberIds = selectedChild ? [selectedChild.id] : [];
   const sections = selectedChild?.sections ?? [];
+  const pollSections = [...new Set(linkedChildren.flatMap((child) => child.sections))];
   const portalLinks = [
     ["Things to do", "parent-things-to-do"],
     ["Badgework", "parent-adventure-skills"],
@@ -48,6 +50,7 @@ export default function ParentPortalSections({
     <Box component="nav" aria-label="Parent Portal sections" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1, mb: 3 }} data-testid="parent-portal-menu">
       {portalLinks.map(([label, id]) => <Button key={id} component={Link} to={`/parent?child=${encodeURIComponent(selectedChild?.id || "") }#${id}`} onClick={() => window.requestAnimationFrame(() => window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "auto", block: "start" })))} variant="outlined" color="secondary" sx={{ minHeight: 48 }}>{label}</Button>)}
     </Box>
+    <Box id="parent-dashboard-polls" sx={{ mb: 3 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Group Polls</Typography><ParentPollsSection sections={pollSections} /></Box>
     <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={memberIds} sections={sections} refreshVersion={taskSummaryVersion} /></Box>
     <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={memberIds} /></Box>
     <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={memberIds} sections={sections} /></Box>

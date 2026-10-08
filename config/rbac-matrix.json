@@ -120,7 +120,8 @@
     "policyDocuments": "audience-scoped-current-metadata-manager-write",
     "operationalMonitoring": "super-admin-read-trusted-service-write",
     "leaderChildRelationships": "finance-read-admin-group-leader-write",
-    "weeklyRosterMembers": "leader-section-read-no-client-write"
+    "weeklyRosterMembers": "leader-section-read-no-client-write",
+    "polls": "published-audience-and-scoped-manager"
   },
   "storage": {
     "attachments/finance-receipts": "finance-section",
