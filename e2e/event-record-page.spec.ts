@@ -23,7 +23,7 @@ test("clicking an event tile opens its full record with a clear list action", as
 
   const card = page.getByTestId("event-card-TEST_flow_event_beavers_open");
   await expect(card).toHaveAttribute("href", "/leader/events/TEST_flow_event_beavers_open");
-  await expect(card.getByRole("button", { name: "Open event", exact: true })).toBeVisible();
+  await expect(card.getByText("Open event", { exact: true })).toBeVisible();
   await expect(card).toContainText(/\d{2}-\d{2}-\d{4}/);
   await expect(card).not.toContainText(/\d{4}-\d{2}-\d{2}/);
   await card.click();
@@ -160,7 +160,7 @@ test("Back and Cancel avoid empty events and save a valid draft before leaving",
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events/create");
-  await page.getByRole("button", { name: "Back to Events", exact: true }).click();
+  await page.getByRole("link", { name: "Back to Events", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events$/);
 
   await page.getByRole("link", { name: "Add Event", exact: true }).click();
