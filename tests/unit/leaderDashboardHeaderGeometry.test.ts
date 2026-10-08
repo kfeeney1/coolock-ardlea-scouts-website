@@ -9,13 +9,13 @@ function source(file: string) {
   return fs.readFileSync(path.join(root, file), "utf8");
 }
 
-test("leader dashboard header owns viewport-based geometry", () => {
+test("leader dashboard header fits its container without viewport-width overflow", () => {
   const header = source("src/components/admin/LeaderDashboardHeader.tsx");
   assert.ok(header.includes('data-testid="leader-dashboard-header"'));
-  assert.ok(header.includes('"calc(100vw - 32px)"'));
-  assert.ok(header.includes('"calc(100vw - 48px)"'));
+  assert.ok(header.includes('width: "100%"'));
   assert.ok(header.includes('maxWidth: 1536'));
-  assert.ok(header.includes('transform: "translateX(-50%)"'));
+  assert.ok(!header.includes("100vw"));
+  assert.ok(!header.includes('transform: "translateX(-50%)"'));
 });
 
 test("leader dashboard navigation keeps nested record routes matched to their parent item", () => {
