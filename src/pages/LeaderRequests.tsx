@@ -217,6 +217,7 @@ export default function LeaderRequests() {
                                     p: { xs: 2, sm: 2.5 },
                                     width: "100%",
                                     maxWidth: "100%",
+                                    boxSizing: "border-box",
                                     minWidth: 0,
                                     textAlign: "left",
                                     color: "text.primary",
