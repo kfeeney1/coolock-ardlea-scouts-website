@@ -37,6 +37,13 @@ test("high-risk consent and medical data requires manual review before deletion"
   assert.equal(responses?.disposition, RETENTION_DISPOSITIONS.MANUAL_REVIEW);
 });
 
+test("poll answers are personal data and closing a poll does not create automatic deletion", () => {
+  const poll = DATA_RETENTION_CONTRACT.find((entry) => entry.collection === "polls");
+  assert.equal(poll?.sensitivity, DATA_SENSITIVITY.PERSONAL);
+  assert.equal(poll?.disposition, RETENTION_DISPOSITIONS.MANUAL_REVIEW);
+  assert.equal(poll?.reviewTrigger, "poll-purpose-ended");
+});
+
 test("member lifecycle and programme history are not erased by section changes", () => {
   for (const collection of ["memberHistory", "memberAdventureSkillProgress"]) {
     const entry = DATA_RETENTION_CONTRACT.find((candidate) => candidate.collection === collection);

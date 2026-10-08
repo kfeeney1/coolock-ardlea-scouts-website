@@ -3,6 +3,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import AdminOverviewPanel from "../components/admin/AdminOverviewPanel";
 import OperationalHealthPanel from "../components/admin/OperationalHealthPanel";
+import LeaderPollsPanel from "../components/admin/LeaderPollsPanel";
 import {
     Alert,
     Box,
@@ -124,6 +125,7 @@ export default function AdminDashboard() {
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
             <AdminOverviewPanel />
+            <LeaderPollsPanel />
             {adminProfile?.role === "super-admin" && <OperationalHealthPanel />}
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}

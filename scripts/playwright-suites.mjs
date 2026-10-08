@@ -32,7 +32,8 @@ export const suiteSpecs = {
     "mobile-consent-medication.spec.ts",
     "parent-approved-journey.spec.ts",
     "parent-leader-context.spec.ts",
-    "parent-portal.spec.ts"
+    "parent-portal.spec.ts",
+    "polls.spec.ts"
   ],
   "activities-programme": [
     "activity-log.spec.ts",
