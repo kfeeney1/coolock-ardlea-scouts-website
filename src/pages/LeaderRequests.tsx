@@ -265,7 +265,7 @@ export default function LeaderRequests() {
                                 </Box>
                             </Paper>;
                             return request.status === "approved"
-                                ? <Box key={request.uid} component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} aria-label={`Open Leader Access for ${request.fullName}`} sx={{ display: "block", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", overflow: "hidden", color: "inherit", textDecoration: "none", borderRadius: 2, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>{requestCard}</Box>
+                                ? <Box key={request.uid} component={Link} to={`/leader/access/${encodeURIComponent(request.uid)}`} aria-label={`Open Leader Access for ${request.fullName}`} sx={{ display: "block", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", color: "inherit", textDecoration: "none", borderRadius: 2, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>{requestCard}</Box>
                                 : requestCard;
                         })}
                     </Stack>
