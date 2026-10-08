@@ -101,17 +101,29 @@ test("section leader completes lifecycle with flexible planner rows, summary and
 
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  const attendanceCheckbox = page.getByRole("checkbox", { name: scoutMemberName, exact: true });
-  if (!await attendanceCheckbox.isChecked()) await page.getByRole("button", { name: "Mark all present", exact: true }).click();
-  await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
-  await expect(attendanceCheckbox).toBeChecked();
+  const attendanceCheckbox = page.getByRole("checkbox", { name: `Attendance · ${scoutMemberName}`, exact: true });
   const uniformCheckbox = page.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
+  const attendanceChecklist = page.getByRole("table", { name: "Meeting attendance checklist" });
+  await expect(attendanceChecklist).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Member", exact: true })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Attendance", exact: true })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Uniform", exact: true })).toBeVisible();
+  await attendanceCheckbox.uncheck();
+  await expect(uniformCheckbox).not.toBeChecked();
+  await uniformCheckbox.check();
+  await expect(attendanceCheckbox).toBeChecked();
+  await attendanceCheckbox.uncheck();
+  await expect(uniformCheckbox).not.toBeChecked();
+  await attendanceCheckbox.check();
+  await expect(uniformCheckbox).not.toBeChecked();
+  await expect(page.getByText(/(\d+)\/\1 Present/)).toBeVisible();
   await uniformCheckbox.check();
   await page.getByRole("button", { name: "Meetings", exact: true }).click();
   await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  await expect(attendanceCheckbox).toBeChecked();
   await expect(uniformCheckbox).toBeChecked();
-  phases.push("attendance/uniform persistence");
+  phases.push("attendance/uniform rules and persistence");
 
   // Always create a real dirty state before navigating away to verify it is saved.
   await attendanceCheckbox.uncheck();
