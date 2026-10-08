@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const adminEmail = process.env.E2E_SUPER_ADMIN_EMAIL;
@@ -16,7 +16,7 @@ function desktopOnly(testInfo: TestInfo) {
 }
 
 test.describe("dashboard polls", () => {
-  test("a scoped poll is explicitly published, answered once, and persists after reload", async ({ page }, testInfo) => {
+  test("a scoped poll is explicitly published, answered once, and persists after reload", async ({ page, browser }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!parentEmail || !adminEmail || !password, "Configure the approved parent and super-admin E2E accounts.");
     const question = `SW-357 poll assurance ${Date.now()}`;
@@ -48,18 +48,22 @@ test.describe("dashboard polls", () => {
     await pollCard.getByRole("button", { name: "Publish poll" }).click();
     await expect(pollCard.getByText(/published/i)).toBeVisible();
 
-    await login(page, "/parent", parentEmail!);
-    const parentPoll = page.getByTestId(/^parent-poll-/).filter({ hasText: question });
+    // Use a separate browser context: navigating an authenticated leader tab to
+    // /parent does not sign out the leader and therefore shows no login form.
+    const parentContext = await browser.newContext();
+    const parentPage = await parentContext.newPage();
+    await login(parentPage, "/parent", parentEmail!);
+    const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(parentPoll).toBeVisible();
     await parentPoll.getByRole("radio", { name: "Outdoor activity" }).check();
     await parentPoll.getByRole("button", { name: "Save response" }).click();
     await expect(parentPoll.getByRole("status")).toContainText("Your response is saved");
-    await page.reload();
-    const restoredPoll = page.getByTestId(/^parent-poll-/).filter({ hasText: question });
+    await parentPage.reload();
+    const restoredPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(restoredPoll.getByRole("radio", { name: "Outdoor activity" })).toBeChecked();
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
 
-    await login(page, "/leader/login", adminEmail!);
+    await parentContext.close();
     await page.goto("/leader");
     const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
     await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
