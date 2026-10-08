@@ -35,12 +35,14 @@ export default defineConfig({
   fullyParallel: false,
   workers,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  // PR assurance must expose the first failure rather than spending the shard budget retrying.
+  // Main retains one diagnostic retry; failOnFlakyTests still makes retry-only passes red.
+  retries: process.env.CI && process.env.GITHUB_EVENT_NAME !== "pull_request" ? 1 : 0,
   // Retries retain the trace from an intermittent failure, but a test that only
   // passes on retry is still a failed quality gate. This prevents green CI from
   // hiding timing and shared-state defects.
   failOnFlakyTests: Boolean(process.env.CI),
-  timeout: 45_000,
+  timeout: 30_000,
   expect: {
     timeout: 10_000
   },
