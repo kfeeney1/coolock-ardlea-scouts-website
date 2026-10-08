@@ -131,12 +131,12 @@ test("SW-319 dashboard medical reminder opens the leader's own form with a reada
 });
 
 
-const groupYouthChampionEmail = process.env.E2E_GROUP_YOUTH_CHAMPION_EMAIL;
+const groupYouthChampionEmail = process.env.E2E_GROUP_YOUTH_CHAMPION_EMAIL || "test.multi.section.group.youth.champion@example.com";
 
 for (const project of ["chromium", "mobile-chromium"]) {
   test(`SW-358 Group Youth Champion loads only permitted overview data on ${project}`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== project, "Run once per desktop and mobile Chromium project.");
-    test.skip(!password || !groupYouthChampionEmail, "Configure the synthetic multi-section Group Youth Champion account.");
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
     await login(page, groupYouthChampionEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
