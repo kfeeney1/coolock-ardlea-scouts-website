@@ -238,7 +238,9 @@ test("SW-270 initial notices read authoritative data and repeated requests do no
   try {
     const env = {
       ...production, FIREBASE_PROJECT_ID: "test-project", FIREBASE_SERVICE_ACCOUNT_EMAIL: "service@test-project.iam.gserviceaccount.com",
-      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem, RESEND_API_KEY: "test-resend-key", ADMIN_EMAILS: ""
+      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem, RESEND_API_KEY: "test-resend-key", ADMIN_EMAILS: "",
+      EMAIL_DELIVERY_MODE: "test", TEST_EMAIL_REDIRECT: "safe-test-inbox@example.com",
+      SITE_URL: "https://coolock-ardlea-scouts-test.web.app"
     };
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const response = await entry.fetch(productionRequest("/join-application", {
@@ -257,16 +259,22 @@ test("SW-270 initial notices read authoritative data and repeated requests do no
       assert.equal(response.status, 200, await response.text());
     }
     assert.equal(sent.length, 3, "parent and section leader receive initial email once; accepted email is also sent once");
-    assert.equal(sent[0].body.to[0], "parent@example.com");
+    assert.equal(sent[0].body.to[0], "safe-test-inbox@example.com");
     assert.match(sent[0].body.text, /Rory Scout/);
     assert.doesNotMatch(sent[0].body.text, /forged/);
-    assert.equal(sent[1].body.to[0], "leader@example.com");
-    assert.equal(sent[2].body.to[0], "parent@example.com");
-    assert.match(sent[2].body.text, /complete the consent and medical form/);
-    assert.match(sent[2].body.html, /https:\/\/coolockardleascouts\.ie\/parent\?joinToken=v1\.[^\"]+#parent-medical-consent/);
+    assert.equal(sent[1].body.to[0], "safe-test-inbox@example.com");
+    assert.equal(sent[2].body.to[0], "safe-test-inbox@example.com");
+    assert.match(sent[2].body.text, /sign in to the Parent Portal/i);
+    assert.match(sent[2].body.text, /link or verify the accepted member/i);
+    assert.match(sent[2].body.text, /open Consent & Medical inside the portal/i);
+    assert.match(sent[2].body.html, /https:\/\/coolock-ardlea-scouts-test\.web\.app\/parent/);
+    const acceptedPortalUrl = sent[2].body.html.match(/href="([^"]+)"/)?.[1];
+    assert.equal(acceptedPortalUrl, "https://coolock-ardlea-scouts-test.web.app/parent");
+    assert.doesNotMatch(acceptedPortalUrl, /consent|joinToken|application|member/i);
+    assert.doesNotMatch(sent[2].body.text, /Rory Scout|Beavers|member-1|app-1|joinToken=/i);
     assert.equal(new Set(sent.map((item) => item.key)).size, 3);
-    const joinToken = sent[2].body.html.match(/joinToken=([^&#\"]+)/)?.[1];
-    assert.ok(joinToken, "accepted email contains an opaque onboarding token");
+    const joinToken = await issueJoinConsentToken(env, "app-1", 60);
+    assert.ok(joinToken);
     const parentToken = `header.${btoa(JSON.stringify({ sub: "parent-1", user_id: "parent-1", email: "parent@example.com" })).replaceAll("=", "")}.signature`;
     const consentRequest = new Request("https://email.example.test/join-consent-context", {
       method: "POST", headers: { Origin: "https://coolockardleascouts.ie", "Content-Type": "application/json", Authorization: `Bearer ${parentToken}` },
