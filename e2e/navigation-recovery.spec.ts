@@ -109,6 +109,45 @@ test.describe("SW-178 canonical role navigation", () => {
     await expect(page).toHaveURL(/\/leader\/equipment\?view=quartermaster$/);
   });
 
+  test("SW-365 direct QM destinations select only the matching menu item", async ({ page }, testInfo) => {
+    await login(page, credentials("E2E_SUPER_ADMIN"));
+    const destinations = [
+      ["/leader/equipment?view=quartermaster", "qm-equipment-stores", "qm-equipment-stores"],
+      ["/leader/equipment/issues?view=quartermaster", "qm-equipment-issues", "qm-equipment-issues"],
+      ["/leader/qm-reports", "qm-reports", "qm-reports"],
+      ["/leader/settings?view=quartermaster", "qm-settings", "qm-settings"]
+    ] as const;
+
+    for (const [route, pageIdentity, currentItemId] of destinations) {
+      await page.goto(route);
+      await expect(page.getByTestId(`page-${pageIdentity}`)).toBeVisible();
+      await page.reload();
+      await expect(page.getByTestId(`page-${pageIdentity}`)).toBeVisible();
+
+      let navigation = await exposeQuartermaster(page, testInfo);
+      await expect(navigation.getByTestId(`leader-nav-${currentItemId}`)).toHaveAttribute("aria-current", "page");
+      await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
+
+      if (testInfo.project.name === "mobile-chromium") {
+        const quartermaster = navigation.getByRole("button", { name: "Quartermaster / Bo’sun" });
+        await quartermaster.click();
+        await expect(quartermaster).toHaveAttribute("aria-expanded", "false");
+        await quartermaster.click();
+        await expect(quartermaster).toHaveAttribute("aria-expanded", "true");
+      } else {
+        const menuToggle = page.getByTestId("leader-dashboard-header").locator('button[aria-controls="leader-navigation"]');
+        await menuToggle.click();
+        await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+        await menuToggle.click();
+        await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+      }
+
+      navigation = projectNavigation(page, testInfo);
+      await expect(navigation.getByTestId(`leader-nav-${currentItemId}`)).toHaveAttribute("aria-current", "page");
+      await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
+    }
+  });
+
   test("Treasurer Reports remains distinct from QM Reports", async ({ page }, testInfo) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     await openMenu(page, testInfo);
