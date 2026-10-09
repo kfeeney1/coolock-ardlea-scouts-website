@@ -77,9 +77,10 @@ export default function TransientOverlayBackDismissBridge() {
     };
     const handleNavigation = (event: Event) => {
       const destinationUrl = (event as Event & { destination?: { url?: string } }).destination?.url;
-      if (!destinationUrl) return;
+      const navigationType = (event as Event & { navigationType?: string }).navigationType;
+      if (!destinationUrl && navigationType !== "reload") return;
       try {
-        if (new URL(destinationUrl).pathname !== currentPath.current) {
+        if (navigationType === "reload" || pendingCloseTimer.current !== null || (destinationUrl && new URL(destinationUrl).pathname !== currentPath.current)) {
           routeDeparturePending.current = true;
           cancelPendingClose();
         }
