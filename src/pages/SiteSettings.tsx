@@ -34,14 +34,15 @@ export default function SiteSettings() {
     const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "treasurer" ? "treasurer-settings" : "settings";
     const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
     const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+    const showSessionSettings = canManageSiteSettings && pageIdentity === "settings";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
-    const [loading, setLoading] = useState(canManageSiteSettings);
+    const [loading, setLoading] = useState(showSessionSettings);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (!canManageSiteSettings) {
+        if (!showSessionSettings) {
             setLoading(false);
             return;
         }
@@ -62,7 +63,7 @@ export default function SiteSettings() {
         return () => {
             cancelled = true;
         };
-    }, [canManageSiteSettings]);
+    }, [showSessionSettings]);
 
     const changeMinutes = (key: keyof SessionSettings, value: string) => {
         setSettings((current) => current ? { ...current, [key]: minutesValue(value) } : current);
@@ -97,7 +98,7 @@ export default function SiteSettings() {
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-                {canManageSiteSettings && (
+                {showSessionSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760 }}>
                         <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Session inactivity</Typography>
                         <Typography color="text.secondary" sx={{ mt: 0.75, mb: 3 }}>
