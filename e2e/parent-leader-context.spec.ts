@@ -95,7 +95,6 @@ test("combined leader and parent can switch contexts, reload and sign in again w
 });
 
 test("leaving Parent Portal cancels a pending child selection commit", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "The delayed full-page navigation race runs on desktop Chromium.");
   const email = process.env.E2E_PARENT_LEADER_EMAIL;
   test.skip(!email, "Configure canonical combined account.");
   await signIn(page, email!, true);
@@ -105,6 +104,8 @@ test("leaving Parent Portal cancels a pending child selection commit", async ({ 
   await page.getByRole("combobox", { name: "Viewing information for" }).click();
   await page.locator('[role="option"][data-value="TEST_member_beaver_06"]').click();
   await page.route("**/leader/members", async (route) => {
+    // A late portal transition must not re-arm overlay cleanup after navigation starts.
+    await page.evaluate(() => document.body.classList.add("departure-regression"));
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     await route.continue();
   });
@@ -112,6 +113,27 @@ test("leaving Parent Portal cancels a pending child selection commit", async ({ 
   const response = await page.goto("/leader/members");
   expect(response?.ok()).toBe(true);
   await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
+});
+
+test("reloading Parent Portal after closing a select preserves the destination", async ({ page }, testInfo) => {
+  const email = process.env.E2E_PARENT_LEADER_EMAIL;
+  test.skip(!email, "Configure canonical combined account.");
+  await signIn(page, email!, true);
+  await openParentFromHeader(page, testInfo);
+  const select = page.getByRole("combobox", { name: "Viewing information for" });
+  await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
+  await select.click();
+  await page.locator('[role="option"][data-value="TEST_member_beaver_05"]').click();
+  await page.route("**/parent?child=TEST_member_beaver_05", async (route) => {
+    await page.evaluate(() => document.body.classList.add("reload-regression"));
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    await route.continue();
+  });
+  const response = await page.reload();
+  expect(response?.ok()).toBe(true);
+  await expect(page).toHaveURL(/\/parent\?child=TEST_member_beaver_05$/);
+  await expect(select).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Parent Portal", exact: true })).toBeVisible();
 });
 
 test("parent-only account retains portal navigation and cannot enter Leader Dashboard", async ({ page }, testInfo) => {

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
@@ -47,9 +47,11 @@ export default function TransientOverlayBackDismissBridge() {
   const pendingCloseFromMarkerCount = useRef<number | null>(null);
   const pendingCloseTimer = useRef<number | null>(null);
   const routeDeparturePending = useRef(false);
-  const currentPath = useRef(location.pathname);
-  const previousPath = useRef(location.pathname);
-  currentPath.current = location.pathname;
+  const documentDeparturePending = useRef(false);
+  const routeUrl = `${location.pathname}${location.search}${location.hash}`;
+  const currentUrl = useRef(routeUrl);
+  const previousUrl = useRef(routeUrl);
+  currentUrl.current = routeUrl;
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
@@ -68,7 +70,7 @@ export default function TransientOverlayBackDismissBridge() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const cancelPendingClose = () => {
       if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
       pendingCloseTimer.current = null;
@@ -76,11 +78,14 @@ export default function TransientOverlayBackDismissBridge() {
       consumingClose.current = false;
     };
     const handleNavigation = (event: Event) => {
-      const destinationUrl = (event as Event & { destination?: { url?: string } }).destination?.url;
+      const destination = (event as Event & { destination?: { url?: string; sameDocument?: boolean } }).destination;
+      const destinationUrl = destination?.url;
       const navigationType = (event as Event & { navigationType?: string }).navigationType;
       if (!destinationUrl && navigationType !== "reload") return;
       try {
-        if (navigationType === "reload" || pendingCloseTimer.current !== null || (destinationUrl && new URL(destinationUrl).pathname !== currentPath.current)) {
+        if (navigationType === "reload" || destination?.sameDocument === false) documentDeparturePending.current = true;
+        const target = destinationUrl ? new URL(destinationUrl) : null;
+        if (documentDeparturePending.current || (target && `${target.pathname}${target.search}${target.hash}` !== currentUrl.current)) {
           routeDeparturePending.current = true;
           cancelPendingClose();
         }
@@ -89,23 +94,30 @@ export default function TransientOverlayBackDismissBridge() {
         cancelPendingClose();
       }
     };
+    const handleBeforeUnload = () => {
+      documentDeparturePending.current = true;
+      routeDeparturePending.current = true;
+      cancelPendingClose();
+    };
     const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
     navigationApi?.addEventListener("navigate", handleNavigation);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       navigationApi?.removeEventListener("navigate", handleNavigation);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       cancelPendingClose();
     };
   }, []);
 
-  useEffect(() => {
-    if (previousPath.current === location.pathname) return;
-    previousPath.current = location.pathname;
+  useLayoutEffect(() => {
+    if (previousUrl.current === routeUrl) return;
+    previousUrl.current = routeUrl;
     routeDeparturePending.current = true;
     if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
     pendingCloseTimer.current = null;
     pendingCloseFromMarkerCount.current = null;
     consumingClose.current = false;
-  }, [location.pathname]);
+  }, [routeUrl]);
 
   useLayoutEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -138,6 +150,10 @@ export default function TransientOverlayBackDismissBridge() {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
 
+    // DOM mutations from the departing document must never restart history
+    // cleanup while the destination response or reload is still pending.
+    if (documentDeparturePending.current) return;
+
     if (routeDeparturePending.current && surfaces.length <= markerCount) {
       previousMarkerCount.current = markerCount;
       latestMarkerCount.current = markerCount;
@@ -149,7 +165,7 @@ export default function TransientOverlayBackDismissBridge() {
       if (markerCount >= pendingCloseFromMarkerCount.current) {
         // If another surface opens before the close marker is consumed, let the
         // existing marker cover it instead of dismissing the newly opened surface.
-        if (surfaces.length > markerCount && pendingCloseTimer.current !== null) {
+        if (surfaces.length >= markerCount && pendingCloseTimer.current !== null) {
           window.clearTimeout(pendingCloseTimer.current);
           pendingCloseTimer.current = null;
           pendingCloseFromMarkerCount.current = null;
