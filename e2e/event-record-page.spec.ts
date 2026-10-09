@@ -312,7 +312,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Ventures", exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(page.locator(".MuiMenu-root")).toHaveCount(0);
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
