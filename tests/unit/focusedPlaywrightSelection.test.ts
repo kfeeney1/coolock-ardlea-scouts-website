@@ -38,7 +38,7 @@ test("backup workflows and focused selector-only changes do not start browser jo
     "tests/unit/focusedPlaywrightSelection.test.ts"
   ]) {
     assert.deepEqual([...selectFocusedGroups([path])], [], path);
-    assert.match(formatFocusedOutputs(selectFocusedGroups([path])), /^run=false\\n/);
+    assert.equal(formatFocusedOutputs(selectFocusedGroups([path])).split("\n")[0], "run=false");
   }
   assert.deepEqual([...selectFocusedGroups([
     "scripts/focused-playwright-selection.mjs",
