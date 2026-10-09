@@ -97,6 +97,10 @@ export default function TransientOverlayBackDismissBridge() {
 
   useEffect(() => {
     routeDeparturePending.current = false;
+    if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+    pendingCloseTimer.current = null;
+    pendingCloseFromMarkerCount.current = null;
+    consumingClose.current = false;
   }, [location.pathname]);
 
   useLayoutEffect(() => {
