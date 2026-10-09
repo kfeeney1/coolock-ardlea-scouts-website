@@ -84,6 +84,7 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
   const backDraft = `${savedTitle} back draft`;
   await page.getByLabel("Event title").fill(backDraft);
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.history.state))).toContain("__eventEditBackGuard");
   await page.goBack();
   dialog = leaveDialog(page);
   await expect(dialog).toBeVisible();
