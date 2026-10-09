@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   focused_selection:
-    name: Select focused regressions
+    name: Focused PR assurance
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+      - name: Verify focused selection policy
+        run: node --experimental-strip-types --test tests/unit/focusedPlaywrightSelection.test.ts
       - name: Select focused regressions from changed paths
         id: selection
         env:
@@ -47,7 +52,7 @@ jobs:
           cat "$selected_outputs" >> "$GITHUB_OUTPUT"
 
   focused_pr:
-    name: Focused PR assurance
+    name: Focused browser regressions
     needs: focused_selection
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.focused_selection.outputs.run == 'true' }}
     runs-on: ubuntu-latest
