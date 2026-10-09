@@ -27,6 +27,10 @@ test("activity changes retain all focused meeting regressions and navigation che
     [...selectFocusedGroups(["e2e/sw362-event-edit-navigation.spec.ts", "src/hooks/useConfirmEventLeave.ts"])],
     ["activities", "navigation"]
   );
+  assert.deepEqual(
+    [...selectFocusedGroups(["tests/unit/focusedPlaywrightSelection.test.ts"])],
+    ["activities", "navigation"]
+  );
 });
 
 test("poll and communications changes select their own focused assertions", () => {
