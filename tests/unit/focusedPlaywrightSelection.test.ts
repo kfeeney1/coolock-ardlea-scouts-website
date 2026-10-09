@@ -49,6 +49,8 @@ test("unknown shared paths and Playwright workflow edits conservatively run all 
 });
 
 test("focused workflow groups retain no-retry regressions while shards retain suite coverage", () => {
+  assert.match(workflow, /name: Run focused SW-362 event edit navigation regressions\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}\n\s+run: npx --no-install playwright test e2e\/sw362-event-edit-navigation\.spec\.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000/);
+  assert.ok(workflow.indexOf("name: Run focused SW-362") < workflow.indexOf("name: Run focused SW-320"));
   assert.match(workflow, /focused_pr:[\s\S]*?needs: focused_selection[\s\S]*?needs\.focused_selection\.outputs\.run == 'true'/);
   assert.match(workflow, /name: Run focused SW-170 tests\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}[\s\S]*?event-record-page\.spec\.ts e2e\/weekly-record-integrity\.spec\.ts[^\n]*--retries=0/);
   assert.match(workflow, /name: Run focused blocking regressions\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}[\s\S]*?programme-library\.spec\.ts e2e\/weekly-section-tracker\.spec\.ts[^\n]*--retries=0/);

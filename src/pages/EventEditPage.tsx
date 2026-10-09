@@ -143,7 +143,7 @@ export default function EventEditPage() {
     <Dialog open={dialogOpen} onClose={stay} aria-labelledby="event-unsaved-title" aria-describedby="event-unsaved-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
       <DialogTitle id="event-unsaved-title">Unsaved event changes</DialogTitle>
       <DialogContent><Typography id="event-unsaved-description">You have changes that have not been saved. Save them before leaving, discard them, or stay in the editor.</Typography></DialogContent>
-      <DialogActions sx={{ flexWrap: "wrap", px: 3, pb: 2 }}>
+      <DialogActions sx={{ flexWrap: "wrap", px: 3, pb: 2, "& .MuiButton-root": { minHeight: 44, minWidth: 44 } }}>
         <Button onClick={stay} autoFocus disabled={saving}>Stay</Button>
         <Button color="error" onClick={continueWithoutSaving} disabled={saving}>Discard</Button>
         <Button variant="contained" onClick={() => void saveAndContinue()} disabled={saving}>Save</Button>
