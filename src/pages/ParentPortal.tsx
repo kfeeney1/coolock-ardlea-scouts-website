@@ -137,7 +137,7 @@ export default function ParentPortal() {
         if (!childId || childCommitTimerRef.current !== null) return;
         childCommitTimerRef.current = window.setTimeout(() => {
             childCommitTimerRef.current = null;
-            if (pendingChildIdRef.current !== childId) return;
+            if (pendingChildIdRef.current !== childId || window.location.pathname !== "/parent") return;
             const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
             const nextState = routerState && typeof routerState === "object" && !Array.isArray(routerState)
                 ? { ...(routerState as Record<string, unknown>) }
