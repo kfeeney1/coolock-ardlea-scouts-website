@@ -18,6 +18,7 @@ async function createEvent(page: Page, title: string) {
   await page.goto("/leader/events/create");
   await page.getByLabel("Event title").fill(title);
   await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByRole("switch", { name: "Event consent required" }).check();
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
   return { eventUrl: page.url(), eventPath: new URL(page.url()).pathname };
@@ -82,6 +83,7 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   const backDraft = `${savedTitle} back draft`;
   await page.getByLabel("Event title").fill(backDraft);
+  await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
   await page.goBack();
   dialog = leaveDialog(page);
   await expect(dialog).toBeVisible();
