@@ -33,6 +33,23 @@ test("admin can open and save site inactivity settings", async ({ page }, testIn
   await expect(page.getByText(/Site settings saved/)).toBeVisible();
 });
 
+test("Treasurer settings keep finance controls and hide session inactivity settings", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Treasurer settings presentation runs on desktop and mobile Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.group.treasurer@example.com");
+  await page.goto("/leader/settings?view=treasurer");
+
+  await expect(page.getByRole("heading", { name: "Treasurer Settings", exact: true })).toBeVisible();
+  await expect(page.getByTestId("subs-settings-panel")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Subs rates & classification" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Session inactivity" })).toHaveCount(0);
+  await expect(page.getByLabel("Parent account inactivity timeout")).toHaveCount(0);
+  await expect(page.getByLabel("Leader desktop inactivity timeout")).toHaveCount(0);
+  await expect(page.getByLabel("Leader phone inactivity timeout")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save Settings" })).toHaveCount(0);
+});
+
 test("ordinary leader cannot access site settings", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
