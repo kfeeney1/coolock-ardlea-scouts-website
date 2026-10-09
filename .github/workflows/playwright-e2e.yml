@@ -142,7 +142,7 @@ jobs:
         run: npx --no-install playwright test e2e/weekly-meeting-navigation.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "SW-369"
       - name: Run focused SW-363 copy dialog regression
         if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/weekly-section-tracker.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "SW-363"
+        run: npx --no-install playwright test e2e/weekly-meeting-copy-dialog.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "SW-363"
       - name: Run focused SW-320 Event Record regressions on mobile
         if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
         run: npx --no-install playwright test e2e/event-record-page.spec.ts --project=mobile-chromium --retries=0 --timeout=30000
