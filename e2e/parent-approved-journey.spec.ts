@@ -33,7 +33,18 @@ test.describe("approved parent journey", () => {
     await loginParent(page);
     const parentConsentSaveErrors: string[] = [];
     page.on("console", (message) => {
-      if (message.type() === "error" && message.text().includes("Unable to update parent consent:")) parentConsentSaveErrors.push(message.text());
+      if (message.type() === "error") parentConsentSaveErrors.push(`console: ${message.text()}`);
+    });
+    page.on("pageerror", (error) => parentConsentSaveErrors.push(`pageerror: ${error.message}`));
+    page.on("requestfailed", (request) => {
+      if (/firestore|identitytoolkit|securetoken/i.test(request.url())) {
+        parentConsentSaveErrors.push(`requestfailed: ${request.method()} ${request.url()} ${request.failure()?.errorText || "unknown"}`);
+      }
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 400 && /firestore|identitytoolkit|securetoken/i.test(response.url())) {
+        parentConsentSaveErrors.push(`http ${response.status()}: ${response.request().method()} ${response.url()}`);
+      }
     });
 
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
@@ -107,6 +118,13 @@ test.describe("approved parent journey", () => {
     const saveFeedback = page.getByRole("alert").filter({ hasText: /Consent and medical details updated successfully|Unable to save the consent and medical details|required|Select Yes or No/i }).last();
     await expect(saveFeedback, `Parent consent save failed. Browser console: ${parentConsentSaveErrors.join("\n") || "no save error was logged"}`).toHaveText("Consent and medical details updated successfully.");
     await expect(medicalAttentionCount).toHaveText("0");
+
+    // Verify durable persistence, not merely a transient success notification.
+    // A fresh page load must derive the completed state from the emulator again.
+    await page.reload();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+    await expect(page.getByTestId("parent-medical-attention-count")).toHaveText("0");
+    await expect(page.getByText("Consent not started", { exact: true })).toHaveCount(0);
   });
 
   test("parent event consent appears for the canonical linked Beavers event", async ({ page }) => {
