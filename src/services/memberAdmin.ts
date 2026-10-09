@@ -19,7 +19,6 @@ import { auth, db } from "../firebase";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSections, memberSectionStorageAliases } from "./memberSectionCore.mjs";
 import { recordAuditEvent } from "./auditLog";
-import { normalizeMedicationManagement } from "./consentManagementLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { normalizeMemberSectionRoles, type MemberSectionRoles } from "./memberYouthRoles";
 import { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
@@ -61,17 +60,6 @@ export type CreateMemberInput = Pick<
   "firstName" | "lastName" | "displayName" | "dateOfBirth" | "section" | "parentName" | "emailAddress" |
   "mobileNumber" | "emergencyContactName" | "emergencyContactPhone" | "status" | "displayNameMode"
 > & { sections?: string[]; sectionRoles?: MemberSectionRoles };
-
-export type MemberConsentSummary = {
-  consentId: string;
-  memberName: string;
-  dateOfBirth: string;
-  section: string;
-  consentTo: string;
-  submittedAt: Date | null;
-  hasMedicalAlert: boolean;
-  hasMedicationManagement: boolean;
-};
 
 export type MemberLifecycleHistoryRecord = {
   id: string;
@@ -226,20 +214,8 @@ export async function loadRoverSelfMembership(): Promise<{ active: boolean; firs
   return { active: data.status === "active" && sections.includes("Rovers"), firstName: stringValue(data, "firstName"), lastName: stringValue(data, "lastName") };
 }
 
-function yes(data: DocumentData, key: string): boolean {
-  return data[key] === "Yes";
-}
-
-function medicationEnabled(data: DocumentData): boolean {
-  return normalizeMedicationManagement(data.medicationManagement)?.enabled === true;
-}
-
 function storageSectionAliases(section: string): readonly string[] {
   return memberSectionStorageAliases(section);
-}
-
-function hasMedicalAlert(data: DocumentData): boolean {
-  return ["seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"].some((key) => yes(data, key));
 }
 
 function clean(value: string, max: number): string {
@@ -247,6 +223,7 @@ function clean(value: string, max: number): string {
 }
 
 export { automaticDisplayName, canonicalMemberSection } from "./memberIdentityLogic";
+export { loadMemberConsentSummaries, type MemberConsentSummary } from "./memberConsentSummary";
 
 export async function loadMembers(): Promise<MemberRecord[]> {
   const user = auth.currentUser;
@@ -467,44 +444,4 @@ export async function loadMemberLifecycleHistory(memberId: string): Promise<Memb
       changedAt: timestampToDate(data.changedAt)
     }];
   }).sort((a, b) => (b.changedAt?.getTime() || 0) - (a.changedAt?.getTime() || 0));
-}
-
-export async function loadMemberConsentSummaries(member: MemberRecord): Promise<MemberConsentSummary[]> {
-  if (!member.sections.length) return [];
-
-  const user = auth.currentUser;
-  if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
-  const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
-  const isAdmin = profileSnapshot.exists() && ["admin", "super-admin"].includes(String(profileSnapshot.data().role));
-  const snapshots = isAdmin
-    ? [await getDocs(collection(db, "consentApplications"))]
-    : await Promise.all([
-        getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id))),
-        ...member.sections.flatMap((memberSection) => storageSectionAliases(memberSection)).map((section) =>
-          getDocs(query(collection(db, "consentApplications"), where("section", "==", section)))
-        )
-      ]);
-  const documents = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
-
-  const summaries = documents.flatMap((consentSnapshot) => {
-    const data = consentSnapshot.data();
-    if (data.formType !== "youth-activity-consent") return [];
-    const childName = stringValue(data, "childName");
-    const childDOB = stringValue(data, "childDOB");
-    const linkedMemberId = stringValue(data, "memberId");
-    const stableIdMatch = linkedMemberId === member.id;
-    if (!stableIdMatch) return [];
-    return [{
-      consentId: consentSnapshot.id,
-      memberName: childName,
-      dateOfBirth: childDOB,
-      section: stringValue(data, "section"),
-      consentTo: stringValue(data, "consentTo"),
-      submittedAt: timestampToDate(data.submittedAt),
-      hasMedicalAlert: hasMedicalAlert(data),
-      hasMedicationManagement: medicationEnabled(data)
-    }];
-  }).sort((a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0));
-
-  return summaries;
 }
