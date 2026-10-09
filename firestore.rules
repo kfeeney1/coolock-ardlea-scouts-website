@@ -63,6 +63,26 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
         && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader";
     }
+    function isActiveRegisteredLeader(uid) {
+      return uid is string
+        && exists(/databases/$(database)/documents/adminUsers/$(uid))
+        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
+        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader"
+        && exists(/databases/$(database)/documents/organisationLeadership/$(uid))
+        && get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.active == true;
+    }
+    function validLeaderAttendanceRecord(uid) {
+      return isActiveRegisteredLeader(uid)
+        && request.resource.data.displayName == get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.displayName
+        && request.resource.data.appointments is list
+        && request.resource.data.appointments.size() <= 12
+        && request.resource.data.sections is list
+        && request.resource.data.sections.size() <= 6
+        && request.resource.data.attendance in ["unrecorded", "present", "absent"]
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["displayName", "appointments", "sections", "attendance", "updatedBy", "updatedAt"]);
+    }
     function isApprovedParent() {
       return signedIn()
         && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
@@ -701,6 +721,18 @@ service cloud.firestore {
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
     }
 
+    match /events/{eventId}/leaderAttendance/{leaderUid} {
+      function canReadEventAttendance() {
+        let eventPath = /databases/$(database)/documents/events/$(eventId);
+        return exists(eventPath) && isActiveLeader()
+          && (hasSection(get(eventPath).data.section) || isGroupLeader());
+      }
+      allow get, list: if canReadEventAttendance();
+      allow create, update: if canReadEventAttendance()
+        && validLeaderAttendanceRecord(leaderUid);
+      allow delete: if canReadEventAttendance() && isActiveRegisteredLeader(leaderUid);
+    }
+
     // Collection-group parent queries need a recursive match. The query itself
     // constrains memberId to the approved parent's linked children.
     match /{path=**}/audienceMembers/{memberId} {
@@ -920,6 +952,23 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
       allow delete: if false;
+    }
+
+    match /weeklyMeetings/{weeklyMeetingId}/leaderAttendance/{leaderUid} {
+      function canReadWeeklyAttendance() {
+        let meetingPath = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
+        return exists(meetingPath) && isActiveLeader()
+          && (isSuperAdmin() || hasSection(get(meetingPath).data.section) || isGroupLeader() || isGroupSecretary());
+      }
+      function canWriteWeeklyAttendance() {
+        let meetingPath = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
+        return exists(meetingPath) && isActiveLeader()
+          && (hasSection(get(meetingPath).data.section) || isGroupLeader());
+      }
+      allow get, list: if canReadWeeklyAttendance();
+      allow create, update: if canWriteWeeklyAttendance()
+        && validLeaderAttendanceRecord(leaderUid);
+      allow delete: if canWriteWeeklyAttendance() && isActiveRegisteredLeader(leaderUid);
     }
 
     match /programmeLibrary/{templateId} {

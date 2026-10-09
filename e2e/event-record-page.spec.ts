@@ -88,6 +88,20 @@ test("event editor saves valid edits before app and browser back navigation", as
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  const leaderPanel = page.getByTestId("leader-attendance-section");
+  await expect(leaderPanel.getByRole("heading", { name: "Leader Attendance" })).toBeVisible();
+  await leaderPanel.getByLabel("Search active leaders").fill("Beavers Assistant Section Leader");
+  await expect(leaderPanel.getByText("Beavers Assistant Section Leader", { exact: true })).toBeVisible();
+  await leaderPanel.getByRole("button", { name: "Add Beavers Assistant Section Leader" }).click();
+  const helperRow = leaderPanel.getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
+  await helperRow.getByRole("combobox", { name: "Leader attendance" }).selectOption("present");
+  await page.getByRole("button", { name: "Save Attendance" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Attendance and consent roster updated." })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  const restoredHelper = page.getByTestId("leader-attendance-section").getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
+  await expect(restoredHelper.getByRole("combobox", { name: "Leader attendance" })).toHaveValue("present");
 });
 
 test("mobile event editor saves valid edits before navigating away", async ({ page }, testInfo) => {
