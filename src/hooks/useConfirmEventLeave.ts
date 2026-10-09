@@ -52,12 +52,14 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
 
   useEffect(() => {
     if (!dirty) return;
-    const handlePopState = () => {
+    const handlePopState = (event: PopStateEvent) => {
       if (bypassNextPopRef.current) {
         bypassNextPopRef.current = false;
         return;
       }
       if (!dirtyRef.current) return;
+      // Overlay dismissal returns to this guard entry; it is not an editor leave.
+      if (event.state && typeof event.state === "object" && (event.state as Record<string, unknown>)[HISTORY_GUARD_KEY] === guardId) return;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
       window.history.pushState({ ...currentState, [HISTORY_GUARD_KEY]: guardId }, "", window.location.href);
       backGuardArmedRef.current = true;
