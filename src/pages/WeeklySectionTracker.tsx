@@ -95,7 +95,7 @@ export default function WeeklySectionTracker() {
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
       const requested=r.find(x=>x.id===meetingId);
       if(requested){setSelected(requested);setSavedSelected(requested);setStep(initialWeeklyStep(requested.meetingDate));}
-      else if(selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
+      else if(meetingId&&selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
     } catch(e){setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
     finally{setLoading(false);}
   };
