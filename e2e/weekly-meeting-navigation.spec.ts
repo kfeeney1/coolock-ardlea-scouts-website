@@ -44,7 +44,9 @@ test("SW-369 open weekly meeting returns to the Weekly Meetings list with its me
 
   await page.getByRole("button", { name: "Menu · Weekly Meetings" }).click();
   const weeklyNav = page.getByTestId("leader-nav-weekly-meetings");
-  await expect(weeklyNav).toHaveAttribute("aria-current", "page");
+  await expect(weeklyNav).toHaveCount(2);
+  await expect(weeklyNav.nth(0)).toHaveAttribute("aria-current", "page");
+  await expect(weeklyNav.nth(1)).toHaveAttribute("aria-current", "page");
 });
 
 test("SW-369 browser Back from an open weekly meeting returns to the meeting list", async ({ page }, testInfo) => {
@@ -65,5 +67,8 @@ test("SW-369 browser Back from an open weekly meeting returns to the meeting lis
   await expect(page.getByRole("button", { name: "Menu · Weekly Meetings" })).toBeVisible();
 
   await page.getByRole("button", { name: "Menu · Weekly Meetings" }).click();
-  await expect(page.getByTestId("leader-nav-weekly-meetings")).toHaveAttribute("aria-current", "page");
+  const weeklyNav = page.getByTestId("leader-nav-weekly-meetings");
+  await expect(weeklyNav).toHaveCount(2);
+  await expect(weeklyNav.nth(0)).toHaveAttribute("aria-current", "page");
+  await expect(weeklyNav.nth(1)).toHaveAttribute("aria-current", "page");
 });
