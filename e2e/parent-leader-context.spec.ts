@@ -80,7 +80,10 @@ test("combined leader and parent can switch contexts, reload and sign in again w
   await page.goto("/parent?child=TEST_member_beaver_01");
   await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
   await expectChildOptions(page, 2);
-  await page.goto("/leader/members");
+  // Firebase may still be hydrating the persisted leader session after the
+  // parent route reload. Wait for the document, then assert the protected
+  // route resolves to Member Management below.
+  await page.goto("/leader/members", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
   await expect(page.getByTestId("member-card-TEST_member_beaver_01")).toBeVisible();
   await page.goto("/parent");
