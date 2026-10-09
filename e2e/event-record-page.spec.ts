@@ -88,6 +88,7 @@ test("event editor saves valid edits before app and browser back navigation", as
   const browserBackTitle = `${updatedTitle} browser back`;
   await page.getByLabel("Event title").fill(browserBackTitle);
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.history.state))).toContain("__eventEditBackGuard");
   await page.goBack();
   leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
   await expect(leaveDialog).toBeVisible();
