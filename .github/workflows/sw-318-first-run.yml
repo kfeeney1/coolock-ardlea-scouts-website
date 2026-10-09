@@ -1,0 +1,128 @@
+name: SW-318 Parent Consent First-Run Assurance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parent_consent_first_run:
+    name: SW-318 clean first-run Chromium
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --user 1001
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_APP_ENV: local
+      VITE_FIREBASE_API_KEY: demo-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: demo-coolock-ardlea-scouts.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      VITE_FIREBASE_STORAGE_BUCKET: demo-coolock-ardlea-scouts.appspot.com
+      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+      VITE_FIREBASE_APP_ID: 1:000000000000:web:local
+      VITE_EMAIL_API_URL: http://127.0.0.1:8787
+      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+      VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+      FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
+      E2E_BASE_URL: http://127.0.0.1:4173
+      E2E_TEST_USER_PASSWORD: password1
+      E2E_LEADER_JOURNEY_SEEDED: 'true'
+      E2E_PARENT_EMAIL: test.beaver.parent1@example.com
+      E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
+      E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
+      E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
+      E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
+      E2E_GROUP_YOUTH_CHAMPION_EMAIL: test.group.youth.champion@example.com
+      E2E_ADMIN_EMAIL: test.webadmin@example.com
+      E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
+      E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies and build
+        run: |
+          npm ci --no-audit
+          npm run build
+          node scripts/verify-playwright-seed-contract.mjs
+      - name: Setup Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Firebase tooling
+        run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1
+      - name: Start isolated Firebase emulators
+        run: |
+          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
+          for i in {1..45}; do
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/firebase-emulator.log
+          exit 1
+      - name: Create emulator-only credential
+        run: |
+          node <<'NODE'
+          const { generateKeyPairSync } = require("node:crypto");
+          const { writeFileSync, appendFileSync } = require("node:fs");
+          const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
+          const projectId = process.env.FIREBASE_PROJECT_ID;
+          const path = "/tmp/firebase-emulator-credential.json";
+          writeFileSync(path, JSON.stringify({ type:"service_account", project_id:projectId, private_key_id:"emulator-only", private_key:privateKey, client_email:`firebase-adminsdk-emulator@${projectId}.iam.gserviceaccount.com`, client_id:"000000000000000000000", auth_uri:"https://accounts.google.com/o/oauth2/auth", token_uri:"https://oauth2.googleapis.com/token", auth_provider_x509_cert_url:"https://www.googleapis.com/oauth2/v1/certs", client_x509_cert_url:"https://example.invalid/emulator-only", universe_domain:"googleapis.com" }), { mode: 0o600 });
+          appendFileSync(process.env.GITHUB_ENV, `GOOGLE_APPLICATION_CREDENTIALS=${path}\n`);
+          NODE
+      - name: Seed canonical fixtures
+        run: |
+          node scripts/seed-population-data.mjs seed
+          node scripts/seed-superadmin-login.mjs
+          node scripts/seed-flow-data.mjs
+          node scripts/seed-public-site-content.mjs seed
+          node scripts/seed-playwright-records.mjs
+          node scripts/rebuild-public-leadership.mjs
+          node scripts/verify-test-population.mjs
+          node scripts/verify-flow-data.mjs
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
+      - name: Start tested build
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
+          for i in {1..30}; do
+            if curl --fail --silent "$E2E_BASE_URL"/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/vite-preview.log
+          exit 1
+      - name: Execute only SW-318 first-run test without retries
+        run: |
+          npx --no-install playwright test e2e/parent-approved-journey.spec.ts --project=chromium --retries=0 --grep "parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form"
+      - name: Collect service diagnostics
+        if: failure()
+        run: |
+          mkdir -p e2e-debug
+          cp /tmp/firebase-emulator.log e2e-debug/firebase-emulator.log 2>/dev/null || true
+          cp /tmp/vite-preview.log e2e-debug/vite-preview.log 2>/dev/null || true
+      - name: Upload report and failure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sw-318-first-run-evidence
+          path: |
+            playwright-report/
+            test-results/
+            e2e-debug/
+          retention-days: 14
+          if-no-files-found: ignore

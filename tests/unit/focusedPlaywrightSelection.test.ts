@@ -34,6 +34,7 @@ test("backup workflows and focused selector-only changes do not start browser jo
   for (const path of [
     ".github/workflows/firestore-backup-freshness.yml",
     ".github/workflows/firestore-backup.yml",
+    ".github/workflows/sw-318-first-run.yml",
     "scripts/focused-playwright-selection.mjs",
     "tests/unit/focusedPlaywrightSelection.test.ts"
   ]) {
@@ -54,6 +55,7 @@ test("PR shard suite selection excludes operational-only changes without weakeni
   for (const path of [
     ".github/workflows/firestore-backup-freshness.yml",
     ".github/workflows/firestore-backup.yml",
+    ".github/workflows/sw-318-first-run.yml",
     "scripts/focused-playwright-selection.mjs",
     "tests/unit/focusedPlaywrightSelection.test.ts"
   ]) {

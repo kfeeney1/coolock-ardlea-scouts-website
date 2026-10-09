@@ -32,7 +32,8 @@ export function selectFocusedGroups(changedFiles, { forceAll = false } = {}) {
       // Operational workflows do not change browser behaviour. Keep broad
       // coverage for workflows that actually control application E2E or deploys.
       if (file === ".github/workflows/firestore-backup-freshness.yml" ||
-          file === ".github/workflows/firestore-backup.yml") continue;
+          file === ".github/workflows/firestore-backup.yml" ||
+          file === ".github/workflows/sw-318-first-run.yml") continue;
       return new Set(allGroups);
     }
     if ([
