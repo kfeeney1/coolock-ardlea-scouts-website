@@ -112,6 +112,9 @@ test("mobile event editor saves valid edits before navigating away", async ({ pa
   const updatedTitle = `${title} updated`;
   await page.getByLabel("Event title").fill(updatedTitle);
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  const leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+  await expect(leaveDialog).toBeVisible();
+  await leaveDialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
