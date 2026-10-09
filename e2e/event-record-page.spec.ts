@@ -311,6 +311,8 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Ventures", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toBeHidden();
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
