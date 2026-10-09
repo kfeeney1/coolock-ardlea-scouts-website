@@ -1295,7 +1295,7 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAny(["source"]) || request.resource.data.source == resource.data.source)
           && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch == resource.data.importBatch)
           && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef == resource.data.importSourceRef)
-          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
+          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"])
         );
       allow delete: if false;
     }
