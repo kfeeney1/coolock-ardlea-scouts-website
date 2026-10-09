@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const adminEmail = process.env.E2E_SUPER_ADMIN_EMAIL;
@@ -12,7 +12,8 @@ async function login(page: Page, path: string, email: string) {
   // Wait for the authenticated route before navigating elsewhere: an immediate
   // goto can cancel the in-flight sign-in and leave the dashboard unauthorised.
   if (path === "/leader/login") {
-    await expect(page).toHaveURL(/\/leader(?:[/?#]|$)/);
+    await expect(page).toHaveURL(/\/leader(?:[?#]|$)/);
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
   } else {
     await expect(page.getByRole("button", { name: "Sign Out" }).first()).toBeVisible();
   }
@@ -29,14 +30,19 @@ test.describe("dashboard polls", () => {
     const question = `SW-357 poll assurance ${Date.now()}`;
 
     await login(page, "/leader/login", adminEmail!);
-    await page.goto("/leader");
     await expect(page.getByTestId("leader-polls")).toBeVisible();
     await page.getByLabel("Poll question").fill(question);
     await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
     await page.getByRole("combobox", { name: "Poll audience" }).click();
     await page.getByRole("option", { name: "Parents and guardians" }).click();
+    // The preceding MUI menu exits asynchronously. Wait for its overlay to
+    // disappear before clicking the adjacent scope control.
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(page.getByRole("combobox", { name: "Poll audience" })).toHaveText("Parents and guardians");
     await page.getByRole("combobox", { name: "Poll scope" }).click();
+    await expect(page.getByRole("listbox", { name: "Poll scope" })).toBeVisible();
     await page.getByRole("option", { name: "Selected sections" }).click();
+    await expect(page.getByRole("listbox")).toBeHidden();
     const beavers = page.getByRole("checkbox", { name: "Beavers" });
     for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
       if (await checkbox.isChecked()) await checkbox.uncheck();
@@ -73,7 +79,6 @@ test.describe("dashboard polls", () => {
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
 
     await parentContext.close();
-    await page.goto("/leader");
     const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
     await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
     await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();

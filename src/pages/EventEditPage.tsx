@@ -1,11 +1,11 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
+import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
-import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
+import { useConfirmEventLeave } from "../hooks/useConfirmEventLeave";
 import { eventInput, buildEventAudience, defaultEventAudienceForClassification, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadEvents, updateEvent } from "../services/eventAdmin";
 import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmin";
@@ -14,6 +14,7 @@ import type { MemberRecord } from "../services/memberAdmin";
 
 export default function EventEditPage() {
   const { eventId = "" } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [draft, setDraft] = useState<EventInput | null>(null);
   const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -106,11 +107,10 @@ export default function EventEditPage() {
     return pending;
   }, [activeMembers, draft, dirty, event]);
 
-  const backgroundSave = useCallback(async (): Promise<boolean> => {
-    if (!draft?.title.trim() || !draft.startDate) return false;
-    return saveDraft();
-  }, [draft, saveDraft]);
-  const { navigateAfterSave } = useSaveOnNavigation(dirty, saveDraft, backgroundSave);
+  const { dialogOpen, stay, continueWithoutSaving, saveAndContinue } = useConfirmEventLeave(dirty, saveDraft);
+  const saveAndReturnToEvent = useCallback(async () => {
+    if (await saveDraft()) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
+  }, [eventId, navigate, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 
@@ -118,7 +118,7 @@ export default function EventEditPage() {
     <LeaderDashboardHeader />
     <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Stack spacing={2}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}><Stack spacing={2}>
       <TextField required label="Event title" value={draft.title} onChange={(input) => setDraft({ ...draft, title: input.target.value })} />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
         <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => setDraft({ ...draft, eventType: input.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
@@ -136,9 +136,18 @@ export default function EventEditPage() {
       <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => setDraft({ ...draft, consentRequired: input.target.checked })} />} label="Event consent required" />
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant="contained" color="success" disabled={saving || (draft.audience?.mode === "members" && selectedIds.length === 0)} onClick={() => void navigateAfterSave(`/leader/events/${encodeURIComponent(eventId)}`)}>{saving ? "Saving…" : "Save Event"}</Button>
-        <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined" disabled={saving} onClick={(clickEvent) => { clickEvent.preventDefault(); void navigateAfterSave(`/leader/events/${encodeURIComponent(eventId)}`); }}>Back to Event</Button>
+        <Button variant="contained" color="success" disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvent()}>{saving ? "Saving…" : "Save Event"}</Button>
+        <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined">Back to Event</Button>
       </Stack>
-    </Stack></Paper>
+    </Stack></Box></Paper>
+    <Dialog open={dialogOpen} onClose={stay} aria-labelledby="event-unsaved-title" aria-describedby="event-unsaved-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
+      <DialogTitle id="event-unsaved-title">Unsaved event changes</DialogTitle>
+      <DialogContent><Typography id="event-unsaved-description">You have changes that have not been saved. Save them before leaving, discard them, or stay in the editor.</Typography></DialogContent>
+      <DialogActions sx={{ flexWrap: "wrap", px: 3, pb: 2, "& .MuiButton-root": { minHeight: 44, minWidth: 44 } }}>
+        <Button onClick={stay} autoFocus disabled={saving}>Stay</Button>
+        <Button color="error" onClick={continueWithoutSaving} disabled={saving}>Discard</Button>
+        <Button variant="contained" onClick={() => void saveAndContinue()} disabled={saving}>Save</Button>
+      </DialogActions>
+    </Dialog>
   </Container></Box>;
 }
