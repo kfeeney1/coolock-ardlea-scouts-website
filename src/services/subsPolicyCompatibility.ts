@@ -1,5 +1,24 @@
 import type { SubsRatePolicy } from "./subsLogic";
 
+type SubsPolicyInput = Omit<SubsRatePolicy, "id">;
+
+/** A policy version is immutable. Treat an exact repeat save as idempotent. */
+export function sameSubsPolicyContent(existing: SubsRatePolicy, candidate: SubsPolicyInput): boolean {
+  const content = (policy: SubsPolicyInput) => JSON.stringify({
+    period: policy.period,
+    effectiveFrom: policy.effectiveFrom,
+    periodStart: policy.periodStart ?? policy.effectiveFrom,
+    periodEnd: policy.periodEnd ?? "",
+    standardCents: policy.standardCents,
+    leaderChildCents: policy.leaderChildCents,
+    siblingCents: policy.siblingCents,
+    standardFamilyRatesCents: policy.standardFamilyRatesCents ?? [],
+    leaderFamilyRatesCents: policy.leaderFamilyRatesCents ?? [],
+    version: policy.version
+  });
+  return content(existing) === content(candidate);
+}
+
 export function mapSubsPolicy(id: string, data: Record<string, unknown>): SubsRatePolicy | null {
   const period = typeof data.period === "string" ? data.period.trim() : "";
   if (!period) return null;
