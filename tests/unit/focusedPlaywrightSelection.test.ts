@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { formatFocusedOutputs, selectFocusedGroups } from "../../scripts/focused-playwright-selection.mjs";
-import { suiteSpecs } from "../../scripts/playwright-suites.mjs";
+import { suiteSpecs, suitesForChangedPath } from "../../scripts/playwright-suites.mjs";
 
 const workflow = readFileSync(".github/workflows/playwright-e2e.yml", "utf8");
 
@@ -48,6 +48,20 @@ test("backup workflows and focused selector-only changes do not start browser jo
   assert.deepEqual([...selectFocusedGroups([
     "scripts/focused-playwright-selection.mjs", "src/services/weeklyTracker.ts"
   ])], ["activities", "navigation"]);
+});
+
+test("PR shard suite selection excludes operational-only changes without weakening application coverage", () => {
+  for (const path of [
+    ".github/workflows/firestore-backup-freshness.yml",
+    ".github/workflows/firestore-backup.yml",
+    "scripts/focused-playwright-selection.mjs",
+    "tests/unit/focusedPlaywrightSelection.test.ts"
+  ]) {
+    assert.deepEqual(suitesForChangedPath(path), [], path);
+  }
+  assert.deepEqual(suitesForChangedPath("src/services/weeklyTracker.ts"), ["activities-programme"]);
+  assert.equal(suitesForChangedPath("src/components/UnknownSharedControl.tsx"), null);
+  assert.deepEqual(suitesForChangedPath(".github/workflows/playwright-e2e.yml"), ["activities-programme", "platform-ui"]);
 });
 
 test("poll and communications changes select their own focused assertions", () => {
