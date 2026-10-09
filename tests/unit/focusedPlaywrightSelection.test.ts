@@ -23,6 +23,10 @@ test("activity changes retain all focused meeting regressions and navigation che
     [...selectFocusedGroups(["e2e/event-record-page.spec.ts"])],
     ["activities", "navigation"]
   );
+  assert.deepEqual(
+    [...selectFocusedGroups(["e2e/sw362-event-edit-navigation.spec.ts", "src/hooks/useConfirmEventLeave.ts"])],
+    ["activities", "navigation"]
+  );
 });
 
 test("poll and communications changes select their own focused assertions", () => {
@@ -47,6 +51,7 @@ test("focused workflow groups retain no-retry regressions while shards retain su
   assert.match(workflow, /name: Run SW-317 communications suite after authenticated journeys\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.communications == 'true' \}\}[\s\S]*?leader-communications\.spec\.ts[^\n]*--retries=0/);
   assert.match(workflow, /name: Run focused SW-357 poll lifecycle\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.polls == 'true' \}\}[\s\S]*?polls\.spec\.ts[^\n]*--retries=0/);
   assert.ok(suiteSpecs["activities-programme"].includes("event-record-page.spec.ts"));
+  assert.ok(suiteSpecs["activities-programme"].includes("sw362-event-edit-navigation.spec.ts"));
   assert.ok(suiteSpecs["activities-programme"].includes("weekly-record-integrity.spec.ts"));
   assert.ok(suiteSpecs["activities-programme"].includes("programme-library.spec.ts"));
   assert.ok(suiteSpecs["activities-programme"].includes("weekly-section-tracker.spec.ts"));
