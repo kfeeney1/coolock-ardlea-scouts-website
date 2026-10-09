@@ -112,7 +112,6 @@ jobs:
 
       - name: Publish backup attempt observation
         if: always()
-        continue-on-error: true
         shell: bash
         env:
           JOB_STATUS: ${{ job.status }}
@@ -127,7 +126,20 @@ jobs:
             STATE="Critical"; REASON="Most recent Firestore backup attempt failed; an older successful export must not mask this failure."
           fi
           FIELDS=$(jq -n --arg service "Firestore Backup" --arg env "PRODUCTION" --arg metric "backup execution" --arg state "$STATE" --arg observed "$OBSERVED_AT" --arg source "Firestore Backup GitHub Actions workflow" --arg sourceType "authoritative-live" --arg reason "$REASON" --arg recovery "Inspect this workflow run and repair authentication, export or destination access before relying on older backups." --arg management "https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions" '{fields:{service:{stringValue:$service},environment:{stringValue:$env},metric:{stringValue:$metric},state:{stringValue:$state},observedAt:{stringValue:$observed},source:{stringValue:$source},sourceType:{stringValue:$sourceType},reason:{stringValue:$reason},recovery:{stringValue:$recovery},managementUrl:{stringValue:$management}}}')
-          curl --fail-with-body --silent --show-error -X PATCH             -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json"             --data "$FIELDS"             "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production" >/dev/null
+          DOCUMENT_URL="https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-execution-production"
+          curl --fail-with-body --silent --show-error -X PATCH \\
+            -H "Authorization: Bearer ${TOKEN}" \\
+            -H "Content-Type: application/json" \\
+            --data "${FIELDS}" "${DOCUMENT_URL}" >/dev/null
+          READBACK="$(curl --fail-with-body --silent --show-error \\
+            -H "Authorization: Bearer ${TOKEN}" "${DOCUMENT_URL}")"
+          if ! jq -e --arg observed "${OBSERVED_AT}" --arg state "${STATE}" \\
+            '.fields.observedAt.stringValue == $observed and .fields.state.stringValue == $state and .fields.metric.stringValue == "backup execution" and .fields.environment.stringValue == "PRODUCTION"' \\
+            <<< "${READBACK}" >/dev/null; then
+            echo "Backup execution monitoring readback did not match publication." >&2
+            exit 1
+          fi
+          echo "Backup execution monitoring observation published and verified by readback."
 
       - name: Write job summary
         if: always()
