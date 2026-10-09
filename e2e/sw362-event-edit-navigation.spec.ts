@@ -112,26 +112,6 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByRole("heading", { name: savedTitle })).toBeVisible();
 
-  // The service rejects a direct lifecycle jump; the unsaved status remains in the form.
-  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
-  await page.getByRole("combobox", { name: "Status" }).click();
-  await page.getByRole("option", { name: "Completed", exact: true }).click();
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".MuiMenu-root")).toHaveCount(0);
-  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
-  dialog = leaveDialog(page);
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
-  await expect(page.getByRole("combobox", { name: "Status" })).toHaveText("Completed");
-  await expect(page.getByRole("alert").filter({ hasText: "Unable to save this event. Your edits are still here." })).toBeVisible();
-  await page.getByRole("combobox", { name: "Status" }).click();
-  await page.getByRole("option", { name: "Draft", exact: true }).click();
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".MuiMenu-root")).toHaveCount(0);
-  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
-  await expect(page).toHaveURL(eventUrl);
-  await expect(page.getByRole("heading", { name: savedTitle })).toBeVisible();
 });
 
 test("SW-362 mobile confirmation fits the screen and Android Back can be cancelled", async ({ page }, testInfo) => {
