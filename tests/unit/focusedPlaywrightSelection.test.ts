@@ -65,19 +65,15 @@ test("unknown shared paths and Playwright workflow edits conservatively run all 
   assert.equal(formatFocusedOutputs(new Set()).startsWith("run=false\n"), true);
 });
 
-test("focused workflow groups retain no-retry regressions while shards retain suite coverage", () => {
-  assert.match(workflow, /name: Run focused SW-362 event edit navigation regressions\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}\n\s+run: npx --no-install playwright test e2e\/sw362-event-edit-navigation\.spec\.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000/);
-  assert.ok(workflow.indexOf("name: Run focused SW-362") < workflow.indexOf("name: Run focused SW-320"));
-  assert.match(workflow, /focused_pr:[\s\S]*?needs: focused_selection[\s\S]*?needs\.focused_selection\.outputs\.run == 'true'/);
-  assert.match(workflow, /name: Run focused SW-170 tests\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}[\s\S]*?event-record-page\.spec\.ts e2e\/weekly-record-integrity\.spec\.ts[^\n]*--retries=0/);
-  assert.match(workflow, /name: Run focused blocking regressions\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.activities == 'true' \}\}[\s\S]*?programme-library\.spec\.ts e2e\/weekly-section-tracker\.spec\.ts[^\n]*--retries=0/);
-  assert.match(workflow, /name: Run SW-317 communications suite after authenticated journeys\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.communications == 'true' \}\}[\s\S]*?leader-communications\.spec\.ts[^\n]*--retries=0/);
-  assert.match(workflow, /name: Run focused SW-357 poll lifecycle\n\s+if: \$\{\{ needs\.focused_selection\.outputs\.polls == 'true' \}\}[\s\S]*?polls\.spec\.ts[^\n]*--retries=0/);
+test("focused assurance verifies selection policy without legacy browser journeys", () => {
+  assert.match(workflow, /name: Focused PR assurance/);
+  assert.match(workflow, /name: Verify focused selection policy/);
+  assert.match(workflow, /node --experimental-strip-types --test tests\\/unit\\/focusedPlaywrightSelection\\.test\\.ts/);
+  assert.doesNotMatch(workflow, /  focused_pr:/);
+  assert.doesNotMatch(workflow, /Run focused SW-320|Run focused SW-362|Run focused SW-170/);
+  assert.match(workflow, /  e2e_shard:/);
+  assert.match(workflow, /npm run test:e2e:pr/);
   assert.ok(suiteSpecs["activities-programme"].includes("event-record-page.spec.ts"));
-  assert.ok(suiteSpecs["activities-programme"].includes("sw362-event-edit-navigation.spec.ts"));
-  assert.ok(suiteSpecs["activities-programme"].includes("weekly-record-integrity.spec.ts"));
-  assert.ok(suiteSpecs["activities-programme"].includes("programme-library.spec.ts"));
-  assert.ok(suiteSpecs["activities-programme"].includes("weekly-section-tracker.spec.ts"));
 });
 
 test("communications, role, device and keyboard navigation assertions remain registered", () => {
