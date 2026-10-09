@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 31108)
-Total output lines: 1804
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -592,7 +589,618 @@ service cloud.firestore {
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["accountUid"]) || (isAdmin() && request.resource.data.accountUid is string
             && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == "" || resource.data.accountUid == request.resource.data.accountUid)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["firstName", "lastName", "displayName", "displayNameMode", "dateOfBirth", "section", "sections", "sectionRoles", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "accountUid", "updatedAt", "updatedBy"]))
-       …11108 tokens truncated…ring
+        || (isAdmin()
+          && request.resource.data.familyId is string
+          && request.resource.data.familyUpdatedBy == request.auth.uid
+          && request.resource.data.familyUpdatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["familyId", "familyUpdatedBy", "familyUpdatedAt"]));
+      allow update: if isSelfManagedRoverMember();
+      allow delete: if false;
+    }
+
+    match /memberAdventureSkillProgress/{memberId} {
+      allow read, write: if false;
+
+      match /requirements/{requirementId} {
+        allow get, list: if isApprovedParentForMember(memberId)
+          || (isActiveLeader()
+            && exists(/databases/$(database)/documents/members/$(memberId))
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
+        allow create, update: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
+          && request.resource.data.memberId == memberId
+          && request.resource.data.requirementId == requirementId
+          && request.resource.data.skillId is string
+          && request.resource.data.stage is number
+          && request.resource.data.stage >= 1
+          && request.resource.data.stage <= 9
+          && request.resource.data.sharedCompetencyKey is string
+          && request.resource.data.completedAt == request.time
+          && request.resource.data.completedBy == request.auth.uid
+          && request.resource.data.sourceType in ["manual", "weeklyMeeting", "event", "activity", "migration"]
+          && request.resource.data.sourceId is string
+          && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
+        allow delete: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader());
+      }
+
+      match /awards/{awardId} {
+        allow get, list: if isApprovedParentForMember(memberId)
+          || (isActiveLeader()
+            && exists(/databases/$(database)/documents/members/$(memberId))
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
+        allow create, update: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
+          && request.resource.data.awardId == awardId
+          && request.resource.data.memberId == memberId
+          && isCanonicalAdventureSkillStage(request.resource.data.skillId, request.resource.data.stage)
+          && isCanonicalAdventureSkillAwardId(awardId, request.resource.data.skillId, request.resource.data.stage)
+          && request.resource.data.awardedAt == request.time
+          && request.resource.data.awardedBy == request.auth.uid
+          && request.resource.data.keys().hasOnly(["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"]);
+        allow delete: if isActiveLeader()
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader());
+      }
+    }
+
+    match /memberHistory/{entryId} {
+      allow read: if isActiveLeader()
+        && resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
+        && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data);
+      allow create: if isActiveLeader()
+        && request.resource.data.memberId is string
+        && request.resource.data.memberName is string
+        && request.resource.data.changeType in ["section-transfer", "status-change", "section-and-status-change"]
+        && request.resource.data.fromSection is string
+        && request.resource.data.toSection is string
+        && request.resource.data.fromStatus in ["active", "inactive", "left"]
+        && request.resource.data.toStatus in ["active", "inactive", "left"]
+        && request.resource.data.changedBy == request.auth.uid
+        && request.resource.data.changedAt == request.time
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(request.resource.data.fromSection))
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(request.resource.data.toSection) || canTransferMember(request.resource.data.fromSection, request.resource.data.toSection))
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "changeType", "fromSection", "toSection", "fromStatus", "toStatus", "changedBy", "changedAt"]);
+      allow update, delete: if false;
+    }
+
+    match /events/{eventId} {
+      // Parents read safe consent-link projections; raw event records can contain leader-only notes.
+      allow get: if isSuperAdmin() || (isActiveLeader() && hasSection(resource.data.section));
+      allow list: if isSuperAdmin() || (isActiveLeader() && hasSection(resource.data.section));
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.eventType is string
+        && request.resource.data.startDate is string && request.resource.data.endDate is string
+        && request.resource.data.status in ["draft", "open", "closed", "completed"]
+        && validVersion3EventAudience(request.resource.data);
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && request.resource.data.status in ["draft", "open", "closed", "completed"]
+        && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "consentLinkToken", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
+      allow delete: if false;
+    }
+
+    match /events/{eventId}/audienceMembers/{memberId} {
+      allow get: if (isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
+        && resource.data.eventId == eventId)
+        || (isApprovedParentForMember(memberId) && isActiveMember(memberId));
+      allow list: if (isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
+        && resource.data.eventId == eventId)
+        || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId);
+      allow create, update: if validEventAudienceMembership(eventId, memberId);
+      allow delete: if isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
+    }
+
+    // Collection-group parent queries need a recursive match. The query itself
+    // constrains memberId to the approved parent's linked children.
+    match /{path=**}/audienceMembers/{memberId} {
+      allow list: if resource.data.get("eventId", "") is string
+        && resource.data.get("memberId", "") is string
+        && isApprovedParentForMember(resource.data.get("memberId", ""));
+    }
+
+    match /publicEvents/{eventId} {
+      function isSafePublicEvent() {
+        return resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt", "testData", "testSeed", "createdBySeed"])
+        && resource.data.title is string && resource.data.eventType is string
+        && resource.data.section is string && resource.data.startDate is string && resource.data.endDate is string;
+      }
+      allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent();
+      allow list: if true;
+      allow create: if isActiveLeader()
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.title is string && request.resource.data.eventType is string
+        && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.title is string && request.resource.data.eventType is string
+        && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
+      allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
+    }
+
+    match /parentGalleryEvents/{eventId} {
+      allow get: if resource.data.eventId == eventId
+        && resource.data.section is string
+        && resource.data.status in ["open", "closed", "completed"]
+        && isApprovedParentForSection(resource.data.section);
+      allow list: if resource.data.section is string
+        && isApprovedParentForSection(resource.data.section);
+      allow create: if isActiveLeader()
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.status in ["open", "closed", "completed"]
+        && request.resource.data.title is string
+        && request.resource.data.eventType is string
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && hasSection(resource.data.section)
+        && hasSection(request.resource.data.section)
+        && request.resource.data.eventId == eventId
+        && request.resource.data.status in ["open", "closed", "completed"]
+        && request.resource.data.title is string
+        && request.resource.data.eventType is string
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
+      allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
+    }
+
+    match /eventConsentLinks/{token} {
+      allow get: if (isActiveLeader() && hasSection(resource.data.section)) || resource.data.active == true;
+      allow list: if isSuperAdmin()
+        || (isActiveLeader() && hasSection(resource.data.section))
+        || (resource.data.active == true
+          && resource.data.get("audienceVersion", 2) in [1, 2]
+          && isApprovedParentForSection(resource.data.section))
+        || (resource.data.active == true
+          && resource.data.audienceVersion == 3
+          && resource.data.eventId is string
+          && isApprovedParentForEventRecord(resource.data.eventId));
+      allow create: if isActiveLeader() && hasSection(request.resource.data.section)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.eventId is string && request.resource.data.title is string
+        && request.resource.data.eventType is string && request.resource.data.startDate is string
+        && request.resource.data.endDate is string && request.resource.data.active is bool
+        && request.resource.data.audienceMemberIds is list && request.resource.data.audienceVersion in [2, 3];
+      allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
+        && (resource.data.audienceVersion != 3 || request.resource.data.audienceVersion == 3)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "startDate", "endDate", "consentRequired", "active", "audienceMemberIds", "audienceVersion", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /eventConsentResponses/{responseId} {
+      allow create: if request.resource.data.token is string && request.resource.data.eventId is string && request.resource.data.childName is string
+        && request.resource.data.dateOfBirth is string && request.resource.data.parentName is string && request.resource.data.attendance in ["attending", "not-attending"]
+        && request.resource.data.consentGiven is bool && request.resource.data.emergencyDetailsConfirmed is bool && request.resource.data.medicalDetailsChanged is bool
+        && request.resource.data.processingStatus == "new" && request.resource.data.submittedAt == request.time
+        && exists(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token))
+        && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.active == true
+        && get(/databases/$(database)/documents/eventConsentLinks/$(request.resource.data.token)).data.eventId == request.resource.data.eventId;
+      allow read: if isAdmin();
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["processingStatus", "matchedMemberId", "processedBy", "processedAt"])
+        && request.resource.data.processingStatus in ["matched", "ignored"] && request.resource.data.processedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /consentApplications/{consentId} {
+      allow create: if request.resource.data.status == "active"
+        && request.resource.data.source == "website"
+        && request.resource.data.submittedAt == request.time
+        && request.resource.data.section is string
+        && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
+        && request.resource.data.formVersion is string
+        && (request.resource.data.formType != "scouter-es3-medical-advice"
+          || (isActiveLeader()
+            && request.resource.data.submittedByUid == request.auth.uid
+            && request.resource.data.validityFrom is string
+            && request.resource.data.validityTo is string))
+        && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"])
+        && ((!request.resource.data.keys().hasAny(["memberId"]))
+          || (request.resource.data.formType == "youth-activity-consent"
+            && request.resource.data.memberId is string
+            && isApprovedParentForMember(request.resource.data.memberId)));
+      allow read: if (isActiveLeader() && ((resource.data.formType == "scouter-es3-medical-advice" && resource.data.submittedByUid == request.auth.uid) || isAdmin() || hasResourceSection(resource.data)
+          || (resource.data.memberId is string
+            && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
+            && canAccessMemberSections(get(/databases/$(database)/documents/members/$(resource.data.memberId)).data))))
+        || (resource.data.memberId is string && isApprovedParentForMember(resource.data.memberId));
+      allow update: if (isActiveLeader() && (isAdmin() || hasResourceSection(resource.data))
+          && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
+          && !request.resource.data.keys().hasAny(["scoutSection"])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "memberId", "linkedBy", "linkedAt", "updatedAt"]))
+        || (isSuperAdmin()
+          && resource.data.formType == "youth-activity-consent"
+          && request.resource.data.formType == resource.data.formType
+          && request.resource.data.memberId is string
+          && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+          && request.resource.data.reconciledBy == request.auth.uid
+          && request.resource.data.reconciledAt == request.time
+          && request.resource.data.reconciliationReason is string
+          && request.resource.data.reconciliationReason.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["memberId", "linkedBy", "linkedAt", "updatedAt", "reconciliationReason", "reconciledBy", "reconciledAt"]))
+        || (resource.data.formType == "youth-activity-consent" && resource.data.memberId is string
+          && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
+          && request.resource.data.parentUpdatedBy == request.auth.uid
+          && !request.resource.data.keys().hasAny(["scoutSection"])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
+      allow delete: if false;
+    }
+
+    match /meetingRecords/{meetingId} {
+      allow read: if isAdmin()
+        || isGroupLeader()
+        || isGroupSecretary()
+        || (isActiveLeader()
+          && resource.data.meetingType == "leader"
+          && resource.data.section is string
+          && hasSection(resource.data.section));
+      allow create: if isActiveLeader()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.meetingDate is string
+        && request.resource.data.attendees is list
+        && request.resource.data.meetingType in ["group", "leader"]
+        && ((request.resource.data.meetingType == "group" && isAdmin() && request.resource.data.section == "Group")
+          || (request.resource.data.meetingType == "leader" && request.resource.data.section is string && hasSection(request.resource.data.section)))
+        && (!request.resource.data.keys().hasAny(["attachment"]) || (request.resource.data.attachment is map
+          && request.resource.data.attachment.path is string
+          && request.resource.data.attachment.path.matches("attachments/meeting-documents/" + request.resource.data.section + "/" + meetingId + "/[^/]+/[^/]+")
+          && request.resource.data.attachment.fileName is string
+          && request.resource.data.attachment.contentType in ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"]
+          && request.resource.data.attachment.size is number && request.resource.data.attachment.size > 0 && request.resource.data.attachment.size <= 10 * 1024 * 1024
+          && request.resource.data.attachment.keys().hasOnly(["path", "fileName", "contentType", "size"])))
+        && request.resource.data.keys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "attachment", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && ((resource.data.meetingType == "group" && isAdmin())
+          || (resource.data.meetingType == "leader" && resource.data.section is string && hasSection(resource.data.section)))
+        && ((request.resource.data.meetingType == "group" && isAdmin() && request.resource.data.section == "Group")
+          || (request.resource.data.meetingType == "leader" && request.resource.data.section is string && hasSection(request.resource.data.section)))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "meetingType", "section", "meetingDate", "attendees", "notes", "decisions", "actions", "attachment", "updatedBy", "updatedAt"])
+        && (!request.resource.data.keys().hasAny(["attachment"]) || (request.resource.data.attachment is map
+          && request.resource.data.attachment.path is string
+          && request.resource.data.attachment.path.matches("attachments/meeting-documents/" + request.resource.data.section + "/" + meetingId + "/[^/]+/[^/]+")
+          && request.resource.data.attachment.fileName is string
+          && request.resource.data.attachment.contentType in ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.oasis.opendocument.text", "text/plain", "text/markdown", "text/html"]
+          && request.resource.data.attachment.size is number && request.resource.data.attachment.size > 0 && request.resource.data.attachment.size <= 10 * 1024 * 1024
+          && request.resource.data.attachment.keys().hasOnly(["path", "fileName", "contentType", "size"])))
+        && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /weeklyMeetings/{weeklyMeetingId} {
+      allow read: if isSuperAdmin()
+        || (isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader() || isGroupSecretary()));
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.meetingDate is string
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.plannedActivities is string
+        && request.resource.data.plannedBadgework is string
+        && request.resource.data.programmeNotes is string
+        && request.resource.data.notes is string
+        && request.resource.data.entries is list
+        && request.resource.data.injuries is list
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.plannedActivities is string
+        && request.resource.data.plannedBadgework is string
+        && request.resource.data.programmeNotes is string
+        && request.resource.data.notes is string
+        && request.resource.data.entries is list
+        && request.resource.data.injuries is list
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /programmeLibrary/{templateId} {
+      allow get, list: if isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader());
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.kind in ["activity", "badgework"]
+        && request.resource.data.name is string
+        && request.resource.data.leader is string
+        && request.resource.data.notes is string
+        && request.resource.data.equipment is string
+        && request.resource.data.durationMinutes is number
+        && request.resource.data.durationMinutes >= 0
+        && request.resource.data.durationMinutes <= 360
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["kind", "section", "name", "leader", "notes", "equipment", "durationMinutes", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section == resource.data.section
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && request.resource.data.kind in ["activity", "badgework"]
+        && request.resource.data.name is string
+        && request.resource.data.leader is string
+        && request.resource.data.notes is string
+        && request.resource.data.equipment is string
+        && request.resource.data.durationMinutes is number
+        && request.resource.data.durationMinutes >= 0
+        && request.resource.data.durationMinutes <= 360
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["kind", "name", "leader", "notes", "equipment", "durationMinutes", "updatedBy", "updatedAt"]);
+      allow delete: if isActiveLeader()
+        && resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader());
+    }
+
+    match /parentWeeklyMeetings/{weeklyMeetingId} {
+      allow get, list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
+      allow create: if isActiveLeader()
+        && request.resource.data.section is string
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.meetingDate is string
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.theme is string
+        && request.resource.data.activities is list
+        && request.resource.data.badgework is list
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
+      allow update: if isActiveLeader()
+        && resource.data.section is string
+        && request.resource.data.section is string
+        && (hasSection(resource.data.section) || isGroupLeader())
+        && (hasSection(request.resource.data.section) || isGroupLeader())
+        && request.resource.data.meetingDate is string
+        && request.resource.data.status in ["open", "closed"]
+        && request.resource.data.location is string
+        && request.resource.data.theme is string
+        && request.resource.data.activities is list
+        && request.resource.data.badgework is list
+        && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
+      allow delete: if false;
+    }
+
+    match /financeTransactions/{transactionId} {
+      allow get, list: if isSuperAdmin() || canAccessFinanceSection(resource.data.section);
+      allow create: if canAccessFinanceSection(request.resource.data.section)
+        && request.resource.data.type in ["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]
+        && request.resource.data.amountCents is number
+        && request.resource.data.category is string
+        && request.resource.data.description is string
+        && request.resource.data.transactionDate is string
+        && request.resource.data.sourceTransactionId is string
+        && request.resource.data.reversalOfTransactionId is string
+        && ((request.resource.data.type != "adjustment"
+            && request.resource.data.amountCents > 0
+            && request.resource.data.reversalOfTransactionId == "")
+          || (request.resource.data.type == "adjustment"
+            && request.resource.data.amountCents != 0
+            && request.resource.data.reversalOfTransactionId != ""
+            && transactionId == "reversal-" + request.resource.data.reversalOfTransactionId
+            && exists(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId))
+            && get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.section == request.resource.data.section
+            && get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type != "adjustment"
+            && ((get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type in ["opening-float", "income", "transfer-in"]
+                && request.resource.data.amountCents == -get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.amountCents)
+              || (get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.type in ["expense", "transfer-out"]
+                && request.resource.data.amountCents == get(/databases/$(database)/documents/financeTransactions/$(request.resource.data.reversalOfTransactionId)).data.amountCents))))
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["section", "type", "amountCents", "category", "description", "transactionDate", "sourceTransactionId", "reversalOfTransactionId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsRatePolicies/{policyId} {
+      allow get, list: if isActiveLeader();
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.period is string
+        && request.resource.data.effectiveFrom is string
+        && request.resource.data.periodStart is string
+        && request.resource.data.periodEnd is string
+        && request.resource.data.standardCents is number && request.resource.data.standardCents >= 0
+        && request.resource.data.leaderChildCents is number && request.resource.data.leaderChildCents >= 0
+        && request.resource.data.siblingCents is number && request.resource.data.siblingCents >= 0
+        && request.resource.data.standardFamilyRatesCents is list
+        && request.resource.data.standardFamilyRatesCents.size() >= 1
+        && request.resource.data.standardFamilyRatesCents[0] is number && request.resource.data.standardFamilyRatesCents[0] >= 0
+        && request.resource.data.leaderFamilyRatesCents is list
+        && request.resource.data.leaderFamilyRatesCents.size() >= 1
+        && request.resource.data.leaderFamilyRatesCents[0] is number && request.resource.data.leaderFamilyRatesCents[0] >= 0
+        && request.resource.data.standardCents == request.resource.data.standardFamilyRatesCents[0]
+        && request.resource.data.leaderChildCents == request.resource.data.leaderFamilyRatesCents[0]
+        && request.resource.data.version is number && request.resource.data.version >= 1
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["period", "effectiveFrom", "periodStart", "periodEnd", "standardCents", "leaderChildCents", "siblingCents", "standardFamilyRatesCents", "leaderFamilyRatesCents", "version", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsAccounts/{accountId} {
+      function hasConfiguredFamilyTotal(policy) {
+        return request.resource.data.childCount == request.resource.data.memberIds.size()
+          && request.resource.data.childCount >= 1
+          && ((request.resource.data.familyType == "standard"
+              && request.resource.data.childCount <= policy.standardFamilyRatesCents.size()
+              && request.resource.data.amountDueCents == policy.standardFamilyRatesCents[request.resource.data.childCount - 1])
+            || (request.resource.data.familyType == "leader"
+              && request.resource.data.childCount <= policy.leaderFamilyRatesCents.size()
+              && request.resource.data.amountDueCents == policy.leaderFamilyRatesCents[request.resource.data.childCount - 1]));
+      }
+      allow get, list: if canViewAllFinance();
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.period is string
+        && request.resource.data.policyId is string
+        && exists(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId))
+        && request.resource.data.policyVersion == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.version
+        && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
+        && request.resource.data.familyType in ["standard", "leader"]
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() >= 1
+        && request.resource.data.sections is list
+        && request.resource.data.sections.size() >= 1
+        && request.resource.data.childCount is number
+        && request.resource.data.amountDueCents is number
+        && request.resource.data.amountDueCents >= 0
+        && request.resource.data.classificationSource == "finance-officer-confirmed"
+        && request.resource.data.classificationNote is string
+        && request.resource.data.classificationNote.size() >= 3
+        && request.resource.data.classificationNote.size() <= 200
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && hasConfiguredFamilyTotal(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
+        && (!request.resource.data.keys().hasAny(["revision"]) || (request.resource.data.revision is number && request.resource.data.revision >= 2))
+        && (!request.resource.data.keys().hasAny(["supersedesAccountId"]) || (request.resource.data.supersedesAccountId is string
+          && exists(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId))
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.period == request.resource.data.period
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.policyId == request.resource.data.policyId
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.memberIds == request.resource.data.memberIds
+          && get(/databases/$(database)/documents/subsAccounts/$(request.resource.data.supersedesAccountId)).data.familyType != request.resource.data.familyType))
+        && (request.resource.data.keys().hasAny(["revision", "supersedesAccountId"]) == false || request.resource.data.keys().hasAll(["revision", "supersedesAccountId"]))
+        && request.resource.data.keys().hasOnly(["period", "policyId", "policyVersion", "familyType", "memberIds", "sections", "childCount", "amountDueCents", "classificationSource", "classificationNote", "revision", "supersedesAccountId", "createdBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsAssignments/{assignmentId} {
+      function isValidFamilyIncrement(rates, position, amount) {
+        return rates is list
+          && position is number
+          && position >= 1
+          && position <= rates.size()
+          && rates[position - 1] is number
+          && rates[position - 1] >= 0
+          && ((position == 1 && amount == rates[0])
+            || (position > 1
+              && rates[position - 2] is number
+              && rates[position - 2] >= 0
+              && rates[position - 1] >= rates[position - 2]
+              && amount == rates[position - 1] - rates[position - 2]));
+      }
+      function isValidFamilyAssignment(policy) {
+        return request.resource.data.familyType in ["standard", "leader"]
+          && request.resource.data.familyPosition is number
+          && request.resource.data.familyPosition >= 1
+          && ((request.resource.data.familyType == "standard"
+              && request.resource.data.leaderChild == false
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && ((request.resource.data.familyPosition == 1 && request.resource.data.category == "standard")
+                || (request.resource.data.familyPosition > 1 && request.resource.data.category == "sibling"))
+              && isValidFamilyIncrement(policy.standardFamilyRatesCents, request.resource.data.familyPosition, request.resource.data.amountDueCents))
+            || (request.resource.data.familyType == "leader"
+              && request.resource.data.leaderChild == true
+              && request.resource.data.sibling == (request.resource.data.familyPosition > 1)
+              && request.resource.data.category == "leader-child"
+              && isValidFamilyIncrement(policy.leaderFamilyRatesCents, request.resource.data.familyPosition, request.resource.data.amountDueCents)));
+      }
+      function isValidAccountLink() {
+        let accountId = request.resource.data.get("accountId", "");
+        let accountPath = /databases/$(database)/documents/subsAccounts/$(accountId);
+        return accountId != ""
+          && existsAfter(accountPath)
+          && request.resource.data.memberId in getAfter(accountPath).data.memberIds
+          && request.resource.data.period == getAfter(accountPath).data.period
+          && request.resource.data.policyId == getAfter(accountPath).data.policyId
+          && request.resource.data.policyVersion == getAfter(accountPath).data.policyVersion
+          && request.resource.data.familyType == getAfter(accountPath).data.familyType
+          && request.resource.data.accountAmountDueCents == getAfter(accountPath).data.amountDueCents
+          && request.resource.data.accountChildCount == getAfter(accountPath).data.childCount;
+      }
+      function hasNoAccountLink() {
+        return !request.resource.data.keys().hasAny(["accountId", "accountAmountDueCents", "accountChildCount"]);
+      }
+      allow get, list: if isActiveLeader()
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
+      allow create: if canManageSubsPolicy()
+        && request.resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && request.resource.data.memberName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
+        && request.resource.data.section == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.section
+        && request.resource.data.period is string
+        && request.resource.data.category in ["standard", "leader-child", "sibling"]
+        && request.resource.data.amountDueCents is number && request.resource.data.amountDueCents >= 0
+        && request.resource.data.policyId is string
+        && exists(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId))
+        && request.resource.data.policyVersion == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.version
+        && request.resource.data.period == get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data.period
+        && request.resource.data.sibling is bool && request.resource.data.leaderChild is bool
+        && isValidFamilyAssignment(get(/databases/$(database)/documents/subsRatePolicies/$(request.resource.data.policyId)).data)
+        && (hasNoAccountLink() || isValidAccountLink())
+        && request.resource.data.classifiedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(["memberId", "memberName", "section", "period", "category", "amountDueCents", "policyId", "policyVersion", "sibling", "leaderChild", "familyType", "familyPosition", "accountId", "accountAmountDueCents", "accountChildCount", "classifiedBy", "createdAt"]);
+      allow update, delete: if false;
+    }
+
+    match /subsPayments/{paymentId} {
+      function accountIdFor(data) { return data.get("accountId", ""); }
+      function hasValidSubsAccountLink() {
+        let accountId = accountIdFor(request.resource.data);
+        let accountPath = /databases/$(database)/documents/subsAccounts/$(accountId);
+        return accountId == ""
+          || (exists(accountPath)
+            && request.resource.data.memberId in get(accountPath).data.memberIds
+            && request.resource.data.period == get(accountPath).data.period);
+      }
+      function isExactSubsReversal() {
+        let originalId = request.resource.data.reversalOfPaymentId;
+        let originalPath = /databases/$(database)/documents/subsPayments/$(originalId);
+        let original = get(originalPath).data;
+        return originalId is string
+          && originalId != ""
+          && paymentId == "reversal-" + originalId
+          && exists(originalPath)
+          && original.reversalOfPaymentId == ""
+          && request.resource.data.amountCents == -original.amountCents
+          && request.resource.data.memberId == original.memberId
+          && request.resource.data.memberName == original.memberName
+          && request.resource.data.section == original.section
+          && request.resource.data.period == original.period
+          && accountIdFor(request.resource.data) == accountIdFor(original)
+          && request.resource.data.method == original.method;
+      }
+      allow get, list: if isActiveLeader()
+        && (canViewAllFinance()
+          || (resource.data.section is string && hasSection(resource.data.section)));
+      allow create: if canAccessFinanceSection(request.resource.data.section)
+        && request.resource.data.memberId is string
+        && exists(/databases/$(database)/documents/members/$(request.resource.data.memberId))
+        && request.resource.data.memberName == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.displayName
+        && request.resource.data.section == get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.section
+        && request.resource.data.period is string
+        && request.resource.data.method in ["bank", "cash", "revolut", "other"]
+        && request.resource.data.paymentDate is string
+        && request.resource.data.note is string
         && request.resource.data.recordedBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && hasValidSubsAccountLink()
