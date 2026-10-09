@@ -33,7 +33,18 @@ test.describe("approved parent journey", () => {
     await loginParent(page);
     const parentConsentSaveErrors: string[] = [];
     page.on("console", (message) => {
-      if (message.type() === "error" && message.text().includes("Unable to update parent consent:")) parentConsentSaveErrors.push(message.text());
+      if (message.type() === "error") parentConsentSaveErrors.push(`console: ${message.text()}`);
+    });
+    page.on("pageerror", (error) => parentConsentSaveErrors.push(`pageerror: ${error.message}`));
+    page.on("requestfailed", (request) => {
+      if (/firestore|identitytoolkit|securetoken/i.test(request.url())) {
+        parentConsentSaveErrors.push(`requestfailed: ${request.method()} ${request.url()} ${request.failure()?.errorText || "unknown"}`);
+      }
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 400 && /firestore|identitytoolkit|securetoken/i.test(response.url())) {
+        parentConsentSaveErrors.push(`http ${response.status()}: ${response.request().method()} ${response.url()}`);
+      }
     });
 
     const childSelect = page.getByRole("combobox", { name: "Viewing information for" });
