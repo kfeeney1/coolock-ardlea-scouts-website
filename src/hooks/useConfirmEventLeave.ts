@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type LeaveRequest =
@@ -22,7 +22,8 @@ function hasGuard(state: unknown, guard: string): boolean {
 export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
   const location = useLocation();
   const navigate = useNavigate();
-  const guardId = useId();
+  // A remounted editor must not mistake a previous visit's history marker for its own.
+  const [guardId] = useState(() => `event-edit:${crypto.randomUUID()}`);
   const dialogGuardId = `dialog:${guardId}`;
   const saveRef = useRef(saveDraft);
   const dirtyRef = useRef(dirty);
