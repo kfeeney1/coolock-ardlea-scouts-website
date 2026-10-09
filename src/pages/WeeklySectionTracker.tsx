@@ -39,6 +39,8 @@ export default function WeeklySectionTracker() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const meetingId=searchParams.get("meeting")??"";
+  const meetingIdRef=useRef(meetingId);
+  meetingIdRef.current=meetingId;
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [access,setAccess]=useState<WeeklyAccess>({scoutingRole:"",canViewAll:false,canEditAll:false,readOnly:false});
   const [members,setMembers]=useState<AttendanceInsightMember[]>([]);
@@ -83,7 +85,7 @@ export default function WeeklySectionTracker() {
   const refresh=async(known?:WeeklyAccess,reportFailure=false)=>{
     setLoading(true); setError("");
     try {
-      const a=known??await loadWeeklyAccess(); setAccess(a);
+      const a=known??await loadWeeklyAccess();
       const all=isAdmin||a.canViewAll;
       const [m,r,l,items,loans]=await Promise.all([
         loadAttendanceInsightMembers({isAdmin:Boolean(all),sections:availableSections}),
@@ -92,6 +94,8 @@ export default function WeeklySectionTracker() {
         loadEquipmentItems(),
         loadEquipmentLoans()
       ]);
+      if(meetingIdRef.current!==meetingId)return;
+      setAccess(a);
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
       const requested=r.find(x=>x.id===meetingId);
       if(requested){setSelected(requested);setSavedSelected(requested);setStep(initialWeeklyStep(requested.meetingDate));}
