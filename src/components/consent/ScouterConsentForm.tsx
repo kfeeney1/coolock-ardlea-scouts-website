@@ -472,6 +472,7 @@ export default function ScouterConsentForm({
                         variant="outlined"
                         color="secondary"
                         component={Link} to={backTo}
+                        sx={{ minHeight: 44 }}
                     >
                         {backLabel}
                     </Button>
@@ -530,7 +531,8 @@ export default function ScouterConsentForm({
                     sx={{
                         mt: 1.5,
                         color: "white",
-                        borderColor: "white"
+                        borderColor: "white",
+                        minHeight: 44
                     }}
                     variant="outlined"
                 >
