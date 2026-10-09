@@ -146,7 +146,18 @@ export default function TransientOverlayBackDismissBridge() {
     if (routeDeparturePending.current && surfaces.length > markerCount) routeDeparturePending.current = false;
 
     if (pendingCloseFromMarkerCount.current !== null) {
-      if (markerCount >= pendingCloseFromMarkerCount.current) return;
+      if (markerCount >= pendingCloseFromMarkerCount.current) {
+        // If another surface opens before the close marker is consumed, let the
+        // existing marker cover it instead of dismissing the newly opened surface.
+        if (surfaces.length > markerCount && pendingCloseTimer.current !== null) {
+          window.clearTimeout(pendingCloseTimer.current);
+          pendingCloseTimer.current = null;
+          pendingCloseFromMarkerCount.current = null;
+          consumingClose.current = false;
+        } else {
+          return;
+        }
+      }
       pendingCloseFromMarkerCount.current = null;
     }
 
