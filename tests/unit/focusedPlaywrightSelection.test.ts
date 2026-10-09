@@ -27,10 +27,27 @@ test("activity changes retain all focused meeting regressions and navigation che
     [...selectFocusedGroups(["e2e/sw362-event-edit-navigation.spec.ts", "src/hooks/useConfirmEventLeave.ts"])],
     ["activities", "navigation"]
   );
-  assert.deepEqual(
-    [...selectFocusedGroups(["tests/unit/focusedPlaywrightSelection.test.ts"])],
-    ["activities", "navigation"]
-  );
+
+});
+
+test("backup workflows and focused selector-only changes do not start browser jobs", () => {
+  for (const path of [
+    ".github/workflows/firestore-backup-freshness.yml",
+    ".github/workflows/firestore-backup.yml",
+    "scripts/focused-playwright-selection.mjs",
+    "tests/unit/focusedPlaywrightSelection.test.ts"
+  ]) {
+    assert.deepEqual([...selectFocusedGroups([path])], [], path);
+    assert.match(formatFocusedOutputs(selectFocusedGroups([path])), /^run=false\\n/);
+  }
+  assert.deepEqual([...selectFocusedGroups([
+    "scripts/focused-playwright-selection.mjs",
+    "tests/unit/focusedPlaywrightSelection.test.ts",
+    ".github/workflows/firestore-backup-freshness.yml"
+  ])], []);
+  assert.deepEqual([...selectFocusedGroups([
+    "scripts/focused-playwright-selection.mjs", "src/services/weeklyTracker.ts"
+  ])], ["activities", "navigation"]);
 });
 
 test("poll and communications changes select their own focused assertions", () => {
