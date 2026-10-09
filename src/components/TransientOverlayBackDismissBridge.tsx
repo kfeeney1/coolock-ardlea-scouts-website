@@ -182,7 +182,7 @@ export default function TransientOverlayBackDismissBridge() {
           return;
         }
         navigate(-1);
-      }, 100);
+      }, 0);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 
