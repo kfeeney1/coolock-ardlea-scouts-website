@@ -45,6 +45,13 @@ export default function TransientOverlayBackDismissBridge() {
   const consumingClose = useRef(false);
   // Serialise UI-driven overlay closes so nested surfaces cannot consume the same history entry.
   const pendingCloseFromMarkerCount = useRef<number | null>(null);
+  const pendingCloseTimer = useRef<number | null>(null);
+  const routeDeparturePending = useRef(false);
+  const documentDeparturePending = useRef(false);
+  const routeUrl = `${location.pathname}${location.search}${location.hash}`;
+  const currentUrl = useRef(routeUrl);
+  const previousUrl = useRef(routeUrl);
+  currentUrl.current = routeUrl;
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
@@ -62,6 +69,55 @@ export default function TransientOverlayBackDismissBridge() {
     });
     return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    const cancelPendingClose = () => {
+      if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+      pendingCloseTimer.current = null;
+      pendingCloseFromMarkerCount.current = null;
+      consumingClose.current = false;
+    };
+    const handleNavigation = (event: Event) => {
+      const destination = (event as Event & { destination?: { url?: string; sameDocument?: boolean } }).destination;
+      const destinationUrl = destination?.url;
+      const navigationType = (event as Event & { navigationType?: string }).navigationType;
+      if (!destinationUrl && navigationType !== "reload") return;
+      try {
+        if (navigationType === "reload" || destination?.sameDocument === false) documentDeparturePending.current = true;
+        const target = destinationUrl ? new URL(destinationUrl) : null;
+        if (documentDeparturePending.current || (target && `${target.pathname}${target.search}${target.hash}` !== currentUrl.current)) {
+          routeDeparturePending.current = true;
+          cancelPendingClose();
+        }
+      } catch {
+        routeDeparturePending.current = true;
+        cancelPendingClose();
+      }
+    };
+    const handleBeforeUnload = () => {
+      documentDeparturePending.current = true;
+      routeDeparturePending.current = true;
+      cancelPendingClose();
+    };
+    const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
+    navigationApi?.addEventListener("navigate", handleNavigation);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      navigationApi?.removeEventListener("navigate", handleNavigation);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      cancelPendingClose();
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (previousUrl.current === routeUrl) return;
+    previousUrl.current = routeUrl;
+    routeDeparturePending.current = true;
+    if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+    pendingCloseTimer.current = null;
+    pendingCloseFromMarkerCount.current = null;
+    consumingClose.current = false;
+  }, [routeUrl]);
 
   useLayoutEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -94,8 +150,30 @@ export default function TransientOverlayBackDismissBridge() {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
 
+    // DOM mutations from the departing document must never restart history
+    // cleanup while the destination response or reload is still pending.
+    if (documentDeparturePending.current) return;
+
+    if (routeDeparturePending.current && surfaces.length <= markerCount) {
+      previousMarkerCount.current = markerCount;
+      latestMarkerCount.current = markerCount;
+      return;
+    }
+    if (routeDeparturePending.current && surfaces.length > markerCount) routeDeparturePending.current = false;
+
     if (pendingCloseFromMarkerCount.current !== null) {
-      if (markerCount >= pendingCloseFromMarkerCount.current) return;
+      if (markerCount >= pendingCloseFromMarkerCount.current) {
+        // If another surface opens before the close marker is consumed, let the
+        // existing marker cover it instead of dismissing the newly opened surface.
+        if (surfaces.length >= markerCount && pendingCloseTimer.current !== null) {
+          window.clearTimeout(pendingCloseTimer.current);
+          pendingCloseTimer.current = null;
+          pendingCloseFromMarkerCount.current = null;
+          consumingClose.current = false;
+        } else {
+          return;
+        }
+      }
       pendingCloseFromMarkerCount.current = null;
     }
 
@@ -122,7 +200,16 @@ export default function TransientOverlayBackDismissBridge() {
     if (surfaces.length < markerCount) {
       pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
-      navigate(-1);
+      if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+      pendingCloseTimer.current = window.setTimeout(() => {
+        pendingCloseTimer.current = null;
+        if (routeDeparturePending.current) {
+          pendingCloseFromMarkerCount.current = null;
+          consumingClose.current = false;
+          return;
+        }
+        navigate(-1);
+      }, 500);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 

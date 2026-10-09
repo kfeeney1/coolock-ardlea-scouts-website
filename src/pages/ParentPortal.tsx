@@ -58,6 +58,31 @@ export default function ParentPortal() {
     const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
+    useEffect(() => {
+        const cancelPendingChildCommit = () => {
+            if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
+            childCommitTimerRef.current = null;
+            pendingChildIdRef.current = null;
+        };
+        const handleNavigation = (event: Event) => {
+            const destinationUrl = (event as Event & { destination?: { url?: string } }).destination?.url;
+            if (!destinationUrl) return;
+            try {
+                if (new URL(destinationUrl).pathname !== "/parent") cancelPendingChildCommit();
+            } catch {
+                cancelPendingChildCommit();
+            }
+        };
+        const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
+        navigationApi?.addEventListener("navigate", handleNavigation);
+        window.addEventListener("beforeunload", cancelPendingChildCommit);
+        return () => {
+            navigationApi?.removeEventListener("navigate", handleNavigation);
+            window.removeEventListener("beforeunload", cancelPendingChildCommit);
+            cancelPendingChildCommit();
+        };
+    }, []);
+
     const loadAccount = useCallback(async () => {
         if (adminAuthLoading) return;
         if (!user) { setAccount(null); setAccountLoadError(null); setAccountReady(true); return; }

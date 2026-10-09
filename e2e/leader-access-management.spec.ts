@@ -347,11 +347,12 @@ test("SW-257 places primary-section leaders before valid secondary-section match
     const search = page.getByLabel("Search leaders");
     await search.fill("Cubs");
     expect(await ids()).toEqual(expectedCubsOrder);
+    await expect(page).toHaveURL(/section=Cubs.*q=Cubs/);
     await page.reload();
-    await expect(page.getByLabel("Search leaders")).toHaveValue("");
+    await expect(page.getByLabel("Search leaders")).toHaveValue("Cubs");
     const reloadedSectionFilter = page.getByRole("combobox", { name: "Filter by section" });
-    await reloadedSectionFilter.click();
-    await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    await expect(reloadedSectionFilter).toHaveText("Cubs");
+    await expect(page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader")).toBeVisible();
     expect(await ids()).toEqual(expectedCubsOrder);
 
     await page.goto("/leader/access");
