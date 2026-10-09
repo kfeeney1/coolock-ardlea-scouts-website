@@ -91,6 +91,26 @@ test("combined leader and parent can switch contexts, reload and sign in again w
   await expectChildOptions(page, 2);
 });
 
+test("leaving Parent Portal cancels a pending child selection commit", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "The delayed full-page navigation race runs on desktop Chromium.");
+  const email = process.env.E2E_PARENT_LEADER_EMAIL;
+  test.skip(!email, "Configure canonical combined account.");
+  await signIn(page, email!, true);
+  await openParentFromHeader(page, testInfo);
+  await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Viewing information for" }).click();
+  await page.locator('[role="option"][data-value="TEST_member_beaver_06"]').click();
+  await page.route("**/leader/members", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    await route.continue();
+  });
+
+  const response = await page.goto("/leader/members");
+  expect(response?.ok()).toBe(true);
+  await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
+});
+
 test("parent-only account retains portal navigation and cannot enter Leader Dashboard", async ({ page }, testInfo) => {
   const email = process.env.E2E_PARENT_EMAIL;
   test.skip(!email, "Configure canonical parent account.");
