@@ -168,7 +168,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(summary).toContainText(/(\d+)\/\1 present/);
 
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 2", { exact: true })).toHaveValue("Teamwork"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework equipment 1", { exact: true })).toHaveValue("Rope and pioneering poles"); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-warning")).toBeVisible();
-  await page.getByLabel("Theme").fill("Unsaved navigation draft"); await page.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await expect(page.getByTestId("weekly-meeting-copy-form")).toBeVisible(); await expect(page.getByText("Meeting saved.")).toBeVisible(); await page.getByRole("button", { name: "Cancel", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Unsaved navigation draft"); await page.getByLabel("Theme").fill("Navigation Night"); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
+  await page.getByLabel("Theme").fill("Unsaved navigation draft"); await page.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await expect(page.getByRole("dialog", { name: /Copy .*Scouts/ })).toBeVisible(); await expect(page.getByText("Meeting saved.")).toBeVisible(); await page.getByRole("button", { name: "Cancel copy", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Unsaved navigation draft"); await page.getByLabel("Theme").fill("Navigation Night"); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText("Meeting saved.")).toBeVisible();
 
   const editedDate = addDays(lifecycle.date, 1);
   await page.getByRole("button", { name: "Edit Meeting", exact: true }).click(); await page.getByLabel("Meeting date").fill(editedDate); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await page.reload(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Meeting date")).toHaveValue(editedDate); await page.getByLabel("Meeting date").fill(lifecycle.date); await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
@@ -235,4 +235,44 @@ test("SW-264 mobile meeting editor exposes canonical Create Meeting route", asyn
   await create.click();
   await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+});
+
+
+test("SW-363 Copy Meeting opens an accessible dialog in view and restores focus and scroll", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Copy dialog visibility runs at representative desktop and mobile sizes.");
+  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+  const viewport = testInfo.project.name === "mobile-chromium" ? { width: 390, height: 844 } : { width: 1280, height: 800 };
+  await page.setViewportSize(viewport);
+  await login(page, adminEmail!);
+  await page.goto("/leader/weekly");
+
+  const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
+  await expect(source).toBeVisible();
+  const copyButton = source.getByRole("button", { name: "Copy Meeting", exact: true });
+  await copyButton.scrollIntoViewIfNeeded();
+  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(pageHeight).toBeGreaterThan(viewport.height + 200);
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+
+  await copyButton.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("aria-labelledby", "copy-weekly-meeting-title");
+  await expect(dialog).toContainText("Scouts");
+  await expect(dialog.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
+  const destination = dialog.getByRole("combobox", { name: "Destination section" });
+  await expect(destination).toBeFocused();
+
+  const bounds = await dialog.locator(".MuiDialog-paper").boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height + 1);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(copyButton).toBeFocused();
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(3);
 });
