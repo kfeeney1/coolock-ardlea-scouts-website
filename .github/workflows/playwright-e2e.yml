@@ -7,14 +7,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# PR updates run focused regressions and both shards; manual dispatch runs the full suite.
+# PRs verify focused selection policy and run selected E2E shards; manual dispatch runs the full suite.
 
 permissions:
   contents: read
 
 jobs:
   focused_selection:
-    name: Select focused regressions
+    name: Focused PR assurance
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+      - name: Verify focused selection policy
+        run: node --experimental-strip-types --test tests/unit/focusedPlaywrightSelection.test.ts
       - name: Select focused regressions from changed paths
         id: selection
         env:
@@ -45,125 +50,6 @@ jobs:
             node scripts/focused-playwright-selection.mjs --force-all > "$selected_outputs"
           fi
           cat "$selected_outputs" >> "$GITHUB_OUTPUT"
-
-  focused_pr:
-    name: Focused PR assurance
-    needs: focused_selection
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.focused_selection.outputs.run == 'true' }}
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --user 1001
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: bash
-    env:
-      VITE_APP_ENV: local
-      VITE_FIREBASE_API_KEY: demo-api-key
-      VITE_FIREBASE_AUTH_DOMAIN: demo-coolock-ardlea-scouts.firebaseapp.com
-      VITE_FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
-      VITE_FIREBASE_STORAGE_BUCKET: demo-coolock-ardlea-scouts.appspot.com
-      VITE_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
-      VITE_FIREBASE_APP_ID: 1:000000000000:web:local
-      VITE_EMAIL_API_URL: http://127.0.0.1:8787
-      VITE_FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
-      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
-      VITE_FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
-      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
-      VITE_FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
-      FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
-      FIREBASE_PROJECT_ID: demo-coolock-ardlea-scouts
-      E2E_BASE_URL: http://127.0.0.1:4173
-      E2E_TEST_USER_PASSWORD: password1
-      E2E_DEPLOYMENT_SMOKE_CONTRACT: 'true'
-      E2E_LEADER_JOURNEY_SEEDED: 'true'
-      E2E_PARENT_EMAIL: test.beaver.parent1@example.com
-      E2E_PARENT_LEADER_EMAIL: test.beaver.section.leader@example.com
-      E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
-      E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
-      E2E_GROUP_YOUTH_CHAMPION_EMAIL: test.multi.section.group.youth.champion@example.com
-      E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
-      E2E_ADMIN_EMAIL: test.webadmin@example.com
-      E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
-      E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --no-audit
-      - run: npm run build
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
-        with:
-          distribution: temurin
-          java-version: '21'
-      - run: npm install --no-save --package-lock=false --include=optional --no-audit firebase-admin@14.3.0 firebase-tools@15.28.1 "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
-      - name: Start emulators
-        run: |
-          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
-          for i in {1..45}; do if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/firebase-emulator.log; exit 1
-      - name: Create emulator credential
-        run: |
-          node <<'NODE'
-          const {generateKeyPairSync}=require("node:crypto"); const {writeFileSync,appendFileSync}=require("node:fs");
-          const {privateKey}=generateKeyPairSync("rsa",{modulusLength:2048,publicKeyEncoding:{type:"spki",format:"pem"},privateKeyEncoding:{type:"pkcs8",format:"pem"}});
-          const projectId=process.env.FIREBASE_PROJECT_ID,path="/tmp/firebase-emulator-credential.json";
-          writeFileSync(path,JSON.stringify({type:"service_account",project_id:projectId,private_key_id:"emulator-only",private_key:privateKey,client_email:`firebase-adminsdk-emulator@${projectId}.iam.gserviceaccount.com`,client_id:"000000000000000000000",auth_uri:"https://accounts.google.com/o/oauth2/auth",token_uri:"https://oauth2.googleapis.com/token"}),{mode:0o600}); appendFileSync(process.env.GITHUB_ENV,`GOOGLE_APPLICATION_CREDENTIALS=${path}\n`);
-          NODE
-      - name: Seed focused dataset
-        run: |
-          node scripts/seed-population-data.mjs seed
-          node scripts/seed-superadmin-login.mjs
-          node scripts/seed-flow-data.mjs
-          node scripts/seed-public-site-content.mjs seed
-          node scripts/seed-playwright-records.mjs
-          node scripts/rebuild-public-leadership.mjs
-      - name: Start tested build
-        run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
-          for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
-          cat /tmp/vite-preview.log; exit 1
-      - name: Run focused SW-362 event edit navigation regressions
-        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/sw362-event-edit-navigation.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
-      - name: Run focused SW-320 navigation failure regressions
-        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
-        run: npx --no-install playwright test e2e/member-leader-transition.spec.ts e2e/role-permissions.spec.ts e2e/equipment-leader-dashboard.spec.ts e2e/leader-access-management.spec.ts e2e/event-record-page.spec.ts e2e/parent-leader-context.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep 'approved transition ends youth membership and prevents reusing the link|ordinary leader opens their Scouter form from My Profile with keyboard access|SW-320 QM report navigation preserves its equipment view on desktop and mobile|shows the Leader Dashboard and expandable menu on Android-sized mobile|SW-257 places primary-section leaders|event editor saves valid edits before app and browser back navigation|leaving Parent Portal cancels a pending child selection commit|reloading Parent Portal after closing a select preserves the destination'
-      - name: Run focused SW-357 poll lifecycle
-        if: ${{ needs.focused_selection.outputs.polls == 'true' }}
-        run: npx --no-install playwright test e2e/polls.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "a scoped poll is explicitly published, answered once, and persists after reload"
-      - name: Run focused SW-320 navigation regressions (desktop and mobile)
-        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
-        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
-      - name: Run focused SW-369 weekly meeting return navigation
-        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
-        run: npx --no-install playwright test e2e/weekly-meeting-navigation.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "SW-369"
-      - name: Run focused SW-363 copy dialog regression
-        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/weekly-meeting-copy-dialog.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "SW-363"
-      - name: Run focused SW-320 Event Record regressions on mobile
-        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
-        run: npx --no-install playwright test e2e/event-record-page.spec.ts --project=mobile-chromium --retries=0 --timeout=30000
-      - name: Run focused SW-170 tests
-        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
-      - name: Repeat isolated SW-355 lifecycle on persistent emulator state
-        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --repeat-each=2 --timeout=30000 --grep "section leader completes lifecycle with flexible planner rows, summary and retained save state"
-      - name: Run SW-317 signed-out route alone on desktop and mobile
-        if: ${{ needs.focused_selection.outputs.communications == 'true' }}
-        run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "communications route rejects unauthenticated users after authenticated journeys"
-      - name: Run SW-317 communications suite after authenticated journeys
-        if: ${{ needs.focused_selection.outputs.communications == 'true' }}
-        run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
-      - name: Run focused blocking regressions
-        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
-        run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|group leader copies a meeting into another authorised section and resets operational history"
 
   e2e_shard:
     name: e2e shard ${{ matrix.id }} of 2
@@ -209,6 +95,7 @@ jobs:
       E2E_LEADER_EMAIL: test.scout.programme.scouter@example.com
       E2E_MULTI_SECTION_LEADER_EMAIL: test.multi.section.leader@example.com
       E2E_MULTI_SECTION_LEADER_SECTIONS: Beavers,Cubs
+      E2E_GROUP_YOUTH_CHAMPION_EMAIL: test.group.youth.champion@example.com
       E2E_ADMIN_EMAIL: test.webadmin@example.com
       E2E_SUPER_ADMIN_EMAIL: superadmin@example.com
       E2E_MODERN_SUPER_ADMIN_EMAIL: modernsuperadmin@example.com

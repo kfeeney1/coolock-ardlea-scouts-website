@@ -24,9 +24,18 @@ export function selectFocusedGroups(changedFiles, { forceAll = false } = {}) {
     // Email worker changes have their own required unit tests; the E2E PR
     // selector conservatively falls back to the full browser suite for them.
     if (file.startsWith("email-worker/")) continue;
-    if (file.startsWith(".github/workflows/")) return new Set(allGroups);
+    // Selector logic and its unit tests are verified by the required Quality job.
+    // They do not change the application and must not start the browser emulator.
+    if (file === "scripts/focused-playwright-selection.mjs" ||
+        file === "tests/unit/focusedPlaywrightSelection.test.ts") continue;
+    if (file.startsWith(".github/workflows/")) {
+      // Operational workflows do not change browser behaviour. Keep broad
+      // coverage for workflows that actually control application E2E or deploys.
+      if (file === ".github/workflows/firestore-backup-freshness.yml" ||
+          file === ".github/workflows/firestore-backup.yml") continue;
+      return new Set(allGroups);
+    }
     if ([
-      "scripts/focused-playwright-selection.mjs",
       "scripts/playwright-suites.mjs",
       "scripts/run-playwright-suite.mjs",
       "playwright.config.ts",
