@@ -111,12 +111,17 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   await expect(page.getByTestId("weekly-history-no-results")).toBeVisible();
   await search.fill("");
 
+  const sectionMenu = page.getByRole("listbox");
   await section.click();
+  await expect(sectionMenu).toBeVisible();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
+  await expect(sectionMenu).toBeHidden();
   await expect(page.locator('[data-testid^="meeting-history-"][data-section="Beavers"]').first()).toBeVisible();
   await expect(page.locator('[data-testid^="meeting-history-"][data-section="Rovers"]')).toHaveCount(0);
   await section.click();
+  await expect(sectionMenu).toBeVisible();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await expect(sectionMenu).toBeHidden();
   await expect(page.locator('[data-testid^="meeting-history-"][data-section="Cubs"]').first()).toBeVisible();
   await expect(page.locator('[data-testid^="meeting-history-"][data-section="Beavers"]')).toHaveCount(0);
 
