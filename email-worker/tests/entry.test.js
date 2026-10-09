@@ -267,10 +267,10 @@ test("SW-270 initial notices read authoritative data and repeated requests do no
     assert.match(sent[2].body.text, /sign in to the Parent Portal/i);
     assert.match(sent[2].body.text, /link or verify the accepted member/i);
     assert.match(sent[2].body.text, /open Consent & Medical inside the portal/i);
-    assert.match(sent[2].body.html, /https:\/\/coolock-ardlea-scouts-test\.web\.app\/parent/);
-    const acceptedPortalUrl = sent[2].body.html.match(/href="([^"]+)"/)?.[1];
-    assert.equal(acceptedPortalUrl, "https://coolock-ardlea-scouts-test.web.app/parent");
-    assert.doesNotMatch(acceptedPortalUrl, /consent|joinToken|application|member/i);
+    const acceptedEmailLinks = [...sent[2].body.html.matchAll(/href="([^"]+)"/g)].map(([, url]) => url);
+    const acceptedPortalUrl = "https://coolock-ardlea-scouts-test.web.app/parent";
+    assert.equal(acceptedEmailLinks.filter((url) => url === acceptedPortalUrl).length, 1);
+    assert.doesNotMatch(acceptedEmailLinks.join("\n"), /consent|joinToken|application|member/i);
     assert.doesNotMatch(sent[2].body.text, /Rory Scout|Beavers|member-1|app-1|joinToken=/i);
     assert.equal(new Set(sent.map((item) => item.key)).size, 3);
     const joinToken = await issueJoinConsentToken(env, "app-1", 60);
