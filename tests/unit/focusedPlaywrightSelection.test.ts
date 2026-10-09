@@ -68,7 +68,7 @@ test("unknown shared paths and Playwright workflow edits conservatively run all 
 test("focused assurance verifies selection policy without legacy browser journeys", () => {
   assert.match(workflow, /name: Focused PR assurance/);
   assert.match(workflow, /name: Verify focused selection policy/);
-  assert.match(workflow, /node --experimental-strip-types --test tests\\/unit\\/focusedPlaywrightSelection\\.test\\.ts/);
+  assert.ok(workflow.includes("node --experimental-strip-types --test tests/unit/focusedPlaywrightSelection.test.ts"));
   assert.doesNotMatch(workflow, /  focused_pr:/);
   assert.doesNotMatch(workflow, /Run focused SW-320|Run focused SW-362|Run focused SW-170/);
   assert.match(workflow, /  e2e_shard:/);
