@@ -11,6 +11,7 @@ export type LeaderAttendanceEntry = {
   attendance: LeaderAttendanceStatus;
 };
 export type ActivityAttendanceKind = "weeklyMeetings" | "events";
+const RULES_SAFE_WRITE_CHUNK_SIZE = 3;
 
 function activityCollection(kind: ActivityAttendanceKind, id: string) {
   return collection(db, kind, id, "leaderAttendance");
@@ -57,17 +58,26 @@ export async function saveLeaderAttendance(kind: ActivityAttendanceKind, id: str
   const target = activityCollection(kind, id);
   const existing = await getDocs(query(target));
   const nextByUid = new Map(entries.map((entry) => [entry.leaderUid, entry]));
-  const batch = writeBatch(db);
-  for (const item of existing.docs) if (!nextByUid.has(item.id)) batch.delete(item.ref);
-  for (const entry of nextByUid.values()) {
-    batch.set(doc(target, entry.leaderUid), {
+  const operations = [
+    ...existing.docs.filter((item) => !nextByUid.has(item.id)).map((item) => ({ ref: item.ref, remove: true as const })),
+    ...[...nextByUid.values()].map((entry) => ({
+      ref: doc(target, entry.leaderUid),
+      data: {
       displayName: entry.displayName.slice(0, 120),
       appointments: [...new Set(entry.appointments)].slice(0, 12),
       sections: [...new Set(entry.sections)].slice(0, 6),
       attendance: entry.attendance,
       updatedBy: user.uid,
       updatedAt: serverTimestamp()
-    });
+      }
+    }))
+  ];
+  for (let index = 0; index < operations.length; index += RULES_SAFE_WRITE_CHUNK_SIZE) {
+    const batch = writeBatch(db);
+    for (const operation of operations.slice(index, index + RULES_SAFE_WRITE_CHUNK_SIZE)) {
+      if ("remove" in operation) batch.delete(operation.ref);
+      else batch.set(operation.ref, operation.data);
+    }
+    await batch.commit();
   }
-  await batch.commit();
 }
