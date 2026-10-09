@@ -54,13 +54,14 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
   await expect(helperResult).toBeVisible();
   await leaderPanel.getByRole("button", { name: "Add Beavers Assistant Section Leader" }).click();
   const helperRow = leaderPanel.getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
-  await helperRow.getByRole("combobox", { name: "Leader attendance" }).selectOption("present");
+  await helperRow.getByRole("combobox", { name: "Leader attendance" }).click();
+  await page.getByRole("option", { name: "Present", exact: true }).click();
   await page.getByRole("button", { name: "Save Meeting" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Meeting saved." })).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const restoredLeaderRow = page.getByTestId("leader-attendance-section").getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
-  await expect(restoredLeaderRow.getByRole("combobox", { name: "Leader attendance" })).toHaveValue("present");
+  await expect(restoredLeaderRow.getByRole("combobox", { name: "Leader attendance" })).toHaveText("Present");
 
   const pageWidth = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(pageWidth.content).toBeLessThanOrEqual(pageWidth.viewport);
