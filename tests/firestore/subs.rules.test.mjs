@@ -32,6 +32,7 @@ test("Treasurer, Group Leader and admins can manage policies while ordinary lead
  ]);
  const td=env.authenticatedContext("treasurer").firestore(); const gd=env.authenticatedContext("gl").firestore(); const ad=env.authenticatedContext("admin").firestore(); const ld=env.authenticatedContext("leader").firestore();
  await assertSucceeds(setDoc(doc(td,"subsRatePolicies/2026-v1"),policy()));
+ await assertFails(setDoc(doc(td,"subsRatePolicies/2026-v1"),policy()));
  await assertSucceeds(setDoc(doc(ad,"subsRatePolicies/2026-v2"),{...policy("admin"),version:2}));
  await assertSucceeds(setDoc(doc(gd,"subsPayments/group-payment"),payment("gl")));
  await assertFails(setDoc(doc(ld,"subsRatePolicies/no"),policy("leader")));

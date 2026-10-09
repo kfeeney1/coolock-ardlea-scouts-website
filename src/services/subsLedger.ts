@@ -25,7 +25,7 @@ import {
   scoutYearPeriodForDate,
   resolveCurrentSubsPolicy
 } from "./subsLogic";
-import { mapSubsPolicy } from "./subsPolicyCompatibility";
+import { mapSubsPolicy, sameSubsPolicyContent } from "./subsPolicyCompatibility";
 import { mapSubsMember } from "./subsMemberCompatibility";
 import type { MemberRecord } from "./memberAdmin";
 import { loadLeaderChildRelationshipsForMembers } from "./leaderChildRelationships";
@@ -83,6 +83,12 @@ export async function saveSubsPolicy(input: Omit<SubsRatePolicy, "id">): Promise
   const actor = uid();
   const valid = validatePolicy(input);
   const id = `${valid.period.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-v${valid.version}`;
+  const existingSnapshot = await getDoc(doc(db, "subsRatePolicies", id));
+  if (existingSnapshot.exists()) {
+    const existing = mapSubsPolicy(id, existingSnapshot.data());
+    if (existing && sameSubsPolicyContent(existing, valid)) return id;
+    throw new UserFacingError(`Subs policy ${valid.period}, version ${valid.version}, is already saved and cannot be changed. Increase the policy version to save a correction.`);
+  }
   await setDoc(doc(db, "subsRatePolicies", id), { ...valid, createdBy: actor, createdAt: serverTimestamp() });
   void recordAuditEvent({
     category: "finance",
