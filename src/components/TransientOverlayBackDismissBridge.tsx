@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
@@ -45,6 +45,10 @@ export default function TransientOverlayBackDismissBridge() {
   const consumingClose = useRef(false);
   // Serialise UI-driven overlay closes so nested surfaces cannot consume the same history entry.
   const pendingCloseFromMarkerCount = useRef<number | null>(null);
+  const pendingCloseTimer = useRef<number | null>(null);
+  const routeDeparturePending = useRef(false);
+  const currentPath = useRef(location.pathname);
+  currentPath.current = location.pathname;
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
     [location.state]
@@ -62,6 +66,38 @@ export default function TransientOverlayBackDismissBridge() {
     });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const cancelPendingClose = () => {
+      if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+      pendingCloseTimer.current = null;
+      pendingCloseFromMarkerCount.current = null;
+      consumingClose.current = false;
+    };
+    const handleNavigation = (event: Event) => {
+      const destinationUrl = (event as Event & { destination?: { url?: string } }).destination?.url;
+      if (!destinationUrl) return;
+      try {
+        if (new URL(destinationUrl).pathname !== currentPath.current) {
+          routeDeparturePending.current = true;
+          cancelPendingClose();
+        }
+      } catch {
+        routeDeparturePending.current = true;
+        cancelPendingClose();
+      }
+    };
+    const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
+    navigationApi?.addEventListener("navigate", handleNavigation);
+    return () => {
+      navigationApi?.removeEventListener("navigate", handleNavigation);
+      cancelPendingClose();
+    };
+  }, []);
+
+  useEffect(() => {
+    routeDeparturePending.current = false;
+  }, [location.pathname]);
 
   useLayoutEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -122,7 +158,16 @@ export default function TransientOverlayBackDismissBridge() {
     if (surfaces.length < markerCount) {
       pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
-      navigate(-1);
+      if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+      pendingCloseTimer.current = window.setTimeout(() => {
+        pendingCloseTimer.current = null;
+        if (routeDeparturePending.current) {
+          pendingCloseFromMarkerCount.current = null;
+          consumingClose.current = false;
+          return;
+        }
+        navigate(-1);
+      }, 100);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 
