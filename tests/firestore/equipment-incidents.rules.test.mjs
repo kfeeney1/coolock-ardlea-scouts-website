@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -35,12 +35,33 @@ function incident(uid, section = "Scouts", loanId = "loan-1") {
     resolutionNotes: "",
     resolvedBy: "",
     resolvedAt: null,
-    stockAdjusted: loanId !== ""
+    stockAdjusted: true
   };
 }
 
 function storedIncident(uid, section = "Scouts", loanId = "loan-1") {
   return { ...incident(uid, section, loanId), reportedAt: new Date(), updatedAt: new Date() };
+}
+
+function storeItem() {
+  return {
+    name: "4-person Tent", category: "Camping & Sleeping", trackingMode: "quantity",
+    totalQuantity: 10, checkedOutQuantity: 0, unavailableQuantity: 0,
+    location: "Main Store", condition: "good", notes: "", replacementValue: 250,
+    archived: false, createdBy: "web-admin", createdAt: new Date(),
+    updatedBy: "web-admin", updatedAt: new Date()
+  };
+}
+
+async function createStoreIncident(db, incidentId, value) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "equipmentItems/tent"), {
+    unavailableQuantity: 1,
+    updatedBy: value.reportedBy,
+    updatedAt: serverTimestamp()
+  });
+  batch.set(doc(db, `equipmentIncidents/${incidentId}`), value);
+  await batch.commit();
 }
 
 before(async () => {
@@ -69,17 +90,24 @@ test("section leader can report an incident from their own section checkout", as
 test("section leader can report a scoped catalogue issue but not another section checkout", async () => {
   await seed([
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
-    ["equipmentLoans/cubs-loan", { section: "Cubs", status: "open" }]
+    ["equipmentLoans/cubs-loan", { section: "Cubs", status: "open" }],
+    ["equipmentItems/tent", storeItem()]
   ]);
   const db = testEnv.authenticatedContext("scout-leader", { email: "scout@example.test" }).firestore();
-  await assertSucceeds(setDoc(doc(db, "equipmentIncidents/direct"), incident("scout-leader", "Scouts", "")));
+  await assertSucceeds(createStoreIncident(db, "direct", incident("scout-leader", "Scouts", "")));
+  await assertFails(setDoc(doc(db, "equipmentIncidents/unadjusted-direct"), {
+    ...incident("scout-leader", "Scouts", ""), stockAdjusted: false
+  }));
   await assertFails(setDoc(doc(db, "equipmentIncidents/cubs"), incident("scout-leader", "Cubs", "cubs-loan")));
 });
 
 test("equipment administrators can report a direct-store issue", async () => {
-  await seed([["adminUsers/web-admin", { active: true, role: "admin", sections: ["Group"] }]]);
+  await seed([
+    ["adminUsers/web-admin", { active: true, role: "admin", sections: ["Group"] }],
+    ["equipmentItems/tent", storeItem()]
+  ]);
   const db = testEnv.authenticatedContext("web-admin", { email: "admin@example.test" }).firestore();
-  await assertSucceeds(setDoc(doc(db, "equipmentIncidents/direct"), incident("web-admin", "Group", "")));
+  await assertSucceeds(createStoreIncident(db, "direct", incident("web-admin", "Group", "")));
 });
 
 test("active leaders can read incidents while parents cannot", async () => {

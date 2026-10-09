@@ -6,7 +6,9 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp,
-  updateDoc
+  updateDoc,
+  query,
+  where
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -22,6 +24,7 @@ import {
   incidentRequiresUrgentNotification,
   incidentResolutionLabel,
   resolvedEquipmentQuantities,
+  unadjustedIncidentUnavailableQuantity,
   validateIncidentResolution
 } from "./equipmentIncidentLogic";
 
@@ -129,6 +132,10 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
 
   const incidentRef = doc(collection(db, "equipmentIncidents"));
   const itemRef = doc(db, "equipmentItems", request.itemId);
+  const existingStoreIncidents = loanId ? [] : (await getDocs(query(
+    collection(db, "equipmentIncidents"),
+    where("itemId", "==", request.itemId)
+  ))).docs.map((entry) => entry.data());
   let itemName = "Equipment";
   let itemLocation = "";
 
@@ -188,8 +195,26 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
         updatedAt: serverTimestamp()
       });
     } else {
-      const catalogueQuantity = Math.max(0, totalQuantity - checkedOutQuantity);
-      if (request.quantity > catalogueQuantity) throw new Error(`Only ${catalogueQuantity} × ${itemName} are recorded outside current checkouts.`);
+      const legacyIncidents = existingStoreIncidents.map((data) => ({
+        itemId: text(data.itemId),
+        quantity: integer(data.quantity),
+        type: data.type,
+        status: data.status,
+        loanId: text(data.loanId),
+        stockAdjusted: data.stockAdjusted === true
+      })).filter((incident) => ["damaged", "lost", "missing", "maintenance"].includes(String(incident.type)));
+      const legacyUnavailable = unadjustedIncidentUnavailableQuantity(request.itemId, {
+        totalQuantity,
+        checkedOutQuantity,
+        unavailableQuantity
+      }, legacyIncidents as Parameters<typeof unadjustedIncidentUnavailableQuantity>[2]);
+      const available = Math.max(0, totalQuantity - checkedOutQuantity - unavailableQuantity - legacyUnavailable);
+      if (request.quantity > available) throw new Error(`Only ${available} × ${itemName} are available to report from the store.`);
+      transaction.update(itemRef, {
+        unavailableQuantity: unavailableQuantity + request.quantity,
+        updatedBy: uid,
+        updatedAt: serverTimestamp()
+      });
     }
 
     transaction.set(incidentRef, {
@@ -213,7 +238,7 @@ export async function reportEquipmentIncident(request: ReportEquipmentIncidentRe
       resolutionNotes: "",
       resolvedBy: "",
       resolvedAt: null,
-      stockAdjusted: Boolean(loanId)
+      stockAdjusted: true
     });
   });
 
@@ -302,8 +327,9 @@ export async function resolveEquipmentIncident(
     const quantity = integer(incidentData.quantity);
     const itemData = itemSnapshot.data();
     const stockAdjusted = incidentData.stockAdjusted === true || Boolean(text(incidentData.loanId));
-    // Catalogue-only reports deliberately do not mutate stock when reported (SW-103).
-    // Only reverse/write off stock here when this incident previously moved stock to unavailable.
+    // Older catalogue-only reports were not reflected in the item counter. They
+    // are derived into availability while active, so resolving one needs no
+    // stock decrement. New reports are stock-adjusted at creation.
     if (stockAdjusted) {
       const next = resolvedEquipmentQuantities({
         totalQuantity: integer(itemData.totalQuantity),

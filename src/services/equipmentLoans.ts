@@ -5,7 +5,9 @@ import {
   getDocs,
   runTransaction,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  query,
+  where
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
@@ -16,6 +18,7 @@ import {
   loanIsComplete,
   outstandingLoanQuantity
 } from "./equipmentLoanLogic";
+import { unadjustedIncidentUnavailableQuantity } from "./equipmentIncidentLogic";
 import type { EquipmentLoanLine } from "./equipmentLoanLogic";
 import { EQUIPMENT_RESERVATION_NOTE_PREFIX, isEquipmentReservationLoan } from "./equipmentProgrammeLogic";
 
@@ -127,6 +130,10 @@ async function allocateEquipment(request: CheckoutRequest, reservation = false):
   const loanRef = doc(collection(db, "equipmentLoans"));
   let auditSummary = "";
   const historyRows: Array<{ itemId: string; itemName: string; quantity: number; location: string }> = [];
+  const existingIncidentsByItem = await Promise.all(lines.map(async (line) => (await getDocs(query(
+    collection(db, "equipmentIncidents"),
+    where("itemId", "==", line.itemId)
+  ))).docs.map((entry) => entry.data())));
 
   await runTransaction(db, async (transaction) => {
     const refs = lines.map((line) => doc(db, "equipmentItems", line.itemId));
@@ -146,7 +153,19 @@ async function allocateEquipment(request: CheckoutRequest, reservation = false):
         archived: data.archived === true
       };
       if (item.archived) throw new Error(`${item.name} is archived and cannot be ${reservation ? "reserved" : "checked out"}.`);
-      const available = availableEquipmentQuantity(item as EquipmentItem);
+      const legacyIncidents = existingIncidentsByItem[index].map((incident) => ({
+        itemId: text(incident.itemId),
+        quantity: integer(incident.quantity),
+        type: incident.type,
+        status: incident.status,
+        loanId: text(incident.loanId),
+        stockAdjusted: incident.stockAdjusted === true
+      })).filter((incident) => ["damaged", "lost", "missing", "maintenance"].includes(String(incident.type)));
+      const legacyUnavailable = unadjustedIncidentUnavailableQuantity(requested.itemId, item, legacyIncidents as Parameters<typeof unadjustedIncidentUnavailableQuantity>[2]);
+      const available = availableEquipmentQuantity({
+        ...item,
+        unavailableQuantity: item.unavailableQuantity + legacyUnavailable
+      });
       if (requested.quantity > available) {
         throw new Error(`Only ${available} × ${item.name} ${available === 1 ? "is" : "are"} available; another checkout or reservation may already hold the remaining stock.`);
       }
