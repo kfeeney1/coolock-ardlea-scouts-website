@@ -1,4 +1,4 @@
-import { issueJoinConsentToken, issueMemberInactivationToken, verifyJoinConsentToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
+import { issueMemberInactivationToken, verifyJoinConsentToken, verifyMemberInactivationToken } from "./secureActionLinks.js";
 import { reminderDocumentId, reminderRecord, shouldAttemptReminder } from "./reminderPersistence.js";
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
@@ -789,9 +789,9 @@ async function handleJoinApplicationStatus(request, env, body) {
     bodyHtml: `<p style="font-size:16px;line-height:1.6">This does not confirm a place or start date. The relevant leaders have been informed and we will contact you if the status changes.</p>`
   } : {
     heading: "Join Us application accepted",
-    intro: `Hello ${parentName}, ${childName}'s application to ${section} has been accepted.`,
-    bodyHtml: `<p style="font-size:16px;line-height:1.6">Next, sign in or create your Parent Portal account using the email address from this application. This secure acceptance link will connect ${escapeHtml(childName)} to your account after sign-in so you can complete the consent and medical form. If your child does not appear, contact the Group rather than adding a different child.</p>`,
-    actions: [{ label: "Sign in or register for Parent Portal", url: `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent?joinToken=${encodeURIComponent(await issueJoinConsentToken(env, applicationId))}#parent-medical-consent` }]
+    intro: `Hello ${parentName}, your Join Us application has been accepted.`,
+    bodyHtml: `<p style="font-size:16px;line-height:1.6">Sign in to the Parent Portal using the email address from your application. If prompted, link or verify the accepted member with the Group. Once the member is linked to your account, open Consent &amp; Medical inside the portal to complete the form. If the member is not listed, contact the Group to verify the link. For privacy, this email does not include personal or consent details.</p>`,
+    actions: [{ label: "Open Parent Portal", url: `${String(env.SITE_URL || "").replace(/\/$/, "")}/parent` }]
   };
   await sendJoinLifecycleEmail(env, applicationId, `status-${status}`, [email], waiting ? "Join Us application update — waiting list" : "Join Us application accepted — complete your consent form", content);
   return json(request, env, 200, { ok: true });
