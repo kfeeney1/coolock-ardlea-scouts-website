@@ -42,12 +42,14 @@ test.describe("Equipment & Stores leader navigation", () => {
     await page.goto("/leader/equipment");
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
-    const assetRegister = page.getByTestId("export-equipment-asset-register");
-    await expect(assetRegister).toBeVisible();
-    const assetRegisterBox = await assetRegister.boundingBox();
-    expect(assetRegisterBox).not.toBeNull();
-    expect(assetRegisterBox!.x).toBeGreaterThanOrEqual(0);
-    expect(assetRegisterBox!.x + assetRegisterBox!.width).toBeLessThanOrEqual(412);
+    const reportsLink = page.getByRole("link", { name: "Open QM Reports" });
+    await expect(reportsLink).toHaveAttribute("href", "/leader/qm-reports");
+    await expect(reportsLink).toBeVisible();
+    const reportsLinkBox = await reportsLink.boundingBox();
+    expect(reportsLinkBox).not.toBeNull();
+    expect(reportsLinkBox!.height).toBeGreaterThanOrEqual(44);
+    expect(reportsLinkBox!.x).toBeGreaterThanOrEqual(0);
+    expect(reportsLinkBox!.x + reportsLinkBox!.width).toBeLessThanOrEqual(412);
 
     const menu = page.getByRole("button", { name: /Menu · (Equipment|Stores)|Open Leader Menu/i });
     await expect(menu).toBeVisible();
