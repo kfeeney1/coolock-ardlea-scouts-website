@@ -13,9 +13,43 @@ permissions:
   contents: read
 
 jobs:
+  focused_selection:
+    name: Select focused regressions
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.selection.outputs.run }}
+      navigation: ${{ steps.selection.outputs.navigation }}
+      activities: ${{ steps.selection.outputs.activities }}
+      polls: ${{ steps.selection.outputs.polls }}
+      communications: ${{ steps.selection.outputs.communications }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Select focused regressions from changed paths
+        id: selection
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files="$RUNNER_TEMP/focused-pr-changed-files.txt"
+          selected_outputs="$RUNNER_TEMP/focused-pr-selection.txt"
+          if ! git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"; then
+            echo "Unable to calculate changed paths; selecting every focused regression."
+            : > "$changed_files"
+          fi
+          if ! node scripts/focused-playwright-selection.mjs --files "$changed_files" > "$selected_outputs"; then
+            echo "Focused selector failed; selecting every focused regression."
+            node scripts/focused-playwright-selection.mjs --force-all > "$selected_outputs"
+          fi
+          cat "$selected_outputs" >> "$GITHUB_OUTPUT"
+
   focused_pr:
     name: Focused PR assurance
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    needs: focused_selection
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.focused_selection.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -95,20 +129,31 @@ jobs:
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
       - name: Run focused SW-320 navigation failure regressions
+        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
         run: npx --no-install playwright test e2e/member-leader-transition.spec.ts e2e/role-permissions.spec.ts e2e/equipment-leader-dashboard.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep 'approved transition ends youth membership and prevents reusing the link|ordinary leader opens their Scouter form from My Profile with keyboard access|SW-320 QM report navigation preserves its equipment view on desktop and mobile|shows the Leader Dashboard and expandable menu on Android-sized mobile'
       - name: Run focused SW-357 poll lifecycle
+        if: ${{ needs.focused_selection.outputs.polls == 'true' }}
         run: npx --no-install playwright test e2e/polls.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "a scoped poll is explicitly published, answered once, and persists after reload"
       - name: Run focused SW-320 navigation regressions (desktop and mobile)
-        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts e2e/event-record-page.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
+        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
+        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
+      - name: Run focused SW-320 Event Record regressions on mobile
+        if: ${{ needs.focused_selection.outputs.navigation == 'true' }}
+        run: npx --no-install playwright test e2e/event-record-page.spec.ts --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused SW-170 tests
+        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
       - name: Repeat isolated SW-355 lifecycle on persistent emulator state
+        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
         run: npx --no-install playwright test e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --repeat-each=2 --timeout=30000 --grep "section leader completes lifecycle with flexible planner rows, summary and retained save state"
       - name: Run SW-317 signed-out route alone on desktop and mobile
+        if: ${{ needs.focused_selection.outputs.communications == 'true' }}
         run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep "communications route rejects unauthenticated users after authenticated journeys"
       - name: Run SW-317 communications suite after authenticated journeys
+        if: ${{ needs.focused_selection.outputs.communications == 'true' }}
         run: npx --no-install playwright test e2e/leader-communications.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused blocking regressions
+        if: ${{ needs.focused_selection.outputs.activities == 'true' }}
         run: npx --no-install playwright test e2e/programme-library.spec.ts e2e/weekly-section-tracker.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "leader can save, insert and remove a reusable programme activity|group leader copies a meeting into another authorised section and resets operational history"
 
   e2e_shard:
