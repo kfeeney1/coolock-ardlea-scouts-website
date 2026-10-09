@@ -71,19 +71,26 @@ test("event editor saves valid edits before app and browser back navigation", as
   await expect(page.getByRole("heading", { name: new RegExp(`Edit event · ${title}`) })).toBeVisible();
   await page.getByLabel("Event title").fill("");
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  let leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+  await expect(leaveDialog).toBeVisible();
+  await leaveDialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(leaveDialog).toBeHidden();
   await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
   await expect(page.getByRole("alert").filter({ hasText: "Event title and start date are required" })).toBeVisible();
   const updatedTitle = `${title} updated`;
   await page.getByLabel("Event title").fill(updatedTitle);
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
-
+  leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+  await leaveDialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   const browserBackTitle = `${updatedTitle} browser back`;
   await page.getByLabel("Event title").fill(browserBackTitle);
-  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   await page.goBack();
+  leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+  await expect(leaveDialog).toBeVisible();
+  await leaveDialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByRole("heading", { name: browserBackTitle })).toBeVisible();
   await page.reload();
