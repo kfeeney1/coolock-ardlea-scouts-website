@@ -107,7 +107,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await expect(attendanceCheckbox).toBeChecked();
   const uniformCheckbox = page.getByRole("checkbox", { name: `Uniform · ${scoutMemberName}`, exact: true });
   await uniformCheckbox.check();
-  await page.getByRole("button", { name: "Meetings", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click();
   await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   await expect(uniformCheckbox).toBeChecked();
@@ -116,7 +116,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   // Always create a real dirty state before navigating away to verify it is saved.
   await attendanceCheckbox.uncheck();
   await expect(attendanceCheckbox).not.toBeChecked();
-  await page.getByRole("button", { name: "Meetings", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
@@ -176,7 +176,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
 
   await page.getByRole("button", { name: "Close Meeting", exact: true }).click(); await expect(page).toHaveURL((url) => url.pathname === "/leader/weekly"); const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: `${lifecycle.label} · Scouts` }); await expect(historyCard).toContainText("3 activities · 2 badgework"); phases.push("close/history"); await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click(); await expectSectionLeaderHistoryRestrictions(page);
 
-  await page.getByRole("button", { name: "Meetings", exact: true }).click(); const closedCard = page.getByTestId(/meeting-history-/).filter({ hasText: `${lifecycle.label} · Scouts` }); const copyDate = (await findUnusedMeetingDate(page, addDays(lifecycle.date, 7))).date; await closedCard.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await page.getByLabel("Choose date").fill(copyDate); await page.getByRole("button", { name: "Create Copy", exact: true }).click(); await expect(page.getByText(/Meeting copied\. Planner rows and planned equipment were retained/)).toBeVisible(); phases.push("copy");
+  await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click(); const closedCard = page.getByTestId(/meeting-history-/).filter({ hasText: `${lifecycle.label} · Scouts` }); const copyDate = (await findUnusedMeetingDate(page, addDays(lifecycle.date, 7))).date; await closedCard.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await page.getByLabel("Choose date").fill(copyDate); await page.getByRole("button", { name: "Create Copy", exact: true }).click(); await expect(page.getByText(/Meeting copied\. Planner rows and planned equipment were retained/)).toBeVisible(); phases.push("copy");
   await page.getByRole("button", { name: "Attendance", exact: true }).click(); await expect(page.getByText(/Present/).first()).toBeVisible();
   await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Navigation Night"); await expect(page.getByTestId("activity-plan-row")).toHaveCount(3); await expect(page.getByLabel("Activity 1", { exact: true })).toHaveValue("Wide game"); await expect(firstActivityLeader(page)).toBeChecked(); await expect(page.getByLabel("Equipment 1", { exact: true })).toHaveValue("Cones and maps"); await expect(page.getByLabel("Activity duration (minutes) 1", { exact: true })).toHaveValue("25"); await expect(page.getByTestId("badgework-plan-row")).toHaveCount(2); await expect(page.getByLabel("Badgework 1", { exact: true })).toHaveValue("Adventure Skills: Pioneering"); await expect(firstBadgeworkLeader(page)).toBeChecked(); await expect(page.getByLabel("Badgework duration (minutes) 1", { exact: true })).toHaveValue("40"); await expect(page.getByTestId("programme-duration-total")).toHaveText("Planned programme: 105 minutes");
   await page.getByRole("button", { name: "Completed Badgework", exact: true }).click(); await expect(page.getByText("Mark attendees present before recording completed badgework.")).toBeVisible();
