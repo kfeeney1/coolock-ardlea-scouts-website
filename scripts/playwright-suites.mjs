@@ -128,6 +128,7 @@ export function suitesForChangedPath(file) {
   if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useConfirmEventLeave.ts") return ["activities-programme", "platform-ui"];
+  if (file === "tests/unit/focusedPlaywrightSelection.test.ts") return ["activities-programme", "platform-ui"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
   if (file === "src/components/admin/LeaderChildLinksSection.tsx") return ["authentication-rbac"];
   if (file === "src/components/admin/EquipmentItemFormDialog.tsx") return ["equipment"];
