@@ -48,6 +48,7 @@ export default function TransientOverlayBackDismissBridge() {
   const pendingCloseTimer = useRef<number | null>(null);
   const routeDeparturePending = useRef(false);
   const currentPath = useRef(location.pathname);
+  const previousPath = useRef(location.pathname);
   currentPath.current = location.pathname;
   const managedMarkers = useMemo(
     () => backDismissStack(location.state).filter((marker) => marker.startsWith(MARKER_PREFIX)),
@@ -96,7 +97,9 @@ export default function TransientOverlayBackDismissBridge() {
   }, []);
 
   useEffect(() => {
-    routeDeparturePending.current = false;
+    if (previousPath.current === location.pathname) return;
+    previousPath.current = location.pathname;
+    routeDeparturePending.current = true;
     if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
     pendingCloseTimer.current = null;
     pendingCloseFromMarkerCount.current = null;
@@ -133,6 +136,13 @@ export default function TransientOverlayBackDismissBridge() {
   useLayoutEffect(() => {
     const markerCount = managedMarkers.length;
     const priorMarkerCount = previousMarkerCount.current;
+
+    if (routeDeparturePending.current && surfaces.length <= markerCount) {
+      previousMarkerCount.current = markerCount;
+      latestMarkerCount.current = markerCount;
+      return;
+    }
+    if (routeDeparturePending.current && surfaces.length > markerCount) routeDeparturePending.current = false;
 
     if (pendingCloseFromMarkerCount.current !== null) {
       if (markerCount >= pendingCloseFromMarkerCount.current) return;
