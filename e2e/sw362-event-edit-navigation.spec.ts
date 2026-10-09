@@ -117,7 +117,7 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Completed", exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(page.locator(".MuiMenu-root")).toHaveCount(0);
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
   dialog = leaveDialog(page);
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -128,7 +128,7 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Draft", exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(page.locator(".MuiMenu-root")).toHaveCount(0);
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByRole("heading", { name: savedTitle })).toBeVisible();
