@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, decodeWeeklyBadgeworkSources, filterWeeklyMeetingHistory, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, decodeWeeklyBadgeworkSources, filterWeeklyMeetingHistory, mergeLeaderAttendanceRoster, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
@@ -39,6 +39,23 @@ test("open roster reconciliation adds newly eligible members once and preserves 
   assert.deepEqual(roster.map(x=>x.memberId),["new","old"]);
   assert.equal(roster.find(x=>x.memberId==="old")?.attendance,"present");
   assert.deepEqual(roster.find(x=>x.memberId==="old")?.badges,["Stage 1"]);
+});
+
+test("leader attendance roster deduplicates appointments, scopes prepopulation, and restores saved status", () => {
+  const options = [
+    { id: "leader-1", displayName: "Alex Leader", scoutingRole: "Section Leader", organisationSection: "Cubs", organisationOrder: 1 },
+    { id: "leader-1", displayName: "Alex Leader", scoutingRole: "Programme Scouter", organisationSection: "Cubs", organisationOrder: 1 },
+    { id: "leader-1", displayName: "Alex Leader", scoutingRole: "Scouter", organisationSection: "Scouts", organisationOrder: 1 },
+    { id: "leader-2", displayName: "Jamie Leader", scoutingRole: "Scouter", organisationSection: "Scouts", organisationOrder: 2 }
+  ];
+  const saved = [{ leaderUid: "leader-1", displayName: "Alex Leader", appointments: ["Section Leader", "Programme Scouter"], sections: ["Cubs"], attendance: "present" as const }];
+  const scoped = mergeLeaderAttendanceRoster(options, ["Cubs"], false, saved);
+  assert.equal(scoped.length, 1);
+  assert.deepEqual(scoped[0].appointments, ["Section Leader", "Programme Scouter"]);
+  assert.equal(scoped[0].attendance, "present");
+  const groupWide = mergeLeaderAttendanceRoster(options, [], true, saved);
+  assert.deepEqual(groupWide.map((entry) => entry.leaderUid), ["leader-1", "leader-2"]);
+  assert.equal(groupWide[0].sections.length, 2);
 });
 
 test("weekly attendance ordering is human-friendly with stable member-id tie break",()=>{

@@ -20,6 +20,10 @@ import { loadMembers } from "../services/memberAdmin";
 import { formatSiteDate } from "../services/siteDateFormat";
 import type { MemberRecord } from "../services/memberAdmin";
 import { trySecondaryRefresh } from "../services/secondaryRefresh";
+import { loadLeaderAttendance, loadLeaderAttendanceOptions, saveLeaderAttendance } from "../services/leaderAttendance";
+import type { LeaderAttendanceEntry } from "../services/leaderAttendance";
+import type { WeeklyLeaderOption } from "../services/weeklyLeaderOptions";
+import { mergeLeaderAttendanceRoster } from "../services/weeklyTrackerLogic";
 
 function statusColor(status: EventRecord["status"]): "default" | "success" | "warning" | "secondary" {
     if (status === "open") return "success";
@@ -40,6 +44,9 @@ export default function EventRecordPage() {
     const [rosterOpen, setRosterOpen] = useState(false);
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [consent, setConsent] = useState<Record<string, EventConsentStatus>>({});
+    const [leaderOptions, setLeaderOptions] = useState<WeeklyLeaderOption[]>([]);
+    const [leaderAttendance, setLeaderAttendance] = useState<LeaderAttendanceEntry[]>([]);
+    const [leaderAttendanceLoading, setLeaderAttendanceLoading] = useState(false);
     const [savingRoster, setSavingRoster] = useState(false);
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [equipmentOpen, setEquipmentOpen] = useState(false);
@@ -48,14 +55,15 @@ export default function EventRecordPage() {
         setLoading(true);
         setError("");
         try {
-            const [loadedEvents, loadedMembers, loadedItems, loadedLoans] = await Promise.all([
-                loadEvents(), loadMembers(), loadEquipmentItems(), loadEquipmentLoans()
+            const [loadedEvents, loadedMembers, loadedItems, loadedLoans, loadedLeaders] = await Promise.all([
+                loadEvents(), loadMembers(), loadEquipmentItems(), loadEquipmentLoans(), loadLeaderAttendanceOptions(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], true)
             ]);
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
             setEvent(requested);
             setMembers(loadedMembers);
             setEquipmentItems(loadedItems);
             setEquipmentLoans(loadedLoans);
+            setLeaderOptions(loadedLeaders);
             if (!requested) setError("This event could not be found or is outside your permitted sections.");
         } catch (loadError) {
             setError(applicationErrorMessage(loadError, "Unable to load this event record.", "EventRecordPage"));
@@ -77,7 +85,7 @@ export default function EventRecordPage() {
         returnTo: `/leader/events/${encodeURIComponent(event.id)}`
     }) : "/leader/badgework";
 
-    const openRoster = () => {
+    const openRoster = async () => {
         if (!event) return;
         const nextAttendance: Record<string, AttendanceStatus> = {};
         const nextConsent: Record<string, EventConsentStatus> = {};
@@ -88,8 +96,19 @@ export default function EventRecordPage() {
         setAttendance(nextAttendance);
         setConsent(nextConsent);
         setRosterOpen(true);
+        setLeaderAttendanceLoading(true);
         setMessage("");
         setError("");
+        try {
+            const saved = await loadLeaderAttendance("events", event.id);
+            const sections = event.audience?.sectionIds?.length ? event.audience.sectionIds : [event.section];
+            const groupWide = sections.includes("All Sections") || event.section === "All Sections";
+            setLeaderAttendance(mergeLeaderAttendanceRoster(leaderOptions, sections, groupWide, saved));
+        } catch (loadError) {
+            setError(applicationErrorMessage(loadError, "Unable to load leader attendance.", "EventRecordPage"));
+        } finally {
+            setLeaderAttendanceLoading(false);
+        }
     };
 
     const saveRoster = async () => {
@@ -98,6 +117,7 @@ export default function EventRecordPage() {
         setError("");
         try {
             await updateEventRoster(event.id, attendance, consent);
+            await saveLeaderAttendance("events", event.id, leaderAttendance);
             setRosterOpen(false);
             const refreshed = await trySecondaryRefresh(() => load(true), "the event roster");
             setMessage(refreshed
@@ -191,7 +211,7 @@ export default function EventRecordPage() {
                     </Box>
                 </Paper>
 
-                <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
+                <EventRosterDialog event={rosterOpen ? event : null} members={rosterMembers} attendance={attendance} consent={consent} leaderOptions={leaderOptions} leaderAttendance={leaderAttendance} leaderAttendanceLoading={leaderAttendanceLoading} onLeaderAttendanceChange={setLeaderAttendance} saving={savingRoster} onAttendanceChange={setAttendance} onConsentChange={setConsent} onClose={() => setRosterOpen(false)} onSave={() => void saveRoster()} onPrint={printRoster} onExport={exportRoster} />
                 <EventGalleryDialog event={galleryOpen ? event : null} onClose={() => setGalleryOpen(false)} />
                 {equipmentOpen && <ProgrammeEquipmentDialog open sourceType={event.eventType.toLowerCase().includes("activity") ? "activity" : "event"} sourceId={event.id} sourceLabel={event.title} section={event.section} date={event.startDate} items={equipmentItems} loans={equipmentLoans} readOnly={event.status === "completed"} onClose={() => setEquipmentOpen(false)} onChanged={load} />}
             </>}
