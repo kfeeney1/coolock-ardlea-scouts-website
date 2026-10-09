@@ -108,7 +108,22 @@ jobs:
             REASON="No verifiable backup reference was produced by the freshness check"
           fi
           FIELDS=$(jq -n --arg service "Firestore Backup" --arg env "PRODUCTION" --arg metric "backup freshness" --arg state "$SAFE_STATE" --arg observed "$OBSERVED_AT" --arg source "Firestore Backup Freshness GitHub Actions workflow" --arg sourceType "authoritative-live" --arg reason "$REASON" --arg recovery "Inspect Firestore Backup and Firestore Backup Freshness workflows; run a protected manual backup if required." --arg management "https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions" --arg age "$SAFE_AGE" '{fields:{service:{stringValue:$service},environment:{stringValue:$env},metric:{stringValue:$metric},state:{stringValue:$state},observedAt:{stringValue:$observed},source:{stringValue:$source},sourceType:{stringValue:$sourceType},reason:{stringValue:$reason},recovery:{stringValue:$recovery},managementUrl:{stringValue:$management},current:{integerValue:(if $age=="" then "0" else $age end)},unit:{stringValue:"hours old"},warningThreshold:{integerValue:"168"},criticalThreshold:{integerValue:"192"}}}')
-          curl --fail-with-body --silent --show-error -X PATCH             -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json"             --data "$FIELDS"             "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production" >/dev/null
+          DOCUMENT_URL="https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/operationalMonitoring/firestore-backup-production"
+          # PATCH may create the document; verify the persisted observation via a
+          # separate authenticated GET so a green job cannot hide a failed write.
+          curl --fail-with-body --silent --show-error --retry 2 -X PATCH \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "${FIELDS}" "${DOCUMENT_URL}" >/dev/null
+          READBACK="$(curl --fail-with-body --silent --show-error --retry 2 \
+            -H "Authorization: Bearer ${TOKEN}" "${DOCUMENT_URL}")"
+          if ! jq -e --arg observed "${OBSERVED_AT}" --arg state "${SAFE_STATE}" \
+            '.fields.observedAt.stringValue == $observed and .fields.state.stringValue == $state and .fields.environment.stringValue == "PRODUCTION" and .fields.sourceType.stringValue == "authoritative-live"' \
+            <<< "${READBACK}" >/dev/null; then
+            echo "Firestore monitoring readback did not match the published observation." >&2
+            exit 1
+          fi
+          echo "Firestore monitoring observation published and verified by readback."
 
       - name: Write job summary
         if: always()
