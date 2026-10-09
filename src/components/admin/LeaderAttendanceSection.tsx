@@ -53,11 +53,11 @@ export default function LeaderAttendanceSection({ options, entries, onChange, di
     <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Leader Attendance</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Leader attendance is recorded separately from member attendance.</Typography>
     {!disabled && <Stack spacing={1} sx={{ mb: 2 }}>
-      <TextField label="Search active leaders" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "aria-label": "Search active leaders" } }} helperText="Search by name, appointment or section to add a helping leader." />
+      <TextField label="Search active leaders" value={search} disabled={disabled || loading} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "aria-label": "Search active leaders" } }} helperText="Search by name, appointment or section to add a helping leader." />
       {search.trim().length > 0 && search.trim().length < 2 && <Typography variant="caption">Enter at least two characters.</Typography>}
       {results.map((result) => <Box key={result.id} sx={{ display: "flex", gap: 1, justifyContent: "space-between", alignItems: "center", p: 1, border: 1, borderColor: "divider", borderRadius: 1 }}>
         <Box sx={{ minWidth: 0 }}><Typography sx={{ fontWeight: 700 }}>{result.displayName}</Typography><Typography variant="body2" color="text.secondary">{result.context.join("; ")}</Typography></Box>
-        <Button onClick={() => addLeader(result.id, result.displayName)} aria-label={`Add ${result.displayName}`}>Add</Button>
+        <Button disabled={disabled || loading} onClick={() => addLeader(result.id, result.displayName)} aria-label={`Add ${result.displayName}`}>Add</Button>
       </Box>)}
       {search.trim().length >= 2 && results.length === 0 && <Typography variant="body2" color="text.secondary">No other active registered leaders found.</Typography>}
     </Stack>}
