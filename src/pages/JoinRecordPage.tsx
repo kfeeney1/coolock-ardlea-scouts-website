@@ -153,7 +153,7 @@ export default function JoinRecordPage() {
       {loading ? <Box sx={{ minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}><CircularProgress color="success" /></Box> : <>
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
         {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
-        {!record ? <Button variant="contained" color="success" onClick={() => navigate("/leader/join")}>Return to Join Us Management</Button> : <Stack spacing={3} data-testid={`join-record-page-${record.id}`}>
+        {!record ? <Button component={Link} to="/leader/join" variant="contained" color="success">Return to Join Us Management</Button> : <Stack spacing={3} data-testid={`join-record-page-${record.id}`}>
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mb: 2 }}>
               <Chip label={statusLabel(record.status)} color={record.status === "accepted" ? "success" : record.status === "waiting-list" ? "warning" : "default"} />

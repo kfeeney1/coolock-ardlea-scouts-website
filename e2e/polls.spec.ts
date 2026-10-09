@@ -35,6 +35,8 @@ test.describe("dashboard polls", () => {
     await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
     await page.getByRole("combobox", { name: "Poll audience" }).click();
     await page.getByRole("option", { name: "Parents and guardians" }).click();
+    await page.getByRole("combobox", { name: "Poll scope" }).click();
+    await page.getByRole("option", { name: "Selected sections" }).click();
     const beavers = page.getByRole("checkbox", { name: "Beavers" });
     for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
       if (await checkbox.isChecked()) await checkbox.uncheck();

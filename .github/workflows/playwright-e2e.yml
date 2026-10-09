@@ -7,6 +7,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# PR updates run focused regressions and both shards; manual dispatch runs the full suite.
+
 permissions:
   contents: read
 
@@ -92,8 +94,12 @@ jobs:
           npm run preview -- --host 127.0.0.1 > /tmp/vite-preview.log 2>&1 &
           for i in {1..30}; do if curl --fail --silent "$E2E_BASE_URL"/ >/dev/null; then exit 0; fi; sleep 1; done
           cat /tmp/vite-preview.log; exit 1
+      - name: Run focused SW-320 navigation failure regressions
+        run: npx --no-install playwright test e2e/member-leader-transition.spec.ts e2e/role-permissions.spec.ts e2e/equipment-leader-dashboard.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000 --grep 'approved transition ends youth membership and prevents reusing the link|ordinary leader opens their Scouter form from My Profile with keyboard access|SW-320 QM report navigation preserves its equipment view on desktop and mobile|shows the Leader Dashboard and expandable menu on Android-sized mobile'
       - name: Run focused SW-357 poll lifecycle
         run: npx --no-install playwright test e2e/polls.spec.ts --project=chromium --retries=0 --timeout=30000 --grep "a scoped poll is explicitly published, answered once, and persists after reload"
+      - name: Run focused SW-320 navigation regressions (desktop and mobile)
+        run: npx --no-install playwright test e2e/navigation-recovery.spec.ts e2e/member-record-page.spec.ts e2e/damaged-equipment-issues.spec.ts e2e/event-record-page.spec.ts --project=chromium --project=mobile-chromium --retries=0 --timeout=30000
       - name: Run focused SW-170 tests
         run: npx --no-install playwright test e2e/event-record-page.spec.ts e2e/weekly-record-integrity.spec.ts --project=chromium --retries=0 --timeout=30000
       - name: Repeat isolated SW-355 lifecycle on persistent emulator state

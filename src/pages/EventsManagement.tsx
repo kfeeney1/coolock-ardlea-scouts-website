@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import EventListPanel from "../components/admin/EventListPanel";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -48,7 +48,7 @@ export default function EventsManagement() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
-            <LeaderPageHeader title="Events & Activities" actions={<Button variant="contained" color="success" onClick={() => navigate("/leader/events/create")}>Add Event</Button>} />
+            <LeaderPageHeader title="Events & Activities" actions={<Button component={Link} to="/leader/events/create" variant="contained" color="success">Add Event</Button>} />
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} />
         </Container>

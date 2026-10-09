@@ -84,7 +84,7 @@ test("admin can add, check out and check in stock from its record and verify per
   await expect(history.getByText("Checked out", { exact: true })).toBeVisible();
   await expect(history.getByText("Returned", { exact: true })).toBeVisible();
   await history.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
 
   const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
@@ -161,19 +161,18 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   const submitError = page.getByRole("alert").filter({ hasText: /equipment|issue|checkout|permission|record/i });
   await expect(incidentDialog).toBeHidden({ timeout: 15000 });
 
-  await page.getByRole("button", { name: "View reported issues" }).click();
+  await page.getByRole("link", { name: "View reported issues" }).click();
   await expect(page).toHaveURL("/leader/equipment/issues");
   const incidentCard = page.locator('[data-testid^="equipment-incident-"]').filter({ hasText: incidentName });
   await expect(incidentCard).toBeVisible();
-  await expect.poll(() => notificationCalls).toBe(1);
-
-  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await page.getByRole("link", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment");
   const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 checked out", { exact: true })).toBeVisible();
   await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect.poll(() => notificationCalls).toBe(1);
+  await page.getByRole("link", { name: "View reported issues" }).click();
   await expect(page).toHaveURL("/leader/equipment/issues");
 
   await incidentCard.getByRole("button", { name: "Start investigation" }).click();
@@ -184,7 +183,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await resolveDialog.getByLabel("Resolution notes").fill("Found in the trailer after the return was checked.");
   await resolveDialog.getByRole("button", { name: "Confirm resolution" }).click();
 
-  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await page.getByRole("link", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment");
   const resolvedInventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: incidentName });
   await expect(resolvedInventoryCard.getByText("2 available", { exact: true })).toBeVisible();
@@ -236,15 +235,15 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await expect(page).toHaveURL("/leader/equipment");
   await historyDialog.getByRole("button", { name: "Close" }).click();
 
-  await sourceCard.getByRole("button", { name: "Move Store", exact: true }).click();
+  await sourceCard.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const moveTarget = page.getByTestId("equipment-store-move-target");
   await expect(moveTarget).toHaveAttribute("data-equipment-id", sourceId!);
   await expect(moveTarget).toContainText(itemName);
-  await page.getByRole("button", { name: "Back to equipment record" }).click();
+  await page.getByRole("link", { name: "Back to equipment record" }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
-  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await page.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const cancelledMove = page.getByTestId("equipment-store-move-target");
   await cancelledMove.getByRole("combobox", { name: "Destination store" }).click();
@@ -253,7 +252,7 @@ test("History stays on the audit record and Move Store uses its own item-specifi
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}$`));
   await expect(page.getByTestId("equipment-record-summary")).toContainText("Store: TEST Checkout Store");
-  await page.getByRole("button", { name: "Move Store", exact: true }).click();
+  await page.getByRole("link", { name: "Move Store", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/leader/equipment/${sourceId}/move-store$`));
   const movePage = page.getByTestId("equipment-store-move-target");
   await movePage.getByRole("combobox", { name: "Destination store" }).click();
@@ -298,7 +297,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
 
   const card = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(card.getByText("0 total", { exact: true })).toBeVisible();
-  await card.getByRole("button", { name: "Edit" }).click();
+  await card.getByRole("link", { name: "Edit" }).click();
   await expect(page).toHaveURL(/\/leader\/equipment\/[^/]+$/);
   const summary = page.getByTestId("equipment-record-summary");
   await summary.getByRole("button", { name: "Edit", exact: true }).click();
@@ -311,7 +310,7 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await page.getByRole("button", { name: "Save equipment" }).click();
   await expect(page.getByText("Equipment record saved.", { exact: true })).toBeVisible();
   await expect(page.getByText("5 total", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/equipment$/);
   await expect(page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName }).getByText("5 total", { exact: true })).toBeVisible();
   await page.goto("/leader");

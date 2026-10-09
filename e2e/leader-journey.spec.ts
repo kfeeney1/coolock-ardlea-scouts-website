@@ -109,16 +109,41 @@ test.describe("leader journey", () => {
     await expect(page.getByRole("link", { name: "Leader Access", exact: true })).toHaveCount(0);
     await page.getByLabel("Search requests").fill("Approved Section Leader");
 
-    const tile = page.getByRole("button", { name: "Open Leader Access for Approved Section Leader" });
+    const tile = page.getByRole("link", { name: "Open Leader Access for Approved Section Leader" });
     await expect(tile).toHaveCount(1);
     await expect(tile).toBeVisible();
     await expect(page.getByText("test_flow_leader_request_approved@example.com", { exact: true })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    const horizontalOverflow = await page.evaluate(() => {
+      const viewportWidth = document.documentElement.clientWidth;
+      return Array.from(document.querySelectorAll<HTMLElement>("body *"))
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            tag: element.tagName,
+            id: element.id,
+            testId: element.dataset.testid,
+            className: typeof element.className === "string" ? element.className : "",
+            right: Math.round(rect.right),
+            width: Math.round(rect.width),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            overflowX: style.overflowX
+          };
+        })
+        .filter((element) => element.right > viewportWidth + 1)
+        .sort((left, right) => right.right - left.right)
+        .slice(0, 12);
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      `Horizontal overflow candidates: ${JSON.stringify(horizontalOverflow)}`
+    ).toBeLessThanOrEqual(1);
     const box = await tile.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
 
-    await tile.press("Space");
+    await tile.press("Enter");
     await expect(page).toHaveURL(/\/leader\/access\/TEST_flow_leader_request_approved/);
     await page.goBack();
     await expect(page).toHaveURL(/\/leader\/requests\?q=Approved\+Section\+Leader$/);

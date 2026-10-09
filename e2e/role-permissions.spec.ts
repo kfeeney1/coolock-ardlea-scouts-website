@@ -153,7 +153,10 @@ test.describe("leader permissions", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/leader\/profile\/consent$/);
     await expect(page.getByRole("heading", { name: "Scouter Medical Advice Form" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Back to My Profile" }).first()).toBeVisible();
+    const backToProfile = page.getByRole("link", { name: "Back to My Profile" }).first();
+    await expect(backToProfile).toHaveAttribute("href", "/leader/profile");
+    const backBox = await backToProfile.boundingBox();
+    expect(backBox?.height).toBeGreaterThanOrEqual(44);
 
     await page.getByLabel("Applicant name").fill("Test Scouts Scouter");
     await page.getByLabel("Date of birth").fill("1985-01-01");

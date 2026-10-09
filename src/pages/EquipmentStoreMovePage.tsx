@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -69,8 +69,8 @@ export default function EquipmentStoreMovePage() {
     <Container maxWidth="md">
       <LeaderDashboardHeader />
       <LeaderPageHeader title={item ? `Move Store · ${item.name}` : "Move Store"} description="Move available stock and keep the item’s movement in its audit history." />
-      {loading ? <Alert severity="info" role="status">Loading equipment store move…</Alert> : !item ? <><Alert severity="error">{error || "Equipment record not found or unavailable."}</Alert><Button sx={{ mt: 2 }} onClick={() => navigate("/leader/equipment")}>Back to Equipment &amp; Stores</Button></> : <>
-      <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(recordPath)}>Back to equipment record</Button>
+      {loading ? <Alert severity="info" role="status">Loading equipment store move…</Alert> : !item ? <><Alert severity="error">{error || "Equipment record not found or unavailable."}</Alert><Button component={Link} to="/leader/equipment" variant="outlined" color="secondary" sx={{ mt: 2, minHeight: 44 }}>Back to Equipment &amp; Stores</Button></> : <>
+      <Button component={Link} to={recordPath} variant="outlined" color="secondary" sx={{ mb: 2, minHeight: 44 }}>Back to equipment record</Button>
       {!canManage && <Alert severity="warning" sx={{ mb: 2 }}>You are not authorised to move equipment between stores.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Paper data-testid="equipment-store-move-target" data-equipment-id={item.id} variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>

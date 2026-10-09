@@ -71,8 +71,8 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
     await expect(page.getByTestId("equipment-incidents-panel").getByTestId(/^equipment-incident-/)).toHaveCount(0);
   }
 
-  await expect(page.getByRole("button", { name: "View reported issues" })).toBeVisible();
-  await page.getByRole("button", { name: "View reported issues" }).click();
+  await expect(page.getByRole("link", { name: "View reported issues" })).toBeVisible();
+  await page.getByRole("link", { name: "View reported issues" }).click();
   await expect(page).toHaveURL("/leader/equipment/issues");
   await expect(page.getByTestId("page-qm-equipment-issues")).toBeVisible();
   for (const [name, description] of [[firstName, firstDescription], [secondName, secondDescription]] as const) {
@@ -90,9 +90,9 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await expect(first).toContainText(firstDescription);
   await expect(second).toContainText(secondDescription);
 
-  await page.getByRole("button", { name: "Back to Equipment & Stores" }).click();
+  await page.getByRole("link", { name: "Back to Equipment & Stores" }).click();
   await expect(page).toHaveURL("/leader/equipment");
-  await page.getByRole("button", { name: "View reported issues" }).click();
+  await page.getByRole("link", { name: "View reported issues" }).click();
   await expect(page).toHaveURL("/leader/equipment/issues");
 
   await first.getByRole("button", { name: "Start investigation" }).click();
@@ -112,7 +112,7 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await secondAlert.getByText(secondDescription).click();
   await expect(page).toHaveURL(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`)).toContainText(secondDescription);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader$/);
 
   const firstAlertAfterBack = page.getByTestId("needs-attention-card").getByTestId(`attention-tile-equipment-incident-${incidentIds.get(firstName)}`);
@@ -128,7 +128,7 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   // Continue through the same visible dashboard tile a leader would use. This
   // keeps the tile-to-record assertion on the SPA path after the resolve dialog
   // has finished closing and its history entry has been consumed.
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader$/);
   const secondAlertAfterResolution = page.getByTestId("needs-attention-card").getByTestId(`attention-tile-equipment-incident-${incidentIds.get(secondName)}`);
   await secondAlertAfterResolution.click();
@@ -139,7 +139,7 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`).getByText("Reported", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/leader$/);
   await page.goto(`/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
 

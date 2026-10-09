@@ -54,7 +54,7 @@ export default function QuickMedicalInformationPage() {
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
     <Container maxWidth="md">
       <LeaderDashboardHeader />
-      <Button component={Link} to={returnTo} startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>{returnLabel}</Button>
+      <Button component={Link} to={returnTo} startIcon={<ArrowBackIcon />} sx={{ mb: 2, minHeight: 44 }}>{returnLabel}</Button>
       <LeaderPageHeader title="Quick Medical Information" description="Read-only emergency information from the member's canonical consent record." />
       {loading ? <Box sx={{ minHeight: 320, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box> : error ? <Alert severity="error">{error}</Alert> : record && <Stack spacing={2.5} data-testid={`quick-medical-${record.id}`}>
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderWidth: 2, borderColor: "warning.main" }}>

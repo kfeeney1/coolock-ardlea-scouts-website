@@ -1,7 +1,7 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
 import EventRosterDialog from "../components/admin/EventRosterDialog";
@@ -30,7 +30,6 @@ function statusColor(status: EventRecord["status"]): "default" | "success" | "wa
 
 export default function EventRecordPage() {
     const { eventId = "" } = useParams();
-    const navigate = useNavigate();
     const [event, setEvent] = useState<EventRecord | null>(null);
     const [members, setMembers] = useState<MemberRecord[]>([]);
     const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>([]);
@@ -142,12 +141,12 @@ export default function EventRecordPage() {
             {loading ? <Box sx={{ minHeight: 320, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box> : !event ? <>
                 <LeaderPageHeader title="Event Record" description="Event details and actions." />
                 <Alert severity="error" sx={{ mb: 3 }}>{error || "Event not found."}</Alert>
-                <Button component={Link} to="/leader/events" variant="outlined">Back to Events & Activities</Button>
+                <Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44 }}>Back to Events &amp; Activities</Button>
             </> : <>
                 <LeaderPageHeader
                     title={event.title}
                     description={`${event.section} · ${event.eventType} · ${eventStatusLabel(event.status)}`}
-                    actions={<Button variant="outlined" onClick={() => navigate("/leader/events")}>Back to Events</Button>}
+                    actions={<Button component={Link} to="/leader/events" variant="outlined" color="secondary" sx={{ minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to Events</Button>}
                 />
                 {message && <Alert severity="success" sx={{ mb: 3 }}>{message}</Alert>}
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}

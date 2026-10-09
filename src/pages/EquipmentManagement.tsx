@@ -14,7 +14,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import EquipmentHistoryDialog from "../components/admin/EquipmentHistoryDialog";
 import EquipmentItemFormDialog, { EMPTY_EQUIPMENT_FORM } from "../components/admin/EquipmentItemFormDialog";
 import type { EquipmentFormState } from "../components/admin/EquipmentItemFormDialog";
@@ -53,7 +53,6 @@ type InventoryStatusFilter = EquipmentDashboardFilter;
 
 export default function EquipmentManagement() {
   const { adminProfile } = useAdminAuth();
-  const navigate = useNavigate();
   const canManage = canManageEquipment(adminProfile);
   const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
   const [routeSearchParams, setRouteSearchParams] = useSearchParams();
@@ -250,9 +249,9 @@ export default function EquipmentManagement() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues from the reported issues page.</Alert>}
 
-      {hasLoaded && canManage && <Button variant="outlined" sx={{ mb: 2, width: { xs: "100%", sm: "auto" } }} onClick={() => navigate("/leader/qm-reports")}>Open QM Reports</Button>}
+      {hasLoaded && canManage && <Button component={Link} to="/leader/qm-reports" variant="outlined" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open QM Reports</Button>}
       {hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
-      {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} onViewAll={() => navigate(`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`)} onChanged={refresh} onError={setError} />}
+      {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} viewAllTo={`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`} onChanged={refresh} onError={setError} />}
       {hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
@@ -286,9 +285,9 @@ export default function EquipmentManagement() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
           {visibleItems.map((item) => {
             const available = availableEquipmentQuantity(item);
-            return <Paper key={item.id} data-testid={`equipment-inventory-card-${item.id}`} variant="outlined" role="link" tabIndex={0} onClick={() => navigate(`/leader/equipment/${item.id}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(`/leader/equipment/${item.id}`); }} sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1, cursor: "pointer", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+            return <Paper key={item.id} data-testid={`equipment-inventory-card-${item.id}`} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
               <Stack spacing={1.25}>
-                <Box><Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{item.name}</Typography><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
+                <Box><Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}`} variant="text" color="secondary" sx={{ p: 0, minHeight: 44, fontSize: "1.25rem", fontWeight: 800, textAlign: "left", justifyContent: "flex-start" }}>{item.name}</Button><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                   <Chip label={`${item.totalQuantity} total`} color="primary" />
                   <Chip label={`${available} available`} color={available === 0 ? "warning" : "success"} variant="outlined" />
@@ -301,8 +300,8 @@ export default function EquipmentManagement() {
                 {item.notes && <Typography variant="body2">{item.notes}</Typography>}
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                   <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}>History</Button>
-                  {canManage && !item.archived && available > 0 && <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${encodeURIComponent(item.id)}/move-store`); }}>Move Store</Button>}
-                  {canManage && <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); navigate(`/leader/equipment/${item.id}`); }}>Edit</Button>}
+                  {canManage && !item.archived && available > 0 && <Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}/move-store`} size="small" variant="outlined">Move Store</Button>}
+                  {canManage && <Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}`} size="small" variant="contained">Edit</Button>}
                   {canManage && <Button size="small" variant="outlined" color={item.archived ? "success" : "warning"} disabled={!item.archived && (item.checkedOutQuantity > 0 || item.unavailableQuantity > 0)} onClick={(e) => { e.stopPropagation(); setArchiveTarget(item); }}>{item.archived ? "Restore" : "Archive"}</Button>}
                 </Stack>
               </Stack>
