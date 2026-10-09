@@ -1254,7 +1254,18 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch is string)
         && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef is string)
         && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
-      allow update: if (canManageEquipment()
+      allow update: if (isActiveLeader()
+          && request.resource.data.checkedOutQuantity is number
+          && request.resource.data.checkedOutQuantity >= 0
+          && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
+          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
+            || (request.resource.data.unavailableQuantity is number
+              && request.resource.data.unavailableQuantity >= 0
+              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]))
+        || (canManageEquipment()
           && request.resource.data.name is string
           && request.resource.data.category is string
           && request.resource.data.trackingMode in ["quantity", "individual"]
@@ -1285,17 +1296,7 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch == resource.data.importBatch)
           && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef == resource.data.importSourceRef)
           && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
-        || (isActiveLeader()
-          && request.resource.data.checkedOutQuantity is number
-          && request.resource.data.checkedOutQuantity >= 0
-          && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
-          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
-            || (request.resource.data.unavailableQuantity is number
-              && request.resource.data.unavailableQuantity >= 0
-              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
-          && request.resource.data.updatedBy == request.auth.uid
-          && request.resource.data.updatedAt == request.time
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]));
+        );
       allow delete: if false;
     }
 
@@ -1397,7 +1398,7 @@ service cloud.firestore {
                 && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
                 && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section)))
           || (request.resource.data.loanId == ""
-            && (canManageEquipment() || hasSection(request.resource.data.section))
+            && profileHasSection(request.resource.data.section)
             && exists(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId))
             && getAfter(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.unavailableQuantity
               == get(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.unavailableQuantity + request.resource.data.quantity
@@ -1597,208 +1598,3 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
         && request.resource.data.keys().hasOnly(["sourceType", "sourceId", "sourceLabel", "section", "date", "lines", "loanId", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
-      allow update: if isActiveLeader()
-        && resource.data.section is string
-        && (hasSection(resource.data.section) || isGroupLeader())
-        && request.resource.data.section == resource.data.section
-        && request.resource.data.sourceId == resource.data.sourceId
-        && request.resource.data.sourceType == resource.data.sourceType
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.lines is list
-        && request.resource.data.loanId is string
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["sourceLabel", "date", "lines", "loanId", "updatedBy", "updatedAt"]);
-      allow delete: if false;
-    }
-
-
-    function pollGroupSections() { return ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]; }
-    function pollIsGroupManager() { return isAdmin() || isGroupLeader(); }
-    function pollCanManage(poll) {
-      return isActiveLeader() && (
-        pollIsGroupManager()
-        || (poll.scopeType == "sections" && poll.scopeSections is list && profile().sections is list && profile().sections.hasAll(poll.scopeSections))
-      );
-    }
-    function pollHasEligibleParent(poll) {
-      return poll.scopeSections is list && (
-        (poll.scopeSections.hasAny(["Beavers"]) && isApprovedParentForSection("Beavers"))
-        || (poll.scopeSections.hasAny(["Cubs"]) && isApprovedParentForSection("Cubs"))
-        || (poll.scopeSections.hasAny(["Scouts"]) && isApprovedParentForSection("Scouts"))
-        || (poll.scopeSections.hasAny(["Ventures"]) && isApprovedParentForSection("Ventures"))
-        || (poll.scopeSections.hasAny(["Rovers"]) && isApprovedParentForSection("Rovers"))
-      );
-    }
-    function pollHasEligibleLeader(poll) {
-      return isActiveLeader() && poll.scopeSections is list && profile().sections is list
-        && poll.scopeSections.hasAny(profile().sections);
-    }
-    function pollMayReadOwnResponse(poll) {
-      return (poll.audienceType == "leaders" && pollHasEligibleLeader(poll))
-        || (poll.audienceType == "parents" && pollHasEligibleParent(poll));
-    }
-    function pollMayRespond(poll) {
-      return poll.status == "published"
-        && (!poll.keys().hasAny(["closesAt"]) || request.time < poll.closesAt)
-        && pollMayReadOwnResponse(poll);
-    }
-    function validPollDocument(data) {
-      return data.keys().hasAll(["question", "options", "audienceType", "scopeType", "scopeSections", "status", "createdBy", "createdAt", "updatedBy", "updatedAt"])
-        && data.question is string && data.question.size() >= 5 && data.question.size() <= 240
-        && data.options is list && data.options.size() >= 2 && data.options.size() <= 8
-        && data.audienceType in ["leaders", "parents"]
-        && data.scopeType in ["group", "sections"]
-        && data.scopeSections is list && data.scopeSections.size() >= 1 && data.scopeSections.size() <= 5
-        && data.scopeSections.hasOnly(pollGroupSections())
-        && data.status in ["draft", "published", "closed"];
-    }
-    function pollScopeAllowedToCreate(data) {
-      return data.scopeType == "group"
-        ? pollIsGroupManager() && data.scopeSections == pollGroupSections()
-        : data.scopeType == "sections" && data.scopeSections.size() > 0
-          && (pollIsGroupManager() || (profile().sections is list && profile().sections.hasAll(data.scopeSections)));
-    }
-    function pollCanReadRoot(poll) {
-      return pollCanManage(poll)
-        || (poll.status == "published" && poll.audienceType == "leaders" && pollHasEligibleLeader(poll))
-        || (poll.status == "published" && poll.audienceType == "parents" && pollHasEligibleParent(poll));
-    }
-    function validPollResponse(pollId, uid, data) {
-      let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
-      return signedIn() && request.auth.uid == uid && pollMayRespond(poll)
-        && data.keys().hasAll(["accountUid", "option", "optionIndex", "createdAt", "updatedAt"])
-        && data.accountUid == uid && data.option is string && data.optionIndex is int
-        && data.optionIndex >= 0 && data.optionIndex < poll.options.size()
-        && poll.options[data.optionIndex] == data.option
-        && data.updatedAt == request.time;
-    }
-    function pollResultCounterMatchesResponse(pollId, uid, optionIndex, increment) {
-      let resultPath = /databases/$(database)/documents/polls/$(pollId)/results/$(optionIndex);
-      return exists(resultPath)
-        && getAfter(resultPath).data.count == get(resultPath).data.count + (increment ? 1 : -1);
-    }
-    function pollResultWasAdjustedByOwnResponse(pollId, optionIndex) {
-      let responsePath = /databases/$(database)/documents/polls/$(pollId)/responses/$(request.auth.uid);
-      let responseAfter = getAfter(responsePath).data;
-      let hadResponse = exists(responsePath);
-      return signedIn() && pollMayRespond(get(/databases/$(database)/documents/polls/$(pollId)).data)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["count", "updatedAt"])
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.count is int && request.resource.data.count >= 0
-        && (
-          (request.resource.data.count == resource.data.count + 1
-            && responseAfter.optionIndex == optionIndex
-            && (!hadResponse || get(responsePath).data.optionIndex != optionIndex))
-          || (request.resource.data.count == resource.data.count - 1
-            && hadResponse && get(responsePath).data.optionIndex == optionIndex
-            && responseAfter.optionIndex != optionIndex)
-        );
-    }
-
-    // Collection-group reads need an explicit recursive match; nested rules alone
-    // do not authorise queries over audienceSections across all polls.
-    match /{path=**}/audienceSections/{section} {
-      // Administrators manage every poll. This unconditional role check is
-      // provable for collection-group queries; parent-document lookups are not.
-      // Only index documents are exposed here, never poll roots or responses.
-      allow list: if isAdmin();
-      // A collection-group query cannot prove a parent-document get() predicate.
-      // The published index itself is a deliberately limited discovery record;
-      // root poll reads and votes remain separately authorised.
-      allow list: if resource.data.audienceType == "parents"
-        && resource.data.status == "published"
-        && isApprovedParentForSection(resource.data.section);
-      allow list: if resource.data.pollId is string
-        && resource.data.section == section
-        && exists(/databases/$(database)/documents/polls/$(resource.data.pollId))
-        && (
-          pollCanManage(get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data)
-          || (resource.data.status == "published"
-            && get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data.status == "published"
-            && ((resource.data.audienceType == "parents" && isApprovedParentForSection(section))
-              || (resource.data.audienceType == "leaders" && isActiveLeader()
-                && profile().sections.hasAny([section]))))
-        );
-    }
-
-    match /polls/{pollId} {
-      allow get: if pollCanReadRoot(resource.data);
-      allow list: if false;
-      allow create: if isActiveLeader() && validPollDocument(request.resource.data)
-        && request.resource.data.status == "draft"
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && pollScopeAllowedToCreate(request.resource.data)
-        && (!request.resource.data.keys().hasAny(["closesAt"]) || request.resource.data.closesAt > request.time);
-      allow update: if pollCanManage(resource.data) && validPollDocument(request.resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "publishedAt", "closedAt", "updatedBy", "updatedAt"])
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time
-        && ((resource.data.status == "draft" && request.resource.data.status == "published"
-              && request.resource.data.publishedAt == request.time)
-            || (resource.data.status == "published" && request.resource.data.status == "closed"
-              && request.resource.data.closedAt == request.time));
-      allow delete: if false;
-
-      match /audienceSections/{section} {
-        function parentCanReadIndex() {
-          return resource.data.audienceType == "parents" && resource.data.status == "published"
-            && isApprovedParentForSection(section)
-            && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "published";
-        }
-        function leaderCanReadIndex() {
-          return isActiveLeader() && profile().sections.hasAny([section])
-            && resource.data.audienceType == "leaders" && resource.data.status == "published"
-            && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "published";
-        }
-        allow get, list: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
-          || parentCanReadIndex() || leaderCanReadIndex();
-        allow create: if isActiveLeader()
-          && pollCanManage(getAfter(/databases/$(database)/documents/polls/$(pollId)).data)
-          && getAfter(/databases/$(database)/documents/polls/$(pollId)).data.status == "draft"
-          && section in getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeSections
-          && request.resource.data.pollId == pollId && request.resource.data.section == section
-          && request.resource.data.audienceType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.audienceType
-          && request.resource.data.scopeType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeType
-          && request.resource.data.status == "draft";
-        allow update: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
-          && ((resource.data.status == "draft" && request.resource.data.status == "published")
-            || (resource.data.status == "published" && request.resource.data.status == "closed"));
-        allow delete: if false;
-      }
-
-      match /responses/{uid} {
-        allow get: if signedIn() && request.auth.uid == uid && pollMayReadOwnResponse(get(/databases/$(database)/documents/polls/$(pollId)).data);
-        allow list: if false;
-        allow create: if validPollResponse(pollId, uid, request.resource.data)
-          && pollResultCounterMatchesResponse(pollId, uid, request.resource.data.optionIndex, true);
-        allow update: if validPollResponse(pollId, uid, request.resource.data)
-          && request.resource.data.accountUid == resource.data.accountUid
-          && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["option", "optionIndex", "updatedAt"])
-          && (request.resource.data.optionIndex == resource.data.optionIndex
-            || (pollResultCounterMatchesResponse(pollId, uid, request.resource.data.optionIndex, true)
-              && pollResultCounterMatchesResponse(pollId, uid, resource.data.optionIndex, false)));
-        allow delete: if false;
-      }
-
-      match /results/{resultId} {
-        allow get, list: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data);
-        allow create: if isActiveLeader()
-          && pollCanManage(getAfter(/databases/$(database)/documents/polls/$(pollId)).data)
-          && getAfter(/databases/$(database)/documents/polls/$(pollId)).data.status == "draft"
-          && request.resource.data.option is string && request.resource.data.optionIndex is int
-          && request.resource.data.count == 0 && ((resultId == "0" && request.resource.data.optionIndex == 0) || (resultId == "1" && request.resource.data.optionIndex == 1) || (resultId == "2" && request.resource.data.optionIndex == 2) || (resultId == "3" && request.resource.data.optionIndex == 3) || (resultId == "4" && request.resource.data.optionIndex == 4) || (resultId == "5" && request.resource.data.optionIndex == 5) || (resultId == "6" && request.resource.data.optionIndex == 6) || (resultId == "7" && request.resource.data.optionIndex == 7));
-        allow update: if pollResultWasAdjustedByOwnResponse(pollId, resource.data.optionIndex);
-        allow delete: if false;
-      }
-    }
-
-    match /{document=**} { allow read, write: if false; }
-  }
-}
