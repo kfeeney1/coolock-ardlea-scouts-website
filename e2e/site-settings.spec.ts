@@ -68,3 +68,19 @@ test("admin can extend standard and leader family rate tables", async ({ page },
   await page.getByRole("button", { name: "Save immutable rate policy" }).click();
   await expect(page.getByRole("alert").filter({ hasText: /valid euro amount/i })).toBeVisible();
 });
+
+test("saving the already-active immutable subs policy is idempotent", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.webadmin@example.com");
+  await page.goto("/leader/settings?view=treasurer");
+  const panel = page.getByTestId("subs-settings-panel");
+  await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+  await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
+  await expect(panel.getByRole("alert").filter({ hasText: /Subs policy .* saved/ })).toBeVisible();
+  await expect(panel.getByRole("alert").filter({ hasText: /Unable to save subs policy|PERMISSION_DENIED/i })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByTestId("subs-settings-panel").getByTestId("subs-saved-policy-status")).toContainText("version 1");
+});

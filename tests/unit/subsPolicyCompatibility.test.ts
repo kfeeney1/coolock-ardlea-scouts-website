@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mapSubsPolicy } from "../../src/services/subsPolicyCompatibility.ts";
+import { mapSubsPolicy, sameSubsPolicyContent } from "../../src/services/subsPolicyCompatibility.ts";
 
 test("maps production-shaped legacy policies without inventing family totals", () => {
   const policy = mapSubsPolicy("legacy-2026", {
@@ -31,4 +31,21 @@ test("preserves current policy version, dates and family totals", () => {
 
 test("rejects records without a Scout year", () => {
   assert.equal(mapSubsPolicy("bad", { version: 1 }), null);
+});
+
+test("recognises an identical repeat save of an immutable policy version", () => {
+  const stored = mapSubsPolicy("2026-27-v1", {
+    period: "2026/27", effectiveFrom: "2026-09-01", periodStart: "2026-09-01", periodEnd: "2027-06-30",
+    standardCents: 26400, leaderChildCents: 20500, siblingCents: 15500,
+    standardFamilyRatesCents: [26400, 41900, 52400, 62900], leaderFamilyRatesCents: [20500, 34300, 46500], version: 1,
+    createdBy: "first-save", createdAt: new Date()
+  });
+  assert.ok(stored);
+  const candidate = {
+    period: "2026/27", effectiveFrom: "2026-09-01", periodStart: "2026-09-01", periodEnd: "2027-06-30",
+    standardCents: 26400, leaderChildCents: 20500, siblingCents: 15500,
+    standardFamilyRatesCents: [26400, 41900, 52400, 62900], leaderFamilyRatesCents: [20500, 34300, 46500], version: 1
+  };
+  assert.equal(sameSubsPolicyContent(stored, candidate), true);
+  assert.equal(sameSubsPolicyContent(stored, { ...candidate, standardCents: 27000 }), false);
 });
