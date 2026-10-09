@@ -12,6 +12,15 @@ export type IncidentAvailabilityItem = {
   archived: boolean;
 };
 
+export type UnadjustedEquipmentIncident = {
+  itemId: string;
+  quantity: number;
+  type: EquipmentIncidentType;
+  status: EquipmentIncidentStatus;
+  loanId?: string;
+  stockAdjusted?: boolean;
+};
+
 export function incidentTypeLabel(type: EquipmentIncidentType): string {
   if (type === "damaged") return "Broken / damaged";
   if (type === "lost") return "Lost";
@@ -43,6 +52,25 @@ export function incidentRequiresUrgentNotification(type: EquipmentIncidentType):
 
 export function availableAfterUnavailable(item: Pick<IncidentAvailabilityItem, "totalQuantity" | "checkedOutQuantity" | "unavailableQuantity">): number {
   return Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
+}
+
+/**
+ * Older catalogue-only issue reports did not move stock into unavailableQuantity.
+ * Count those active reports once while leaving newer, stock-adjusted reports to
+ * the item counter. Cap legacy quantities to stock that is not already allocated.
+ */
+export function unadjustedIncidentUnavailableQuantity(
+  itemId: string,
+  item: Pick<IncidentAvailabilityItem, "totalQuantity" | "checkedOutQuantity" | "unavailableQuantity">,
+  incidents: UnadjustedEquipmentIncident[]
+): number {
+  const outstanding = incidents.reduce((sum, incident) => {
+    if (incident.itemId !== itemId || incident.status === "resolved" || incident.stockAdjusted === true || incident.loanId) return sum;
+    if (!incidentRemovesAvailability(incident.type) || !Number.isInteger(incident.quantity) || incident.quantity <= 0) return sum;
+    return sum + incident.quantity;
+  }, 0);
+  const unallocated = Math.max(0, item.totalQuantity - item.checkedOutQuantity - item.unavailableQuantity);
+  return Math.min(outstanding, unallocated);
 }
 
 export function validateIncidentQuantity(item: IncidentAvailabilityItem, requested: number, fromLoanOutstanding = 0): string | null {

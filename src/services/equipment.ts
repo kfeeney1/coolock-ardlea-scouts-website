@@ -6,15 +6,18 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { recordAuditEvent } from "./auditLog";
 import { recordEquipmentHistory } from "./equipmentHistory";
 import { normaliseEquipmentLabel } from "./equipmentLogic";
 import type { EquipmentCondition, EquipmentTrackingMode } from "./equipmentLogic";
+import { unadjustedIncidentUnavailableQuantity } from "./equipmentIncidentLogic";
 
 export type EquipmentItem = {
   id: string;
@@ -93,14 +96,45 @@ function mapItem(id: string, data: Record<string, unknown>): EquipmentItem | nul
 
 export async function loadEquipmentItem(itemId: string): Promise<EquipmentItem | null> {
   const snapshot = await getDoc(doc(db, "equipmentItems", itemId));
-  return snapshot.exists() ? mapItem(snapshot.id, snapshot.data()) : null;
+  if (!snapshot.exists()) return null;
+  const item = mapItem(snapshot.id, snapshot.data());
+  if (!item) return null;
+  const incidentSnapshot = await getDocs(query(collection(db, "equipmentIncidents"), where("itemId", "==", itemId)));
+  const incidents = incidentSnapshot.docs.map((entry) => entry.data()).map((data) => ({
+    itemId: typeof data.itemId === "string" ? data.itemId : "",
+    quantity: typeof data.quantity === "number" ? data.quantity : 0,
+    type: data.type,
+    status: data.status,
+    loanId: typeof data.loanId === "string" ? data.loanId : "",
+    stockAdjusted: data.stockAdjusted === true
+  })).filter((incident) => ["damaged", "lost", "missing", "maintenance"].includes(String(incident.type))
+    && ["reported", "investigating", "resolved"].includes(String(incident.status)));
+  return {
+    ...item,
+    unavailableQuantity: item.unavailableQuantity + unadjustedIncidentUnavailableQuantity(item.id, item, incidents as Parameters<typeof unadjustedIncidentUnavailableQuantity>[2])
+  };
 }
 
 export async function loadEquipmentItems(): Promise<EquipmentItem[]> {
-  const snapshot = await getDocs(collection(db, "equipmentItems"));
+  const [snapshot, incidentSnapshot] = await Promise.all([
+    getDocs(collection(db, "equipmentItems")),
+    getDocs(query(collection(db, "equipmentIncidents"), where("status", "in", ["reported", "investigating"])))
+  ]);
+  const incidents = incidentSnapshot.docs.map((entry) => entry.data()).map((data) => ({
+    itemId: typeof data.itemId === "string" ? data.itemId : "",
+    quantity: typeof data.quantity === "number" ? data.quantity : 0,
+    type: data.type,
+    status: data.status,
+    loanId: typeof data.loanId === "string" ? data.loanId : "",
+    stockAdjusted: data.stockAdjusted === true
+  })).filter((incident) => ["damaged", "lost", "missing", "maintenance"].includes(String(incident.type)));
   return snapshot.docs
     .map((item) => mapItem(item.id, item.data()))
     .filter((item): item is EquipmentItem => item !== null)
+    .map((item) => ({
+      ...item,
+      unavailableQuantity: item.unavailableQuantity + unadjustedIncidentUnavailableQuantity(item.id, item, incidents as Parameters<typeof unadjustedIncidentUnavailableQuantity>[2])
+    }))
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
 }
 

@@ -68,8 +68,20 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
     await report.getByLabel("What happened?").fill(description);
     await report.getByRole("button", { name: "Report issue" }).click();
     await expect(report).toBeHidden();
+    const inventoryCard = page.getByTestId(`equipment-inventory-card-${itemIds.get(name)}`);
+    await expect(inventoryCard.getByText("0 available", { exact: true })).toBeVisible();
+    await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
     await expect(page.getByTestId("equipment-incidents-panel").getByTestId(/^equipment-incident-/)).toHaveCount(0);
   }
+
+  await page.getByRole("button", { name: "Check out equipment" }).click();
+  const checkout = page.getByRole("dialog", { name: "Check out equipment" });
+  for (const name of [firstName, secondName]) {
+    const card = checkout.getByTestId(`equipment-checkout-item-${itemIds.get(name)}`);
+    await expect(card).toContainText("0 available after current checkouts and reservations");
+    await expect(card.getByRole("spinbutton", { name: `Qty for ${name}` })).toBeDisabled();
+  }
+  await checkout.getByRole("button", { name: "Cancel" }).click();
 
   await expect(page.getByRole("link", { name: "View reported issues" })).toBeVisible();
   await page.getByRole("link", { name: "View reported issues" }).click();

@@ -26,6 +26,7 @@ const item = {
 test("availability subtracts checked-out stock without going negative", () => {
   assert.equal(availableEquipmentQuantity(item), 9);
   assert.equal(availableEquipmentQuantity({ totalQuantity: 2, checkedOutQuantity: 5 }), 0);
+  assert.equal(availableEquipmentQuantity({ totalQuantity: 12, checkedOutQuantity: 3, unavailableQuantity: 4 }), 5);
 });
 
 test("ordinary leaders can use equipment only for assigned sections", () => {
@@ -46,6 +47,7 @@ test("checkout validation prevents over-allocation and archived stock", () => {
   assert.equal(validateCheckoutQuantity(item, 9), null);
   assert.match(validateCheckoutQuantity(item, 10) ?? "", /Only 9/);
   assert.match(validateCheckoutQuantity({ ...item, archived: true }, 1) ?? "", /archived/);
+  assert.match(validateCheckoutQuantity({ ...item, unavailableQuantity: 8 }, 2) ?? "", /Only 1/);
 });
 
 test("partial returns keep a loan open until every line is returned", () => {

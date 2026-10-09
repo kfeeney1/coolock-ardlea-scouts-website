@@ -7,6 +7,7 @@ import {
   incidentStatusLabel,
   incidentTypeLabel,
   resolvedEquipmentQuantities,
+  unadjustedIncidentUnavailableQuantity,
   validateIncidentQuantity,
   validateIncidentResolution
 } from "../../src/services/equipmentIncidentLogic.ts";
@@ -29,6 +30,23 @@ test("equipment incident labels remain leader friendly", () => {
 test("unavailable stock is removed from checkout availability", () => {
   assert.equal(availableAfterUnavailable({ totalQuantity: 10, checkedOutQuantity: 3, unavailableQuantity: 2 }), 5);
   assert.equal(availableAfterUnavailable({ totalQuantity: 2, checkedOutQuantity: 2, unavailableQuantity: 2 }), 0);
+});
+
+test("active legacy store reports add only unadjusted quantities and never exceed remaining stock", () => {
+  const item = { totalQuantity: 8, checkedOutQuantity: 2, unavailableQuantity: 1 };
+  const incidents = [
+    { itemId: "tent", quantity: 2, type: "damaged" as const, status: "reported" as const },
+    { itemId: "tent", quantity: 1, type: "maintenance" as const, status: "investigating" as const },
+    { itemId: "tent", quantity: 1, type: "damaged" as const, status: "resolved" as const },
+    { itemId: "tent", quantity: 1, type: "damaged" as const, status: "reported" as const, stockAdjusted: true },
+    { itemId: "other", quantity: 3, type: "lost" as const, status: "reported" as const }
+  ];
+  assert.equal(unadjustedIncidentUnavailableQuantity("tent", item, incidents), 3);
+  assert.equal(availableAfterUnavailable({ ...item, unavailableQuantity: item.unavailableQuantity + 3 }), 2);
+  assert.equal(unadjustedIncidentUnavailableQuantity("tent", item, [...incidents, {
+    itemId: "tent", quantity: 20, type: "damaged", status: "reported"
+  }]), 5);
+  assert.equal(unadjustedIncidentUnavailableQuantity("tent", item, incidents.filter((incident) => incident.status !== "reported" || incident.type !== "damaged")), 1);
 });
 
 test("incident quantity is bounded by source and archive state", () => {

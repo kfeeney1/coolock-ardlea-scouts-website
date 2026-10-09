@@ -1254,7 +1254,18 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch is string)
         && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef is string)
         && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
-      allow update: if (canManageEquipment()
+      allow update: if (isActiveLeader()
+          && request.resource.data.checkedOutQuantity is number
+          && request.resource.data.checkedOutQuantity >= 0
+          && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
+          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
+            || (request.resource.data.unavailableQuantity is number
+              && request.resource.data.unavailableQuantity >= 0
+              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]))
+        || (canManageEquipment()
           && request.resource.data.name is string
           && request.resource.data.category is string
           && request.resource.data.trackingMode in ["quantity", "individual"]
@@ -1284,18 +1295,8 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAny(["source"]) || request.resource.data.source == resource.data.source)
           && (!request.resource.data.keys().hasAny(["importBatch"]) || request.resource.data.importBatch == resource.data.importBatch)
           && (!request.resource.data.keys().hasAny(["importSourceRef"]) || request.resource.data.importSourceRef == resource.data.importSourceRef)
-          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"]))
-        || (isActiveLeader()
-          && request.resource.data.checkedOutQuantity is number
-          && request.resource.data.checkedOutQuantity >= 0
-          && request.resource.data.checkedOutQuantity <= request.resource.data.totalQuantity
-          && (!request.resource.data.keys().hasAny(["unavailableQuantity"])
-            || (request.resource.data.unavailableQuantity is number
-              && request.resource.data.unavailableQuantity >= 0
-              && request.resource.data.checkedOutQuantity + request.resource.data.unavailableQuantity <= request.resource.data.totalQuantity))
-          && request.resource.data.updatedBy == request.auth.uid
-          && request.resource.data.updatedAt == request.time
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["checkedOutQuantity", "unavailableQuantity", "updatedBy", "updatedAt"]));
+          && request.resource.data.keys().hasOnly(["name", "category", "trackingMode", "totalQuantity", "checkedOutQuantity", "unavailableQuantity", "location", "condition", "notes", "replacementValue", "purchaseDate", "disposalDate", "replacementValueNote", "assetRegisterSection", "source", "importBatch", "importSourceRef", "archived", "createdBy", "createdAt", "updatedBy", "updatedAt"])
+        );
       allow delete: if false;
     }
 
@@ -1390,14 +1391,19 @@ service cloud.firestore {
         && request.resource.data.resolutionNotes == ""
         && request.resource.data.resolvedBy == ""
         && request.resource.data.resolvedAt == null
-        && request.resource.data.stockAdjusted is bool
-        && (canManageEquipment()
-          || (hasSection(request.resource.data.section)
-            && ((request.resource.data.loanId != ""
-              && request.resource.data.stockAdjusted == true
-              && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
-              && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section)
-              || (request.resource.data.loanId == "" && request.resource.data.stockAdjusted == false))))
+        && request.resource.data.stockAdjusted == true
+        && ((request.resource.data.loanId != ""
+            && (canManageEquipment()
+              || (hasSection(request.resource.data.section)
+                && exists(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId))
+                && get(/databases/$(database)/documents/equipmentLoans/$(request.resource.data.loanId)).data.section == request.resource.data.section)))
+          || (request.resource.data.loanId == ""
+            && profileHasSection(request.resource.data.section)
+            && exists(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId))
+            && getAfter(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.unavailableQuantity
+              == get(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.unavailableQuantity + request.resource.data.quantity
+            && getAfter(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.checkedOutQuantity
+              == get(/databases/$(database)/documents/equipmentItems/$(request.resource.data.itemId)).data.checkedOutQuantity))
         && request.resource.data.keys().hasOnly(["itemId", "itemName", "itemCategory", "itemLocation", "quantity", "type", "status", "section", "loanId", "description", "reportedBy", "reportedAt", "updatedBy", "updatedAt", "notificationState", "notificationSentAt", "resolutionType", "resolutionNotes", "resolvedBy", "resolvedAt", "stockAdjusted"]);
       allow update: if (isActiveLeader()
           && resource.data.reportedBy == request.auth.uid
