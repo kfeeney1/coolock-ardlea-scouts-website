@@ -104,12 +104,15 @@ test("leaving Parent Portal cancels a pending child selection commit", async ({ 
   await page.getByRole("combobox", { name: "Viewing information for" }).click();
   await page.locator('[role="option"][data-value="TEST_member_beaver_06"]').click();
   await page.route("**/leader/members", async (route) => {
-    // A late portal transition must not re-arm overlay cleanup after navigation starts.
-    await page.evaluate(() => document.body.classList.add("departure-regression"));
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     await route.continue();
   });
 
+  // Schedule in the current document before navigation; evaluating from the
+  // paused document-request handler can wait for that same navigation to finish.
+  await page.evaluate(() => {
+    window.setTimeout(() => document.body.classList.add("departure-regression"), 250);
+  });
   const response = await page.goto("/leader/members");
   expect(response?.ok()).toBe(true);
   await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
@@ -125,9 +128,11 @@ test("reloading Parent Portal after closing a select preserves the destination",
   await select.click();
   await page.locator('[role="option"][data-value="TEST_member_beaver_05"]').click();
   await page.route("**/parent?child=TEST_member_beaver_05", async (route) => {
-    await page.evaluate(() => document.body.classList.add("reload-regression"));
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     await route.continue();
+  });
+  await page.evaluate(() => {
+    window.setTimeout(() => document.body.classList.add("reload-regression"), 250);
   });
   const response = await page.reload();
   expect(response?.ok()).toBe(true);
