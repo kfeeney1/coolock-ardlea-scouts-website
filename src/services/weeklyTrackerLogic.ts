@@ -1,4 +1,6 @@
 import type { WeeklyActivityPlan, WeeklyBadgeworkPlan, WeeklyMeetingRecord, WeeklyMemberEntry } from "./weeklyTracker";
+import type { LeaderAttendanceEntry } from "./leaderAttendance";
+import type { WeeklyLeaderOption } from "./weeklyLeaderOptions";
 
 export type WeeklyMemberSummary = {
   memberId: string;
@@ -76,6 +78,32 @@ export function buildWeeklyMemberSummaries(records: WeeklyMeetingRecord[]): Week
 export type WeeklyRosterMember = { id: string; displayName: string; section: string; sections?: string[]; status: string };
 
 const rosterCollator = new Intl.Collator("en-IE", { sensitivity: "base", numeric: true, usage: "sort" });
+
+export function mergeLeaderAttendanceRoster(options: WeeklyLeaderOption[], selectedSections: string[], groupWide: boolean, saved: LeaderAttendanceEntry[] = []): LeaderAttendanceEntry[] {
+  const relevant = new Set(groupWide ? ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] : selectedSections);
+  const entries = new Map<string, LeaderAttendanceEntry>();
+  for (const leader of options) {
+    if (!relevant.has(leader.organisationSection)) continue;
+    const entry = entries.get(leader.id) ?? { leaderUid: leader.id, displayName: leader.displayName, appointments: [], sections: [], attendance: "unrecorded" as const };
+    entry.appointments = [...new Set([...entry.appointments, leader.scoutingRole])];
+    entry.sections = [...new Set([...entry.sections, leader.organisationSection])];
+    entries.set(leader.id, entry);
+  }
+  for (const entry of saved) {
+    const current = entries.get(entry.leaderUid);
+    const identity = options.filter((option) => option.id === entry.leaderUid);
+    if (!current && identity.length === 0) continue;
+    const latest = identity.length > 0 ? {
+      leaderUid: entry.leaderUid,
+      displayName: identity[0].displayName,
+      appointments: [...new Set(identity.map((option) => option.scoutingRole))],
+      sections: [...new Set(identity.map((option) => option.organisationSection))],
+      attendance: entry.attendance
+    } : { ...current!, attendance: entry.attendance };
+    entries.set(entry.leaderUid, current ? { ...current, attendance: entry.attendance } : latest);
+  }
+  return [...entries.values()].sort((a, b) => rosterCollator.compare(a.displayName, b.displayName) || a.leaderUid.localeCompare(b.leaderUid));
+}
 
 export function sortWeeklyEntries(entries: WeeklyMemberEntry[]): WeeklyMemberEntry[] {
   return [...entries].sort((a, b) => rosterCollator.compare(a.memberName.trim(), b.memberName.trim()) || a.memberId.localeCompare(b.memberId));

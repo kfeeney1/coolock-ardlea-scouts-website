@@ -2,12 +2,19 @@ import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, 
 
 import type { MemberRecord } from "../../services/memberAdmin";
 import type { AttendanceStatus, EventConsentStatus, EventRecord } from "../../services/eventAdmin";
+import LeaderAttendanceSection from "./LeaderAttendanceSection";
+import type { LeaderAttendanceEntry } from "../../services/leaderAttendance";
+import type { WeeklyLeaderOption } from "../../services/weeklyLeaderOptions";
 
 type Props = {
     event: EventRecord | null;
     members: MemberRecord[];
     attendance: Record<string, AttendanceStatus>;
     consent: Record<string, EventConsentStatus>;
+    leaderOptions: WeeklyLeaderOption[];
+    leaderAttendance: LeaderAttendanceEntry[];
+    leaderAttendanceLoading: boolean;
+    onLeaderAttendanceChange: (entries: LeaderAttendanceEntry[]) => void;
     saving: boolean;
     onAttendanceChange: (attendance: Record<string, AttendanceStatus>) => void;
     onConsentChange: (consent: Record<string, EventConsentStatus>) => void;
@@ -17,7 +24,7 @@ type Props = {
     onExport: () => void;
 };
 
-export default function EventRosterDialog({ event, members, attendance, consent, saving, onAttendanceChange, onConsentChange, onClose, onSave, onPrint, onExport }: Props) {
+export default function EventRosterDialog({ event, members, attendance, consent, leaderOptions, leaderAttendance, leaderAttendanceLoading, onLeaderAttendanceChange, saving, onAttendanceChange, onConsentChange, onClose, onSave, onPrint, onExport }: Props) {
     const readOnly = event?.status === "completed";
     return (
         <Dialog open={Boolean(event)} onClose={onClose} maxWidth="lg" fullWidth>
@@ -37,11 +44,12 @@ export default function EventRosterDialog({ event, members, attendance, consent,
                         ))}
                     </Box>
                 )}
+                {event && <LeaderAttendanceSection options={leaderOptions} entries={leaderAttendance} onChange={onLeaderAttendanceChange} disabled={readOnly} loading={leaderAttendanceLoading} />}
             </DialogContent>
             <DialogActions>
                 {event && <><Button color="secondary" onClick={onPrint}>Report</Button><Button color="secondary" onClick={onExport}>Export CSV</Button></>}
                 <Button onClick={onClose}>Close</Button>
-                {!readOnly && <Button variant="contained" color="success" disabled={saving} onClick={onSave}>{saving ? "Saving..." : "Save Attendance"}</Button>}
+                {!readOnly && <Button variant="contained" color="success" disabled={saving || leaderAttendanceLoading} onClick={onSave}>{saving ? "Saving..." : "Save Attendance"}</Button>}
             </DialogActions>
         </Dialog>
     );
