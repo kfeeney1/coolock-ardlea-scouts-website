@@ -130,7 +130,6 @@ export function suitesForChangedPath(file) {
   if ([
     ".github/workflows/firestore-backup-freshness.yml",
     ".github/workflows/firestore-backup.yml",
-    ".github/workflows/sw-318-first-run.yml",
     "scripts/focused-playwright-selection.mjs",
     "tests/unit/focusedPlaywrightSelection.test.ts"
   ].includes(file)) return [];
