@@ -77,7 +77,90 @@ test("admin can add, check out and check in stock from its record and verify per
   await returnDialog.getByRole("button", { name: "Confirm check in" }).click();
   await expect(returnDialog).toBeHidden();
   await expect(record).toContainText("0 checked out");
-  await page.reload();
+  // The record's persisted state is proven by the UI assertions below, not by
+  // waiting for every background resource to finish during a full reload.
+  // Start the document navigation and let the record assertions establish readiness.
+  await page.reload({ waitUntil: "commit" });
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}import { expect, test, type Page, type TestInfo } from "@playwright/test";
+
+type Credentials = { email: string; password: string };
+
+function adminCredentials(): Credentials | null {
+  const email = process.env.E2E_ADMIN_EMAIL?.trim();
+  const password = process.env.E2E_ADMIN_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
+  return email && password ? { email, password } : null;
+}
+
+async function loginLeader(page: Page, account: Credentials) {
+  await page.goto("/leader/login");
+  await page.getByLabel("Email address").fill(account.email);
+  await page.getByLabel("Password").fill(account.password);
+  const leaderNavigation = page.waitForURL((url) => url.pathname === "/leader");
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await leaderNavigation;
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+}
+
+function desktopOnly(testInfo: TestInfo) {
+  test.skip(testInfo.project.name !== "chromium", "Equipment checkout runs once on desktop Chromium.");
+}
+
+test("admin can add, check out and check in stock from its record and verify persisted history", async ({ page }, testInfo) => {
+  const account = adminCredentials();
+  const itemName = `TEST Checkout Tent ${testInfo.project.name} ${Date.now()}`;
+  const storeName = "TEST Checkout Store";
+  await loginLeader(page, account!);
+
+  await page.goto("/leader/equipment");
+  await expect(page.getByRole("heading", { name: "Equipment & Stores" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add equipment" }).click();
+  const addDialog = page.getByRole("dialog", { name: "Add equipment" });
+  await expect(addDialog).toBeVisible();
+  await addDialog.getByLabel("Equipment name").fill(itemName);
+  await addDialog.getByLabel("Category").click();
+  await page.getByRole("option", { name: "Camping & Sleeping" }).click();
+  await addDialog.getByLabel("Store").click();
+  const existingStore = page.getByRole("option", { name: storeName, exact: true });
+  if (await existingStore.count()) {
+    await existingStore.click();
+  } else {
+    await page.getByRole("option", { name: "Other…" }).click();
+    await addDialog.getByLabel("New Store").fill(storeName);
+  }
+  await addDialog.getByLabel("Total quantity").fill("3");
+  await addDialog.getByRole("button", { name: "Save equipment" }).click();
+  await expect(page.getByText(itemName, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Check out equipment" }).click();
+  const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
+  await expect(checkoutDialog).toBeVisible();
+  await checkoutDialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Scouts" }).click();
+  await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${itemName}` }).fill("2");
+  await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeHidden();
+
+  await expect(page.getByText(`2 × ${itemName}`, { exact: false })).toBeVisible();
+  const inventoryCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
+  await expect(inventoryCard.getByText("1 available", { exact: true })).toBeVisible();
+  await expect(inventoryCard.getByText("2 checked out", { exact: true })).toBeVisible();
+
+  const itemTestId = await inventoryCard.getAttribute("data-testid");
+  const itemId = itemTestId?.replace("equipment-inventory-card-", "");
+  expect(itemId).toBeTruthy();
+  await inventoryCard.getByText(itemName, { exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}$`));
+  const record = page.getByTestId("equipment-record-summary");
+  await expect(page.getByRole("heading", { name: itemName, exact: true })).toBeVisible();
+  await expect(record).toContainText("2 checked out");
+  await record.getByRole("button", { name: "Check in / Return", exact: true }).click();
+  const returnDialog = page.getByRole("dialog", { name: `Check in / Return ${itemName}` });
+  await expect(returnDialog.getByText("2 currently checked out")).toBeVisible();
+  await returnDialog.getByRole("button", { name: "Confirm check in" }).click();
+  await expect(returnDialog).toBeHidden();
+));
+  await expect(page.getByRole("heading", { name: itemName, exact: true })).toBeVisible();
   await expect(page.getByTestId("equipment-record-summary")).toContainText("0 checked out");
   await page.getByRole("button", { name: "History", exact: true }).click();
   const history = page.getByRole("dialog", { name: `${itemName} history` });
