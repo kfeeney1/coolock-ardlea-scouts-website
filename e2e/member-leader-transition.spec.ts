@@ -8,6 +8,17 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 
 const ownedMembers: { memberId: string; email: string; invitationId?: string }[] = [];
 
+async function waitForTransientOverlayHistoryCleanup(page: import("@playwright/test").Page) {
+  await expect.poll(() => page.evaluate(() => {
+    const state = window.history.state;
+    if (!state || typeof state !== "object") return 0;
+    const userState = (state as { usr?: unknown }).usr;
+    if (!userState || typeof userState !== "object") return 0;
+    const markers = (userState as Record<string, unknown>).__coolockArdleaBackDismissStack;
+    return Array.isArray(markers) ? markers.length : 0;
+  }), { message: "Transient overlay history markers should be consumed before a document navigation" }).toBe(0);
+}
+
 function fixtureApp() {
   if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
   return getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
@@ -183,13 +194,14 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await approvalDialog.getByRole("button", { name: /Confirm Approval/ }).click();
   await expect(page.getByText(`${firstName} ${lastName} has been approved as a Leader`)).toBeVisible();
 
-  // The success alert is rendered before finish() completes its audit write,
-  // closes the approval dialog and refreshes the request list. Navigating on
-  // the alert alone races that still-running lifecycle and can abort page.goto.
-  // Wait for the authoritative post-approval UI state instead.
+  // The success alert is rendered before finish() completes its audit write
+  // and refresh. Wait for the approved row, then for the shared transient-overlay
+  // history stack to settle before starting a document navigation. Otherwise a
+  // delayed Back-dismiss cleanup can compete with page.goto and abort it.
   await expect(approvalDialog).toBeHidden();
   const approvedRequest = page.getByRole("link", { name: `Open Leader Access for ${firstName} ${lastName}` });
   await expect(approvedRequest).toBeVisible();
+  await waitForTransientOverlayHistoryCleanup(page);
 
   await page.goto(`/leader/members?status=all&q=${encodeURIComponent(lastName)}`);
   const updatedMember = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
