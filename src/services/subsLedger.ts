@@ -110,6 +110,27 @@ export async function loadSubsAccounts(): Promise<SubsAccount[]> {
   return currentSubsAccounts(accounts).sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id));
 }
 
+/**
+ * Create the standard single-child rate only when no existing family account or
+ * authorised assignment covers the member/year. Never replace a classification.
+ * Firestore create-only Rules reject a concurrent writer's overwrite.
+ */
+export async function ensureDefaultSubsAssignment(
+  member: { id: string; displayName: string; section: string },
+  policy: SubsRatePolicy
+): Promise<void> {
+  uid();
+  const [assignments, accounts] = await Promise.all([loadSubsAssignments(member.section), loadSubsAccounts()]);
+  if (assignments.some((assignment) => assignment.memberId === member.id && assignment.period === policy.period)) return;
+  if (accounts.some((account) => account.period === policy.period && account.memberIds.includes(member.id))) {
+    throw new UserFacingError("This member belongs to a family Subs account. Resolve its existing family classification before recording payment.");
+  }
+  if (!Array.isArray(policy.standardFamilyRatesCents) || !Number.isSafeInteger(policy.standardFamilyRatesCents[0])) {
+    throw new UserFacingError("The selected Scout year has no configured standard family rate.");
+  }
+  await assignSubsFamilyRate(member, policy, "standard", 1);
+}
+
 export async function loadSubsAssignments(section?: string): Promise<SubsAssignment[]> {
   const source = section
     ? query(collection(db, "subsAssignments"), where("section", "==", section))
