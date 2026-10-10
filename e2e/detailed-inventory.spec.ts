@@ -18,7 +18,7 @@ test("SW-368: menu and overview open the same detailed inventory, preserving URL
   await page.getByRole("link", { name: "Open Detailed Inventory" }).click();
   await expect(page).toHaveURL(/\/leader\/equipment\/inventory\?view=quartermaster/);
   await expect(page.getByTestId("page-qm-detailed-inventory")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Detailed inventory" })).toBeVisible();
+  await expect(page.getByTestId("equipment-inventory-section").getByRole("heading", { name: "Detailed inventory", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Open Leader Menu|Menu · Detailed Inventory/ }).click();
   await expect(page.getByTestId("leader-nav-qm-detailed-inventory").first()).toHaveAttribute("aria-current", "page");
   await expect(page.getByTestId("leader-nav-qm-equipment-stores").first()).not.toHaveAttribute("aria-current", "page");
