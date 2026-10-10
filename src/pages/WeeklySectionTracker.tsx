@@ -18,7 +18,6 @@ import { createWeeklyMeeting, loadWeeklyAccess, loadWeeklyMeetings, newActivityP
 import type { InjurySeverity, WeeklyAccess, WeeklyActivityPlan, WeeklyInjury, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
 import { displayWeeklyDate, initialWeeklyStep, joinWeeklyLeaders, nonNegativeWeeklyNumber, reconcileOpenWeeklyRoster, splitWeeklyLeaders, sortOpenWeeklyMeetings, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
-import { formatSiteDate, formatSiteDateText } from "../services/siteDateFormat";
 import { useWeeklyMeetingShare } from "../hooks/useWeeklyMeetingShare";
 import { recordAuditEvent } from "../services/auditLog";
 import { badgeworkSourceHref } from "../services/adventureSkillSourceContext";
@@ -114,7 +113,7 @@ export default function WeeklySectionTracker() {
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
   useEffect(()=>{if(!copyChanged)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[copyChanged]);
 
-  const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${formatSiteDate(record.meetingDate)}`,description:formatSiteDateText(description),section:record.section});
+  const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
   const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{
     if(saveInFlight.current)return saveInFlight.current;
