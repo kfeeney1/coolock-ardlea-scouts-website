@@ -11,6 +11,7 @@ import { isParseableMeetingDocument, readMeetingDocument } from "../services/mee
 import { createMeetingRecord, loadMeetingRecordVersions, loadMeetingRecords, updateMeetingRecord } from "../services/meetingRecords";
 import { openMeetingDocument } from "../services/meetingDocuments";
 import type { MeetingInput, MeetingRecord, MeetingRecordVersion, MeetingType } from "../services/meetingRecords";
+import { formatSiteDate, formatSiteDateTime } from "../services/siteDateFormat";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const FULL_MEETING_HISTORY_ROLES = new Set(["Group Secretary"]);
@@ -29,12 +30,11 @@ const emptyForm: MeetingInput = {
 
 function formatMeetingDate(value: string): string {
   if (!value) return "Date not recorded";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+  return value.includes("T") ? formatSiteDateTime(value) : formatSiteDate(value);
 }
 
 function formatVersionDate(value: Date | null): string {
-  return value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Timestamp pending";
+  return value ? formatSiteDateTime(value) : "Timestamp pending";
 }
 
 function meetingTypeLabel(type: MeetingType): string {

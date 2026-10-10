@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -34,10 +35,7 @@ import { CANONICAL_SCOUTING_APPOINTMENTS } from "../security/scoutingAppointment
 
 function formatDate(value: Date | null) {
     if (!value) return "Unknown date";
-    return new Intl.DateTimeFormat("en-IE", {
-        dateStyle: "medium",
-        timeStyle: "short"
-    }).format(value);
+    return formatSiteDateTime(value);
 }
 
 type ReviewDecision = "approve" | "reject";

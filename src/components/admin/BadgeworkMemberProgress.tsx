@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, LinearProgress, Paper, Stack, Typography } fr
 import type { MemberRecord } from "../../services/memberAdmin.ts";
 import type { AdventureStageAwardRecord, MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { adventureSkillOverview, type AdventureStageOverviewStatus } from "../../services/adventureSkillOverviewLogic.ts";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
   member: MemberRecord;
@@ -14,7 +15,7 @@ type Props = {
 const stageLabel = (status: AdventureStageOverviewStatus) => status === "requirements-complete" ? "Awaiting award" : status === "in-progress" ? "In progress" : status === "awarded" ? "Awarded" : "Not started";
 const stageColor = (status: AdventureStageOverviewStatus): "warning" | "info" | "success" | "inherit" => status === "requirements-complete" ? "warning" : status === "in-progress" ? "info" : status === "awarded" ? "success" : "inherit";
 const awardKey = (award: AdventureStageAwardRecord) => `${award.skillId}-${award.stage}`;
-const formatAwardDate = (value: Date | null) => value ? `${String(value.getDate()).padStart(2, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${value.getFullYear()}` : "Date pending";
+const formatAwardDate = (value: Date | null) => value ? formatSiteDate(value) : "Date pending";
 
 export default function BadgeworkMemberProgress({ member, onBack, onOpenStage, progress }: Props) {
   const summaries = adventureSkillOverview(progress);

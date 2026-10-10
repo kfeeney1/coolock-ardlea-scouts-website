@@ -7,6 +7,7 @@ import { returnEquipment } from "../../services/equipmentLoans";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
 import { canUseEquipmentForSection, outstandingLoanQuantity } from "../../services/equipmentLoanLogic";
 import { isEquipmentReservationLoan } from "../../services/equipmentProgrammeLogic";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
   item: EquipmentItem;
@@ -78,7 +79,7 @@ export default function EquipmentItemReturnDialog({ item, loans, profile, open, 
           <Select labelId="equipment-return-checkout-label" label="Checkout" value={selectedLoan?.id ?? ""} onChange={(event) => selectLoan(event.target.value)}>
             {eligibleLoans.map((loan) => {
               const line = loan.lines.find((candidate) => candidate.itemId === item.id)!;
-              return <MenuItem key={loan.id} value={loan.id}>{loan.section} · due {loan.expectedReturnDate} · {outstandingLoanQuantity(line)} checked out</MenuItem>;
+              return <MenuItem key={loan.id} value={loan.id}>{loan.section} · due {formatSiteDate(loan.expectedReturnDate)} · {outstandingLoanQuantity(line)} checked out</MenuItem>;
             })}
           </Select>
         </FormControl>

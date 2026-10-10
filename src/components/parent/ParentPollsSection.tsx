@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../../services/siteDateFormat";
 import { useEffect, useState } from "react";
 import { Alert, Button, CircularProgress, FormControl, FormControlLabel, Paper, Radio, RadioGroup, Stack, Typography } from "@mui/material";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
@@ -8,7 +9,7 @@ type Props = { sections: string[] };
 
 function formatClosingDate(value: unknown): string {
   const date = value instanceof Date ? value : typeof value === "object" && value !== null && "toDate" in value && typeof value.toDate === "function" ? value.toDate() as Date : new Date(value as string | number);
-  return Number.isFinite(date.getTime()) ? date.toLocaleString() : "date unavailable";
+  return Number.isFinite(date.getTime()) ? formatSiteDateTime(date) : "date unavailable";
 }
 
 export default function ParentPollsSection({ sections }: Props) {

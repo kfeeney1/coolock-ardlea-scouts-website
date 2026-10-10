@@ -27,6 +27,9 @@ test("leader today surfaces overdue meetings, missing programme, today's attenda
     "meeting-attendance-next",
     "event-consent-camp"
   ]);
+  assert.equal(result.attentionItems[0].label, "Scouts meeting from 20-08-2026 is still open");
+  assert.equal(result.attentionItems[1].label, "Scouts meeting on 27-08-2026 has no programme");
+  assert.equal(result.attentionItems[3].detail, "Event date: 12-09-2026");
 });
 
 test("leader today stays clear when nothing needs attention", () => {

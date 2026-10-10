@@ -65,6 +65,48 @@ test("section leader sees the constrained Section Floats workflow", async ({ pag
   await expect(page.getByRole("button", { name: "Save reconciliation" })).toBeDisabled();
 });
 
+test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop and mobile", async ({ page }) => {
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+  await login(page);
+  await page.goto("/leader/finance");
+  await expect(page.getByRole("heading", { name: "Section Floats" })).toBeVisible();
+
+  const type = page.getByRole("combobox", { name: "Transaction", exact: true });
+  await type.click();
+  await expect(page.getByText("Loading section float…", { exact: true })).toBeHidden();
+  const emptyFloat = await page.getByText("No float transactions have been recorded for this section.", { exact: true }).isVisible();
+  await page.getByRole("option", { name: emptyFloat ? "Open float" : "Float top up", exact: true }).click();
+  if (emptyFloat) {
+    await page.getByLabel("Date", { exact: true }).fill("2026-09-29");
+    await page.getByLabel("Amount (€)").fill("10.00");
+    await page.getByRole("button", { name: "Save transaction", exact: true }).click();
+    const opening = page.locator('[data-testid^="finance-transaction-"]').filter({ has: page.getByText("Open float", { exact: true }) });
+    await expect(opening).toContainText("29-09-2026");
+    await expect(opening).not.toContainText("2026-09-29");
+    await type.click();
+    await page.getByRole("option", { name: "Money out", exact: true }).click();
+  }
+
+  const description = `SW-215 date audit ${crypto.randomUUID()}`;
+  await page.getByLabel("Date", { exact: true }).fill("2026-10-03");
+  await page.getByLabel("Amount (€)").fill("0.01");
+  await page.getByLabel("What was the money spent on?").fill(description);
+  await page.getByRole("button", { name: "Save transaction", exact: true }).click();
+  const row = page.locator('[data-testid^="finance-transaction-"]').filter({ has: page.getByText(description, { exact: true }) });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("03-10-2026");
+  await expect(row).not.toContainText("2026-10-03");
+  await expect(row.getByText(/^Entered 03-10-2026, \d{2}:\d{2}$/)).toBeVisible();
+
+  await row.getByRole("button", { name: "Correct entry", exact: true }).click();
+  const correction = page.getByRole("dialog", { name: "Correct float entry" });
+  await correction.getByLabel("Correction date").fill("2026-10-03");
+  await correction.getByRole("button", { name: "Create correction", exact: true }).click();
+  const correctionRow = page.locator('[data-testid^="finance-transaction-"]').filter({ hasText: `Correction of ${description}` });
+  await expect(correctionRow).toContainText("03-10-2026");
+  await expect(correctionRow).not.toContainText("2026-10-03");
+});
+
 
 test("SW-281 receipt status does not download bodies and corrected receipts survive reload", async ({ page }) => {
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
