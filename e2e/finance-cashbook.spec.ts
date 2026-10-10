@@ -96,7 +96,8 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
   await expect(row).toBeVisible();
   await expect(row).toContainText("03-10-2026");
   await expect(row).not.toContainText("2026-10-03");
-  await expect(row.getByText(/^Entered 03-10-2026, \d{2}:\d{2}$/)).toBeVisible();
+  await expect(row.getByText(/^Entered \d{2}-\d{2}-\d{4}, \d{2}:\d{2}$/)).toBeVisible();
+  await expect(row).not.toContainText(/Entered \d{4}-\d{2}-\d{2}/);
 
   await row.getByRole("button", { name: "Correct entry", exact: true }).click();
   const correction = page.getByRole("dialog", { name: "Correct float entry" });
