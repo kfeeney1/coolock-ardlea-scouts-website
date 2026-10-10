@@ -132,7 +132,7 @@ export default function EquipmentManagement({ inventoryOnly = false }: { invento
     }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { if (!inventoryOnly || canManage) void refresh(); }, [inventoryOnly, canManage]);
   useEffect(() => {
     const next = new URLSearchParams(routeSearchParams);
     filterParamsRef.current = next;
