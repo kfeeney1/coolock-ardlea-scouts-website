@@ -138,12 +138,18 @@ for (const project of ["chromium", "mobile-chromium"]) {
     test.skip(testInfo.project.name !== project, "Run once per desktop and mobile Chromium project.");
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
+    // This regression depends on the dedicated group Youth Champion identity
+    // carrying both Beavers and Scouts. A group-only champion cannot prove the
+    // dashboard's multi-section scope contract.
+    expect(groupYouthChampionEmail).toBe("test.multi.section.group.youth.champion@example.com");
     await login(page, groupYouthChampionEmail!);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     const overview = page.getByTestId("admin-overview");
     await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
     await expect(overview.getByText("Scope: Beavers, Scouts")).toBeVisible();
     await expect(overview.getByText("Active Members", { exact: true })).toBeVisible();
+    await expect(overview.getByText("Pending Parent Requests")).toHaveCount(0);
+    await expect(overview.getByText("Pending Leader Requests")).toHaveCount(0);
 
     await page.reload();
     await expect(overview.getByText("Unable to load the operations overview right now.")).toHaveCount(0);
