@@ -77,7 +77,13 @@ jobs:
             exit 1
           fi
 
-          echo "Latest Firestore backup: ${LATEST}"
+          OVERALL_METADATA="${LATEST}/${NAME}.overall_export_metadata"
+          # Confirm the selected timestamped directory contains Firestore's
+          # completed-export marker, not just an empty/incomplete prefix.
+          gcloud storage ls "${OVERALL_METADATA}" >/dev/null
+
+          echo "Latest completed Firestore backup: ${LATEST}"
+          echo "Completed export metadata: ${OVERALL_METADATA}"
           echo "Backup age: ${AGE_HOURS} hour(s); maximum allowed: ${MAX_BACKUP_AGE_HOURS}."
           echo "latest=${LATEST}" >> "${GITHUB_OUTPUT}"
           echo "age_hours=${AGE_HOURS}" >> "${GITHUB_OUTPUT}"

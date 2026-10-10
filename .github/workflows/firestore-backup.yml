@@ -107,8 +107,12 @@ jobs:
           DESTINATION: ${{ steps.backup.outputs.destination }}
         run: |
           set -euo pipefail
-          gcloud storage ls "${DESTINATION}/" >/dev/null
-          echo "Verified Firestore export at ${DESTINATION}"
+          EXPORT_NAME="${DESTINATION##*/}"
+          OVERALL_METADATA="${DESTINATION%/}/${EXPORT_NAME}.overall_export_metadata"
+          # Firestore writes this parent-folder-matched metadata object only for
+          # a completed managed export. A timestamped prefix alone is not proof.
+          gcloud storage ls "${OVERALL_METADATA}" >/dev/null
+          echo "Verified completed Firestore export at ${OVERALL_METADATA}"
 
       - name: Publish backup attempt observation
         if: always()
