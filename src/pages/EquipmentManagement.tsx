@@ -51,7 +51,7 @@ import {
 const OTHER = "__other__";
 type InventoryStatusFilter = EquipmentDashboardFilter;
 
-export default function EquipmentManagement() {
+export default function EquipmentManagement({ inventoryOnly = false }: { inventoryOnly?: boolean }) {
   const { adminProfile } = useAdminAuth();
   const canManage = canManageEquipment(adminProfile);
   const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
@@ -86,8 +86,8 @@ export default function EquipmentManagement() {
     : "all";
   const showArchived = searchParams.get("archived") === "1";
   const navigationView = searchParams.get("view");
-  const pageIdentity = navigationView === "quartermaster" ? "qm-equipment-stores" : navigationView === "group-operations" ? "group-equipment-stores" : "equipment-stores";
-  const pageTitle = navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
+  const pageIdentity = inventoryOnly ? "qm-detailed-inventory" : navigationView === "quartermaster" ? "qm-equipment-stores" : navigationView === "group-operations" ? "group-equipment-stores" : "equipment-stores";
+  const pageTitle = inventoryOnly ? "Detailed Inventory" : navigationView === "quartermaster" ? "Quartermaster / Bo’sun Equipment & Stores" : navigationView === "group-operations" ? "Group Operations — Equipment & Stores" : "Equipment & Stores";
 
   const applyFilterParams = (next: URLSearchParams) => {
     filterParamsRef.current = next;
@@ -166,7 +166,7 @@ export default function EquipmentManagement() {
 
   const hasActiveFilters = Boolean(search.trim() || categoryFilter !== "all" || locationFilter !== "all" || statusFilter !== "all" || showArchived);
 
-  const resetFilters = () => applyFilterParams(new URLSearchParams());
+  const resetFilters = () => applyFilterParams(new URLSearchParams(inventoryOnly ? "view=quartermaster" : navigationView ? `view=${navigationView}` : ""));
 
   const showInventoryFilter = (filter: EquipmentDashboardFilter) => {
     const next = new URLSearchParams(filterParamsRef.current);
@@ -241,6 +241,8 @@ export default function EquipmentManagement() {
 
 
 
+  if (inventoryOnly && !canManage) return <Box role="alert" sx={{ p: 3 }}>You do not have permission to access Detailed Inventory.</Box>;
+
   return <Box data-testid={`page-${pageIdentity}`} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}>
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
@@ -249,10 +251,12 @@ export default function EquipmentManagement() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {highlightedIssueId && !incidents.some((incident) => incident.id === highlightedIssueId && canUseEquipmentForSection(adminProfile, incident.section)) && <Alert severity="warning" sx={{ mb: 2 }} data-testid="equipment-issue-fallback">That equipment issue is no longer available in your scope. You can review the current open equipment issues from the reported issues page.</Alert>}
 
-      {hasLoaded && canManage && <Button component={Link} to="/leader/qm-reports" variant="outlined" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open QM Reports</Button>}
-      {hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
-      {hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} viewAllTo={`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`} onChanged={refresh} onError={setError} />}
-      {hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
+      {!inventoryOnly && canManage && <Button component={Link} to="/leader/equipment/inventory?view=quartermaster" variant="outlined" sx={{ mb: 2, mr: 1, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open Detailed Inventory</Button>}
+      {inventoryOnly && <Button component={Link} to="/leader/equipment?view=quartermaster" variant="outlined" sx={{ mb: 2, minHeight: 44 }}>Back to Equipment & Stores</Button>}
+      {!inventoryOnly && hasLoaded && canManage && <Button component={Link} to="/leader/qm-reports" variant="outlined" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" } }}>Open QM Reports</Button>}
+      {!inventoryOnly && hasLoaded && canManage && <EquipmentOperationsDashboard items={items} loans={loans} incidents={incidents} onFilterInventory={showInventoryFilter} />}
+      {!inventoryOnly && hasLoaded && <EquipmentIncidentsPanel profile={adminProfile} items={items} loans={loans} incidents={incidents} highlightedIncidentId={highlightedIssueId} showIssueList={false} showDescription={false} viewAllTo={`/leader/equipment/issues${navigationView ? `?view=${encodeURIComponent(navigationView)}` : ""}`} onChanged={refresh} onError={setError} />}
+      {!inventoryOnly && hasLoaded && <EquipmentLoansPanel profile={adminProfile} items={items} loans={loans} onChanged={refresh} onError={setError} />}
 
       <Box data-testid="equipment-inventory-section" sx={{ scrollMarginTop: { xs: "88px", md: "104px" } }}>
         <Typography ref={inventoryHeadingRef} tabIndex={-1} variant="h5" sx={{ fontWeight: 800, mb: 1, scrollMarginTop: { xs: "104px", md: "120px" }, "&:focus": { outline: "none" } }}>Detailed inventory</Typography>
