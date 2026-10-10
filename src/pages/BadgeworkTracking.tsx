@@ -13,13 +13,14 @@ import {
   FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
   Select, Stack, TextField, Typography
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { loadMembers, type MemberRecord } from "../services/memberAdmin";
 import {
   loadMemberAdventureProgress,
+  loadMemberAdventureProgressForMembers,
   setRequirementCompletionForMembers,
   setStageAwardForMembers,
   type MemberAdventureProgress
@@ -57,7 +58,6 @@ export default function BadgeworkTracking() {
   const [draft, setDraft] = useState(new Map<string, boolean>());
   const [memberDraft, setMemberDraft] = useState(new Map<string, boolean>());
   const [loading, setLoading] = useState(true);
-  const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewLoaded, setOverviewLoaded] = useState(false);
   const [overviewError, setOverviewError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,12 +65,14 @@ export default function BadgeworkTracking() {
   const [message, setMessage] = useState("");
   const [pendingDiscard, setPendingDiscard] = useState<DiscardAction | null>(null);
   const [awardRemovalOpen, setAwardRemovalOpen] = useState(false);
+  const progressRequests = useRef(new Map<string, Promise<MemberAdventureProgress>>());
 
   const skill = adventureSkills.find((item) => item.id === skillId) ?? adventureSkills[0];
   const stage = skill?.stages.find((item) => item.stage === stageNumber) ?? skill?.stages[0];
   const unsavedChangeCount = draft.size + memberDraft.size;
   const hasUnsavedChanges = unsavedChangeCount > 0;
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+  const overviewLoading = !loading && mode === "overview" && !overviewLoaded && !overviewError && activeMembers.length > 0;
   const sections = useMemo(() => sectionFilterOptions(activeMembers.map((member) => member.section)), [activeMembers]);
   const visibleMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -81,22 +83,46 @@ export default function BadgeworkTracking() {
   const incompleteMemberIds = skill && stage ? membersWithIncompleteStage(selectedIds, progressByMemberId, skill.id, stage.stage) : selectedIds;
   const canAward = selectedIds.length > 0 && incompleteMemberIds.length === 0 && !hasUnsavedChanges;
 
-  const refreshProgress = async (memberIds: readonly string[]) => {
-    if (memberIds.length === 0) return;
-    const loaded = await Promise.all(memberIds.map((memberId) => loadMemberAdventureProgress(memberId)));
+  const progressForMember = useCallback((memberId: string, forceRefresh = false) => {
+    if (forceRefresh) progressRequests.current.delete(memberId);
+    const existing = progressRequests.current.get(memberId);
+    if (existing) return existing;
+    const request = loadMemberAdventureProgress(memberId);
+    progressRequests.current.set(memberId, request);
+    void request.catch(() => {
+      if (progressRequests.current.get(memberId) === request) progressRequests.current.delete(memberId);
+    });
+    return request;
+  }, []);
+
+  const refreshProgress = useCallback(async (memberIds: readonly string[], signal?: AbortSignal, forceRefresh = false) => {
+    const missing = [...new Set(memberIds)].filter((memberId) => forceRefresh || !progressByMemberId.has(memberId));
+    if (missing.length === 0 || signal?.aborted) return;
+    const loaded = await loadMemberAdventureProgressForMembers(missing, {
+      signal,
+      loadMember: (memberId) => progressForMember(memberId, forceRefresh)
+    });
+    if (signal?.aborted) return;
     setProgressByMemberId((current) => {
       const next = new Map(current);
       for (const progress of loaded) next.set(progress.memberId, progress);
       return next;
     });
-  };
+  }, [progressByMemberId, progressForMember]);
 
   useEffect(() => {
+    let active = true;
     void (async () => {
-      try { setMembers(await loadMembers()); }
-      catch (loadError) { setError(applicationErrorMessage(loadError, "Unable to load children for badgework tracking.", "BadgeworkTracking")); }
-      finally { setLoading(false); }
+      try {
+        const loadedMembers = await loadMembers();
+        if (active) setMembers(loadedMembers);
+      } catch (loadError) {
+        if (active) setError(applicationErrorMessage(loadError, "Unable to load children for badgework tracking.", "BadgeworkTracking"));
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -108,15 +134,22 @@ export default function BadgeworkTracking() {
 
   useEffect(() => {
     if (workflowStep !== "badgework") return;
-    void refreshProgress(selectedIds).catch((loadError) => { setError(applicationErrorMessage(loadError, "Unable to load Adventure Skills progress.", "BadgeworkTracking")); });
-  }, [workflowStep, selectedIds.join("|")]);
+    const controller = new AbortController();
+    void refreshProgress(selectedIds, controller.signal).catch((loadError) => {
+      if (!controller.signal.aborted) setError(applicationErrorMessage(loadError, "Unable to load Adventure Skills progress.", "BadgeworkTracking"));
+    });
+    return () => controller.abort();
+  }, [workflowStep, selectedIds, refreshProgress]);
 
   useEffect(() => {
-    if (mode !== "overview" || overviewLoaded || overviewLoading || overviewError || activeMembers.length === 0) return;
-    setOverviewLoading(true);
-    setOverviewError("");
-    void Promise.all(activeMembers.map((member) => loadMemberAdventureProgress(member.id)))
-      .then((loaded) => {
+    if (mode !== "overview" || loading || overviewLoaded || overviewError || activeMembers.length === 0) return;
+    const controller = new AbortController();
+    let active = true;
+    void loadMemberAdventureProgressForMembers(activeMembers.map((member) => member.id), {
+      signal: controller.signal,
+      loadMember: progressForMember
+    }).then((loaded) => {
+        if (!active || controller.signal.aborted) return;
         setProgressByMemberId((current) => {
           const next = new Map(current);
           for (const progress of loaded) next.set(progress.memberId, progress);
@@ -125,10 +158,10 @@ export default function BadgeworkTracking() {
         setOverviewLoaded(true);
       })
       .catch((loadError) => {
-        setOverviewError(applicationErrorMessage(loadError, "Unable to load the Badgework Overview. Please try again.", "BadgeworkTracking"));
-      })
-      .finally(() => setOverviewLoading(false));
-  }, [activeMembers, mode, overviewError, overviewLoaded, overviewLoading]);
+        if (active && !controller.signal.aborted) setOverviewError(applicationErrorMessage(loadError, "Unable to load the Badgework Overview. Please try again.", "BadgeworkTracking"));
+      });
+    return () => { active = false; controller.abort(); };
+  }, [activeMembers, loading, mode, overviewError, overviewLoaded, progressForMember]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -220,7 +253,7 @@ export default function BadgeworkTracking() {
       setMemberDraft(new Map());
       setMessage(`${changeCount} badgework ${changeCount === 1 ? "change" : "changes"} saved for ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.`);
       try {
-        await refreshProgress(selectedIds);
+        await refreshProgress(selectedIds, undefined, true);
       } catch (loadError) {
         setError(applicationErrorMessage(loadError, "Badgework changes were saved, but the latest progress could not be reloaded. Refresh the page to see the saved state.", "BadgeworkTracking"));
       }
@@ -238,7 +271,7 @@ export default function BadgeworkTracking() {
       await setStageAwardForMembers(selectedIds, skill.id, stage.stage, awarded);
       setMessage(awarded ? `Stage ${stage.stage} ${skill.name} awarded to ${selectedIds.length} selected ${selectedIds.length === 1 ? "child" : "children"}.` : `Stage ${stage.stage} ${skill.name} award removed.`);
       try {
-        await refreshProgress(selectedIds);
+        await refreshProgress(selectedIds, undefined, true);
       } catch (loadError) {
         setError(applicationErrorMessage(loadError, "The badge award was updated, but the latest progress could not be reloaded. Refresh the page to see the saved state.", "BadgeworkTracking"));
       }
@@ -265,7 +298,7 @@ export default function BadgeworkTracking() {
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
       {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
-        {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
+        {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded || (!loading && !error && activeMembers.length === 0)} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
 
         {mode === "record" && workflowStep === "members" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: .75 }}>Select members</Typography>
