@@ -67,6 +67,7 @@ export default function WeeklySectionTracker() {
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const saveInFlight=useRef<Promise<boolean>|null>(null);
+  const refreshSequence=useRef(0);
   // A cancelled copy must invalidate any pending creation intent.
   const copyIntentRef=useRef(0);
   const [error,setError]=useState("");
@@ -90,6 +91,7 @@ export default function WeeklySectionTracker() {
   const adventureBadgeworkHref=selected?badgeworkSourceHref({sourceType:"weeklyMeeting",sourceId:selected.id,memberIds:presentMemberIds,returnTo:`/leader/weekly?meeting=${encodeURIComponent(selected.id)}`}):"/leader/badgework";
 
   const refresh=async(known?:WeeklyAccess,reportFailure=false)=>{
+    const sequence=++refreshSequence.current;
     setLoading(true); setError("");
     try {
       const a=known??await loadWeeklyAccess();
@@ -101,14 +103,14 @@ export default function WeeklySectionTracker() {
         loadEquipmentItems(),
         loadEquipmentLoans()
       ]);
-      if(meetingIdRef.current!==meetingId)return;
+      if(sequence!==refreshSequence.current||meetingIdRef.current!==meetingId)return;
       setAccess(a);
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
       const requested=r.find(x=>x.id===meetingId);
       if(requested){setSelected(requested);setSavedSelected(requested);setStep(initialWeeklyStep(requested.meetingDate));}
       else if(meetingId&&selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
-    } catch(e){setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
-    finally{setLoading(false);}
+    } catch(e){if(sequence===refreshSequence.current)setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
+    finally{if(sequence===refreshSequence.current)setLoading(false);}
   };
   useEffect(()=>{void refresh();},[availableSections,isAdmin,meetingId]);
   useEffect(()=>{if(!meetingId){setSelected(null);setSavedSelected(null);}},[meetingId]);
