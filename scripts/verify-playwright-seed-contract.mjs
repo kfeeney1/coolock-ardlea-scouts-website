@@ -33,6 +33,17 @@ for (const key of envAccountKeys) {
   if (!match) { problems.push(`${workflowPath} is missing ${key}`); continue; }
   const email = match[1].trim(); if (!seededEmails.has(email)) problems.push(`${key}=${email} is not created by the canonical Playwright seed tooling`);
 }
+const multiSectionYouthChampionEmail = "test.multi.section.group.youth.champion@example.com";
+if (!populationSeed.includes(`email: "${multiSectionYouthChampionEmail}"`) || !populationSeed.includes('kind: "multi-section-group-youth-champion"')) {
+  problems.push(`${populationSeedPath} must retain the dedicated multi-section Group Youth Champion fixture`);
+}
+for (const path of [workflowPath, ".github/workflows/sw-318-first-run.yml"]) {
+  const content = path === workflowPath ? workflow : readFileSync(path, "utf8");
+  const match = content.match(/^\s*E2E_GROUP_YOUTH_CHAMPION_EMAIL:\s*([^\s#]+)/m);
+  if (!match || match[1].trim() !== multiSectionYouthChampionEmail) {
+    problems.push(`${path} must map E2E_GROUP_YOUTH_CHAMPION_EMAIL to the dedicated multi-section Group Youth Champion fixture`);
+  }
+}
 const requiredSeedCommands = ["node scripts/seed-population-data.mjs seed","node scripts/seed-superadmin-login.mjs","node scripts/seed-flow-data.mjs","node scripts/seed-public-site-content.mjs seed","node scripts/seed-playwright-records.mjs","node scripts/rebuild-public-leadership.mjs","node scripts/verify-test-population.mjs","node scripts/verify-flow-data.mjs"];
 for (const command of requiredSeedCommands) if (!workflow.includes(command)) problems.push(`${workflowPath} must run ${command}`);
 for (const command of ["node scripts/seed-test-data.mjs seed","node scripts/seed-e2e-auth-users.mjs seed"]) if (workflow.includes(command)) problems.push(`${workflowPath} must not run legacy overlapping seed ${command}`);
