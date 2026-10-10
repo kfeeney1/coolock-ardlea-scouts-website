@@ -37,6 +37,9 @@ const multiSectionYouthChampionEmail = "test.multi.section.group.youth.champion@
 if (!populationSeed.includes(`email: "${multiSectionYouthChampionEmail}"`) || !populationSeed.includes('kind: "multi-section-group-youth-champion"')) {
   problems.push(`${populationSeedPath} must retain the dedicated multi-section Group Youth Champion fixture`);
 }
+if (!populationSeed.includes('sections: ["Scouts", "Beavers"]') || !populationSeed.includes('scoutingRole: "Group Youth Champion"')) {
+  problems.push(`${populationSeedPath} must give the dedicated Group Youth Champion fixture both Beavers and Scouts scope`);
+}
 for (const path of [workflowPath, ".github/workflows/sw-318-first-run.yml"]) {
   const content = path === workflowPath ? workflow : readFileSync(path, "utf8");
   const match = content.match(/^\s*E2E_GROUP_YOUTH_CHAMPION_EMAIL:\s*([^\s#]+)/m);
