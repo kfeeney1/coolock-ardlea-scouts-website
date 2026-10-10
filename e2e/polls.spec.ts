@@ -94,3 +94,17 @@ test.describe("dashboard polls", () => {
     await expect(page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).resolves.toBe(true);
   });
 });
+
+
+test("SW-357 leader dashboard exposes Group Polls through its navigation on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!adminEmail || !password, "Configure super-admin E2E credentials.");
+  await page.setViewportSize(testInfo.project.name === "mobile-chromium" ? { width: 393, height: 852 } : { width: 1440, height: 960 });
+  await login(page, "/leader/login", adminEmail!);
+  await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
+  if (testInfo.project.name === "mobile-chromium") await page.getByRole("button", { name: "Programme", exact: true }).click();
+  await expect(page.getByTestId("leader-nav-group-polls").filter({ visible: true })).toBeVisible();
+  await page.getByTestId("leader-nav-group-polls").filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/leader#group-polls$/);
+  await expect(page.getByTestId("leader-polls")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Group Polls" })).toBeVisible();
+});

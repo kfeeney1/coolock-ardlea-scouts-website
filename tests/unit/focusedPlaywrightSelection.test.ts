@@ -106,3 +106,12 @@ test("communications, role, device and keyboard navigation assertions remain reg
   assert.match(communications, /leader dashboard navigation uses the same expandable menu on Pixel 7/);
   assert.match(navigation, /Leader Menu supports keyboard open and Escape focus restoration/);
 });
+
+
+test("SW-357 dashboard, navigation and poll implementation changes always select poll regression coverage", () => {
+  for (const path of ["src/pages/AdminDashboard.tsx", "src/navigation/leaderNavigation.ts", "src/components/admin/LeaderDashboardHeader.tsx", "src/components/admin/LeaderPollsPanel.tsx", "src/services/polls.ts", "src/services/pollLogic.ts", "src/components/parent/ParentPollsSection.tsx"]) {
+    const groups = selectFocusedGroups([path]);
+    assert.ok(groups.has("polls"), `${path} must select polls`);
+    assert.ok(groups.has("navigation"), `${path} must select navigation`);
+  }
+});
