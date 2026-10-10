@@ -160,6 +160,9 @@ export default function ParentPortal() {
     const commitChildSelectionAfterClose = () => {
         const childId = pendingChildIdRef.current;
         if (!childId || childCommitTimerRef.current !== null) return;
+        // Commit once the closing select has released its transient Back-dismiss
+        // marker. Do not retain a one-second window in which the selected child
+        // can be lost to a parent route state refresh.
         childCommitTimerRef.current = window.setTimeout(() => {
             childCommitTimerRef.current = null;
             if (pendingChildIdRef.current !== childId || window.location.pathname !== "/parent") return;
@@ -173,7 +176,7 @@ export default function ParentPortal() {
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
             navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: nextState });
-        }, 1_000);
+        }, 0);
     };
 
     useEffect(() => {
