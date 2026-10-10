@@ -219,6 +219,10 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright test --list
 
+      - name: Focused meeting-copy cancellation regression (first run, no retries)
+        if: ${{ github.event_name == 'pull_request' && matrix.id == 2 && github.actor != 'dependabot[bot]' }}
+        run: npx --no-install playwright test e2e/weekly-record-integrity.spec.ts --project=chromium --grep "meeting copy Cancel exits untouched and protects a changed destination date" --retries=0 --timeout=30000
+
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         shell: bash
