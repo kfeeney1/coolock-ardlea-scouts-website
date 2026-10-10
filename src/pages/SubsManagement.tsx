@@ -8,7 +8,7 @@ import SubsBalancesReport from "../components/admin/SubsBalancesReport";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import type { MemberRecord } from "../services/memberAdmin";
-import { loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
+import { ensureDefaultSubsAssignment, loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
 import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
 
@@ -113,6 +113,20 @@ export default function SubsManagement() {
   }, [loading, memberId, visibleMembers]);
   const selected = visibleMembers.find((m) => m.id === memberId);
   const selectedAssignment = visibleAssignments.find((a) => a.memberId === memberId && a.period === period);
+  // A group finance officer can safely establish the policy's standard first-child
+  // rate for an unclassified member. Existing family accounts/assignments are never overwritten.
+  const defaultRateAttempts = useRef(new Set<string>());
+  useEffect(() => {
+    if (loading || loadedScope !== scopeKey || !canGroupReport || !selected || !period || selectedAssignment) return;
+    const policy = policies.find((candidate) => candidate.period === period && candidate.id === currentPolicy?.id);
+    if (!policy) return;
+    const key = `${selected.id}:${policy.id}`;
+    if (defaultRateAttempts.current.has(key)) return;
+    defaultRateAttempts.current.add(key);
+    void ensureDefaultSubsAssignment(selected, policy)
+      .then(() => load())
+      .catch((cause) => setError(applicationErrorMessage(cause, "Unable to resolve the member's subscription rate.", "SubsManagement")));
+  }, [canGroupReport, currentPolicy, loadedScope, loading, load, period, policies, scopeKey, selected, selectedAssignment]);
   const sharedBalanceRestricted = Boolean(selectedAssignment?.accountId && !canGroupReport);
   const memberPayments = selectedAssignment ? paymentsForAssignment(selectedAssignment, visiblePayments) : [];
   const selectedBalance = selectedAssignment && !sharedBalanceRestricted ? balanceFor(selectedAssignment, visiblePayments) : null;
