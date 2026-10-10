@@ -17,7 +17,7 @@ async function login(page: Page) {
 
 async function openOrCreate(page: Page) {
   await page.goto("/leader/weekly");
-  const existing = page.getByRole("button", { name: /6 May 2099 · Scouts/ });
+  const existing = page.getByRole("button", { name: /06-05-2099 · Scouts/ });
   if (await existing.count()) await existing.first().click();
   else {
     await page.getByRole("link", { name: "Create Meeting" }).click();
