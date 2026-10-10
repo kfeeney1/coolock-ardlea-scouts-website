@@ -87,10 +87,13 @@ test("browser Back saves an edited meeting before returning to the previous page
 test("meeting copy Cancel exits untouched and protects a changed destination date", async ({ page }) => {
   await login(page, adminEmail);
   await page.goto("/leader/weekly");
-  const destinationMeetings = page.getByText(/08-04-2099 · Scouts/);
-  const existingDestinationCount = await destinationMeetings.count();
   const sourceMeeting = page.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(sourceMeeting).toBeVisible();
+  // Wait for the loaded history before taking a baseline: the prior assertion
+  // counted zero during the loading spinner, then saw existing records appear.
+  await expect(page.getByTestId("weekly-history-result-count")).toBeVisible();
+  const destinationMeetings = page.getByText(/08-04-2099 · Scouts/);
+  const existingDestinationCount = await destinationMeetings.count();
   await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
   let copyDialog = page.getByRole("dialog", { name: /Copy .*Scouts/ });
   await expect(copyDialog).toBeVisible();
