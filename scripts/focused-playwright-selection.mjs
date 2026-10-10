@@ -44,6 +44,12 @@ export function selectFocusedGroups(changedFiles, { forceAll = false } = {}) {
       "package-lock.json"
     ].includes(file)) return new Set(allGroups);
 
+    if (["src/pages/AdminDashboard.tsx", "src/navigation/leaderNavigation.ts", "src/components/admin/LeaderDashboardHeader.tsx", "src/components/admin/LeaderPollsPanel.tsx", "src/services/polls.ts", "src/services/pollLogic.ts", "src/components/parent/ParentPollsSection.tsx", "src/components/parent/ParentPortalSections.tsx"].includes(file)) {
+      groups.add("polls");
+      groups.add("navigation");
+      continue;
+    }
+
     if (file === "e2e/polls.spec.ts") {
       groups.add("polls");
       continue;
