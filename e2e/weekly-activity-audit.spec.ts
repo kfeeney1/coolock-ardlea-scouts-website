@@ -24,6 +24,7 @@ test("section leader Weekly Meeting update is visible in the Activity Log", asyn
   // leave an open meeting that changes the next attempt's starting state.
   const day = String(testInfo.retry + 1).padStart(2, "0");
   const auditDate = `2099-05-${day}`;
+  const displayAuditDate = `${day}-05-2099`;
 
   await login(page, leaderEmail!);
   await page.goto("/leader/weekly");
@@ -45,11 +46,11 @@ test("section leader Weekly Meeting update is visible in the Activity Log", asyn
     await login(adminPage, adminEmail!);
     await adminPage.goto("/leader/activity");
     await adminPage.getByLabel("Search activity").fill(auditDate);
-    const auditEntries = adminPage.locator('[data-testid^="activity-log-"]:not([data-testid="activity-log-list"]):not([data-testid="activity-log-search"])').filter({ hasText: `Scouts Weekly Meeting · ${auditDate}` });
+    const auditEntries = adminPage.locator('[data-testid^="activity-log-"]:not([data-testid="activity-log-list"]):not([data-testid="activity-log-search"])').filter({ hasText: `Scouts Weekly Meeting · ${displayAuditDate}` });
     await expect(auditEntries).not.toHaveCount(0);
     const matchingEntry = auditEntries.filter({ hasText: "weekly-meeting-update" }).filter({ hasText: leaderEmail! });
     await expect(matchingEntry).not.toHaveCount(0);
-    await expect(matchingEntry.first()).toContainText(`Scouts Weekly Meeting · ${auditDate}`);
+    await expect(matchingEntry.first()).toContainText(`Scouts Weekly Meeting · ${displayAuditDate}`);
   } finally {
     await adminContext.close();
   }

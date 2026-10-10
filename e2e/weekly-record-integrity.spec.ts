@@ -53,7 +53,7 @@ test("new meeting Cancel saves valid entered data without creating an empty reco
   await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
-  const savedMeeting = page.getByRole("button", { name: /4 Apr 2099 · Scouts/ }).first();
+  const savedMeeting = page.getByRole("button", { name: /04-04-2099 · Scouts/ }).first();
   await expect(savedMeeting).toBeVisible();
   await savedMeeting.click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
@@ -89,6 +89,11 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await page.goto("/leader/weekly");
   const sourceMeeting = page.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(sourceMeeting).toBeVisible();
+  // Wait for the loaded history before taking a baseline: the prior assertion
+  // counted zero during the loading spinner, then saw existing records appear.
+  await expect(page.getByTestId("weekly-history-result-count")).toBeVisible();
+  const destinationMeetings = page.getByText(/08-04-2099 · Scouts/);
+  const existingDestinationCount = await destinationMeetings.count();
   await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
   let copyDialog = page.getByRole("dialog", { name: /Copy .*Scouts/ });
   await expect(copyDialog).toBeVisible();
@@ -110,7 +115,8 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(copyDialog).toBeHidden();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await expect(page.getByText("Meeting copied.")).toHaveCount(0);
-  await expect(page.getByText(/08 Apr 2099 · Scouts/)).toHaveCount(0);
+  // Other tests may already have created this date; cancellation must not add another.
+  await expect(destinationMeetings).toHaveCount(existingDestinationCount);
 });
 
 test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }) => {

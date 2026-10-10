@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
@@ -56,7 +57,7 @@ const HIDDEN_KEYS = new Set([
 
 function formatDate(date: Date | null): string {
     if (!date) return "Unknown date";
-    return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date);
+    return formatSiteDateTime(date);
 }
 
 function prettyKey(key: string): string {

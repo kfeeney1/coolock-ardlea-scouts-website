@@ -49,7 +49,7 @@ test("future meeting opens in programme and saving retains the meeting editor", 
 
   await login(page);
   await page.goto("/leader/weekly");
-  await openOrCreate(page, "2099-04-01", /1 Apr 2099 · Scouts/);
+  await openOrCreate(page, "2099-04-01", /01-04-2099 · Scouts/);
 
   await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Badgework Plan" })).toBeVisible();
@@ -69,7 +69,7 @@ test("activity can have multiple section leaders and badgework is planned with p
 
   await login(page);
   await page.goto("/leader/weekly");
-  await openOrCreate(page, "2099-04-08", /8 Apr 2099 · Scouts/);
+  await openOrCreate(page, "2099-04-08", /08-04-2099 · Scouts/);
 
   const firstActivity = page.getByTestId("activity-plan-row").first();
   const sectionLeader = firstActivity.getByLabel(/Scouts Section Leader · Section Leader/);
@@ -101,7 +101,7 @@ test("weekly planner fits a phone viewport without horizontal overflow", async (
 
   await login(page);
   await page.goto("/leader/weekly");
-  await openOrCreate(page, "2099-04-15", /15 Apr 2099 · Scouts/);
+  await openOrCreate(page, "2099-04-15", /15-04-2099 · Scouts/);
 
   await expect(page.getByRole("heading", { name: "Programme Planner" })).toBeVisible();
   await expect(page.getByTestId("weekly-step-nav")).toBeVisible();

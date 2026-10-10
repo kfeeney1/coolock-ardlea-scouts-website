@@ -17,6 +17,7 @@ import { linkConsentRecordsToMembers } from "../services/parentConsent";
 import { loadParentAccounts, updateParentAccess } from "../services/parentPortal";
 import type { ParentAccount, ParentAccessStatus } from "../services/parentPortal";
 import { sortParentAccessRecords } from "../services/parentAccessLogic.ts";
+import { formatDateOnly } from "../services/consentManagementLogic";
 
 type ParentDecision = { parent: ParentAccount; status: "approved" | "rejected" };
 
@@ -163,7 +164,7 @@ export default function ParentAccessManagement() {
                                     const selectedForApproval = Boolean(candidate && linkedIds.includes(candidate.id));
                                     return <Paper key={`${match.request.firstName}-${match.request.lastName}-${match.request.dateOfBirth}-${index}`} variant="outlined" sx={{ p: 2 }} data-testid={`requested-child-${parent.uid}-${index}`}>
                                         <Typography sx={{ fontWeight: 800 }}>{match.request.firstName} {match.request.lastName}</Typography>
-                                        <Typography color="text.secondary">DOB supplied by parent: {match.request.dateOfBirth}</Typography>
+                                        <Typography color="text.secondary">DOB supplied by parent: {formatDateOnly(match.request.dateOfBirth)}</Typography>
                                         {match.outcome === "matched" && candidate && <Stack spacing={1.25} sx={{ mt: 1.5 }}><Alert severity={alreadyApproved || selectedForApproval ? "success" : "info"}><strong>Likely existing member:</strong> {candidate.displayName} · {candidate.section}. {alreadyApproved ? "Already approved and linked." : selectedForApproval ? "Confirmed for this approval." : "Verify the relationship, then confirm this link."}</Alert>{!alreadyApproved && <Button variant={selectedForApproval ? "outlined" : "contained"} color={selectedForApproval ? "secondary" : "success"} onClick={() => toggleMember(parent.uid, candidate.id)}>{selectedForApproval ? "Remove Confirmed Link" : "Confirm & Link"}</Button>}</Stack>}
                                         {match.outcome === "none" && <Alert severity="warning" sx={{ mt: 1.5 }}>No exact existing member match. Manual review is required; no new member will be created.</Alert>}
                                         {match.outcome === "ambiguous" && <Alert severity="warning" sx={{ mt: 1.5 }}>Multiple existing records match these details. Do not guess; use manual review.</Alert>}

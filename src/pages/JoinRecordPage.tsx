@@ -31,6 +31,7 @@ import {
   saveJoinApplication
 } from "../services/joinAdmin";
 import type { ContactMethod, JoinApplicationRecord, JoinStatus } from "../services/joinAdmin";
+import { formatSiteDateTime } from "../services/siteDateFormat";
 
 const statuses: JoinStatus[] = ["new", "contacted", "waiting-list", "accepted", "closed"];
 const contactMethods: Array<{ value: ContactMethod; label: string }> = [
@@ -42,7 +43,7 @@ const contactMethods: Array<{ value: ContactMethod; label: string }> = [
 ];
 
 const statusLabel = (status: JoinStatus) => status === "waiting-list" ? "Waiting List" : status.charAt(0).toUpperCase() + status.slice(1);
-const formatDate = (date: Date | null) => date ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date) : "Unknown";
+const formatDate = (date: Date | null) => date ? formatSiteDateTime(date) : "Unknown";
 
 export default function JoinRecordPage() {
   const { applicationId } = useParams();
@@ -197,7 +198,7 @@ export default function JoinRecordPage() {
                 <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>
               </Paper>)}
               {[...record.contactHistory].reverse().map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}>
-                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /><Typography sx={{ fontWeight: 700 }}>{new Date(entry.date).toLocaleString("en-IE")}</Typography></Stack>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Chip size="small" label={contactMethods.find((item) => item.value === entry.method)?.label ?? entry.method} /><Typography sx={{ fontWeight: 700 }}>{formatSiteDateTime(entry.date)}</Typography></Stack>
                 <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>{entry.note}</Typography>
               </Paper>)}
             </Box>

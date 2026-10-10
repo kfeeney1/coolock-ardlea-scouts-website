@@ -17,14 +17,12 @@ import type { MemberRecord } from "../../services/memberAdmin";
 import type { EventConsentResponse, PublicEventLink } from "../../services/eventConsent";
 import type { EventNotificationKind } from "../../services/emailNotifications";
 import { eventConsentSummary } from "../../services/eventConsentManagementLogic";
-import { formatSiteDate } from "../../services/siteDateFormat";
+import { formatSiteDate, formatSiteDateTime } from "../../services/siteDateFormat";
+import { formatDateOnly } from "../../services/consentManagementLogic";
 
 function formatDate(value: Date | null): string {
     if (!value) return "Unknown";
-    return new Intl.DateTimeFormat("en-IE", {
-        dateStyle: "medium",
-        timeStyle: "short"
-    }).format(value);
+    return formatSiteDateTime(value);
 }
 
 type Props = {
@@ -117,7 +115,7 @@ export default function EventConsentEventPanel({
                                             <Chip label={response.consentGiven ? "Consent given" : "Consent not given"} size="small" color={response.consentGiven ? "success" : "warning"} />
                                         </Stack>
                                         <Typography sx={{ fontWeight: 700 }}>Child: {response.childName || "Not supplied"}</Typography>
-                                        <Typography variant="body2">Date of birth: {response.dateOfBirth || "Not supplied"}</Typography>
+                                        <Typography variant="body2">Date of birth: {response.dateOfBirth ? formatDateOnly(response.dateOfBirth) : "Not supplied"}</Typography>
                                         <Typography variant="body2">Parent / Guardian: {response.parentName || "Not supplied"}</Typography>
                                         <Typography variant="body2">Emergency details confirmed: {response.emergencyDetailsConfirmed ? "Yes" : "No"}</Typography>
                                         <Typography variant="body2">Medical / emergency information changed: {response.medicalDetailsChanged ? "Yes" : "No"}</Typography>
@@ -132,7 +130,7 @@ export default function EventConsentEventPanel({
                                                 >
                                                     {eligibleMembers.map((member) => (
                                                         <MenuItem key={member.id} value={member.id}>
-                                                            {member.displayName} · {member.section} · {member.dateOfBirth || "DOB not recorded"}
+                                                            {member.displayName} · {member.section} · {member.dateOfBirth ? formatDateOnly(member.dateOfBirth) : "DOB not recorded"}
                                                         </MenuItem>
                                                     ))}
                                                 </Select>

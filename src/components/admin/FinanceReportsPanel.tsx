@@ -7,6 +7,7 @@ import { recordAuditEvent } from "../../services/auditLog";
 import { loadFinanceTransactions } from "../../services/financeLedger";
 import { loadFinanceReceipts, type FinanceReceipt } from "../../services/financeReceipts";
 import { DEFAULT_FINANCE_CATEGORIES, type FinanceTransaction } from "../../services/financeLedgerLogic";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import { buildFinanceMonthlyTotals, buildFinanceReportSummary, filterFinanceTransactions, financeReceiptRequired, financeReportCsv } from "../../services/financeReportingLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
@@ -140,7 +141,7 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
           <Typography sx={{ fontWeight: 800 }}>Receipt completeness</Typography>
           {missingReceiptRows.length === 0 ? <Alert severity="success" sx={{ mt: 1.5 }}>All filtered money-out entries have at least one receipt attached.</Alert> : <>
             <Alert severity="warning" sx={{ mt: 1.5 }}>{missingReceiptRows.length} filtered money-out entr{missingReceiptRows.length === 1 ? "y is" : "ies are"} missing a receipt.</Alert>
-            <Stack spacing={0.75} sx={{ mt: 1.5 }}>{missingReceiptRows.slice(0, 8).map((item) => <Typography key={item.id} variant="body2">{item.transactionDate} · {item.section} · {item.description} · {euro(item.amountCents)}</Typography>)}</Stack>
+            <Stack spacing={0.75} sx={{ mt: 1.5 }}>{missingReceiptRows.slice(0, 8).map((item) => <Typography key={item.id} variant="body2">{formatSiteDate(item.transactionDate)} · {item.section} · {item.description} · {euro(item.amountCents)}</Typography>)}</Stack>
             {missingReceiptRows.length > 8 && <Typography variant="caption" color="text.secondary">Plus {missingReceiptRows.length - 8} more in the CSV export.</Typography>}
           </>}
         </Paper>

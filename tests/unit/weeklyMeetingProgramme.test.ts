@@ -34,6 +34,14 @@ test("WhatsApp meeting text includes equipment but excludes attendance, incident
   }
 });
 
+test("SW-215 WhatsApp meeting date uses DD-MM-YYYY while retaining the canonical date", () => {
+  const programme = buildParentWeeklyMeetingProgramme({ ...source, meetingDate: "2026-10-04" });
+  const text = buildWeeklyMeetingWhatsAppText(programme);
+  assert.match(text, /^Scouts Weekly Meeting · 04-10-2026/);
+  assert.equal(programme.meetingDate, "2026-10-04");
+  assert.doesNotMatch(text, /2026-10-04/);
+});
+
 
 test("SW-290 WhatsApp share includes completed meeting badgework without duplicates", () => {
   const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(source), [

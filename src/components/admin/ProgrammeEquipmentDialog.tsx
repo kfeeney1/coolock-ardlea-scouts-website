@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
 import { availableEquipmentQuantity } from "../../services/equipmentLoanLogic";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import {
   cancelEquipmentRequirementReservation,
   checkoutEquipmentRequirement,
@@ -68,9 +69,9 @@ export default function ProgrammeEquipmentDialog({ open, sourceType, sourceId, s
   };
 
   return <Dialog open={open} onClose={() => !saving && onClose()} fullWidth maxWidth="md"><DialogTitle>Equipment · {sourceLabel}</DialogTitle><DialogContent dividers><Stack spacing={2}>
-    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}><Chip label={section} variant="outlined" /><Chip label={date} variant="outlined" /><Chip label={statusLabel(status)} color={status === "returned" ? "success" : status === "planned" ? "default" : status === "reserved" ? "info" : "warning"} /></Stack>
+    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}><Chip label={section} variant="outlined" /><Chip label={formatSiteDate(date)} variant="outlined" /><Chip label={statusLabel(status)} color={status === "returned" ? "success" : status === "planned" ? "default" : status === "reserved" ? "info" : "warning"} /></Stack>
     {error && <Alert severity="error">{error}</Alert>}
-    {status === "reserved" && <Alert severity="success">This equipment is reserved for {date}. Reserved stock is removed from availability so another checkout or reservation cannot claim it.</Alert>}
+    {status === "reserved" && <Alert severity="success">This equipment is reserved for {formatSiteDate(date)}. Reserved stock is removed from availability so another checkout or reservation cannot claim it.</Alert>}
     {activeItems.length === 0 ? <Alert severity="info">No active inventory is available.</Alert> : activeItems.map((item) => { const available = availableEquipmentQuantity(item); return <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}><Stack sx={{ flex: 1 }}><Typography sx={{ fontWeight: 700 }}>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.location} · {available} currently available</Typography></Stack><TextField label="Required" type="number" value={quantities[item.id] ?? 0} disabled={readOnly || Boolean(requirement?.loanId)} onChange={(event) => setQuantities((current) => ({ ...current, [item.id]: Math.max(0, Number(event.target.value) || 0) }))} slotProps={{ htmlInput: { min: 0, step: 1 } }} sx={{ width: { sm: 130 } }} /></Stack></Paper>; })}
     {!readOnly && !requirement?.loanId && <Button variant="outlined" onClick={() => void savePlan()} disabled={saving}>Save equipment plan</Button>}
     {!readOnly && requirement && requirement.lines.length > 0 && status === "planned" && <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}><Button variant="contained" onClick={() => void reserve()} disabled={saving}>Reserve for {date}</Button><TextField label="Expected return date" type="date" value={returnDate} onChange={(event) => setReturnDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /><Button variant="outlined" color="success" onClick={() => void checkout()} disabled={saving || !returnDate}>Check out now</Button></Stack>}

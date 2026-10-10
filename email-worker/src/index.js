@@ -1,5 +1,6 @@
 import { backendFailureDiagnostic } from "./backendDiagnostics.js";
 import { equipmentIncidentActionUrl, joinApplicationActionUrl, leaderRequestActionUrl, parentAccessActionUrl } from "./emailActionLinks.js";
+import { formatSiteDate } from "./siteDateFormat.js";
 
 const BRAND = {
   groupName: "80th 160th Coolock Ardlea Scout Group",
@@ -128,7 +129,7 @@ async function handleLeaderStatus(request, env, body) {
 
 function eventDetailsHtml(event) {
   const title = fieldString(event, "title") || "Scout event";
-  const date = fieldString(event, "startDate") || "Date to be confirmed";
+  const date = formatSiteDate(fieldString(event, "startDate")) || "Date to be confirmed";
   const location = fieldString(event, "location");
   const meetingPoint = fieldString(event, "meetingPoint");
   const returnDetails = fieldString(event, "returnDetails");

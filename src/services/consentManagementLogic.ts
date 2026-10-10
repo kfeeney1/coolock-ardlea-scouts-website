@@ -1,5 +1,6 @@
 import { daysUntilExpiry, isConsentExpired } from "./consentDateLogic.ts";
 import type { ConsentAdminRecord } from "./consentAdmin.ts";
+import { formatSiteDate, formatSiteDateTime } from "./siteDateFormat.ts";
 
 export type TypeFilter = "all" | "youth" | "scouter";
 export type AlertFilter = "all" | "medical" | "medication" | "expiring" | "expired";
@@ -9,14 +10,12 @@ export const CONSENT_SECTIONS = ["all", "Beavers", "Cubs", "Scouts", "Ventures",
 
 export function formatDate(date: Date | null): string {
     if (!date) return "Unknown";
-    return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date);
+    return formatSiteDateTime(date);
 }
 
 export function formatDateOnly(value: string): string {
     if (!value) return "Not provided";
-    const date = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
+    return formatSiteDate(value);
 }
 
 export function formatFieldName(key: string): string {
@@ -35,6 +34,12 @@ export function displayValue(value: unknown): string {
         return "";
     }
     return String(value);
+}
+
+export function displayFieldValue(key: string, value: unknown): string {
+    const text = displayValue(value);
+    if (!text || !/(date|dob|expiry|expires)/i.test(key) || typeof value !== "string") return text;
+    return value.includes("T") ? formatSiteDateTime(value) : formatSiteDate(value);
 }
 
 export function isMedicationManagementValue(value: unknown): value is Record<string, unknown> {
@@ -131,7 +136,7 @@ export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
     const used = new Set<string>();
     const sections = priority.map(([heading, keys]) => {
         const rows = keys.map((key) => {
-            const text = displayValue(record.data[key]);
+            const text = displayFieldValue(key, record.data[key]);
             if (!text) return "";
             used.add(key);
             return `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>`;
@@ -141,7 +146,7 @@ export function consentRecordPrintHtml(record: ConsentAdminRecord): string {
     const excluded = new Set(["submittedAt", "authorisedScouters", "medicationManagement", "formType", "status", "section", "memberId", "childName", "childDOB", "name", "consentFrom", "consentTo"]);
     const supportingRows = Object.entries(record.data).map(([key, value]) => {
         if (used.has(key) || excluded.has(key)) return "";
-        const text = displayValue(value);
+        const text = displayFieldValue(key, value);
         return text ? `<tr><th>${escapeHtml(formatFieldName(key))}</th><td><pre>${escapeHtml(text)}</pre></td></tr>` : "";
     }).join("");
     const supporting = supportingRows ? `<h2>Other recorded information</h2><table><tbody>${supportingRows}</tbody></table>` : "";

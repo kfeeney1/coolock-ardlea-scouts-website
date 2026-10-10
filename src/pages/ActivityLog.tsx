@@ -1,3 +1,4 @@
+import { formatSiteDateText, formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Chip, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -12,14 +13,14 @@ import { loadAuditLog, type AuditLogEntry } from "../services/auditLog";
 
 function formatDate(value: Date | null) {
   if (!value) return "Just now";
-  return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value);
+  return formatSiteDateTime(value);
 }
 
 function auditDescription(entry: AuditLogEntry) {
   if (entry.category === "system" && entry.action === "meeting-record-update") {
     return "Updated meeting record; previous version retained.";
   }
-  return entry.description;
+  return formatSiteDateText(entry.description);
 }
 
 export default function ActivityLog() {
@@ -91,7 +92,7 @@ export default function ActivityLog() {
                     </Stack>
                     <Typography>{auditDescription(entry)}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                      {entry.targetLabel || entry.targetId}{entry.section ? ` · ${entry.section}` : ""}
+                      {formatSiteDateText(entry.targetLabel || entry.targetId)}{entry.section ? ` · ${entry.section}` : ""}
                     </Typography>
                   </Box>
                   <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>

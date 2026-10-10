@@ -21,6 +21,7 @@ import { loadLinkedMembers, loadParentConsents } from "../../services/parentCons
 import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import { summariseParentTasks, type ParentTaskSummary } from "../../services/parentTasksLogic";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
     memberIds: string[];
@@ -43,8 +44,8 @@ function scrollTo(id: string) {
 
 function eventDate(startDate: string, endDate: string): string {
     if (!startDate) return "Date to be confirmed";
-    if (endDate && endDate !== startDate) return `${startDate} to ${endDate}`;
-    return startDate;
+    if (endDate && endDate !== startDate) return `${formatSiteDate(startDate)} to ${formatSiteDate(endDate)}`;
+    return formatSiteDate(startDate);
 }
 
 export default function ParentThingsToDo({ memberIds, sections, refreshVersion = 0 }: Props) {

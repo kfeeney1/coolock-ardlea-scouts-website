@@ -1,6 +1,7 @@
 type DateInput = Date | number | string;
 
 const SITE_DATE_LOCALE = "en-GB";
+const SITE_TIME_ZONE = "Europe/Dublin";
 let installed = false;
 
 const intlFormatDescriptor = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype, "format");
@@ -39,9 +40,29 @@ export function formatSiteDate(value: DateInput, timeZone?: string): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    ...(timeZone ? { timeZone } : {})
+    timeZone: timeZone ?? SITE_TIME_ZONE
   });
   return nativeFormat(formatter, date).replaceAll("/", "-");
+}
+
+/** Formats an instant with the site's calendar date and stable Irish local time. */
+export function formatSiteDateTime(value: DateInput, timeZone = SITE_TIME_ZONE): string {
+  if (isDateOnly(value)) return formatSiteDate(value);
+  const date = asDate(value);
+  if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : "";
+  const dateText = formatSiteDate(date, timeZone);
+  const timeText = new Intl.DateTimeFormat(SITE_DATE_LOCALE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone
+  }).format(date);
+  return `${dateText}, ${timeText}`;
+}
+
+export function formatSiteDateText(value: string): string {
+  return value.replace(/\b\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b/g, (match) =>
+    match.includes("T") ? formatSiteDateTime(match) : formatSiteDate(match)
+  );
 }
 
 function numericDateTimePart(value: string | undefined): "numeric" | "2-digit" | undefined {
@@ -97,7 +118,9 @@ export function installSitewideDateFormat(): void {
       return (value?: Date | number) => {
         const date = asDate(value);
         if (Number.isNaN(date.getTime())) return originalFormat(value);
-        const dateText = formatSiteDate(date, resolved.timeZone);
+        const browserDefaultTimeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const timeZone = resolved.timeZone === browserDefaultTimeZone ? SITE_TIME_ZONE : resolved.timeZone;
+        const dateText = formatSiteDate(date, timeZone);
         if (!resolvedIncludesTime(resolved)) return dateText;
         const timeFormatter = new Intl.DateTimeFormat(resolved.locale, timeOptionsFromResolved(resolved));
         return `${dateText}, ${nativeFormat(timeFormatter, date)}`;

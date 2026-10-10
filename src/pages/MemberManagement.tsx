@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../services/siteDateFormat";
 import { reportApplicationError, applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -29,7 +30,7 @@ const memberStatuses: MemberStatus[] = ["active", "inactive", "left"];
 const emptyMember: CreateMemberInput = { firstName: "", lastName: "", displayName: "", dateOfBirth: "", section: "", sections: [], sectionRoles: {}, parentName: "", emailAddress: "", mobileNumber: "", emergencyContactName: "", emergencyContactPhone: "", status: "active", displayNameMode: "auto" };
 const statusLabel = (status: MemberStatus) => status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Left";
 const statusColor = (status: MemberStatus): "success" | "warning" | "default" => status === "active" ? "success" : status === "inactive" ? "warning" : "default";
-const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value) : "Unknown";
+const formatDate = (value: Date | null) => value ? formatSiteDateTime(value) : "Unknown";
 const consentExpired = (value: string) => Boolean(value && value < new Date().toISOString().slice(0, 10));
 
 export default function MemberManagement() {

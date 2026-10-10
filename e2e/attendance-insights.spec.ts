@@ -55,7 +55,7 @@ test("ordinary leader can compare attendance sources, preserve filters through h
   const detail = page.getByTestId("attendance-member-detail");
   await expect(detail.getByRole("heading", { name: seededMember })).toBeVisible();
   await expect(detail.getByRole("button", { name: "Meetings (1)" })).toBeVisible();
-  await expect(detail.getByTestId("attendance-history-list")).toContainText("15 Jan 2099");
+  await expect(detail.getByTestId("attendance-history-list")).toContainText("15-01-2099");
   await expect(detail.getByTestId("attendance-history-list")).toContainText("Attended");
 
   await detail.getByRole("button", { name: /Events \(/ }).click();

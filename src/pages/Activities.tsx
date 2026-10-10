@@ -14,12 +14,11 @@ import { useEffect, useState } from "react";
 import { loadUpcomingPublicEvents } from "../services/publicEvents";
 import type { PublicEvent } from "../services/publicEvents";
 import { usePublicSiteContent } from "../components/PublicSiteContentProvider";
+import { formatSiteDate } from "../services/siteDateFormat";
 
 function formatDate(value: string): string {
     if (!value) return "Date to be confirmed";
-    const date = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat("en-IE", { dateStyle: "full" }).format(date);
+    return formatSiteDate(value);
 }
 
 function dateRange(event: PublicEvent): string {

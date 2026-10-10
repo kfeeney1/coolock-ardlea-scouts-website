@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
@@ -30,7 +31,7 @@ const sections = ["all", "Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
 const statusLabel = (status: JoinStatus) => status === "waiting-list" ? "Waiting List" : status.charAt(0).toUpperCase() + status.slice(1);
 const statusColor = (status: JoinStatus): "default" | "primary" | "info" | "success" | "warning" =>
   status === "new" ? "info" : status === "contacted" ? "primary" : status === "waiting-list" ? "warning" : status === "accepted" ? "success" : "default";
-const formatDate = (date: Date | null) => date ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date) : "Unknown";
+const formatDate = (date: Date | null) => date ? formatSiteDateTime(date) : "Unknown";
 
 export default function JoinManagement() {
   const [records, setRecords] = useState<JoinApplicationRecord[]>([]);

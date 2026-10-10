@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import { loadAdminOverview, type AdminOverview } from "../../services/adminOverview";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { leaderMedicalNeedsDashboardAction, loadOwnLeaderMedicalState, type LeaderMedicalState } from "../../services/leaderMedicalLifecycle";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 const emptyOverview: AdminOverview = {
   pendingParents: 0,
@@ -108,7 +109,7 @@ export default function AdminOverviewPanel() {
               <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Next Meeting</Typography>
               {overview.nextMeeting ? (
                 <Stack spacing={1.25}>
-                  <Typography sx={{ fontWeight: 800 }}>{overview.nextMeeting.section} · {overview.nextMeeting.meetingDate}</Typography>
+                  <Typography sx={{ fontWeight: 800 }}>{overview.nextMeeting.section} · {formatSiteDate(overview.nextMeeting.meetingDate)}</Typography>
                   <Typography color="text.secondary">{overview.nextMeeting.location || "Location not set"}</Typography>
                   <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
                     <Chip size="small" color={overview.nextMeeting.programmeReady ? "success" : "warning"} label={overview.nextMeeting.programmeReady ? "Programme ready" : "Programme needed"} />
@@ -176,7 +177,7 @@ export default function AdminOverviewPanel() {
               {overview.upcomingEvents.length === 0 ? <Typography color="text.secondary">No upcoming open or draft events in your current scope.</Typography> : (
                 <Stack spacing={1.25}>{overview.upcomingEvents.slice(0, 5).map((event) => (
                   <Box key={event.id} sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-                    <Box><Typography sx={{ fontWeight: 700 }}>{event.title}</Typography><Typography variant="body2" color="text.secondary">{event.startDate || "Date not set"} · {event.section} · {event.status}</Typography></Box>
+                    <Box><Typography sx={{ fontWeight: 700 }}>{event.title}</Typography><Typography variant="body2" color="text.secondary">{event.startDate ? formatSiteDate(event.startDate) : "Date not set"} · {event.section} · {event.status}</Typography></Box>
                     {event.consentRequired && <Chip size="small" color={event.outstandingConsent > 0 ? "warning" : "success"} label={event.outstandingConsent > 0 ? `${event.outstandingConsent} consent outstanding` : "Consent complete"} />}
                   </Box>
                 ))}</Stack>

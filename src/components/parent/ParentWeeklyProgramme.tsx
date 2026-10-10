@@ -12,13 +12,11 @@ import {
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
 import { loadParentWeeklyMeetingProgrammes } from "../../services/weeklyMeetingProgramme";
 import type { ParentWeeklyMeetingProgramme } from "../../services/weeklyMeetingProgramme";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = { sections: string[] };
 
-const displayDate = (value: string) => {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
-};
+const displayDate = (value: string) => formatSiteDate(value);
 
 export default function ParentWeeklyProgramme({ sections }: Props) {
   const [meetings, setMeetings] = useState<ParentWeeklyMeetingProgramme[]>([]);

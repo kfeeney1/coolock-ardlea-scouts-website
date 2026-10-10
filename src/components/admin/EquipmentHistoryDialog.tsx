@@ -1,3 +1,4 @@
+import { formatSiteDateText, formatSiteDateTime } from "../../services/siteDateFormat";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
@@ -26,7 +27,7 @@ type Props = {
 
 function formatDate(value: Date | null): string {
   if (!value) return "Time unavailable";
-  return value.toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" });
+  return formatSiteDateTime(value);
 }
 
 export default function EquipmentHistoryDialog({ item, onClose, onError }: Props) {
@@ -62,7 +63,7 @@ export default function EquipmentHistoryDialog({ item, onClose, onError }: Props
                   {entry.section && entry.section !== "Group" && <Chip size="small" variant="outlined" label={entry.section} />}
                 </Stack>
               </Stack>
-              <Typography variant="body2" sx={{ mt: 1 }}>{entry.details}</Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>{formatSiteDateText(entry.details)}</Typography>
               {(entry.fromLocation || entry.toLocation) && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>{entry.fromLocation && entry.toLocation ? `${entry.fromLocation} → ${entry.toLocation}` : entry.toLocation || entry.fromLocation}</Typography>}
             </Paper>)}
           </Stack>}

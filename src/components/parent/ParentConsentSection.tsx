@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../../services/siteDateFormat";
 import { reportApplicationError } from "../../services/applicationErrors.ts";
 import { Alert, Box, Chip, Collapse, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,7 +18,7 @@ type Props = { memberIds: string[]; onSaved?: () => Promise<void> | void; };
 
 function formatDate(date: Date | null): string {
   if (!date) return "Not updated yet";
-  return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return formatSiteDateTime(date);
 }
 
 export default function ParentConsentSection({ memberIds, onSaved }: Props) {

@@ -1,4 +1,5 @@
 import type { AdminProfile } from "../components/admin/AdminAuthProvider";
+import { formatSiteDate } from "./siteDateFormat.ts";
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
 import { YOUTH_SECTION_NAMES } from "./leaderAccessLogic.ts";
 
@@ -58,7 +59,7 @@ export function buildLeaderToday(
     .slice(0, 2)
     .forEach((meeting) => attentionItems.push({
       id: `meeting-open-${meeting.id}`,
-      label: `${meeting.section} meeting from ${meeting.meetingDate} is still open`,
+      label: `${meeting.section} meeting from ${formatSiteDate(meeting.meetingDate)} is still open`,
       detail: "Close the meeting when attendance and notes are complete.",
       path: "/leader/weekly",
       severity: "warning"
@@ -67,7 +68,7 @@ export function buildLeaderToday(
   if (nextMeeting && !nextMeeting.programmeReady) {
     attentionItems.push({
       id: `meeting-programme-${nextMeeting.id}`,
-      label: `${nextMeeting.section} meeting on ${nextMeeting.meetingDate} has no programme`,
+      label: `${nextMeeting.section} meeting on ${formatSiteDate(nextMeeting.meetingDate)} has no programme`,
       detail: "Add an activity, badgework, theme or programme note before the meeting.",
       path: "/leader/weekly",
       severity: "warning"
@@ -90,7 +91,7 @@ export function buildLeaderToday(
     .forEach((event) => attentionItems.push({
       id: `event-consent-${event.id}`,
       label: `${event.outstandingConsent} consent outstanding for ${event.title}`,
-      detail: `Event date: ${event.startDate}`,
+      detail: `Event date: ${formatSiteDate(event.startDate)}`,
       path: "/leader/event-consent",
       severity: "warning"
     }));

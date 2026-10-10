@@ -22,6 +22,7 @@ import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { recordAuditEvent } from "../services/auditLog";
+import { formatSiteDate } from "../services/siteDateFormat";
 import { loadEventReportMembers, loadEventReportRecords, loadMemberReportRows } from "../services/reporting";
 import type { EventReportRecord, MemberReportRow } from "../services/reportingLogic";
 import {
@@ -99,7 +100,7 @@ export default function LeaderReports() {
     const scopeLabel = isAdmin ? "All sections" : sections.length > 0 ? sections.join(", ") : "No sections assigned";
     const activeMembers = members.filter((member) => member.status === "active").length;
     const consentEvents = filteredEvents.filter((event) => event.consentRequired).length;
-    const dateRangeLabel = fromDate || toDate ? `${fromDate || "Any date"} to ${toDate || "Any date"}` : "All dates";
+    const dateRangeLabel = fromDate || toDate ? `${fromDate ? formatSiteDate(fromDate) : "Any date"} to ${toDate ? formatSiteDate(toDate) : "Any date"}` : "All dates";
     const hasActiveDateFilters = Boolean(fromDate || toDate);
 
     const resetDateFilters = () => {
@@ -258,7 +259,7 @@ export default function LeaderReports() {
                                 <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Event attendance & consent</Typography>
                                 <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>Select an event in the current date range for a full operational roster or a focused outstanding-consent list.</Typography>
                                 <Stack spacing={2}>
-                                    <FormControl fullWidth><InputLabel>Event</InputLabel><Select label="Event" value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>{filteredEvents.map((event) => <MenuItem key={event.id} value={event.id}>{event.startDate || "No date"} — {event.title} ({event.section})</MenuItem>)}</Select></FormControl>
+                                    <FormControl fullWidth><InputLabel>Event</InputLabel><Select label="Event" value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>{filteredEvents.map((event) => <MenuItem key={event.id} value={event.id}>{event.startDate ? formatSiteDate(event.startDate) : "No date"} — {event.title} ({event.section})</MenuItem>)}</Select></FormControl>
                                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                                         <Button variant="contained" color="success" disabled={!selectedEvent || exportingEvent} onClick={() => void withSelectedEventMembers("roster")}>{exportingEvent ? "Preparing Export…" : "Export Event CSV"}</Button>
                                         <Button variant="outlined" color="secondary" disabled={!selectedEvent || exportingEvent || !selectedEvent.consentRequired} onClick={() => void withSelectedEventMembers("consent")}>Export Outstanding Consent</Button>

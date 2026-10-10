@@ -22,7 +22,7 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import MedicationManagementPanel from "../components/admin/MedicationManagementPanel";
 import { loadConsentAdminRecord, loadConsentAdminRecords } from "../services/consentAdmin";
 import type { ConsentAdminRecord } from "../services/consentAdmin";
-import { consentRecordPrintHtml, displayValue, formatDate, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
+import { consentRecordPrintHtml, displayValue, formatDate, formatDateOnly, formatFieldName, normalizeMedicationManagement } from "../services/consentManagementLogic";
 import { hasImportantMedicalInformation, medicalPresentationGroups } from "../services/medicalPresentation";
 import { createMemberFromYouthConsent, isCurrentUserSuperAdmin, loadReconciliationCandidates, manuallyReconcileConsent, type ReconciliationCandidate } from "../services/memberConsentReconciliation";
 
@@ -154,7 +154,7 @@ export default function ConsentRecordPage() {
             {!record.memberId && <Button variant="contained" color="success" disabled={creatingMember || reconciling} onClick={() => void createMember()} sx={{ mb: 2 }}>{creatingMember ? "Creating member…" : "Create new member from consent"}</Button>}
             <TextField select fullWidth label="Canonical member" value={candidateId} onChange={(event) => { setCandidateId(event.target.value); setConfirmCorrection(false); }}>
               <MenuItem value="">Select member</MenuItem>
-              {candidates.map((candidate) => <MenuItem key={candidate.id} value={candidate.id}>{candidate.displayName} · {candidate.dateOfBirth || "DOB unavailable"} · {candidate.section || "No section"} · {candidate.parentName || candidate.emailAddress || candidate.mobileNumber || candidate.id}</MenuItem>)}
+              {candidates.map((candidate) => <MenuItem key={candidate.id} value={candidate.id}>{candidate.displayName} · {candidate.dateOfBirth ? formatDateOnly(candidate.dateOfBirth) : "DOB unavailable"} · {candidate.section || "No section"} · {candidate.parentName || candidate.emailAddress || candidate.mobileNumber || candidate.id}</MenuItem>)}
             </TextField>
             <TextField fullWidth label="Reconciliation reason" value={reason} onChange={(event) => setReason(event.target.value)} helperText="Record why this identity match is correct. Do not enter medical details." sx={{ mt: 2 }} />
             {record.memberId && candidateId && record.memberId !== candidateId && <FormControlLabel sx={{ mt: 1 }} control={<Checkbox checked={confirmCorrection} onChange={(event) => setConfirmCorrection(event.target.checked)} />} label={`I confirm this replaces existing member relationship ${record.memberId}.`} />}

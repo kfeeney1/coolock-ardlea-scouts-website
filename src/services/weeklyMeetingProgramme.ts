@@ -1,4 +1,5 @@
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { formatSiteDate } from "./siteDateFormat.ts";
 
 export type ParentProgrammeItem = {
   name: string;
@@ -112,7 +113,7 @@ export function mergeWeeklyMeetingShareBadgework(
 }
 
 export function buildWeeklyMeetingWhatsAppText(programme: Omit<ParentWeeklyMeetingProgramme, "id">): string {
-  const lines = [`${programme.section} Weekly Meeting · ${programme.meetingDate}`];
+  const lines = [`${programme.section} Weekly Meeting · ${formatSiteDate(programme.meetingDate)}`];
   if (programme.location) lines.push(`Location: ${programme.location}`);
   if (programme.theme) lines.push(`Theme: ${programme.theme}`);
   if (programme.activities.length) {

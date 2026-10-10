@@ -38,7 +38,7 @@ test("leader WhatsApp share includes programme, completed badgework and equipmen
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/weekly");
 
-  const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "15 Jan 2099 · Scouts" });
+  const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "15-01-2099 · Scouts" });
   await expect(historyCard).toBeVisible();
   await historyCard.getByRole("button", { name: "View / Edit", exact: true }).click();
 
