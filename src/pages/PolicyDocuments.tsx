@@ -3,6 +3,7 @@ import { Alert, Box, Button, Card, CardActions, CardContent, Chip, Container, Di
 import { useEffect, useMemo, useState } from "react";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadPolicyDocuments, POLICY_AUDIENCES, publishPolicyDocument, revokePolicyDocumentUrls, withdrawPolicyDocument, type PolicyAudience, type PolicyDocument } from "../services/policyDocuments";
+import { formatSiteDate } from "../services/siteDateFormat";
 
 const GROUP_LEADERS = new Set(["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"]);
 
@@ -108,7 +109,7 @@ export default function PolicyDocuments() {
                 <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}><Chip size="small" label="Current" /><Chip size="small" variant="outlined" label={item.audience} /></Stack>
                 <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>{item.title}</Typography>
                 {item.description && <Typography sx={{ mt: 1 }}>{item.description}</Typography>}
-                {item.effectiveDate && <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Effective/version date: {item.effectiveDate}</Typography>}
+                {item.effectiveDate && <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Effective/version date: {formatSiteDate(item.effectiveDate)}</Typography>}
               </CardContent>
               <CardActions sx={{ px: 2, pb: 2 }}><Button href={item.viewUrl} target="_blank" rel="noopener noreferrer">Open PDF</Button>{canManage && <Button color="error" onClick={() => setRemoveTarget(item)}>Withdraw</Button>}</CardActions>
             </Card>)}

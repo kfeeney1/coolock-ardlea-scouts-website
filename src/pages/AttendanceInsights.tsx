@@ -1,3 +1,4 @@
+import { formatSiteDate } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
@@ -31,9 +32,7 @@ import type { WeeklyMeetingRecord } from "../services/weeklyTracker";
 
 function formatDate(value: string): string {
     if (!value) return "No recorded attendance";
-    const parsed = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(parsed);
+    return formatSiteDate(value);
 }
 
 function statusLabel(status: AttendanceHistoryRow["status"]): string {

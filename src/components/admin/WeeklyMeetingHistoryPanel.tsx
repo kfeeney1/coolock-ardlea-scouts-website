@@ -5,6 +5,7 @@ import { filterWeeklyMeetingHistory } from "../../services/weeklyTrackerLogic";
 import { SectionIdentityChip, SectionSelect, sectionCardSx } from "../SectionIdentityControls";
 import OperationalFilterBar from "./OperationalFilterBar";
 import OperationalSearchField from "./OperationalSearchField";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
   records: WeeklyMeetingRecord[];
@@ -16,10 +17,7 @@ type Props = {
   onReopen: (record: WeeklyMeetingRecord) => void;
 };
 
-const displayDate = (value: string) => {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(date);
-};
+const displayDate = (value: string) => formatSiteDate(value);
 
 export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onOpen, onCopy, onReopen }: Props) {
   const [search, setSearch] = useState("");

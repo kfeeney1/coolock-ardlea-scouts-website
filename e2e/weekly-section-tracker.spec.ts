@@ -13,7 +13,7 @@ type LifecycleMeeting = { date: string; label: string };
 
 function displayMeetingDate(date: string) {
   const [year, month, day] = date.split("-").map(Number);
-  return `${day} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]} ${year}`;
+  return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
 }
 
 function addDays(date: string, days: number) {

@@ -5,6 +5,7 @@ import {
   signedAmountCents,
   type FinanceTransaction,
 } from "../../services/financeLedgerLogic";
+import { formatSiteDate, formatSiteDateTime } from "../../services/siteDateFormat";
 
 type Props = {
   transactions: FinanceTransaction[];
@@ -14,10 +15,6 @@ type Props = {
   formatEuro: (cents: number) => string;
   onCorrect: (transaction: FinanceTransaction) => void;
 };
-
-function formatTimestamp(value: Date): string {
-  return new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value);
-}
 
 function transactionLabel(transaction: FinanceTransaction): string {
   if (transaction.type === "opening-float") return "Open float";
@@ -45,7 +42,7 @@ export default function SectionCashbookHistory({
         const isTransfer = transaction.type === "transfer-in" || transaction.type === "transfer-out";
         const isCorrected = reversedIds.has(transaction.id);
         const isReceiptEligible = transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY;
-        return <Paper key={transaction.id} data-testid={`finance-transaction-${transaction.id}`} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}><Box><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography><Chip size="small" label={transactionLabel(transaction)} variant="outlined" />{isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary">{transaction.transactionDate}{transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY ? ` · ${transaction.category}` : ""}</Typography>{isReceiptEligible && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>Entered {transaction.createdAt ? formatTimestamp(transaction.createdAt) : "timestamp pending"}</Typography>}{transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}{isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Historical linked transfer {transaction.sourceTransactionId}</Typography>}{isReceiptEligible && <FinanceReceiptControl transactionId={transaction.id} section={transaction.section} refreshKey={receiptRefreshKey} />}</Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}><Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>{!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => onCorrect(transaction)}>Correct entry</Button>}</Stack></Box></Paper>;
+        return <Paper key={transaction.id} data-testid={`finance-transaction-${transaction.id}`} variant="outlined" sx={{ p: 2 }}><Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", gap: 1.5 }}><Box><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}><Typography sx={{ fontWeight: 800 }}>{transaction.description}</Typography><Chip size="small" label={transactionLabel(transaction)} variant="outlined" />{isCorrected && <Chip size="small" label="Corrected" color="warning" variant="outlined" />}</Stack><Typography variant="body2" color="text.secondary">{formatSiteDate(transaction.transactionDate)}{transaction.type === "expense" && transaction.category !== FLOAT_CLOSE_CATEGORY ? ` · ${transaction.category}` : ""}</Typography>{isReceiptEligible && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>Entered {transaction.createdAt ? formatSiteDateTime(transaction.createdAt) : "timestamp pending"}</Typography>}{transaction.reversalOfTransactionId && <Typography variant="caption" color="text.secondary">Reverses transaction {transaction.reversalOfTransactionId}</Typography>}{isTransfer && transaction.sourceTransactionId && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Historical linked transfer {transaction.sourceTransactionId}</Typography>}{isReceiptEligible && <FinanceReceiptControl transactionId={transaction.id} section={transaction.section} refreshKey={receiptRefreshKey} />}</Box><Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}><Typography sx={{ fontWeight: 800 }}>{signed >= 0 ? "+" : "−"}{formatEuro(Math.abs(signed))}</Typography>{!isAdjustment && !isTransfer && !isCorrected && <Button size="small" variant="outlined" color="warning" onClick={() => onCorrect(transaction)}>Correct entry</Button>}</Stack></Box></Paper>;
       })}</Stack>}
     </Paper>
   );

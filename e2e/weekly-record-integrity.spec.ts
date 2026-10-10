@@ -53,7 +53,7 @@ test("new meeting Cancel saves valid entered data without creating an empty reco
   await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
-  const savedMeeting = page.getByRole("button", { name: /4 Apr 2099 · Scouts/ }).first();
+  const savedMeeting = page.getByRole("button", { name: /04-04-2099 · Scouts/ }).first();
   await expect(savedMeeting).toBeVisible();
   await savedMeeting.click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
@@ -110,7 +110,7 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(copyDialog).toBeHidden();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await expect(page.getByText("Meeting copied.")).toHaveCount(0);
-  await expect(page.getByText(/08 Apr 2099 · Scouts/)).toHaveCount(0);
+  await expect(page.getByText(/08-04-2099 · Scouts/)).toHaveCount(0);
 });
 
 test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }) => {

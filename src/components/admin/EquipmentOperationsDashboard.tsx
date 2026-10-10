@@ -1,3 +1,4 @@
+import { formatSiteDate, formatSiteDateText } from "../../services/siteDateFormat";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -27,7 +28,7 @@ type Activity = {
 };
 
 function formatDate(value: Date) {
-  return new Intl.DateTimeFormat("en-IE", { day: "2-digit", month: "short", year: "numeric" }).format(value);
+  return formatSiteDate(value);
 }
 
 export default function EquipmentOperationsDashboard({ items, loans, incidents, onFilterInventory }: Props) {
@@ -125,7 +126,7 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents, 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
               <Box>
                 <Typography sx={{ fontWeight: 700 }}>{entry.title}</Typography>
-                <Typography variant="body2" color="text.secondary">{entry.detail}</Typography>
+                <Typography variant="body2" color="text.secondary">{formatSiteDateText(entry.detail)}</Typography>
               </Box>
               <Chip size="small" color={entry.tone === "warning" ? "warning" : entry.tone === "success" ? "success" : "default"} variant="outlined" label={formatDate(entry.at)} sx={{ alignSelf: { xs: "flex-start", sm: "center" } }} />
             </Stack>

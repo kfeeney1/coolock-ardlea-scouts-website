@@ -1,3 +1,4 @@
+import { formatSiteDateTime } from "../services/siteDateFormat";
 import { reportApplicationError } from "../services/applicationErrors.ts";
 import { Box, Chip, Container, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -23,7 +24,7 @@ type MemberOption = { id: string; displayName: string; section: string; status: 
 
 function formatDate(value: Date | null): string {
   return value
-    ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(value)
+    ? formatSiteDateTime(value)
     : "Date unavailable";
 }
 

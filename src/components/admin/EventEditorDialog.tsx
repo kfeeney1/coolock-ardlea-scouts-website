@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { EventInput, EventRecord, EventStatus } from "../../services/eventAdmin";
 import type { MemberRecord } from "../../services/memberAdmin";
 import { EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, eventAudienceSummary, eventStatusLabel } from "../../services/eventManagementLogic";
+import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
     open: boolean;
@@ -189,7 +190,7 @@ function PaperSummary({ draft }: { draft: EventInput }) {
         <Box sx={{ mb: 2.5, p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}>
             <Typography sx={{ fontWeight: 800 }}>{draft.title || "Untitled event"}</Typography>
             <Typography variant="body2" color="text.secondary">
-                {draft.eventType} · {draft.section} · {draft.startDate}{draft.endDate ? ` to ${draft.endDate}` : ""}{draft.location ? ` · ${draft.location}` : ""}
+                {draft.eventType} · {draft.section} · {draft.startDate ? formatSiteDate(draft.startDate) : "Date not set"}{draft.endDate ? ` to ${formatSiteDate(draft.endDate)}` : ""}{draft.location ? ` · ${draft.location}` : ""}
             </Typography>
         </Box>
     );

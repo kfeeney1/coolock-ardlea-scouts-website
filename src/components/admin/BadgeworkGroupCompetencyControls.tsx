@@ -6,6 +6,7 @@ import { draftSelectionState } from "../../services/adventureSkillDraftLogic.ts"
 import { requirementProvenance } from "../../services/adventureSkillAwardLogic.ts";
 import type { MemberAdventureProgress } from "../../services/adventureSkillProgress.ts";
 import { requirementSelectionState } from "../../services/adventureSkillSelectionLogic.ts";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import { sourceBacklink, sourceLabel } from "../../services/adventureSkillSourceContext.ts";
 
 type Props = {
@@ -18,7 +19,7 @@ type Props = {
   unsavedChangeCount: number;
 };
 
-const displayDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" }).format(value) : "Date pending";
+const displayDate = (value: Date | null) => value ? formatSiteDate(value) : "Date pending";
 
 export default function BadgeworkGroupCompetencyControls({ disabled, draft, onRequirementChange, progressByMemberId, selectedMemberIds, stage, unsavedChangeCount }: Props) {
   const [outstandingOnly, setOutstandingOnly] = useState(false);

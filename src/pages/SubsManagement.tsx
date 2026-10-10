@@ -11,6 +11,7 @@ import type { MemberRecord } from "../services/memberAdmin";
 import { ensureDefaultSubsAssignment, loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
 import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
+import { formatSiteDate } from "../services/siteDateFormat";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const csv = (rows: string[][]) => rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(",")).join("\r\n");
@@ -345,7 +346,7 @@ export default function SubsManagement() {
               {memberPayments.map((p) => (
                 <Paper key={p.id} variant="outlined" sx={{ p: 2 }}>
                   <Typography sx={{ fontWeight: 700 }}>
-                    {p.paymentDate} · {paymentMethodLabel(p.method)}
+                    {formatSiteDate(p.paymentDate)} · {paymentMethodLabel(p.method)}
                   </Typography>
                   <Typography>
                     {formatEuro(p.amountCents)}
@@ -365,7 +366,7 @@ export default function SubsManagement() {
               <strong>{selected?.displayName}</strong> · {selected?.section}
             </Typography>
             <Typography>
-              {formatEuro(amount ? parseEuroToCents(amount) : 0)} by {paymentMethodLabel(method)} on {paymentDate}
+              {formatEuro(amount ? parseEuroToCents(amount) : 0)} by {paymentMethodLabel(method)} on {formatSiteDate(paymentDate)}
             </Typography>
             <Typography>Scout year: {period}</Typography>
             {selectedAssignment?.accountId && <Typography>Applied to the shared family account.</Typography>}

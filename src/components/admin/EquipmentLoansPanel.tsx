@@ -22,6 +22,7 @@ import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
 import { checkoutEquipment, returnEquipment } from "../../services/equipmentLoans";
+import { formatSiteDate } from "../../services/siteDateFormat";
 import {
   availableEquipmentQuantity,
   canUseEquipmentForSection,
@@ -147,7 +148,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
                   <Box>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", mb: 1 }}>
-                      <Chip label={`Due ${loan.expectedReturnDate}`} variant="outlined" />
+                      <Chip label={`Due ${formatSiteDate(loan.expectedReturnDate)}`} variant="outlined" />
                       {currentUserUid && loan.createdBy === currentUserUid && <Chip label="Checked out by you" color="info" data-testid="equipment-loan-owner" />}
                       {new Date(`${loan.expectedReturnDate}T23:59:59`) < new Date() && <Chip label="Overdue" color="warning" />}
                     </Stack>
