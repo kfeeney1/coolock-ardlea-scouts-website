@@ -9,7 +9,7 @@ function addSuiteGroups(groups, suite) {
   if (suite === "activities-programme") {
     groups.add("activities");
     groups.add("navigation");
-  } else if (["members-parents-consent", "equipment", "authentication-rbac", "platform-ui"].includes(suite)) {
+  } else if (["members-parents-consent", "equipment", "authentication-rbac", "platform-ui", "badgework"].includes(suite)) {
     groups.add("navigation");
   } else if (suite === "public-pages") {
     groups.add("communications");

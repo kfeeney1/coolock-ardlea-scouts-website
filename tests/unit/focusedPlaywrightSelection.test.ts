@@ -11,7 +11,8 @@ test("unrelated docs and non-focused suites avoid the focused emulator job", () 
     [...selectFocusedGroups(["docs/operations.md", "src/pages/FinanceCashbook.tsx", "email-worker/src/productionRoutes.js"])],
     []
   );
-  assert.deepEqual([...selectFocusedGroups(["e2e/adventure-skills-badgework.spec.ts"])], []);
+  assert.deepEqual([...selectFocusedGroups(["e2e/adventure-skills-badgework.spec.ts"])], ["navigation"]);
+  assert.deepEqual([...selectFocusedGroups(["e2e/sw265-badgework-navigation.spec.ts"])], ["navigation"]);
 });
 
 test("activity changes retain all focused meeting regressions and navigation checks", () => {
@@ -62,6 +63,8 @@ test("PR shard suite selection excludes operational-only changes without weakeni
     assert.deepEqual(suitesForChangedPath(path), [], path);
   }
   assert.deepEqual(suitesForChangedPath("src/services/weeklyTracker.ts"), ["activities-programme"]);
+  assert.deepEqual(suitesForChangedPath("e2e/sw265-badgework-navigation.spec.ts"), ["badgework"]);
+  assert.ok(suiteSpecs.badgework.includes("sw265-badgework-navigation.spec.ts"));
   assert.equal(suitesForChangedPath("src/components/UnknownSharedControl.tsx"), null);
   assert.deepEqual(suitesForChangedPath(".github/workflows/playwright-e2e.yml"), ["activities-programme", "platform-ui"]);
 });
