@@ -77,7 +77,11 @@ test("admin can add, check out and check in stock from its record and verify per
   await returnDialog.getByRole("button", { name: "Confirm check in" }).click();
   await expect(returnDialog).toBeHidden();
   await expect(record).toContainText("0 checked out");
-  await page.reload();
+  // Reload only until the new document navigation commits; the following
+  // assertions verify that the persisted equipment record has loaded.
+  await page.reload({ waitUntil: "commit" });
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}$`));
+  await expect(page.getByRole("heading", { name: itemName, exact: true })).toBeVisible();
   await expect(page.getByTestId("equipment-record-summary")).toContainText("0 checked out");
   await page.getByRole("button", { name: "History", exact: true }).click();
   const history = page.getByRole("dialog", { name: `${itemName} history` });
