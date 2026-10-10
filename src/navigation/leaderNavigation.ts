@@ -23,6 +23,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   { id: "programme", label: "Programme", items: [
     { id: "weekly-meetings", label: "Weekly Meetings", path: "/leader/weekly", pageId: "weekly-meetings" },
     { id: "events-activities", label: "Events & Activities", path: "/leader/events", pageId: "events-activities" },
+    { id: "group-polls", label: "Group Polls", path: "/leader#group-polls", pageId: "group-polls" },
     { id: "badgework", label: "Badgework", path: "/leader/badgework", pageId: "badgework" },
     { id: "programme-equipment", label: "Equipment", path: "/leader/programme-equipment", pageId: "programme-equipment" }
   ]},
