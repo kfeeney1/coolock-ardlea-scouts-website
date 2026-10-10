@@ -153,6 +153,55 @@ export async function loadMemberAdventureProgress(memberId: string): Promise<Mem
   };
 }
 
+/**
+ * Load overview progress with bounded Firestore concurrency. The overview can
+ * contain many active members; issuing two reads for every member at once can
+ * keep consuming the shared Firestore connection after the user has navigated
+ * elsewhere. A signal stops scheduling more members as soon as the view is
+ * left, while already-started reads are allowed to settle safely.
+ */
+export async function loadMemberAdventureProgressForMembers(
+  memberIds: readonly string[],
+  options: {
+    signal?: AbortSignal;
+    concurrency?: number;
+    loadMember?: (memberId: string) => Promise<MemberAdventureProgress>;
+  } = {}
+): Promise<MemberAdventureProgress[]> {
+  const ids = [...new Set(memberIds.map((memberId) => memberId.trim()).filter(Boolean))];
+  if (ids.length === 0 || options.signal?.aborted) return [];
+
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+  const concurrency = Math.max(1, Math.min(ids.length, Math.floor(options.concurrency ?? 3)));
+  const results = new Array<MemberAdventureProgress>(ids.length);
+  let nextIndex = 0;
+  const loadMember = options.loadMember ?? loadMemberAdventureProgress;
+
+  const worker = async () => {
+    while (!controller.signal.aborted) {
+      const index = nextIndex++;
+      if (index >= ids.length) return;
+      try {
+        const progress = await loadMember(ids[index]);
+        if (controller.signal.aborted) return;
+        results[index] = progress;
+      } catch (error) {
+        controller.abort();
+        throw error;
+      }
+    }
+  };
+
+  try {
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    return results.filter((progress): progress is MemberAdventureProgress => Boolean(progress));
+  } finally {
+    options.signal?.removeEventListener("abort", abortFromCaller);
+  }
+}
+
 export async function setRequirementCompletionForMembers(
   memberIds: string[],
   requirementId: string,

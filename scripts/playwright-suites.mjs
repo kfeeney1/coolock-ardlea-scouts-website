@@ -59,7 +59,8 @@ export const suiteSpecs = {
   ],
   badgework: [
     "adventure-skills-badgework.spec.ts",
-    "badgework-skill-filter.spec.ts"
+    "badgework-skill-filter.spec.ts",
+    "sw265-badgework-navigation.spec.ts"
   ],
   equipment: [
     "damaged-equipment-issues.spec.ts",
