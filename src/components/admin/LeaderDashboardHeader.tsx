@@ -15,7 +15,7 @@ function matchesNavPath(locationPath: string, itemPath: string, exactPath = fals
  if (target.pathname === "/leader") return current.pathname === "/leader" && !target.search && !target.hash;
  if (exactPath && current.pathname !== target.pathname) return false;
  if (current.pathname !== target.pathname && !current.pathname.startsWith(`${target.pathname}/`)) return false;
- if (target.search && current.search !== target.search) return false;
+ if (target.search && (target.pathname === "/leader/equipment/inventory" ? [...target.searchParams].some(([key, value]) => current.searchParams.get(key) !== value) : current.search !== target.search)) return false;
  if (target.hash && current.hash !== target.hash) return false;
  if (!target.search && current.search) return false;
  if (!target.hash && current.hash && current.pathname === target.pathname) return false;
