@@ -87,6 +87,8 @@ test("browser Back saves an edited meeting before returning to the previous page
 test("meeting copy Cancel exits untouched and protects a changed destination date", async ({ page }) => {
   await login(page, adminEmail);
   await page.goto("/leader/weekly");
+  const destinationMeetings = page.getByText(/08-04-2099 · Scouts/);
+  const existingDestinationCount = await destinationMeetings.count();
   const sourceMeeting = page.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(sourceMeeting).toBeVisible();
   await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
@@ -110,7 +112,8 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(copyDialog).toBeHidden();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await expect(page.getByText("Meeting copied.")).toHaveCount(0);
-  await expect(page.getByText(/08-04-2099 · Scouts/)).toHaveCount(0);
+  // Other tests may already have created this date; cancellation must not add another.
+  await expect(destinationMeetings).toHaveCount(existingDestinationCount);
 });
 
 test("multi-role Group Leader meeting round-trips completely when reopened by Super Admin", async ({ page, browser }) => {
