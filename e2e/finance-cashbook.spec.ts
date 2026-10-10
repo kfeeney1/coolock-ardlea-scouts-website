@@ -75,8 +75,8 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
   await type.click();
   await expect(page.getByText("Loading section float…", { exact: true })).toBeHidden();
   const emptyFloat = await page.getByText("No float transactions have been recorded for this section.", { exact: true }).isVisible();
-  await page.getByRole("option", { name: emptyFloat ? "Open float" : "Float top up", exact: true }).click();
   if (emptyFloat) {
+    await page.getByRole("option", { name: "Open float", exact: true }).click();
     await page.getByLabel("Date", { exact: true }).fill("2026-09-29");
     await page.getByLabel("Amount (€)").fill("10.00");
     await page.getByRole("button", { name: "Save transaction", exact: true }).click();
@@ -84,8 +84,8 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
     await expect(opening).toContainText("29-09-2026");
     await expect(opening).not.toContainText("2026-09-29");
     await type.click();
-    await page.getByRole("option", { name: "Money out", exact: true }).click();
   }
+  await page.getByRole("option", { name: "Money out", exact: true }).click();
 
   const description = `SW-215 date audit ${crypto.randomUUID()}`;
   await page.getByLabel("Date", { exact: true }).fill("2026-10-03");
