@@ -68,7 +68,8 @@ export const suiteSpecs = {
     "programme-equipment.spec.ts",
     "email-action-links.spec.ts",
     "equipment-leader-dashboard.spec.ts",
-    "equipment-reports.spec.ts"
+    "equipment-reports.spec.ts",
+    "detailed-inventory.spec.ts"
   ],
   "finance-subs": [
     "finance-cashbook.spec.ts",
