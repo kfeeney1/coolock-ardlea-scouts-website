@@ -120,6 +120,7 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   const retainedSections = nextSections.length > 0 ? nextSections : ["Rovers"];
   await updateDoc(member.ref, {
     accountUid: targetUid,
+    emailAddress: email,
     section: retainedSections[0],
     sections: retainedSections,
     sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, retainedSections),
