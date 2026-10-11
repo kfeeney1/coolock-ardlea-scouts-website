@@ -344,6 +344,21 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.reload();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
+
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await page.getByRole("button", { name: "Edit selection", exact: true }).click();
+  await page.getByRole("button", { name: /^Open Cubs members/ }).click();
+  const cubToRemove = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
+  await expect(cubToRemove).toBeChecked();
+  await cubToRemove.uncheck();
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  const removalConfirmation = page.getByRole("alertdialog", { name: "Confirm audience removals" });
+  await expect(removalConfirmation).toContainText("remove 1 existing invitee");
+  await removalConfirmation.getByRole("button", { name: "Confirm removal and save" }).click();
+  await expect(page).toHaveURL(eventUrl);
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
+  await page.reload();
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {
