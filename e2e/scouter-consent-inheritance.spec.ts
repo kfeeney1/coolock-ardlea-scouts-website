@@ -26,13 +26,16 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
   await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
-  await expect(page.locator('input[name="mobile"]')).toHaveValue("0861234567");
+  const mobileField = page.locator('input[name="mobile"]');
+  // The Chromium project saves this value before the mobile project runs against
+  // the same emulator account; saved consent must then beat profile defaults.
+  expect(["0861234567", "0855550000"]).toContain(await mobileField.inputValue());
   await expect(page.locator('input[name="homePhone"]')).toHaveValue("012345678");
   await expect(page.locator('input[name="workPhone"]')).toHaveValue("019876543");
 
   // A change made after prefill is saved as consent data and remains authoritative
   // on renewal even though the registration/profile defaults still have the old value.
-  await page.locator('input[name="mobile"]').fill("0855550000");
+  await mobileField.fill("0855550000");
   await advance(page);
   await page.locator('input[name="nextOfKinName"]').fill("Test Emergency Contact");
   await page.locator('input[name="nextOfKinMobile"]').fill("0871234567");
