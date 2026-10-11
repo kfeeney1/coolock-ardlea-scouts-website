@@ -15,6 +15,15 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function persistedAudienceMemberIds(eventId: string): Promise<string[]> {
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || "demo-coolock-ardlea-scouts";
+  const url = `http://127.0.0.1:8080/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/events/${encodeURIComponent(eventId)}/audienceMembers`;
+  const response = await fetch(url, { headers: { Authorization: "Bearer owner" } });
+  expect(response.ok, "Firestore emulator should return persisted audience rows").toBe(true);
+  const data = await response.json() as { documents?: Array<{ name: string }> };
+  return (data.documents ?? []).map((document) => document.name.split("/").pop() ?? "").filter(Boolean).sort();
+}
+
 test("clicking an event tile opens its full record with a clear list action", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -65,6 +74,10 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
   const eventUrl = page.url();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  const persistedIds = await persistedAudienceMemberIds(eventId);
+  expect(persistedIds.length).toBeGreaterThan(0);
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText(`${persistedIds.length} invited`);
   const eventPath = new URL(eventUrl).pathname;
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
@@ -279,6 +292,11 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const eventId = new URL(page.url()).pathname.split("/").pop()!;
+  expect(await persistedAudienceMemberIds(eventId)).toEqual([
+    "TEST_member_beaver_01",
+    "TEST_member_cub_01",
+    "TEST_member_scout_01"
+  ].sort());
   await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("3 invited");
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
@@ -357,6 +375,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await removalConfirmation.getByRole("button", { name: "Confirm removal and save" }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
+  expect(await persistedAudienceMemberIds(eventId)).toEqual(["TEST_member_beaver_01", "TEST_member_scout_01"].sort());
   await page.reload();
   await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
 });
