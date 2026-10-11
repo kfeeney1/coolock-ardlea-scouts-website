@@ -366,7 +366,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   await page.getByRole("button", { name: "Edit selection", exact: true }).click();
   await page.getByRole("button", { name: /^Open Cubs members/ }).click();
-  const cubToRemove = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
+  const cubToRemove = page.getByTestId("event-audience-member-TEST_member_cub_01").getByRole("checkbox");
   await expect(cubToRemove).toBeChecked();
   await cubToRemove.uncheck();
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
