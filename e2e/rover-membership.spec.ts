@@ -28,7 +28,9 @@ test("adult leader Rover self-service persists, appears in Member Management and
     await expect(panel.getByText("Your Rover membership is active and linked to your account.")).toBeVisible();
   }
 
-  await page.reload();
+  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await loginAdmin(page);
+  await page.goto("/leader/profile");
   await expect(panel.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
   await page.goto("/leader/members");
   await page.getByRole("combobox", { name: "Section" }).click();
