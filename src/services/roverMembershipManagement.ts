@@ -5,6 +5,7 @@ import { auth, db } from "../firebase";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import { normalizeMemberSectionRoles } from "./memberYouthRoles";
+import { matchesRoverAdultIdentity } from "./roverMembershipLogic";
 
 export type RoverManagementCandidate = {
   uid: string;
@@ -64,7 +65,7 @@ export async function loadRoverManagementCandidates(): Promise<RoverManagementCa
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
-export async function setManagedRoverMembership(targetUid: string, enabled: boolean): Promise<void> {
+export async function setManagedRoverMembership(targetUid: string, enabled: boolean, memberId?: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new ServiceFailure("A signed-in leader account is required.", "auth/unauthenticated");
   const targetSnapshot = await getDoc(doc(db, "adminUsers", targetUid));
@@ -79,6 +80,21 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   const accountMatches = await getDocs(query(collection(db, "members"), where("accountUid", "==", targetUid)));
   if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this adult. Reconcile the records first.");
   let member = accountMatches.docs[0];
+  if (memberId) {
+    const selectedMember = await getDoc(doc(db, "members", memberId));
+    if (!selectedMember.exists()) throw new UserFacingError("The selected member record is no longer available.");
+    const selectedData = selectedMember.data();
+    if (accountMatches.size > 0 && accountMatches.docs[0].id !== memberId) {
+      throw new UserFacingError("This adult is linked to a different member record. Reconcile the duplicate records first.");
+    }
+    if (selectedData.accountUid && selectedData.accountUid !== targetUid) {
+      throw new UserFacingError("This member record is linked to another account.");
+    }
+    if (!selectedData.accountUid && !matchesRoverAdultIdentity(selectedData, { displayName, email })) {
+      throw new UserFacingError("The selected member record does not match this adult account.");
+    }
+    member = selectedMember;
+  }
 
   const now = serverTimestamp();
   if (!member && enabled) {
