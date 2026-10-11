@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
 
 import type { EventAudience } from "../../services/eventAdmin";
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -105,7 +105,6 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
       {selectedMemberIds.length > 0 && <Typography variant="body2" aria-live="polite" sx={{ mb: 1 }}>Selected: {selectedMemberIds.map((id) => members.find((member) => member.id === id)?.displayName).filter(Boolean).join(", ") || `${selectedMemberIds.length} member${selectedMemberIds.length === 1 ? "" : "s"}`}</Typography>}
       {editingMembers && <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: { xs: 1, sm: 1.5 } }}>
         {addingOtherMembers ? <>
-          <TextField fullWidth label="Search authorized group members" value={search} onChange={(event) => setSearch(event.target.value)} sx={{ mb: 1 }} />
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Each result is added individually, even if the member belongs to another section.</Typography>
         </> : <>
           <Typography variant="body2" sx={{ mb: 0.75 }}>Choose a section to review its members. Selections stay in the audience when you switch sections.</Typography>
