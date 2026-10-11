@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -21,6 +21,24 @@ test("public consent creation cannot forge a canonical member relationship", asy
   const db = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(setDoc(doc(db, "consentApplications/public-ok"), consent));
   await assertFails(setDoc(doc(db, "consentApplications/public-forged"), { ...consent, memberId: "member-other" }));
+});
+
+test("SW-309 profile sources are readable by UID owner only", async () => {
+  await seed([
+    ["adminUsers/scouter-1", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/scouter-2", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["leaderRegistrationRequests/scouter-1", { uid: "scouter-1", mobileNumber: "0861234567" }],
+    ["leaderRegistrationRequests/scouter-2", { uid: "scouter-2", mobileNumber: "0869999999" }],
+    ["members/member-own", { accountUid: "scouter-1", displayName: "Own Scouter", dateOfBirth: "1985-04-12", section: "Scouts", status: "active" }],
+    ["members/member-other", { accountUid: "scouter-2", displayName: "Other Scouter", dateOfBirth: "1980-03-02", section: "Beavers", status: "active" }]
+  ]);
+  const db = testEnv.authenticatedContext("scouter-1", { email: "scouter-1@example.com" }).firestore();
+  await assertSucceeds(getDoc(doc(db, "leaderRegistrationRequests/scouter-1")));
+  await assertFails(getDoc(doc(db, "leaderRegistrationRequests/scouter-2")));
+  const ownMembers = await assertSucceeds(getDocs(query(collection(db, "members"), where("accountUid", "==", "scouter-1"))));
+  assert.equal(ownMembers.size, 1);
+  assert.equal(ownMembers.docs[0].id, "member-own");
+  await assertFails(getDoc(doc(db, "members/member-other")));
 });
 
 test("approved parent can create consent only for an explicitly linked member", async () => {

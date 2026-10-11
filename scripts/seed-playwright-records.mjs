@@ -45,6 +45,23 @@ if (typeof scoutMemberName !== "string" || !scoutMemberName.trim()) throw new Er
 const scoutLeader = await requireDoc("organisationLeadership", "TEST_uid_scout_programme_scouter");
 const groupLeader = await requireDoc("organisationLeadership", "TEST_uid_group_leader");
 
+// SW-309 regression fixture: the approval flow historically created adminUsers
+// without mobileNumber even though the signed-in leader's registration retained it.
+const sw309Uid = "TEST_uid_scout_programme_scouter";
+await db.collection("adminUsers").doc(sw309Uid).set({
+  mobileNumber: FieldValue.delete(),
+  address: "42 Test Scouter Road",
+  homePhone: "012345678",
+  workPhone: "019876543",
+  dateOfBirth: "1985-04-12"
+}, { merge: true });
+await db.collection("leaderRegistrationRequests").doc(sw309Uid).set({
+  uid: sw309Uid,
+  fullName: scoutLeader.displayName,
+  mobileNumber: "0861234567",
+  status: "approved"
+}, { merge: true });
+
 await db.collection("meetingRecords").doc("TEST_e2e_meeting_scout").set({ title: "TEST E2E Scout Leader Meeting", meetingType: "leader", section: "Scouts", meetingDate: "2099-01-15T19:30", attendees: [scoutLeader.displayName], notes: "Baseline Playwright meeting minutes.", decisions: "Baseline decision.", actions: "Baseline action.", createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 await db.collection("meetingRecords").doc("TEST_e2e_meeting_group_council").set({ title: "TEST E2E Group Council Meeting", meetingType: "group", section: "Group", meetingDate: "2099-01-16T20:00", attendees: [groupLeader.displayName], notes: "Baseline Group Council minutes for Playwright role access checks.", decisions: "Baseline Group Council decision.", actions: "Baseline Group Council action.", createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
 
