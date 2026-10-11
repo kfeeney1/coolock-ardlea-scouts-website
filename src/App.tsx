@@ -109,6 +109,7 @@ export default function App() {
         <Route path="/leader/weekly/create" element={protectedRoute(<CreateWeeklyMeetingPage />)} />
         <Route path="/leader/badgework" element={protectedRoute(<BadgeworkTracking />)} />
         <Route path="/leader/equipment" element={protectedRoute(<EquipmentManagement />)} />
+        <Route path="/leader/equipment/inventory" element={protectedRoute(<EquipmentManagement inventoryOnly />)} />
         <Route path="/leader/equipment/issues" element={protectedRoute(<EquipmentIssuesPage />)} />
         <Route path="/leader/programme-equipment" element={protectedRoute(<ProgrammeEquipment />)} />
         <Route path="/leader/equipment/:equipmentId/move-store" element={protectedRoute(<EquipmentStoreMovePage />)} />

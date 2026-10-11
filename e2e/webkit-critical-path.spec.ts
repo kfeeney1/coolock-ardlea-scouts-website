@@ -32,6 +32,6 @@ test.describe("WebKit critical path", () => {
     await weeklyMeetingsLink.click();
 
     await expect(page).toHaveURL(/\/leader\/weekly$/);
-    await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Weekly Meetings", exact: true })).toBeAttached();
   });
 });

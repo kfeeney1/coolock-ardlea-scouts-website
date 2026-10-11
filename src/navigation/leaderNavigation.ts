@@ -46,6 +46,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   ]},
   { id: "quartermaster", label: "Quartermaster / Bo’sun", items: [
     { id: "qm-equipment-stores", label: "Equipment and Stores", path: "/leader/equipment?view=quartermaster", pageId: "qm-equipment-stores", exactPath: true, appointments: quartermasterAppointments },
+    { id: "qm-detailed-inventory", label: "Detailed Inventory", path: "/leader/equipment/inventory?view=quartermaster", pageId: "qm-detailed-inventory", exactPath: true, appointments: quartermasterAppointments },
     { id: "qm-equipment-issues", label: "Broken, lost & missing", path: "/leader/equipment/issues?view=quartermaster", pageId: "qm-equipment-issues", exactPath: true, appointments: quartermasterAppointments },
     { id: "qm-reports", label: "QM Reports", path: "/leader/qm-reports", pageId: "qm-reports", exactPath: true, appointments: quartermasterAppointments },
     { id: "qm-settings", label: "QM Settings", path: "/leader/settings?view=quartermaster", pageId: "qm-settings", exactPath: true, appointments: quartermasterAppointments }

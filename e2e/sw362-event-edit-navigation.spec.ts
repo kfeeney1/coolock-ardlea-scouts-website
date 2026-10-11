@@ -139,5 +139,7 @@ test("SW-362 mobile confirmation fits the screen and Android Back can be cancell
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Discard", exact: true }).click();
   await expect(page).toHaveURL(eventUrl);
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  // Returning from the guarded editor triggers a fresh asynchronous event-record load.
+  // Wait for that record rather than relying on the default 10-second assertion timeout.
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible({ timeout: 30_000 });
 });

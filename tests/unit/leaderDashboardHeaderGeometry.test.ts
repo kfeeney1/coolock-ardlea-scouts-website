@@ -20,7 +20,9 @@ test("leader dashboard header fits its container without viewport-width overflow
 
 test("leader dashboard navigation keeps nested record routes matched to their parent item", () => {
   const header = source("src/components/admin/LeaderDashboardHeader.tsx");
-  assert.ok(header.includes('target.search && current.search !== target.search'));
+  assert.ok(header.includes('current.search !== target.search'));
+  assert.ok(header.includes('target.pathname === "/leader/equipment/inventory"'));
+  assert.ok(header.includes('current.searchParams.get(key) !== value'));
   assert.ok(header.includes('target.hash && current.hash !== target.hash'));
   assert.ok(header.includes('${location.pathname}${location.search}${location.hash}'));
 });
