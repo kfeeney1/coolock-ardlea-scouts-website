@@ -86,7 +86,7 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(addDialog).toBeHidden();
 
   await signOutLeader(page);
-  await loginAdmin(page, "test.rover.section.leader@example.com");
+  await loginAdmin(page, "test.group.leader@example.com");
   await page.goto("/leader/members");
 
   const manageRovers = page.getByRole("button", { name: "Manage Rovers" });
