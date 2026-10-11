@@ -48,6 +48,10 @@ test("adult leader Rover self-service persists, appears in Member Management and
   const end = page.getByTestId("rover-self-membership").getByRole("button", { name: "End Rover Membership" });
   await end.click();
   await expect(page.getByText("Your Rover membership has ended.")).toBeVisible();
+  await signOutLeader(page);
+  await loginAdmin(page);
+  await page.goto("/leader/profile");
+  await expect(page.getByTestId("rover-self-membership").getByRole("button", { name: "Join Rovers" })).toBeVisible();
 });
 
 test("Rover self-service remains usable on the mobile profile layout", async ({ page }, testInfo: TestInfo) => {
@@ -166,4 +170,10 @@ test("Rover Section Leader can designate and remove a member on mobile", async (
   await persistedRow.getByRole("button", { name: "End Rover Membership" }).click();
   await expect(persistedRow.getByRole("button", { name: "Designate Rover" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await reopened.getByRole("button", { name: "Close" }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "Manage Rovers" }).click();
+  const afterRemoval = page.getByRole("dialog", { name: "Manage Rover Membership" });
+  const removedRow = afterRemoval.getByText("Cubs Section Leader", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  await expect(removedRow.getByRole("button", { name: "Designate Rover" })).toBeVisible();
 });
