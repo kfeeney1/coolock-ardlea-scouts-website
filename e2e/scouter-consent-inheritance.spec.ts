@@ -33,7 +33,9 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   expect(primaryConsentName).not.toBe(primaryProfileName);
   expect(primaryConsentDateOfBirth).toBe("1985-01-01");
   expect(primaryConsentDateOfBirth).not.toBe("1985-04-12");
-  await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
+  const primaryConsentAddress = await page.getByLabel("Address").inputValue();
+  expect(primaryConsentAddress).toBe("Test Scout Hall, Dublin");
+  expect(primaryConsentAddress).not.toBe("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
   // The Chromium project saves this value before the mobile project runs against
   // the same emulator account; saved consent must then beat profile defaults.
@@ -63,6 +65,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await expect(page.getByText("Applicant Details")).toBeVisible();
   await expect(page.getByLabel("Applicant name")).toHaveValue(primaryConsentName);
   await expect(page.getByLabel("Date of birth")).toHaveValue(primaryConsentDateOfBirth);
+  await expect(page.getByLabel("Address")).toHaveValue(primaryConsentAddress);
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   // The wizard opens at Applicant Details after reload. Advance through the
   // persisted values to confirm the renewal signature fields are still fresh.
