@@ -134,6 +134,8 @@ test("authorized Member Management can end Rover membership from the member reco
   await signOutLeader(page);
   await loginAdmin(page);
   await page.goto("/leader/members");
+  await page.getByRole("combobox", { name: "Section" }).click();
+  await page.getByRole("option", { name: "All Sections", exact: true }).click();
   const retainedCard = page.getByTestId(existingMemberId!);
   await expect(retainedCard).toContainText("Scouts");
   await expect(retainedCard).not.toContainText("Rovers");
