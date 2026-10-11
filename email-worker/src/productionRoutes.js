@@ -444,9 +444,11 @@ async function handleEventAudienceSave(request, env, body) {
     const currentAudience = currentEvent.fields?.audience?.mapValue?.fields || {};
     const currentAudienceIds = [...currentRows.keys()].sort();
     const requestedAudienceIds = [...effectiveIds].sort();
+    const currentIndividualIds = currentMembershipDocuments.filter((row) => fieldBoolean(row, "selectedIndividually")).map(documentId).sort();
     const currentSections = (currentAudience.sectionIds?.arrayValue?.values || []).map((value) => value.stringValue || "").filter(Boolean).sort();
     const sameAudience = currentAudienceIds.join("|") === requestedAudienceIds.join("|")
       && currentSections.join("|") === [...sectionIds].sort().join("|")
+      && currentIndividualIds.join("|") === [...memberIds].sort().join("|")
       && (keepLegacyAudience || currentAudience.mode?.stringValue === audience.mode);
     const metadataFields = ["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status"];
     const sameMetadata = metadataFields.every((key) => fieldString(currentEvent, key) === cleanInput[key])
