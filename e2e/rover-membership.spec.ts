@@ -11,10 +11,13 @@ async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
 }
 
 async function signOutLeader(page: Page) {
-  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: /^Menu ·|Open Leader Menu/ }).click();
-  const signOut = page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out", exact: true });
+  const header = page.getByTestId("leader-dashboard-header");
+  const signOut = header.getByRole("button", { name: "Sign Out", exact: true });
+  if (!(await signOut.isVisible().catch(() => false))) {
+    await header.getByRole("button", { name: /^(?:Menu ·|Open Leader Menu|Hide Leader Menu)/ }).click();
+  }
   await expect(signOut).toBeVisible();
-  await signOut.evaluate((button: HTMLButtonElement) => button.click());
+  await signOut.click();
   await expect(page).toHaveURL(/\/leader\/login$/);
 }
 
