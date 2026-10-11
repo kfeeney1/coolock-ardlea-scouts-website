@@ -381,6 +381,26 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         reconciledConsent[id] ??= input.consentRequired ? "required" : "not-required";
     });
 
+    const updatePayload = {
+        title: clean(input.title, 200),
+        description: clean(input.description, 3000),
+        eventType: clean(input.eventType, 80),
+        section: clean(input.section, 80),
+        location: clean(input.location, 300),
+        meetingPoint: clean(input.meetingPoint, 500),
+        returnDetails: clean(input.returnDetails, 500),
+        leaderNotes: clean(input.leaderNotes, 3000),
+        startDate: clean(input.startDate, 30),
+        endDate: clean(input.endDate, 30),
+        status: input.status,
+        consentRequired: input.consentRequired,
+        audience: eventAudience,
+        attendance: reconciledAttendance,
+        consent: reconciledConsent,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+    };
+
     const removedMemberships = previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
     const audienceWriteCount = 1 + changedMemberships.length + removedMemberships.length;
     if (audienceWriteCount > 500) {
