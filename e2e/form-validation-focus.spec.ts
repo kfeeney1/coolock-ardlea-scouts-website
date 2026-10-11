@@ -19,7 +19,11 @@ test("SW-263 focuses and reveals the highest invalid mandatory field without cle
 
   const applicantName = page.getByLabel("Applicant name");
   await expect(applicantName).toHaveValue(/\S+/);
-  // Leader profile prefill can legitimately provide a DOB; clear it to exercise\n  // the required-field validation path regardless of the seeded profile.\n  const first = page.getByLabel("Date of birth");\n  await first.fill("");\n  await page.getByLabel("Address").fill("TEST retained address");
+  // Leader profile prefill can legitimately provide a DOB; clear it to exercise
+  // the required-field validation path regardless of the seeded profile.
+  const first = page.getByLabel("Date of birth");
+  await first.fill("");
+  await page.getByLabel("Address").fill("TEST retained address");
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.getByRole("button", { name: "Continue" }).click();
 
