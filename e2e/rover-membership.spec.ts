@@ -126,9 +126,9 @@ test("authorized Member Management can end Rover membership from the member reco
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
   await memberCard.getByRole("button", { name: "Manage" }).click();
 
-  const memberDialog = page.getByRole("dialog").filter({ has: page.getByText("Member Details") });
+  const memberDialog = page.getByRole("dialog").filter({ hasText: `Member — ${memberName}` });
   await expect(memberDialog).toBeVisible();
-  await expect(memberDialog).toContainText(`Member — ${memberName}`);
+  await expect(memberDialog.getByRole("heading", { name: "Member Details", exact: true })).toBeVisible();
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
