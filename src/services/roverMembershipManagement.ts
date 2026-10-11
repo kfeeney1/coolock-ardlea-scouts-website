@@ -83,14 +83,17 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   if (!member) {
     const emailMatches = await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)));
     const legacyMatches = matchingUnlinkedRoverMembers(
-      emailMatches.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })),
+      emailMatches.docs.map((snapshot) => {
+        const data = snapshot.data();
+        return { id: snapshot.id, accountUid: data.accountUid, displayName: data.displayName, emailAddress: data.emailAddress };
+      }),
       { displayName, email }
     );
     if (legacyMatches.length > 1) {
       throw new UserFacingError("More than one existing member record matches this adult. Reconcile the records first.");
     }
     if (legacyMatches.length === 1) {
-      member = emailMatches.docs.find((snapshot) => snapshot.id === legacyMatches[0].id);
+      member = emailMatches.docs.find((snapshot) => snapshot.id === legacyMatches[0].id)!;
     }
   }
   if (memberId) {
