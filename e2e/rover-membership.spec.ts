@@ -130,12 +130,15 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(memberDetailsHeading).toBeVisible();
   const memberDialog = page.getByRole("dialog").filter({ has: memberDetailsHeading });
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
-  const editorState = await memberDialog.locator("input").evaluateAll((inputs) => inputs.map((input) => ({
-    name: input.getAttribute("name"),
-    type: input.getAttribute("type"),
-    value: input.value,
-    checked: input.checked
-  })));
+  const editorState = await memberDialog.locator("input").evaluateAll((inputs) => inputs.map((element) => {
+    const input = element as HTMLInputElement;
+    return {
+      name: input.getAttribute("name"),
+      type: input.getAttribute("type"),
+      value: input.value,
+      checked: input.checked
+    };
+  }));
   await expect(endMembership, `Member editor state: ${JSON.stringify(editorState)}; dialog text: ${await memberDialog.innerText()}`).toBeVisible();
   await endMembership.click();
   await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
