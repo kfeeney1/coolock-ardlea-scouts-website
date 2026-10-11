@@ -1,4 +1,5 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
+import DateRangeFields from "../components/DateRangeFields";
 import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -136,8 +137,7 @@ export default function EventEditPage() {
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
         <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => setDraft({ ...draft, eventType: input.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
         <FormControl><InputLabel id="event-edit-section-label">Section</InputLabel><Select labelId="event-edit-section-label" label="Section" value={draft.section} onChange={(input) => setDraft({ ...draft, section: input.target.value })}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <TextField required type="date" label="Start date" value={draft.startDate} onChange={(input) => setDraft({ ...draft, startDate: input.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField type="date" label="End date" value={draft.endDate} onChange={(input) => setDraft({ ...draft, endDate: input.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+        <Box sx={{ gridColumn: "1 / -1" }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => setDraft((current) => ({ ...current!, startDate, ...(current!.endDate && current!.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => setDraft((current) => current ? ({ ...current, endDate }) : current)} /></Box>
       </Box>
       <TextField label="Location" value={draft.location} onChange={(input) => setDraft({ ...draft, location: input.target.value })} />
       <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(input) => setDraft({ ...draft, description: input.target.value })} />

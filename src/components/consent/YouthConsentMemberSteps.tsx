@@ -1,6 +1,7 @@
 import { Alert, Box, TextField, Typography } from "@mui/material";
 import YesNoField from "./YesNoField";
 import type { YouthConsentStepProps } from "./YouthConsentStepProps";
+import DateRangeFields from "../DateRangeFields";
 
 export default function YouthConsentMemberSteps({ step, ...props }: YouthConsentStepProps & { step: number }) {
     const { formData, errors, onTextChange, onYesNoChange } = props;
@@ -60,45 +61,13 @@ export default function YouthConsentMemberSteps({ step, ...props }: YouthConsent
                                 }}
                             />
 
-                            <TextField
-                                required
-                                type="date"
-                                label="Consent valid from"
-                                name="consentFrom"
-                                value={formData.consentFrom}
-                                onChange={onTextChange}
-                                error={Boolean(
-                                    errors.consentFrom
-                                )}
-                                helperText={
-                                    errors.consentFrom
-                                }
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
-
-                            <TextField
-                                required
-                                type="date"
-                                label="Consent valid to"
-                                name="consentTo"
-                                value={formData.consentTo}
-                                onChange={onTextChange}
-                                error={Boolean(
-                                    errors.consentTo
-                                )}
-                                helperText={
-                                    errors.consentTo
-                                }
-                                slotProps={{
-                                    inputLabel: {
-                                        shrink: true
-                                    }
-                                }}
-                            />
+                            <Box sx={{ gridColumn: "1 / -1" }}>
+                                <DateRangeFields startDate={formData.consentFrom} endDate={formData.consentTo}
+                                    startLabel="Consent valid from" endLabel="Consent valid to" startName="consentFrom" endName="consentTo"
+                                    startRequired endRequired startError={errors.consentFrom} endErrorMessage={errors.consentTo}
+                                    onStartDateChange={(value) => onTextChange({ target: { name: "consentFrom", value } } as React.ChangeEvent<HTMLInputElement>)}
+                                    onEndDateChange={(value) => onTextChange({ target: { name: "consentTo", value } } as React.ChangeEvent<HTMLInputElement>)} />
+                            </Box>
                         </Box>
 
                         <Alert

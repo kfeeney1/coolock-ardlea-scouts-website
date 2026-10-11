@@ -199,6 +199,26 @@ test("Clear resets the full-page event form without persisting or leaving it", a
   await expect(page.getByLabel("Description")).toHaveValue("");
 });
 
+test("date range end stays unavailable until a valid start and clears when the start moves later", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/events/create");
+
+  const start = page.getByLabel("Start date");
+  const end = page.getByLabel("End date");
+  await expect(end).toBeDisabled();
+  await start.fill("2099-04-02");
+  await expect(end).toBeEnabled();
+  await expect(end).toHaveAttribute("min", "2099-04-02");
+  await end.fill("2099-04-03");
+  await expect(end).toHaveValue("2099-04-03");
+
+  await start.fill("2099-04-04");
+  await expect(end).toHaveValue("");
+  await expect(page.getByRole("alert")).toContainText("end date was cleared");
+});
+
 test("Back and Cancel avoid empty events and save a valid draft before leaving", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);

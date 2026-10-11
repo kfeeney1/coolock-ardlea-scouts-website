@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
+import DateRangeFields from "../DateRangeFields";
 import { useMemo, useState } from "react";
 import type { WeeklyMeetingRecord } from "../../services/weeklyTracker";
 import { filterWeeklyMeetingHistory } from "../../services/weeklyTrackerLogic";
@@ -56,8 +57,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
             fullWidth
           />
         </Box>
-        <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+        <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From date" endLabel="To date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
         {filtersActive && <Button variant="outlined" onClick={resetFilters} data-testid="weekly-history-reset">Reset filters</Button>}
       </OperationalFilterBar>
       <Typography role="status" data-testid="weekly-history-result-count" color="text.secondary" sx={{ mb: 1.5 }}>

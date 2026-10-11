@@ -19,6 +19,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import DateRangeFields from "../components/DateRangeFields";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { buildMemberAttendanceHistory, buildMemberAttendanceInsights } from "../services/attendanceInsightsLogic";
@@ -253,8 +254,7 @@ export default function AttendanceInsights() {
                                         {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
                                     </Select>
                                 </FormControl>
-                                <TextField label="From" type="date" value={fromDate} onChange={(event) => updateFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-from-date" } }} />
-                                <TextField label="To" type="date" value={toDate} onChange={(event) => updateToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "attendance-to-date" } }} />
+                                <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From" endLabel="To" startTestId="attendance-from-date" endTestId="attendance-to-date" onStartDateChange={updateFromDate} onEndDateChange={updateToDate} />
                             </Box>
                             {hasActiveFilters && (
                                 <Button sx={{ mt: 2 }} size="small" variant="outlined" onClick={resetFilters} data-testid="attendance-reset-filters">

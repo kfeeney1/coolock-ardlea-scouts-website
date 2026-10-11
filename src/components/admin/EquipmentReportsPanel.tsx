@@ -1,5 +1,6 @@
 import { Box, Button, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
+import DateRangeFields from "../DateRangeFields";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentIncident } from "../../services/equipmentIncidents";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -107,8 +108,7 @@ export default function EquipmentReportsPanel({ items, loans, incidents, canMana
       <TextField select label="Status / issue" value={status} onChange={(event) => setStatus(event.target.value)}>
         <MenuItem value="all">All statuses</MenuItem><MenuItem value="active">Active stock</MenuItem><MenuItem value="archived">Archived stock</MenuItem><MenuItem value="good">Good</MenuItem><MenuItem value="needs-attention">Needs attention</MenuItem><MenuItem value="repair">Repair</MenuItem><MenuItem value="missing">Missing</MenuItem><MenuItem value="lost">Lost</MenuItem><MenuItem value="reported">Reported</MenuItem><MenuItem value="investigating">Investigating</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="written-off">Written off</MenuItem>
       </TextField>
-      <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+      <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From date" endLabel="To date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
       <Button variant="outlined" onClick={() => exportReport(report)} data-testid="export-selected-equipment-report">Export selected report CSV</Button>
     </Box>
   </Paper>;
