@@ -36,6 +36,7 @@ import { brandColours } from "../../theme/theme";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { isValidPhone, sanitizePhoneInput } from "../../services/phoneInput";
 import { loadScouterConsentPrefill } from "../../services/scouterConsentPrefill";
+import { applyResolvedScouterConsentPrefill } from "../../services/scouterConsentPrefillLogic";
 import {
     submitScouterConsent
 } from "../../services/consentApplications";
@@ -150,9 +151,12 @@ export default function ScouterConsentForm({
     const [reference, setReference] = useState("");
     const formRef = useRef<HTMLFormElement | null>(null);
     const [prefillLoading, setPrefillLoading] = useState(true);
+    const editedFieldsRef = useRef(new Set<string>());
     useEffect(() => {
         let active = true;
-        void loadScouterConsentPrefill(formData).then((next) => { if (active) setFormData(next); })
+        void loadScouterConsentPrefill(createInitialData()).then((next) => {
+            if (active) setFormData((current) => applyResolvedScouterConsentPrefill(current, next, editedFieldsRef.current));
+        })
             .catch((error) => setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm")))
             .finally(() => { if (active) setPrefillLoading(false); });
         return () => { active = false; };
@@ -183,6 +187,7 @@ export default function ScouterConsentForm({
         const field =
             event.target
                 .name as keyof ScouterConsentData;
+        editedFieldsRef.current.add(field);
 
         setFormData((current) => ({
             ...current,
@@ -196,6 +201,7 @@ export default function ScouterConsentForm({
         field: keyof ScouterConsentData,
         value: YesNo
     ) => {
+        editedFieldsRef.current.add(field);
         setFormData((current) => ({
             ...current,
             [field]: value
@@ -457,9 +463,14 @@ export default function ScouterConsentForm({
                         variant="contained"
                         color="success"
                         onClick={() => {
-                            setFormData(
-                                createInitialData()
-                            );
+                            const initial = createInitialData();
+                            editedFieldsRef.current.clear();
+                            setPrefillLoading(true);
+                            setSubmitError("");
+                            void loadScouterConsentPrefill(initial)
+                                .then((next) => setFormData((current) => applyResolvedScouterConsentPrefill(current, next, editedFieldsRef.current)))
+                                .catch((error) => setSubmitError(applicationErrorMessage(error, "Existing leader details could not be loaded. You can still enter them manually.", "ScouterConsentForm")))
+                                .finally(() => setPrefillLoading(false));
                             setSubmitted(false);
                             setReference("");
                             setActiveStep(0);
@@ -846,6 +857,7 @@ export default function ScouterConsentForm({
                                             formData.declarationConfirmed
                                         }
                                         onChange={(event) => {
+                                            editedFieldsRef.current.add("declarationConfirmed");
                                             setFormData(
                                                 (current) => ({
                                                     ...current,
@@ -880,6 +892,7 @@ export default function ScouterConsentForm({
                             }
                             errors={medicationErrors}
                             onChange={(medication) => {
+                                editedFieldsRef.current.add("medicationManagement");
                                 setFormData(
                                     (current) => ({
                                         ...current,

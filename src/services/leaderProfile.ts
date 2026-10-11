@@ -5,9 +5,14 @@ import {
     updatePassword
 } from "firebase/auth";
 import {
+    collection,
     doc,
     getDoc,
-    updateDoc
+    getDocs,
+    limit,
+    query,
+    updateDoc,
+    where
 } from "firebase/firestore";
 
 import {
@@ -15,6 +20,7 @@ import {
     db
 } from "../firebase";
 import { normalizeLeaderRole, normalizeLeaderSections } from "./leaderAccessLogic";
+import { leaderMedicalDefaultsFromOwnRecords } from "./leaderMedicalProfileLogic";
 
 export type LeaderProfileData = {
     displayName: string;
@@ -36,18 +42,19 @@ export type LeaderMedicalDefaults = {
 export async function loadLeaderMedicalDefaults(): Promise<LeaderMedicalDefaults> {
     const user = auth.currentUser;
     if (!user) throw new UserFacingError("No signed-in leader was found.");
-    const snapshot = await getDoc(doc(db, "adminUsers", user.uid));
+    const [snapshot, registrationSnapshot, memberSnapshot] = await Promise.all([
+        getDoc(doc(db, "adminUsers", user.uid)),
+        getDoc(doc(db, "leaderRegistrationRequests", user.uid)),
+        getDocs(query(collection(db, "members"), where("accountUid", "==", user.uid), limit(2)))
+    ]);
     if (!snapshot.exists() || snapshot.data().active !== true) throw new UserFacingError("Leader profile was not found.");
-    const data = snapshot.data();
-    const text = (key: string) => typeof data[key] === "string" ? data[key].trim() : "";
-    return {
-        name: text("displayName") || user.displayName || "",
-        dob: text("dateOfBirth") || text("dob"),
-        address: text("address") || text("homeAddress"),
-        mobile: text("mobileNumber") || text("mobile"),
-        homePhone: text("homePhone"),
-        workPhone: text("workPhone")
-    };
+    if (auth.currentUser?.uid !== user.uid) throw new UserFacingError("Your signed-in account changed while your profile was loading. Reopen the form to continue.");
+    const registration = registrationSnapshot.exists() ? registrationSnapshot.data() : {};
+    // A member may hold the same account through several section appointments,
+    // but the canonical profile is one record. Refuse to choose between legacy
+    // duplicates so one person's details can never win by query ordering.
+    const member = memberSnapshot.size === 1 ? memberSnapshot.docs[0].data() : null;
+    return leaderMedicalDefaultsFromOwnRecords(snapshot.data(), member, registration, user.displayName ?? "");
 }
 
 const clean = (
