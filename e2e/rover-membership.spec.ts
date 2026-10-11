@@ -58,6 +58,10 @@ test("authorized Member Management can end Rover membership from the member reco
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/members");
+  const existingCards = page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" });
+  const existingCount = await existingCards.count();
+  expect(existingCount).toBeLessThanOrEqual(1);
+  const existingMemberId = existingCount === 1 ? await existingCards.getAttribute("data-testid") : null;
 
   const manageRovers = page.getByRole("button", { name: "Manage Rovers" });
   await expect(manageRovers).toBeVisible();
@@ -78,9 +82,12 @@ test("authorized Member Management can end Rover membership from the member reco
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
   const memberCard = page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" });
   await expect(memberCard).toHaveCount(1);
+  if (existingMemberId) await expect(memberCard).toHaveAttribute("data-testid", existingMemberId);
   await memberCard.getByRole("button", { name: "Manage" }).click();
 
   const memberDialog = page.getByRole("dialog", { name: "Member — Rovers Section Leader" });
+  await expect(memberDialog).toBeVisible();
+  await expect(memberDialog.getByText("Member Details")).toBeVisible();
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
