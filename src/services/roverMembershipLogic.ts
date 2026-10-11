@@ -11,3 +11,13 @@ export function matchesRoverAdultIdentity(
     && memberName === adult.displayName.trim()
     && memberEmail === adult.email.trim();
 }
+
+export function matchingUnlinkedRoverMembers<T extends { accountUid?: unknown; displayName?: unknown; emailAddress?: unknown }>(
+  records: T[],
+  adult: RoverAdultIdentity
+): T[] {
+  return records.filter((record) => {
+    const accountUid = typeof record.accountUid === "string" ? record.accountUid.trim() : "";
+    return !accountUid && matchesRoverAdultIdentity(record, adult);
+  });
+}
