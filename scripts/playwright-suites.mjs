@@ -30,6 +30,7 @@ export const suiteSpecs = {
     "member-record-page.spec.ts",
     "rover-membership.spec.ts",
     "mobile-consent-medication.spec.ts",
+    "scouter-consent-inheritance.spec.ts",
     "parent-approved-journey.spec.ts",
     "parent-leader-context.spec.ts",
     "parent-portal.spec.ts",
@@ -139,6 +140,16 @@ export function suitesForChangedPath(file) {
   if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useConfirmEventLeave.ts") return ["activities-programme", "platform-ui"];
+  if ([
+    "src/components/consent/ScouterConsentForm.tsx",
+    "src/services/leaderProfile.ts",
+    "src/services/leaderMedicalProfileLogic.ts",
+    "src/services/scouterConsentPrefill.ts",
+    "src/services/scouterConsentPrefillLogic.ts",
+    "tests/unit/leaderMedicalProfileLogic.test.ts",
+    "tests/unit/scouterConsentPrefill.test.ts",
+    "scripts/seed-playwright-records.mjs"
+  ].includes(file)) return ["members-parents-consent"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
   if (file === "src/components/admin/LeaderChildLinksSection.tsx") return ["authentication-rbac"];
   if (file === "src/components/admin/EquipmentItemFormDialog.tsx") return ["equipment"];

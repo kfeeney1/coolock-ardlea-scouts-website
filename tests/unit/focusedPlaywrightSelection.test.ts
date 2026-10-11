@@ -63,6 +63,13 @@ test("PR shard suite selection excludes operational-only changes without weakeni
     assert.deepEqual(suitesForChangedPath(path), [], path);
   }
   assert.deepEqual(suitesForChangedPath("src/services/weeklyTracker.ts"), ["activities-programme"]);
+  assert.deepEqual(suitesForChangedPath("src/services/leaderProfile.ts"), ["members-parents-consent"]);
+  assert.deepEqual(suitesForChangedPath("src/components/consent/ScouterConsentForm.tsx"), ["members-parents-consent"]);
+  assert.deepEqual(suitesForChangedPath("tests/unit/leaderMedicalProfileLogic.test.ts"), ["members-parents-consent"]);
+  assert.deepEqual(suitesForChangedPath("tests/unit/scouterConsentPrefill.test.ts"), ["members-parents-consent"]);
+  assert.deepEqual(suitesForChangedPath("e2e/scouter-consent-inheritance.spec.ts"), ["members-parents-consent"]);
+  assert.ok(suiteSpecs["members-parents-consent"].includes("scouter-consent-inheritance.spec.ts"));
+  assert.deepEqual([...selectFocusedGroups(["e2e/scouter-consent-inheritance.spec.ts"])], ["navigation"]);
   assert.deepEqual(suitesForChangedPath("e2e/sw265-badgework-navigation.spec.ts"), ["badgework"]);
   assert.ok(suiteSpecs.badgework.includes("sw265-badgework-navigation.spec.ts"));
   assert.equal(suitesForChangedPath("src/components/UnknownSharedControl.tsx"), null);
