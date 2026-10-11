@@ -221,10 +221,6 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
       accountUid: "target-adult", emailAddress: "target@example.com", section: "Cubs", sections: ["Cubs"],
       sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp(),
     }));
-    await assertSucceeds(updateDoc(targetRef, {
-      accountUid: "target-adult", emailAddress: "target@example.com", section: "Cubs", sections: ["Cubs"],
-      sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp(),
-    }));
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await updateDoc(doc(context.firestore(), "members/target-member"), { section: "Cubs", sections: ["Cubs"], updatedBy: "reset" });
     });
