@@ -23,15 +23,20 @@ test("Block D provides dedicated full-page creation and event editing routes", (
 
 test("selected-member audiences reconcile by stable member IDs without destructive response reset", () => {
   const admin=readFileSync("src/services/eventAdmin.ts","utf8");
+  const writer=readFileSync("email-worker/src/productionRoutes.js","utf8");
   const logic=readFileSync("src/services/eventManagementLogic.ts","utf8");
   const rules=readFileSync("firestore.rules","utf8");
   const flowSeed=readFileSync("scripts/seed-flow-data.mjs","utf8");
 
   assert.match(admin,/mode: "sections" \| "members" \| "mixed"/);
-  assert.match(admin,/const reconciledAttendance = \{ \.\.\.previousAttendance \}/);
-  assert.match(admin,/const reconciledConsent = \{ \.\.\.previousConsent \}/);
-  assert.match(admin,/reconciledAttendance\[id\] \?\?= "invited"/);
-  assert.match(admin,/reconciledConsent\[id\] \?\?=/);
+  assert.match(admin,/saveEventAudience\("update"/);
+  assert.match(writer,/const previousAttendance = operation === "update" \? firestoreMap\(currentEvent, "attendance"\) : \{\}/);
+  assert.match(writer,/const previousConsent = operation === "update" \? firestoreMap\(currentEvent, "consent"\) : \{\}/);
+  assert.match(writer,/const attendance = \{ \.\.\.previousAttendance \}/);
+  assert.match(writer,/const consent = \{ \.\.\.previousConsent \}/);
+  assert.match(writer,/attendance\[id\] \?\?= "invited"/);
+  assert.match(writer,/consent\[id\] \?\?=/);
+  assert.match(writer,/currentDocument: existingRow\?\.updateTime/);
   assert.match(logic,/memberBelongsToSection\(member, section\).*selected\.has\(member\.id\)/s);
   assert.match(rules,/"audience"/);
 });

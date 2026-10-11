@@ -22,6 +22,7 @@ export default function EventEditPage() {
   const [error, setError] = useState("");
   const [savedDraftJson, setSavedDraftJson] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
+  const [confirmAudienceRemoval, setConfirmAudienceRemoval] = useState(false);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
@@ -51,7 +52,15 @@ export default function EventEditPage() {
   const saveState = saving ? "saving" : saveFailed ? "failed" : dirty ? "unsaved" : "saved";
 
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
-  const saveDraft = useCallback(async (): Promise<boolean> => {
+  const audienceRemovalCount = useMemo(() => {
+    if (!event || !draft) return 0;
+    const originalAudience = event.audience ?? defaultEventAudienceForClassification(event.section, activeMembers);
+    const nextAudience = buildEventAudience(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], activeMembers);
+    const nextMemberIds = new Set(nextAudience.resolvedMemberIds);
+    const visibleActiveIds = new Set(activeMembers.map((member) => member.id));
+    return originalAudience.resolvedMemberIds.filter((memberId) => visibleActiveIds.has(memberId) && !nextMemberIds.has(memberId)).length;
+  }, [activeMembers, draft, event]);
+  const saveDraft = useCallback(async (removalsConfirmed = false): Promise<boolean> => {
     if (saveInFlight.current) return saveInFlight.current;
     if (!event || !draft) return false;
     if (!draft.title.trim() || !draft.startDate) {
@@ -89,7 +98,7 @@ export default function EventEditPage() {
     setError("");
     const pending = (async () => {
       try {
-        await updateEvent(event.id, committed);
+        await updateEvent(event.id, committed, removalsConfirmed);
         setSavedDraftJson(JSON.stringify(committed));
         setDraft(committed);
         setSaveFailed(false);
@@ -108,9 +117,13 @@ export default function EventEditPage() {
   }, [activeMembers, draft, dirty, event]);
 
   const { dialogOpen, stay, continueWithoutSaving, saveAndContinue } = useConfirmEventLeave(dirty, saveDraft);
-  const saveAndReturnToEvent = useCallback(async () => {
-    if (await saveDraft()) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
-  }, [eventId, navigate, saveDraft]);
+  const saveAndReturnToEvent = useCallback(async (removalsConfirmed = false) => {
+    if (audienceRemovalCount > 0 && !removalsConfirmed) {
+      setConfirmAudienceRemoval(true);
+      return;
+    }
+    if (await saveDraft(removalsConfirmed)) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
+  }, [audienceRemovalCount, eventId, navigate, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 
@@ -140,6 +153,18 @@ export default function EventEditPage() {
         <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined">Back to Event</Button>
       </Stack>
     </Stack></Box></Paper>
+    <Dialog open={confirmAudienceRemoval} onClose={() => setConfirmAudienceRemoval(false)} aria-labelledby="event-audience-removal-title" aria-describedby="event-audience-removal-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
+      <DialogTitle id="event-audience-removal-title">Confirm audience removals</DialogTitle>
+      <DialogContent>
+        <Typography id="event-audience-removal-description">
+          This will remove {audienceRemovalCount} existing invitee{audienceRemovalCount === 1 ? "" : "s"} from this event. Their existing attendance and consent records will remain as history. Continue?
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ flexWrap: "wrap", px: 3, pb: 2, "& .MuiButton-root": { minHeight: 44, minWidth: 44 } }}>
+        <Button onClick={() => setConfirmAudienceRemoval(false)} autoFocus disabled={saving}>Back to editing</Button>
+        <Button color="error" onClick={() => { setConfirmAudienceRemoval(false); void saveAndReturnToEvent(true); }} disabled={saving}>Confirm removal and save</Button>
+      </DialogActions>
+    </Dialog>
     <Dialog open={dialogOpen} onClose={stay} aria-labelledby="event-unsaved-title" aria-describedby="event-unsaved-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
       <DialogTitle id="event-unsaved-title">Unsaved event changes</DialogTitle>
       <DialogContent><Typography id="event-unsaved-description">You have changes that have not been saved. Save them before leaving, discard them, or stay in the editor.</Typography></DialogContent>

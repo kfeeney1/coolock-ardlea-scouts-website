@@ -162,6 +162,7 @@ const AUTHORITATIVE_PRODUCTION_ROUTES = new Set([
   "/leader-communication",
   "/leader-transition-link",
   "/event-notification",
+  "/event-audience-save",
   "/event-consent-processed",
   "/form-reminder",
   "/member-inactivation-context",

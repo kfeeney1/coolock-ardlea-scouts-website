@@ -15,6 +15,18 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function persistedAudienceMemberIds(eventId: string): Promise<string[]> {
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || "demo-coolock-ardlea-scouts";
+  const url = new URL(`http://127.0.0.1:8080/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/events/${encodeURIComponent(eventId)}/audienceMembers`);
+  // Event audiences allow up to 450 members. Ask for more than that in the
+  // emulator REST read so the assertion compares against the complete snapshot.
+  url.searchParams.set("pageSize", "1000");
+  const response = await fetch(url, { headers: { Authorization: "Bearer owner" } });
+  expect(response.ok, "Firestore emulator should return persisted audience rows").toBe(true);
+  const data = await response.json() as { documents?: Array<{ name: string }> };
+  return (data.documents ?? []).map((document) => document.name.split("/").pop() ?? "").filter(Boolean).sort();
+}
+
 test("clicking an event tile opens its full record with a clear list action", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -65,6 +77,10 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
   const eventUrl = page.url();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  const persistedIds = await persistedAudienceMemberIds(eventId);
+  expect(persistedIds.length).toBeGreaterThan(0);
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText(`${persistedIds.length} invited`);
   const eventPath = new URL(eventUrl).pathname;
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${eventPath}/edit$`));
@@ -246,15 +262,25 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("option", { name: "Open", exact: true }).click();
   await page.getByRole("button", { name: "Selected members", exact: true }).click();
   await page.getByRole("button", { name: "Clear all members", exact: true }).click();
+  const beaversSection = page.getByRole("button", { name: /^Open Beavers members/ });
+  await expect(beaversSection).toBeVisible();
+  await beaversSection.click();
+  const beaversSearch = page.getByLabel("Search Beavers members");
+  await beaversSearch.fill("Riley");
+  const rileyFromSection = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
+  await expect(rileyFromSection).toBeVisible();
+  await rileyFromSection.check();
+  await page.getByRole("button", { name: /^Open Cubs members/ }).click();
+  await expect(page.getByRole("button", { name: "Remove Riley Nolan Beavers 01 from audience" })).toBeVisible();
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
   const memberSearch = page.getByLabel("Search authorized group members");
   await memberSearch.fill("Riley");
-  const selectedRiley = page.getByRole("checkbox", { name: /Riley Nolan Beavers 01 · Beavers$/ });
+  const selectedRiley = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
   await expect(selectedRiley).toBeVisible();
   await selectedRiley.check();
   await memberSearch.fill("");
-  const selectedCub = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
-  const selectedScout = page.getByRole("checkbox", { name: /· Scouts$/ }).first();
+  const selectedCub = page.getByTestId("event-audience-member-TEST_member_cub_01").getByRole("checkbox");
+  const selectedScout = page.getByTestId("event-audience-member-TEST_member_scout_01").getByRole("checkbox");
   await expect(selectedCub).toBeVisible();
   await expect(selectedScout).toBeVisible();
   await selectedCub.check();
@@ -269,6 +295,11 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const eventId = new URL(page.url()).pathname.split("/").pop()!;
+  expect(await persistedAudienceMemberIds(eventId)).toEqual([
+    "TEST_member_beaver_01",
+    "TEST_member_cub_01",
+    "TEST_member_scout_01"
+  ].sort());
   await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("3 invited");
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
@@ -334,6 +365,22 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.reload();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
+
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await page.getByRole("button", { name: "Edit selection", exact: true }).click();
+  await page.getByRole("button", { name: /^Open Cubs members/ }).click();
+  const cubToRemove = page.getByTestId("event-audience-member-TEST_member_cub_01").getByRole("checkbox");
+  await expect(cubToRemove).toBeChecked();
+  await cubToRemove.uncheck();
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  const removalConfirmation = page.getByRole("alertdialog", { name: "Confirm audience removals" });
+  await expect(removalConfirmation).toContainText("remove 1 existing invitee");
+  await removalConfirmation.getByRole("button", { name: "Confirm removal and save" }).click();
+  await expect(page).toHaveURL(eventUrl);
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
+  expect(await persistedAudienceMemberIds(eventId)).toEqual(["TEST_member_beaver_01", "TEST_member_scout_01"].sort());
+  await page.reload();
+  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {

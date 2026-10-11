@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildEventAudience, defaultEventAudienceForClassification, eventAudienceSummary, eventCounts, eventInput, eventMembers, eventRosterCsv, eventRosterFilename, eventRosterPrintHtml, filterEvents, isDuplicateEventIdentity, normaliseEventTitle, resolveEventAudience } from "../../src/services/eventManagementLogic.ts";
-import { buildEventAudienceMemberships, chunkEventAudienceMemberships, withPersistedEventAudience } from "../../src/services/eventAudienceMemberships.ts";
+import { buildEventAudienceMemberships, chunkEventAudienceMemberships, shouldPreserveLegacyEventAudience, withPersistedEventAudience } from "../../src/services/eventAudienceMemberships.ts";
 
 const members = [
     { id: "m1", displayName: "Alex <Scout>", section: "Cubs", status: "active", parentName: "Parent One", mobileNumber: "0871", emergencyContactName: "Emergency One", emergencyContactPhone: "0861" },
@@ -150,4 +150,31 @@ test("event audience membership writes are split below Firestore rules access-ca
     assert.deepEqual(chunks.flat(), memberships);
     assert.ok(chunks.every((chunk) => chunk.length <= 16));
     assert.throws(() => chunkEventAudienceMemberships(memberships, 0), /positive integer/);
+});
+
+test("event audience patterns resolve group, sections, partial sections and cross-section individuals by stable IDs", () => {
+    const allGroup = defaultEventAudienceForClassification("All Sections", members);
+    assert.deepEqual(allGroup.resolvedMemberIds, ["m1", "m2", "m4"]);
+
+    const multipleSections = buildEventAudience(["Cubs", "Scouts"], [], members);
+    assert.deepEqual(multipleSections.resolvedMemberIds, ["m1", "m2", "m4"]);
+
+    const partialSectionAfterClearAndReselect = buildEventAudience([], ["m1"], members, "members");
+    assert.deepEqual(partialSectionAfterClearAndReselect.resolvedMemberIds, ["m1"]);
+
+    const sectionPlusCrossSectionIndividual = buildEventAudience(["Cubs"], ["m4"], members, "mixed");
+    assert.deepEqual(sectionPlusCrossSectionIndividual.resolvedMemberIds, ["m1", "m2", "m4"]);
+    assert.equal(new Set(sectionPlusCrossSectionIndividual.resolvedMemberIds).size, 3);
+    assert.equal(sectionPlusCrossSectionIndividual.mode, "mixed");
+});
+
+test("legacy audience edits preserve section and member semantics unless the audience changes deliberately", () => {
+    const legacyDefault = defaultEventAudienceForClassification("Cubs", members);
+    assert.equal(shouldPreserveLegacyEventAudience(null, legacyDefault, legacyDefault), true);
+
+    const changedAudience = buildEventAudience([], ["m1"], members, "members");
+    assert.equal(shouldPreserveLegacyEventAudience(null, changedAudience, legacyDefault), false);
+
+    const v3Audience = buildEventAudience(["Cubs"], [], members);
+    assert.equal(shouldPreserveLegacyEventAudience(v3Audience, v3Audience, legacyDefault), false);
 });

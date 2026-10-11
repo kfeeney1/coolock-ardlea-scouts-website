@@ -52,6 +52,30 @@ export function buildEventAudienceMemberships(
     .filter((membership): membership is EventAudienceMembership => membership !== null);
 }
 
+
+function equalIds(left: string[], right: string[]): boolean {
+  const leftIds = [...new Set(left)].sort();
+  const rightIds = [...new Set(right)].sort();
+  return leftIds.length === rightIds.length && leftIds.every((id, index) => id === rightIds[index]);
+}
+
+/**
+ * Preserve a legacy audience when an edit changes event details only.
+ * A legacy event is deliberately kept on its existing section/member read path;
+ * it becomes a v3 snapshot only when the requested audience differs.
+ */
+export function shouldPreserveLegacyEventAudience(
+  currentAudience: EventAudience | null,
+  requestedAudience: EventAudience | null,
+  legacyDefaultAudience: EventAudience
+): boolean {
+  if (currentAudience?.version === 3 || !requestedAudience) return false;
+  const effectiveCurrent = currentAudience ?? legacyDefaultAudience;
+  return effectiveCurrent.mode === requestedAudience.mode
+    && equalIds(effectiveCurrent.sectionIds, requestedAudience.sectionIds)
+    && equalIds(effectiveCurrent.memberIds, requestedAudience.memberIds);
+}
+
 export function withPersistedEventAudience(audience: EventAudience): EventAudience {
   return {
     ...audience,

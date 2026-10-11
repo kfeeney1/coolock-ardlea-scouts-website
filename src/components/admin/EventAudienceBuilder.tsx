@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
 
 import type { EventAudience } from "../../services/eventAdmin";
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -33,6 +33,7 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
     addingOtherMembers
       ? (!normalizedSearch || `${member.displayName} ${sectionsFor(member).join(" ")}`.toLocaleLowerCase("en-IE").includes(normalizedSearch))
       : sectionsFor(member).includes(activeSectionFilter)
+        && (!normalizedSearch || member.displayName.toLocaleLowerCase("en-IE").includes(normalizedSearch))
   ));
 
   const currentMode = audience?.mode ?? "sections";
@@ -96,34 +97,67 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
       </Stack>}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
         <Button disabled={disabled} variant="outlined" onClick={() => setEditingMembers((open) => !open)}>{editingMembers ? "Close member selection" : "Edit selection"}</Button>
-        <Button disabled={disabled} onClick={() => update([], [], "members")}>Clear all members</Button>
+        <Button disabled={disabled} onClick={() => update(selectedSectionIds, [], selectedSectionIds.length ? "sections" : "members")}>Clear all members</Button>
         <Button disabled={disabled} onClick={() => { setAddingOtherMembers((open) => !open); setEditingMembers(true); setSearch(""); }}>
           {addingOtherMembers ? "Close group search" : "Add other group members"}
         </Button>
       </Stack>
-      {selectedMemberIds.length > 0 && <Typography variant="body2" aria-live="polite" sx={{ mb: 1 }}>Selected: {selectedMemberIds.map((id) => members.find((member) => member.id === id)?.displayName).filter(Boolean).join(", ") || `${selectedMemberIds.length} member${selectedMemberIds.length === 1 ? "" : "s"}`}</Typography>}
+      {selectedMemberIds.length > 0 && <Box sx={{ mb: 1 }}>
+        <Typography variant="body2" aria-live="polite" sx={{ mb: 0.5 }}>Selected members ({selectedMemberIds.length})</Typography>
+        <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5, maxHeight: 120, overflowY: "auto" }}>
+          {selectedMemberIds.map((id) => {
+            const member = members.find((candidate) => candidate.id === id);
+            return <Chip
+              key={id}
+              size="small"
+              label={member?.displayName ?? "Member no longer available"}
+              onDelete={disabled ? undefined : () => toggleMember(id)}
+              aria-label={member ? `Remove ${member.displayName} from audience` : "Remove unavailable member from audience"}
+            />;
+          })}
+        </Stack>
+      </Box>}
       {editingMembers && <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: { xs: 1, sm: 1.5 } }}>
         {addingOtherMembers ? <>
-          <TextField fullWidth label="Search authorized group members" value={search} onChange={(event) => setSearch(event.target.value)} sx={{ mb: 1 }} />
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Each result is added individually, even if the member belongs to another section.</Typography>
         </> : <>
-          <FormControl fullWidth sx={{ mb: 1 }}>
-            <InputLabel id="event-audience-section-filter-label">Section filter</InputLabel>
-            <Select labelId="event-audience-section-filter-label" label="Section filter" value={activeSectionFilter} disabled={disabled} onChange={(event) => setSectionFilter(event.target.value)}>
-              {sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <Typography variant="body2" sx={{ mb: 0.75 }}>Choose a section to review its members. Selections stay in the audience when you switch sections.</Typography>
+          <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.75, mb: 1 }}>
+            {sections.map((section) => {
+              const eligible = members.filter((member) => member.status === "active" && sectionsFor(member).includes(section));
+              const selectedCount = eligible.filter((member) => selectedMemberIds.includes(member.id)).length;
+              return <Button
+                key={section}
+                size="small"
+                variant={section === activeSectionFilter ? "contained" : "outlined"}
+                aria-pressed={section === activeSectionFilter}
+                aria-label={`Open ${section} members, ${selectedCount} of ${eligible.length} selected`}
+                onClick={() => { setSectionFilter(section); setSearch(""); }}
+              >
+                {section} · {selectedCount}/{eligible.length}
+              </Button>;
+            })}
+          </Stack>
           <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
             <Button disabled={disabled || !activeSectionFilter} onClick={() => setVisibleMembers(true)}>Select all in {activeSectionFilter || "section"}</Button>
             <Button disabled={disabled || !activeSectionFilter} onClick={() => setVisibleMembers(false)}>Clear {activeSectionFilter || "section"}</Button>
           </Stack>
         </>}
+        <TextField
+          fullWidth
+          size="small"
+          label={addingOtherMembers ? "Search authorized group members" : `Search ${activeSectionFilter} members`}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ mb: 1 }}
+        />
         <Stack spacing={0.25} sx={{ maxHeight: 360, overflowY: "auto" }}>
-          {visibleMembers.map((member) => <FormControlLabel key={member.id} control={<Checkbox disabled={disabled} checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={`${member.displayName} · ${sectionsFor(member).join(", ")}`} />)}
+          {visibleMembers.map((member) => <FormControlLabel key={member.id} data-testid={`event-audience-member-${member.id}`} control={<Checkbox disabled={disabled} checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={`${member.displayName} · ${sectionsFor(member).join(", ")}`} />)}
           {visibleMembers.length === 0 && <Typography variant="body2" color="text.secondary">No active members match this selection.</Typography>}
         </Stack>
       </Box>}
     </>}
+    {resolved.resolvedMemberIds.length === 0 && <Alert severity="error" role="alert" sx={{ mt: 1 }}>Choose at least one eligible section or member before saving this event.</Alert>}
     <Typography variant="body2" data-testid="event-audience-summary" aria-live="polite" sx={{ mt: 1 }}>{summary}</Typography>
   </Box>;
 }
