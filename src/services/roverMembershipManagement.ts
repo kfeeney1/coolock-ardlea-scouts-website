@@ -5,7 +5,7 @@ import { auth, db } from "../firebase";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import { normalizeMemberSectionRoles } from "./memberYouthRoles";
-import { matchesRoverAdultIdentity } from "./roverMembershipLogic";
+import { matchesRoverAdultIdentity, matchingUnlinkedRoverMembers } from "./roverMembershipLogic";
 
 export type RoverManagementCandidate = {
   uid: string;
@@ -80,6 +80,19 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   const accountMatches = await getDocs(query(collection(db, "members"), where("accountUid", "==", targetUid)));
   if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this adult. Reconcile the records first.");
   let member = accountMatches.docs[0];
+  if (!member) {
+    const emailMatches = await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)));
+    const legacyMatches = matchingUnlinkedRoverMembers(
+      emailMatches.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })),
+      { displayName, email }
+    );
+    if (legacyMatches.length > 1) {
+      throw new UserFacingError("More than one existing member record matches this adult. Reconcile the records first.");
+    }
+    if (legacyMatches.length === 1) {
+      member = emailMatches.docs.find((snapshot) => snapshot.id === legacyMatches[0].id);
+    }
+  }
   if (memberId) {
     const selectedMember = await getDoc(doc(db, "members", memberId));
     if (!selectedMember.exists()) throw new UserFacingError("The selected member record is no longer available.");
