@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, where } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
@@ -117,19 +117,14 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
     const firstName = parts[0] || displayName;
     const lastName = parts.slice(1).join(" ") || "Rover";
     const newMemberRef = doc(db, "members", `rover_${targetUid}`);
-    await runTransaction(db, async (transaction) => {
-      const existing = await transaction.get(newMemberRef);
-      if (existing.exists()) {
-        throw new UserFacingError("The reserved Rover record already exists. Reconcile the member record before continuing.");
-      }
-      transaction.set(newMemberRef, {
-        firstName, lastName, displayName, displayNameMode: "auto", dateOfBirth: "",
-        section: "Rovers", sections: ["Rovers"], sectionRoles: {}, parentName: "",
-        emailAddress: email, mobileNumber: clean(target.mobileNumber ?? "", 40),
-        emergencyContactName: "", emergencyContactPhone: "", status: "active",
-        source: "rover-authorized-management", sourceJoinApplicationId: "", accountUid: targetUid,
-        createdAt: serverTimestamp(), createdBy: user.uid, updatedAt: serverTimestamp(), updatedBy: user.uid
-      });
+    const now = serverTimestamp();
+    await setDoc(newMemberRef, {
+      firstName, lastName, displayName, displayNameMode: "auto", dateOfBirth: "",
+      section: "Rovers", sections: ["Rovers"], sectionRoles: {}, parentName: "",
+      emailAddress: email, mobileNumber: clean(target.mobileNumber ?? "", 40),
+      emergencyContactName: "", emergencyContactPhone: "", status: "active",
+      source: "rover-authorized-management", sourceJoinApplicationId: "", accountUid: targetUid,
+      createdAt: now, createdBy: user.uid, updatedAt: now, updatedBy: user.uid
     });
     return;
   }
