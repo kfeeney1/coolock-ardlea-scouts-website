@@ -114,7 +114,6 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(memberCard).toContainText("Scouts");
   await expect(memberCard).toContainText("Rovers");
   const existingMemberId = await memberCard.getAttribute("data-testid");
-  const memberName = await memberCard.locator("h5").innerText();
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "All Sections", exact: true }).click();
   const allSectionsCard = page.getByTestId(existingMemberId!);
