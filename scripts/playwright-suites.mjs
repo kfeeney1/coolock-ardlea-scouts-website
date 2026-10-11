@@ -146,6 +146,8 @@ export function suitesForChangedPath(file) {
     "src/services/leaderMedicalProfileLogic.ts",
     "src/services/scouterConsentPrefill.ts",
     "src/services/scouterConsentPrefillLogic.ts",
+    "tests/unit/leaderMedicalProfileLogic.test.ts",
+    "tests/unit/scouterConsentPrefill.test.ts",
     "scripts/seed-playwright-records.mjs"
   ].includes(file)) return ["members-parents-consent"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
