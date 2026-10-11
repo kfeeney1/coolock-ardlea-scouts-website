@@ -2,9 +2,9 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
-async function loginAdmin(page: Page) {
+async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
   await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill("test.webadmin@example.com");
+  await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
@@ -58,16 +58,30 @@ test("authorized Member Management can end Rover membership from the member reco
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/members");
-  const existingCards = page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" });
-  const existingCount = await existingCards.count();
-  expect(existingCount).toBeLessThanOrEqual(1);
-  const existingMemberId = existingCount === 1 ? await existingCards.getAttribute("data-testid") : null;
+
+  // Create a legacy unlinked record first so this journey proves the manager
+  // links the existing identity and preserves its Scouts membership.
+  const existingCards = page.locator("[data-testid^='member-card-']").filter({ hasText: "Scouts Section Leader" });
+  await expect(existingCards).toHaveCount(0);
+  await page.getByRole("button", { name: "Add Member" }).click();
+  const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
+  await addDialog.getByLabel("First name").fill("Scouts");
+  await addDialog.getByLabel("Last name").fill("Section Leader");
+  await addDialog.getByLabel("Date of birth").fill("1985-01-01");
+  await addDialog.getByLabel("Email address").fill("test.scout.section.leader@example.com");
+  await addDialog.getByRole("checkbox", { name: "Scouts" }).check();
+  await addDialog.getByRole("button", { name: "Add Member" }).click();
+  await expect(addDialog).toBeHidden();
+
+  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await loginAdmin(page, "test.rover.section.leader@example.com");
+  await page.goto("/leader/members");
 
   const manageRovers = page.getByRole("button", { name: "Manage Rovers" });
   await expect(manageRovers).toBeVisible();
   await manageRovers.click();
   const managementDialog = page.getByRole("dialog", { name: "Manage Rover Membership" });
-  const target = managementDialog.getByText("Rovers Section Leader", { exact: true });
+  const target = managementDialog.getByText("Scouts Section Leader", { exact: true });
   await expect(target).toBeVisible();
   const targetRow = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   const designate = targetRow.getByRole("button", { name: "Designate Rover" });
@@ -80,14 +94,17 @@ test("authorized Member Management can end Rover membership from the member reco
   const roverFilter = page.getByRole("combobox", { name: "Section" });
   await roverFilter.click();
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
-  const memberCard = page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" });
+  const memberCard = page.locator("[data-testid^='member-card-']").filter({ hasText: "Scouts Section Leader" });
   await expect(memberCard).toHaveCount(1);
-  if (existingMemberId) await expect(memberCard).toHaveAttribute("data-testid", existingMemberId);
+  await expect(memberCard).toContainText("Scouts");
+  await expect(memberCard).toContainText("Rovers");
+  const existingMemberId = await memberCard.getAttribute("data-testid");
+  const memberName = await memberCard.locator("h5").innerText();
   await memberCard.getByRole("button", { name: "Manage" }).click();
 
-  const memberDialog = page.getByRole("dialog", { name: "Member — Rovers Section Leader" });
+  const memberDialog = page.getByRole("dialog").filter({ has: page.getByText("Member Details") });
   await expect(memberDialog).toBeVisible();
-  await expect(memberDialog.getByText("Member Details")).toBeVisible();
+  await expect(memberDialog).toContainText(`Member — ${memberName}`);
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
@@ -97,5 +114,48 @@ test("authorized Member Management can end Rover membership from the member reco
   await memberDialog.getByRole("button", { name: "Close" }).click();
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "All Statuses" }).click();
-  await expect(page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" }).getByText("Left")).toBeVisible();
+  const retainedCard = page.getByTestId(existingMemberId!);
+  await expect(retainedCard).toContainText("Scouts");
+  await expect(retainedCard).not.toContainText("Rovers");
+  await expect(retainedCard).toContainText("Active");
+  await page.reload();
+  const reloadedCard = page.getByTestId(existingMemberId!);
+  await expect(reloadedCard).toContainText("Scouts");
+  await expect(reloadedCard).not.toContainText("Rovers");
+  await expect(reloadedCard).toContainText("Active");
+});
+
+test("a Programme Scouter cannot open Rover membership management", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Rover role denial runs once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page, "test.cub.programme.scouter@example.com");
+  await page.goto("/leader/members");
+  await expect(page.getByRole("button", { name: "Manage Rovers" })).toHaveCount(0);
+});
+
+test("Rover Section Leader can designate and remove a member on mobile", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile manager workflow runs once on Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page, "test.rover.section.leader@example.com");
+  await page.goto("/leader/members");
+  const manageRovers = page.getByRole("button", { name: "Manage Rovers" });
+  await expect(manageRovers).toBeVisible();
+  await manageRovers.click();
+  const dialog = page.getByRole("dialog", { name: "Manage Rover Membership" });
+  const target = dialog.getByText("Cubs Section Leader", { exact: true });
+  const row = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  await expect(row.getByRole("button", { name: "Designate Rover" })).toBeVisible();
+  await row.getByRole("button", { name: "Designate Rover" }).click();
+  await expect(row.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await dialog.getByRole("button", { name: "Close" }).click();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Manage Rovers" }).click();
+  const reopened = page.getByRole("dialog", { name: "Manage Rover Membership" });
+  const persistedRow = reopened.getByText("Cubs Section Leader", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  await expect(persistedRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  await persistedRow.getByRole("button", { name: "End Rover Membership" }).click();
+  await expect(persistedRow.getByRole("button", { name: "Designate Rover" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
