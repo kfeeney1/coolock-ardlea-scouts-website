@@ -251,10 +251,11 @@ service cloud.firestore {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
     }
     function isApprovedParentForMember(memberId) {
+      let parent = parentProfile();
       return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && parentProfile().status == "approved"
-        && parentProfile().memberIds is list
-        && memberId in parentProfile().memberIds;
+        && parent.status == "approved"
+        && parent.memberIds is list
+        && memberId in parent.memberIds;
     }
     function parentMemberCurrentlyInSection(memberId, section) {
       return memberId is string

@@ -15,12 +15,16 @@ before(async () => { testEnv = await initializeTestEnvironment({ projectId, fire
 beforeEach(async () => testEnv.clearFirestore());
 after(async () => testEnv.cleanup());
 
-const consent = { status: "active", source: "website", section: "Cubs", formType: "youth-activity-consent", formVersion: "stage2-2026-08", childName: "Alex Scout", childDOB: "2015-01-02", submittedAt: serverTimestamp() };
+const consent = { status: "active", source: "website", section: "Cubs", formType: "youth-activity-consent", formVersion: "stage2-2026-08", childName: "Alex Scout", childDOB: "2015-01-02", consentFrom: "2026-10-11", consentTo: "2027-08-31", submittedAt: serverTimestamp() };
 
 test("public consent creation cannot forge a canonical member relationship", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(setDoc(doc(db, "consentApplications/public-ok"), consent));
   await assertFails(setDoc(doc(db, "consentApplications/public-forged"), { ...consent, memberId: "member-other" }));
+  await assertFails(setDoc(doc(db, "consentApplications/public-reversed"), { ...consent, consentFrom: "2027-09-01" }));
+  const missingStart = { ...consent };
+  delete missingStart.consentFrom;
+  await assertFails(setDoc(doc(db, "consentApplications/public-missing-start"), missingStart));
 });
 
 test("approved parent can create consent only for an explicitly linked member", async () => {
