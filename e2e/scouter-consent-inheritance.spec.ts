@@ -25,7 +25,11 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   const primaryProfileName = await page.getByLabel("Display name").inputValue();
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryProfileName);
+  const primaryConsentName = await page.getByLabel("Applicant name").inputValue();
+  // This account has an existing consent name that is intentionally different
+  // from its current profile name. Saved consent data must remain authoritative.
+  expect(primaryConsentName).toBe("Test Scouts Scouter");
+  expect(primaryConsentName).not.toBe(primaryProfileName);
   await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
@@ -48,14 +52,14 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await advance(page);
   await page.getByText("Are you currently taking any medication?", { exact: true }).locator("..").getByRole("radio", { name: "No" }).check();
   await advance(page);
-  await page.getByLabel("Signature (full name)").fill(primaryProfileName);
+  await page.getByLabel("Signature (full name)").fill(primaryConsentName);
   await page.getByRole("checkbox", { name: /confirm the declaration/i }).check();
   await page.getByRole("button", { name: "Submit Scouter Form" }).click();
   await expect(page.getByText("The Scouter ES3 medical advice form has been submitted successfully.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryProfileName);
+  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryConsentName);
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   // The wizard opens at Applicant Details after reload. Advance through the
   // persisted values to confirm the renewal signature fields are still fresh.
