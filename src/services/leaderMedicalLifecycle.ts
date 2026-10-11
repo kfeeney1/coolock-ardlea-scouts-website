@@ -1,4 +1,4 @@
-import { collection, getDocs, limit, query, where, type Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, type Timestamp } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import { leaderMedicalStateFromPlainRecords } from "./leaderMedicalLifecycleCore";
@@ -23,8 +23,7 @@ export async function loadOwnLeaderMedicalState(): Promise<LeaderMedicalState> {
   const snapshot = await getDocs(query(
     collection(db, "consentApplications"),
     where("formType", "==", "scouter-es3-medical-advice"),
-    where("submittedByUid", "==", user.uid),
-    limit(20)
+    where("submittedByUid", "==", user.uid)
   ));
   return leaderMedicalStateFromPlainRecords(snapshot.docs.map((item) => ({
     id: item.id,
