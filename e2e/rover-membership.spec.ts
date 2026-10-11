@@ -108,12 +108,12 @@ test("authorized Member Management can end Rover membership from the member reco
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
-  await expect(memberDialog.getByText("Rover membership ended. The member record, history and unrelated roles are preserved.")).toBeVisible();
-  await expect(memberDialog.getByTestId("member-rover-membership-actions")).toHaveCount(0);
+  await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
+  await expect(memberDialog).toBeHidden();
 
-  await memberDialog.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("combobox", { name: "Status" }).click();
-  await page.getByRole("option", { name: "All Statuses" }).click();
+  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await loginAdmin(page);
+  await page.goto("/leader/members");
   const retainedCard = page.getByTestId(existingMemberId!);
   await expect(retainedCard).toContainText("Scouts");
   await expect(retainedCard).not.toContainText("Rovers");
