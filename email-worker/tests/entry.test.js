@@ -50,6 +50,7 @@ test("authoritative production communication routes require authentication befor
   for (const path of [
     "/leader-communication",
     "/event-notification",
+    "/event-audience-save",
     "/event-consent-processed",
     "/form-reminder",
     "/member-inactivation-context",

@@ -60,7 +60,7 @@ export default function EventEditPage() {
     const visibleActiveIds = new Set(activeMembers.map((member) => member.id));
     return originalAudience.resolvedMemberIds.filter((memberId) => visibleActiveIds.has(memberId) && !nextMemberIds.has(memberId)).length;
   }, [activeMembers, draft, event]);
-  const saveDraft = useCallback(async (): Promise<boolean> => {
+  const saveDraft = useCallback(async (removalsConfirmed = false): Promise<boolean> => {
     if (saveInFlight.current) return saveInFlight.current;
     if (!event || !draft) return false;
     if (!draft.title.trim() || !draft.startDate) {
@@ -98,7 +98,7 @@ export default function EventEditPage() {
     setError("");
     const pending = (async () => {
       try {
-        await updateEvent(event.id, committed);
+        await updateEvent(event.id, committed, removalsConfirmed);
         setSavedDraftJson(JSON.stringify(committed));
         setDraft(committed);
         setSaveFailed(false);
@@ -122,7 +122,7 @@ export default function EventEditPage() {
       setConfirmAudienceRemoval(true);
       return;
     }
-    if (await saveDraft()) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
+    if (await saveDraft(removalsConfirmed)) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
   }, [audienceRemovalCount, eventId, navigate, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];

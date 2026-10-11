@@ -215,6 +215,28 @@ jobs:
           cat /tmp/vite-preview.log
           exit 1
 
+      - name: Start authenticated event audience API on Firebase emulators
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: |
+          npm --prefix email-worker install --no-package-lock --no-audit
+          npm --prefix email-worker run dev -- --ip 0.0.0.0 --port 8787 \
+            --var "FIREBASE_PROJECT_ID:$FIREBASE_PROJECT_ID" \
+            --var "FIRESTORE_EMULATOR_HOST:127.0.0.1:8080" \
+            --var "EMAIL_DELIVERY_MODE:test" \
+            --var "TEST_EMAIL_REDIRECT:test@example.invalid" \
+            --var "ACTION_LINK_SECRET:emulator-only-action-link-secret-for-e2e-tests" \
+            --var "SITE_URL:http://127.0.0.1:4173" \
+            --var "ALLOWED_ORIGINS:http://127.0.0.1:4173" > /tmp/event-audience-worker.log 2>&1 &
+          for i in {1..45}; do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:8787/event-audience-save -H 'Content-Type: application/json' -d '{}' || true)"
+            if [ "$status" = "401" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/event-audience-worker.log
+          exit 1
+
       - name: List discovered Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright test --list

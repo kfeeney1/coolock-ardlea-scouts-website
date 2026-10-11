@@ -16,6 +16,12 @@ function clean(value, max = 300) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function validIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -128,6 +134,7 @@ async function importServicePrivateKey(pem) {
 }
 
 async function serviceAccessToken(env) {
+  if (clean(env.FIRESTORE_EMULATOR_HOST, 200)) return "owner";
   const now = Math.floor(Date.now() / 1000);
   if (cachedServiceToken && cachedServiceTokenExpiresAt - 60 > now) return cachedServiceToken;
 
@@ -167,6 +174,8 @@ async function serviceAccessToken(env) {
 }
 
 function firestoreBase(env) {
+  const emulatorHost = clean(env.FIRESTORE_EMULATOR_HOST, 200);
+  if (emulatorHost) return `http://${emulatorHost.replace(/^https?:\/\//, "")}/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`;
   return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents`;
 }
 
@@ -206,6 +215,310 @@ async function privilegedDocument(env, collection, id) {
 
 async function privilegedDocuments(env, collection) {
   return listDocumentsWithToken(env, await serviceAccessToken(env), collection);
+}
+
+function firestoreValue(value) {
+  if (value === null || value === undefined) return { nullValue: null };
+  if (value instanceof Date) return { timestampValue: value.toISOString() };
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") return Number.isInteger(value)
+    ? { integerValue: String(value) }
+    : { doubleValue: value };
+  if (Array.isArray(value)) return { arrayValue: { values: value.map(firestoreValue) } };
+  if (typeof value === "object") return { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, firestoreValue(item)])) } };
+  return { nullValue: null };
+}
+
+function documentFields(value) {
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, firestoreValue(item)]));
+}
+
+function firestoreMap(document, key) {
+  const fields = document?.fields?.[key]?.mapValue?.fields || {};
+  return Object.fromEntries(Object.entries(fields).map(([entryKey, value]) => {
+    if (typeof value.stringValue === "string") return [entryKey, value.stringValue];
+    if (typeof value.booleanValue === "boolean") return [entryKey, value.booleanValue];
+    if (value.integerValue !== undefined) return [entryKey, Number(value.integerValue)];
+    return [entryKey, null];
+  }));
+}
+
+function sameRecord(left, right) {
+  const stable = (value) => JSON.stringify(Object.fromEntries(Object.entries(value || {}).sort(([a], [b]) => a.localeCompare(b))));
+  return stable(left) === stable(right);
+}
+
+function canonicalAudienceSection(value) {
+  const section = clean(value, 80).toLowerCase().replace(/\s+/g, " ");
+  if (["beaver", "beavers", "beaver scout", "beaver scouts"].includes(section)) return "Beavers";
+  if (["cub", "cubs", "cub scout", "cub scouts"].includes(section)) return "Cubs";
+  if (["scout", "scouts", "scout troop"].includes(section)) return "Scouts";
+  if (["venture", "ventures", "venture scout", "venture scouts"].includes(section)) return "Ventures";
+  if (["rover", "rovers", "rover scout", "rover scouts"].includes(section)) return "Rovers";
+  return "";
+}
+
+function memberHasAudienceSection(member, section) {
+  const sections = fieldStringArray(member, "sections");
+  const legacySection = fieldString(member, "section");
+  return [...sections, legacySection].some((value) => canonicalAudienceSection(value) === section);
+}
+
+async function commitEventAudience(env, writes) {
+  const token = await serviceAccessToken(env);
+  const response = await fetch(`${firestoreBase(env)}:commit`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ writes })
+  });
+  if (!response.ok) throw new Error(`Event audience commit failed with ${response.status}.`);
+  return response.json();
+}
+
+async function eventAudienceAuditId(eventId, operation, event, memberIds, removedIds) {
+  const stableEvent = { ...event };
+  delete stableEvent.updatedAt;
+  delete stableEvent.updatedBy;
+  const content = JSON.stringify({ eventId, operation, event: stableEvent, memberIds: [...memberIds].sort(), removedIds: [...removedIds].sort() });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(content));
+  const bytes = new Uint8Array(digest);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `event-${btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")}`;
+}
+
+async function handleEventAudienceSave(request, env, body) {
+  const idToken = bearer(request);
+  const claims = decodeFirebaseClaims(idToken);
+  const uid = clean(claims.user_id || claims.sub, 200);
+  if (!idToken || !uid) return json(request, env, 401, { ok: false, error: "Sign-in required." });
+  const leader = await getDocumentWithToken(env, idToken, "adminUsers", uid);
+  if (!leader || !fieldBoolean(leader, "active") || !new Set(["leader", "admin", "super-admin"]).has(fieldString(leader, "role"))) {
+    return json(request, env, 403, { ok: false, error: "Active leader access required." });
+  }
+
+  const input = body.input && typeof body.input === "object" ? body.input : {};
+  const rawAudience = body.audience && typeof body.audience === "object" ? body.audience : {};
+  const eventId = clean(body.eventId, 100);
+  const operation = body.operation === "update" ? "update" : "create";
+  if (!eventId || !clean(input.title, 200) || !clean(input.section, 80)) {
+    return json(request, env, 400, { ok: false, error: "Event details are incomplete." });
+  }
+  const startDate = clean(input.startDate, 30);
+  const endDate = clean(input.endDate, 30);
+  if (!clean(input.eventType, 80) || !validIsoDate(startDate) || !validIsoDate(endDate) || endDate < startDate) {
+    return json(request, env, 400, { ok: false, error: "Event type and a valid date range are required." });
+  }
+
+  const isAdmin = ["admin", "super-admin"].includes(fieldString(leader, "role"));
+  const authorisedSections = isAdmin
+    ? ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
+    : [...new Set(fieldStringArray(leader, "sections").map(canonicalAudienceSection).filter(Boolean))];
+  const sectionIds = [...new Set((Array.isArray(rawAudience.sectionIds) ? rawAudience.sectionIds : []).map(canonicalAudienceSection).filter(Boolean))];
+  const memberIds = [...new Set((Array.isArray(rawAudience.memberIds) ? rawAudience.memberIds : []).map((value) => clean(value, 100)).filter(Boolean))];
+  if ((!isAdmin && sectionIds.some((section) => !authorisedSections.includes(section)))
+      || (!isAdmin && !authorisedSections.includes(canonicalAudienceSection(input.section)) && clean(input.section, 80) !== "All Sections")) {
+    return json(request, env, 403, { ok: false, error: "The audience contains a section outside your authorised scope." });
+  }
+  if (!isAdmin && clean(input.section, 80) === "All Sections") return json(request, env, 403, { ok: false, error: "Only an administrator can classify an event as Group wide." });
+
+  const token = await serviceAccessToken(env);
+  const [memberDocuments, currentEvent, updateMembershipDocuments] = await Promise.all([
+    privilegedDocuments(env, "members"),
+    privilegedDocument(env, "events", eventId),
+    operation === "update" ? listDocumentsWithToken(env, token, `events/${encodeURIComponent(eventId)}/audienceMembers`) : Promise.resolve([])
+  ]);
+  if (operation === "update" && !currentEvent) return json(request, env, 404, { ok: false, error: "Event not found." });
+  let currentMembershipDocuments = updateMembershipDocuments;
+  if (operation === "create" && currentEvent) {
+    currentMembershipDocuments = await listDocumentsWithToken(env, token, `events/${encodeURIComponent(eventId)}/audienceMembers`);
+  }
+  if (operation === "update" && !isAdmin
+      && !authorisedSections.includes(canonicalAudienceSection(fieldString(currentEvent, "section")))) {
+    return json(request, env, 403, { ok: false, error: "This event is outside your authorised section scope." });
+  }
+  const currentAudienceVersion = currentEvent?.fields?.audience?.mapValue?.fields?.version?.integerValue;
+  const keepLegacyAudience = operation === "update" && body.preserveLegacyAudience === true && currentAudienceVersion !== "3";
+
+  const membersById = new Map(memberDocuments.map((member) => [documentId(member), member]));
+  const effectiveIds = new Set();
+  for (const member of keepLegacyAudience ? [] : memberDocuments) {
+    if (fieldString(member, "status") !== "active") continue;
+    if (sectionIds.some((section) => memberHasAudienceSection(member, section))) effectiveIds.add(documentId(member));
+  }
+  for (const memberId of keepLegacyAudience ? [] : memberIds) {
+    const member = membersById.get(memberId);
+    if (!member || fieldString(member, "status") !== "active") return json(request, env, 409, { ok: false, error: "A selected member is no longer active. Refresh the audience and try again." });
+    if (!isAdmin && !authorisedSections.some((section) => memberHasAudienceSection(member, section))) {
+      return json(request, env, 403, { ok: false, error: "A selected member is outside your authorised scope." });
+    }
+    effectiveIds.add(memberId);
+  }
+  if (effectiveIds.size === 0 && !keepLegacyAudience) return json(request, env, 400, { ok: false, error: "Choose at least one active member." });
+  if (effectiveIds.size > 450) return json(request, env, 400, { ok: false, error: "The event audience cannot exceed 450 active members." });
+
+  const currentRows = new Map(currentMembershipDocuments.map((membership) => [documentId(membership), membership]));
+  const retainedHiddenIds = operation === "update" && !keepLegacyAudience
+    ? [...currentRows.keys()].filter((id) => {
+      const member = membersById.get(id);
+      return member && !authorisedSections.some((section) => memberHasAudienceSection(member, section));
+    })
+    : [];
+  retainedHiddenIds.forEach((id) => effectiveIds.add(id));
+  const priorIds = new Set(currentRows.keys());
+  const additions = keepLegacyAudience ? [] : [...effectiveIds].filter((id) => !priorIds.has(id));
+  const removals = keepLegacyAudience ? [] : [...priorIds].filter((id) => !effectiveIds.has(id));
+  if (operation === "create" && currentEvent) {
+    const existingAudience = currentEvent.fields?.audience?.mapValue?.fields || {};
+    const existingSectionIds = (existingAudience.sectionIds?.arrayValue?.values || []).map((value) => value.stringValue || "").filter(Boolean);
+    const existingIndividualIds = currentMembershipDocuments.filter((row) => fieldBoolean(row, "selectedIndividually")).map(documentId).sort();
+    const requestedMemberIds = [...memberIds].sort();
+    const sameAudience = [...currentRows.keys()].sort().join("|") === [...effectiveIds].sort().join("|")
+      && existingSectionIds.sort().join("|") === [...sectionIds].sort().join("|")
+      && existingIndividualIds.join("|") === requestedMemberIds.join("|");
+    const sameEvent = fieldString(currentEvent, "createdBy") === uid
+      && ["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status"]
+        .every((key) => fieldString(currentEvent, key) === clean(input[key], key === "description" || key === "leaderNotes" ? 3000 : 500))
+      && fieldBoolean(currentEvent, "consentRequired") === (input.consentRequired === true)
+      && existingAudience.version?.integerValue === "3";
+    if (sameAudience && sameEvent) return json(request, env, 200, {
+      ok: true, eventId, invitedCount: effectiveIds.size, newlyInvitedMemberIds: [], removedMemberIds: [], alreadyExists: true
+    });
+    return json(request, env, 409, { ok: false, error: "Event ID already exists with different saved details." });
+  }
+  if (removals.length && body.confirmRemovals !== true) return json(request, env, 409, { ok: false, error: "Confirm removal of existing invitees before saving." });
+  const timestamp = new Date();
+  const eventSection = clean(input.section, 80);
+  const audience = {
+    version: 3,
+    mode: sectionIds.length && memberIds.length ? "mixed" : sectionIds.length ? "sections" : "members",
+    semantics: "snapshot",
+    sectionIds,
+    memberIds: [],
+    resolvedMemberIds: []
+  };
+  const previousAttendance = operation === "update" ? firestoreMap(currentEvent, "attendance") : {};
+  const previousConsent = operation === "update" ? firestoreMap(currentEvent, "consent") : {};
+  const attendance = { ...previousAttendance };
+  const consent = { ...previousConsent };
+  for (const id of effectiveIds) {
+    attendance[id] ??= "invited";
+    consent[id] ??= input.consentRequired === true ? "required" : "not-required";
+  }
+  const cleanInput = {
+    title: clean(input.title, 200),
+    description: clean(input.description, 3000),
+    eventType: clean(input.eventType, 80),
+    section: eventSection,
+    location: clean(input.location, 300),
+    meetingPoint: clean(input.meetingPoint, 500),
+    returnDetails: clean(input.returnDetails, 500),
+    leaderNotes: clean(input.leaderNotes, 3000),
+    startDate: clean(input.startDate, 30),
+    endDate: clean(input.endDate, 30),
+    status: clean(input.status, 30),
+    consentRequired: input.consentRequired === true,
+    ...(!keepLegacyAudience ? { audience } : {}),
+    attendance,
+    consent,
+    updatedAt: timestamp,
+    updatedBy: uid
+  };
+  if (!["draft", "open", "closed", "completed"].includes(cleanInput.status)) return json(request, env, 400, { ok: false, error: "Event status is invalid." });
+  if (operation === "create" && !["draft", "open"].includes(cleanInput.status)) return json(request, env, 400, { ok: false, error: "New events must start as Draft or Open." });
+  if (operation === "update") {
+    const currentStatus = fieldString(currentEvent, "status");
+    const transitions = { draft: ["draft", "open"], open: ["open", "draft", "closed"], closed: ["closed", "open", "completed"], completed: ["completed"] };
+    if (!transitions[currentStatus]?.includes(cleanInput.status)) return json(request, env, 409, { ok: false, error: "Event status cannot move directly from its current state." });
+    if (cleanInput.status === "completed") {
+      const attendanceValues = Object.values(previousAttendance);
+      const consentValues = Object.values(previousConsent);
+      if (currentStatus !== "closed" || attendanceValues.length === 0 || attendanceValues.some((value) => value === "invited")
+          || (fieldBoolean(currentEvent, "consentRequired") && consentValues.some((value) => value === "required"))) {
+        return json(request, env, 409, { ok: false, error: "Complete the attendance and consent close-out before completing this event." });
+      }
+    }
+  }
+  if (operation === "update") {
+    const currentAudience = currentEvent.fields?.audience?.mapValue?.fields || {};
+    const currentAudienceIds = [...currentRows.keys()].sort();
+    const requestedAudienceIds = [...effectiveIds].sort();
+    const currentSections = (currentAudience.sectionIds?.arrayValue?.values || []).map((value) => value.stringValue || "").filter(Boolean).sort();
+    const sameAudience = currentAudienceIds.join("|") === requestedAudienceIds.join("|")
+      && currentSections.join("|") === [...sectionIds].sort().join("|")
+      && (keepLegacyAudience || currentAudience.mode?.stringValue === audience.mode);
+    const metadataFields = ["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status"];
+    const sameMetadata = metadataFields.every((key) => fieldString(currentEvent, key) === cleanInput[key])
+      && fieldBoolean(currentEvent, "consentRequired") === cleanInput.consentRequired;
+    const sameResponses = sameRecord(firestoreMap(currentEvent, "attendance"), attendance)
+      && sameRecord(firestoreMap(currentEvent, "consent"), consent);
+    if (sameAudience && sameMetadata && sameResponses) return json(request, env, 200, {
+      ok: true, eventId, invitedCount: effectiveIds.size, newlyInvitedMemberIds: [], removedMemberIds: [], alreadyExists: true
+    });
+  }
+  const path = `projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/events/${encodeURIComponent(eventId)}`;
+  const writes = [];
+  if (operation === "create") {
+    writes.push({ update: { name: path, fields: documentFields({ ...cleanInput, createdAt: timestamp, createdBy: uid }) }, currentDocument: { exists: false } });
+  } else {
+    // Firestore stores updateTime separately from the user-managed updatedAt field.
+    writes.push({ update: { name: path, fields: documentFields(cleanInput) }, updateMask: { fieldPaths: Object.keys(cleanInput) }, currentDocument: { updateTime: currentEvent.updateTime } });
+    if (!currentEvent.updateTime) return json(request, env, 409, { ok: false, error: "Refresh this event before saving changes." });
+  }
+  for (const id of effectiveIds) {
+    if (retainedHiddenIds.includes(id)) continue;
+    const member = membersById.get(id);
+    const matchingSection = sectionIds.find((section) => memberHasAudienceSection(member, section));
+    const scopeSection = matchingSection || authorisedSections.find((section) => memberHasAudienceSection(member, section));
+    if (!scopeSection) return json(request, env, 403, { ok: false, error: "A selected member is outside your authorised scope." });
+    const membership = {
+      eventId,
+      eventSection,
+      memberId: id,
+      scopeSection,
+      selectedBySection: Boolean(matchingSection),
+      selectedIndividually: memberIds.includes(id),
+      updatedAt: timestamp,
+      updatedBy: uid
+    };
+    const membershipPath = `${path}/audienceMembers/${encodeURIComponent(id)}`;
+    const existingRow = currentRows.get(id);
+    writes.push({
+      update: { name: membershipPath, fields: documentFields(membership) },
+      currentDocument: existingRow?.updateTime ? { updateTime: existingRow.updateTime } : { exists: false }
+    });
+  }
+  for (const memberId of removals) {
+    const oldRow = currentRows.get(memberId);
+    writes.push({ delete: `${path}/audienceMembers/${encodeURIComponent(memberId)}`, currentDocument: oldRow?.updateTime ? { updateTime: oldRow.updateTime } : undefined });
+  }
+  const auditId = await eventAudienceAuditId(eventId, operation, cleanInput, effectiveIds, removals);
+  const auditDescription = operation === "create"
+    ? `Created event with status ${cleanInput.status}${cleanInput.consentRequired ? "; consent required" : ""}; invited ${effectiveIds.size} members.`
+    : `Updated event; status is ${cleanInput.status}${cleanInput.consentRequired ? "; consent required" : ""}; audience additions: ${additions.length}; audience removals: ${removals.length}.`;
+  writes.push({ update: {
+    name: `projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/auditLog/${encodeURIComponent(auditId)}`,
+    fields: documentFields({
+      category: "event",
+      action: cleanInput.status === "completed" ? "Event completed" : operation === "create" ? "Event created" : "Event updated",
+      actorUid: uid,
+      actorEmail: validEmail(claims.email),
+      targetId: eventId,
+      targetLabel: cleanInput.title,
+      description: auditDescription,
+      section: eventSection,
+      createdAt: timestamp
+    })
+  } });
+  if (writes.length > 500) return json(request, env, 400, { ok: false, error: "This audience change is too large to save in one atomic operation." });
+  try {
+    await commitEventAudience(env, writes);
+  } catch (error) {
+    if (String(error?.message || "").includes("commit failed with 409")) return json(request, env, 409, { ok: false, error: "This event changed while you were editing. Refresh and review the audience again." });
+    throw error;
+  }
+  return json(request, env, 200, { ok: true, eventId, invitedCount: effectiveIds.size, newlyInvitedMemberIds: additions, removedMemberIds: removals });
 }
 
 function validEmail(value) {
@@ -1054,6 +1367,7 @@ export async function handleProductionRoute(request, env, body, path) {
   if (path === "/join-consent-context") return handleJoinConsentContext(request, env, body);
   if (path === "/leader-communication") return handleLeaderCommunication(request, env, body);
   if (path === "/event-notification") return handleEventNotification(request, env, body);
+  if (path === "/event-audience-save") return handleEventAudienceSave(request, env, body);
   if (path === "/event-consent-processed") return handleEventConsentProcessed(request, env, body);
   if (path === "/form-reminder") return handleFormReminder(request, env, body);
   if (path === "/member-inactivation-context") return handleMemberInactivationContext(request, env, body);

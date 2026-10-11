@@ -26,6 +26,7 @@ export default function CreateEventPage() {
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const createdEventId = useRef<string | null>(null);
+  const pendingCreateEventId = useRef<string | null>(null);
   const createInFlight = useRef<Promise<boolean> | null>(null);
   const dataReady = !loading && !loadError && loadedScope === scopeKey;
 
@@ -92,7 +93,11 @@ export default function CreateEventPage() {
           endDate: draft.endDate || draft.startDate,
           audience: resolvedAudience
         };
-        createdEventId.current = await createEvent(persistedDraft);
+        createdEventId.current = await createEvent(
+          persistedDraft,
+          pendingCreateEventId.current ?? undefined,
+          (id) => { pendingCreateEventId.current = id; }
+        );
         return true;
       } catch (saveError) {
         setError(applicationErrorMessage(saveError, "Unable to save the event. Your edits are still here.", "CreateEventPage"));
