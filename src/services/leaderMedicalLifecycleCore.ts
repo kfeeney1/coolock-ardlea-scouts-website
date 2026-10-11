@@ -28,9 +28,22 @@ export function daysBetweenLocalDates(from: string, to: string): number {
   return Math.round((parse(to) - parse(from)) / 86_400_000);
 }
 
+function submittedAtMillis(value: unknown): number {
+  if (!value || typeof value !== "object") return 0;
+  if ("toMillis" in value && typeof value.toMillis === "function") return value.toMillis();
+  if ("toDate" in value && typeof value.toDate === "function") return value.toDate().getTime();
+  if (value instanceof Date) return value.getTime();
+  return 0;
+}
+
 export function leaderMedicalStateFromPlainRecords(records: Array<{ id: string; data: Record<string, unknown>; submittedDate?: string }>, today: string): LeaderMedicalState {
   if (!records.length) return { status: "missing", formId: null, validityFrom: "", validityTo: "", daysUntilExpiry: null, data: null };
-  const sorted = [...records].sort((a, b) => String(b.data.validityFrom || b.submittedDate || "").localeCompare(String(a.data.validityFrom || a.submittedDate || "")));
+  const sorted = [...records].sort((a, b) => {
+    const dateOrder = String(b.data.validityFrom || b.submittedDate || "").localeCompare(String(a.data.validityFrom || a.submittedDate || ""));
+    if (dateOrder !== 0) return dateOrder;
+    const timestampOrder = submittedAtMillis(b.data.submittedAt) - submittedAtMillis(a.data.submittedAt);
+    return timestampOrder || b.id.localeCompare(a.id);
+  });
   const latest = sorted[0];
   const data = latest.data;
   const complete = data.declarationConfirmed === true && typeof data.signature === "string" && data.signature.trim().length > 0;
