@@ -223,10 +223,6 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && matrix.id == 2 && github.actor != 'dependabot[bot]' }}
         run: npx --no-install playwright test e2e/weekly-record-integrity.spec.ts --project=chromium --grep "meeting copy Cancel exits untouched and protects a changed destination date" --retries=0 --timeout=30000
 
-      - name: Focused event audience create regression (first run, no retries)
-        if: ${{ github.event_name == 'pull_request' && matrix.id == 1 && github.actor != 'dependabot[bot]' }}
-        run: npx --no-install playwright test e2e/event-record-page.spec.ts --project=chromium --grep "event editor saves valid edits before app and browser back navigation" --retries=0 --timeout=30000
-
       - name: Run Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         shell: bash
@@ -236,6 +232,9 @@ jobs:
           else
             npm run test:e2e:full -- --shard "${{ matrix.shard }}"
           fi
+      - name: Focused event audience create regression (first run, no retries)
+        if: ${{ always() && github.event_name == 'pull_request' && matrix.id == 1 && github.actor != 'dependabot[bot]' }}
+        run: npx --no-install playwright test e2e/event-record-page.spec.ts --project=chromium --grep "event editor saves valid edits before app and browser back navigation" --retries=0 --timeout=30000
 
       - name: Collect E2E service logs on failure
         if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
