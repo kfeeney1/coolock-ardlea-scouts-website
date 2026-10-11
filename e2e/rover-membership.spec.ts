@@ -12,8 +12,12 @@ async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
 
 async function signOutLeader(page: Page) {
   await page.getByTestId("leader-dashboard-header").getByRole("button", { name: /^Menu ·|Open Leader Menu/ }).click();
-  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out", exact: true }).click();
-  await expect(page).toHaveURL(/\/leader\/login$/);
+  const signOut = page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out", exact: true });
+  await expect(signOut).toBeVisible();
+  await Promise.all([
+    page.waitForURL(/\/leader\/login$/),
+    signOut.evaluate((button: HTMLButtonElement) => button.click())
+  ]);
 }
 
 test("adult leader Rover self-service persists, appears in Member Management and can be ended", async ({ page }, testInfo: TestInfo) => {
