@@ -5,7 +5,7 @@ import { auth, db } from "../firebase";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import { normalizeMemberSectionRoles } from "./memberYouthRoles";
-import { matchesRoverAdultIdentity, matchingUnlinkedRoverMembers } from "./roverMembershipLogic";
+import { matchesRoverAdultIdentity, matchingUnlinkedRoverMembers, roverMembershipSections } from "./roverMembershipLogic";
 
 export type RoverManagementCandidate = {
   uid: string;
@@ -139,7 +139,8 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
       throw new UserFacingError("The selected member record no longer matches this adult account.");
     }
     const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
-    const nextSections = enabled ? [...sections.filter((section) => section !== "Rovers"), "Rovers"] : sections.filter((section) => section !== "Rovers");
+    if (!enabled && !sections.includes("Rovers")) return;
+    const nextSections = roverMembershipSections(sections, enabled);
     const retainedSections = nextSections.length > 0 ? nextSections : ["Rovers"];
     transaction.update(member.ref, {
       accountUid: targetUid,
