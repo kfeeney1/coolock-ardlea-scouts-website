@@ -113,6 +113,7 @@ test("active adult leader may self-create and end only their Rover membership", 
   await seedDocuments([
     ["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }],
     ["members/other-adult", { firstName: "Other", lastName: "Adult", displayName: "Other Adult", emailAddress: "other@example.com", accountUid: "other-user", section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["members/other-rover", { firstName: "Other", lastName: "Rover", displayName: "Other Rover", emailAddress: "other@example.com", accountUid: "other-user", section: "Rovers", sections: ["Rovers"], status: "active" }],
   ]);
   const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
   await assertSucceeds(setDoc(doc(db, "members/rover_rover-leader"), {
@@ -123,6 +124,7 @@ test("active adult leader may self-create and end only their Rover membership", 
     createdAt: serverTimestamp(), createdBy: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader",
   }));
   const memberRef = doc(db, "members/rover_rover-leader");
+  await assertFails(getDoc(doc(db, "members/other-rover")));
   await assertFails(updateDoc(doc(db, "members/other-adult"), {
     section: "Cubs", sections: ["Cubs", "Rovers"], status: "active", accountUid: "rover-leader",
     sectionRoles: {}, updatedAt: serverTimestamp(), updatedBy: "rover-leader",
