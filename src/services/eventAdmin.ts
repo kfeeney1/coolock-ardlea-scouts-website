@@ -20,8 +20,8 @@ import { recordAuditEvent } from "./auditLog";
 import { canTransitionEventStatus, eventCloseOutIssues } from "./eventLifecycleLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { loadMembers } from "./memberAdmin";
-import { buildEventAudienceMemberships, eventAudienceMembershipPath, withPersistedEventAudience } from "./eventAudienceMemberships";
-import { buildEventAudience } from "./eventManagementLogic";
+import { buildEventAudienceMemberships, eventAudienceMembershipPath, shouldPreserveLegacyEventAudience, withPersistedEventAudience } from "./eventAudienceMemberships";
+import { buildEventAudience, defaultEventAudienceForClassification } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
 
 export type EventStatus = "draft" | "open" | "closed" | "completed";
@@ -331,6 +331,13 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     const [loadedMembers, authorisedSections] = await Promise.all([loadMembers(), authorisedEventAudienceSections(user.uid)]);
     const members = loadedMembers.filter((member) => member.status === "active");
     const visibleAudience = buildEventAudience(input.audience?.sectionIds ?? [], input.audience?.memberIds ?? [], members);
+    const currentAudience = mapAudience(current.audience);
+    const preserveLegacyAudience = shouldPreserveLegacyEventAudience(
+        currentAudience,
+        input.audience,
+        defaultEventAudienceForClassification(clean(current.section, 80), members)
+    );
+    const preservedAudience = currentAudience ?? defaultEventAudienceForClassification(clean(current.section, 80), members);
     const previousMembershipSnapshot = await getDocs(query(
         collection(db, "events", eventId, "audienceMembers"),
         where("eventId", "==", eventId)
@@ -394,15 +401,16 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         endDate: clean(input.endDate, 30),
         status: input.status,
         consentRequired: input.consentRequired,
-        audience: eventAudience,
+        ...(preserveLegacyAudience ? {} : { audience: eventAudience }),
         attendance: reconciledAttendance,
         consent: reconciledConsent,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     };
 
-    const removedMemberships = previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
-    const audienceWriteCount = 1 + changedMemberships.length + removedMemberships.length;
+    const membershipsToWrite = preserveLegacyAudience ? [] : changedMemberships;
+    const removedMemberships = preserveLegacyAudience ? [] : previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
+    const audienceWriteCount = 1 + membershipsToWrite.length + removedMemberships.length;
     if (audienceWriteCount > 500) {
         throw new UserFacingError("This audience change is too large to save safely in one operation. Make the change in smaller steps and try again.");
     }
@@ -411,14 +419,14 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
     // leaves the previous audience and response history intact.
     const updateBatch = writeBatch(db);
     updateBatch.update(eventRef, updatePayload);
-    changedMemberships.forEach((membership) => updateBatch.set(
+    membershipsToWrite.forEach((membership) => updateBatch.set(
         doc(db, eventAudienceMembershipPath(eventId, membership.memberId)),
         { ...membership, updatedAt: serverTimestamp(), updatedBy: user.uid }
     ));
     removedMemberships.forEach((item) => updateBatch.delete(item.ref));
     await updateBatch.commit();
 
-    await syncEventProjections(eventId, { ...input, audience: canonicalAudience });
+    await syncEventProjections(eventId, { ...input, audience: preserveLegacyAudience ? (current.audience ? preservedAudience : null) : canonicalAudience });
     await recordAuditEvent({
         category: "event",
         action: input.status === "completed" ? "Event completed" : "Event updated",
@@ -427,7 +435,7 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         section: clean(input.section, 80),
         description: input.status === "completed"
             ? "Completed event after attendance and consent close-out checks passed."
-            : `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}; audience additions: ${changedMemberships.filter((membership) => !previousMembershipById.has(membership.memberId)).length}; audience removals: ${removedMemberships.length}.`
+            : `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}; audience additions: ${membershipsToWrite.filter((membership) => !previousMembershipById.has(membership.memberId)).length}; audience removals: ${removedMemberships.length}.`
     });
 }
 
