@@ -52,3 +52,43 @@ test("Rover self-service remains usable on the mobile profile layout", async ({ 
   await expect(panel.getByText("Explicitly join or leave Rovers.")).toBeVisible();
   await expect(panel.getByRole("button", { name: /Join Rovers|End Rover Membership/ })).toBeVisible();
 });
+
+test("authorized Member Management can end Rover membership from the member record", async ({ page }, testInfo: TestInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Rover membership mutation runs once on desktop Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  await page.goto("/leader/members");
+
+  const manageRovers = page.getByRole("button", { name: "Manage Rovers" });
+  await expect(manageRovers).toBeVisible();
+  await manageRovers.click();
+  const managementDialog = page.getByRole("dialog", { name: "Manage Rover Membership" });
+  const target = managementDialog.getByText("Rovers Section Leader", { exact: true });
+  await expect(target).toBeVisible();
+  const targetRow = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  const designate = targetRow.getByRole("button", { name: "Designate Rover" });
+  if (await designate.isVisible().catch(() => false)) {
+    await designate.click();
+    await expect(targetRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  }
+  await managementDialog.getByRole("button", { name: "Close" }).click();
+
+  const roverFilter = page.getByRole("combobox", { name: "Section" });
+  await roverFilter.click();
+  await page.getByRole("option", { name: "Rovers", exact: true }).click();
+  const memberCard = page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" });
+  await expect(memberCard).toHaveCount(1);
+  await memberCard.getByRole("button", { name: "Manage" }).click();
+
+  const memberDialog = page.getByRole("dialog", { name: "Member — Rovers Section Leader" });
+  const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
+  await expect(endMembership).toBeVisible();
+  await endMembership.click();
+  await expect(memberDialog.getByText("Rover membership ended. The member record, history and unrelated roles are preserved.")).toBeVisible();
+  await expect(memberDialog.getByTestId("member-rover-membership-actions")).toHaveCount(0);
+
+  await memberDialog.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("combobox", { name: "Status" }).click();
+  await page.getByRole("option", { name: "All Statuses" }).click();
+  await expect(page.locator("[data-testid^='member-card-']").filter({ hasText: "Rovers Section Leader" }).getByText("Left")).toBeVisible();
+});
