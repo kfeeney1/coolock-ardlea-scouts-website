@@ -216,6 +216,11 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     const db = testEnv.authenticatedContext(actor, { email: actor + "@example.com" }).firestore();
     const targetRef = doc(db, "members/target-member");
     await assertSucceeds(updateDoc(targetRef, change(actor)));
+    await assertSucceeds(updateDoc(targetRef, change(actor)));
+    await assertSucceeds(updateDoc(targetRef, {
+      accountUid: "target-adult", emailAddress: "target@example.com", section: "Cubs", sections: ["Cubs"],
+      sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp(),
+    }));
     await assertSucceeds(updateDoc(targetRef, {
       accountUid: "target-adult", emailAddress: "target@example.com", section: "Cubs", sections: ["Cubs"],
       sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp(),
