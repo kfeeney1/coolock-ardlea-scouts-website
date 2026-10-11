@@ -4,9 +4,12 @@ import test from "node:test";
 
 test("event persistence enforces lifecycle transitions and close-out readiness", async () => {
   const source = await readFile("src/services/eventAdmin.ts", "utf8");
+  const writer = await readFile("email-worker/src/productionRoutes.js", "utf8");
   assert.match(source, /canTransitionEventStatus/);
   assert.match(source, /eventCloseOutIssues/);
   assert.match(source, /New events must start as Draft or Open/);
   assert.match(source, /Completed event rosters are read-only/);
-  assert.match(source, /Event completed/);
+  assert.match(source, /saveEventAudience\("update"/);
+  assert.match(writer, /const transitions = \{ draft:/);
+  assert.match(writer, /Complete the attendance and consent close-out before completing this event/);
 });
