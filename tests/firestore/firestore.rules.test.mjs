@@ -196,6 +196,8 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"], displayName: "Super Admin", email: "admin@example.com" }],
     ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Leader", email: "cubs@example.com" }],
+    ["adminUsers/cubs-programme-scouter", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Programme Scouter", email: "programme@example.com" }],
+    ["organisationLeadership/cubs-programme-scouter", { active: true, scoutingRole: "Programme Scouter", appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }] }],
     ["members/target-member", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", accountUid: "target-adult", status: "active", source: "manual" }],
     ["members/unlinked-target", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", status: "active", source: "manual" }],
     ["members/mismatched-target", { firstName: "Different", lastName: "Adult", displayName: "Different Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "different@example.com", status: "active", source: "manual" }],
@@ -210,6 +212,8 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
   }
   const denied = testEnv.authenticatedContext("cubs-leader", { email: "cubs@example.com" }).firestore();
   await assertFails(updateDoc(doc(denied, "members/target-member"), change("cubs-leader")));
+  const programmeScouter = testEnv.authenticatedContext("cubs-programme-scouter", { email: "programme@example.com" }).firestore();
+  await assertFails(updateDoc(doc(programmeScouter, "members/target-member"), change("cubs-programme-scouter")));
 
   const superDb = testEnv.authenticatedContext("super-admin", { email: "admin@example.com" }).firestore();
   await assertSucceeds(updateDoc(doc(superDb, "members/unlinked-target"), {
