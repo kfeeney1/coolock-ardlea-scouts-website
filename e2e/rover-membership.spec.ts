@@ -10,6 +10,12 @@ async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
+async function signOutLeader(page: Page) {
+  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: /^Menu ·|Open Leader Menu/ }).click();
+  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/login$/);
+}
+
 test("adult leader Rover self-service persists, appears in Member Management and can be ended", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Rover membership mutation runs once on desktop Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
@@ -28,7 +34,7 @@ test("adult leader Rover self-service persists, appears in Member Management and
     await expect(panel.getByText("Your Rover membership is active and linked to your account.")).toBeVisible();
   }
 
-  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await signOutLeader(page);
   await loginAdmin(page);
   await page.goto("/leader/profile");
   await expect(panel.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
@@ -75,7 +81,7 @@ test("authorized Member Management can end Rover membership from the member reco
   await addDialog.getByRole("button", { name: "Add Member" }).click();
   await expect(addDialog).toBeHidden();
 
-  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await signOutLeader(page);
   await loginAdmin(page, "test.rover.section.leader@example.com");
   await page.goto("/leader/members");
 
@@ -113,7 +119,7 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
   await expect(memberDialog).toBeHidden();
 
-  await page.getByTestId("leader-dashboard-header").getByRole("button", { name: "Sign Out" }).click();
+  await signOutLeader(page);
   await loginAdmin(page);
   await page.goto("/leader/members");
   const retainedCard = page.getByTestId(existingMemberId!);
