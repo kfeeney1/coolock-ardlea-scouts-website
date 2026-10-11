@@ -110,7 +110,10 @@ test("unauthenticated users cannot read member records", async () => {
 });
 
 test("active adult leader may self-create and end only their Rover membership", async () => {
-  await seedDocuments([["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }]]);
+  await seedDocuments([
+    ["adminUsers/rover-leader", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["members/other-adult", { firstName: "Other", lastName: "Adult", displayName: "Other Adult", emailAddress: "other@example.com", accountUid: "other-user", section: "Cubs", sections: ["Cubs"], status: "active" }],
+  ]);
   const db = testEnv.authenticatedContext("rover-leader", { email: "rover@example.com" }).firestore();
   await assertSucceeds(setDoc(doc(db, "members/rover_rover-leader"), {
     firstName: "Rory", lastName: "Rover", displayName: "Rory Rover", displayNameMode: "auto",
@@ -120,6 +123,10 @@ test("active adult leader may self-create and end only their Rover membership", 
     createdAt: serverTimestamp(), createdBy: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader",
   }));
   const memberRef = doc(db, "members/rover_rover-leader");
+  await assertFails(updateDoc(doc(db, "members/other-adult"), {
+    section: "Cubs", sections: ["Cubs", "Rovers"], status: "active", accountUid: "rover-leader",
+    sectionRoles: {}, updatedAt: serverTimestamp(), updatedBy: "rover-leader",
+  }));
   await assertFails(updateDoc(memberRef, { emailAddress: "other@example.com", accountUid: "rover-leader", updatedAt: serverTimestamp(), updatedBy: "rover-leader" }));
   await assertSucceeds(updateDoc(memberRef, {
     sections: ["Cubs", "Rovers"], section: "Cubs", status: "active", accountUid: "rover-leader",
@@ -198,14 +205,21 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Leader", email: "cubs@example.com" }],
     ["adminUsers/cubs-programme-scouter", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Programme Scouter", email: "programme@example.com" }],
     ["organisationLeadership/cubs-programme-scouter", { active: true, scoutingRole: "Programme Scouter", appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }] }],
+    ["adminUsers/inactive-adult", { active: false, role: "leader", sections: ["Cubs"], displayName: "Inactive Adult", email: "inactive@example.com" }],
     ["members/target-member", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", accountUid: "target-adult", status: "active", source: "manual" }],
     ["members/unlinked-target", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", status: "active", source: "manual" }],
     ["members/mismatched-target", { firstName: "Different", lastName: "Adult", displayName: "Different Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "different@example.com", status: "active", source: "manual" }],
+    ["members/ineligible-target", { firstName: "Inactive", lastName: "Adult", displayName: "Inactive Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "inactive@example.com", status: "active", source: "manual" }],
   ]);
   const change = (actor) => ({ accountUid: "target-adult", section: "Cubs", sections: ["Cubs", "Rovers"], sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp() });
   for (const actor of ["rover-section-leader", "group-leader", "super-admin"]) {
     const db = testEnv.authenticatedContext(actor, { email: actor + "@example.com" }).firestore();
-    await assertSucceeds(updateDoc(doc(db, "members/target-member"), change(actor)));
+    const targetRef = doc(db, "members/target-member");
+    await assertSucceeds(updateDoc(targetRef, change(actor)));
+    await assertSucceeds(updateDoc(targetRef, {
+      accountUid: "target-adult", emailAddress: "target@example.com", section: "Cubs", sections: ["Cubs"],
+      sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp(),
+    }));
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await updateDoc(doc(context.firestore(), "members/target-member"), { section: "Cubs", sections: ["Cubs"], updatedBy: "reset" });
     });
@@ -214,6 +228,8 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
   await assertFails(updateDoc(doc(denied, "members/target-member"), change("cubs-leader")));
   const programmeScouter = testEnv.authenticatedContext("cubs-programme-scouter", { email: "programme@example.com" }).firestore();
   await assertFails(updateDoc(doc(programmeScouter, "members/target-member"), change("cubs-programme-scouter")));
+  const unauthenticated = testEnv.unauthenticatedContext().firestore();
+  await assertFails(updateDoc(doc(unauthenticated, "members/target-member"), change("unauthenticated")));
 
   const superDb = testEnv.authenticatedContext("super-admin", { email: "admin@example.com" }).firestore();
   await assertSucceeds(updateDoc(doc(superDb, "members/unlinked-target"), {
@@ -221,6 +237,10 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
   }));
   await assertFails(updateDoc(doc(superDb, "members/mismatched-target"), {
     ...change("super-admin"), emailAddress: "target@example.com"
+  }));
+  await assertFails(updateDoc(doc(superDb, "members/ineligible-target"), {
+    accountUid: "inactive-adult", emailAddress: "inactive@example.com", section: "Cubs", sections: ["Cubs", "Rovers"],
+    sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: "super-admin", roverManagementAt: serverTimestamp(),
   }));
 });
 
