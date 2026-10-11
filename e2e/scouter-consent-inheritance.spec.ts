@@ -21,9 +21,11 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scouter consent inheritance runs on desktop and Pixel 7 mobile Chromium.");
 
   await signIn(page, primaryEmail);
+  await page.goto("/leader/profile");
+  const primaryProfileName = await page.getByLabel("Display name").inputValue();
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
+  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryProfileName);
   await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
@@ -46,7 +48,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await advance(page);
   await page.getByText("Are you currently taking any medication?", { exact: true }).locator("..").getByRole("radio", { name: "No" }).check();
   await advance(page);
-  await page.getByLabel("Signature (full name)").fill("Scouts Programme Scouter");
+  await page.getByLabel("Signature (full name)").fill(primaryProfileName);
   await page.getByRole("checkbox", { name: /confirm the declaration/i }).check();
   await page.getByRole("button", { name: "Submit Scouter Form" }).click();
   await expect(page.getByText("The Scouter ES3 medical advice form has been submitted successfully.")).toBeVisible();
@@ -72,10 +74,12 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   try {
     const otherPage = await otherContext.newPage();
     await signIn(otherPage, multiSectionEmail);
+    await otherPage.goto("/leader/profile");
+    const otherProfileName = await otherPage.getByLabel("Display name").inputValue();
     await otherPage.goto("/leader/profile/consent");
     await expect(otherPage.getByText("Applicant Details")).toBeVisible();
-    await expect(otherPage.getByLabel("Applicant name")).toHaveValue("Test Multi Section Leader");
-    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue("Scouts Programme Scouter");
+    await expect(otherPage.getByLabel("Applicant name")).toHaveValue(otherProfileName);
+    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue(primaryProfileName);
     await expect(otherPage.locator('input[name="mobile"]')).toHaveValue("0872000000");
     await expect(otherPage.locator('input[name="address"]')).toHaveValue("");
     await otherPage.locator('input[name="address"]').fill("Entered manually");
