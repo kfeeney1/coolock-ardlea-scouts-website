@@ -26,11 +26,13 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
   const primaryConsentName = await page.getByLabel("Applicant name").inputValue();
-  // This account has an existing consent name that is intentionally different
-  // from its current profile name. Saved consent data must remain authoritative.
+  const primaryConsentDateOfBirth = await page.getByLabel("Date of birth").inputValue();
+  // This account has an existing consent name and date that intentionally differ
+  // from its current profile details. Saved consent data must remain authoritative.
   expect(primaryConsentName).toBe("Test Scouts Scouter");
   expect(primaryConsentName).not.toBe(primaryProfileName);
-  await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
+  expect(primaryConsentDateOfBirth).toBe("1985-01-01");
+  expect(primaryConsentDateOfBirth).not.toBe("1985-04-12");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
   // The Chromium project saves this value before the mobile project runs against
@@ -60,6 +62,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await page.reload();
   await expect(page.getByText("Applicant Details")).toBeVisible();
   await expect(page.getByLabel("Applicant name")).toHaveValue(primaryConsentName);
+  await expect(page.getByLabel("Date of birth")).toHaveValue(primaryConsentDateOfBirth);
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   // The wizard opens at Applicant Details after reload. Advance through the
   // persisted values to confirm the renewal signature fields are still fresh.
