@@ -268,7 +268,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(rileyFromSection).toBeVisible();
   await rileyFromSection.check();
   await page.getByRole("button", { name: /^Open Cubs members/ }).click();
-  await expect(page.getByText(/Selected: Riley Nolan Beavers 01/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove Riley Nolan Beavers 01 from audience" })).toBeVisible();
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
   const memberSearch = page.getByLabel("Search authorized group members");
   await memberSearch.fill("Riley");
