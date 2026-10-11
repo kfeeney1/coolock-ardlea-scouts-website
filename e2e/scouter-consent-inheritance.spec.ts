@@ -23,7 +23,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await signIn(page, primaryEmail);
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue("Test Scouts Scouter");
+  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
   await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0861234567");
@@ -50,7 +50,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
 
   await page.reload();
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue("Test Scouts Scouter");
+  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   await expect(page.getByLabel("Signature (full name)")).toHaveValue("");
   await expect(page.getByRole("checkbox", { name: /confirm the declaration/i })).not.toBeChecked();
@@ -66,7 +66,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
     await otherPage.goto("/leader/profile/consent");
     await expect(otherPage.getByText("Applicant Details")).toBeVisible();
     await expect(otherPage.getByLabel("Applicant name")).toHaveValue("Test Multi Section Leader");
-    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue("Test Scouts Scouter");
+    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue("Scouts Programme Scouter");
     await expect(otherPage.locator('input[name="mobile"]')).toHaveValue("0872000000");
     await expect(otherPage.locator('input[name="address"]')).toHaveValue("");
     await otherPage.locator('input[name="address"]').fill("Entered manually");
