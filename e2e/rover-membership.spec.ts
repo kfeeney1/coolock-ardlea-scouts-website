@@ -104,6 +104,7 @@ test("authorized Member Management can end Rover membership from the member reco
     await expect(targetRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
   }
   await managementDialog.getByRole("button", { name: "Close" }).click();
+  await expect(managementDialog).toBeHidden();
 
   const roverFilter = page.getByRole("combobox", { name: "Section" });
   await roverFilter.click();
@@ -122,11 +123,13 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(allSectionsCard).toContainText("Rovers");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
-  await memberCard.getByRole("button", { name: "Manage" }).click();
+  const roverMemberCard = page.getByTestId(existingMemberId!);
+  await expect(roverMemberCard).toBeVisible();
+  await roverMemberCard.getByRole("button", { name: "Manage", exact: true }).click();
 
-  const memberDialog = page.getByRole("dialog").filter({ hasText: `Member — ${memberName}` });
-  await expect(memberDialog).toBeVisible();
-  await expect(memberDialog.getByRole("heading", { name: "Member Details", exact: true })).toBeVisible();
+  const memberDetailsHeading = page.getByRole("heading", { name: "Member Details", exact: true });
+  await expect(memberDetailsHeading).toBeVisible();
+  const memberDialog = page.getByRole("dialog").filter({ has: memberDetailsHeading });
   const endMembership = memberDialog.getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
