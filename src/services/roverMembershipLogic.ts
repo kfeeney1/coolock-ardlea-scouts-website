@@ -5,9 +5,9 @@ export function matchesRoverAdultIdentity(
   member: { displayName?: unknown; emailAddress?: unknown },
   adult: RoverAdultIdentity
 ): boolean {
-  const memberName = typeof member.displayName === "string" ? member.displayName.trim().toLowerCase() : "";
-  const memberEmail = typeof member.emailAddress === "string" ? member.emailAddress.trim().toLowerCase() : "";
+  const memberName = typeof member.displayName === "string" ? member.displayName.trim() : "";
+  const memberEmail = typeof member.emailAddress === "string" ? member.emailAddress.trim() : "";
   return Boolean(memberName && memberEmail)
-    && memberName === adult.displayName.trim().toLowerCase()
-    && memberEmail === adult.email.trim().toLowerCase();
+    && memberName === adult.displayName.trim()
+    && memberEmail === adult.email.trim();
 }
