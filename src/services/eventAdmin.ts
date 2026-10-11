@@ -20,7 +20,7 @@ import { recordAuditEvent } from "./auditLog";
 import { canTransitionEventStatus, eventCloseOutIssues } from "./eventLifecycleLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { loadMembers } from "./memberAdmin";
-import { buildEventAudienceMemberships, chunkEventAudienceMemberships, eventAudienceMembershipPath, withPersistedEventAudience } from "./eventAudienceMemberships";
+import { buildEventAudienceMemberships, eventAudienceMembershipPath, withPersistedEventAudience } from "./eventAudienceMemberships";
 import { buildEventAudience } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
 
@@ -283,22 +283,15 @@ export async function createEvent(input: EventInput): Promise<string> {
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
     };
-    const membershipChunks = chunkEventAudienceMemberships(memberships);
-    for (const [index, chunk] of membershipChunks.entries()) {
-        const batch = writeBatch(db);
-        if (index === 0) batch.set(eventRef, eventPayload);
-        chunk.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventRef.id, membership.memberId)), {
-            ...membership,
-            updatedAt: serverTimestamp(),
-            updatedBy: user.uid
-        }));
-        await batch.commit();
-    }
-    if (membershipChunks.length === 0) {
-        const batch = writeBatch(db);
-        batch.set(eventRef, eventPayload);
-        await batch.commit();
-    }
+    // Keep the event document and every audience membership in one Firestore commit.
+    // The 450-member cap leaves room for the event write under Firestore's 500-write limit.
+    const createBatch = writeBatch(db);
+    createBatch.set(eventRef, eventPayload);
+    memberships.forEach((membership) => createBatch.set(
+        doc(db, eventAudienceMembershipPath(eventRef.id, membership.memberId)),
+        { ...membership, updatedAt: serverTimestamp(), updatedBy: user.uid }
+    ));
+    await createBatch.commit();
 
     await syncEventProjections(eventRef.id, { ...input, title, audience: canonicalAudience });
     await recordAuditEvent({
@@ -388,47 +381,22 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         reconciledConsent[id] ??= input.consentRequired ? "required" : "not-required";
     });
 
-    const membershipChunks = chunkEventAudienceMemberships(changedMemberships);
-    const updatePayload = {
-        title: clean(input.title, 200),
-        description: clean(input.description, 3000),
-        eventType: clean(input.eventType, 80),
-        section: clean(input.section, 80),
-        location: clean(input.location, 300),
-        meetingPoint: clean(input.meetingPoint, 500),
-        returnDetails: clean(input.returnDetails, 500),
-        leaderNotes: clean(input.leaderNotes, 3000),
-        startDate: clean(input.startDate, 30),
-        endDate: clean(input.endDate, 30),
-        status: input.status,
-        consentRequired: input.consentRequired,
-        audience: eventAudience,
-        attendance: reconciledAttendance,
-        consent: reconciledConsent,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
-    };
-    for (const [index, chunk] of membershipChunks.entries()) {
-        const batch = writeBatch(db);
-        if (index === 0) batch.update(eventRef, updatePayload);
-        chunk.forEach((membership) => batch.set(doc(db, eventAudienceMembershipPath(eventId, membership.memberId)), {
-            ...membership,
-            updatedAt: serverTimestamp(),
-            updatedBy: user.uid
-        }));
-        await batch.commit();
-    }
-    if (membershipChunks.length === 0) {
-        const batch = writeBatch(db);
-        batch.update(eventRef, updatePayload);
-        await batch.commit();
-    }
     const removedMemberships = previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
-    for (let offset = 0; offset < removedMemberships.length; offset += 16) {
-        const cleanupBatch = writeBatch(db);
-        removedMemberships.slice(offset, offset + 16).forEach((item) => cleanupBatch.delete(item.ref));
-        await cleanupBatch.commit();
+    const audienceWriteCount = 1 + changedMemberships.length + removedMemberships.length;
+    if (audienceWriteCount > 500) {
+        throw new UserFacingError("This audience change is too large to save safely in one operation. Make the change in smaller steps and try again.");
     }
+
+    // Commit the event, changed audience rows, and removals together. A failed write
+    // leaves the previous audience and response history intact.
+    const updateBatch = writeBatch(db);
+    updateBatch.update(eventRef, updatePayload);
+    changedMemberships.forEach((membership) => updateBatch.set(
+        doc(db, eventAudienceMembershipPath(eventId, membership.memberId)),
+        { ...membership, updatedAt: serverTimestamp(), updatedBy: user.uid }
+    ));
+    removedMemberships.forEach((item) => updateBatch.delete(item.ref));
+    await updateBatch.commit();
 
     await syncEventProjections(eventId, { ...input, audience: canonicalAudience });
     await recordAuditEvent({
@@ -439,7 +407,7 @@ export async function updateEvent(eventId: string, input: EventInput): Promise<v
         section: clean(input.section, 80),
         description: input.status === "completed"
             ? "Completed event after attendance and consent close-out checks passed."
-            : `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}.`
+            : `Updated event; status is ${input.status}${input.consentRequired ? "; consent required" : ""}; audience additions: ${changedMemberships.filter((membership) => !previousMembershipById.has(membership.memberId)).length}; audience removals: ${removedMemberships.length}.`
     });
 }
 

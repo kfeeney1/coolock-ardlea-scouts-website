@@ -151,3 +151,19 @@ test("event audience membership writes are split below Firestore rules access-ca
     assert.ok(chunks.every((chunk) => chunk.length <= 16));
     assert.throws(() => chunkEventAudienceMemberships(memberships, 0), /positive integer/);
 });
+
+test("event audience patterns resolve group, sections, partial sections and cross-section individuals by stable IDs", () => {
+    const allGroup = buildEventAudience(["Cubs", "Scouts"], [], members);
+    assert.deepEqual(allGroup.resolvedMemberIds, ["m1", "m2", "m4"]);
+
+    const multipleSections = buildEventAudience(["Cubs", "Scouts"], [], members);
+    assert.deepEqual(multipleSections.resolvedMemberIds, ["m1", "m2", "m4"]);
+
+    const partialSectionAfterClearAndReselect = buildEventAudience([], ["m1"], members, "members");
+    assert.deepEqual(partialSectionAfterClearAndReselect.resolvedMemberIds, ["m1"]);
+
+    const sectionPlusCrossSectionIndividual = buildEventAudience(["Cubs"], ["m4"], members, "mixed");
+    assert.deepEqual(sectionPlusCrossSectionIndividual.resolvedMemberIds, ["m1", "m2", "m4"]);
+    assert.equal(new Set(sectionPlusCrossSectionIndividual.resolvedMemberIds).size, 3);
+    assert.equal(sectionPlusCrossSectionIndividual.mode, "mixed");
+});

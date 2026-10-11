@@ -33,6 +33,7 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
     addingOtherMembers
       ? (!normalizedSearch || `${member.displayName} ${sectionsFor(member).join(" ")}`.toLocaleLowerCase("en-IE").includes(normalizedSearch))
       : sectionsFor(member).includes(activeSectionFilter)
+        && (!normalizedSearch || member.displayName.toLocaleLowerCase("en-IE").includes(normalizedSearch))
   ));
 
   const currentMode = audience?.mode ?? "sections";
@@ -107,17 +108,36 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
           <TextField fullWidth label="Search authorized group members" value={search} onChange={(event) => setSearch(event.target.value)} sx={{ mb: 1 }} />
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Each result is added individually, even if the member belongs to another section.</Typography>
         </> : <>
-          <FormControl fullWidth sx={{ mb: 1 }}>
-            <InputLabel id="event-audience-section-filter-label">Section filter</InputLabel>
-            <Select labelId="event-audience-section-filter-label" label="Section filter" value={activeSectionFilter} disabled={disabled} onChange={(event) => setSectionFilter(event.target.value)}>
-              {sections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <Typography variant="body2" sx={{ mb: 0.75 }}>Choose a section to review its members. Selections stay in the audience when you switch sections.</Typography>
+          <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.75, mb: 1 }}>
+            {sections.map((section) => {
+              const eligible = members.filter((member) => member.status === "active" && sectionsFor(member).includes(section));
+              const selectedCount = eligible.filter((member) => selectedMemberIds.includes(member.id)).length;
+              return <Button
+                key={section}
+                size="small"
+                variant={section === activeSectionFilter ? "contained" : "outlined"}
+                aria-pressed={section === activeSectionFilter}
+                aria-label={`Open ${section} members, ${selectedCount} of ${eligible.length} selected`}
+                onClick={() => { setSectionFilter(section); setSearch(""); }}
+              >
+                {section} · {selectedCount}/{eligible.length}
+              </Button>;
+            })}
+          </Stack>
           <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
             <Button disabled={disabled || !activeSectionFilter} onClick={() => setVisibleMembers(true)}>Select all in {activeSectionFilter || "section"}</Button>
             <Button disabled={disabled || !activeSectionFilter} onClick={() => setVisibleMembers(false)}>Clear {activeSectionFilter || "section"}</Button>
           </Stack>
         </>}
+        <TextField
+          fullWidth
+          size="small"
+          label={addingOtherMembers ? "Search authorized group members" : `Search ${activeSectionFilter} members`}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ mb: 1 }}
+        />
         <Stack spacing={0.25} sx={{ maxHeight: 360, overflowY: "auto" }}>
           {visibleMembers.map((member) => <FormControlLabel key={member.id} control={<Checkbox disabled={disabled} checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={`${member.displayName} · ${sectionsFor(member).join(", ")}`} />)}
           {visibleMembers.length === 0 && <Typography variant="body2" color="text.secondary">No active members match this selection.</Typography>}
