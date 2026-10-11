@@ -57,7 +57,8 @@ export default function EventEditPage() {
     const originalAudience = event.audience ?? defaultEventAudienceForClassification(event.section, activeMembers);
     const nextAudience = buildEventAudience(draft.audience?.sectionIds ?? [], draft.audience?.memberIds ?? [], activeMembers);
     const nextMemberIds = new Set(nextAudience.resolvedMemberIds);
-    return originalAudience.resolvedMemberIds.filter((memberId) => !nextMemberIds.has(memberId)).length;
+    const visibleActiveIds = new Set(activeMembers.map((member) => member.id));
+    return originalAudience.resolvedMemberIds.filter((memberId) => visibleActiveIds.has(memberId) && !nextMemberIds.has(memberId)).length;
   }, [activeMembers, draft, event]);
   const saveDraft = useCallback(async (): Promise<boolean> => {
     if (saveInFlight.current) return saveInFlight.current;

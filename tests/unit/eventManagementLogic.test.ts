@@ -153,7 +153,7 @@ test("event audience membership writes are split below Firestore rules access-ca
 });
 
 test("event audience patterns resolve group, sections, partial sections and cross-section individuals by stable IDs", () => {
-    const allGroup = buildEventAudience(["Cubs", "Scouts"], [], members);
+    const allGroup = defaultEventAudienceForClassification("All Sections", members);
     assert.deepEqual(allGroup.resolvedMemberIds, ["m1", "m2", "m4"]);
 
     const multipleSections = buildEventAudience(["Cubs", "Scouts"], [], members);

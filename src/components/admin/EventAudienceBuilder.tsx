@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Box, Button, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
 
 import type { EventAudience } from "../../services/eventAdmin";
 import type { MemberRecord } from "../../services/memberAdmin";
@@ -97,12 +97,26 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
       </Stack>}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
         <Button disabled={disabled} variant="outlined" onClick={() => setEditingMembers((open) => !open)}>{editingMembers ? "Close member selection" : "Edit selection"}</Button>
-        <Button disabled={disabled} onClick={() => update([], [], "members")}>Clear all members</Button>
+        <Button disabled={disabled} onClick={() => update(selectedSectionIds, [], selectedSectionIds.length ? "sections" : "members")}>Clear all members</Button>
         <Button disabled={disabled} onClick={() => { setAddingOtherMembers((open) => !open); setEditingMembers(true); setSearch(""); }}>
           {addingOtherMembers ? "Close group search" : "Add other group members"}
         </Button>
       </Stack>
-      {selectedMemberIds.length > 0 && <Typography variant="body2" aria-live="polite" sx={{ mb: 1 }}>Selected: {selectedMemberIds.map((id) => members.find((member) => member.id === id)?.displayName).filter(Boolean).join(", ") || `${selectedMemberIds.length} member${selectedMemberIds.length === 1 ? "" : "s"}`}</Typography>}
+      {selectedMemberIds.length > 0 && <Box sx={{ mb: 1 }}>
+        <Typography variant="body2" aria-live="polite" sx={{ mb: 0.5 }}>Selected members ({selectedMemberIds.length})</Typography>
+        <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", gap: 0.5, maxHeight: 120, overflowY: "auto" }}>
+          {selectedMemberIds.map((id) => {
+            const member = members.find((candidate) => candidate.id === id);
+            return <Chip
+              key={id}
+              size="small"
+              label={member?.displayName ?? "Member no longer available"}
+              onDelete={disabled ? undefined : () => toggleMember(id)}
+              aria-label={member ? `Remove ${member.displayName} from audience` : "Remove unavailable member from audience"}
+            />;
+          })}
+        </Stack>
+      </Box>}
       {editingMembers && <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: { xs: 1, sm: 1.5 } }}>
         {addingOtherMembers ? <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Each result is added individually, even if the member belongs to another section.</Typography>
@@ -143,6 +157,7 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
         </Stack>
       </Box>}
     </>}
+    {resolved.resolvedMemberIds.length === 0 && <Alert severity="error" role="alert" sx={{ mt: 1 }}>Choose at least one eligible section or member before saving this event.</Alert>}
     <Typography variant="body2" data-testid="event-audience-summary" aria-live="polite" sx={{ mt: 1 }}>{summary}</Typography>
   </Box>;
 }
