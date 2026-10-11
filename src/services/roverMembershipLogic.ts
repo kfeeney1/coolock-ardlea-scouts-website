@@ -12,6 +12,11 @@ export function matchesRoverAdultIdentity(
     && memberEmail === adult.email.trim();
 }
 
+export function roverMembershipSections(sections: readonly string[], enabled: boolean): string[] {
+  const otherSections = [...new Set(sections.filter((section) => section !== "Rovers"))];
+  return enabled ? [...otherSections, "Rovers"] : otherSections;
+}
+
 export function matchingUnlinkedRoverMembers<T extends { id: string; accountUid?: unknown; displayName?: unknown; emailAddress?: unknown }>(
   records: T[],
   adult: RoverAdultIdentity
