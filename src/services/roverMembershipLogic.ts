@@ -12,7 +12,7 @@ export function matchesRoverAdultIdentity(
     && memberEmail === adult.email.trim();
 }
 
-export function matchingUnlinkedRoverMembers<T extends { accountUid?: unknown; displayName?: unknown; emailAddress?: unknown }>(
+export function matchingUnlinkedRoverMembers<T extends { id: string; accountUid?: unknown; displayName?: unknown; emailAddress?: unknown }>(
   records: T[],
   adult: RoverAdultIdentity
 ): T[] {
