@@ -152,7 +152,7 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
           sx={{ mb: 1 }}
         />
         <Stack spacing={0.25} sx={{ maxHeight: 360, overflowY: "auto" }}>
-          {visibleMembers.map((member) => <FormControlLabel key={member.id} control={<Checkbox disabled={disabled} checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={`${member.displayName} · ${sectionsFor(member).join(", ")}`} />)}
+          {visibleMembers.map((member) => <FormControlLabel key={member.id} data-testid={`event-audience-member-${member.id}`} control={<Checkbox disabled={disabled} checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={`${member.displayName} · ${sectionsFor(member).join(", ")}`} />)}
           {visibleMembers.length === 0 && <Typography variant="body2" color="text.secondary">No active members match this selection.</Typography>}
         </Stack>
       </Box>}

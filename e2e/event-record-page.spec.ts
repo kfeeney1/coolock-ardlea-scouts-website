@@ -264,7 +264,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await beaversSection.click();
   const beaversSearch = page.getByLabel("Search Beavers members");
   await beaversSearch.fill("Riley");
-  const rileyFromSection = page.getByRole("checkbox", { name: /Riley Nolan Beavers 01 · Beavers$/ });
+  const rileyFromSection = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
   await expect(rileyFromSection).toBeVisible();
   await rileyFromSection.check();
   await page.getByRole("button", { name: /^Open Cubs members/ }).click();
@@ -272,12 +272,12 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await page.getByRole("button", { name: "Add other group members", exact: true }).click();
   const memberSearch = page.getByLabel("Search authorized group members");
   await memberSearch.fill("Riley");
-  const selectedRiley = page.getByRole("checkbox", { name: /Riley Nolan Beavers 01 · Beavers$/ });
+  const selectedRiley = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
   await expect(selectedRiley).toBeVisible();
   await selectedRiley.check();
   await memberSearch.fill("");
-  const selectedCub = page.getByRole("checkbox", { name: /· Cubs$/ }).first();
-  const selectedScout = page.getByRole("checkbox", { name: /· Scouts$/ }).first();
+  const selectedCub = page.getByTestId("event-audience-member-TEST_member_cub_01").getByRole("checkbox");
+  const selectedScout = page.getByTestId("event-audience-member-TEST_member_scout_01").getByRole("checkbox");
   await expect(selectedCub).toBeVisible();
   await expect(selectedScout).toBeVisible();
   await selectedCub.check();
