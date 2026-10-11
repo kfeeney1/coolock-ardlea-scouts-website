@@ -55,7 +55,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
 
   await page.reload();
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
+  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryProfileName);
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   // The wizard opens at Applicant Details after reload. Advance through the
   // persisted values to confirm the renewal signature fields are still fresh.
