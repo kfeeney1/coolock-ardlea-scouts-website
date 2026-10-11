@@ -197,6 +197,8 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"], displayName: "Super Admin", email: "admin@example.com" }],
     ["adminUsers/cubs-leader", { active: true, role: "leader", sections: ["Cubs"], displayName: "Cubs Leader", email: "cubs@example.com" }],
     ["members/target-member", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", accountUid: "target-adult", status: "active", source: "manual" }],
+    ["members/unlinked-target", { firstName: "Target", lastName: "Adult", displayName: "Target Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "target@example.com", status: "active", source: "manual" }],
+    ["members/mismatched-target", { firstName: "Different", lastName: "Adult", displayName: "Different Adult", dateOfBirth: "", section: "Cubs", sections: ["Cubs"], sectionRoles: {}, emailAddress: "different@example.com", status: "active", source: "manual" }],
   ]);
   const change = (actor) => ({ accountUid: "target-adult", section: "Cubs", sections: ["Cubs", "Rovers"], sectionRoles: {}, status: "active", updatedAt: serverTimestamp(), updatedBy: actor, roverManagementAt: serverTimestamp() });
   for (const actor of ["rover-section-leader", "group-leader", "super-admin"]) {
@@ -208,6 +210,14 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
   }
   const denied = testEnv.authenticatedContext("cubs-leader", { email: "cubs@example.com" }).firestore();
   await assertFails(updateDoc(doc(denied, "members/target-member"), change("cubs-leader")));
+
+  const superDb = testEnv.authenticatedContext("super-admin", { email: "admin@example.com" }).firestore();
+  await assertSucceeds(updateDoc(doc(superDb, "members/unlinked-target"), {
+    ...change("super-admin"), emailAddress: "target@example.com"
+  }));
+  await assertFails(updateDoc(doc(superDb, "members/mismatched-target"), {
+    ...change("super-admin"), emailAddress: "target@example.com"
+  }));
 });
 
 test("a reserved Rover ID cannot overwrite an unrelated member record", async () => {
