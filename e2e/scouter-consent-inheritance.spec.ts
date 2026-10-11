@@ -34,8 +34,8 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   // on renewal even though the registration/profile defaults still have the old value.
   await page.locator('input[name="mobile"]').fill("0855550000");
   await advance(page);
-  await page.getByLabel("Name", { exact: true }).fill("Test Emergency Contact");
-  await page.getByLabel("Mobile", { exact: true }).fill("0871234567");
+  await page.locator('input[name="nextOfKinName"]').fill("Test Emergency Contact");
+  await page.locator('input[name="nextOfKinMobile"]').fill("0871234567");
   await advance(page);
   for (const condition of ["Epilepsy", "Diabetes", "Asthma", "Heart Disease", "High Blood Pressure", "Skin Allergies", "Hearing Difficulties"]) {
     await page.getByText(condition, { exact: true }).locator("..").getByRole("radio", { name: "No" }).check();
