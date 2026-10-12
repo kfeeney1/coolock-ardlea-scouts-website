@@ -29,8 +29,10 @@ function memberStatus(value: unknown): "active" | "inactive" | "left" {
 
 function isActiveRoverSectionLeader(organisation: DocumentData | null): boolean {
   if (!organisation || organisation.active !== true) return false;
+  const currentRoleIsRoverLeader = organisation.scoutingRole === "Section Leader"
+    && organisation.organisationSection === "Rovers";
   const appointments = Array.isArray(organisation.appointments) ? organisation.appointments : [];
-  return appointments.some((item) => item && typeof item === "object"
+  return currentRoleIsRoverLeader || appointments.some((item) => item && typeof item === "object"
     && item.active !== false && item.appointment === "Section Leader" && item.scope === "Rovers");
 }
 
