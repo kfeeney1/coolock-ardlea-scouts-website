@@ -1,11 +1,7 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
-
-function desktopOnly(testInfo: TestInfo) {
-  test.skip(testInfo.project.name !== "chromium", "Event record navigation runs once on desktop Chromium.");
-}
 
 async function loginAdmin(page: Page) {
   await page.goto("/leader/login");
