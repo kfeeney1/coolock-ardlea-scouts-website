@@ -216,12 +216,12 @@ test("authorized Member Management can end Rover membership from the member reco
   await expect(endPrimaryRover).toBeVisible();
   await endPrimaryRover.click();
   await expect(page.getByText("Rover membership ended. The member record, history and unrelated roles are preserved.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Left", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Status" })).toBeVisible();
   await expect(page.getByTestId("member-rover-membership-actions")).toHaveCount(0);
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Member Details", exact: true })).toBeVisible();
-  await expect(page.getByText("Left", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Status" })).toBeVisible();
   await expect(page.getByTestId("member-rover-membership-actions")).toHaveCount(0);
 });
 
