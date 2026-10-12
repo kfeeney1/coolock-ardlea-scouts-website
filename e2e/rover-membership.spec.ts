@@ -208,7 +208,11 @@ test("Rover Section Leader can designate and remove a member on mobile", async (
   const row = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   await expect(row.getByRole("button", { name: "Designate Rover" })).toBeVisible();
   await row.getByRole("button", { name: "Designate Rover" }).click();
-  await expect(row.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  try {
+    await expect(row.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  } catch {
+    throw new Error(`Unable to designate Rover on mobile: ${await dialog.innerText()}`);
+  }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await dialog.getByRole("button", { name: "Close" }).click();
 
