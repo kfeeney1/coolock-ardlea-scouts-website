@@ -159,7 +159,12 @@ test("authorized Member Management can end Rover membership from the member reco
   await endMembership.click();
   const noLongerInScope = page.getByText("Rover membership ended and the member record is no longer in your section scope.", { exact: true });
   const remainsInScope = page.getByText("Rover membership ended. The member record, history and unrelated roles are preserved.", { exact: true });
-  await expect(noLongerInScope.or(remainsInScope)).toBeVisible();
+  try {
+    await expect(noLongerInScope.or(remainsInScope)).toBeVisible();
+  } catch {
+    const pageText = await page.locator("body").innerText();
+    throw new Error(`Rover removal result: ${pageText}`);
+  }
   if (await noLongerInScope.isVisible().catch(() => false)) {
     await expect(memberDetailsHeading).toBeHidden();
   } else {
