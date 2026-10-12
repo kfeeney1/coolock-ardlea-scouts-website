@@ -12,9 +12,9 @@ import BadgeworkGroupCompetencyControls from "../components/admin/BadgeworkGroup
 import BadgeworkSavePanel from "../components/admin/BadgeworkSavePanel.tsx";
 import BadgeworkTrackingDialogs from "../components/admin/BadgeworkTrackingDialogs.tsx";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Checkbox, Chip, CircularProgress, Container,
-  FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
-  Select, Stack, TextField, Typography
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress, Container,
+  FormControl, InputLabel, MenuItem, Paper,
+  Select, Stack, Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
