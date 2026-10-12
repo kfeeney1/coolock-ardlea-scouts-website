@@ -204,7 +204,7 @@ test("future start opens the shared end calendar at a valid date and only applie
   await page.goto("/leader/events/create");
 
   const start = page.getByLabel("Start date");
-  const end = page.getByLabel("End date");
+  const end = page.getByRole("textbox", { name: "End date", exact: true });
   await expect(end).toBeDisabled();
   await start.fill("2099-04-02");
   await expect(end).toBeEnabled();
@@ -277,7 +277,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
   await page.getByLabel("Start date").fill("2099-05-10");
-  await page.getByLabel("End date").fill("10-05-2099");
+  await page.getByRole("textbox", { name: "End date", exact: true }).fill("10-05-2099");
   await page.getByLabel("Location").fill("TEST full-page location");
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Open", exact: true }).click();
@@ -298,10 +298,10 @@ test("full-page Create Event preserves fields and audience and saves to the even
   const eventId = page.url().split("/").at(-1)!;
   await page.goto(`/leader/events/${encodeURIComponent(eventId)}/edit`);
   await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
-  await expect(page.getByLabel("End date")).toHaveValue("10-05-2099");
+  await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("10-05-2099");
   await page.getByLabel("Start date").fill("2099-05-11");
-  await expect(page.getByLabel("End date")).toHaveValue("");
-  await page.getByLabel("End date").fill("09-05-2099");
+  await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("");
+  await page.getByRole("textbox", { name: "End date", exact: true }).fill("09-05-2099");
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("End date cannot be before the start date");
 });
