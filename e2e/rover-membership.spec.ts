@@ -140,7 +140,7 @@ test("authorized Member Management can end Rover membership from the member reco
 
   const memberDetailsHeading = page.getByRole("heading", { name: "Member Details", exact: true });
   await expect(memberDetailsHeading).toBeVisible();
-  const memberRecordDialog = memberDetailsHeading;
+  const memberRecordDialog = page.getByTestId("member-rover-eligibility");
   const roverEligibility = await memberRecordDialog.evaluate((element) => ({
     status: element.getAttribute("data-member-status"),
     hasRovers: element.getAttribute("data-member-has-rovers"),
