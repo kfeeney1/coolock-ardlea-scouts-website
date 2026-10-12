@@ -18,7 +18,7 @@ test("SW-290 mobile WhatsApp share includes meeting Badgework", async ({ page },
   await page.goto("/leader/weekly");
   const meeting = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
   await expect(meeting).toBeVisible();
-  await meeting.getByRole("button", { name: /View/ }).click();
+  await meeting.getByRole("link", { name: /View/ }).click();
 
   const share = page.getByTestId("weekly-whatsapp-share");
   await expect(share).toBeEnabled();
