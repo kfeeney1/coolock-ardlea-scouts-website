@@ -37,3 +37,11 @@ test("date-only consent fields and timestamps use explicit presentation helpers"
   assert.equal(displayFieldValue("updatedAt", "2026-10-03T16:34:00Z"), "03-10-2026, 17:34");
   assert.equal(formatSiteDateTime("2026-09-29"), "29-09-2026");
 });
+
+test("monthly float report presents period labels and retains canonical keys only for identity", () => {
+  const reportPath = new URL("../../src/components/admin/FinanceReportsPanel.tsx", import.meta.url);
+  const source = readFileSync(reportPath, "utf8");
+  assert.match(source, /formatSiteMonth\(item\.month\)/);
+  assert.doesNotMatch(source, />\s*\{item\.month\}\s*</);
+  assert.match(source, /whiteSpace:\s*"nowrap"/);
+});

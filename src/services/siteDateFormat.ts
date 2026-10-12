@@ -2,6 +2,10 @@ type DateInput = Date | number | string;
 
 const SITE_DATE_LOCALE = "en-GB";
 const SITE_TIME_ZONE = "Europe/Dublin";
+const SITE_MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 let installed = false;
 
 const intlFormatDescriptor = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype, "format");
@@ -43,6 +47,14 @@ export function formatSiteDate(value: DateInput, timeZone?: string): string {
     timeZone: timeZone ?? SITE_TIME_ZONE
   });
   return nativeFormat(formatter, date).replaceAll("/", "-");
+}
+
+/** Formats a canonical YYYY-MM period without inventing a calendar day. */
+export function formatSiteMonth(value: string | null | undefined): string {
+  if (!value) return "Month unavailable";
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+  if (!match || Number(match[1]) === 0) return "Month unavailable";
+  return `${SITE_MONTH_NAMES[Number(match[2]) - 1]} ${match[1]}`;
 }
 
 /** Formats an instant with the site's calendar date and stable Irish local time. */
