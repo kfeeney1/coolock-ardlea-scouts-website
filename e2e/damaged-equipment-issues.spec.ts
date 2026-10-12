@@ -155,6 +155,18 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await expect(firstAlert).toHaveAttribute("href", `/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
   await expect(secondAlert).toHaveAttribute("href", `/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(secondAlert).toBeVisible();
+  // The same long equipment details also appear on the leader dashboard.
+  // Their text must stay inside the clickable tile, clear of neighbouring cards.
+  await expect.poll(() => firstAlert.evaluate((tile) => {
+    const bounds = tile.getBoundingClientRect();
+    return tile.scrollWidth <= tile.clientWidth + 1
+      && Array.from(tile.querySelectorAll(".MuiTypography-root")).every((text) => {
+        const rect = text.getBoundingClientRect();
+        return rect.left >= bounds.left && rect.right <= bounds.right
+          && rect.top >= bounds.top && rect.bottom <= bounds.bottom
+          && text.scrollWidth <= text.clientWidth + 1;
+      });
+  })).toBe(true);
   await secondAlert.getByText(secondDescription).click();
   await expect(page).toHaveURL(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`)).toContainText(secondDescription);
