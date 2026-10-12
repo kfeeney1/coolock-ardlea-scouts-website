@@ -11,7 +11,7 @@ function actorFor(uid: string, role: string, sections: string[], scoutingRole: s
   return { uid, role, sections, scoutingRole };
 }
 
-export default function LeaderPollsPanel() {
+export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boolean }) {
   const { adminProfile } = useAdminAuth();
   const actor = useMemo(() => adminProfile ? actorFor(adminProfile.uid, adminProfile.role, adminProfile.sections, adminProfile.scoutingRole) : null, [adminProfile]);
   const groupManager = Boolean(actor && (actor.role === "admin" || actor.role === "super-admin" || canManagePollForLeader({ scopeType: "group", scopeSections: [...GROUP_POLL_SECTIONS] }, actor)));
@@ -123,7 +123,7 @@ export default function LeaderPollsPanel() {
   const manageable = polls.filter((poll) => actor && canManagePollForLeader(poll, actor));
   const leaderAudience = polls.filter((poll) => poll.audienceType === "leaders" && poll.status === "published");
   return <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 3 }} data-testid="leader-polls">
-    <Typography component="h2" variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Group Polls</Typography>
+    {showTitle && <Typography component="h2" variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Group Polls</Typography>}
     {error && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{error}</Alert>}
     {message && <Alert severity="success" role="status" sx={{ mb: 2 }}>{message}</Alert>}
     <Stack spacing={1.5} sx={{ mb: 3 }} data-testid="poll-create-form">

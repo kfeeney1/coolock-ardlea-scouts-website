@@ -116,7 +116,7 @@ test("communications, role, device and keyboard navigation assertions remain reg
 
 
 test("SW-357 dashboard, navigation and poll implementation changes always select poll regression coverage", () => {
-  for (const path of ["src/pages/AdminDashboard.tsx", "src/navigation/leaderNavigation.ts", "src/components/admin/LeaderDashboardHeader.tsx", "src/components/admin/LeaderPollsPanel.tsx", "src/services/polls.ts", "src/services/pollLogic.ts", "src/components/parent/ParentPollsSection.tsx"]) {
+  for (const path of ["src/App.tsx", "src/pages/AdminDashboard.tsx", "src/pages/LeaderPollsPage.tsx", "src/navigation/leaderNavigation.ts", "src/components/admin/LeaderDashboardHeader.tsx", "src/components/admin/LeaderPollsPanel.tsx", "src/services/polls.ts", "src/services/pollLogic.ts", "src/components/parent/ParentPollsSection.tsx"]) {
     const groups = selectFocusedGroups([path]);
     assert.ok(groups.has("polls"), `${path} must select polls`);
     assert.ok(groups.has("navigation"), `${path} must select navigation`);
