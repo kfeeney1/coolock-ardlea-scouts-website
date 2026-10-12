@@ -34,6 +34,8 @@ export default function MemberRecordPage() {
   const [draft, setDraft] = useState<MemberRecord | null>(null);
   const [history, setHistory] = useState<MemberLifecycleHistoryRecord[]>([]);
   const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
+  const [historyError, setHistoryError] = useState("");
+  const [consentError, setConsentError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusConfirmationOpen, setStatusConfirmationOpen] = useState(false);
@@ -46,6 +48,8 @@ export default function MemberRecordPage() {
   const load = async () => {
     setLoading(true);
     setError("");
+    setHistoryError("");
+    setConsentError("");
     setStatusConfirmationOpen(false);
     setLifecycleCandidates([]);
     try {
@@ -60,12 +64,26 @@ export default function MemberRecordPage() {
       }
       setMember(found);
       setDraft({ ...found });
-      const [loadedHistory, loadedConsents] = await Promise.all([
+      const [historyResult, consentResult] = await Promise.allSettled([
         loadMemberLifecycleHistory(found.id),
         loadMemberConsentSummaries(found)
       ]);
-      setHistory(loadedHistory);
-      setConsents(loadedConsents);
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Load member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Load member consent summaries" });
+      }
     } catch (loadError) {
       setError(applicationErrorMessage(loadError, "Unable to load this member record.", "MemberRecordPage"));
     } finally {
@@ -112,13 +130,27 @@ export default function MemberRecordPage() {
       }
       setMember(updated);
       setDraft({ ...updated });
-      const [updatedHistory, updatedConsents] = await Promise.all([
+      setMessage("Rover membership ended. The member record, history and unrelated roles are preserved.");
+      const [historyResult, consentResult] = await Promise.allSettled([
         loadMemberLifecycleHistory(updated.id),
         loadMemberConsentSummaries(updated)
       ]);
-      setHistory(updatedHistory);
-      setConsents(updatedConsents);
-      setMessage("Rover membership ended. The member record, history and unrelated roles are preserved.");
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Refresh member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Refresh member consent summaries" });
+      }
     } catch (failure) {
       setError(applicationErrorMessage(failure, "Unable to end Rover membership.", "MemberRecordPage"));
     } finally {
@@ -266,11 +298,13 @@ export default function MemberRecordPage() {
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-consent-medical-indicators">
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Consent & Medical Indicators</Typography>
+          {consentError && <Alert severity="warning" sx={{ mb: 2 }}>{consentError}</Alert>}
           {consents.length === 0 ? <Alert severity="info">No linked consent records were found for this member.</Alert> : <Stack spacing={1.5}>{consents.map((consent) => <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{consent.consentTo ? `Consent valid to ${formatSiteDate(consent.consentTo)}` : "General consent"}</Typography><Typography color="text.secondary">Submitted {formatDate(consent.submittedAt)}</Typography><Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: "wrap", minWidth: 0 }}><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicalAlert ? "Medical information recorded" : "No medical alert"} color={consent.hasMedicalAlert ? "warning" : "default"} aria-label={`Open consent and medical details${consent.consentTo ? ` valid to ${formatSiteDate(consent.consentTo)}` : ""}`} data-testid={`open-consent-medical-${consent.consentId}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 44, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicationManagement ? "Medication management" : "No medication management"} color={consent.hasMedicationManagement ? "warning" : "default"} aria-label={`Open medication and consent details${consent.consentTo ? ` valid to ${formatSiteDate(consent.consentTo)}` : ""}`} data-testid={`open-medication-${consent.consentId}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 44, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /></Stack></Paper>)}</Stack>}
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Member History</Typography>
+          {historyError && <Alert severity="warning" sx={{ mb: 2 }}>{historyError}</Alert>
           <Typography color="text.secondary" sx={{ mb: 2 }}>Section transfers and membership status changes are append-only and remain with this member.</Typography>
           {history.length === 0 ? <Alert severity="info">No section transfers or membership status changes have been recorded yet.</Alert> : <Stack spacing={1.5}>{history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{lifecycleChangeLabel(entry.changeType)}</Typography><Typography color="text.secondary" sx={{ mt: 0.5 }}>{entry.fromSection || "No section"} / {entry.fromStatus} → {entry.toSection || "No section"} / {entry.toStatus}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{formatDate(entry.changedAt)}</Typography></Paper>)}</Stack>}
         </Paper>
