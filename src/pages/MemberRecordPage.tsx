@@ -224,12 +224,26 @@ export default function MemberRecordPage() {
       setMember(updated);
       setDraft(updated);
       setMembers(persistedMembers);
-      const [nextHistory, nextConsents] = await Promise.all([
+      const [historyResult, consentResult] = await Promise.allSettled([
         loadMemberLifecycleHistory(member.id),
         loadMemberConsentSummaries(updated)
       ]);
-      setHistory(nextHistory);
-      setConsents(nextConsents);
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Refresh member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Refresh member consent summaries" });
+      }
 
       if (disableParents && lifecycleCandidates.length > 0) {
         const results = await Promise.allSettled(lifecycleCandidates.map(({ parent }) => disableParentPortalAccess(
@@ -304,7 +318,7 @@ export default function MemberRecordPage() {
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Member History</Typography>
-          {historyError && <Alert severity="warning" sx={{ mb: 2 }}>{historyError}</Alert>
+          {historyError && <Alert severity="warning" sx={{ mb: 2 }}>{historyError}</Alert>}
           <Typography color="text.secondary" sx={{ mb: 2 }}>Section transfers and membership status changes are append-only and remain with this member.</Typography>
           {history.length === 0 ? <Alert severity="info">No section transfers or membership status changes have been recorded yet.</Alert> : <Stack spacing={1.5}>{history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{lifecycleChangeLabel(entry.changeType)}</Typography><Typography color="text.secondary" sx={{ mt: 0.5 }}>{entry.fromSection || "No section"} / {entry.fromStatus} → {entry.toSection || "No section"} / {entry.toStatus}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{formatDate(entry.changedAt)}</Typography></Paper>)}</Stack>}
         </Paper>
