@@ -155,6 +155,8 @@ export function suitesForChangedPath(file) {
     "scripts/seed-playwright-records.mjs"
   ].includes(file)) return ["members-parents-consent"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
+  // Rover membership must always receive its focused lifecycle and permission coverage.
+  if (/rover/i.test(file) && (file.startsWith("src/") || file.startsWith("tests/"))) return ["members-parents-consent", "authentication-rbac"];
   if (file === "src/components/admin/LeaderChildLinksSection.tsx") return ["authentication-rbac"];
   if (file === "src/components/admin/EquipmentItemFormDialog.tsx") return ["equipment"];
   if (file === "src/components/admin/BadgeworkTrackingDialogs.tsx") return ["badgework"];
