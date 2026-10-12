@@ -201,6 +201,8 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
     ["adminUsers/target-adult", { active: true, role: "leader", sections: ["Cubs"], displayName: "Target Adult", email: "target@example.com" }],
     ["adminUsers/rover-section-leader", { active: true, role: "leader", sections: ["Rovers"], displayName: "Rover SL", email: "roversl@example.com" }],
     ["organisationLeadership/rover-section-leader", { active: true, scoutingRole: "Section Leader", appointments: [{ appointment: "Section Leader", scope: "Rovers", active: true }] }],
+    ["adminUsers/appointed-rover-section-leader", { active: true, role: "leader", sections: ["Rovers"], displayName: "Appointed Rover SL", email: "appointed-roversl@example.com" }],
+    ["organisationLeadership/appointed-rover-section-leader", { active: true, scoutingRole: "Programme Scouter", appointments: [{ appointment: "Section Leader", scope: "Rovers", active: true }] }],
     ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Group"], displayName: "Group Leader", email: "gl@example.com" }],
     ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"], displayName: "Super Admin", email: "admin@example.com" }],
@@ -227,6 +229,12 @@ test("Rover Section Leader, Group Leader and super-admin may manage Rover member
       await updateDoc(doc(context.firestore(), "members/target-member"), { section: "Cubs", sections: ["Cubs"], updatedBy: "reset" });
     });
   }
+  const appointedRoverLeader = testEnv.authenticatedContext("appointed-rover-section-leader", { email: "appointed-roversl@example.com" }).firestore();
+  await assertSucceeds(updateDoc(doc(appointedRoverLeader, "members/target-member"), change("appointed-rover-section-leader")));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), "members/target-member"), { section: "Cubs", sections: ["Cubs"], updatedBy: "reset" });
+  });
+
   const denied = testEnv.authenticatedContext("cubs-leader", { email: "cubs@example.com" }).firestore();
   await assertFails(updateDoc(doc(denied, "members/target-member"), change("cubs-leader")));
   const programmeScouter = testEnv.authenticatedContext("cubs-programme-scouter", { email: "programme@example.com" }).firestore();
