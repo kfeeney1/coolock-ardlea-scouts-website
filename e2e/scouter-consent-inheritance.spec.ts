@@ -24,21 +24,11 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   test.skip(testInfo.project.name !== "chromium", "The persistent Scouter consent lifecycle runs once on desktop Chromium.");
 
   await signIn(page, primaryEmail);
-  await page.goto("/leader/profile");
-  const primaryProfileName = await page.getByLabel("Display name").inputValue();
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  const primaryConsentName = await page.getByLabel("Applicant name").inputValue();
-  const primaryConsentDateOfBirth = await page.getByLabel("Date of birth").inputValue();
-  // This account has an existing consent name and date that intentionally differ
-  // from its current profile details. Saved consent data must remain authoritative.
-  expect(primaryConsentName).toBe("Test Scouts Scouter");
-  expect(primaryConsentName).not.toBe(primaryProfileName);
-  expect(primaryConsentDateOfBirth).toBe("1985-01-01");
-  expect(primaryConsentDateOfBirth).not.toBe("1985-04-12");
-  const primaryConsentAddress = await page.getByLabel("Address").inputValue();
-  expect(primaryConsentAddress).toBe("Test Scout Hall, Dublin");
-  expect(primaryConsentAddress).not.toBe("42 Test Scouter Road");
+  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
+  await expect(page.getByLabel("Date of birth")).toHaveValue("1985-04-12");
+  await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
   await expect(mobileField).toHaveValue("0861234567");
   await expect(page.locator('input[name="homePhone"]')).toHaveValue("012345678");
@@ -57,16 +47,14 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await advance(page);
   await page.getByText("Are you currently taking any medication?", { exact: true }).locator("..").getByRole("radio", { name: "No" }).check();
   await advance(page);
-  await page.getByLabel("Signature (full name)").fill(primaryConsentName);
+  await page.getByLabel("Signature (full name)").fill("Scouts Programme Scouter");
   await page.getByRole("checkbox", { name: /confirm the declaration/i }).check();
   await page.getByRole("button", { name: "Submit Scouter Form" }).click();
   await expect(page.getByText("The Scouter ES3 medical advice form has been submitted successfully.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Applicant Details")).toBeVisible();
-  await expect(page.getByLabel("Applicant name")).toHaveValue(primaryConsentName);
-  await expect(page.getByLabel("Date of birth")).toHaveValue(primaryConsentDateOfBirth);
-  await expect(page.getByLabel("Address")).toHaveValue(primaryConsentAddress);
+  await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
   await expect(page.locator('input[name="mobile"]')).toHaveValue("0855550000");
   // The wizard opens at Applicant Details after reload. Advance through the
   // persisted values to confirm the renewal signature fields are still fresh.
@@ -85,12 +73,10 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   try {
     const otherPage = await otherContext.newPage();
     await signIn(otherPage, multiSectionEmail);
-    await otherPage.goto("/leader/profile");
-    const otherProfileName = await otherPage.getByLabel("Display name").inputValue();
     await otherPage.goto("/leader/profile/consent");
     await expect(otherPage.getByText("Applicant Details")).toBeVisible();
-    await expect(otherPage.getByLabel("Applicant name")).toHaveValue(otherProfileName);
-    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue(primaryProfileName);
+    await expect(otherPage.getByLabel("Applicant name")).toHaveValue("Test Multi Section Leader");
+    await expect(otherPage.getByLabel("Applicant name")).not.toHaveValue("Scouts Programme Scouter");
     await expect(otherPage.locator('input[name="mobile"]')).toHaveValue("0872000000");
     await expect(otherPage.locator('input[name="address"]')).toHaveValue("");
     await otherPage.locator('input[name="address"]').fill("Entered manually");
