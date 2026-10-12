@@ -157,13 +157,8 @@ test("authorized Member Management can end Rover membership from the member reco
   try {
     await expect(endMembership).toBeVisible();
   } catch {
-    const editorState = await page.locator("[data-testid=member-editor-state]").evaluate((element) => ({
-      selectedStatus: element.getAttribute("data-selected-status"),
-      selectedSections: element.getAttribute("data-selected-sections"),
-      draftStatus: element.getAttribute("data-draft-status"),
-      draftSections: element.getAttribute("data-draft-sections")
-    }));
-    throw new Error(`Rover editor state: ${JSON.stringify({ roverEligibility, editorState })}`);
+    const pageText = await page.locator("body").innerText();
+    throw new Error(`Rover editor state: ${JSON.stringify({ roverEligibility, pageText })}`);
   }
   await endMembership.click();
   await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
