@@ -1409,6 +1409,7 @@ service cloud.firestore {
       allow create: if isActiveLeader()
         && (canManageEquipment() || hasSection(request.resource.data.section))
         && request.resource.data.section is string
+        && request.resource.data.section.matches('.*[^\\s].*')
         && request.resource.data.expectedReturnDate is string
         && request.resource.data.notes is string
         && request.resource.data.status == "open"

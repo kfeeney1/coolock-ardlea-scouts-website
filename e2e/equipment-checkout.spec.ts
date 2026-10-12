@@ -144,8 +144,33 @@ test("missing checkout equipment can be investigated and resolved back into stoc
 
   await page.getByRole("button", { name: "Check out equipment" }).click();
   const checkoutDialog = page.getByRole("dialog", { name: "Check out equipment" });
+  // Validate from the bottom of a long dialog on desktop and Android.
+  // The page-level alert is behind the modal and cannot guide this correction.
+  const sectionField = checkoutDialog.getByTestId("checkout-section-field");
+  const sectionSelect = sectionField.getByRole("combobox");
+  const quantityField = checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` });
+  await expect(sectionField.locator("input")).toHaveValue("");
+  await quantityField.fill("2");
+  await checkoutDialog.getByLabel("Checkout notes").fill("SW-364 preserve checkout details");
+  await checkoutDialog.getByLabel("Expected return date").fill("2030-08-31");
+  await quantityField.scrollIntoViewIfNeeded();
+  await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(checkoutDialog).toBeVisible();
+  await expect(sectionField.getByRole("alert")).toHaveText("Select a section.");
+  await expect(sectionSelect).toHaveAttribute("aria-invalid", "true");
+  await expect(sectionField.locator("label")).toHaveClass(/Mui-error/);
+  await expect(sectionField.locator(".MuiOutlinedInput-root")).toHaveClass(/Mui-error/);
+  await expect(sectionSelect).toBeFocused();
+  await expect(sectionSelect).toBeInViewport();
+  await expect(sectionField.getByRole("alert")).toBeInViewport();
+  await expect(quantityField).toHaveValue("2");
+  await expect(checkoutDialog.getByLabel("Checkout notes")).toHaveValue("SW-364 preserve checkout details");
+  await expect(checkoutDialog.getByLabel("Expected return date")).toHaveValue("2030-08-31");
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
+  await expect(sectionField.getByRole("alert")).toHaveCount(0);
+  await expect(sectionSelect).not.toHaveAttribute("aria-invalid", "true");
+  await expect(sectionField.locator("label")).not.toHaveClass(/Mui-error/);
   const checkoutRow = checkoutDialog.locator('[data-testid^="equipment-checkout-item-"]').filter({ hasText: incidentName });
   await checkoutDialog.getByRole("spinbutton", { name: `Qty for ${incidentName}` }).fill("2");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();

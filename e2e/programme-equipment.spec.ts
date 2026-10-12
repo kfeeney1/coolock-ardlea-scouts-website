@@ -48,11 +48,22 @@ test("section Scouter can check equipment in and out from Programme without QM m
     break;
   }
   expect(itemName).not.toBe("");
-  const sectionSelect = checkoutDialog.getByRole("combobox").first();
-  if (!(await sectionSelect.innerText()).trim()) {
-    await sectionSelect.click();
-    await page.getByRole("option").first().click();
-  }
+  const sectionField = checkoutDialog.getByTestId("checkout-section-field");
+  const sectionSelect = sectionField.getByRole("combobox", { name: "Section" });
+  // A single-section Scouter must also make an explicit choice. MUI's empty
+  // display contains a zero-width placeholder, so do not infer value from text.
+  await expect(sectionField.locator("input")).toHaveValue("");
+  await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
+  await expect(sectionField.getByRole("alert")).toHaveText("Select a section.");
+  await expect(sectionSelect).toHaveAttribute("aria-invalid", "true");
+  await expect(sectionSelect).toBeFocused();
+  await expect(sectionSelect).toBeInViewport();
+  await expect(checkoutDialog.getByTestId(`equipment-checkout-item-${itemId}`).getByRole("spinbutton")).toHaveValue("1");
+  await sectionSelect.click();
+  await expect(page.getByRole("option", { name: "Cubs", exact: true })).toHaveCount(0);
+  await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await expect(sectionField.getByRole("alert")).toHaveCount(0);
+  await expect(sectionSelect).not.toHaveAttribute("aria-invalid", "true");
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeHidden();
 
