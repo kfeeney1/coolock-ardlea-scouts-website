@@ -36,6 +36,7 @@
     "/leader/login": "leader-entry",
     "/leader/register": "leader-entry",
     "/leader": "leader",
+    "/leader/polls": "leader",
     "/leader/requests": "admin",
     "/leader/access": "admin",
     "/leader/roles": "leader-read-only-permission-catalogue",

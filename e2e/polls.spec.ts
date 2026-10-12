@@ -3,6 +3,11 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const adminEmail = process.env.E2E_SUPER_ADMIN_EMAIL;
 const password = process.env.E2E_TEST_USER_PASSWORD;
+const eligibleLeaders = [
+  { role: "Superuser", email: adminEmail || "superadmin@example.com" },
+  { role: "Cubs leader", email: process.env.E2E_CUBS_SECTION_LEADER_EMAIL || "test.cub.section.leader@example.com" },
+  { role: "Group Leader", email: process.env.E2E_GROUP_LEADER_EMAIL || "test.group.leader@example.com" }
+];
 
 async function login(page: Page, path: string, email: string) {
   await page.goto(path);
@@ -60,14 +65,16 @@ test.describe("dashboard polls", () => {
     const pollCard = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
     await expect(pollCard).toBeVisible();
     await expect(pollCard.getByRole("button", { name: "Publish poll" })).toBeVisible();
-    await pollCard.getByRole("button", { name: "Publish poll" }).click();
-    await expect(pollCard.getByText(/published/i)).toBeVisible();
 
-    // Use a separate browser context: navigating an authenticated leader tab to
-    // /parent does not sign out the leader and therefore shows no login form.
     const parentContext = await browser.newContext();
     const parentPage = await parentContext.newPage();
     await login(parentPage, "/parent", parentEmail!);
+    await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
+
+    await pollCard.getByRole("button", { name: "Publish poll" }).click();
+    await expect(pollCard.getByText(/published/i)).toBeVisible();
+
+    await parentPage.reload();
     const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(parentPoll).toBeVisible();
     await parentPoll.getByRole("radio", { name: "Outdoor activity" }).check();
@@ -77,11 +84,27 @@ test.describe("dashboard polls", () => {
     const restoredPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(restoredPoll.getByRole("radio", { name: "Outdoor activity" })).toBeChecked();
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    await expect(restoredPoll.getByRole("button", { name: "View results" })).toHaveCount(0);
 
-    await parentContext.close();
+    await restoredPoll.getByRole("radio", { name: "Indoor activity" }).check();
+    await restoredPoll.getByRole("button", { name: "Save changed response" }).click();
+    await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    await parentPage.reload();
+    const amendedPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
+    await expect(amendedPoll.getByRole("radio", { name: "Indoor activity" })).toBeChecked();
+
     const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+    await cleanupPoll.getByRole("button", { name: "View results" }).click();
+    const aggregate = cleanupPoll.getByTestId(/^poll-results-/);
+    await expect(aggregate).toContainText("Results · 1 response(s)");
+    await expect(aggregate).toContainText("Outdoor activity: 0");
+    await expect(aggregate).toContainText("Indoor activity: 1");
     await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
     await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();
+    await expect(cleanupPoll.getByRole("button", { name: "View results" })).toBeVisible();
+    await parentPage.reload();
+    await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
+    await parentContext.close();
   });
 
   test("the parent poll dashboard fits desktop and mobile viewports", async ({ page }, testInfo) => {
@@ -96,15 +119,46 @@ test.describe("dashboard polls", () => {
 });
 
 
-test("SW-357 leader dashboard exposes Group Polls through its navigation on desktop and mobile", async ({ page }, testInfo) => {
-  test.skip(!adminEmail || !password, "Configure super-admin E2E credentials.");
-  await page.setViewportSize(testInfo.project.name === "mobile-chromium" ? { width: 393, height: 852 } : { width: 1440, height: 960 });
-  await login(page, "/leader/login", adminEmail!);
-  await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
-  if (testInfo.project.name === "mobile-chromium") await page.getByRole("button", { name: "Programme", exact: true }).click();
-  await expect(page.getByTestId("leader-nav-group-polls").filter({ visible: true })).toBeVisible();
-  await page.getByTestId("leader-nav-group-polls").filter({ visible: true }).click();
-  await expect(page).toHaveURL(/\/leader#group-polls$/);
-  await expect(page.getByTestId("leader-polls")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Group Polls" })).toBeVisible();
+for (const account of eligibleLeaders) {
+  test(`SW-357 ${account.role} reaches the distinct Group Polls page from navigation, direct URL, reload and Back`, async ({ page }, testInfo) => {
+    test.skip(!password, "Configure the approved E2E leader password.");
+    await page.setViewportSize(testInfo.project.name === "mobile-chromium" ? { width: 393, height: 852 } : { width: 1440, height: 960 });
+    await login(page, "/leader/login", account.email);
+
+    await page.goto("/leader/polls");
+    await expect(page).toHaveURL(/\/leader\/polls$/);
+    await expect(page.getByRole("heading", { name: "Group Polls", level: 1 })).toBeVisible();
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
+    await expect(page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).resolves.toBe(true);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Group Polls", level: 1 })).toBeVisible();
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/leader$/);
+    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
+
+    await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
+    if (testInfo.project.name === "mobile-chromium") await page.getByRole("button", { name: "Programme", exact: true }).click();
+    const pollLink = page.getByTestId("leader-nav-group-polls").filter({ visible: true });
+    await expect(pollLink).toBeVisible();
+    await pollLink.click();
+    await expect(page).toHaveURL(/\/leader\/polls$/);
+    await expect(page.getByRole("heading", { name: "Group Polls", level: 1 })).toBeVisible();
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Menu · Group Polls" })).toBeVisible();
+
+    await page.getByRole("button", { name: /Menu · Group Polls/ }).click();
+    await expect(page.getByTestId("leader-nav-group-polls").filter({ visible: true })).toHaveAttribute("aria-current", "page");
+  });
+}
+
+test("SW-357 parent accounts remain on the Parent Portal when opening the restricted leader polls route", async ({ page }) => {
+  test.skip(!parentEmail || !password, "Configure the approved parent E2E account.");
+  await login(page, "/parent", parentEmail!);
+  await page.goto("/leader/polls");
+  await expect(page).toHaveURL(/\/parent$/);
+  await expect(page.getByTestId("parent-polls")).toBeVisible();
+  await expect(page.getByTestId("leader-polls")).toHaveCount(0);
 });

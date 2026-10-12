@@ -30,6 +30,7 @@ const PolicyDocuments = lazy(() => import("./pages/PolicyDocuments"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const LeaderRegister = lazy(() => import("./pages/LeaderRegister"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const LeaderPollsPage = lazy(() => import("./pages/LeaderPollsPage"));
 const LeaderRequests = lazy(() => import("./pages/LeaderRequests"));
 const LeaderAccessManagement = lazy(() => import("./pages/LeaderAccessManagement"));
 const RolesAndPermissions = lazy(() => import("./pages/RolesAndPermissions"));
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="/leader/login" element={<AdminLogin />} />
         <Route path="/leader/register" element={<LeaderRegister />} />
         <Route path="/leader" element={protectedRoute(<AdminDashboard />)} />
+        <Route path="/leader/polls" element={protectedRoute(<LeaderPollsPage />)} />
         <Route path="/leader/requests" element={protectedRoute(<LeaderRequests />)} />
         <Route path="/leader/access" element={protectedRoute(<LeaderAccessManagement />)} />
         <Route path="/leader/access/:leaderUid" element={protectedRoute(<LeaderAccessManagement />)} />
