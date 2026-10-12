@@ -140,6 +140,20 @@ test("authorized Member Management can end Rover membership from the member reco
 
   const memberDetailsHeading = page.getByRole("heading", { name: "Member Details", exact: true });
   await expect(memberDetailsHeading).toBeVisible();
+  const memberRecordDialog = page.getByTestId("member-record-dialog");
+  const roverEligibility = await memberRecordDialog.evaluate((element) => ({
+    status: element.getAttribute("data-member-status"),
+    hasRovers: element.getAttribute("data-member-has-rovers"),
+    accountLinked: element.getAttribute("data-member-account-linked"),
+    candidateCount: element.getAttribute("data-rover-candidate-count"),
+    candidateMatch: element.getAttribute("data-member-rover-candidate-match")
+  }));
+  expect(roverEligibility.status, JSON.stringify(roverEligibility)).toBe("active");
+  expect(roverEligibility.hasRovers, JSON.stringify(roverEligibility)).toBe("true");
+  expect(
+    roverEligibility.accountLinked === "true" || roverEligibility.candidateMatch === "true",
+    JSON.stringify(roverEligibility)
+  ).toBe(true);
   const endMembership = page.getByTestId("member-rover-membership-actions")
     .getByRole("button", { name: "End Rover Membership" });
   const editorState = await page.locator("input").evaluateAll((inputs) => inputs.map((element) => {
