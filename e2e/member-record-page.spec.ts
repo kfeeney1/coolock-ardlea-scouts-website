@@ -161,7 +161,9 @@ test("SW-293 Back to member is dynamic for a second member and direct consent ro
   await expect(consentLink).toBeVisible();
   await consentLink.click();
   await expect(page).toHaveURL(/\/leader\/consents\/.+$/);
-  await page.getByRole("link", { name: "Back to member" }).click();
+  const memberReturnLink = page.getByRole("link", { name: "Back to member" });
+  await expect(memberReturnLink).toHaveAttribute("href", "/leader/members/TEST_member_cub_01");
+  await memberReturnLink.click();
   await expect(page).toHaveURL(/\/leader\/members\/TEST_member_cub_01$/);
   await expect(page.getByRole("heading", { name: "Member Details" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Menu · Member Management/ })).toBeVisible();
