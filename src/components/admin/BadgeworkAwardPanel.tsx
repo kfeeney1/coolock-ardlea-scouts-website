@@ -1,0 +1,10 @@
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+type Props = { stageNumber?: number; incompleteCount: number; awardState: "all" | "some" | "none"; saving: boolean; canAward: boolean; hasUnsavedChanges: boolean; onAward: () => void; onRemove: () => void };
+export default function BadgeworkAwardPanel({stageNumber,incompleteCount,awardState,saving,canAward,hasUnsavedChanges,onAward,onRemove}: Props) { return (<Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="badge-award-panel">
+            <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
+              <Box><Typography sx={{ fontWeight: 800 }}>Stage {stageNumber} award</Typography><Typography variant="body2" color="text.secondary">Requirements complete and badge awarded are separate records.</Typography><Stack direction="row" spacing={1} sx={{ mt: 1 }}><Chip size="small" color={incompleteCount === 0 ? "success" : "default"} label={incompleteCount === 0 ? "Requirements complete" : `${incompleteCount} selected incomplete`} /><Chip size="small" color={awardState === "all" ? "success" : awardState === "some" ? "warning" : "default"} label={awardState === "all" ? "Awarded" : awardState === "some" ? "Awarded to some" : "Not awarded"} /></Stack></Box>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button variant="contained" color="success" disabled={saving || !canAward || awardState === "all"} onClick={onAward}>Award badge</Button><Button variant="outlined" color="warning" disabled={saving || awardState === "none" || hasUnsavedChanges} onClick={onRemove}>Remove award</Button></Stack>
+            </Stack>
+            {hasUnsavedChanges && <Alert severity="info" sx={{ mt: 1.5 }}>Save competency changes before awarding or removing an award.</Alert>}
+            {!hasUnsavedChanges && incompleteCount > 0 && <Alert severity="info" sx={{ mt: 1.5 }}>The badge can be awarded once all competency points are saved as complete for every selected child.</Alert>}
+          </Paper>); }
