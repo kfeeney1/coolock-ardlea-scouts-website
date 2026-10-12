@@ -207,7 +207,8 @@ test("authorized Member Management can end Rover membership from the member reco
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
   await sectionChecklist.getByLabel("Scouts").uncheck();
   await page.getByRole("button", { name: "Save Member" }).click();
-  await expect(sectionChecklist.getByLabel("Rovers (Primary)")).toBeChecked();
+  await expect(primarySection).toHaveText("Rovers");
+  await expect(sectionChecklist.getByLabel("Rovers")).toBeChecked();
   await expect(sectionChecklist.getByLabel("Scouts")).not.toBeChecked();
 
   const endPrimaryRover = page.getByTestId("member-rover-membership-actions")
