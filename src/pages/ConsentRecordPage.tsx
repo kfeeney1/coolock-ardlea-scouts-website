@@ -15,7 +15,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -29,6 +29,7 @@ import { createMemberFromYouthConsent, isCurrentUserSuperAdmin, loadReconciliati
 export default function ConsentRecordPage() {
   const { consentId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [record, setRecord] = useState<ConsentAdminRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -106,9 +107,17 @@ export default function ConsentRecordPage() {
     : typeof navigationState?.fromMemberPath === "string" && navigationState.fromMemberPath.startsWith("/leader/members/")
       ? navigationState.fromMemberPath
       : "/leader/consents";
+  // Prefer the authoritative linked member when the page was opened from Member Details.
+  // Do not rely solely on transient router state surviving redirects or record reloads.
+  const memberReturnPath = typeof navigationState?.fromMemberPath === "string" && /^\\/leader\\/members\\/[^/]+$/.test(navigationState.fromMemberPath)
+    ? navigationState.fromMemberPath
+    : null;
+  const resolvedReturnPath = memberReturnPath && record?.memberId
+    ? `/leader/members/${record.memberId}`
+    : returnPath;
   const returnLabel = typeof navigationState?.returnLabel === "string" && navigationState.returnLabel.trim()
     ? navigationState.returnLabel
-    : returnPath.startsWith("/leader/members/") ? "Back to member" : "Back to consent";
+    : resolvedReturnPath.startsWith("/leader/members/") ? "Back to member" : "Back to consent";
 
   const printRecord = () => {
     if (!record) return;
@@ -130,7 +139,7 @@ export default function ConsentRecordPage() {
       <LeaderPageHeader
         title={record ? record.memberName : "Consent Record"}
         description="Full consent and medical-information record."
-        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={returnPath} variant="outlined" color="secondary">{returnLabel}</Button>{record && <Button variant="contained" color="success" onClick={printRecord}>Print / Save PDF</Button>}</Stack>}
+        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button>{record && <Button variant="contained" color="success" onClick={printRecord}>Print / Save PDF</Button>}</Stack>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <>
