@@ -138,6 +138,20 @@ function parentOnlyUsers() {
 
 const scenarioLeaders = [
   {
+    uid: "TEST_uid_rover_management_target",
+    email: "test.rover.management.target@example.com",
+    displayName: "Rover Management Target",
+    accessRole: "leader",
+    sections: ["Cubs"],
+    scoutingRole: "Section Leader",
+    organisationSection: "Cubs",
+    organisationOrder: 97,
+    reportsToUid: "TEST_uid_group_leader",
+    showPublicly: false,
+    kind: "rover-management-target",
+    roverManagementMember: { id: "TEST_member_rover_management_target" }
+  },
+  {
     uid: "TEST_uid_multi_section_leader",
     email: "test.multi.section.leader@example.com",
     displayName: "Test Multi Section Leader",
@@ -316,6 +330,33 @@ async function seedLeader(user) {
     ...(user.appointments ? { appointments: user.appointments } : {})
   };
   await replace("organisationLeadership", user.uid, organisationRecord);
+
+  if (user.roverManagementMember) {
+    const memberId = user.roverManagementMember.id;
+    await replace("members", memberId, {
+      firstName: "Rover",
+      lastName: "Management Target",
+      displayName: user.displayName,
+      displayNameMode: "auto",
+      dateOfBirth: "",
+      section: "Cubs",
+      sections: ["Cubs"],
+      sectionRoles: {},
+      parentName: "",
+      emailAddress: user.email,
+      mobileNumber: "0872000097",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+      status: "active",
+      source: "manual",
+      accountUid: user.uid,
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: reviewedBy,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: reviewedBy,
+      testRoleType: user.kind
+    });
+  }
 
   if (user.accessRole === "leader" && user.showPublicly) {
     await replace("publicLeadership", user.uid, {
