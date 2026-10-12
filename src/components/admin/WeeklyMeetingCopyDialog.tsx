@@ -1,6 +1,6 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { displayWeeklyDate } from "../services/weeklyTrackerLogic.ts";
-import type { WeeklyMeetingRecord } from "../services/weeklyTracker.ts";
+import { displayWeeklyDate } from "../../services/weeklyTrackerLogic.ts";
+import type { WeeklyMeetingRecord } from "../../services/weeklyTracker.ts";
 
 type Props = { source: WeeklyMeetingRecord; copyDate: string; copySection: string; today: string; availableSections: string[]; attendancePreview: WeeklyMeetingRecord["entries"]; copyChanged: boolean; saving: boolean; confirmDiscard: boolean; setCopyDate: (date: string) => void; setCopySection: (section: string) => void; setConfirmDiscard: (open: boolean) => void; cancelCopy: () => void; copyMeeting: () => void; };
 export default function WeeklyMeetingCopyDialog(props: Props) {
