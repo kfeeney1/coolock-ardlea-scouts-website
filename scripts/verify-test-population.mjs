@@ -33,17 +33,30 @@ async function seededDocs(name) {
 
 const expectedMemberCount = SECTIONS.length * MEMBERS_PER_SECTION;
 const members = await seededDocs("members");
-if (members.length !== expectedMemberCount) fail(`expected ${expectedMemberCount} members, found ${members.length}`);
+const roverManagementFixtureId = "TEST_member_rover_manager_cub_section_leader";
+const canonicalMembers = members.filter((doc) => doc.id !== roverManagementFixtureId);
+if (canonicalMembers.length !== expectedMemberCount) fail(`expected ${expectedMemberCount} canonical members, found ${canonicalMembers.length}`);
+if (members.length !== expectedMemberCount + 1) fail(`expected one Rover manager fixture in addition to ${expectedMemberCount} canonical members, found ${members.length - canonicalMembers.length}`);
 for (const { section } of SECTIONS) {
-  const sectionDocs = members.filter((doc) => doc.data().section === section);
+  const sectionDocs = canonicalMembers.filter((doc) => doc.data().section === section);
   if (sectionDocs.length !== MEMBERS_PER_SECTION) fail(`expected ${MEMBERS_PER_SECTION} ${section} members, found ${sectionDocs.length}`);
 }
-if (new Set(members.map((doc) => doc.data().displayName)).size !== expectedMemberCount) fail("member display names are not unique");
-for (const doc of members) {
+if (new Set(members.map((doc) => doc.data().displayName)).size !== members.length) fail("member display names are not unique");
+for (const doc of canonicalMembers) {
   for (const key of ["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "source", "sourceJoinApplicationId"]) {
     if (!(key in doc.data())) fail(`members/${doc.id} missing canonical field ${key}`);
   }
   if (doc.data().status !== "active") fail(`members/${doc.id} has non-canonical seeded status`);
+}
+const roverManagementFixture = members.find((doc) => doc.id === roverManagementFixtureId)?.data();
+if (!roverManagementFixture
+  || roverManagementFixture.accountUid !== "TEST_uid_cub_section_leader"
+  || roverManagementFixture.displayName !== "Cubs Section Leader"
+  || roverManagementFixture.emailAddress !== "test.cub.section.leader@example.com"
+  || roverManagementFixture.status !== "left"
+  || roverManagementFixture.section !== "Cubs"
+  || JSON.stringify(roverManagementFixture.sections) !== JSON.stringify(["Cubs"])) {
+  fail("Rover manager linked-adult fixture must be a left Cubs member for the seeded Cubs Section Leader account");
 }
 
 const adminUsers = await seededDocs("adminUsers");
