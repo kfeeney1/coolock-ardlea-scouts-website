@@ -191,10 +191,10 @@ test("authorized Member Management can end Rover membership from the member reco
   // primary section checkbox is locked and no safe removal action was available.
   await page.getByRole("button", { name: "Manage Rovers" }).click();
   const rejoinDialog = page.getByRole("dialog", { name: "Manage Rover Membership" });
-  const targetRow = rejoinDialog.getByText("Scouts Section Leader", { exact: true })
+  const rejoinRow = rejoinDialog.getByText("Scouts Section Leader", { exact: true })
     .locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
-  await targetRow.getByRole("button", { name: "Designate Rover" }).click();
-  await expect(targetRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  await rejoinRow.getByRole("button", { name: "Designate Rover" }).click();
+  await expect(rejoinRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
   await rejoinDialog.getByRole("button", { name: "Close" }).click();
 
   await page.getByRole("combobox", { name: "Section" }).click();
