@@ -24,7 +24,7 @@ test("SW-264 authorised meeting editor routes to canonical Create Meeting and pr
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
   await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
   const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
-  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button", { name: /View/ }).click(); }
+  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("link", { name: /View/ }).click(); }
   const create = page.getByRole("button", { name: "Create Meeting", exact: true });
   await expect(create).toBeVisible();
   if (await page.getByRole("button", { name: "Programme", exact: true }).count()) {

@@ -30,7 +30,7 @@ async function openOrCreate(page: Page, date: string, displayDate: RegExp) {
   if (await existingOpen.count()) {
     await existingOpen.first().click();
   } else if (await existingClosed.count()) {
-    await existingClosed.first().getByRole("button", { name: "View / Edit" }).click();
+    await existingClosed.first().getByRole("link", { name: "View / Edit" }).click();
     const reopenMeeting = page.getByRole("button", { name: "Reopen Meeting" });
     await expect(reopenMeeting).toBeVisible();
     await reopenMeeting.click();

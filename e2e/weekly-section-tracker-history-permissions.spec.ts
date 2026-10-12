@@ -44,7 +44,7 @@ test("SW-264 Group Secretary does not gain Create Meeting action", async ({ page
   await login(page, "test.group.secretary@example.com"); await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Create Meeting", exact: true })).toHaveCount(0);
-  const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button",{name:"View",exact:true}).click();
+  const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("link",{name:"View",exact:true}).click();
   await expect(page.getByRole("button", { name: "Create Meeting", exact: true })).toHaveCount(0);
 });
 
@@ -54,7 +54,7 @@ test("SW-264 mobile meeting editor exposes canonical Create Meeting route", asyn
   test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
   await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
   const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
-  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("button", { name: /View/ }).click(); }
+  if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("link", { name: /View/ }).click(); }
   const create = page.getByRole("button", { name: "Create Meeting", exact: true });
   await expect(create).toBeVisible();
   await create.click();

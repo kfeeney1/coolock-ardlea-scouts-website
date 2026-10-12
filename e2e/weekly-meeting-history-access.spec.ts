@@ -24,7 +24,7 @@ test("programme scouter can view past meetings but cannot edit", async ({ page }
   await login(page, leaderEmail!);
   await page.goto("/leader/weekly");
   const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
-  const viewButton = historyCard.getByRole("button", { name: "View", exact: true });
+  const viewButton = historyCard.getByRole("link", { name: "View", exact: true });
   await expect(viewButton).toBeVisible();
   await viewButton.click();
   await expect(page.getByTestId("past-meeting-edit-notice")).toContainText("read-only");

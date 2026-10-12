@@ -1,4 +1,5 @@
 import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Link } from "react-router-dom";
 import DateRangeFields from "../DateRangeFields";
 import { useMemo, useState } from "react";
 import type { WeeklyMeetingRecord } from "../../services/weeklyTracker";
@@ -13,14 +14,13 @@ type Props = {
   sections: string[];
   canEditPast: boolean;
   readOnly: boolean;
-  onOpen: (record: WeeklyMeetingRecord) => void;
   onCopy: (record: WeeklyMeetingRecord) => void;
   onReopen: (record: WeeklyMeetingRecord) => void;
 };
 
 const displayDate = (value: string) => formatSiteDate(value);
 
-export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onOpen, onCopy, onReopen }: Props) {
+export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onCopy, onReopen }: Props) {
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -73,10 +73,15 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
                 <Box sx={{ mt: .5, mb: .5 }}><SectionIdentityChip section={record.section} /></Box>
                 <Typography color="text.secondary">{present}/{record.entries.length} Present · Closed · {record.activities.length} activities · {record.badgeworkPlan.length} badgework</Typography>
               </Box>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <Button fullWidth onClick={() => onOpen(record)}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
-                {!readOnly && <Button fullWidth onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth onClick={() => onCopy(record)}>Copy Meeting</Button>}
-              </Stack>
+              <Box data-testid="weekly-history-actions" sx={{
+                display: "grid", gridTemplateColumns: `repeat(${readOnly ? 1 : 3}, minmax(0, 1fr))`, gap: 1,
+                width: { xs: "100%", sm: 360 }, flexShrink: 0, maxWidth: "100%",
+                "& .MuiButton-root": { minWidth: 0, minHeight: 44, px: 1, whiteSpace: "normal", lineHeight: 1.4,
+                  "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }
+              }}>
+                <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly?meeting=${encodeURIComponent(record.id)}`}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
+                {!readOnly && <Button fullWidth variant="outlined" onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth variant="outlined" onClick={() => onCopy(record)}>Copy Meeting</Button>}
+              </Box>
             </Stack>
           </Paper>;
         })}
