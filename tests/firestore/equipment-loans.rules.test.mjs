@@ -129,7 +129,7 @@ test("ordinary leaders cannot change master stock fields", async () => {
 
 // Even privileged catalogue managers must explicitly identify the borrower.
 test("checkout rejects missing, empty and whitespace sections at the persistence boundary", async () => {
-  await seed([["adminUsers/qm", { active: true, role: "admin", sections: [] }]]);
+  await seed([["adminUsers/qm", { active: true, role: "admin", sections: ["Group"] }]]);
   const db = testEnv.authenticatedContext("qm").firestore();
   for (const section of ["", " ", "\t\n"]) {
     await assertFails(setDoc(doc(db, "equipmentLoans/invalid-section"), loan("qm", section)));
