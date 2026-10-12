@@ -105,7 +105,6 @@ export default function MemberManagement() {
     moveToUiTargetAfterRender("member-results", { focus: true });
     window.setTimeout(() => moveToUiTargetAfterRender("member-results", { focus: true }), 100);
   };
-  const loadMemberConsents = async (member: MemberRecord) => { setLoadingConsents(true); setConsentLoadError(null); try { setConsents(await loadMemberConsentSummaries(member)); } catch (error) { reportApplicationError(error, { area: "MemberManagement", operation: "Unable to load linked consents" }); setConsentLoadError(error); } finally { setLoadingConsents(false); } };
   const closeMember = () => { setStatusConfirmationOpen(false); setLifecycleCandidates([]); setSelected(null); setDraft(null); };
   const openMember = (member: MemberRecord) => { navigate(`/leader/members/${encodeURIComponent(member.id)}`); };
   const refreshSelectedMember = async () => { if (!selected) return; const refreshed = await loadMembers(); setMembers(refreshed); const next = refreshed.find((member) => member.id === selected.id) || null; if (next) { setSelected(next); setDraft({ ...next }); setMessage("Family relationship updated."); } else closeMember(); };
