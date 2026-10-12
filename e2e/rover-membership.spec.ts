@@ -17,7 +17,13 @@ async function signOutLeader(page: Page) {
     await header.getByRole("button", { name: /^(?:Menu ·|Open Leader Menu|Hide Leader Menu)/ }).click();
   }
   await expect(signOut).toBeVisible();
-  await signOut.click();
+  await page.evaluate(() => {
+    const header = document.querySelector('[data-testid="leader-dashboard-header"]');
+    const button = Array.from(header?.querySelectorAll("button") ?? [])
+      .find((item) => item.textContent?.trim() === "Sign Out");
+    if (!button) throw new Error("Sign Out button was detached before dispatch.");
+    button.click();
+  });
   await expect(page).toHaveURL(/\/leader\/login$/);
 }
 
