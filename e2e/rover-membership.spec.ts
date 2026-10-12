@@ -157,7 +157,7 @@ test("authorized Member Management can end Rover membership from the member reco
   try {
     await expect(endMembership).toBeVisible();
   } catch {
-    const editorState = await page.getByTestId("member-details-heading").evaluate((element) => ({
+    const editorState = await memberDetailsHeading.evaluate((element) => ({
       selectedStatus: element.getAttribute("data-selected-status"),
       selectedSections: element.getAttribute("data-selected-sections"),
       draftStatus: element.getAttribute("data-draft-status"),
