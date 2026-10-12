@@ -51,6 +51,13 @@ test("approved linked parent and scoped leader can read only eligible poll audie
   await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), "polls/poll-1")));
 });
 
+test("draft poll roots and discovery indexes stay hidden from respondents until publication", async () => {
+  await seedPoll("draft-poll", { status: "draft" });
+  const parent = testEnv.authenticatedContext("parent-a").firestore();
+  await assertFails(getDoc(doc(parent, "polls/draft-poll")));
+  await assertFails(getDoc(doc(parent, "polls/draft-poll/audienceSections/Beavers")));
+});
+
 test("parent response is private, cannot list responses or view results", async () => {
   await seedPoll();
   await seed([
