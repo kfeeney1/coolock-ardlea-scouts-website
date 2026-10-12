@@ -180,7 +180,12 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("button", { name: "Submit Leader Registration" }).click();
   await expect(page.getByText("Your leader registration has been sent to the group administrator.")).toBeVisible();
 
-  await page.goto("/leader/login");
+  // The requested-role popup can still be consuming its Back marker. Settle
+  // that lifecycle before using the registration success page's normal link.
+  await waitForTransientOverlayHistoryCleanup(page);
+  await page.getByRole("link", { name: "Return to Leader Login" }).click();
+  await expect(page).toHaveURL(/\/leader\/login$/);
+  await expect(page.getByRole("button", { name: "Sign In", exact: true })).toBeVisible();
   await page.getByLabel("Email address").fill("test.webadmin@example.com");
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
