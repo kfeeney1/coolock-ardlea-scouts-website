@@ -18,7 +18,10 @@ async function advance(page: Page) {
 
 test("SW-309 inherits own profile details, persists edits, renews without old approval, and isolates another multi-section Scouter", async ({ page, browser }, testInfo: TestInfo) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD for the seeded Scouter accounts.");
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scouter consent inheritance runs on desktop and Pixel 7 mobile Chromium.");
+  // This scenario submits and renews a persistent consent record. Run it once
+  // against the shared emulator account; viewport-specific behaviour is covered
+  // by the separate mobile consent form journeys.
+  test.skip(testInfo.project.name !== "chromium", "The persistent Scouter consent lifecycle runs once on desktop Chromium.");
 
   await signIn(page, primaryEmail);
   await page.goto("/leader/profile");
@@ -37,9 +40,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   expect(primaryConsentAddress).toBe("Test Scout Hall, Dublin");
   expect(primaryConsentAddress).not.toBe("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
-  // The Chromium project saves this value before the mobile project runs against
-  // the same emulator account; saved consent must then beat profile defaults.
-  expect(["0861234567", "0855550000"]).toContain(await mobileField.inputValue());
+  await expect(mobileField).toHaveValue("0861234567");
   await expect(page.locator('input[name="homePhone"]')).toHaveValue("012345678");
   await expect(page.locator('input[name="workPhone"]')).toHaveValue("019876543");
 

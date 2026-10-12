@@ -23,6 +23,7 @@ function desktopOnly(testInfo: TestInfo) {
 }
 
 test("admin can add, check out and check in stock from its record and verify persisted history", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
   const account = adminCredentials();
   const itemName = `TEST Checkout Tent ${testInfo.project.name} ${Date.now()}`;
   const storeName = "TEST Checkout Store";
