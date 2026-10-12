@@ -48,6 +48,7 @@ test("monthly float period labels stay readable without awkward wrapping on desk
   await page.goto("/leader/reports");
   const panel = page.getByTestId("finance-reporting");
   await expect(panel.getByText("Monthly float movement", { exact: true })).toBeVisible();
+  await expect(panel.getByText(/transactions in the current Section Floats report\./)).toBeVisible();
   const buckets = panel.getByTestId("finance-month-bucket");
   for (const bucket of await buckets.all()) {
     const label = bucket.getByTestId("finance-month-label");
