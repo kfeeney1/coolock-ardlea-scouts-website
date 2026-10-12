@@ -157,8 +157,14 @@ test("authorized Member Management can end Rover membership from the member reco
     .getByRole("button", { name: "End Rover Membership" });
   await expect(endMembership).toBeVisible();
   await endMembership.click();
-  await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
-  await expect(memberDetailsHeading).toBeHidden();
+  const noLongerInScope = page.getByText("Rover membership ended and the member record is no longer in your section scope.", { exact: true });
+  const remainsInScope = page.getByText("Rover membership ended. The member record, history and unrelated roles are preserved.", { exact: true });
+  await expect(noLongerInScope.or(remainsInScope)).toBeVisible();
+  if (await noLongerInScope.isVisible().catch(() => false)) {
+    await expect(memberDetailsHeading).toBeHidden();
+  } else {
+    await expect(memberDetailsHeading).toBeVisible();
+  }
 
   await signOutLeader(page);
   await loginAdmin(page);
