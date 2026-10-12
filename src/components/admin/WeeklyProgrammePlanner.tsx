@@ -1,9 +1,9 @@
 import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
-import { newActivityPlan } from "../services/weeklyTracker.ts";
-import { joinWeeklyLeaders, nonNegativeWeeklyNumber, splitWeeklyLeaders } from "../services/weeklyTrackerLogic.ts";
+import { newActivityPlan } from "../../services/weeklyTracker.ts";
+import { joinWeeklyLeaders, nonNegativeWeeklyNumber, splitWeeklyLeaders } from "../../services/weeklyTrackerLogic.ts";
 import WeeklyBadgeworkPlanEditor from "./WeeklyBadgeworkPlanEditor";
 import ProgrammeLibraryPanel from "./ProgrammeLibraryPanel";
-import type { WeeklyActivityPlan, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker.ts";
+import type { WeeklyActivityPlan, WeeklyLeaderOption, WeeklyMeetingRecord } from "../../services/weeklyTracker.ts";
 
 const ALL_LEADERS = "All leaders";
 const LEADER_SEPARATOR = " | ";
