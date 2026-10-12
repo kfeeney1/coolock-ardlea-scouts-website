@@ -10,6 +10,7 @@ import {
 import { ServiceFailure } from "./applicationErrors.ts";
 import { auth, db } from "../firebase";
 import { memberSectionStorageAliases } from "./memberSectionCore.mjs";
+import { normalizeLeaderSections } from "./leaderAccessLogic";
 import { mapMemberConsentSummary, type MemberConsentSummary } from "./memberConsentSummaryLogic";
 
 export type { MemberConsentSummary } from "./memberConsentSummaryLogic";
@@ -22,12 +23,15 @@ export async function loadMemberConsentSummaries(member: MemberConsentScope): Pr
   const user = auth.currentUser;
   if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
   const profileSnapshot = await getDoc(doc(db, "adminUsers", user.uid));
-  const isAdmin = profileSnapshot.exists() && ["admin", "super-admin"].includes(String(profileSnapshot.data().role));
+  const profile = profileSnapshot.exists() ? profileSnapshot.data() : null;
+  const isAdmin = profile?.role === "admin" || profile?.role === "super-admin";
+  const authorizedSections = profile ? normalizeLeaderSections(profile) : [];
+  const visibleMemberSections = member.sections.filter((section) => authorizedSections.includes(section));
   const snapshots = isAdmin
     ? [await getDocs(collection(db, "consentApplications"))]
     : await Promise.all([
         getDocs(query(collection(db, "consentApplications"), where("memberId", "==", member.id))),
-        ...member.sections.flatMap((section) => memberSectionStorageAliases(section)).map((section) =>
+        ...visibleMemberSections.flatMap((section) => memberSectionStorageAliases(section)).map((section) =>
           getDocs(query(collection(db, "consentApplications"), where("section", "==", section)))
         )
       ]);
