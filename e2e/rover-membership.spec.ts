@@ -246,7 +246,12 @@ test("Rover Section Leader can designate and remove a linked adult member on mob
   const row = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   await expect(row.getByRole("button", { name: "Designate Rover" })).toBeVisible();
   await row.getByRole("button", { name: "Designate Rover" }).click();
-  await expect(row.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  try {
+    await expect(row.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
+  } catch {
+    const dialogText = (await dialog.innerText()).replace(/\s+/g, " ").trim();
+    throw new Error(`Rover designation did not update on mobile. Dialog: ${dialogText}`);
+  }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await dialog.getByRole("button", { name: "Close" }).click();
 
