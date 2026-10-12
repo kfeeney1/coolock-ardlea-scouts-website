@@ -8,7 +8,7 @@ import BulkMemberSectionTransfer from "../components/admin/BulkMemberSectionTran
 import { OperationalEmptyState, OperationalErrorState, OperationalLoading, OperationalPermissionState } from "../components/admin/OperationalStates";
 import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { automaticDisplayName, createMember, loadMemberConsentSummaries, loadMembers, updateMember } from "../services/memberAdmin";
 import type { CreateMemberInput, MemberConsentSummary, MemberRecord, MemberStatus } from "../services/memberAdmin";
 import { loadRoverManagementCandidates, setManagedRoverMembership, type RoverManagementCandidate } from "../services/roverMembershipManagement";
@@ -36,6 +36,7 @@ const consentExpired = (value: string) => Boolean(value && value < new Date().to
 
 export default function MemberManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialStatus = searchParams.get("status");
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [medicalConsentByMember, setMedicalConsentByMember] = useState<Record<string, string>>({});
@@ -106,7 +107,7 @@ export default function MemberManagement() {
   };
   const loadMemberConsents = async (member: MemberRecord) => { setLoadingConsents(true); setConsentLoadError(null); try { setConsents(await loadMemberConsentSummaries(member)); } catch (error) { reportApplicationError(error, { area: "MemberManagement", operation: "Unable to load linked consents" }); setConsentLoadError(error); } finally { setLoadingConsents(false); } };
   const closeMember = () => { setStatusConfirmationOpen(false); setLifecycleCandidates([]); setSelected(null); setDraft(null); };
-  const openMember = async (member: MemberRecord) => { setSelected(member); setDraft({ ...member }); setConsents([]); setSaveError(""); setMessage(""); await loadMemberConsents(member); };
+  const openMember = (member: MemberRecord) => { navigate(`/leader/members/${encodeURIComponent(member.id)}`); };
   const refreshSelectedMember = async () => { if (!selected) return; const refreshed = await loadMembers(); setMembers(refreshed); const next = refreshed.find((member) => member.id === selected.id) || null; if (next) { setSelected(next); setDraft({ ...next }); setMessage("Family relationship updated."); } else closeMember(); };
   const prepareLifecycleCandidates = async (memberId: string, nextStatus: MemberStatus) => { if (nextStatus === "active") return []; try { return parentLifecycleCandidates(await loadParentAccounts(), members, memberId, nextStatus); } catch (failure) { reportApplicationError(failure, { area: "Members", operation: "Check optional parent lifecycle actions" }); return []; } };
   const save = async (statusConfirmed = false, disableParents = false) => { if (!selected || !draft) return; if (draft.displayNameMode === "custom" && !draft.displayName.trim()) return setSaveError("Custom display name is required."); if (!statusConfirmed && draft.status !== selected.status) { setLifecycleCandidates(await prepareLifecycleCandidates(selected.id, draft.status)); setStatusConfirmationOpen(true); return; } setSaving(true); setSaveError(""); setMessage(""); try { await updateMember(selected.id, { firstName: draft.firstName, lastName: draft.lastName, displayName: draft.displayName, dateOfBirth: draft.dateOfBirth, section: draft.section, sections: draft.sections, sectionRoles: draft.sectionRoles, parentName: draft.parentName, emailAddress: draft.emailAddress, mobileNumber: draft.mobileNumber, emergencyContactName: draft.emergencyContactName, emergencyContactPhone: draft.emergencyContactPhone, status: draft.status, displayNameMode: draft.displayNameMode }); const persistedMembers = await loadMembers(); const updated = persistedMembers.find((member) => member.id === selected.id); if (!updated) { setMembers(persistedMembers); setSelected(null); setDraft(null); setConsents([]); setLifecycleCandidates([]); setMessage("Member transferred successfully. The member is now outside your assigned sections."); return; } setMembers(persistedMembers); setSelected(updated); setDraft(updated); setConsents(await loadMemberConsentSummaries(updated)); if (disableParents && lifecycleCandidates.length > 0) await Promise.allSettled(lifecycleCandidates.map(({ parent }) => disableParentPortalAccess(parent, `Parent access disabled after ${updated.displayName} changed status and no other explicitly linked active child remained.`))); setMessage("Member details updated and verified."); setLifecycleCandidates([]); } catch (error) { setSaveError(applicationErrorMessage(error, "Unable to update the member record.", "MemberManagement")); } finally { setSaving(false); } };
