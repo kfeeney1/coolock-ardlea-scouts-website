@@ -1,5 +1,5 @@
 import { Alert, Button, Checkbox, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import type { InjurySeverity, WeeklyInjury, WeeklyMeetingRecord } from "../services/weeklyTracker.ts";
+import type { InjurySeverity, WeeklyInjury, WeeklyMeetingRecord } from "../../services/weeklyTracker.ts";
 
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
 type Props = { step: Step;
