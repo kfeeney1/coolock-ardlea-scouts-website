@@ -131,7 +131,7 @@ export default function SubsSettingsPanel() {
       </Box>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }}>
         <Button variant="outlined" onClick={() => addRate("standard")} data-testid="subs-add-standard-rate">Add standard member rate</Button>
-        <Button variant="text" disabled={standardRates.length <= 1} onClick={() => removeLastRate("standard")}>Remove last standard rate</Button>
+        <Button type="button" variant="outlined" disabled={standardRates.length <= 1} onClick={() => removeLastRate("standard")}>Remove last standard rate</Button>
       </Stack>
       <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>Leader family total</Typography>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 2 }}>
@@ -139,7 +139,7 @@ export default function SubsSettingsPanel() {
       </Box>
       <Stack direction={{ xs: "column", sm:"row" }} spacing={1} sx={{ mt: 1.5 }}>
         <Button variant="outlined" onClick={() => addRate("leader")} data-testid="subs-add-leader-rate">Add leader family member rate</Button>
-        <Button variant="text" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
+        <Button type="button" variant="outlined" disabled={leaderRates.length <= 1} onClick={() => removeLastRate("leader")}>Remove last leader rate</Button>
       </Stack>
       <Alert severity="warning" sx={{ mt: 2 }}>If a family has more active members than this policy defines, no amount is inferred. Add the exact approved family-size rate before classification.</Alert>
       <Button variant="contained" sx={{ mt: 2.5 }} disabled={saving} onClick={() => void savePolicy()}>{saving ? "Saving…" : "Save immutable rate policy"}</Button>

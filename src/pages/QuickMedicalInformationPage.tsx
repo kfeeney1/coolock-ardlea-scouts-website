@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import ActionLinkButton from "../components/ActionLinkButton";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { applicationErrorMessage } from "../services/applicationErrors";
 import { loadConsentAdminRecord, type ConsentAdminRecord } from "../services/consentAdmin";
@@ -84,7 +85,7 @@ export default function QuickMedicalInformationPage() {
           <Typography id="quick-contacts" variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Parents / guardians</Typography>
           {contacts.length ? <Stack spacing={1}>{contacts.map((contact, index) => <Paper key={`${contact.name}-${index}`} variant="outlined" sx={{ p: 2 }}>
             <Typography sx={{ fontWeight: 800 }}>{contact.name || "Emergency contact"}</Typography>
-            {contact.phones.map((phone) => <Typography key={phone} component="a" href={`tel:${phone.replace(/\s+/g, "")}`} sx={{ display: "block", mt: .5, overflowWrap: "anywhere" }}>{phone}</Typography>)}
+            {contact.phones.map((phone) => <ActionLinkButton key={phone} href={`tel:${phone.replace(/\s+/g, "")}`} sx={{ display: "flex", width: "fit-content", mt: .5 }}>{phone}</ActionLinkButton>)}
           </Paper>)}</Stack> : <Alert severity="warning">No parent/guardian telephone details are recorded in this consent record.</Alert>}
         </Box>
 

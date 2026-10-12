@@ -1,7 +1,8 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Container, Link, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useState, type ReactNode } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import ActionLinkButton from "../components/ActionLinkButton";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import { SYSTEM_INFORMATION as info, buildAiHandoverPrompt } from "../operations/systemInformation";
 import { aggregateOperationalState, loadOperationalObservations, type OperationalObservation } from "../operations/operationalMonitoring";
@@ -46,7 +47,7 @@ export default function SystemInformation() {
   </Container></Box>;
 }
 function Section({title,children}:{title:string;children:ReactNode}) { return <Paper component="section" variant="outlined" sx={{p:{xs:2,md:3},mb:2}}><Typography component="h2" variant="h5" sx={{mb:1.5,fontWeight:800}}>{title}</Typography>{children}</Paper>; }
-function External({href,children}:{href:string;children:ReactNode}) { return <Link href={href} target="_blank" rel="noreferrer" sx={{display:"inline-block",mt:1,overflowWrap:"anywhere"}}>{children} ↗</Link>; }
+function External({href,children}:{href:string;children:ReactNode}) { return <ActionLinkButton href={href} target="_blank" rel="noreferrer" sx={{display:"inline-flex",mt:1,overflowWrap:"anywhere"}}>{children} ↗</ActionLinkButton>; }
 function BuildInfo() {
   const [text, setText] = useState("Build revision: check /build-info.json");
   const checkBuild = async () => {

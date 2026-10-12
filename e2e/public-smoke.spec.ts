@@ -55,6 +55,8 @@ test("homepage shows section meeting times and the canonical meeting map", async
   await expect(mapLink).toHaveAttribute("href", "https://maps.app.goo.gl/iexSS8BtsViUA2D87?g_st=ac");
   await expect(mapLink).toHaveAttribute("target", "_blank");
   await expect(mapLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(mapLink).toHaveClass(/MuiButton-outlined|MuiButton-contained/);
+  await expect(mapLink).toHaveCSS("min-height", "44px");
 
   await expect(page.getByRole("button", { name: "Activity Consent" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Activity Consent|Consent Form/i })).toHaveCount(0);
@@ -75,6 +77,38 @@ test("homepage shows section meeting times and the canonical meeting map", async
     await expect(page.getByRole("link", { name: /Consent Form/i })).toHaveCount(0);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBeTruthy();
+});
+
+test("public footer, privacy and contact navigation use visible link-buttons", async ({ page }) => {
+  for (const width of [320, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/privacy");
+    const privacyContactLinks = page.getByRole("link", { name: "Contact Us", exact: true });
+    await expect(privacyContactLinks).toHaveCount(2);
+    for (const link of await privacyContactLinks.all()) {
+      await expect(link).toHaveAttribute("href", "/contact");
+      await expect(link).toHaveClass(/MuiButton-outlined/);
+      await expect(link).toHaveCSS("min-height", "44px");
+      expect(await link.evaluate((node) => getComputedStyle(node).borderTopStyle)).toBe("solid");
+    }
+    const firstContactLink = privacyContactLinks.first();
+    for (let index = 0; index < 50 && !(await firstContactLink.evaluate((node) => node === document.activeElement)); index += 1) {
+      await page.keyboard.press("Tab");
+    }
+    await expect(firstContactLink).toBeFocused();
+    expect(await firstContactLink.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("solid");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/contact$/);
+    await page.goto("/privacy");
+    const footerPolicy = page.getByRole("contentinfo").getByRole("link", { name: "Policy documents" });
+    await expect(footerPolicy).toHaveClass(/MuiButton-outlined/);
+    await expect(footerPolicy).toHaveAttribute("href", "/policies");
+    await page.goto("/contact");
+    const email = page.getByRole("link", { name: /@/ });
+    await expect(email).toHaveAttribute("href", /^mailto:/);
+    await expect(email).toHaveClass(/MuiButton-outlined/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
 });
 
 test("Join Us submits on mobile and desktop without collecting emergency contact details", async ({ page }) => {

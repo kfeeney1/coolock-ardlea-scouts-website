@@ -291,7 +291,7 @@ export default function EquipmentManagement({ inventoryOnly = false }: { invento
             const available = availableEquipmentQuantity(item);
             return <Paper key={item.id} data-testid={`equipment-inventory-card-${item.id}`} variant="outlined" sx={{ p: 2.5, opacity: item.archived ? 0.65 : 1 }}>
               <Stack spacing={1.25}>
-                <Box><Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}`} variant="text" color="secondary" sx={{ p: 0, minHeight: 44, fontSize: "1.25rem", fontWeight: 800, textAlign: "left", justifyContent: "flex-start" }}>{item.name}</Button><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
+                <Box><Button component={Link} to={`/leader/equipment/${encodeURIComponent(item.id)}`} variant="outlined" color="secondary" sx={{ p: 1, minHeight: 44, fontSize: "1.1rem", fontWeight: 800, textAlign: "left", justifyContent: "flex-start" }}>{item.name}</Button><Typography color="text.secondary">{item.category} · Store: {item.location || "No Store assigned"}</Typography></Box>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                   <Chip label={`${item.totalQuantity} total`} color="primary" />
                   <Chip label={`${available} available`} color={available === 0 ? "warning" : "success"} variant="outlined" />

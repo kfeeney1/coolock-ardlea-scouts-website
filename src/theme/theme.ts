@@ -55,7 +55,7 @@ export const defaultTheme = createTheme({
   },
   shape: { borderRadius: 14 },
   components: {
-    MuiButton: { styleOverrides: { root: { borderRadius: "999px", textTransform: "none", paddingLeft: "24px", paddingRight: "24px" } } },
+    MuiButton: { defaultProps: { variant: "outlined" }, styleOverrides: { root: { borderRadius: "999px", textTransform: "none", minHeight: "44px", paddingLeft: "24px", paddingRight: "24px", "&:focus-visible": { outline: "3px solid currentColor", outlineOffset: 2 } } } },
     MuiDialogActions: responsiveDialogActions,
     MuiPopover: stableTransientPopovers,
     MuiTextField: stableTextFieldSelect,
@@ -84,7 +84,7 @@ export const modernTheme = createTheme({
   shape: { borderRadius: 18 },
   components: {
     MuiAppBar: { styleOverrides: { root: { boxShadow: "0 1px 0 rgba(23,32,51,0.08)", backgroundImage: "none" } } },
-    MuiButton: { styleOverrides: { root: { borderRadius: "12px", textTransform: "none", minHeight: "42px", paddingLeft: "20px", paddingRight: "20px", boxShadow: "none" } } },
+    MuiButton: { defaultProps: { variant: "outlined" }, styleOverrides: { root: { borderRadius: "12px", textTransform: "none", minHeight: "44px", paddingLeft: "20px", paddingRight: "20px", boxShadow: "none", "&:focus-visible": { outline: "3px solid currentColor", outlineOffset: 2 } } } },
     MuiDialogActions: responsiveDialogActions,
     MuiPopover: stableTransientPopovers,
     MuiPaper: { styleOverrides: { rounded: { borderRadius: "20px" }, root: { backgroundImage: "none" } } },
@@ -117,7 +117,7 @@ function referenceTheme(
     shape: { borderRadius: options.radius },
     components: {
       MuiAppBar: { styleOverrides: { root: { backgroundImage: "none" } } },
-      MuiButton: { styleOverrides: { root: { borderRadius: style === "ukCampaign" ? "4px" : style === "programmeLed" ? "10px" : "999px", textTransform: "none", minHeight: "42px", paddingLeft: "22px", paddingRight: "22px", boxShadow: "none" } } },
+      MuiButton: { defaultProps: { variant: "outlined" }, styleOverrides: { root: { borderRadius: style === "ukCampaign" ? "4px" : style === "programmeLed" ? "10px" : "999px", textTransform: "none", minHeight: "44px", paddingLeft: "22px", paddingRight: "22px", boxShadow: "none", "&:focus-visible": { outline: "3px solid currentColor", outlineOffset: 2 } } } },
       MuiDialogActions: responsiveDialogActions,
       MuiPopover: stableTransientPopovers,
       MuiTextField: stableTextFieldSelect,

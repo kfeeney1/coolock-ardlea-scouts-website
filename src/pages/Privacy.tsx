@@ -1,5 +1,5 @@
-import { Box, Container, Link, Paper, Stack, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Box, Container, Paper, Stack, Typography } from "@mui/material";
+import ActionLinkButton from "../components/ActionLinkButton";
 
 export default function Privacy() {
   return (
@@ -19,7 +19,7 @@ export default function Privacy() {
             <Box>
               <Typography component="h2" variant="h5" color="secondary">Who operates this website</Typography>
               <Typography sx={{ mt: 1 }}>
-                This website is operated for the 80th/160th Coolock Ardlea Scout Group. If you have a question about personal information held through the website, use our <Link component={RouterLink} to="/contact">Contact Us</Link> page so the appropriate Group representative can respond.
+                This website is operated for the 80th/160th Coolock Ardlea Scout Group. If you have a question about personal information held through the website, use our <ActionLinkButton to="/contact">Contact Us</ActionLinkButton> page so the appropriate Group representative can respond.
               </Typography>
             </Box>
 
@@ -54,7 +54,7 @@ export default function Privacy() {
             <Box>
               <Typography component="h2" variant="h5" color="secondary">Your information and requests</Typography>
               <Typography sx={{ mt: 1 }}>
-                If you want to ask what information is held about you or your child, request a correction, raise a privacy concern, or ask about deletion or restriction of information, contact the Group through the <Link component={RouterLink} to="/contact">Contact Us</Link> page. Requests will be reviewed in the context of safeguarding, legal and record-keeping obligations that may apply.
+                If you want to ask what information is held about you or your child, request a correction, raise a privacy concern, or ask about deletion or restriction of information, contact the Group through the <ActionLinkButton to="/contact">Contact Us</ActionLinkButton> page. Requests will be reviewed in the context of safeguarding, legal and record-keeping obligations that may apply.
               </Typography>
             </Box>
 
