@@ -90,7 +90,7 @@ export default function AdminLogin() {
                         <Button fullWidth type="submit" variant="contained" color="success" size="large" disabled={submitting || resettingPassword} sx={{ mt: 4 }}>
                             {submitting ? "Signing in..." : "Sign In"}
                         </Button>
-                        <Button fullWidth type="button" variant="text" color="secondary" disabled={submitting || resettingPassword} onClick={() => void resetPassword()} sx={{ mt: 1 }}>
+                        <Button fullWidth type="button" variant="outlined" color="secondary" disabled={submitting || resettingPassword} onClick={() => void resetPassword()} sx={{ mt: 1 }}>
                             {resettingPassword ? "Sending reset email..." : "Forgot Password?"}
                         </Button>
                         <Button fullWidth component={Link} to="/leader/register" variant="outlined" color="secondary" size="large" sx={{ mt: 2 }}>

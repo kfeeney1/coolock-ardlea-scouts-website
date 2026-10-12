@@ -68,7 +68,7 @@ export default function Header() {
                 </Box>
             </Box>
             <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5 }}>
-                {menuItems.map((item) => <Button key={item.path} component={Link} to={item.path} color="inherit" sx={{ color: "white", px: 1.25, "&:hover": { backgroundColor: "secondary.main" } }}>{item.label}</Button>)}
+                {menuItems.map((item) => <Button key={item.path} data-control-role="menu" component={Link} to={item.path} variant="text" color="inherit" sx={{ color: "white", px: 1.25, "&:hover": { backgroundColor: "secondary.main" } }}>{item.label}</Button>)}
                 <Button component={Link} to="/join" variant="contained" color="success" sx={{ ml: 1, boxShadow: "none" }}>Join Us</Button>
                 {showDashboardReturn && <Button component={Link} to="/leader" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 800 }}>Dashboard</Button>}
                 {user && !loading && <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 700 }}>Parent Portal</Button>}

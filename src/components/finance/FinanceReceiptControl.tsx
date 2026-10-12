@@ -154,8 +154,8 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
         {uploading ? "Uploading…" : receipts.length ? "Add another receipt" : "Attach receipt"}
         <input hidden type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; event.currentTarget.value = ""; void upload(file); }} />
       </Button>
-      {failedFile && !uploading && <Button size="small" variant="text" onClick={() => void upload(failedFile)} disabled={loading || removing}>Retry upload</Button>}
-      {!loading && error && !failedFile && <Button size="small" variant="text" onClick={() => void refresh()} disabled={uploading || removing}>Retry receipt check</Button>}
+      {failedFile && !uploading && <Button type="button" size="small" variant="outlined" onClick={() => void upload(failedFile)} disabled={loading || removing}>Retry upload</Button>}
+      {!loading && error && !failedFile && <Button type="button" size="small" variant="outlined" onClick={() => void refresh()} disabled={uploading || removing}>Retry receipt check</Button>}
     </Stack>
 
     {uploadStatus && <Box sx={{ width: "100%", maxWidth: 360 }} role="status" aria-live="polite">
@@ -169,7 +169,7 @@ export default function FinanceReceiptControl({ transactionId, section, refreshK
           {receipts.length === 1 ? "View receipt" : `View receipt ${index + 1}`}
         </Button>
         <Typography variant="caption" color="text.secondary">{receipt.fileName}</Typography>
-        <Button size="small" color="error" variant="text" onClick={() => setReceiptToRemove(receipt)} disabled={uploading || removing} aria-label={`Remove receipt ${receipt.fileName}`}>
+        <Button type="button" size="small" color="error" variant="outlined" onClick={() => setReceiptToRemove(receipt)} disabled={uploading || removing} aria-label={`Remove receipt ${receipt.fileName}`}>
           Remove receipt
         </Button>
         {receipt.viewUrl && receipt.contentType.startsWith("image/") && <Box component="a" href={receipt.viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open receipt ${receipt.fileName}`} sx={{ display: "inline-flex", borderRadius: 1, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>

@@ -23,6 +23,42 @@ async function persistedAudienceMemberIds(eventId: string): Promise<string[]> {
   return (data.documents ?? []).map((document) => document.name.split("/").pop() ?? "").filter(Boolean).sort();
 }
 
+test("section audience bulk controls are visible buttons and preserve the restored selection and count", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Audience controls run on desktop and Pixel 7 Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  if (testInfo.project.name === "mobile-chromium") await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/leader/events/create");
+
+  const audience = page.getByTestId("event-audience-builder");
+  const clearSections = audience.getByRole("button", { name: "Clear sections", exact: true });
+  const selectSections = audience.getByRole("button", { name: "Select all authorized sections", exact: true });
+  await expect(clearSections).toHaveAttribute("type", "button");
+  await expect(clearSections).toHaveClass(/MuiButton-outlined/);
+  await expect(selectSections).toHaveAttribute("type", "button");
+  await expect(selectSections).toHaveClass(/MuiButton-contained/);
+  await expect(clearSections).toHaveCSS("min-height", "44px");
+  await expect(selectSections).toHaveCSS("min-height", "44px");
+  await expect(selectSections).toBeVisible();
+
+  const sectionCheckboxes = audience.getByRole("checkbox");
+  const count = await sectionCheckboxes.count();
+  expect(count).toBeGreaterThan(0);
+  await expect(sectionCheckboxes).toHaveCount(count);
+  await selectSections.click();
+  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).toBeChecked();
+  const allSectionsSummary = await audience.getByTestId("event-audience-summary").innerText();
+  expect(allSectionsSummary).toMatch(/Audience: \d+ members across \d+ sections/);
+
+  await clearSections.click();
+  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).not.toBeChecked();
+  await expect(audience.getByTestId("event-audience-summary")).toHaveText("Audience: 0 members across 0 sections");
+  await selectSections.click();
+  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).toBeChecked();
+  await expect(audience.getByTestId("event-audience-summary")).toHaveText(allSectionsSummary);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("selected-member event audience stays exact across sections, edit, save, parent scope and reload on desktop and mobile", async ({ page, browser }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Selected-member event targeting runs on desktop Chromium and Pixel 7 Chromium.");
   test.skip(!password || !parentEmail, "Configure E2E_TEST_USER_PASSWORD and E2E_PARENT_EMAIL.");

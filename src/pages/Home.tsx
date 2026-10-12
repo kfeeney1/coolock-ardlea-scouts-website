@@ -126,6 +126,7 @@ export default function Home() {
                             rel="noopener noreferrer"
                             variant="contained"
                             color="primary"
+                            sx={{ minHeight: 44 }}
                         >
                             View on Google Maps
                         </Button>

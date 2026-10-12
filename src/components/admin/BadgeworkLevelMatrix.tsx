@@ -52,7 +52,7 @@ export default function BadgeworkLevelMatrix({ members, onOpenStage, progressByM
                 <Button
                   fullWidth
                   size="small"
-                  variant="text"
+                  variant="outlined"
                   onClick={() => onOpenStage(member.id, skill.id, stage.stage)}
                   aria-label={`${member.displayName} · ${skill.name} · Level ${stage.stage} · ${presentation.label} · ${stage.completedRequirements} of ${stage.totalRequirements} competencies complete`}
                   sx={{ minWidth: 96, p: .5, textTransform: "none" }}

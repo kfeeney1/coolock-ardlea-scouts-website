@@ -342,8 +342,8 @@ export default function MeetingRecords() {
                 </Stack>
               </Box>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                {record.attachment && <Button variant="text" onClick={() => void openMeetingDocument(record.attachment!)}>Open {record.attachment.fileName}</Button>}
-                {isAdmin && <Button variant="text" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
+                {record.attachment && <Button type="button" variant="outlined" onClick={() => void openMeetingDocument(record.attachment!)}>Open {record.attachment.fileName}</Button>}
+                {isAdmin && <Button type="button" variant="outlined" onClick={() => void toggleVersions(record)}>{expandedVersionId === record.id ? "Hide Version History" : "Version History"}</Button>}
                 {canEditRecord(record) && <Button variant="outlined" onClick={() => edit(record)}>Edit</Button>}
               </Stack>
             </Stack>
