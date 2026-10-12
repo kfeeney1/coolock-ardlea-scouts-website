@@ -84,6 +84,21 @@ for (const [path, recordedBytes] of Object.entries(knownLargeFiles)) {
   if (!row) violations.push(`${path}: reviewed baseline entry no longer resolves to a tracked TypeScript/TSX file`);
 }
 
+// Refactored files may opt into a stricter ceiling to preserve architectural
+// headroom. This never grants an exemption from the repository-wide ceiling.
+for (const [path, ceiling] of Object.entries(baseline.headroomCeilings ?? {})) {
+  if (!Number.isInteger(ceiling) || ceiling < 1 || ceiling > thresholdBytes) {
+    violations.push(`${path}: headroom ceiling must be a positive integer at or below ${thresholdBytes}`);
+    continue;
+  }
+  if (Object.hasOwn(knownLargeFiles, path)) {
+    violations.push(`${path}: headroom ceiling cannot coexist with a historical oversized allowance`);
+  }
+  const row = rowByPath.get(path);
+  if (!row) violations.push(`${path}: headroom entry no longer resolves to a TypeScript/TSX file`);
+  else if (row.bytes > ceiling) violations.push(`${path}: ${row.bytes} bytes exceeds preserved headroom ceiling ${ceiling}`);
+}
+
 if (violations.length) {
   console.error("\nSource-complexity regression guard failed:");
   for (const violation of violations) console.error(`- ${violation}`);
