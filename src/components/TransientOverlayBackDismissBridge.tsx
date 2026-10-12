@@ -99,10 +99,23 @@ export default function TransientOverlayBackDismissBridge() {
       routeDeparturePending.current = true;
       cancelPendingClose();
     };
+    // React Router link clicks may race the cleanup timer before a location
+    // commit (and without a Navigation API event). Cancel at click capture.
+    const handleRouteLinkClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.hasAttribute("download") || (anchor.target && anchor.target !== "_self")) return;
+      const destination = new URL(anchor.href, window.location.href);
+      if (destination.origin !== window.location.origin || `${destination.pathname}${destination.search}${destination.hash}` === currentUrl.current) return;
+      routeDeparturePending.current = true;
+      cancelPendingClose();
+    };
+    document.addEventListener("click", handleRouteLinkClick, true);
     const navigationApi = (window as Window & { navigation?: EventTarget }).navigation;
     navigationApi?.addEventListener("navigate", handleNavigation);
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
+      document.removeEventListener("click", handleRouteLinkClick, true);
       navigationApi?.removeEventListener("navigate", handleNavigation);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       cancelPendingClose();

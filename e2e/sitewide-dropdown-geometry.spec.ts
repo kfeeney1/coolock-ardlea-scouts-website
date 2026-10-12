@@ -144,6 +144,7 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   await expect(firstListbox).toBeHidden();
 
   await page.getByRole("link", { name: "Back to leaders" }).click();
+  await expect(page).toHaveURL(/\/leader\/access$/);
   await expect(sectionFilter).toBeVisible();
   const { listbox: secondListbox } = await openAttachedDropdown(page, sectionFilter);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
