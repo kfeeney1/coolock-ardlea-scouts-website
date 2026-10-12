@@ -158,7 +158,7 @@ test("authorized Member Management can end Rover membership from the member reco
     const input = element as HTMLInputElement;
     return { section: input.getAttribute("aria-label"), checked: input.checked };
   }));
-  const editorStatus = await page.locator("select").evaluateAll((selects) => selects.map((element) => (element as HTMLSelectElement).value));
+  const editorStatus = await page.locator("input").evaluateAll((inputs) => inputs.map((element) => (element as HTMLInputElement).value).filter((value) => ["active", "inactive", "left"].includes(value)));
   const pageText = await page.locator("body").evaluate((element) => element.textContent?.slice(-1200) ?? "");
   try {
     await expect(endMembership).toBeVisible();
