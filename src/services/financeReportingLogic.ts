@@ -81,14 +81,28 @@ export function buildFinanceReportSummary(transactions: FinanceTransaction[], re
 export function buildFinanceMonthlyTotals(transactions: FinanceTransaction[]): FinanceMonthlyTotal[] {
   const totals = new Map<string, FinanceMonthlyTotal>();
   for (const transaction of transactions) {
-    const month = /^\d{4}-\d{2}/.test(transaction.transactionDate) ? transaction.transactionDate.slice(0, 7) : "Unknown";
+    const match = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.exec(transaction.transactionDate);
+    let month = "Unknown";
+    if (match) {
+      const year = Number(match[1]);
+      const monthNumber = Number(match[2]);
+      const day = Number(match[3]);
+      const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+      const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][monthNumber - 1];
+      if (year > 0 && day <= daysInMonth) month = `${match[1]}-${match[2]}`;
+    }
     const current = totals.get(month) ?? { month, incomeCents: 0, expenseCents: 0, netCents: 0 };
     if (transaction.type === "income") current.incomeCents += transaction.amountCents;
     if (transaction.type === "expense") current.expenseCents += transaction.amountCents;
     current.netCents += signedAmountCents(transaction);
     totals.set(month, current);
   }
-  return [...totals.values()].sort((a, b) => b.month.localeCompare(a.month));
+  return [...totals.values()].sort((a, b) => {
+    if (a.month === b.month) return 0;
+    if (a.month === "Unknown") return 1;
+    if (b.month === "Unknown") return -1;
+    return b.month.localeCompare(a.month);
+  });
 }
 
 function csvCell(value: string | number): string {

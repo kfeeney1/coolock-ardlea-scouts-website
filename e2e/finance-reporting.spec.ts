@@ -39,3 +39,21 @@ test("section leader sees permission-scoped Section Floats reporting and generat
     await expect(page).toHaveURL(/\/leader\/reports$/);
   }
 });
+
+test("monthly float period labels stay readable without awkward wrapping on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run monthly float layout checks on desktop and mobile Chromium.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+
+  await login(page);
+  await page.goto("/leader/reports");
+  const panel = page.getByTestId("finance-reporting");
+  await expect(panel.getByText("Monthly float movement", { exact: true })).toBeVisible();
+  const buckets = panel.getByTestId("finance-month-bucket");
+  for (const bucket of await buckets.all()) {
+    const label = bucket.getByTestId("finance-month-label");
+    await expect(label).toHaveText(/^(?:[A-Z][a-z]+ \d{4}|Month unavailable)$/);
+    await expect(label).toHaveCSS("white-space", "nowrap");
+    const dimensions = await label.evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+  }
+});
