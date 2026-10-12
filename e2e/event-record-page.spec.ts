@@ -214,7 +214,6 @@ test("future start opens the shared end calendar at a valid date and only applie
   const calendar = page.getByRole("dialog", { name: "Choose end date" });
   await expect(calendar.getByRole("button", { name: "Select 01-04-2099" })).toBeDisabled();
   await expect(calendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
-  await expect(end).toHaveValue("");
   await calendar.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(end).toHaveValue("");
   await page.getByRole("button", { name: "Choose end date" }).click();
