@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Setup Java
@@ -47,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Install pinned Firebase test tooling
-        run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
+        run: npm install --no-save --package-lock=false @firebase/rules-unit-testing@6.0.0 firebase-tools@15.28.1
 
       - name: Run Firestore rules tests
         run: npx firebase emulators:exec --only firestore --project "$FIREBASE_PROJECT_ID" "node --test --test-concurrency=1 tests/firestore/*.test.mjs"
