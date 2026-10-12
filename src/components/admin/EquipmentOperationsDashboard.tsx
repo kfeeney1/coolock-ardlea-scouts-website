@@ -116,19 +116,19 @@ export default function EquipmentOperationsDashboard({ items, loans, incidents, 
         </Paper>)}
       </Box>
 
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", mb: 1.25 }}>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>Recent activity</Typography>
           {openDamage.length > 0 && <Chip size="small" color="warning" label={`${openDamage.length} damage issue${openDamage.length === 1 ? "" : "s"} open`} />}
         </Stack>
-        {activity.length === 0 ? <Typography color="text.secondary">No recent equipment activity has been recorded yet.</Typography> : <Stack spacing={1}>
-          {activity.map((entry) => <Paper key={entry.key} variant="outlined" component={entry.itemId ? Link : "div"} to={entry.itemId ? `/leader/equipment/${encodeURIComponent(entry.itemId)}?issue=${encodeURIComponent(entry.incidentId ?? "")}` : undefined} aria-label={entry.itemId ? `Open equipment record for ${entry.title.split(" · ").pop()}` : undefined} sx={{ p: 1.5, width: "100%", textAlign: "left", font: "inherit", color: "inherit", textDecoration: "none", backgroundColor: "background.paper", cursor: entry.itemId ? "pointer" : "default", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between" }}>
-              <Box>
+        {activity.length === 0 ? <Typography color="text.secondary">No recent equipment activity has been recorded yet.</Typography> : <Stack spacing={1} data-testid="equipment-recent-activity" sx={{ minWidth: 0 }}>
+          {activity.map((entry) => <Paper key={entry.key} data-testid={`equipment-activity-${entry.key}`} variant="outlined" component={entry.itemId ? Link : "div"} to={entry.itemId ? `/leader/equipment/${encodeURIComponent(entry.itemId)}?issue=${encodeURIComponent(entry.incidentId ?? "")}` : undefined} aria-label={entry.itemId ? `Open equipment record for ${entry.title.split(" · ").pop()}` : undefined} sx={{ p: 1.5, width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", overflowWrap: "anywhere", textAlign: "left", font: "inherit", color: "inherit", textDecoration: "none", backgroundColor: "background.paper", cursor: entry.itemId ? "pointer" : "default", "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography sx={{ fontWeight: 700 }}>{entry.title}</Typography>
                 <Typography variant="body2" color="text.secondary">{formatSiteDateText(entry.detail)}</Typography>
               </Box>
-              <Chip size="small" color={entry.tone === "warning" ? "warning" : entry.tone === "success" ? "success" : "default"} variant="outlined" label={formatDate(entry.at)} sx={{ alignSelf: { xs: "flex-start", sm: "center" } }} />
+              <Chip size="small" color={entry.tone === "warning" ? "warning" : entry.tone === "success" ? "success" : "default"} variant="outlined" label={formatDate(entry.at)} sx={{ alignSelf: { xs: "flex-start", sm: "center" }, flexShrink: 0, maxWidth: "100%", height: "auto", py: 0.25, "& .MuiChip-label": { whiteSpace: "normal", overflowWrap: "anywhere" } }} />
             </Stack>
           </Paper>)}
         </Stack>}
