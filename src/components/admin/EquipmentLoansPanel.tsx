@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Paper,
@@ -17,7 +18,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { AdminProfile } from "./AdminAuthProvider";
 import type { EquipmentItem } from "../../services/equipment";
 import type { EquipmentLoan } from "../../services/equipmentLoans";
@@ -31,6 +32,7 @@ import {
   validateCheckoutQuantity
 } from "../../services/equipmentLoanLogic";
 import { isEquipmentReservationLoan } from "../../services/equipmentProgrammeLogic";
+import { focusFirstInvalidField } from "../../services/formValidationFocus";
 import { numericInputDisplayValue, parseOptionalNumberInput } from "../../services/numericInput";
 
 function defaultReturnDate(): string {
@@ -59,6 +61,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
   const [returningLoan, setReturningLoan] = useState<EquipmentLoan | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<EditableQuantityMap>({});
   const [saving, setSaving] = useState(false);
+  const [sectionError, setSectionError] = useState("");
+  const sectionControl = useRef<HTMLDivElement>(null);
 
   const sectionOptions = useMemo(() => checkoutSectionOptions(profile), [profile]);
   const activeItems = useMemo(() => items.filter((item) => !item.archived), [items]);
@@ -66,7 +70,8 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
   const sectionsWithHoldings = useMemo(() => Array.from(new Set(openLoans.map((loan) => loan.section))).sort((a, b) => a.localeCompare(b)), [openLoans]);
 
   const openCheckout = () => {
-    setSelectedSection(sectionOptions.length === 1 ? sectionOptions[0] : "");
+    setSelectedSection("");
+    setSectionError("");
     setExpectedReturnDate(defaultReturnDate());
     setNotes("");
     setCheckoutQuantities({});
@@ -75,8 +80,17 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
 
   const submitCheckout = async () => {
     onError("");
-    if (!selectedSection) return onError("Choose the section taking the equipment.");
-    if (!canUseEquipmentForSection(profile, selectedSection)) return onError("You are not authorised to issue equipment to that section.");
+    if (!selectedSection || !sectionOptions.includes(selectedSection) || !canUseEquipmentForSection(profile, selectedSection)) {
+      setSectionError(selectedSection ? "You are not authorised to issue equipment to that section." : "Select a section.");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!sectionControl.current) return;
+        // The dialog has its own scroll container; expose the field before
+        // applying the shared invalid-field focus behaviour.
+        sectionControl.current.scrollIntoView({ block: "center", behavior: "instant" });
+        focusFirstInvalidField(sectionControl.current);
+      }));
+      return;
+    }
     const requested = activeItems
       .map((item) => ({ item, quantity: checkoutQuantities[item.id] ?? 0 }))
       .filter(({ quantity }) => quantity > 0);
@@ -168,7 +182,15 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
       <DialogTitle>Check out equipment</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
-          <FormControl fullWidth><InputLabel>Section</InputLabel><Select label="Section" value={selectedSection} onChange={(event) => setSelectedSection(event.target.value)}>{sectionOptions.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select></FormControl>
+          <FormControl ref={sectionControl} fullWidth required error={Boolean(sectionError)} data-testid="checkout-section-field">
+            <InputLabel id="checkout-section-label">Section</InputLabel>
+            <Select labelId="checkout-section-label" label="Section" value={selectedSection} aria-describedby={sectionError ? "checkout-section-error" : undefined} onChange={(event) => {
+              const section = event.target.value;
+              setSelectedSection(section);
+              if (sectionOptions.includes(section) && canUseEquipmentForSection(profile, section)) setSectionError("");
+            }}>{sectionOptions.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select>
+            {sectionError && <FormHelperText id="checkout-section-error" role="alert">{sectionError}</FormHelperText>}
+          </FormControl>
           <TextField label="Expected return date" type="date" value={expectedReturnDate} onChange={(event) => setExpectedReturnDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="Checkout notes" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={2} placeholder="Optional event, camp or collection note" />
           <Typography sx={{ fontWeight: 800 }}>Equipment</Typography>
