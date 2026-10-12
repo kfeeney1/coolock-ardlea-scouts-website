@@ -1,4 +1,5 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
+import DateRangeFields from "../components/DateRangeFields";
 import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -136,8 +137,7 @@ export default function CreateEventPage() {
           <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? initialAudience} members={activeMembers} disabled={!dataReady || saving} onChange={(next) => setDraft({ ...draft, audience: next })} />
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <TextField required label="Start date" type="date" value={draft.startDate} onChange={(event) => setDraft({ ...draft, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="End date" type="date" value={draft.endDate} onChange={(event) => setDraft({ ...draft, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+            <Box sx={{ gridColumn: "1 / -1" }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => setDraft((current) => ({ ...current, startDate, ...(current.endDate && current.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => setDraft((current) => ({ ...current, endDate }))} /></Box>
           </Box>
           <TextField label="Location" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} />
           <FormControl fullWidth><InputLabel id="event-status-label">Status</InputLabel><Select labelId="event-status-label" id="event-status" label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as EventInput["status"] })}>{EVENT_STATUSES.filter((value) => value === "draft" || value === "open").map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>

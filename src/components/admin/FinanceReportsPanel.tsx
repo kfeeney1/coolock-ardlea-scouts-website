@@ -1,6 +1,7 @@
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
-import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import DateRangeFields from "../DateRangeFields";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { recordAuditEvent } from "../../services/auditLog";
@@ -108,8 +109,7 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
           {categories.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </Select>
       </FormControl>
-      <TextField type="date" label="Float from date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-      <TextField type="date" label="Float to date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+      <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="Float from date" endLabel="Float to date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
     </Box>
 
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>

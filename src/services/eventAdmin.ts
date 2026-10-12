@@ -23,6 +23,7 @@ import { buildEventAudienceMemberships, shouldPreserveLegacyEventAudience } from
 import { buildEventAudience, defaultEventAudienceForClassification } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
 import { saveEventAudience } from "./emailNotifications";
+import { isValidDateRange } from "./dateRangeLogic.ts";
 
 export type EventStatus = "draft" | "open" | "closed" | "completed";
 export type AttendanceStatus = "invited" | "attending" | "not-attending";
@@ -250,6 +251,7 @@ export async function createEvent(input: EventInput, eventId?: string, onEventId
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
     const title = clean(input.title, 200);
     if (!title) throw new UserFacingError("Event title is required.");
+    if (!isValidDateRange(input.startDate, input.endDate, { requireStart: true, requireEnd: true })) throw new UserFacingError("Enter a valid event end date on or after the start date.");
     if (input.status !== "draft" && input.status !== "open") throw new UserFacingError("New events must start as Draft or Open.");
 
     const [loadedMembers, authorisedSections] = await Promise.all([loadMembers(), authorisedEventAudienceSections(user.uid)]);
@@ -274,6 +276,7 @@ export async function createEvent(input: EventInput, eventId?: string, onEventId
 export async function updateEvent(eventId: string, input: EventInput, removalsConfirmed = false): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
+    if (!isValidDateRange(input.startDate, input.endDate, { requireStart: true, requireEnd: true })) throw new UserFacingError("Enter a valid event end date on or after the start date.");
 
     const eventRef = doc(db, "events", eventId);
     const currentSnapshot = await getDoc(eventRef);

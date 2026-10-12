@@ -114,6 +114,11 @@ test("derives partial, paid and credit balances from ledger entries",()=>{ asser
 test("exact reversals preserve shared-account provenance",()=>{ const original=familyPayment(4000); const reversal=createPaymentReversal(original,"Wrong amount"); assert.equal(reversal.amountCents,-4000); assert.equal(reversal.reversalOfPaymentId,"fp1"); assert.equal(reversal.accountId,"family-1"); assert.equal(balanceFor(familyAssignment("m2","Cubs",2),[original,{...reversal,id:"reversal-fp1",recordedBy:"treasurer"}]).paidCents,0); });
 test("validates policies and positive controlled-method payments",()=>{ const {id:policyId,...policyInput}=policy; const {id:paymentId,recordedBy,createdAt,...paymentInput}=payment(500); void policyId; void paymentId; void recordedBy; void createdAt; assert.doesNotThrow(()=>validatePolicy(policyInput)); assert.throws(()=>validatePolicy({...policyInput,standardFamilyRatesCents:[26400,25000]})); assert.doesNotThrow(()=>validatePolicy({...policyInput,standardFamilyRatesCents:[26400,41900,52400,62900,73400],leaderFamilyRatesCents:[20500,34300,46500,57000]})); assert.throws(()=>validatePolicy({...policyInput,periodEnd:"2026-08-31"})); assert.doesNotThrow(()=>validatePayment(paymentInput)); assert.throws(()=>validatePayment({...paymentInput,amountCents:0})); assert.throws(()=>validatePayment({...paymentInput,method:"card" as never})); });
 
+test("subs policy persistence validation permits same-day periods and rejects invalid calendar dates", () => {
+  assert.doesNotThrow(() => validatePolicy({ ...policy, periodStart: "2026-09-01", periodEnd: "2026-09-01" }));
+  assert.throws(() => validatePolicy({ ...policy, periodStart: "2026-09-31", periodEnd: "2026-10-01" }));
+});
+
 
 test("leader-family eligibility is relationship-driven and does not double-discount", () => {
   assert.equal(familyTypeForLeaderRelationships(["m1", "m2"], []), "standard");

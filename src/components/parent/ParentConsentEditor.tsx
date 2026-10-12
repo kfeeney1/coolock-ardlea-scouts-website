@@ -8,6 +8,7 @@ import { updateParentConsent, validateParentConsentRecord } from "../../services
 import type { MedicationManagementData } from "../../services/consentApplications";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { sanitizePhoneInput } from "../../services/phoneInput";
+import DateRangeFields from "../DateRangeFields";
 
 type Props = { consent: ParentConsentRecord; onSaved: () => Promise<void> | void };
 type ConsentErrors = ReturnType<typeof validateParentConsentRecord>;
@@ -70,8 +71,7 @@ export default function ParentConsentEditor({ consent, onSaved }: Props) {
 
         <Typography variant="h6" sx={{ mt: 3, mb: 1.5 }}>Consent period</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            {field("consentFrom", "Consent from", { type: "date", slotProps: { inputLabel: { shrink: true } } })}
-            {field("consentTo", "Consent to", { type: "date", slotProps: { inputLabel: { shrink: true } } })}
+            <Box sx={{ gridColumn: "1 / -1" }}><DateRangeFields startDate={form.consentFrom} endDate={form.consentTo} startLabel="Consent from" endLabel="Consent to" startRequired endRequired startError={validationErrors.consentFrom} endErrorMessage={validationErrors.consentTo} onStartDateChange={(value) => set("consentFrom", value)} onEndDateChange={(value) => set("consentTo", value)} /></Box>
             {yesNoField("Photo consent", "photoConsent")}{yesNoField("Water activities", "waterActivities")}{yesNoField("Can swim", "canSwim")}
         </Box>
 

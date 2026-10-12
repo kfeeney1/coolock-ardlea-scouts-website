@@ -7,6 +7,8 @@ import { loadAuthorisedScouterOptions } from "../../services/consentApplications
 import type { AuthorisedScouterOption, MedicationEntry, MedicationManagementData, YesNo } from "../../services/consentApplications";
 import { medicationAuthorisationDefaults } from "../../services/medicationAuthorisationDates";
 import { sanitizePhoneInput } from "../../services/phoneInput";
+import DateRangeFields from "../DateRangeFields";
+import { isValidDateRange } from "../../services/dateRangeLogic";
 
 type Errors = Partial<Record<keyof MedicationManagementData, string>>;
 type SharedIdentity = { memberName?: string; dateOfBirth?: string; address?: string };
@@ -86,6 +88,7 @@ export function validateMedication(data: MedicationManagementData, mode: "youth"
         if (!entry.selfAdmin && !errors.selfAdmin) errors.selfAdmin = `${prefix}Select Yes or No for self-administration.`;
         if (mode === "youth" && !entry.authFrom && !errors.authFrom) errors.authFrom = `${prefix}Authorised from date is required.`;
         if (mode === "youth" && !entry.authTo && !errors.authTo) errors.authTo = `${prefix}Authorised until date is required.`;
+        if (mode === "youth" && !isValidDateRange(entry.authFrom, entry.authTo, { requireStart: true, requireEnd: true }) && !errors.authTo) errors.authTo = `${prefix}Authorisation end date must be on or after its start date.`;
     });
     if (!data.signature.trim()) errors.signature = "Signature is required.";
     if (!data.signatureDate) errors.signatureDate = "Signature date is required.";
@@ -165,10 +168,7 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
                         <TextField multiline minRows={2} label="Other relevant information" value={entry.otherInfo} onChange={(e) => updateEntry(index, "otherInfo", e.target.value)} sx={{ gridColumn: { sm: "1 / -1" } }} />
                     </Box>
                     <Box sx={{ mt: 2 }}><YesNoField label={mode === "youth" ? "Can your child self-administer this medication?" : "Can the Scouter self-administer this medication?"} value={entry.selfAdmin} error={!entry.selfAdmin ? errors.selfAdmin : undefined} onChange={(answer: YesNo) => updateEntry(index, "selfAdmin", answer)} /></Box>
-                    {mode === "youth" && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 2 }}>
-                        <TextField required type="date" label="Authorised from" value={entry.authFrom} onChange={(e) => updateEntry(index, "authFrom", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                        <TextField required type="date" label="Authorised until" value={entry.authTo} onChange={(e) => updateEntry(index, "authTo", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                    </Box>}
+                    {mode === "youth" && <Box sx={{ mt: 2 }}><DateRangeFields startDate={entry.authFrom} endDate={entry.authTo} startLabel="Authorised from" endLabel="Authorised until" startRequired endRequired startError={errors.authFrom} endErrorMessage={errors.authTo} onStartDateChange={(date) => updateEntry(index, "authFrom", date)} onEndDateChange={(date) => updateEntry(index, "authTo", date)} /></Box>}
                 </Paper>)}
             </Stack>
             <Button variant="outlined" onClick={addMedication} sx={{ mt: 2 }} data-testid="add-medication">Add Medication</Button>

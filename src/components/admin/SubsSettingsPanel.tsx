@@ -1,4 +1,5 @@
 import { applicationErrorMessage, reportApplicationError } from "../../services/applicationErrors.ts";
+import DateRangeFields from "../DateRangeFields";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { hasGroupFinanceAppointment } from "../../security/scoutingAppointments";
@@ -121,8 +122,7 @@ export default function SubsSettingsPanel() {
       ) : null}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
         <TextField label="Scout year" value={period} onChange={(event) => setPeriod(event.target.value)} />
-        <TextField type="date" label="Starts" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-        <TextField type="date" label="Ends" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+        <DateRangeFields startDate={periodStart} endDate={periodEnd} startLabel="Starts" endLabel="Ends" startRequired endRequired onStartDateChange={setPeriodStart} onEndDateChange={setPeriodEnd} />
         <TextField type="number" label="Policy version" value={version} onChange={(event) => setVersion(event.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
       </Box>
       <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>Standard family total</Typography>
