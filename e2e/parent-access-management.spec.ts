@@ -30,8 +30,10 @@ test.describe("parent access management", () => {
     if (seededJourneyData) {
       const parentSearch = page.getByLabel("Search parents");
       await parentSearch.fill("Sort Fixture");
-      const orderedFixtureIds = await page.locator('[data-testid^="parent-access-"]:not([data-testid="parent-access-link-fallback"])').evaluateAll((cards) => cards.map((card) => card.id));
-      expect(orderedFixtureIds).toEqual([
+      const fixtureCards = page.locator('[data-testid^="parent-access-"]:not([data-testid="parent-access-link-fallback"])');
+      await expect.poll(async () => fixtureCards.evaluateAll((cards) => cards.map((card) => card.id)), {
+        message: "Wait for the seeded parent search results to finish loading and sorting"
+      }).toEqual([
         "parent-access-TEST_flow_parent_sort_pending",
         "parent-access-TEST_flow_parent_sort_approved",
         "parent-access-TEST_flow_parent_sort_disabled"
