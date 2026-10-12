@@ -115,7 +115,10 @@ export default function MemberManagement() {
     setRoverSavingUid(candidate.uid); setSaveError(""); setMessage("");
     try {
       await setManagedRoverMembership(candidate.uid, !candidate.roverActive);
-      await Promise.all([load(), loadRoverCandidates()]);
+      setRoverCandidates((current) => current.map((item) => item.uid === candidate.uid
+        ? { ...item, roverActive: !candidate.roverActive }
+        : item));
+      void Promise.all([load(), loadRoverCandidates()]);
       setMessage(candidate.roverActive ? "Rover membership ended without changing unrelated roles." : "Rover membership added without changing unrelated roles.");
     } catch (error) {
       setSaveError(applicationErrorMessage(error, "Unable to update Rover membership.", "MemberManagement"));
