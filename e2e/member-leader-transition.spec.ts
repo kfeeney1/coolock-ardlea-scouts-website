@@ -179,6 +179,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByLabel(/I confirm that the information supplied is accurate/).check();
   await page.getByRole("button", { name: "Submit Leader Registration" }).click();
   await expect(page.getByText("Your leader registration has been sent to the group administrator.")).toBeVisible();
+  await waitForTransientOverlayHistoryCleanup(page);
 
   await page.goto("/leader/login");
   await page.getByLabel("Email address").fill("test.webadmin@example.com");
