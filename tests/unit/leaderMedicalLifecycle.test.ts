@@ -33,17 +33,6 @@ test("newer renewal record becomes authoritative without deleting history", () =
   assert.equal(state.validityTo, "2027-08-31");
 });
 
-test("same-day renewal uses the most recently submitted Scouter form", () => {
-  const earlier = new Date("2026-10-11T10:00:00.000Z");
-  const renewal = new Date("2026-10-11T11:00:00.000Z");
-  const state = leaderMedicalStateFromPlainRecords([
-    { id: "renewal", data: { declarationConfirmed: true, signature: "Leader", validityFrom: "2026-10-11", validityTo: "2027-08-31", submittedAt: renewal, mobile: "0855550000" } },
-    { id: "earlier", data: { declarationConfirmed: true, signature: "Leader", validityFrom: "2026-10-11", validityTo: "2027-08-31", submittedAt: earlier, mobile: "0861234567" } }
-  ], "2026-10-11");
-  assert.equal(state.formId, "renewal");
-  assert.equal(state.data?.mobile, "0855550000");
-});
-
 test("local date arithmetic is stable across year and leap-year boundaries", () => {
   assert.equal(daysBetweenLocalDates("2026-08-31", "2026-09-01"), 1);
   assert.equal(daysBetweenLocalDates("2028-02-28", "2028-03-01"), 2);

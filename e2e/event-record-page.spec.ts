@@ -124,7 +124,7 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.getByRole("option", { name: "Present", exact: true }).click();
   await page.getByRole("button", { name: "Save Attendance" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Attendance and consent roster updated." })).toBeVisible();
-  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.reload();
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const restoredHelper = page.getByTestId("leader-attendance-section").getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
   await expect(restoredHelper.getByRole("combobox", { name: "Leader attendance" })).toHaveText("Present");

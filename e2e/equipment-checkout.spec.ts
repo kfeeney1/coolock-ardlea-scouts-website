@@ -78,13 +78,10 @@ test("admin can add, check out and check in stock from its record and verify per
   await returnDialog.getByRole("button", { name: "Confirm check in" }).click();
   await expect(returnDialog).toBeHidden();
   await expect(record).toContainText("0 checked out");
-  // Reopen the record from inventory to verify persisted state without
-  // depending on a full browser reload while Firebase emulators are running.
-  await page.getByRole("link", { name: "Back", exact: true }).click();
-  const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
-  await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
-  await returnedCard.getByText(itemName, { exact: true }).click();
-  await expect(page).toHaveURL(new RegExp("/leader/equipment/" + itemId + "$"));
+  // Reload only until the new document navigation commits; the following
+  // assertions verify that the persisted equipment record has loaded.
+  await page.reload({ waitUntil: "commit" });
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemId}$`));
   await expect(page.getByRole("heading", { name: itemName, exact: true })).toBeVisible();
   await expect(page.getByTestId("equipment-record-summary")).toContainText("0 checked out");
   await page.getByRole("button", { name: "History", exact: true }).click();
@@ -94,6 +91,7 @@ test("admin can add, check out and check in stock from its record and verify per
   await history.getByRole("button", { name: "Close" }).click();
   await page.getByRole("link", { name: "Back", exact: true }).click();
 
+  const returnedCard = page.locator('[data-testid^="equipment-inventory-card-"]').filter({ hasText: itemName });
   await expect(returnedCard.getByText("3 available", { exact: true })).toBeVisible();
 
   const search = page.getByLabel("Search equipment");
