@@ -8,7 +8,7 @@ import { recordAuditEvent } from "../../services/auditLog";
 import { loadFinanceTransactions } from "../../services/financeLedger";
 import { loadFinanceReceipts, type FinanceReceipt } from "../../services/financeReceipts";
 import { DEFAULT_FINANCE_CATEGORIES, type FinanceTransaction } from "../../services/financeLedgerLogic";
-import { formatSiteDate } from "../../services/siteDateFormat";
+import { formatSiteDate, formatSiteMonth } from "../../services/siteDateFormat";
 import { buildFinanceMonthlyTotals, buildFinanceReportSummary, filterFinanceTransactions, financeReceiptRequired, financeReportCsv } from "../../services/financeReportingLogic";
 
 const GROUP_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Group"];
@@ -129,8 +129,8 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
       <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2 }}>
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Typography sx={{ fontWeight: 800, mb: 1 }}>Monthly float movement</Typography>
-          {monthly.length === 0 ? <Typography color="text.secondary">No transactions match these filters.</Typography> : <Stack spacing={1}>{monthly.map((item) => <Box key={item.month} sx={{ display: "grid", gridTemplateColumns: "1fr repeat(3, auto)", gap: 2, alignItems: "center" }}>
-            <Typography sx={{ fontWeight: 700 }}>{item.month}</Typography>
+          {monthly.length === 0 ? <Typography color="text.secondary">No transactions match these filters.</Typography> : <Stack spacing={1}>{monthly.map((item) => <Box key={item.month} data-testid="finance-month-bucket" sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(8rem, 1fr) repeat(3, max-content)" }, gap: { xs: 0.5, sm: 2 }, alignItems: { xs: "start", sm: "center" } }}>
+            <Typography data-testid="finance-month-label" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{formatSiteMonth(item.month)}</Typography>
             <Typography variant="body2">Top up {euro(item.incomeCents)}</Typography>
             <Typography variant="body2">Out {euro(item.expenseCents)}</Typography>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>Net {euro(item.netCents)}</Typography>

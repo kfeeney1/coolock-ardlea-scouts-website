@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildFinanceMonthlyTotals, buildFinanceReportSummary, filterFinanceTransactions, financeReportCsv } from "../../src/services/financeReportingLogic.ts";
+import { formatSiteMonth } from "../../src/services/siteDateFormat.ts";
 import { FLOAT_CLOSE_CATEGORY, type FinanceTransaction } from "../../src/services/financeLedgerLogic.ts";
 import type { FinanceReceipt } from "../../src/services/financeReceipts.ts";
 
@@ -75,6 +76,35 @@ test("monthly totals are newest first and preserve signed float movement", () =>
   ]);
 });
 
+test("monthly totals keep canonical chronological keys across year boundaries and isolate invalid dates", () => {
+  const totals = buildFinanceMonthlyTotals([
+    transaction({ id: "jan-income", transactionDate: "2027-01-03", type: "income", amountCents: 2500 }),
+    transaction({ id: "dec-expense", transactionDate: "2026-12-18", type: "expense", category: "Equipment", amountCents: 700 }),
+    transaction({ id: "jan-expense", transactionDate: "2027-01-28", type: "expense", category: "Food", amountCents: 400 }),
+    transaction({ id: "bad-month", transactionDate: "2026-13-01", amountCents: 900 }),
+    transaction({ id: "bad-day", transactionDate: "2026-02-31", amountCents: 100 }),
+  ]);
+
+  assert.deepEqual(totals, [
+    { month: "2027-01", incomeCents: 2500, expenseCents: 400, netCents: 2100 },
+    { month: "2026-12", incomeCents: 0, expenseCents: 700, netCents: -700 },
+    { month: "Unknown", incomeCents: 1000, expenseCents: 0, netCents: 1000 },
+  ]);
+  assert.deepEqual(totals.slice(0, 2).map(({ month }) => month), ["2027-01", "2026-12"]);
+  assert.deepEqual(totals.slice(0, 2).map(({ month }) => formatSiteMonth(month)), ["January 2027", "December 2026"]);
+});
+
+test("monthly labels are deterministic and safely handle missing or malformed keys", () => {
+  assert.equal(formatSiteMonth("2026-10"), "October 2026");
+  assert.equal(formatSiteMonth("2026-01"), "January 2026");
+  assert.equal(formatSiteMonth("2026-00"), "Month unavailable");
+  assert.equal(formatSiteMonth("2026-13"), "Month unavailable");
+  assert.equal(formatSiteMonth("2026-1"), "Month unavailable");
+  assert.equal(formatSiteMonth("not-a-month"), "Month unavailable");
+  assert.equal(formatSiteMonth(undefined), "Month unavailable");
+  assert.equal(formatSiteMonth(null), "Month unavailable");
+});
+
 test("finance CSV requires receipts for money out but not float closure", () => {
   const csv = financeReportCsv([
     transaction({ id: "expense-with-receipt", type: "expense", category: "Equipment", description: "Rope, clips" }),
@@ -86,4 +116,6 @@ test("finance CSV requires receipts for money out but not float closure", () => 
   assert.match(csv, /Attached/);
   assert.match(csv, /Float closure,Close float,-10\.00,0,Not required/);
   assert.match(csv, /Not required/);
+  assert.match(csv, /^Date,Section/);
+  assert.match(csv, /2026-08-10/);
 });
