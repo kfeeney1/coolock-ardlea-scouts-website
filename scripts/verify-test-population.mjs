@@ -32,13 +32,20 @@ async function seededDocs(name) {
 }
 
 const expectedMemberCount = SECTIONS.length * MEMBERS_PER_SECTION;
-const members = await seededDocs("members");
-if (members.length !== expectedMemberCount) fail(`expected ${expectedMemberCount} members, found ${members.length}`);
+const allSeededMembers = await seededDocs("members");
+const members = allSeededMembers.filter((doc) => doc.data().testFamilyType === "comprehensive-population");
+if (members.length !== expectedMemberCount) fail(`expected ${expectedMemberCount} canonical section members, found ${members.length}`);
 for (const { section } of SECTIONS) {
   const sectionDocs = members.filter((doc) => doc.data().section === section);
   if (sectionDocs.length !== MEMBERS_PER_SECTION) fail(`expected ${MEMBERS_PER_SECTION} ${section} members, found ${sectionDocs.length}`);
 }
 if (new Set(members.map((doc) => doc.data().displayName)).size !== expectedMemberCount) fail("member display names are not unique");
+const roverManagementMembers = allSeededMembers.filter((doc) => doc.data().testRoleType === "rover-management-target");
+if (roverManagementMembers.length !== 1) fail(`expected one SW-267 linked adult member fixture, found ${roverManagementMembers.length}`);
+const roverManagementMember = roverManagementMembers[0].data();
+if (roverManagementMember.accountUid !== "TEST_uid_rover_management_target" || roverManagementMember.emailAddress !== "test.rover.management.target@example.com" || roverManagementMember.displayName !== "Rover Management Target") {
+  fail("SW-267 linked adult member fixture does not match its adult account");
+}
 for (const doc of members) {
   for (const key of ["firstName", "lastName", "displayName", "dateOfBirth", "section", "parentName", "emailAddress", "mobileNumber", "emergencyContactName", "emergencyContactPhone", "status", "source", "sourceJoinApplicationId"]) {
     if (!(key in doc.data())) fail(`members/${doc.id} missing canonical field ${key}`);
