@@ -136,18 +136,16 @@ test("authorized Member Management can end Rover membership from the member reco
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
   const roverMemberCard = page.getByTestId(existingMemberId!);
   await expect(roverMemberCard).toBeVisible();
+  const roverEligibility = await roverMemberCard.evaluate((element) => ({
+    status: element.getAttribute("data-member-status"),
+    hasRovers: element.getAttribute("data-member-has-rovers"),
+    accountLinked: element.getAttribute("data-member-account-linked"),
+    candidateMatch: element.getAttribute("data-member-rover-candidate-match")
+  }));
   await roverMemberCard.getByRole("button", { name: "Manage", exact: true }).click();
 
   const memberDetailsHeading = page.getByRole("heading", { name: "Member Details", exact: true });
   await expect(memberDetailsHeading).toBeVisible();
-  const memberRecordDialog = roverMemberCard;
-  const roverEligibility = await memberRecordDialog.evaluate((element) => ({
-    status: element.getAttribute("data-member-status"),
-    hasRovers: element.getAttribute("data-member-has-rovers"),
-    accountLinked: element.getAttribute("data-member-account-linked"),
-    candidateCount: element.getAttribute("data-rover-candidate-count"),
-    candidateMatch: element.getAttribute("data-member-rover-candidate-match")
-  }));
   expect(roverEligibility.status, JSON.stringify(roverEligibility)).toBe("active");
   expect(roverEligibility.hasRovers, JSON.stringify(roverEligibility)).toBe("true");
   expect(
