@@ -212,7 +212,8 @@ test("future start opens the shared end calendar at a valid date and only applie
   await expect(end).toHaveValue("");
   await page.getByRole("button", { name: "Choose end date" }).click();
   const calendar = page.getByRole("dialog", { name: "Choose end date" });
-  await expect(calendar.getByText("April 2099")).toBeVisible();
+  await expect(calendar.getByRole("group", { name: "April 2099 dates" })).toBeVisible();
+  await expect(calendar.getByText("Selected date: 02-04-2099", { exact: true })).toBeVisible();
   await expect(calendar.getByRole("button", { name: "Select 01-04-2099" })).toBeDisabled();
   await expect(calendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
   await expect(end).toHaveValue("");
@@ -240,9 +241,9 @@ test("future start opens the shared end calendar at a valid date and only applie
   await start.fill("2099-12-31");
   await page.getByRole("button", { name: "Choose end date" }).click();
   const yearBoundaryCalendar = page.getByRole("dialog", { name: "Choose end date" });
-  await expect(yearBoundaryCalendar.getByText("December 2099")).toBeVisible();
+  await expect(yearBoundaryCalendar.getByRole("group", { name: "December 2099 dates" })).toBeVisible();
   await yearBoundaryCalendar.getByRole("button", { name: "Next month" }).click();
-  await expect(yearBoundaryCalendar.getByText("January 2100")).toBeVisible();
+  await expect(yearBoundaryCalendar.getByRole("group", { name: "January 2100 dates" })).toBeVisible();
   await yearBoundaryCalendar.getByRole("button", { name: "Select 01-01-2100" }).click();
   await yearBoundaryCalendar.getByRole("button", { name: "Confirm date" }).click();
   await expect(end).toHaveValue("01-01-2100");
