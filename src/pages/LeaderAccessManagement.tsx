@@ -21,7 +21,7 @@ import {
   Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import LeaderChildLinksSection from "../components/admin/LeaderChildLinksSection";
@@ -69,6 +69,7 @@ function accessChangeSummary(previous: LeaderAccessRecord | undefined, next: Lea
 export default function LeaderAccessManagement() {
   const { user, adminProfile } = useAdminAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { leaderUid } = useParams();
   const [filterParams, setFilterParams] = useState(() => new URLSearchParams(window.location.search));
   const [records, setRecords] = useState<LeaderAccessRecord[]>([]);
@@ -114,13 +115,19 @@ export default function LeaderAccessManagement() {
     // or results re-render, even with preventScrollReset. Replace the URL in place
     // so deep links and Back retain filters without creating a navigation.
     setFilterParams(next);
-    const searchString = next.toString();
+  };
+
+  useEffect(() => {
+    // Closing a dropdown consumes its transient Back marker. That POP may
+    // restore the pre-edit URL; retain the live list filters on the list route.
+    if (leaderUid) return;
+    const searchString = filterParams.toString();
     window.history.replaceState(
       window.history.state,
       "",
       `${window.location.pathname}${searchString ? `?${searchString}` : ""}${window.location.hash}`
     );
-  };
+  }, [filterParams, leaderUid, location.key]);
 
   const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole, scoutingAppointments: adminProfile.appointments } : null;
   if (!actor || !canOpenLeaderAccess(actor)) {
