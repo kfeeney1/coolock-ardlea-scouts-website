@@ -1,4 +1,5 @@
 import { UserInputError } from "./applicationErrors.ts";
+import { isValidDateRange } from "./dateRangeLogic.ts";
 export const SUBS_PAYMENT_METHODS = ["bank", "cash", "revolut", "other"] as const;
 export const SUBS_RATE_CATEGORIES = ["standard", "leader-child", "sibling"] as const;
 export const SUBS_FAMILY_TYPES = ["standard", "leader"] as const;
@@ -292,7 +293,7 @@ export function validatePolicy(input: Omit<SubsRatePolicy, "id">): Omit<SubsRate
   if (input.periodStart && input.periodEnd) {
     validateIsoDate(input.periodStart, "period start date");
     validateIsoDate(input.periodEnd, "period end date");
-    if (input.periodEnd < input.periodStart) throw new UserInputError("Subs period end date must not be before its start date.");
+    if (!isValidDateRange(input.periodStart, input.periodEnd, { requireStart: true, requireEnd: true })) throw new UserInputError("Subs period end date must be valid and on or after its start date.");
   }
   validateFamilyRates(input.standardFamilyRatesCents, "Standard family");
   validateFamilyRates(input.leaderFamilyRatesCents, "Leader family");

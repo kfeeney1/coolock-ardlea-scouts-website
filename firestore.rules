@@ -3,6 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function validDateRange(startDate, endDate) {
+      return startDate is string && endDate is string
+        && startDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && endDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && startDate <= endDate;
+    }
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
     function parentProfile() { return get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data; }
     function isCanonicalLeaderProfile() {
@@ -251,10 +257,11 @@ service cloud.firestore {
       return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
     }
     function isApprovedParentForMember(memberId) {
+      let parent = parentProfile();
       return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && parentProfile().status == "approved"
-        && parentProfile().memberIds is list
-        && memberId in parentProfile().memberIds;
+        && parent.status == "approved"
+        && parent.memberIds is list
+        && memberId in parent.memberIds;
     }
     function parentMemberCurrentlyInSection(memberId, section) {
       return memberId is string
@@ -700,11 +707,12 @@ service cloud.firestore {
       allow list: if isSuperAdmin() || (isActiveLeader() && hasSection(resource.data.section));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.title is string && request.resource.data.eventType is string
-        && request.resource.data.startDate is string && request.resource.data.endDate is string
+        && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
         && validVersion3EventAudience(request.resource.data);
       allow update: if isActiveLeader() && hasSection(resource.data.section) && hasSection(request.resource.data.section)
         && request.resource.data.status in ["draft", "open", "closed", "completed"]
+        && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
         && (request.resource.data.audience == resource.data.audience || validVersion3EventAudience(request.resource.data))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "description", "eventType", "section", "location", "meetingPoint", "returnDetails", "leaderNotes", "startDate", "endDate", "status", "consentRequired", "consentLinkToken", "audience", "attendance", "consent", "updatedAt", "updatedBy"]);
       allow delete: if false;
@@ -844,6 +852,7 @@ service cloud.firestore {
         && request.resource.data.section is string
         && request.resource.data.formType in ["youth-activity-consent", "scouter-es3-medical-advice"]
         && request.resource.data.formVersion is string
+        && (request.resource.data.formType != "youth-activity-consent" || validDateRange(request.resource.data.consentFrom, request.resource.data.consentTo))
         && (request.resource.data.formType != "scouter-es3-medical-advice"
           || (isActiveLeader()
             && request.resource.data.submittedByUid == request.auth.uid
@@ -875,6 +884,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["memberId", "linkedBy", "linkedAt", "updatedAt", "reconciliationReason", "reconciledBy", "reconciledAt"]))
         || (resource.data.formType == "youth-activity-consent" && resource.data.memberId is string
           && isApprovedParentForMember(resource.data.memberId) && request.resource.data.memberId == resource.data.memberId
+          && validDateRange(request.resource.data.consentFrom, request.resource.data.consentTo)
           && request.resource.data.parentUpdatedBy == request.auth.uid
           && !request.resource.data.keys().hasAny(["scoutSection"])
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["consentFrom", "consentTo", "photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs", "vaccinated", "medicalFurtherInfo", "gpName", "gpTel", "gpAddress", "lastCheckup", "parent1Name", "parent2Name", "homePhone", "mobile1", "workPhone", "email", "homeAddress", "altContactName", "altContactPhone", "additionalInfo", "medicationManagement", "updatedByParent", "parentUpdatedBy", "parentUpdatedAt", "updatedAt"]));
@@ -1083,6 +1093,7 @@ service cloud.firestore {
         && request.resource.data.effectiveFrom is string
         && request.resource.data.periodStart is string
         && request.resource.data.periodEnd is string
+        && validDateRange(request.resource.data.periodStart, request.resource.data.periodEnd)
         && request.resource.data.standardCents is number && request.resource.data.standardCents >= 0
         && request.resource.data.leaderChildCents is number && request.resource.data.leaderChildCents >= 0
         && request.resource.data.siblingCents is number && request.resource.data.siblingCents >= 0

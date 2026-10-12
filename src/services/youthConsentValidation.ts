@@ -1,5 +1,6 @@
 import type { YouthConsentData } from "./consentApplications";
 import { isValidPhone } from "./phoneInput.ts";
+import { isValidDateRange } from "./dateRangeLogic.ts";
 
 export type YouthConsentValidationErrors = Partial<Record<keyof YouthConsentData, string>>;
 
@@ -36,7 +37,11 @@ export function validateYouthConsent(data: YouthConsentData): YouthConsentValida
   required(errors, data, "childDOB", "Date of birth is required.");
   required(errors, data, "consentFrom", "Start date is required.");
   required(errors, data, "consentTo", "End date is required.");
-  if (data.consentFrom && data.consentTo && data.consentTo < data.consentFrom) errors.consentTo = "End date must be after start date.";
+  if (!isValidDateRange(data.consentFrom, data.consentTo, { requireStart: true, requireEnd: true })) errors.consentTo = "Enter a valid end date on or after the start date.";
+  const medications = data.medicationManagement.medications?.length ? data.medicationManagement.medications : [data.medicationManagement];
+  if (data.medicationManagement.enabled && medications.some((entry) => !isValidDateRange(entry.authFrom, entry.authTo, { requireStart: true, requireEnd: true }))) {
+    errors.consentTo = "Each medication must have a valid authorisation end date on or after its start date.";
+  }
 
   for (const field of YES_NO_FIELDS) if (!text(data, field)) errors[field] = "Select Yes or No.";
 

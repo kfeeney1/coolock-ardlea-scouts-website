@@ -5,6 +5,7 @@ import type { EventInput, EventRecord, EventStatus } from "../../services/eventA
 import type { MemberRecord } from "../../services/memberAdmin";
 import { EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, eventAudienceSummary, eventStatusLabel } from "../../services/eventManagementLogic";
 import { formatSiteDate } from "../../services/siteDateFormat";
+import DateRangeFields from "../DateRangeFields";
 
 type Props = {
     open: boolean;
@@ -140,8 +141,7 @@ export default function EventEditorDialog({ open, editing, draft, saving, member
                                             })}
                                         </Stack>
                                     </Box>
-                                    <TextField required type="date" label="Start date" value={draft.startDate} onChange={(event) => onChange({ ...draft, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
-                                    <TextField type="date" label="End date" value={draft.endDate} onChange={(event) => onChange({ ...draft, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
+                                    <Box sx={{ gridColumn: { md: "1 / -1" } }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => onChange({ ...draft, startDate, ...(draft.endDate && draft.endDate < startDate ? { endDate: "" } : {}) })} onEndDateChange={(endDate) => onChange({ ...draft, endDate })} /></Box>
                                     <TextField label="Location" value={draft.location} onChange={(event) => onChange({ ...draft, location: event.target.value })} sx={{ gridColumn: { md: "1 / -1" } }} />
                                 </Box>
                             </Box>

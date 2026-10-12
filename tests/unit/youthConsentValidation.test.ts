@@ -33,6 +33,21 @@ test("canonical validation preserves legacy-compatible optional fields", () => {
   assert.deepEqual(validateYouthConsent(data), {});
 });
 
+test("consent validation rejects malformed or reversed ranges while permitting same-day validity", () => {
+  const reversed = base();
+  reversed.consentFrom = "2026-10-02";
+  reversed.consentTo = "2026-10-01";
+  assert.match(validateYouthConsent(reversed).consentTo ?? "", /valid end date/);
+
+  const malformed = base();
+  malformed.consentFrom = "2026-02-30";
+  assert.match(validateYouthConsent(malformed).consentTo ?? "", /valid end date/);
+
+  const sameDay = base();
+  sameDay.consentTo = sameDay.consentFrom;
+  assert.equal(validateYouthConsent(sameDay).consentTo, undefined);
+});
+
 
 test("SW-304 requires a second mobile only when a second parent is recorded", () => {
   const data = base(); data.parent2Name = "Second Parent";

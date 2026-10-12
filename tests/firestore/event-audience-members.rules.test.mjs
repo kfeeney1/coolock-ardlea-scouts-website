@@ -69,6 +69,18 @@ test("a leader can invite an active member from another section in their own aut
   await assertSucceeds(batch.commit());
 });
 
+test("Firestore rejects reversed event dates and accepts a same-day event range", async () => {
+  await seed([["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }]]);
+  const db = testEnv.authenticatedContext("leader-cubs").firestore();
+
+  await assertFails(setDoc(doc(db, "events/reversed-event"), {
+    ...eventRecord("Cubs", "sections", ["Cubs"]), startDate: "2099-05-11", endDate: "2099-05-10",
+  }));
+  await assertSucceeds(setDoc(doc(db, "events/same-day-event"), {
+    ...eventRecord("Cubs", "sections", ["Cubs"]), startDate: "2099-05-10", endDate: "2099-05-10",
+  }));
+});
+
 test("Firestore rejects inactive and out-of-scope selected members", async () => {
   await seed([
     ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],

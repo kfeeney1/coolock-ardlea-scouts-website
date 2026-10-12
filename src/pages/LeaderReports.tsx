@@ -1,4 +1,5 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
+import DateRangeFields from "../components/DateRangeFields";
 import {
     Alert,
     Box,
@@ -11,7 +12,6 @@ import {
     Paper,
     Select,
     Stack,
-    TextField,
     Typography
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -174,8 +174,7 @@ export default function LeaderReports() {
                     <Stack spacing={3}>
                         <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="report-date-filter">
                             <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: { md: "center" } }}>
-                                <TextField label="From date" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "report-from-date" } }} />
-                                <TextField label="To date" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "report-to-date" } }} />
+                                <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From date" endLabel="To date" startTestId="report-from-date" endTestId="report-to-date" onStartDateChange={setFromDate} onEndDateChange={setToDate} />
                                 {hasActiveDateFilters && <Button variant="outlined" onClick={resetDateFilters} data-testid="report-reset-filters">Reset filters</Button>}
                                 <Typography color="text.secondary" role="status" aria-live="polite" data-testid="report-event-result-count">{filteredEvents.length} of {events.length} events in range</Typography>
                             </Stack>
