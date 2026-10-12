@@ -55,7 +55,7 @@ export default function MemberManagement() {
   const [lifecycleCandidates, setLifecycleCandidates] = useState<ParentLifecycleCandidate[]>([]);
   const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
   const [loadingConsents] = useState(false);
-  const [consentLoadError, setConsentLoadError] = useState<unknown>(null);
+  const [consentLoadError] = useState<unknown>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addDraft, setAddDraft] = useState<CreateMemberInput>({ ...emptyMember });
   const [creating, setCreating] = useState(false);
