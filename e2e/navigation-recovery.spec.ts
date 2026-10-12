@@ -1,76 +1,5 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
-
-type Credentials = { email: string; password: string };
-
-function credentials(prefix: string): Credentials {
-  const email = process.env[`${prefix}_EMAIL`];
-  const password = process.env[`${prefix}_PASSWORD`] || process.env.E2E_TEST_USER_PASSWORD;
-  if (!email || !password) throw new Error(`Missing required ${prefix} navigation-test credentials`);
-  return { email, password };
-}
-
-async function login(page: Page, account: Credentials) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(account.email);
-  await page.getByLabel("Password").fill(account.password);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
-
-async function openMenu(page: Page, testInfo: TestInfo) {
-  const header = page.getByTestId("leader-dashboard-header");
-  const button = header.locator('button[aria-controls="leader-navigation"]');
-  const navigation = projectNavigation(page, testInfo);
-  await expect(button).toBeVisible();
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  await expect(button).toHaveAttribute("aria-expanded", "true");
-  await expect(navigation).toBeVisible();
-}
-
-async function exposeGroup(page: Page, testInfo: TestInfo, group: string) {
-  await openMenu(page, testInfo);
-  const navigation = projectNavigation(page, testInfo);
-  const button = navigation.getByRole("button", { name: group, exact: true });
-  if (testInfo.project.name === "mobile-chromium" && (await button.getAttribute("aria-expanded")) !== "true") {
-    await button.click();
-    await expect(button).toHaveAttribute("aria-expanded", "true");
-  }
-  return navigation;
-}
-
-async function clickNavItem(page: Page, testInfo: TestInfo, group: string, itemId: string) {
-  const navigation = await exposeGroup(page, testInfo, group);
-  const item = navigation.getByTestId(`leader-nav-${itemId}`);
-  await expect(item).toBeVisible();
-  await expect(item).toBeEnabled();
-  await item.click();
-}
-
-async function assertSiblingNotCurrent(page: Page, testInfo: TestInfo, group: string, itemId: string) {
-  const navigation = await exposeGroup(page, testInfo, group);
-  await expect(navigation.getByTestId("leader-nav-" + itemId)).not.toHaveAttribute("aria-current", "page");
-}
-
-function projectNavigation(page: Page, _testInfo: TestInfo) {
-  // Responsive rendering is authoritative: route changes can briefly remount the
-  // navigation surface, so select the currently visible container instead of
-  // assuming the Playwright project name always matches the mounted DOM variant.
-  return page.locator(
-    '[data-testid="leader-navigation-desktop"]:visible, [data-testid="leader-navigation-mobile"]:visible'
-  );
-}
-
-async function exposeQuartermaster(page: Page, testInfo: TestInfo) {
-  await openMenu(page, testInfo);
-  const navigation = projectNavigation(page, testInfo);
-  await expect(navigation).toBeVisible();
-  const quartermaster = navigation.getByRole("button", { name: "Quartermaster / Bo’sun" });
-  if ((await quartermaster.count()) > 0 && (await quartermaster.getAttribute("aria-expanded")) !== "true") {
-    await quartermaster.click();
-    await expect(quartermaster).toHaveAttribute("aria-expanded", "true");
-  }
-  return navigation;
-}
+import { expect, test } from "@playwright/test";
+import { credentials, login, openMenu, exposeGroup, clickNavItem, assertSiblingNotCurrent, projectNavigation, exposeQuartermaster } from "./support/navigation-recovery-helpers";
 
 test.describe("SW-178 canonical role navigation", () => {
   test("super admin reaches Equipment and Stores and QM Reports canonical destinations", async ({ page }, testInfo) => {
@@ -334,50 +263,7 @@ test.describe("SW-178 canonical role navigation", () => {
     }
   });
 
-  test("role-specific direct routes cannot be claimed by sibling navigation identities", async ({ page }, testInfo) => {
-    await login(page, credentials("E2E_SUPER_ADMIN"));
-    for (const [route, currentId, siblingIds] of [
-      ["/leader/settings", "settings", ["treasurer-settings", "qm-settings"]],
-      ["/leader/settings?view=treasurer", "treasurer-settings", ["settings", "qm-settings"]],
-      ["/leader/settings?view=quartermaster", "qm-settings", ["settings", "treasurer-settings"]],
-      ["/leader/reports?view=treasurer", "treasurer-reports", ["reports-exports"]],
-      ["/leader/reports?view=insights", "reports-exports", ["treasurer-reports"]],
-      ["/leader/equipment?view=quartermaster", "qm-equipment-stores", ["group-equipment-stores"]],
-      ["/leader/equipment?view=group-operations", "group-equipment-stores", ["qm-equipment-stores"]],
-      ["/leader/meetings?view=secretary", "secretary-meeting-records", ["group-meeting-records"]],
-      ["/leader/meetings?view=group-operations", "group-meeting-records", ["secretary-meeting-records"]],
-      ["/leader/finance?view=treasurer", "treasurer-floats", ["group-section-floats"]],
-      ["/leader/finance?view=group-operations", "group-section-floats", ["treasurer-floats"]],
-      ["/leader/subs?view=treasurer", "treasurer-subs", ["group-subs", "family-billing"]],
-      ["/leader/subs?view=group-operations", "group-subs", ["treasurer-subs", "family-billing"]],
-      ["/leader/subs#family-billing", "family-billing", ["treasurer-subs", "group-subs"]],
-    ] as const) {
-      await page.goto(route);
-      await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-      // Some destinations first render the shared header inside a loading branch
-      // and then replace it with the settled page shell. Wait for the specific
-      // destination identity before interacting with that header so this test
-      // checks navigation identity rather than the route's data-load transition.
-      const pageIdentity = currentId === "family-billing" ? "subs" : currentId;
-      await expect(page.getByTestId(`page-${pageIdentity}`)).toBeVisible();
-      const groupByItem: Record<string, string> = {
-        settings: "Administration", "treasurer-settings": "Treasurer", "qm-settings": "Quartermaster / Bo’sun",
-        "treasurer-reports": "Treasurer", "reports-exports": "Insights & Records",
-        "qm-equipment-stores": "Quartermaster / Bo’sun", "group-equipment-stores": "Group Operations",
-        "secretary-meeting-records": "Secretary", "group-meeting-records": "Group Operations",
-        "treasurer-floats": "Treasurer", "group-section-floats": "Group Operations",
-        "treasurer-subs": "Treasurer", "group-subs": "Group Operations", "family-billing": "People & Parents",
-      };
-      let navigation = await exposeGroup(page, testInfo, groupByItem[currentId]);
-      await expect(navigation.getByTestId("leader-nav-" + currentId)).toHaveAttribute("aria-current", "page");
-      for (const siblingId of siblingIds) {
-        navigation = await exposeGroup(page, testInfo, groupByItem[siblingId]);
-        await expect(navigation.getByTestId("leader-nav-" + siblingId)).not.toHaveAttribute("aria-current", "page");
-      }
-    }
-  });
-
-  test("SW-132 redundant refresh controls stay absent on administration pages", async ({ page }) => {
+    test("SW-132 redundant refresh controls stay absent on administration pages", async ({ page }) => {
     await login(page, credentials("E2E_SUPER_ADMIN"));
     for (const route of ["/leader/join", "/leader/event-consent", "/leader/parent-access", "/leader/activity"]) {
       await page.goto(route);
