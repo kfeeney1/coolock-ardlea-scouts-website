@@ -141,9 +141,13 @@ test.describe("leader permissions", () => {
   });
 
   test("ordinary leader opens their Scouter form from My Profile with keyboard access", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === "webkit-critical", "Scouter profile coverage runs on desktop and mobile Chromium.");
-    test.skip(!account, "Configure the seeded E2E test password to run this check.");
-    await loginLeader(page, account!);
+    desktopOnly(testInfo);
+    // Submitting the form persists consent for this account. Keep this journey
+    // on a separate seeded leader so the SW-309 inheritance journey can assert
+    // its own profile defaults without racing a different spec or shard.
+    const consentFormAccount = credentials("E2E_PARENT_LEADER");
+    test.skip(!consentFormAccount, "Configure the seeded parent-leader E2E account to run this check.");
+    await loginLeader(page, consentFormAccount!);
     await page.goto("/leader/profile");
     const tile = page.getByTestId("scouter-consent-tile");
     await expect(tile).toContainText(/Status: (?:Available|Current to \d{4}-08-31)/);
