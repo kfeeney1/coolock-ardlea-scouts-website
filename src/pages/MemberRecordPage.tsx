@@ -17,6 +17,8 @@ import { MEMBER_PROGRAMME_SECTIONS } from "../services/memberSectionCore.mjs";
 import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates, type ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
 import { loadParentAccounts } from "../services/parentPortal";
+import { loadRoverManagementCandidates, setManagedRoverMembership, type RoverManagementCandidate } from "../services/roverMembershipManagement";
+import { matchesRoverAdultIdentity } from "../services/roverMembershipLogic";
 import { formatSiteDate, formatSiteDateTime } from "../services/siteDateFormat";
 
 const statuses: MemberStatus[] = ["active", "inactive", "left"];
@@ -38,6 +40,8 @@ export default function MemberRecordPage() {
   const [lifecycleCandidates, setLifecycleCandidates] = useState<ParentLifecycleCandidate[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [roverCandidates, setRoverCandidates] = useState<RoverManagementCandidate[]>([]);
+  const [roverSaving, setRoverSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -70,6 +74,57 @@ export default function MemberRecordPage() {
   };
 
   useEffect(() => { void load(); }, [memberId]);
+
+  useEffect(() => {
+    void loadRoverManagementCandidates()
+      .then(setRoverCandidates)
+      .catch((candidateError) => {
+        reportApplicationError(candidateError, { area: "MemberRecordPage", operation: "Load Rover management candidates" });
+        setRoverCandidates([]);
+      });
+  }, []);
+
+  const endRoverMembership = async () => {
+    if (!member) return;
+    const candidate = roverCandidates.find((item) => matchesRoverAdultIdentity(
+      member,
+      { displayName: item.displayName, email: item.email }
+    ));
+    const targetUid = member.accountUid || candidate?.uid;
+    if (!targetUid) {
+      setError("This Rover membership cannot be managed from the current account or permission scope.");
+      return;
+    }
+
+    setRoverSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await setManagedRoverMembership(targetUid, false, member.id);
+      const refreshed = await loadMembers();
+      setMembers(refreshed);
+      const updated = refreshed.find((item) => item.id === member.id);
+      if (!updated) {
+        setMember(null);
+        setDraft(null);
+        setMessage("Rover membership ended and the member record is no longer in your section scope.");
+        return;
+      }
+      setMember(updated);
+      setDraft({ ...updated });
+      const [updatedHistory, updatedConsents] = await Promise.all([
+        loadMemberLifecycleHistory(updated.id),
+        loadMemberConsentSummaries(updated)
+      ]);
+      setHistory(updatedHistory);
+      setConsents(updatedConsents);
+      setMessage("Rover membership ended. The member record, history and unrelated roles are preserved.");
+    } catch (failure) {
+      setError(applicationErrorMessage(failure, "Unable to end Rover membership.", "MemberRecordPage"));
+    } finally {
+      setRoverSaving(false);
+    }
+  };
 
   const refreshFamily = async () => {
     const loadedMembers = await loadMembers();
@@ -199,6 +254,7 @@ export default function MemberRecordPage() {
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
+          {member.sections.includes("Rovers") && member.status === "active" && (member.accountUid || roverCandidates.some((candidate) => matchesRoverAdultIdentity(member, { displayName: candidate.displayName, email: candidate.email }))) && <Paper variant="outlined" sx={{ mt: 3, p: 2 }} data-testid="member-rover-membership-actions"><Typography sx={{ fontWeight: 700, mb: 1 }}>Rover membership</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>End this member's Rover membership while preserving their member record, history and any other section memberships.</Typography><Button variant="outlined" color="warning" disabled={roverSaving} onClick={() => void endRoverMembership()}>{roverSaving ? "Saving..." : "End Rover Membership"}</Button></Paper>}
           <MemberLeaderTransition member={member} disabled={saving} />
           <Button variant="contained" color="success" disabled={saving} onClick={() => void save()} sx={{ mt: 3 }}>{saving ? "Saving…" : "Save Member"}</Button>
         </Paper>
