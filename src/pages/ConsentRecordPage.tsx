@@ -109,7 +109,7 @@ export default function ConsentRecordPage() {
       : "/leader/consents";
   // Prefer the authoritative linked member when the page was opened from Member Details.
   // Do not rely solely on transient router state surviving redirects or record reloads.
-  const memberReturnPath = typeof navigationState?.fromMemberPath === "string" && /^\\/leader\\/members\\/[^/]+$/.test(navigationState.fromMemberPath)
+  const memberReturnPath = typeof navigationState?.fromMemberPath === "string" && navigationState.fromMemberPath.startsWith("/leader/members/") && navigationState.fromMemberPath.slice("/leader/members/".length).length > 0 && !navigationState.fromMemberPath.slice("/leader/members/".length).includes("/")
     ? navigationState.fromMemberPath
     : null;
   const resolvedReturnPath = memberReturnPath && record?.memberId
