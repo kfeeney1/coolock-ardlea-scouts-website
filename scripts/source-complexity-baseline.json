@@ -4,7 +4,6 @@
   "knownLargeFiles": {
     "src/components/consent/YouthConsentForm.tsx": 48864,
     "src/components/consent/ScouterConsentForm.tsx": 37650,
-    "src/pages/WeeklySectionTracker.tsx": 33054,
     "src/pages/MemberManagement.tsx": 28489,
     "src/pages/LeaderInfo.tsx": 26294
   }
