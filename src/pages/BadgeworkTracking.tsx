@@ -1,3 +1,6 @@
+import BadgeworkMemberSelection from "../components/admin/BadgeworkMemberSelection.tsx";
+import BadgeworkAwardPanel from "../components/admin/BadgeworkAwardPanel.tsx";
+import { useBadgeworkProgress } from "../components/admin/useBadgeworkProgress.ts";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -9,24 +12,20 @@ import BadgeworkGroupCompetencyControls from "../components/admin/BadgeworkGroup
 import BadgeworkSavePanel from "../components/admin/BadgeworkSavePanel.tsx";
 import BadgeworkTrackingDialogs from "../components/admin/BadgeworkTrackingDialogs.tsx";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Checkbox, Chip, CircularProgress, Container,
-  FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
-  Select, Stack, TextField, Typography
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress, Container,
+  FormControl, InputLabel, MenuItem, Paper,
+  Select, Stack, Typography
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { adventureSkills } from "../data/adventureSkills/index.ts";
 import { loadMembers, type MemberRecord } from "../services/memberAdmin";
 import {
-  loadMemberAdventureProgress,
-  loadMemberAdventureProgressForMembers,
   setRequirementCompletionForMembers,
-  setStageAwardForMembers,
-  type MemberAdventureProgress
+  setStageAwardForMembers
 } from "../services/adventureSkillProgress.ts";
 import { completeStageDraft, setDraftRequirement } from "../services/adventureSkillDraftLogic.ts";
-import { selectedMemberSummary } from "../services/adventureSkillSelectionLogic.ts";
 import { membersWithIncompleteStage, stageAwardSelectionState } from "../services/adventureSkillAwardLogic.ts";
 import { badgeworkSourceContextFromParams, sourceLabel } from "../services/adventureSkillSourceContext.ts";
 import {
@@ -54,24 +53,21 @@ export default function BadgeworkTracking() {
   const [stageNumber, setStageNumber] = useState(1);
   const [section, setSection] = useState("all");
   const [search, setSearch] = useState("");
-  const [progressByMemberId, setProgressByMemberId] = useState(new Map<string, MemberAdventureProgress>());
   const [draft, setDraft] = useState(new Map<string, boolean>());
   const [memberDraft, setMemberDraft] = useState(new Map<string, boolean>());
   const [loading, setLoading] = useState(true);
-  const [overviewLoaded, setOverviewLoaded] = useState(false);
-  const [overviewError, setOverviewError] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pendingDiscard, setPendingDiscard] = useState<DiscardAction | null>(null);
   const [awardRemovalOpen, setAwardRemovalOpen] = useState(false);
-  const progressRequests = useRef(new Map<string, Promise<MemberAdventureProgress>>());
 
   const skill = adventureSkills.find((item) => item.id === skillId) ?? adventureSkills[0];
   const stage = skill?.stages.find((item) => item.stage === stageNumber) ?? skill?.stages[0];
   const unsavedChangeCount = draft.size + memberDraft.size;
   const hasUnsavedChanges = unsavedChangeCount > 0;
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+  const { progressByMemberId, overviewLoaded, setOverviewLoaded, overviewError, setOverviewError, refreshProgress } = useBadgeworkProgress(activeMembers, loading, mode, workflowStep, selectedIds, setError);
   const overviewLoading = !loading && mode === "overview" && !overviewLoaded && !overviewError && activeMembers.length > 0;
   const sections = useMemo(() => sectionFilterOptions(activeMembers.map((member) => member.section)), [activeMembers]);
   const visibleMembers = useMemo(() => {
@@ -83,32 +79,6 @@ export default function BadgeworkTracking() {
   const incompleteMemberIds = skill && stage ? membersWithIncompleteStage(selectedIds, progressByMemberId, skill.id, stage.stage) : selectedIds;
   const canAward = selectedIds.length > 0 && incompleteMemberIds.length === 0 && !hasUnsavedChanges;
 
-  const progressForMember = useCallback((memberId: string, forceRefresh = false) => {
-    if (forceRefresh) progressRequests.current.delete(memberId);
-    const existing = progressRequests.current.get(memberId);
-    if (existing) return existing;
-    const request = loadMemberAdventureProgress(memberId);
-    progressRequests.current.set(memberId, request);
-    void request.catch(() => {
-      if (progressRequests.current.get(memberId) === request) progressRequests.current.delete(memberId);
-    });
-    return request;
-  }, []);
-
-  const refreshProgress = useCallback(async (memberIds: readonly string[], signal?: AbortSignal, forceRefresh = false) => {
-    const missing = [...new Set(memberIds)].filter((memberId) => forceRefresh || !progressByMemberId.has(memberId));
-    if (missing.length === 0 || signal?.aborted) return;
-    const loaded = await loadMemberAdventureProgressForMembers(missing, {
-      signal,
-      loadMember: (memberId) => progressForMember(memberId, forceRefresh)
-    });
-    if (signal?.aborted) return;
-    setProgressByMemberId((current) => {
-      const next = new Map(current);
-      for (const progress of loaded) next.set(progress.memberId, progress);
-      return next;
-    });
-  }, [progressByMemberId, progressForMember]);
 
   useEffect(() => {
     let active = true;
@@ -132,36 +102,6 @@ export default function BadgeworkTracking() {
     setSourceSelectionApplied(true);
   }, [activeMembers, sourceContext, sourceSelectionApplied]);
 
-  useEffect(() => {
-    if (workflowStep !== "badgework") return;
-    const controller = new AbortController();
-    void refreshProgress(selectedIds, controller.signal).catch((loadError) => {
-      if (!controller.signal.aborted) setError(applicationErrorMessage(loadError, "Unable to load Adventure Skills progress.", "BadgeworkTracking"));
-    });
-    return () => controller.abort();
-  }, [workflowStep, selectedIds, refreshProgress]);
-
-  useEffect(() => {
-    if (mode !== "overview" || loading || overviewLoaded || overviewError || activeMembers.length === 0) return;
-    const controller = new AbortController();
-    let active = true;
-    void loadMemberAdventureProgressForMembers(activeMembers.map((member) => member.id), {
-      signal: controller.signal,
-      loadMember: progressForMember
-    }).then((loaded) => {
-        if (!active || controller.signal.aborted) return;
-        setProgressByMemberId((current) => {
-          const next = new Map(current);
-          for (const progress of loaded) next.set(progress.memberId, progress);
-          return next;
-        });
-        setOverviewLoaded(true);
-      })
-      .catch((loadError) => {
-        if (active && !controller.signal.aborted) setOverviewError(applicationErrorMessage(loadError, "Unable to load the Badgework Overview. Please try again.", "BadgeworkTracking"));
-      });
-    return () => { active = false; controller.abort(); };
-  }, [activeMembers, loading, mode, overviewError, overviewLoaded, progressForMember]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -300,24 +240,9 @@ export default function BadgeworkTracking() {
       {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
         {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded || (!loading && !error && activeMembers.length === 0)} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
 
-        {mode === "record" && workflowStep === "members" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
-          <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: .75 }}>Select members</Typography>
-          <Typography color="text.secondary" sx={{ mb: 2.5 }}>Choose the child or children whose badgework you want to update, then continue to the competency screen.</Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" }, gap: 2, mb: 2 }}>
-            <TextField label="Search children" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or section" />
-            <FormControl><InputLabel>Section</InputLabel><Select label="Section" value={section} onChange={(event) => setSection(event.target.value)}>{sections.map((item) => <MenuItem key={item} value={item}>{item === "all" ? "All sections" : item}</MenuItem>)}</Select></FormControl>
-          </Box>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2, alignItems: { sm: "center" } }}>
-            <FormControlLabel control={<Checkbox checked={allVisibleSelected} indeterminate={someVisibleSelected} onChange={toggleAllVisible} />} label="Select all shown" />
-            <Chip color={selectedIds.length ? "success" : "default"} label={selectedMemberSummary(selectedIds, visibleMembers.length)} />
-            {selectedIds.length > 0 && <Button size="small" onClick={clearSelection}>Clear selection</Button>}
-          </Stack>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1 }}>
-            {visibleMembers.map((member) => <Paper key={member.id} variant="outlined" sx={{ p: 1.25 }}><FormControlLabel sx={{ m: 0, width: "100%", alignItems: "flex-start" }} control={<Checkbox checked={selectedIds.includes(member.id)} onChange={() => toggleMember(member.id)} />} label={<Box sx={{ pt: .75 }}><Typography sx={{ fontWeight: 700 }}>{member.displayName}</Typography><Typography variant="body2" color="text.secondary">{member.section}</Typography></Box>} /></Paper>)}
-          </Box>
-          {visibleMembers.length === 0 && <Alert severity="info" sx={{ mt: 2 }}>No active children match the current filters.</Alert>}
-          <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}><Button variant="contained" color="success" size="large" disabled={!selectedIds.length} onClick={continueToBadgework}>Select {selectedIds.length || ""} {selectedIds.length === 1 ? "member" : "members"} and continue</Button></Box>
-        </Paper>}
+
+
+        {mode === "record" && workflowStep === "members" && <BadgeworkMemberSelection search={search} section={section} sections={sections} visibleMembers={visibleMembers} selectedIds={selectedIds} allVisibleSelected={allVisibleSelected} someVisibleSelected={someVisibleSelected} onSearchChange={setSearch} onSectionChange={setSection} onToggleAllVisible={toggleAllVisible} onClearSelection={clearSelection} onToggleMember={toggleMember} onContinue={continueToBadgework} />}
 
         {mode === "record" && workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2.5 }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Record badgework</Typography><Typography color="text.secondary">Changes below are drafts until you select Save changes.</Typography></Box><Button variant="outlined" onClick={changeMembers}>Change members</Button></Stack>
@@ -332,14 +257,9 @@ export default function BadgeworkTracking() {
           {sourceContext && selectedMembers.length > 1 && <Accordion disableGutters sx={{ mt: 2, mb: 2 }} data-testid="badgework-meeting-exceptions"><AccordionSummary expandIcon={<Typography component="span" aria-hidden="true">⌄</Typography>}><Box><Typography sx={{ fontWeight: 800 }}>Review individual progress and exceptions</Typography><Typography variant="body2" color="text.secondary">Open this only when selected children completed different competency points.</Typography></Box></AccordionSummary><AccordionDetails>{selectedStageSummary}</AccordionDetails></Accordion>}
           {sourceContext && selectedMembers.length === 1 && <Box sx={{ mt: 2 }}>{selectedStageSummary}</Box>}
 
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="badge-award-panel">
-            <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
-              <Box><Typography sx={{ fontWeight: 800 }}>Stage {stage?.stage} award</Typography><Typography variant="body2" color="text.secondary">Requirements complete and badge awarded are separate records.</Typography><Stack direction="row" spacing={1} sx={{ mt: 1 }}><Chip size="small" color={incompleteMemberIds.length === 0 ? "success" : "default"} label={incompleteMemberIds.length === 0 ? "Requirements complete" : `${incompleteMemberIds.length} selected incomplete`} /><Chip size="small" color={awardState === "all" ? "success" : awardState === "some" ? "warning" : "default"} label={awardState === "all" ? "Awarded" : awardState === "some" ? "Awarded to some" : "Not awarded"} /></Stack></Box>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button variant="contained" color="success" disabled={saving || !canAward || awardState === "all"} onClick={() => void setAward(true)}>Award badge</Button><Button variant="outlined" color="warning" disabled={saving || awardState === "none" || hasUnsavedChanges} onClick={() => setAwardRemovalOpen(true)}>Remove award</Button></Stack>
-            </Stack>
-            {hasUnsavedChanges && <Alert severity="info" sx={{ mt: 1.5 }}>Save competency changes before awarding or removing an award.</Alert>}
-            {!hasUnsavedChanges && incompleteMemberIds.length > 0 && <Alert severity="info" sx={{ mt: 1.5 }}>The badge can be awarded once all competency points are saved as complete for every selected child.</Alert>}
-          </Paper>
+
+
+          <BadgeworkAwardPanel stageNumber={stage?.stage} incompleteCount={incompleteMemberIds.length} awardState={awardState} saving={saving} canAward={canAward} hasUnsavedChanges={hasUnsavedChanges} onAward={() => void setAward(true)} onRemove={() => setAwardRemovalOpen(true)} />
 
           {!sourceContext && groupCompetencyControls}
           {savePanel}
