@@ -1,7 +1,6 @@
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
-import { displayWeeklyDate } from "../services/weeklyTrackerLogic.ts";
-import type { WeeklyMeetingRecord } from "../services/weeklyTracker.ts";
+import { displayWeeklyDate } from "../../services/weeklyTrackerLogic.ts";
+import type { WeeklyMeetingRecord } from "../../services/weeklyTracker.ts";
 
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
 type Props = { selected: WeeklyMeetingRecord; step: Step; setStep: (step: Step) => void; programmeDuration: number; present: number; total: number; operationalReadOnly: boolean; planningReadOnly: boolean; readOnly: boolean; shareLoading: boolean; shareError: string; whatsappUrl?: string; editorTopRef: { current: HTMLDivElement | null }; requestNavigationAction: (action: "meetings" | "copy" | "create") => void; setEquipmentOpen: (open: boolean) => void; };
