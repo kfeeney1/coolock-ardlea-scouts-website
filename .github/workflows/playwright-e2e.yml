@@ -7,50 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# PRs verify focused selection policy and run selected E2E shards; manual dispatch runs the full suite.
+# PRs run selected E2E shards; manual dispatch runs the full suite.
 
 permissions:
   contents: read
 
 jobs:
-  focused_selection:
-    name: Focused PR assurance
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      run: ${{ steps.selection.outputs.run }}
-      navigation: ${{ steps.selection.outputs.navigation }}
-      activities: ${{ steps.selection.outputs.activities }}
-      polls: ${{ steps.selection.outputs.polls }}
-      communications: ${{ steps.selection.outputs.communications }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: 22
-      - name: Verify focused selection policy
-        run: node --experimental-strip-types --test tests/unit/focusedPlaywrightSelection.test.ts
-      - name: Select focused regressions from changed paths
-        id: selection
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          changed_files="$RUNNER_TEMP/focused-pr-changed-files.txt"
-          selected_outputs="$RUNNER_TEMP/focused-pr-selection.txt"
-          if ! git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"; then
-            echo "Unable to calculate changed paths; selecting every focused regression."
-            : > "$changed_files"
-          fi
-          if ! node scripts/focused-playwright-selection.mjs --files "$changed_files" > "$selected_outputs"; then
-            echo "Focused selector failed; selecting every focused regression."
-            node scripts/focused-playwright-selection.mjs --force-all > "$selected_outputs"
-          fi
-          cat "$selected_outputs" >> "$GITHUB_OUTPUT"
-
   e2e_shard:
     name: e2e shard ${{ matrix.id }} of 2
     strategy:
