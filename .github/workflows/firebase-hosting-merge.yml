@@ -88,6 +88,11 @@ jobs:
               exit 1
             fi
           done
+      - name: Setup Node for Firebase 13
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
       - name: Setup Java for Firebase emulators
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
@@ -96,7 +101,7 @@ jobs:
       - name: Install application and pinned Firebase test tooling
         run: |
           npm ci
-          npm install --no-save --package-lock=false @firebase/rules-unit-testing@5.0.2 firebase-tools@15.28.1
+          npm install --no-save --package-lock=false @firebase/rules-unit-testing@6.0.0 firebase-tools@15.28.1
       - name: Re-run release security checks
         run: |
           npm run check:workflow-production-credentials
