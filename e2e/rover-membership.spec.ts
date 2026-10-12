@@ -241,7 +241,7 @@ test("Rover Section Leader can designate and remove a linked adult member on mob
   await expect(manageRovers).toBeVisible();
   await manageRovers.click();
   const dialog = page.getByRole("dialog", { name: "Manage Rover Membership" });
-  const target = dialog.getByText("Rover Management Target", { exact: true });
+  const target = dialog.getByText("Cubs Section Leader", { exact: true });
   const row = target.locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   await expect(row.getByRole("button", { name: "Designate Rover" })).toBeVisible();
   await row.getByRole("button", { name: "Designate Rover" }).click();
@@ -252,7 +252,7 @@ test("Rover Section Leader can designate and remove a linked adult member on mob
   await page.reload();
   await page.getByRole("button", { name: "Manage Rovers" }).click();
   const reopened = page.getByRole("dialog", { name: "Manage Rover Membership" });
-  const persistedRow = reopened.getByText("Rover Management Target", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  const persistedRow = reopened.getByText("Cubs Section Leader", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   await expect(persistedRow.getByRole("button", { name: "End Rover Membership" })).toBeVisible();
   await persistedRow.getByRole("button", { name: "End Rover Membership" }).click();
   await expect(persistedRow.getByRole("button", { name: "Designate Rover" })).toBeVisible();
@@ -261,6 +261,6 @@ test("Rover Section Leader can designate and remove a linked adult member on mob
   await page.reload();
   await page.getByRole("button", { name: "Manage Rovers" }).click();
   const afterRemoval = page.getByRole("dialog", { name: "Manage Rover Membership" });
-  const removedRow = afterRemoval.getByText("Rover Management Target", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
+  const removedRow = afterRemoval.getByText("Cubs Section Leader", { exact: true }).locator("xpath=ancestor::div[contains(@class,'MuiPaper-root')][1]");
   await expect(removedRow.getByRole("button", { name: "Designate Rover" })).toBeVisible();
 });
