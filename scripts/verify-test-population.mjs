@@ -53,8 +53,13 @@ for (const doc of members) {
   if (doc.data().status !== "active") fail(`members/${doc.id} has non-canonical seeded status`);
 }
 
-const adminUsers = await seededDocs("adminUsers");
-if (adminUsers.length !== 32) fail(`expected 32 leader/admin profiles, found ${adminUsers.length}`);
+const allAdminUsers = await seededDocs("adminUsers");
+const adminUsers = allAdminUsers.filter((doc) => doc.data().testRoleType !== "rover-management-target");
+if (adminUsers.length !== 32) fail(`expected 32 canonical leader/admin profiles, found ${adminUsers.length}`);
+const roverManagementAdmins = allAdminUsers.filter((doc) => doc.data().testRoleType === "rover-management-target");
+if (roverManagementAdmins.length !== 1 || roverManagementAdmins[0].id !== "TEST_uid_rover_management_target") {
+  fail("SW-267 linked adult account fixture is missing or duplicated");
+}
 for (const doc of adminUsers) {
   const data = doc.data();
   if (!(data.role === "leader" || data.role === "admin" || data.role === "super-admin")) fail(`adminUsers/${doc.id} has invalid role`);
@@ -63,8 +68,12 @@ for (const doc of adminUsers) {
   if (data.active !== true) fail(`adminUsers/${doc.id} must be active`);
 }
 
-const organisation = await seededDocs("organisationLeadership");
-if (organisation.length !== 32) fail(`expected 32 organisation records, found ${organisation.length}`);
+const allOrganisation = await seededDocs("organisationLeadership");
+const organisation = allOrganisation.filter((doc) => doc.data().testRoleType !== "rover-management-target");
+if (organisation.length !== 32) fail(`expected 32 canonical organisation records, found ${organisation.length}`);
+if (allOrganisation.filter((doc) => doc.data().testRoleType === "rover-management-target").length !== 1) {
+  fail("SW-267 organisation account fixture is missing or duplicated");
+}
 const publicLeadership = await seededDocs("publicLeadership");
 if (publicLeadership.length !== 27) fail(`expected 27 public leadership records, found ${publicLeadership.length}`);
 for (const doc of publicLeadership) {
@@ -117,9 +126,10 @@ const expectedAuthUids = new Set([
   MULTI_SECTION_UID,
   WEB_ADMIN_UID,
   SUPER_ADMIN_UID,
-  MODERN_SUPER_ADMIN_UID
+  MODERN_SUPER_ADMIN_UID,
+  "TEST_uid_rover_management_target"
 ]);
-if (expectedAuthUids.size !== 41) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 41`);
+if (expectedAuthUids.size !== 42) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 42`);
 
 const missingAuthUids = [];
 for (const uid of expectedAuthUids) {
@@ -132,5 +142,5 @@ console.log("Minimal canonical TEST population verified successfully.");
 console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
 console.log("- Who's Who: exactly seven Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
-console.log("- Leader/admin profiles: 27 public leaders + 2 private multi-section leaders + 3 private website admins");
+console.log("- Leader/admin profiles: 27 public leaders + 2 private multi-section leaders + 3 private website admins + 1 SW-267 manager target");
 console.log("- Firebase Auth: all 41 canonical identities present");
