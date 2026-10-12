@@ -198,8 +198,7 @@ test("Clear resets the full-page event form without persisting or leaving it", a
   await expect(page.getByLabel("Description")).toHaveValue("");
 });
 
-test("date range end stays unavailable until a valid start and clears when the start moves later", async ({ page }, testInfo) => {
-  desktopOnly(testInfo);
+test("future start opens the shared end calendar at a valid date and only applies after confirmation", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/events/create");
@@ -209,13 +208,44 @@ test("date range end stays unavailable until a valid start and clears when the s
   await expect(end).toBeDisabled();
   await start.fill("2099-04-02");
   await expect(end).toBeEnabled();
-  await expect(end).toHaveAttribute("min", "2099-04-02");
-  await end.fill("2099-04-03");
-  await expect(end).toHaveValue("2099-04-03");
+  await expect(end).toHaveAttribute("data-min-date", "2099-04-02");
+  await expect(end).toHaveValue("");
+  await page.getByRole("button", { name: "Choose end date" }).click();
+  const calendar = page.getByRole("dialog", { name: "Choose end date" });
+  await expect(calendar.getByText("April 2099")).toBeVisible();
+  await expect(calendar.getByRole("button", { name: "Select 01-04-2099" })).toBeDisabled();
+  await expect(calendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
+  await expect(end).toHaveValue("");
+  await calendar.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(end).toHaveValue("");
+  await page.getByRole("button", { name: "Choose end date" }).click();
+  const reopenedCalendar = page.getByRole("dialog", { name: "Choose end date" });
+  await expect(reopenedCalendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
+  await reopenedCalendar.getByRole("button", { name: "Confirm date" }).click();
+  await expect(end).toHaveValue("02-04-2099");
 
-  await start.fill("2099-04-04");
+  await end.fill("04-04-2099");
+  await expect(end).toHaveValue("04-04-2099");
+  await end.blur();
+
+  await start.fill("2099-04-05");
   await expect(end).toHaveValue("");
   await expect(page.getByRole("alert")).toContainText("end date was cleared");
+
+  await end.fill("04-04-2099");
+  await expect(end).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("alert")).toContainText("on or after the start date");
+  await expect(end).toHaveValue("04-04-2099");
+
+  await start.fill("2099-12-31");
+  await page.getByRole("button", { name: "Choose end date" }).click();
+  const yearBoundaryCalendar = page.getByRole("dialog", { name: "Choose end date" });
+  await expect(yearBoundaryCalendar.getByText("December 2099")).toBeVisible();
+  await yearBoundaryCalendar.getByRole("button", { name: "Next month" }).click();
+  await expect(yearBoundaryCalendar.getByText("January 2100")).toBeVisible();
+  await yearBoundaryCalendar.getByRole("button", { name: "Select 01-01-2100" }).click();
+  await yearBoundaryCalendar.getByRole("button", { name: "Confirm date" }).click();
+  await expect(end).toHaveValue("01-01-2100");
 });
 
 test("Back and Cancel avoid empty events and save a valid draft before leaving", async ({ page }) => {
@@ -247,7 +277,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
   await page.getByLabel("Start date").fill("2099-05-10");
-  await page.getByLabel("End date").fill("2099-05-10");
+  await page.getByLabel("End date").fill("10-05-2099");
   await page.getByLabel("Location").fill("TEST full-page location");
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Open", exact: true }).click();
@@ -265,6 +295,15 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page).toHaveURL(/\/leader\/events\/[^/]+$/);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
+  const eventId = page.url().split("/").at(-1)!;
+  await page.goto(`/leader/events/${encodeURIComponent(eventId)}/edit`);
+  await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
+  await expect(page.getByLabel("End date")).toHaveValue("10-05-2099");
+  await page.getByLabel("Start date").fill("2099-05-11");
+  await expect(page.getByLabel("End date")).toHaveValue("");
+  await page.getByLabel("End date").fill("09-05-2099");
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("End date cannot be before the start date");
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {

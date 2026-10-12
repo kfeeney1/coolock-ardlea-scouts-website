@@ -90,7 +90,7 @@ test.describe("approved parent journey", () => {
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     });
     await expect(page.getByLabel("Consent from")).toHaveValue(expectedToday);
-    await expect(page.getByLabel("Consent to")).toHaveValue(`${Number(expectedToday.slice(0, 4)) + 1}-08-31`);
+    await expect(page.getByLabel("Consent to")).toHaveValue(`31-08-${Number(expectedToday.slice(0, 4)) + 1}`);
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("type", "tel");
     await expect(page.getByLabel("Parent / guardian 2 mobile")).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
