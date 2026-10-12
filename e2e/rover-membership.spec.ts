@@ -154,17 +154,13 @@ test("authorized Member Management can end Rover membership from the member reco
   ).toBe(true);
   const endMembership = page.getByTestId("member-rover-membership-actions")
     .getByRole("button", { name: "End Rover Membership" });
-  const editorState = await page.locator("input").evaluateAll((inputs) => inputs.map((element) => {
+  const editorSections = await page.locator('input[type="checkbox"]').evaluateAll((inputs) => inputs.map((element) => {
     const input = element as HTMLInputElement;
-    return {
-      name: input.getAttribute("name"),
-      type: input.getAttribute("type"),
-      value: input.value,
-      checked: input.checked
-    };
+    return { section: input.getAttribute("aria-label"), checked: input.checked };
   }));
-  const pageText = await page.locator("body").evaluate((element) => element.textContent?.slice(-3000) ?? "");
-  await expect(endMembership, `Rover eligibility: ${JSON.stringify(roverEligibility)}; Member editor inputs: ${JSON.stringify(editorState)}; page text: ${pageText}`).toBeVisible();
+  const editorStatus = await page.locator("select").evaluateAll((selects) => selects.map((element) => (element as HTMLSelectElement).value));
+  const pageText = await page.locator("body").evaluate((element) => element.textContent?.slice(-1200) ?? "");
+  await expect(endMembership, `Rover eligibility: ${JSON.stringify(roverEligibility)}; editor status: ${JSON.stringify(editorStatus)}; selected sections: ${JSON.stringify(editorSections)}; page text: ${pageText}`).toBeVisible();
   await endMembership.click();
   await expect(page.getByText("Rover membership ended and the member record is no longer in your section scope.")).toBeVisible();
   await expect(memberDetailsHeading).toBeHidden();
