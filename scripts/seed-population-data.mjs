@@ -83,7 +83,31 @@ function membersForSection(plan) {
   });
 }
 
-const members = sections.flatMap(membersForSection);
+const members = [
+  ...sections.flatMap(membersForSection),
+  {
+    id: "TEST_member_rover_manager_cub_section_leader",
+    firstName: "Cubs",
+    lastName: "Section Leader",
+    displayName: "Cubs Section Leader",
+    dateOfBirth: "",
+    section: "Cubs",
+    sections: ["Cubs"],
+    sectionRoles: {},
+    parentName: "",
+    emailAddress: "test.cub.section.leader@example.com",
+    mobileNumber: "0872000000",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    status: "left",
+    source: "manual",
+    sourceJoinApplicationId: "",
+    accountUid: "TEST_uid_cub_section_leader",
+    createdBy: reviewedBy,
+    updatedBy: reviewedBy,
+    testRoleType: "rover-management-adult-target"
+  }
+];
 const dualSectionMember = members.find((member) => member.id === "TEST_member_cub_06");
 if (!dualSectionMember) throw new Error("Canonical Cubs member 06 is required for the dual-section scenario.");
 dualSectionMember.displayName = "TEST Dual Section Member";

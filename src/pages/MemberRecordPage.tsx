@@ -17,6 +17,8 @@ import { MEMBER_PROGRAMME_SECTIONS } from "../services/memberSectionCore.mjs";
 import { disableParentPortalAccess } from "../services/parentManagement";
 import { parentLifecycleCandidates, type ParentLifecycleCandidate } from "../services/parentLifecycleLogic";
 import { loadParentAccounts } from "../services/parentPortal";
+import { loadRoverManagementCandidates, setManagedRoverMembership, type RoverManagementCandidate } from "../services/roverMembershipManagement";
+import { matchesRoverAdultIdentity } from "../services/roverMembershipLogic";
 import { formatSiteDate, formatSiteDateTime } from "../services/siteDateFormat";
 
 const statuses: MemberStatus[] = ["active", "inactive", "left"];
@@ -32,16 +34,22 @@ export default function MemberRecordPage() {
   const [draft, setDraft] = useState<MemberRecord | null>(null);
   const [history, setHistory] = useState<MemberLifecycleHistoryRecord[]>([]);
   const [consents, setConsents] = useState<MemberConsentSummary[]>([]);
+  const [historyError, setHistoryError] = useState("");
+  const [consentError, setConsentError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusConfirmationOpen, setStatusConfirmationOpen] = useState(false);
   const [lifecycleCandidates, setLifecycleCandidates] = useState<ParentLifecycleCandidate[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [roverCandidates, setRoverCandidates] = useState<RoverManagementCandidate[]>([]);
+  const [roverSaving, setRoverSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
     setError("");
+    setHistoryError("");
+    setConsentError("");
     setStatusConfirmationOpen(false);
     setLifecycleCandidates([]);
     try {
@@ -56,12 +64,26 @@ export default function MemberRecordPage() {
       }
       setMember(found);
       setDraft({ ...found });
-      const [loadedHistory, loadedConsents] = await Promise.all([
+      const [historyResult, consentResult] = await Promise.allSettled([
         loadMemberLifecycleHistory(found.id),
         loadMemberConsentSummaries(found)
       ]);
-      setHistory(loadedHistory);
-      setConsents(loadedConsents);
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Load member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Load member consent summaries" });
+      }
     } catch (loadError) {
       setError(applicationErrorMessage(loadError, "Unable to load this member record.", "MemberRecordPage"));
     } finally {
@@ -70,6 +92,71 @@ export default function MemberRecordPage() {
   };
 
   useEffect(() => { void load(); }, [memberId]);
+
+  useEffect(() => {
+    void loadRoverManagementCandidates()
+      .then(setRoverCandidates)
+      .catch((candidateError) => {
+        reportApplicationError(candidateError, { area: "MemberRecordPage", operation: "Load Rover management candidates" });
+        setRoverCandidates([]);
+      });
+  }, []);
+
+  const endRoverMembership = async () => {
+    if (!member) return;
+    const candidate = roverCandidates.find((item) => matchesRoverAdultIdentity(
+      member,
+      { displayName: item.displayName, email: item.email }
+    ));
+    const targetUid = member.accountUid || candidate?.uid;
+    if (!targetUid) {
+      setError("This Rover membership cannot be managed from the current account or permission scope.");
+      return;
+    }
+
+    setRoverSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await setManagedRoverMembership(targetUid, false, member.id);
+      const refreshed = await loadMembers();
+      setMembers(refreshed);
+      const updated = refreshed.find((item) => item.id === member.id);
+      if (!updated) {
+        setMember(null);
+        setDraft(null);
+        setMessage("Rover membership ended and the member record is no longer in your section scope.");
+        return;
+      }
+      setMember(updated);
+      setDraft({ ...updated });
+      setMessage("Rover membership ended. The member record, history and unrelated roles are preserved.");
+      const [historyResult, consentResult] = await Promise.allSettled([
+        loadMemberLifecycleHistory(updated.id),
+        loadMemberConsentSummaries(updated)
+      ]);
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Refresh member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Refresh member consent summaries" });
+      }
+    } catch (failure) {
+      setError(applicationErrorMessage(failure, "Unable to end Rover membership.", "MemberRecordPage"));
+    } finally {
+      setRoverSaving(false);
+    }
+  };
 
   const refreshFamily = async () => {
     const loadedMembers = await loadMembers();
@@ -137,12 +224,26 @@ export default function MemberRecordPage() {
       setMember(updated);
       setDraft(updated);
       setMembers(persistedMembers);
-      const [nextHistory, nextConsents] = await Promise.all([
+      const [historyResult, consentResult] = await Promise.allSettled([
         loadMemberLifecycleHistory(member.id),
         loadMemberConsentSummaries(updated)
       ]);
-      setHistory(nextHistory);
-      setConsents(nextConsents);
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+        setHistoryError("");
+      } else {
+        setHistory([]);
+        setHistoryError(applicationErrorMessage(historyResult.reason, "Membership history could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(historyResult.reason, { area: "MemberRecordPage", operation: "Refresh member lifecycle history" });
+      }
+      if (consentResult.status === "fulfilled") {
+        setConsents(consentResult.value);
+        setConsentError("");
+      } else {
+        setConsents([]);
+        setConsentError(applicationErrorMessage(consentResult.reason, "Consent indicators could not be loaded.", "MemberRecordPage"));
+        reportApplicationError(consentResult.reason, { area: "MemberRecordPage", operation: "Refresh member consent summaries" });
+      }
 
       if (disableParents && lifecycleCandidates.length > 0) {
         const results = await Promise.allSettled(lifecycleCandidates.map(({ parent }) => disableParentPortalAccess(
@@ -199,6 +300,7 @@ export default function MemberRecordPage() {
             <FormControl><InputLabel>Status</InputLabel><Select label="Status" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as MemberStatus })}>{statuses.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}</Select></FormControl>
             {field("parentName", "Parent / Guardian")}{field("emailAddress", "Email address", "email")}{field("mobileNumber", "Mobile number")}{field("emergencyContactName", "Emergency contact")}{field("emergencyContactPhone", "Emergency contact phone")}
           </Box>
+          {member.sections.includes("Rovers") && member.status === "active" && (member.accountUid || roverCandidates.some((candidate) => matchesRoverAdultIdentity(member, { displayName: candidate.displayName, email: candidate.email }))) && <Paper variant="outlined" sx={{ mt: 3, p: 2 }} data-testid="member-rover-membership-actions"><Typography sx={{ fontWeight: 700, mb: 1 }}>Rover membership</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>End this member's Rover membership while preserving their member record, history and any other section memberships.</Typography><Button variant="outlined" color="warning" disabled={roverSaving} onClick={() => void endRoverMembership()}>{roverSaving ? "Saving..." : "End Rover Membership"}</Button></Paper>}
           <MemberLeaderTransition member={member} disabled={saving} />
           <Button variant="contained" color="success" disabled={saving} onClick={() => void save()} sx={{ mt: 3 }}>{saving ? "Saving…" : "Save Member"}</Button>
         </Paper>
@@ -210,11 +312,13 @@ export default function MemberRecordPage() {
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-consent-medical-indicators">
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Consent & Medical Indicators</Typography>
+          {consentError && <Alert severity="warning" sx={{ mb: 2 }}>{consentError}</Alert>}
           {consents.length === 0 ? <Alert severity="info">No linked consent records were found for this member.</Alert> : <Stack spacing={1.5}>{consents.map((consent) => <Paper key={consent.consentId} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{consent.consentTo ? `Consent valid to ${formatSiteDate(consent.consentTo)}` : "General consent"}</Typography><Typography color="text.secondary">Submitted {formatDate(consent.submittedAt)}</Typography><Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: "wrap", minWidth: 0 }}><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicalAlert ? "Medical information recorded" : "No medical alert"} color={consent.hasMedicalAlert ? "warning" : "default"} aria-label={`Open consent and medical details${consent.consentTo ? ` valid to ${formatSiteDate(consent.consentTo)}` : ""}`} data-testid={`open-consent-medical-${consent.consentId}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 44, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /><Chip component={Link} to={`/leader/consents/${consent.consentId}`} state={{ fromMemberPath: location.pathname }} clickable size="small" label={consent.hasMedicationManagement ? "Medication management" : "No medication management"} color={consent.hasMedicationManagement ? "warning" : "default"} aria-label={`Open medication and consent details${consent.consentTo ? ` valid to ${formatSiteDate(consent.consentTo)}` : ""}`} data-testid={`open-medication-${consent.consentId}`} sx={{ maxWidth: "100%", height: "auto", minHeight: 44, "& .MuiChip-label": { display: "block", whiteSpace: "normal", overflowWrap: "anywhere", py: 0.5 } }} /></Stack></Paper>)}</Stack>}
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 3 }} data-testid="member-history-detail">
           <Typography variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 1 }}>Member History</Typography>
+          {historyError && <Alert severity="warning" sx={{ mb: 2 }}>{historyError}</Alert>}
           <Typography color="text.secondary" sx={{ mb: 2 }}>Section transfers and membership status changes are append-only and remain with this member.</Typography>
           {history.length === 0 ? <Alert severity="info">No section transfers or membership status changes have been recorded yet.</Alert> : <Stack spacing={1.5}>{history.map((entry) => <Paper key={entry.id} variant="outlined" sx={{ p: 2 }}><Typography sx={{ fontWeight: 800 }}>{lifecycleChangeLabel(entry.changeType)}</Typography><Typography color="text.secondary" sx={{ mt: 0.5 }}>{entry.fromSection || "No section"} / {entry.fromStatus} → {entry.toSection || "No section"} / {entry.toStatus}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{formatDate(entry.changedAt)}</Typography></Paper>)}</Stack>}
         </Paper>

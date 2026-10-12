@@ -1,10 +1,11 @@
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, where } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
 import { canonicalMemberSections } from "./memberSectionCore.mjs";
 import { normalizeMemberSectionRoles } from "./memberYouthRoles";
+import { matchesRoverAdultIdentity, matchingUnlinkedRoverMembers, roverMembershipSections } from "./roverMembershipLogic";
 
 export type RoverManagementCandidate = {
   uid: string;
@@ -28,8 +29,10 @@ function memberStatus(value: unknown): "active" | "inactive" | "left" {
 
 function isActiveRoverSectionLeader(organisation: DocumentData | null): boolean {
   if (!organisation || organisation.active !== true) return false;
+  const currentRoleIsRoverLeader = organisation.scoutingRole === "Section Leader"
+    && organisation.organisationSection === "Rovers";
   const appointments = Array.isArray(organisation.appointments) ? organisation.appointments : [];
-  return appointments.some((item) => item && typeof item === "object"
+  return currentRoleIsRoverLeader || appointments.some((item) => item && typeof item === "object"
     && item.active !== false && item.appointment === "Section Leader" && item.scope === "Rovers");
 }
 
@@ -64,7 +67,7 @@ export async function loadRoverManagementCandidates(): Promise<RoverManagementCa
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
-export async function setManagedRoverMembership(targetUid: string, enabled: boolean): Promise<void> {
+export async function setManagedRoverMembership(targetUid: string, enabled: boolean, memberId?: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new ServiceFailure("A signed-in leader account is required.", "auth/unauthenticated");
   const targetSnapshot = await getDoc(doc(db, "adminUsers", targetUid));
@@ -79,13 +82,45 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   const accountMatches = await getDocs(query(collection(db, "members"), where("accountUid", "==", targetUid)));
   if (accountMatches.size > 1) throw new UserFacingError("More than one member record is linked to this adult. Reconcile the records first.");
   let member = accountMatches.docs[0];
+  if (!member) {
+    const emailMatches = await getDocs(query(collection(db, "members"), where("emailAddress", "==", email)));
+    const legacyMatches = matchingUnlinkedRoverMembers(
+      emailMatches.docs.map((snapshot) => {
+        const data = snapshot.data();
+        return { id: snapshot.id, accountUid: data.accountUid, displayName: data.displayName, emailAddress: data.emailAddress };
+      }),
+      { displayName, email }
+    );
+    if (legacyMatches.length > 1) {
+      throw new UserFacingError("More than one existing member record matches this adult. Reconcile the records first.");
+    }
+    if (legacyMatches.length === 1) {
+      member = emailMatches.docs.find((snapshot) => snapshot.id === legacyMatches[0].id)!;
+    }
+  }
+  if (memberId) {
+    const selectedMember = await getDoc(doc(db, "members", memberId));
+    if (!selectedMember.exists()) throw new UserFacingError("The selected member record is no longer available.");
+    const selectedData = selectedMember.data();
+    if (accountMatches.size > 0 && accountMatches.docs[0].id !== memberId) {
+      throw new UserFacingError("This adult is linked to a different member record. Reconcile the duplicate records first.");
+    }
+    if (selectedData.accountUid && selectedData.accountUid !== targetUid) {
+      throw new UserFacingError("This member record is linked to another account.");
+    }
+    if (!selectedData.accountUid && !matchesRoverAdultIdentity(selectedData, { displayName, email })) {
+      throw new UserFacingError("The selected member record does not match this adult account.");
+    }
+    member = selectedMember;
+  }
 
-  const now = serverTimestamp();
   if (!member && enabled) {
     const parts = displayName.trim().split(/\s+/);
     const firstName = parts[0] || displayName;
     const lastName = parts.slice(1).join(" ") || "Rover";
-    await setDoc(doc(db, "members", `rover_${targetUid}`), {
+    const newMemberRef = doc(db, "members", `rover_${targetUid}`);
+    const now = serverTimestamp();
+    await setDoc(newMemberRef, {
       firstName, lastName, displayName, displayNameMode: "auto", dateOfBirth: "",
       section: "Rovers", sections: ["Rovers"], sectionRoles: {}, parentName: "",
       emailAddress: email, mobileNumber: clean(target.mobileNumber ?? "", 40),
@@ -97,19 +132,28 @@ export async function setManagedRoverMembership(targetUid: string, enabled: bool
   }
   if (!member) throw new UserFacingError("No Rover member record exists for this adult.");
 
-  const data = member.data();
-  if (data.accountUid && data.accountUid !== targetUid) throw new UserFacingError("This member record is linked to another account.");
-  const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
-  const nextSections = enabled ? [...sections.filter((section) => section !== "Rovers"), "Rovers"] : sections.filter((section) => section !== "Rovers");
-  const retainedSections = nextSections.length > 0 ? nextSections : ["Rovers"];
-  await updateDoc(member.ref, {
-    accountUid: targetUid,
-    section: retainedSections[0],
-    sections: retainedSections,
-    sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, retainedSections),
-    status: enabled ? "active" : (nextSections.length === 0 ? "left" : memberStatus(data.status)),
-    updatedAt: now,
-    updatedBy: user.uid,
-    roverManagementAt: now
+  await runTransaction(db, async (transaction) => {
+    const current = await transaction.get(member.ref);
+    if (!current.exists()) throw new UserFacingError("The selected member record is no longer available.");
+    const data = current.data();
+    if (data.accountUid && data.accountUid !== targetUid) throw new UserFacingError("This member record is linked to another account.");
+    if (!data.accountUid && !matchesRoverAdultIdentity(data, { displayName, email })) {
+      throw new UserFacingError("The selected member record no longer matches this adult account.");
+    }
+    const sections = canonicalMemberSections(data.sections, stringValue(data, "section"));
+    if (!enabled && !sections.includes("Rovers")) return;
+    const nextSections = roverMembershipSections(sections, enabled);
+    const retainedSections = nextSections.length > 0 ? nextSections : ["Rovers"];
+    transaction.update(member.ref, {
+      accountUid: targetUid,
+      emailAddress: email,
+      section: retainedSections[0],
+      sections: retainedSections,
+      sectionRoles: normalizeMemberSectionRoles(data.sectionRoles, retainedSections),
+      status: enabled ? "active" : (nextSections.length === 0 ? "left" : memberStatus(data.status)),
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid,
+      roverManagementAt: serverTimestamp()
+    });
   });
 }

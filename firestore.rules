@@ -31,14 +31,6 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
     }
-    function isRoverSectionLeader() {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return isActiveLeader() && profileHasSection("Rovers")
-        && exists(organisationPath)
-        && get(organisationPath).data.active == true
-        && get(organisationPath).data.scoutingRole == "Section Leader";
-    }
-    function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
     function joinSectionLeaderAppointmentAt(data, index, section) {
       return data.keys().hasAny(["appointments"])
         && data.appointments is list && data.appointments.size() > index
@@ -51,6 +43,16 @@ service cloud.firestore {
       return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
         || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
     }
+    function isRoverSectionLeader() {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let leadership = get(organisationPath).data;
+      return isActiveLeader() && profileHasSection("Rovers")
+        && exists(organisationPath)
+        && leadership.active == true
+        && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == "Rovers")
+          || hasJoinSectionLeaderAppointment(leadership, "Rovers"));
+    }
+    function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
     function isJoinSectionLeader(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       let leadership = get(organisationPath).data;
@@ -218,6 +220,12 @@ service cloud.firestore {
         && request.resource.data.roverManagementAt == request.time
         && canManageRoverMembership()
         && request.resource.data.accountUid is string
+        && isEligibleAdultUid(request.resource.data.accountUid)
+        && request.resource.data.emailAddress == get(/databases/$(database)/documents/adminUsers/$(request.resource.data.accountUid)).data.email
+        && (resource.data.keys().hasAny(["accountUid"])
+          ? resource.data.accountUid == request.resource.data.accountUid
+          : resource.data.emailAddress == get(/databases/$(database)/documents/adminUsers/$(request.resource.data.accountUid)).data.email
+            && resource.data.displayName == get(/databases/$(database)/documents/adminUsers/$(request.resource.data.accountUid)).data.displayName)
         && (!resource.data.keys().hasAny(["accountUid"]) || resource.data.accountUid == request.resource.data.accountUid)
         && request.resource.data.sections is list
         && request.resource.data.sections.size() > 0
@@ -226,7 +234,7 @@ service cloud.firestore {
         && request.resource.data.status in ["active", "inactive", "left"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy", "roverManagementAt"])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["accountUid", "emailAddress", "section", "sections", "sectionRoles", "status", "updatedAt", "updatedBy", "roverManagementAt"])
         && ((request.resource.data.sections.hasAny(["Rovers"])
               && (!resource.data.keys().hasAny(["sections"]) || request.resource.data.sections.hasAll(resource.data.sections)))
           || (!request.resource.data.sections.hasAny(["Rovers"])
