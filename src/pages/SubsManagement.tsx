@@ -1,15 +1,16 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-import { Alert, Box, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
+import SubsPaymentPanel from "../components/admin/SubsPaymentPanel";
 import SubsBalancesReport from "../components/admin/SubsBalancesReport";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { hasGroupFinanceAppointment } from "../security/scoutingAppointments";
 import type { MemberRecord } from "../services/memberAdmin";
 import { ensureDefaultSubsAssignment, loadSubsAssignments, loadSubsMembers, loadSubsPayments, loadSubsPolicies, recordSubsPayment, reverseSubsPayment } from "../services/subsLedger";
-import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
+import { balanceFor, familyTypeLabel, formatEuro, parseEuroToCents, paymentMethodLabel, paymentsForAssignment, rateCategoryLabel, resolveCurrentSubsPolicy, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../services/subsLogic";
 import { ALL_AUTHORISED_SECTIONS, authorisedSubsSections, isMemberInSubsScope, normaliseSubsSection, selectableSubsSections } from "../services/subsScope";
 import { formatSiteDate } from "../services/siteDateFormat";
 
@@ -251,113 +252,32 @@ export default function SubsManagement() {
             <Tab label="Balances & reports" />
           </Tabs>
         </Paper>
-        {tab === 0 && (
-          <Paper sx={{ p: { xs: 2, md: 3 } }}>
-            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
-              Record a payment
-            </Typography>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "repeat(2,1fr)" },
-                gap: 2,
-              }}
-            >
-              <FormControl required>
-                <InputLabel id="subs-member-label">Member</InputLabel>
-                <Select labelId="subs-member-label" label="Member" value={memberId} onChange={(e) => { setMemberId(e.target.value); paymentOperationId.current = ""; }} data-testid="subs-member-select">
-                  {visibleMembers.map((m) => (
-                    <MenuItem key={m.id} value={m.id}>
-                      {m.displayName} · {m.section}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl required>
-                <InputLabel id="subs-period-label">Scout year</InputLabel>
-                <Select labelId="subs-period-label" label="Scout year" value={period} onChange={(e) => { setPeriod(e.target.value); paymentOperationId.current = ""; }}>
-                  {policies.map((p) => (
-                    <MenuItem key={p.id} value={p.period}>
-                      {p.period}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField required label="Amount (EUR)" value={amount} onChange={(e) => { setAmount(e.target.value); paymentOperationId.current = ""; }} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-              <FormControl required>
-                <InputLabel id="subs-method-label">Payment method</InputLabel>
-                <Select labelId="subs-method-label" label="Payment method" value={method} onChange={(e) => { setMethod(e.target.value as SubsPaymentMethod); paymentOperationId.current = ""; }}>
-                  {SUBS_PAYMENT_METHODS.map((m) => (
-                    <MenuItem key={m} value={m}>
-                      {paymentMethodLabel(m)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField required type="date" label="Payment date" value={paymentDate} onChange={(e) => { setPaymentDate(e.target.value); paymentOperationId.current = ""; }} slotProps={{ inputLabel: { shrink: true } }} />
-              <TextField label="Note (optional)" value={note} onChange={(e) => { setNote(e.target.value); paymentOperationId.current = ""; }} slotProps={{ htmlInput: { maxLength: 200 } }} />
-            </Box>
-            {!error && visibleMembers.length === 0 && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                No members are available for {effectiveSection === ALL_AUTHORISED_SECTIONS ? "the selected authorised sections" : effectiveSection}.
-              </Alert>
-            )}
-            {selectedAssignment && selectedBalance ? (
-              <>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2, flexWrap: "wrap" }}>
-                  <Chip label={`Due ${formatEuro(selectedBalance.dueCents)}`} />
-                  <Chip label={`Paid ${formatEuro(selectedBalance.paidCents)}`} />
-                  <Chip label={selectedBalance.remainingCents < 0 ? `Credit ${formatEuro(-selectedBalance.remainingCents)}` : `Remaining ${formatEuro(selectedBalance.remainingCents)}`} />
-                </Stack>
-                {selectedAssignment.accountId && (
-                  <Alert severity="info" sx={{ mt: 2 }} data-testid="subs-shared-family-balance">
-                    This is the shared family balance for the Scout year. Payments recorded through any member in this family reduce the same balance.
-                  </Alert>
-                )}
-              </>
-            ) : sharedBalanceRestricted ? (
-              <Alert severity="info" sx={{ mt: 2 }} data-testid="subs-shared-family-private">
-                This member belongs to a shared family subs account. You can record a payment for this member, but complete cross-section family details remain restricted to authorised group finance users.
-              </Alert>
-            ) : (
-              memberId && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  This member needs an authorised rate classification for the selected Scout year before payment can be recorded.
-                </Alert>
-              )
-            )}
-            <Button variant="contained" sx={{ mt: 3, minHeight: 44 }} disabled={saving || !paymentReady} onClick={reviewPayment}>
-              Review payment
-            </Button>
-            <Stack direction={{ xs: "column", sm: "row" }} sx={{ mt: 4, justifyContent: "space-between" }}>
-              <Typography variant="h6">Payment history</Typography>
-              {selectedAssignment && selectedBalance && (
-                <Button variant="outlined" onClick={exportMember}>
-                  Download member CSV
-                </Button>
-              )}
-            </Stack>
-            {sharedBalanceRestricted && (
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                Only payments in your authorised scope are shown here; this is not the complete family ledger.
-              </Typography>
-            )}
-            <Stack spacing={1} sx={{ mt: 1 }}>
-              {memberPayments.map((p) => (
-                <Paper key={p.id} variant="outlined" sx={{ p: 2 }}>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {formatSiteDate(p.paymentDate)} · {paymentMethodLabel(p.method)}
-                  </Typography>
-                  <Typography>
-                    {formatEuro(p.amountCents)}
-                    {p.reversalOfPaymentId ? " · Correction" : ""}
-                  </Typography>
-                  {p.note && <Typography color="text.secondary">{p.note}</Typography>}
-                </Paper>
-              ))}
-            </Stack>
-          </Paper>
-        )}
+        {tab === 0 && <SubsPaymentPanel
+          visibleMembers={visibleMembers}
+          policies={policies}
+          memberId={memberId}
+          period={period}
+          amount={amount}
+          method={method}
+          paymentDate={paymentDate}
+          note={note}
+          selectedAssignment={selectedAssignment}
+          selectedBalance={selectedBalance}
+          sharedBalanceRestricted={sharedBalanceRestricted}
+          memberPayments={memberPayments}
+          error={error}
+          effectiveSection={effectiveSection}
+          saving={saving}
+          paymentReady={paymentReady}
+          onMemberChange={(value) => { setMemberId(value); paymentOperationId.current = ""; }}
+          onPeriodChange={(value) => { setPeriod(value); paymentOperationId.current = ""; }}
+          onAmountChange={(value) => { setAmount(value); paymentOperationId.current = ""; }}
+          onMethodChange={(value) => { setMethod(value); paymentOperationId.current = ""; }}
+          onPaymentDateChange={(value) => { setPaymentDate(value); paymentOperationId.current = ""; }}
+          onNoteChange={(value) => { setNote(value); paymentOperationId.current = ""; }}
+          onReviewPayment={reviewPayment}
+          onExportMember={exportMember}
+        />}
         {tab === 1 && <SubsBalancesReport assignments={visibleAssignments} payments={visiblePayments} policies={policies} period={period} setPeriod={setPeriod} section={effectiveSection} sections={authorisedSections} canGroupReport={canGroupReport} />}
         <Dialog open={confirmOpen} onClose={() => !saving && setConfirmOpen(false)}>
           <DialogTitle>Confirm subs payment</DialogTitle>

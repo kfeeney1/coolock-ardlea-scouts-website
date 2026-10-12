@@ -6,5 +6,8 @@
     "src/components/consent/ScouterConsentForm.tsx": 37650,
     "src/pages/MemberManagement.tsx": 28489,
     "src/pages/LeaderInfo.tsx": 26294
+  },
+  "headroomCeilings": {
+    "src/pages/SubsManagement.tsx": 20000
   }
 }
