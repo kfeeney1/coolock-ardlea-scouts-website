@@ -11,6 +11,9 @@ async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
 }
 
 async function signOutLeader(page: Page) {
+  // Reset transient dialogs and their browser-history markers before opening
+  // the header menu to switch the signed-in test account.
+  await page.goto("/leader/profile");
   const header = page.getByTestId("leader-dashboard-header");
   const signOut = header.getByRole("button", { name: "Sign Out", exact: true });
   if (!(await signOut.isVisible().catch(() => false))) {
