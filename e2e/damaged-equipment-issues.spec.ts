@@ -27,10 +27,10 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   test.setTimeout(120_000);
 
   const suffix = `${testInfo.project.name} ${Date.now()}`;
-  const firstName = `TEST Long-name canvas patrol tent ${suffix}`;
+  const firstName = `TEST Long-name canvas patrol tent for the expedition equipment store ${suffix}`;
   const secondName = `TEST Long-name expedition cooker ${suffix}`;
   const storeName = `TEST Incident Store ${suffix}`;
-  const firstDescription = "First independent issue: " + "the tent seam is split and rain enters near the door; ".repeat(5);
+  const firstDescription = "First independent issue: " + "the tent seam is split and rain enters near the door; ".repeat(5) + ` Contact ${"equipment".repeat(12)}@example.test; reference ${"ID".repeat(80)}.`;
   const secondDescription = "Second independent issue: " + "the cooker valve sticks and requires a safety inspection; ".repeat(5);
 
   await signIn(page);
@@ -73,6 +73,40 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
     await expect(inventoryCard.getByText("1 unavailable", { exact: true })).toBeVisible();
     await expect(page.getByTestId("equipment-incidents-panel").getByTestId(/^equipment-incident-/)).toHaveCount(0);
   }
+
+  // SW-366: preserve the complete operational text and record action while
+  // containing card borders, text and date badges at responsive widths.
+  const activityList = page.getByTestId("equipment-recent-activity");
+  const firstActivity = activityList.getByRole("link").filter({ hasText: firstName });
+  await expect(firstActivity).toContainText(firstDescription);
+  const originalViewport = page.viewportSize()!;
+  for (const width of [320, 412, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(firstActivity).toBeVisible();
+    await expect(firstActivity).toHaveAttribute("href", new RegExp(`/leader/equipment/${itemIds.get(firstName)}\\?issue=`));
+    await expect.poll(() => activityList.evaluate((list) => {
+      const bounds = list.getBoundingClientRect();
+      return Array.from(list.children).every((tile) => {
+        const rect = tile.getBoundingClientRect();
+        return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1
+          && tile.scrollWidth <= tile.clientWidth + 1
+          && Array.from(tile.querySelectorAll(".MuiTypography-root, .MuiChip-root")).every((child) => {
+            const childRect = child.getBoundingClientRect();
+            return childRect.left >= rect.left - 1 && childRect.right <= rect.right + 1
+              && child.scrollWidth <= child.clientWidth + 1;
+          });
+      });
+    })).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(firstActivity).toContainText(firstName);
+    await expect(firstActivity).toContainText(firstDescription);
+    await expect(firstActivity.locator(".MuiChip-label")).toHaveText(/\d{2}-\d{2}-\d{4}/);
+  }
+  await page.setViewportSize(originalViewport);
+  await firstActivity.click();
+  await expect(page).toHaveURL(new RegExp(`/leader/equipment/${itemIds.get(firstName)}\\?issue=`));
+  await expect(page.getByTestId("equipment-record-summary")).toBeVisible();
+  await page.goto("/leader/equipment");
 
   await page.getByRole("button", { name: "Check out equipment" }).click();
   const checkout = page.getByRole("dialog", { name: "Check out equipment" });
@@ -121,6 +155,18 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   await expect(firstAlert).toHaveAttribute("href", `/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
   await expect(secondAlert).toHaveAttribute("href", `/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(secondAlert).toBeVisible();
+  // The same long equipment details also appear on the leader dashboard.
+  // Their text must stay inside the clickable tile, clear of neighbouring cards.
+  await expect.poll(() => firstAlert.evaluate((tile) => {
+    const bounds = tile.getBoundingClientRect();
+    return tile.scrollWidth <= tile.clientWidth + 1
+      && Array.from(tile.querySelectorAll(".MuiTypography-root")).every((text) => {
+        const rect = text.getBoundingClientRect();
+        return rect.left >= bounds.left && rect.right <= bounds.right
+          && rect.top >= bounds.top && rect.bottom <= bounds.bottom
+          && text.scrollWidth <= text.clientWidth + 1;
+      });
+  })).toBe(true);
   await secondAlert.getByText(secondDescription).click();
   await expect(page).toHaveURL(`/leader/equipment/${itemIds.get(secondName)}?issue=${incidentIds.get(secondName)}`);
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(secondName)}`)).toContainText(secondDescription);

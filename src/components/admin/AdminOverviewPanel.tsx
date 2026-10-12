@@ -104,7 +104,7 @@ export default function AdminOverviewPanel() {
             </Alert>
           )}
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Today &amp; Needs Attention</Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1.4fr" }, gap: 2, mb: 3 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1.4fr)" }, gap: 2, mb: 3 }}>
             <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="next-meeting-card">
               <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Next Meeting</Typography>
               {overview.nextMeeting ? (
@@ -124,14 +124,14 @@ export default function AdminOverviewPanel() {
               )}
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="needs-attention-card">
+            <Paper variant="outlined" sx={{ p: 2.5, minWidth: 0 }} data-testid="needs-attention-card">
               <Typography variant="h6" color="secondary" sx={{ fontWeight: 800, mb: 1.5 }}>Needs Attention</Typography>
               {overview.attentionItems.length === 0 ? (
                 <Alert severity="success">Nothing currently needs attention in your scope.</Alert>
               ) : (
                 <Stack spacing={1.25}>
                   {overview.attentionItems.map((item) => (
-                    <Paper key={item.id} component={Link} to={item.path} state={{ fromPath: "/leader" }} variant="outlined" aria-label={`Open ${item.label}`} data-testid={`attention-tile-${item.id}`} sx={{ display: "block", p: 1.5, color: "inherit", textDecoration: "none", transition: "border-color 120ms ease, box-shadow 120ms ease", "&:hover": { borderColor: "primary.main", boxShadow: 1 }, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+                    <Paper key={item.id} component={Link} to={item.path} state={{ fromPath: "/leader" }} variant="outlined" aria-label={`Open ${item.label}`} data-testid={`attention-tile-${item.id}`} sx={{ display: "block", p: 1.5, minWidth: 0, maxWidth: "100%", boxSizing: "border-box", overflowWrap: "anywhere", color: "inherit", textDecoration: "none", transition: "border-color 120ms ease, box-shadow 120ms ease", "&:hover": { borderColor: "primary.main", boxShadow: 1 }, "&:focus-visible": { outline: "3px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
                       <Box>
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
                           <Chip size="small" color={item.severity === "warning" ? "warning" : "info"} label={item.severity === "warning" ? "Action" : "Today"} />
