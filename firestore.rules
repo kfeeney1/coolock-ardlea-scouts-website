@@ -3,10 +3,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function matchesCalendarDate(value) {
+      let parts = value.split('-');
+      let year = int(parts[0]);
+      let month = int(parts[1]);
+      let day = int(parts[2]);
+      let date = timestamp.date(year, month, day);
+      return date.year() == year && date.month() == month && date.day() == day;
+    }
+    function validIsoDate(value) {
+      return value is string
+        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+        && matchesCalendarDate(value);
+    }
     function validDateRange(startDate, endDate) {
-      return startDate is string && endDate is string
-        && startDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && endDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+      return validIsoDate(startDate) && validIsoDate(endDate)
         && startDate <= endDate;
     }
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
@@ -858,8 +869,7 @@ service cloud.firestore {
         && (request.resource.data.formType != "scouter-es3-medical-advice"
           || (isActiveLeader()
             && request.resource.data.submittedByUid == request.auth.uid
-            && request.resource.data.validityFrom is string
-            && request.resource.data.validityTo is string))
+            && validDateRange(request.resource.data.validityFrom, request.resource.data.validityTo)))
         && !request.resource.data.keys().hasAny(["scoutSection", "expiryDate", "medicalConditions", "medicationRequired"])
         && ((!request.resource.data.keys().hasAny(["memberId"]))
           || (request.resource.data.formType == "youth-activity-consent"

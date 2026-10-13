@@ -48,6 +48,21 @@ test("consent validation rejects malformed or reversed ranges while permitting s
   assert.equal(validateYouthConsent(sameDay).consentTo, undefined);
 });
 
+test("consent persistence validation rejects invalid medication ranges in any enabled entry", () => {
+  const data = base();
+  data.medicationManagement.enabled = true;
+  data.medicationManagement.medications = [
+    { ...data.medicationManagement, authFrom: "2026-10-01", authTo: "2027-08-31" },
+    { ...data.medicationManagement, authFrom: "2027-01-02", authTo: "2027-01-01" }
+  ];
+
+  assert.match(validateYouthConsent(data).consentTo ?? "", /medication.*valid authorisation end date/i);
+  data.medicationManagement.medications[1] = {
+    ...data.medicationManagement.medications[1], authFrom: "2027-01-02", authTo: "2027-01-02"
+  };
+  assert.equal(validateYouthConsent(data).consentTo, undefined);
+});
+
 
 test("SW-304 requires a second mobile only when a second parent is recorded", () => {
   const data = base(); data.parent2Name = "Second Parent";

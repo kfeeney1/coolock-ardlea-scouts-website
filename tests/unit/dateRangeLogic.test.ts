@@ -9,6 +9,9 @@ test("date-only ranges require a valid start before an end and reject reversed o
   assert.equal(isValidDateRange("2026-10-01", "2026-10-01"), true);
   assert.equal(isValidDateRange("2026-12-31", "2027-01-01"), true);
   assert.equal(dateRangeError("2026-02-30", "2026-03-01"), "Enter a valid start date before selecting an end date.");
+  assert.equal(dateRangeError("2026-10-01", "2026-02-30"), "Enter a valid end date.");
+  assert.equal(isValidDateRange("2026-10-01", "2026-02-30"), false);
+  assert.equal(isValidDateRange("", "", { requireStart: true, requireEnd: true }), false);
 });
 
 test("ISO date validation uses calendar dates rather than UTC timestamp comparisons", () => {

@@ -102,3 +102,44 @@ test("saving the already-active immutable subs policy is idempotent", async ({ p
   await page.reload();
   await expect(page.getByTestId("subs-settings-panel").getByTestId("subs-saved-policy-status")).toContainText("version 1");
 });
+
+test("Scout-year date range anchors a future end to its start and blocks reversed saves on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Scout-year date range runs on desktop and mobile Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.webadmin@example.com");
+  await page.goto("/leader/settings?view=treasurer");
+  const panel = page.getByTestId("subs-settings-panel");
+  await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+  const start = panel.getByLabel("Starts");
+  const end = panel.getByRole("textbox", { name: "Ends", exact: true });
+  const savedStart = await start.inputValue();
+  const savedEnd = await end.inputValue();
+
+  await start.fill("");
+  await expect(start).toHaveAttribute("aria-invalid", "true");
+  await expect(panel.getByText("Enter a valid start date.", { exact: true })).toBeVisible();
+  await expect(end).toBeDisabled();
+
+  await start.fill("2099-04-02");
+  await expect(end).toBeEnabled();
+  await expect(end).toHaveValue("");
+  await expect(panel.getByText("The end date was cleared", { exact: false })).toBeVisible();
+  await panel.getByRole("button", { name: "Choose ends" }).click();
+  const calendar = page.getByRole("dialog", { name: "Choose ends" });
+  await expect(calendar.getByRole("button", { name: "Select 01-04-2099" })).toBeDisabled();
+  await expect(calendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
+  await calendar.getByRole("button", { name: "Confirm date" }).click();
+  await expect(end).not.toHaveValue("");
+
+  await end.fill("01-04-2099");
+  await expect(end).toHaveAttribute("aria-invalid", "true");
+  await expect(panel.getByText("End date must be on or after the start date.", { exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
+  await expect(panel.getByText(/Subs period end date must be valid and on or after its start date/)).toBeVisible();
+
+  await page.reload();
+  const reloadedPanel = page.getByTestId("subs-settings-panel");
+  await expect(reloadedPanel.getByLabel("Starts")).toHaveValue(savedStart);
+  await expect(reloadedPanel.getByRole("textbox", { name: "Ends", exact: true })).toHaveValue(savedEnd);
+});

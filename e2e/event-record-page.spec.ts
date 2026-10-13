@@ -206,6 +206,7 @@ test("future start opens the shared end calendar at a valid date and only applie
   const start = page.getByLabel("Start date");
   const end = page.getByRole("textbox", { name: "End date", exact: true });
   await expect(end).toBeDisabled();
+  await expect(page.getByText("Enter a valid start date.", { exact: true })).toBeVisible();
   await start.fill("2099-04-02");
   await expect(end).toBeEnabled();
   await expect(end).toHaveAttribute("data-min-date", "2099-04-02");
@@ -234,6 +235,17 @@ test("future start opens the shared end calendar at a valid date and only applie
   await expect(end).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByRole("alert")).toContainText("on or after the start date");
   await expect(end).toHaveValue("04-04-2099");
+
+  await end.fill("31-02-2099");
+  await expect(end).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("alert")).toContainText("Enter a real date");
+  await start.fill("2099-04-06");
+  await expect(end).toHaveValue("31-02-2099");
+  await expect(page.getByRole("alert")).toContainText("Enter a real date");
+  await start.fill("");
+  await expect(start).toHaveAttribute("aria-invalid", "true");
+  await expect(end).toBeDisabled();
+  await expect(end).toHaveValue("31-02-2099");
 
   await start.fill("2099-12-31");
   await page.getByRole("button", { name: "Choose end date" }).click();

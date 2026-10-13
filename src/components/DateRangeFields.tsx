@@ -83,14 +83,19 @@ export default function DateRangeFields({
   const validation = dateRangeError(startDate, endDate);
   const endError = rangeMessage || endErrorMessage || validation;
   const startIsValid = isIsoCalendarDate(startDate);
+  const startValidationMessage = startError || (startRequired && !startIsValid ? "Enter a valid start date." : "");
   const helperId = `${endName || endLabel.replace(/\s+/g, "-").toLowerCase()}-range-error-${inputId}`;
 
   const updateStart = (value: string) => {
-    const shouldClearEnd = Boolean(endDate && (!isIsoCalendarDate(endDate) || (isIsoCalendarDate(value) && endDate < value)));
+    // Clear only a real end date made earlier than a newly valid start. Keep malformed
+    // typed/pasted text visible so the user can correct it instead of losing it.
+    const shouldClearEnd = Boolean(isIsoCalendarDate(endDate) && isIsoCalendarDate(value) && endDate < value);
     if (shouldClearEnd) {
       lastSyncedEnd.current = "";
       setEndText("");
       setRangeMessage("The end date was cleared because it is before the new start date. Choose a new end date.");
+    } else if (endText.trim() && !parseDateRangeInput(endText)) {
+      setRangeMessage("Enter a real date as DD-MM-YYYY.");
     } else {
       setRangeMessage("");
     }
@@ -114,14 +119,14 @@ export default function DateRangeFields({
       return;
     }
     if (!startIsValid) {
-      lastSyncedEnd.current = value;
-      onEndDateChange(value);
+      lastSyncedEnd.current = parsed;
+      onEndDateChange(parsed);
       setRangeMessage("Enter a valid start date before selecting an end date.");
       return;
     }
     if (parsed < startDate) {
-      lastSyncedEnd.current = value;
-      onEndDateChange(value);
+      lastSyncedEnd.current = parsed;
+      onEndDateChange(parsed);
       setRangeMessage("End date must be on or after the start date.");
       return;
     }
@@ -154,7 +159,7 @@ export default function DateRangeFields({
 
   return <>
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }, gap: 2, minWidth: 0 }}>
-      <TextField required={startRequired} type="date" label={startLabel} name={startName} value={startDate} onChange={(event) => updateStart(event.target.value)} error={Boolean(startError || (startRequired && !startIsValid))} helperText={startError} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": startTestId } }} />
+      <TextField required={startRequired} type="date" label={startLabel} name={startName} value={startDate} onChange={(event) => updateStart(event.target.value)} error={Boolean(startValidationMessage)} helperText={startValidationMessage} slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": startTestId, "aria-invalid": Boolean(startValidationMessage) } }} />
       <TextField required={endRequired} type="text" label={endLabel} name={endName} value={endText} onChange={(event) => updateEndText(event.target.value)} onBlur={() => { const parsed = parseDateRangeInput(endText); if (parsed && parsed >= startDate) setEndText(formatDateRangeInput(parsed)); }} disabled={!startIsValid} placeholder="DD-MM-YYYY" error={Boolean(endError)} helperText={endError || (!startIsValid ? "Enter a valid start date first." : "Use DD-MM-YYYY, or choose a date from the calendar.")} slotProps={{ inputLabel: { shrink: true }, htmlInput: { inputMode: "numeric", autoComplete: "off", "data-testid": endTestId, "aria-describedby": helperId, "aria-invalid": Boolean(endError), "data-min-date": startIsValid ? startDate : undefined }, formHelperText: { id: helperId, role: endError ? "alert" : "status" }, input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={`Choose ${endLabel.toLowerCase()}`} onClick={openCalendar} disabled={!startIsValid} edge="end"><CalendarTodayIcon /></IconButton></InputAdornment> } }} />
     </Box>
     <Dialog open={calendarOpen} onClose={() => setCalendarOpen(false)} aria-labelledby="date-range-calendar-title" aria-describedby="date-range-calendar-help" fullWidth maxWidth="xs">
