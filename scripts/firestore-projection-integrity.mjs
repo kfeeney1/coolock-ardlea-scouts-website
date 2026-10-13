@@ -42,11 +42,23 @@ export function validateProjectionIntegrity(collections) {
   }
 
   for (const [id, data] of records("siteSettings")) {
-    if (id !== "session") fail("siteSettings", id, "unexpected settings document id");
-    for (const field of ["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes"]) {
-      if (!whole(data[field]) || data[field] < 5 || data[field] > 240) fail("siteSettings", id, `${field} must be a whole number from 5 to 240`);
+    if (id === "session") {
+      for (const field of ["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes"]) {
+        if (!whole(data[field]) || data[field] < 5 || data[field] > 240) fail("siteSettings", id, `${field} must be a whole number from 5 to 240`);
+      }
+    } else if (["parentLogin", "publicNavigation"].includes(id)) {
+      if (typeof data.parentLoginEnabled !== "boolean") fail("siteSettings", id, "parentLoginEnabled must be boolean");
+      if (id === "parentLogin" && !text(data.updatedBy)) fail("siteSettings", id, "updatedBy is required");
+    } else {
+      fail("siteSettings", id, "unexpected settings document id");
     }
-    if (!text(data.updatedBy)) fail("siteSettings", id, "updatedBy is required");
+    if (id === "parentLogin" && data.updatedAt === undefined) fail("siteSettings", id, "updatedAt is required");
+  }
+  const parentLogin = records("siteSettings").get("parentLogin");
+  const publicNavigation = records("siteSettings").get("publicNavigation");
+  if (Boolean(parentLogin) !== Boolean(publicNavigation)) fail("siteSettings", "parentLogin", "canonical setting and public projection must exist together");
+  if (parentLogin && publicNavigation && parentLogin.parentLoginEnabled !== publicNavigation.parentLoginEnabled) {
+    fail("siteSettings", "publicNavigation", "public projection differs from the canonical Parent Login setting");
   }
 
   return errors.sort();

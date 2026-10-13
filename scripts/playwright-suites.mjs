@@ -18,6 +18,7 @@ export const suiteSpecs = {
     "release-authorization-boundaries.spec.ts",
     "role-permissions.spec.ts",
     "roles-permissions.spec.ts",
+    "parent-login-visibility.spec.ts",
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [
