@@ -58,3 +58,80 @@ test("monthly float period labels stay readable without awkward wrapping on desk
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
   }
 });
+
+test("Section Floats labels stay separate from default and selected filter values on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run filter geometry checks on desktop and mobile Chromium.");
+  test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
+
+  await login(page);
+  await page.goto("/leader/reports");
+  const panel = page.getByTestId("finance-reporting");
+
+  const expectReadable = async (labelText: string, labelId: string, selectedText: string) => {
+    const select = panel.getByRole("combobox", { name: labelText, exact: true });
+    const label = panel.locator(`#${labelId}`);
+    await expect(select).toContainText(selectedText);
+    await expect(label).toHaveClass(/MuiInputLabel-shrink/);
+    await expect(select).toHaveAttribute("aria-labelledby", new RegExp(labelId));
+    const geometry = await select.evaluate((element, id) => {
+      const inputLabel = document.getElementById(id);
+      const display = element.querySelector<HTMLElement>(".MuiSelect-select");
+      if (!inputLabel || !display) return null;
+      const valueRange = document.createRange();
+      valueRange.selectNodeContents(display);
+      const labelBounds = inputLabel.getBoundingClientRect();
+      const valueBounds = valueRange.getBoundingClientRect();
+      const selectBounds = display.getBoundingClientRect();
+      return {
+        labelBottom: labelBounds.bottom,
+        valueTop: valueBounds.top,
+        selectWidth: selectBounds.width,
+        selectClientWidth: display.clientWidth,
+        selectScrollWidth: display.scrollWidth,
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth
+      };
+    }, labelId);
+    expect(geometry).not.toBeNull();
+    if (!geometry) throw new Error(`${labelText} label or selected value is missing`);
+    expect(geometry.labelBottom).toBeLessThan(geometry.valueTop);
+    expect(geometry.selectScrollWidth).toBeLessThanOrEqual(geometry.selectClientWidth);
+    expect(geometry.selectWidth).toBeGreaterThan(0);
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+    return select;
+  };
+
+  let section = await expectReadable("Section", "finance-report-section-label", "All permitted sections");
+  let category = await expectReadable("Outgoing category", "finance-report-category-label", "All outgoing categories");
+
+  await section.click();
+  await expect(section).toBeFocused();
+  await page.keyboard.press("Escape");
+  await section.blur();
+  await expectReadable("Section", "finance-report-section-label", "All permitted sections");
+
+  await section.click();
+  const sectionOptions = (await page.getByRole("option").allTextContents()).map((value) => value.trim());
+  const selectedSection = sectionOptions.find((value) => value && value !== "All permitted sections");
+  expect(selectedSection).toBeTruthy();
+  await page.getByRole("option", { name: selectedSection!, exact: true }).click();
+  section = await expectReadable("Section", "finance-report-section-label", selectedSection!);
+
+  await category.click();
+  const categoryOptions = (await page.getByRole("option").allTextContents()).map((value) => value.trim());
+  const selectedCategory = categoryOptions
+    .filter((value) => value && value !== "All outgoing categories")
+    .sort((left, right) => right.length - left.length)[0];
+  expect(selectedCategory).toBeTruthy();
+  await page.getByRole("option", { name: selectedCategory!, exact: true }).click();
+  category = await expectReadable("Outgoing category", "finance-report-category-label", selectedCategory!);
+  await category.blur();
+  await expectReadable("Outgoing category", "finance-report-category-label", selectedCategory!);
+
+  await panel.getByRole("button", { name: "Clear float filters", exact: true }).click();
+  await expectReadable("Section", "finance-report-section-label", "All permitted sections");
+  await expectReadable("Outgoing category", "finance-report-category-label", "All outgoing categories");
+  await page.reload();
+  await expectReadable("Section", "finance-report-section-label", "All permitted sections");
+  await expectReadable("Outgoing category", "finance-report-category-label", "All outgoing categories");
+});
