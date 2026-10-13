@@ -90,7 +90,15 @@ requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment wor
 requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
-requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
+requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
+requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
+requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
+requireContract(firebaseTest.functions?.[0]?.source === "functions" && firebaseTest.functions?.[0]?.codebase === "test-events", "TEST deploys a separate Firebase event persistence codebase.");
+requireContract(!firebase.functions, "Production/default Firebase config does not deploy the TEST event backend.");
+requireContract(firebaseTest.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save" && rewrite.function?.functionId === "eventAudienceSave"), "TEST event persistence is available through a same-origin Hosting rewrite.");
+requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
+requireContract(testWorkflow.includes("--only functions:test-events"), "TEST deploys its event backend before Hosting.");
+requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
 
 requireContract(previewWorkflow.includes("environment: test"), "PR previews use the test GitHub environment.");
 requireContract(exactProjectReference(previewWorkflow, TEST), "PR previews target the TEST Firebase project.");

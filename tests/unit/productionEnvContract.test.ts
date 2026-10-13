@@ -4,6 +4,8 @@ import test from "node:test";
 
 const baseEnv = {
   ...process.env,
+  DEPLOY_ENVIRONMENT: "production",
+  FIREBASE_PROJECT_ID: "coolock-ardlea-scouts",
   VITE_FIREBASE_API_KEY: "test-api-key",
   VITE_FIREBASE_AUTH_DOMAIN: "coolock-ardlea-scouts.firebaseapp.com",
   VITE_FIREBASE_PROJECT_ID: "coolock-ardlea-scouts",
@@ -23,7 +25,7 @@ function runProductionEnvCheck(emailApiUrl: string) {
 test("production environment requires the email endpoint", () => {
   const result = runProductionEnvCheck("");
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Missing required production environment variables: VITE_EMAIL_API_URL/i);
+  assert.match(result.stderr, /Missing required application environment variables: VITE_EMAIL_API_URL/i);
 });
 
 test("production environment rejects an insecure configured email endpoint", () => {
@@ -35,5 +37,5 @@ test("production environment rejects an insecure configured email endpoint", () 
 test("production environment accepts a configured HTTPS email endpoint", () => {
   const result = runProductionEnvCheck("https://email.example.test");
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /email endpoint is configured and valid/i);
+  assert.match(result.stdout, /application backend endpoint is configured and valid/i);
 });

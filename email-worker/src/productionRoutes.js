@@ -134,6 +134,8 @@ async function importServicePrivateKey(pem) {
 }
 
 async function serviceAccessToken(env) {
+  // Firebase runtimes supply a short-lived ADC token; Workers retain secret-based auth.
+  if (typeof env.getServiceAccessToken === "function") return env.getServiceAccessToken();
   if (clean(env.FIRESTORE_EMULATOR_HOST, 200)) return "owner";
   const now = Math.floor(Date.now() / 1000);
   if (cachedServiceToken && cachedServiceTokenExpiresAt - 60 > now) return cachedServiceToken;
@@ -288,7 +290,7 @@ async function eventAudienceAuditId(eventId, operation, event, memberIds, remove
   return `event-${btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")}`;
 }
 
-async function handleEventAudienceSave(request, env, body) {
+export async function handleEventAudienceSave(request, env, body) {
   const idToken = bearer(request);
   const claims = decodeFirebaseClaims(idToken);
   const uid = clean(claims.user_id || claims.sub, 200);

@@ -42,6 +42,9 @@ async function loginParent(page: Page, account: Credentials) {
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Sign In" }).click();
+  // The Parent Portal heading is also present on the signed-out form.
+  // Wait for the authenticated account before a full-page navigation.
+  await expect(page.getByText(/Your account is approved and linked to \d+ member records?\./)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Parent Portal", exact: true }).first()).toBeVisible();
 }
 
@@ -69,6 +72,8 @@ test.describe("parent-only permissions", () => {
     desktopOnly(testInfo);
     test.skip(!account, "Configure the seeded E2E test password to run this check.");
     await loginParent(page, account!);
+    await page.reload();
+    await expect(page.getByText(/Your account is approved and linked to \d+ member records?\./)).toBeVisible();
 
     await expect(page.getByRole("link", { name: "Request Leader Access" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Request Leader Access" })).toHaveCount(0);

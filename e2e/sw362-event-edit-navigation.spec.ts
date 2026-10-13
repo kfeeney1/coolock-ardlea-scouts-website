@@ -114,6 +114,79 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
 
 });
 
+
+test("SW-391 backend failures retain create and edit drafts and retries persist one event on desktop and mobile", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+
+  const title = `TEST SW-391 Cubs Activity ${Date.now()}`;
+  const createRequests: string[] = [];
+  const updateRequests: string[] = [];
+  let failNextSave = false;
+  page.on("request", (request) => {
+    if (!new URL(request.url()).pathname.endsWith("/event-audience-save")) return;
+    const body = request.postDataJSON() as { operation?: string; eventId?: string };
+    if (body.operation === "create" && body.eventId) createRequests.push(body.eventId);
+    if (body.operation === "update" && body.eventId) updateRequests.push(body.eventId);
+  });
+  await page.route("**/event-audience-save", async (route) => {
+    if (failNextSave) {
+      failNextSave = false;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/leader/events/create");
+  await page.getByLabel("Event title").fill(title);
+  await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByLabel("Section").click();
+  await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await expect(page.getByLabel("Event type")).toHaveText("Activity");
+
+  failNextSave = true;
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
+  await expect(page.getByLabel("Event title")).toHaveValue(title);
+  await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
+  await expect(page.getByLabel("Section")).toHaveText("Cubs");
+  await expect(page.getByLabel("Event type")).toHaveText("Activity");
+
+  await page.getByRole("button", { name: "Create Event", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
+  const eventUrl = page.url();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  expect(createRequests).toEqual([eventId, eventId]);
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  const editUrl = page.url();
+  const updatedTitle = `${title} updated`;
+  await page.getByLabel("Event title").fill(updatedTitle);
+  failNextSave = true;
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page).toHaveURL(editUrl);
+  await expect(page.getByRole("alert").filter({ hasText: "Unable to save this event. Your edits are still here." })).toBeVisible();
+  await expect(page.getByLabel("Event title")).toHaveValue(updatedTitle);
+  await expect(page.getByRole("status").filter({ hasText: "Save failed — your edits are still here." })).toBeVisible();
+
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  const leaveDialog = page.getByRole("alertdialog", { name: "Unsaved event changes" });
+  await expect(leaveDialog).toBeVisible();
+  await leaveDialog.getByRole("button", { name: "Stay", exact: true }).click();
+  await expect(page).toHaveURL(editUrl);
+  await expect(page.getByLabel("Event title")).toHaveValue(updatedTitle);
+
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page).toHaveURL(eventUrl);
+  expect(updateRequests).toEqual([eventId, eventId]);
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
+  await expect(leaveDialog).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
+});
+
 test("SW-383 first entry, direct URLs, reload, and event switches use the saved event baseline", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);

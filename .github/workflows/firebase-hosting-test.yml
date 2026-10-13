@@ -30,6 +30,29 @@ jobs:
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Install dependencies
         run: npm ci
+      - name: Install TEST event backend dependencies
+        run: npm ci --prefix functions --no-audit --no-fund
+      - name: Run TEST event backend tests
+        run: npm run test:event-backend
+      - name: Deploy TEST event persistence backend
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-event-service-account.json
+          trap 'rm -f /tmp/firebase-event-service-account.json' EXIT
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-event-service-account.json
+          npx --yes firebase-tools@15.28.1 deploy --config firebase.test.json --only functions:test-events --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Validate TEST Firebase application configuration
+        run: npm run check:application-env
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
       - name: Build TEST artifact
         run: npm run build
         env:
@@ -42,7 +65,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+          VITE_EMAIL_API_URL: ""
       - name: Deploy reviewed Rules, indexes, Storage rules and Hosting to TEST
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
@@ -69,19 +92,23 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/check-live-build-info.mjs
-          if [ -n "${EMAIL_API_URL:-}" ]; then
-            npm run smoke:live
-          else
-            echo "TEST email integration is intentionally disabled; skipping email-dependent live smoke."
-          fi
+          echo "TEST email communications are disabled; no email service is required."
         env:
           SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
-          EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+          EMAIL_API_URL: ""
           FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: coolock-ardlea-scouts-test
           FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           FIREBASE_STORAGE_ENABLED: ${{ vars.FIREBASE_STORAGE_ENABLED }}
           EXPECTED_BUILD_SHA: ${{ github.sha }}
+      - name: Verify TEST event persistence route
+        env:
+          SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{}' "${SITE_URL%/}/api/event-audience-save")"
+          test "$status" = "401" || { echo "::error::TEST event-save backend must reject unauthenticated requests (HTTP $status)."; exit 1; }
       - name: Install pinned TEST smoke runner
         run: npm install --no-save --package-lock=false --include=optional --no-audit "@playwright/test@1.62.1" "@rolldown/binding-linux-x64-gnu@1.2.5"
       - name: Install Chromium for TEST smoke

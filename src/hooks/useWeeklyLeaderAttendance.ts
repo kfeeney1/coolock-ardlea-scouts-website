@@ -4,6 +4,7 @@ import { loadLeaderAttendance, saveLeaderAttendance } from "../services/leaderAt
 import type { LeaderAttendanceEntry } from "../services/leaderAttendance";
 import type { WeeklyLeaderOption } from "../services/weeklyLeaderOptions";
 import { mergeLeaderAttendanceRoster } from "../services/weeklyTrackerLogic";
+import { leaderAttendanceHasChanges } from "../services/leaderAttendanceChanges";
 
 export function useWeeklyLeaderAttendance(
   meetingId: string,
@@ -14,7 +15,7 @@ export function useWeeklyLeaderAttendance(
   const [entries, setEntries] = useState<LeaderAttendanceEntry[]>([]);
   const [savedEntries, setSavedEntries] = useState<LeaderAttendanceEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const hasChanges = JSON.stringify(entries) !== JSON.stringify(savedEntries);
+  const hasChanges = leaderAttendanceHasChanges(entries, savedEntries);
 
   useEffect(() => {
     if (!meetingId) {
@@ -36,6 +37,8 @@ export function useWeeklyLeaderAttendance(
   }, [meetingId, section, options, reportError]);
 
   const save = async (id: string) => {
+    // A programme/notes save must not rewrite an unchanged attendance roster.
+    if (!hasChanges) return;
     await saveLeaderAttendance("weeklyMeetings", id, entries);
     setSavedEntries(entries);
   };

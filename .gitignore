@@ -159,3 +159,6 @@ Y/
 /firebase.ts
 /firestore (1).rules
 /setup-scout-structure.ps1
+# Generated Firebase event backend
+functions/lib/
+functions/node_modules/

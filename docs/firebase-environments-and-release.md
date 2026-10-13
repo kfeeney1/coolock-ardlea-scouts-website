@@ -32,7 +32,7 @@ Configure these environment values directly in GitHub. Do not copy them into rep
 - variable: `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - variable: `VITE_FIREBASE_APP_ID`
 - variable: `VITE_FIREBASE_MEASUREMENT_ID` when used
-- variable: `VITE_EMAIL_API_URL` pointing only to a TEST/sandbox/disabled-delivery endpoint
+- TEST email communications are disabled. `VITE_EMAIL_API_URL` is not required in this environment.
 - variable: `FIREBASE_HOSTING_URL` containing the stable TEST HTTPS URL
 - variable: `FIREBASE_STORAGE_ENABLED` matching the TEST service state
 
@@ -126,3 +126,29 @@ Do not begin production custom-domain mutation until SW-34 is merged and proven:
 For `coolockardleascouts.ie`, obtain DNS records from Firebase Hosting during the production-domain connection flow. Never invent or substitute records. Snapshot and preserve existing MX, SPF, DKIM, DMARC and other mail-related DNS records before changing web records. Configure deliberate apex/`www` canonical behaviour, wait for Firebase verification and managed TLS provisioning, then add the production hostname to production Firebase Auth authorised domains and review OAuth callbacks, CORS/API allow-lists, CSP, public/email links, sitemap, robots and canonical metadata.
 
 Once the reviewed release is on `main` with required checks green, production still changes only when an authorised maintainer deliberately starts `Firebase PRODUCTION Manual Deploy` and any protected-environment approval is satisfied.
+
+## SW-391 TEST event persistence
+
+Event saves in TEST use the same-origin `/api/event-audience-save` Hosting route,
+backed by the `eventAudienceSave` Firebase Function in the TEST-only `test-events`
+codebase. It reuses the authoritative event writer and its scope, date,
+audience, optimistic-concurrency and idempotency checks. It exposes no email
+routes and requires no Cloudflare, Resend, redirect or email URL configuration.
+
+The TEST workflow deploys this Function before Hosting using the existing
+validated TEST Firebase deployment credential. The runtime uses Google
+Application Default Credentials; no service-account private key is copied to
+the application. Firebase Auth tokens must belong to the TEST project and the
+authoritative Firestore leader record still controls access.
+
+If the first Functions deployment is blocked by infrastructure permissions,
+the TEST project owner must enable the Cloud Functions, Cloud Run, Cloud Build
+and Artifact Registry services, grant the TEST deployer the corresponding
+deployment/build and runtime service-account impersonation permissions, and
+grant the TEST Function's runtime service account `roles/datastore.user` in
+`coolock-ardlea-scouts-test` only. Record the exact permission denied by the
+deployment before granting it. Rerun Firebase TEST Deploy, then verify new Cubs
+Activity creation, editing and persistence after reopening. A PR preview uses
+the already deployed TEST Function; it does not deploy Functions itself.
+
+Production retains its existing Worker and required email configuration.
