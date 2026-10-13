@@ -1,9 +1,18 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Weekly meeting navigation runs once on desktop Chromium."); }
 async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
+async function expectFilledAction(control: Locator) {
+  await expect(control).toBeVisible();
+  const disabled = (await control.getAttribute("aria-disabled")) === "true" || !(await control.isEnabled());
+  if (!disabled) await expect(control).toHaveCSS("color", "rgb(255, 255, 255)");
+  const background = await control.evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(background).not.toBe("rgba(0, 0, 0, 0)");
+  await expect(control).toHaveCSS("min-height", "44px");
+}
+
 
 async function ensureOpenScoutsMeeting(page: Page) {
   await page.goto("/leader/weekly");
@@ -52,7 +61,33 @@ test("SW-369 open weekly meeting returns to the Weekly Meetings list with its me
   await meeting.click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
 
-  await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click();
+  await expect(page.getByTestId("weekly-whatsapp-share")).toHaveAccessibleName("Share in WhatsApp");
+  const actionPanel = page.getByTestId("weekly-meeting-editor-top");
+  const backAction = page.getByRole("button", { name: "Back to Weekly Meetings", exact: true });
+  for (const action of [
+    backAction,
+    page.getByRole("button", { name: "Create Meeting", exact: true }),
+    page.getByRole("button", { name: "Equipment", exact: true }),
+    page.getByTestId("weekly-whatsapp-share"),
+    page.getByRole("button", { name: "Edit Meeting", exact: true }),
+    page.getByRole("button", { name: "Copy Meeting", exact: true })
+  ]) {
+    await expectFilledAction(action);
+  }
+  expect(await actionPanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  for (const action of await actionPanel.getByRole("button").all()) {
+    const box = await action.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewportWidth + 1);
+  }
+  await page.keyboard.press("Tab");
+  await backAction.focus();
+  const focusVisible = await backAction.evaluate((element) => element.matches(":focus-visible") && getComputedStyle(element).outlineStyle !== "none" && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 3);
+  expect(focusVisible).toBe(true);
+
+  await backAction.click();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await expect(page.getByText("Open Meeting", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Menu · Weekly Meetings" })).toBeVisible();

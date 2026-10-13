@@ -25,9 +25,9 @@ export default function ActionLinkButton(props: InternalProps | ExternalProps) {
 
   if ("to" in destination && destination.to) {
     const { to, target, rel, download, ...rest } = destination;
-    return <Button component={RouterLink} to={to} target={target} rel={rel} download={download} color={color} size={size} variant="outlined" sx={controlSx} {...rest}>{children}</Button>;
+    return <Button component={RouterLink} to={to} target={target} rel={rel} download={download} color={color} size={size} variant="contained" sx={controlSx} {...rest}>{children}</Button>;
   }
 
   const { href, target, rel, download, ...rest } = destination as ExternalProps;
-  return <Button component="a" href={href} target={target} rel={rel} download={download} color={color} size={size} variant="outlined" sx={controlSx} {...rest}>{children}</Button>;
+  return <Button component="a" href={href} target={target} rel={rel} download={download} color={color} size={size} variant="contained" sx={controlSx} {...rest}>{children}</Button>;
 }
