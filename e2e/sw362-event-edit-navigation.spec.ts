@@ -154,6 +154,7 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   const savedStartDate = await page.getByLabel("Start date").inputValue();
   const editedStartDate = "2099-05-12";
   await page.getByLabel("Start date").fill(editedStartDate);
+  await page.getByRole("button", { name: "Open Leader Menu" }).click();
   await page.getByTestId("leader-nav-dashboard").click();
 
   const menuLeaveDialog = leaveDialog(page);
