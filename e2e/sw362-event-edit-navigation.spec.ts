@@ -179,8 +179,10 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
   await expect(page.getByLabel("Event title")).toHaveValue(updatedTitle);
 
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
-  await expect(page).toHaveURL(eventUrl);
+  await expect(page).toHaveURL(/\/leader\/events$/);
   expect(updateRequests).toEqual([eventId, eventId]);
+  await expect(leaveDialog).toHaveCount(0);
+  await page.goto(eventUrl);
   await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
   await expect(leaveDialog).toHaveCount(0);
   await page.reload();

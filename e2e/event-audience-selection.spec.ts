@@ -178,6 +178,8 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
   await page.getByLabel("Location").fill("TEST selected audience preserved");
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader\/events$/);
+  await page.goto(eventUrl);
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
   await page.reload();
@@ -194,6 +196,8 @@ test("selected-member event audience stays exact across sections, edit, save, pa
   const removalConfirmation = page.getByRole("alertdialog", { name: "Confirm audience removals" });
   await expect(removalConfirmation).toContainText("remove 1 existing invitee");
   await removalConfirmation.getByRole("button", { name: "Confirm removal and save" }).click();
+  await expect(page).toHaveURL(/\/leader\/events$/);
+  await page.goto(eventUrl);
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("2 invited");
   expect(await persistedAudienceMemberIds(eventId)).toEqual(["TEST_member_beaver_01", "TEST_member_scout_01"].sort());
