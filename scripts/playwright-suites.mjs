@@ -132,14 +132,15 @@ export function suitesForChangedPath(file) {
   }
 
   if (file.startsWith("docs/") || file === "README.md") return [];
-  // Operational backup workflows and focused selector tests are verified by
-  // their own checks; they do not affect browser application behaviour.
+  // Operational workflows and focused-selection artifacts do not change browser
+  // behavior. Unit tests run through the required Quality job.
   if ([
     ".github/workflows/firestore-backup-freshness.yml",
     ".github/workflows/firestore-backup.yml",
     ".github/workflows/sw-318-first-run.yml",
     "scripts/focused-playwright-selection.mjs",
-    "tests/unit/focusedPlaywrightSelection.test.ts"
+    "tests/unit/focusedPlaywrightSelection.test.ts",
+    "tests/unit/playwrightSuites.test.ts"
   ].includes(file)) return [];
   if (file === ".github/workflows/playwright-e2e.yml" || file === "scripts/playwright-suites.mjs") return ["activities-programme", "platform-ui"];
   if (file === "src/hooks/useSaveOnNavigation.ts") return ["activities-programme", "platform-ui"];
