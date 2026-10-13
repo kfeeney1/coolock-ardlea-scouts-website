@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:production": "wrangler deploy --config wrangler.production.toml",
-    "deploy:test": "wrangler deploy --config wrangler.test.toml"
+    "deploy:production": "wrangler deploy --config wrangler.production.toml"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

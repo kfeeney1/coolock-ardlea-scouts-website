@@ -9,9 +9,6 @@ const playwrightWorkflow = await readFile(new URL(".github/workflows/playwright-
 const firebaseRc = JSON.parse(await readFile(new URL(".firebaserc", root), "utf8"));
 const firebase = JSON.parse(await readFile(new URL("firebase.json", root), "utf8"));
 const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", root), "utf8"));
-const testWorkerConfig = await readFile(new URL("email-worker/wrangler.test.toml", root), "utf8");
-const localWorkerConfig = await readFile(new URL("email-worker/wrangler.toml", root), "utf8");
-const testWorkerWorkflow = await readFile(new URL(".github/workflows/firebase-hosting-test.yml", root), "utf8");
 
 const PROD = "coolock-ardlea-scouts";
 const TEST = "coolock-ardlea-scouts-test";
@@ -92,20 +89,16 @@ requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment expl
 requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
 requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
-requireContract(localWorkerConfig.includes('name = "coolock-ardlea-scouts-email-local"'), "Default Wrangler deploy cannot overwrite the TEST or PRODUCTION email Worker.");
-requireContract(localWorkerConfig.includes('FIREBASE_PROJECT_ID = "demo-coolock-ardlea-scouts"'), "Default Wrangler config targets the emulator project only.");
-requireContract(!localWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"'), "Default Wrangler config contains no Production project ID.");
-requireContract(testWorkerConfig.includes('name = "coolock-ardlea-scouts-email-test"'), "TEST email Worker deploys as a separate Cloudflare Worker.");
-requireContract(testWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test"'), "TEST email Worker targets only TEST Firestore.");
-requireContract(testWorkerConfig.includes('SITE_URL = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker uses the stable TEST Hosting origin.");
-requireContract(testWorkerConfig.includes('ALLOWED_ORIGINS = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker allows only the stable TEST site origin.");
-requireContract(!testWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"')
-  && !testWorkerConfig.includes('SITE_URL = "https://coolock-ardlea-scouts.web.app"')
-  && !testWorkerConfig.includes('ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"'), "TEST email Worker config contains no production project or origin.");
-requireContract(testWorkerWorkflow.includes("npm run deploy:test") && testWorkerWorkflow.includes("wrangler.test.toml"), "Stable TEST deployment deploys the isolated TEST email Worker.");
-requireContract(testWorkerWorkflow.includes("TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"), "TEST Worker credentials are provisioned from environment secrets.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
-requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
+requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
+requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
+requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
+requireContract(firebaseTest.functions?.[0]?.source === "functions" && firebaseTest.functions?.[0]?.codebase === "test-events", "TEST deploys a separate Firebase event persistence codebase.");
+requireContract(!firebase.functions, "Production/default Firebase config does not deploy the TEST event backend.");
+requireContract(firebaseTest.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save" && rewrite.function?.functionId === "eventAudienceSave"), "TEST event persistence is available through a same-origin Hosting rewrite.");
+requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
+requireContract(testWorkflow.includes("--only functions:test-events"), "TEST deploys its event backend before Hosting.");
+requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
 
 requireContract(previewWorkflow.includes("environment: test"), "PR previews use the test GitHub environment.");
 requireContract(exactProjectReference(previewWorkflow, TEST), "PR previews target the TEST Firebase project.");

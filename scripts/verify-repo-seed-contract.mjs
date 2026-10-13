@@ -27,15 +27,7 @@ const EXCLUDED_FILES = new Set([
   "scripts/audit-firestore-compatibility.mjs",
   "scripts/audit-live-data-provenance.mjs"
 ]);
-const NON_DATA_TOKENS = new Set([
-  "TEST_EMAIL_REDIRECT",
-  "TEST_SEEDS",
-  "TEST_EMAIL_WORKER_ACTION_LINK_SECRET",
-  "TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_EMAIL",
-  "TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY",
-  "TEST_EMAIL_WORKER_EMAIL_REDIRECT",
-  "TEST_EMAIL_WORKER_RESEND_API_KEY"
-]);
+const NON_DATA_TOKENS = new Set(["TEST_EMAIL_REDIRECT", "TEST_SEEDS"]);
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".rules", ".ps1"]);
 
 for (const seed of APPROVED_SEEDS) {

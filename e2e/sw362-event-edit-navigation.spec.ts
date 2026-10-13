@@ -143,15 +143,15 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
   await page.getByLabel("Start date").fill("2099-05-10");
   await page.getByLabel("Section").click();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
-  await expect(page.getByLabel("Event type")).toHaveValue("Activity");
+  await expect(page.getByLabel("Event type")).toHaveText("Activity");
 
   failNextSave = true;
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
   await expect(page.getByLabel("Event title")).toHaveValue(title);
   await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
-  await expect(page.getByLabel("Section")).toHaveValue("Cubs");
-  await expect(page.getByLabel("Event type")).toHaveValue("Activity");
+  await expect(page.getByLabel("Section")).toHaveText("Cubs");
+  await expect(page.getByLabel("Event type")).toHaveText("Activity");
 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);

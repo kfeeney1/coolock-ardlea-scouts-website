@@ -22,7 +22,7 @@ import { loadMembers } from "./memberAdmin";
 import { buildEventAudienceMemberships, shouldPreserveLegacyEventAudience } from "./eventAudienceMemberships";
 import { buildEventAudience, defaultEventAudienceForClassification } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
-import { saveEventAudience } from "./emailNotifications";
+import { saveEventAudience } from "./eventAudienceBackend";
 import { isValidDateRange } from "./dateRangeLogic.ts";
 
 export type EventStatus = "draft" | "open" | "closed" | "completed";

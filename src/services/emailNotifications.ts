@@ -81,27 +81,9 @@ export async function notifyEventParents(
     await post("/event-notification", { eventId, memberIds, consentToken, kind }, true);
 }
 
-export type EventAudienceSaveResult = {
-    ok: true;
-    eventId: string;
-    invitedCount: number;
-    newlyInvitedMemberIds: string[];
-    removedMemberIds: string[];
-    alreadyExists?: boolean;
-};
-
-export async function saveEventAudience(
-    operation: "create" | "update",
-    eventId: string,
-    input: Record<string, unknown>,
-    audience: { sectionIds: string[]; memberIds: string[] },
-    confirmRemovals = false,
-    preserveLegacyAudience = false
-): Promise<EventAudienceSaveResult> {
-    return await post<EventAudienceSaveResult>("/event-audience-save", {
-        operation, eventId, input, audience, confirmRemovals, preserveLegacyAudience
-    }, true);
-}
+// Compatibility exports; event persistence is independent of email delivery.
+export { saveEventAudience } from "./eventAudienceBackend";
+export type { EventAudienceSaveResult } from "./eventAudienceBackend";
 
 export async function notifyEventConsentProcessed(eventId: string, memberId: string): Promise<void> {
     await post("/event-consent-processed", { eventId, memberId }, true);

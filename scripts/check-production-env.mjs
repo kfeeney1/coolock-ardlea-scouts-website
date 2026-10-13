@@ -6,13 +6,14 @@ const REQUIRED_APPLICATION_VARIABLES = [
   "VITE_FIREBASE_PROJECT_ID",
   "VITE_FIREBASE_STORAGE_BUCKET",
   "VITE_FIREBASE_MESSAGING_SENDER_ID",
-  "VITE_FIREBASE_APP_ID",
-  "VITE_EMAIL_API_URL"
+  "VITE_FIREBASE_APP_ID"
 ];
 
 export function applicationEnvironmentErrors(environment = process.env) {
   const errors = [];
-  const missing = REQUIRED_APPLICATION_VARIABLES.filter((name) => !String(environment[name] || "").trim());
+  const isTest = environment.DEPLOY_ENVIRONMENT === "test";
+  const required = isTest ? REQUIRED_APPLICATION_VARIABLES : [...REQUIRED_APPLICATION_VARIABLES, "VITE_EMAIL_API_URL"];
+  const missing = required.filter((name) => !String(environment[name] || "").trim());
   if (missing.length > 0) errors.push(`Missing required application environment variables: ${missing.join(", ")}`);
 
   const expectedProjectId = String(environment.FIREBASE_PROJECT_ID || "").trim();
@@ -22,14 +23,11 @@ export function applicationEnvironmentErrors(environment = process.env) {
   }
 
   const emailApiUrl = String(environment.VITE_EMAIL_API_URL || "").trim();
-  if (emailApiUrl) {
+  if (!isTest && emailApiUrl) {
     try {
       const parsed = new URL(emailApiUrl);
       if (parsed.protocol !== "https:") throw new Error("not https");
-      if (expectedProjectId === "coolock-ardlea-scouts-test"
-          && (!parsed.hostname.startsWith("coolock-ardlea-scouts-email-test.") || !parsed.hostname.endsWith(".workers.dev"))) {
-        errors.push("TEST VITE_EMAIL_API_URL must target the isolated TEST email Worker on workers.dev.");
-      }
+
     } catch {
       errors.push("VITE_EMAIL_API_URL must be a valid HTTPS URL.");
     }
@@ -44,6 +42,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
 
-  console.log("Application backend endpoint is configured and valid.");
+  if (process.env.DEPLOY_ENVIRONMENT !== "test") console.log("Application backend endpoint is configured and valid.");
   console.log("Firebase application configuration matches the deployment target.");
 }

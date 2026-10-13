@@ -4,6 +4,8 @@ import test from "node:test";
 
 const baseEnv = {
   ...process.env,
+  DEPLOY_ENVIRONMENT: "production",
+  FIREBASE_PROJECT_ID: "coolock-ardlea-scouts",
   VITE_FIREBASE_API_KEY: "test-api-key",
   VITE_FIREBASE_AUTH_DOMAIN: "coolock-ardlea-scouts.firebaseapp.com",
   VITE_FIREBASE_PROJECT_ID: "coolock-ardlea-scouts",
