@@ -43,6 +43,9 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     }
   }, [dirty, guardId, saveDraft]);
 
+  // Keep the navigation guards installed for the editor lifetime. Re-attaching
+  // them when `dirty` changes leaves a passive-effect gap after an edit, during
+  // which a fast navigation could bypass the Save / Discard / Stay dialog.
   const openFor = useCallback((nextRequest: LeaveRequest) => {
     focusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setRequest(nextRequest);
@@ -51,7 +54,6 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
   }, []);
 
   useEffect(() => {
-    if (!dirty) return;
     const handlePopState = (event: PopStateEvent) => {
       if (bypassNextPopRef.current) {
         bypassNextPopRef.current = false;
@@ -74,10 +76,9 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [dirty, guardId, openFor]);
+  }, [guardId, openFor]);
 
   useEffect(() => {
-    if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyRef.current) return;
       event.preventDefault();
@@ -85,12 +86,12 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [dirty]);
+  }, []);
 
   useEffect(() => {
-    if (!dirty) return;
     const handleNavigationClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!dirtyRef.current) return;
       const target = event.target instanceof Element ? event.target : null;
       if (!target || target.closest('[role="dialog"]')) return;
 
@@ -120,7 +121,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     };
     document.addEventListener("click", handleNavigationClick, true);
     return () => document.removeEventListener("click", handleNavigationClick, true);
-  }, [dirty, openFor]);
+  }, [openFor]);
 
   const closeAndRestoreFocus = useCallback(() => {
     dialogOpenRef.current = false;

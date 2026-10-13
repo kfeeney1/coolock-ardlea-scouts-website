@@ -148,6 +148,36 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   await page.reload();
   await expect(page.getByLabel("Event title")).toHaveValue(secondTitle);
   await expect(leaveDialog(page)).toHaveCount(0);
+
+  // A real field edit followed immediately by a dashboard menu transition must
+  // still be intercepted even if React's passive effects have not rerun yet.
+  const savedStartDate = await page.getByLabel("Start date").inputValue();
+  const editedStartDate = "2099-05-12";
+  await page.getByLabel("Start date").fill(editedStartDate);
+  // The active route changes this button's accessible name, so use its stable
+  // control relationship instead of assuming the initial "Open Leader Menu" name.
+  const leaderMenuButton = page.locator('button[aria-controls="leader-navigation"]');
+  await leaderMenuButton.click();
+  await page.getByTestId("leader-nav-dashboard").click();
+
+  const menuLeaveDialog = leaveDialog(page);
+  await expect(menuLeaveDialog).toBeVisible();
+  await expect(menuLeaveDialog.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+  await expect(menuLeaveDialog.getByRole("button", { name: "Discard", exact: true })).toBeVisible();
+  await expect(menuLeaveDialog.getByRole("button", { name: "Stay", exact: true })).toBeVisible();
+  await menuLeaveDialog.getByRole("button", { name: "Stay", exact: true }).click();
+  await expect(page).toHaveURL(`${second.eventUrl}/edit`);
+  await expect(page.getByLabel("Start date")).toHaveValue(editedStartDate);
+
+  // Stay leaves the menu expanded; clicking the same route control again
+  // reopens the pending navigation attempt without toggling the menu closed.
+  await page.getByTestId("leader-nav-dashboard").click();
+  await leaveDialog(page).getByRole("button", { name: "Discard", exact: true }).click();
+  await expect(page).toHaveURL(/\/leader$/);
+
+  await page.goto(`${second.eventUrl}/edit`);
+  await expect(page.getByLabel("Start date")).toHaveValue(savedStartDate);
+  await expect(leaveDialog(page)).toHaveCount(0);
 });
 
 test("SW-362 mobile confirmation fits the screen and Android Back can be cancelled", async ({ page }, testInfo) => {
