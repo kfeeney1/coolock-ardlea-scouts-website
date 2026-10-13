@@ -209,3 +209,29 @@ test("SW-362 mobile confirmation fits the screen and Android Back can be cancell
   // Wait for that record rather than relying on the default 10-second assertion timeout.
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible({ timeout: 30_000 });
 });
+
+test("SW-390 saving through the leave dialog releases the dashboard and menu", async ({ page }, testInfo) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  const title = `TEST SW-390 ${testInfo.project.name} ${Date.now()}`;
+  const { eventUrl } = await createEvent(page, title);
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.getByLabel("Event title").fill(`${title} saved`);
+  await page.locator('button[aria-controls="leader-navigation"]').click();
+  await page.getByTestId("leader-nav-dashboard").click();
+  const dialog = leaveDialog(page);
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp("/leader$"));
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+  await page.locator('button[aria-controls="leader-navigation"]').click();
+  await expect(dialog).toHaveCount(0);
+  await page.goto(eventUrl);
+  await expect(page.getByRole("heading", { name: `${title} saved` })).toBeVisible();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  await expect(leaveDialog(page)).toHaveCount(0);
+});

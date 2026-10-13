@@ -22,17 +22,20 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
   const allowClickRef = useRef<HTMLButtonElement | null>(null);
   const focusReturnRef = useRef<HTMLElement | null>(null);
   const savingRef = useRef(false);
+  // A successful save must release the capture-phase guard synchronously,
+  // before React commits the new persisted baseline or navigation unmounts us.
+  const leavingRef = useRef(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [request, setRequest] = useState<LeaveRequest | null>(null);
 
   useLayoutEffect(() => {
     saveRef.current = saveDraft;
-    dirtyRef.current = dirty;
-    if (dirty && !backGuardArmedRef.current) {
+    dirtyRef.current = dirty && !leavingRef.current;
+    if (dirtyRef.current && !backGuardArmedRef.current) {
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
       window.history.pushState({ ...currentState, [HISTORY_GUARD_KEY]: guardId }, "", window.location.href);
       backGuardArmedRef.current = true;
-    } else if (!dirty) {
+    } else if (!dirtyRef.current) {
       backGuardArmedRef.current = false;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state as Record<string, unknown> : null;
       if (currentState && HISTORY_GUARD_KEY in currentState) {
@@ -59,7 +62,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
         bypassNextPopRef.current = false;
         return;
       }
-      if (!dirtyRef.current) return;
+      if (!dirtyRef.current || leavingRef.current) return;
       // Overlay dismissal returns to this guard entry; it is not an editor leave.
       if (event.state && typeof event.state === "object" && (event.state as Record<string, unknown>)[HISTORY_GUARD_KEY] === guardId) return;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
@@ -91,7 +94,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
   useEffect(() => {
     const handleNavigationClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (!dirtyRef.current) return;
+      if (!dirtyRef.current || leavingRef.current) return;
       const target = event.target instanceof Element ? event.target : null;
       if (!target || target.closest('[role="dialog"]')) return;
 
@@ -132,9 +135,22 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
 
   const stay = useCallback(() => closeAndRestoreFocus(), [closeAndRestoreFocus]);
 
+  const releaseGuard = useCallback(() => {
+    leavingRef.current = true;
+    dirtyRef.current = false;
+    dialogOpenRef.current = false;
+    backGuardArmedRef.current = false;
+    const state = window.history.state;
+    if (state && typeof state === "object" && HISTORY_GUARD_KEY in state) {
+      const nextState = { ...state };
+      delete nextState[HISTORY_GUARD_KEY];
+      window.history.replaceState(nextState, "", window.location.href);
+    }
+  }, []);
+
   const continueWithoutSaving = useCallback(() => {
     const pending = request;
-    dialogOpenRef.current = false;
+    releaseGuard();
     setDialogOpen(false);
     setRequest(null);
     if (!pending) return;
@@ -147,7 +163,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
       allowClickRef.current = pending.button;
       pending.button.click();
     }
-  }, [navigate, request]);
+  }, [navigate, releaseGuard, request]);
 
   const saveAndContinue = useCallback(async () => {
     if (savingRef.current || !request) return;
@@ -158,7 +174,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
         return;
       }
       const pending = request;
-      dialogOpenRef.current = false;
+      releaseGuard();
       setDialogOpen(false);
       setRequest(null);
       if (pending.kind === "navigate") navigate(pending.destination);
@@ -173,7 +189,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     } finally {
       savingRef.current = false;
     }
-  }, [closeAndRestoreFocus, navigate, request]);
+  }, [closeAndRestoreFocus, navigate, releaseGuard, request]);
 
   return { dialogOpen, stay, continueWithoutSaving, saveAndContinue };
 }
