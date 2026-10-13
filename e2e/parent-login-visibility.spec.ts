@@ -55,7 +55,7 @@ test("Super Admin can persist Parent Login visibility without changing portal ac
 
   try {
     await setting.click();
-    await expect(page.getByRole("status")).toContainText("Parent Login disabled");
+    await expect(page.getByRole("status").filter({ hasText: "Parent Login disabled" })).toBeVisible();
     await expect(setting).not.toBeChecked();
 
     await expectPublicParentLogin(publicPage, false, testInfo);
@@ -88,7 +88,7 @@ test("Super Admin can persist Parent Login visibility without changing portal ac
     }
 
     await setting.click();
-    await expect(page.getByRole("status")).toContainText("Parent Login enabled");
+    await expect(page.getByRole("status").filter({ hasText: "Parent Login enabled" })).toBeVisible();
     await expect(setting).toBeChecked();
     await expectPublicParentLogin(publicPage, true, testInfo);
 
@@ -103,7 +103,7 @@ test("Super Admin can persist Parent Login visibility without changing portal ac
   } finally {
     if (!(await setting.isChecked().catch(() => true))) {
       await setting.click();
-      await expect(page.getByRole("status")).toContainText("Parent Login enabled");
+      await expect(page.getByRole("status").filter({ hasText: "Parent Login enabled" })).toBeVisible();
     }
     await parentContext.close();
     await publicContext.close();
