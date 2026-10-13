@@ -13,21 +13,29 @@ import type { EventInput, EventRecord, EventStatus } from "../services/eventAdmi
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
+type LoadedEventEditor = {
+  eventId: string;
+  event: EventRecord;
+  draft: EventInput;
+  baselineJson: string;
+  members: MemberRecord[];
+};
+
 export default function EventEditPage() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
-  const [event, setEvent] = useState<EventRecord | null>(null);
-  const [draft, setDraft] = useState<EventInput | null>(null);
-  const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [loadedEditor, setLoadedEditor] = useState<LoadedEventEditor | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [savedDraftJson, setSavedDraftJson] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
   const [confirmAudienceRemoval, setConfirmAudienceRemoval] = useState(false);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     let active = true;
+    setError("");
+    setSaveFailed(false);
+    setConfirmAudienceRemoval(false);
     void (async () => {
       try {
         const [events, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
@@ -37,10 +45,13 @@ export default function EventEditPage() {
           ...eventInput(found),
           audience: found.audience ?? defaultEventAudienceForClassification(found.section, loadedMembers)
         } : null;
-        setEvent(found);
-        setDraft(initial);
-        setSavedDraftJson(initial ? JSON.stringify(initial) : "");
-        setMembers(loadedMembers);
+        setLoadedEditor(found && initial ? {
+          eventId,
+          event: found,
+          draft: initial,
+          baselineJson: JSON.stringify(initial),
+          members: loadedMembers
+        } : null);
         if (!found) setError("This event could not be found or is outside your permitted sections.");
       } catch (loadError) {
         if (active) setError(applicationErrorMessage(loadError, "Unable to load this event.", "EventEditPage"));
@@ -49,10 +60,21 @@ export default function EventEditPage() {
     return () => { active = false; };
   }, [eventId]);
 
-  const dirty = Boolean(draft && savedDraftJson && JSON.stringify(draft) !== savedDraftJson);
+  const currentEditor = loadedEditor?.eventId === eventId ? loadedEditor : null;
+  const event = currentEditor?.event ?? null;
+  const draft = currentEditor?.draft ?? null;
+  const members = currentEditor?.members ?? [];
+  const dirty = Boolean(currentEditor && JSON.stringify(currentEditor.draft) !== currentEditor.baselineJson);
   const saveState = saving ? "saving" : saveFailed ? "failed" : dirty ? "unsaved" : "saved";
 
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+
+  const updateDraft = useCallback((update: (current: EventInput) => EventInput) => {
+    setLoadedEditor((current) => current?.eventId === eventId
+      ? { ...current, draft: update(current.draft) }
+      : current);
+  }, [eventId]);
+
   const audienceRemovalCount = useMemo(() => {
     if (!event || !draft) return 0;
     const originalAudience = event.audience ?? defaultEventAudienceForClassification(event.section, activeMembers);
@@ -100,8 +122,9 @@ export default function EventEditPage() {
     const pending = (async () => {
       try {
         await updateEvent(event.id, committed, removalsConfirmed);
-        setSavedDraftJson(JSON.stringify(committed));
-        setDraft(committed);
+        setLoadedEditor((current) => current?.eventId === eventId
+          ? { ...current, draft: committed, baselineJson: JSON.stringify(committed) }
+          : current);
         setSaveFailed(false);
         return true;
       } catch (saveError) {
@@ -115,7 +138,7 @@ export default function EventEditPage() {
     })();
     saveInFlight.current = pending;
     return pending;
-  }, [activeMembers, draft, dirty, event]);
+  }, [activeMembers, draft, dirty, event, eventId]);
 
   const { dialogOpen, stay, continueWithoutSaving, saveAndContinue } = useConfirmEventLeave(dirty, saveDraft);
   const saveAndReturnToEvent = useCallback(async (removalsConfirmed = false) => {
@@ -133,20 +156,20 @@ export default function EventEditPage() {
     <LeaderPageHeader title={`Edit event · ${event?.title ?? ""}`} description="" />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}><Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}><Stack spacing={2}>
-      <TextField required label="Event title" value={draft.title} onChange={(input) => setDraft({ ...draft, title: input.target.value })} />
+      <TextField required label="Event title" value={draft.title} onChange={(input) => updateDraft((current) => ({ ...current, title: input.target.value }))} />
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-        <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => setDraft({ ...draft, eventType: input.target.value })}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <FormControl><InputLabel id="event-edit-section-label">Section</InputLabel><Select labelId="event-edit-section-label" label="Section" value={draft.section} onChange={(input) => setDraft({ ...draft, section: input.target.value })}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
-        <Box sx={{ gridColumn: "1 / -1" }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => setDraft((current) => ({ ...current!, startDate, ...(current!.endDate && current!.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => setDraft((current) => current ? ({ ...current, endDate }) : current)} /></Box>
+        <FormControl><InputLabel id="event-edit-type-label">Event type</InputLabel><Select labelId="event-edit-type-label" label="Event type" value={draft.eventType} onChange={(input) => updateDraft((current) => ({ ...current, eventType: input.target.value }))}>{EVENT_TYPES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <FormControl><InputLabel id="event-edit-section-label">Section</InputLabel><Select labelId="event-edit-section-label" label="Section" value={draft.section} onChange={(input) => updateDraft((current) => ({ ...current, section: input.target.value }))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
+        <Box sx={{ gridColumn: "1 / -1" }}><DateRangeFields startDate={draft.startDate} endDate={draft.endDate} startLabel="Start date" endLabel="End date" startRequired onStartDateChange={(startDate) => updateDraft((current) => ({ ...current, startDate, ...(current.endDate && current.endDate < startDate ? { endDate: "" } : {}) }))} onEndDateChange={(endDate) => updateDraft((current) => ({ ...current, endDate }))} /></Box>
       </Box>
-      <TextField label="Location" value={draft.location} onChange={(input) => setDraft({ ...draft, location: input.target.value })} />
-      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(input) => setDraft({ ...draft, description: input.target.value })} />
-      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(input) => setDraft({ ...draft, meetingPoint: input.target.value })} />
-      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(input) => setDraft({ ...draft, returnDetails: input.target.value })} />
-      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(input) => setDraft({ ...draft, leaderNotes: input.target.value })} />
-      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience} members={activeMembers} disabled={saving} onChange={(audience) => setDraft({ ...draft, audience })} />
-      <FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(input) => setDraft({ ...draft, status: input.target.value as EventStatus })}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
-      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => setDraft({ ...draft, consentRequired: input.target.checked })} />} label="Event consent required" />
+      <TextField label="Location" value={draft.location} onChange={(input) => updateDraft((current) => ({ ...current, location: input.target.value }))} />
+      <TextField multiline minRows={3} label="Description" value={draft.description} onChange={(input) => updateDraft((current) => ({ ...current, description: input.target.value }))} />
+      <TextField label="Meeting / departure details" value={draft.meetingPoint} onChange={(input) => updateDraft((current) => ({ ...current, meetingPoint: input.target.value }))} />
+      <TextField label="Return / collection details" value={draft.returnDetails} onChange={(input) => updateDraft((current) => ({ ...current, returnDetails: input.target.value }))} />
+      <TextField multiline minRows={3} label="Leader notes" value={draft.leaderNotes} onChange={(input) => updateDraft((current) => ({ ...current, leaderNotes: input.target.value }))} />
+      <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience} members={activeMembers} disabled={saving} onChange={(audience) => updateDraft((current) => ({ ...current, audience }))} />
+      <FormControl><InputLabel id="event-edit-status-label">Status</InputLabel><Select labelId="event-edit-status-label" label="Status" value={draft.status} onChange={(input) => updateDraft((current) => ({ ...current, status: input.target.value as EventStatus }))}>{EVENT_STATUSES.map((value) => <MenuItem key={value} value={value}>{eventStatusLabel(value)}</MenuItem>)}</Select></FormControl>
+      <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => updateDraft((current) => ({ ...current, consentRequired: input.target.checked }))} />} label="Event consent required" />
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button variant="contained" color="success" disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvent()}>{saving ? "Saving…" : "Save Event"}</Button>
