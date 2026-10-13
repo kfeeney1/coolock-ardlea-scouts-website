@@ -38,6 +38,7 @@ Configure these environment values directly in GitHub. Do not copy them into rep
 - secret: `TEST_EMAIL_WORKER_ACTION_LINK_SECRET` (at least 32 random characters)
 - secret: `TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_EMAIL` and `TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY` for a least-privilege service account in the TEST Firebase project only
 - secret: `TEST_EMAIL_WORKER_EMAIL_REDIRECT` for the controlled TEST inbox; TEST email must never reach real members
+- secret: `TEST_EMAIL_WORKER_RESEND_API_KEY` only if TEST email delivery is enabled; use a sandbox credential
 - variable: `FIREBASE_HOSTING_URL` containing the stable TEST HTTPS URL
 - variable: `FIREBASE_STORAGE_ENABLED` matching the TEST service state
 

@@ -4,7 +4,9 @@ The existing Scout email service is a Cloudflare Worker backed by Resend. Keep n
 
 ## Delivery environments
 
-The default `wrangler.toml` is deliberately **test-safe**. A plain `wrangler dev` or `wrangler deploy` uses `EMAIL_DELIVERY_MODE = "test"` and redirects delivery to the controlled test inbox.
+The default `wrangler.toml` is for local development only. It targets the Firebase emulator project and uses a separate `coolock-ardlea-scouts-email-local` Worker name, so an unqualified deploy cannot overwrite TEST or PRODUCTION. Local email delivery remains in test mode and redirects to a controlled test inbox.
+
+TEST uses the separate top-level `wrangler.test.toml` config and `coolock-ardlea-scouts-email-test` Worker. The stable TEST workflow deploys this Worker from GitHub's protected `test` environment using TEST-only Firebase credentials and Worker secrets. Set `VITE_EMAIL_API_URL` to that Worker’s `workers.dev` URL in the same environment. The endpoint is checked before TEST Hosting is deployed.
 
 Production uses a separate top-level Wrangler configuration, `wrangler.production.toml`, which targets the existing `coolock-ardlea-scouts-email` Worker directly. This is intentional: current Wrangler named environments create distinct Workers such as `coolock-ardlea-scouts-email-production`, which is not the production architecture used by this project.
 
@@ -105,7 +107,7 @@ SW-93 is therefore a mobile-web routing and responsive-layout requirement, not a
 
 ## Rollback / disable
 
-The safest immediate disable is to deploy the default test configuration with `npm run deploy` (or otherwise set `EMAIL_DELIVERY_MODE = "test"` with an explicit controlled `TEST_EMAIL_REDIRECT`) so genuine recipients cannot receive messages. Do not remove the fail-closed validation to work around configuration problems.
+The safest immediate disable for TEST is to deploy its isolated configuration with `npm run deploy:test` and keep a controlled `TEST_EMAIL_REDIRECT`; this cannot overwrite the production Worker. Do not remove the fail-closed validation to work around configuration problems. Do not remove the fail-closed validation to work around configuration problems.
 
 
 ## Deliverability investigation (SW-108)

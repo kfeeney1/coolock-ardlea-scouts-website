@@ -1,4 +1,4 @@
-name = "coolock-ardlea-scouts-email"
+name = "coolock-ardlea-scouts-email-local"
 main = "src/entry.js"
 compatibility_date = "2026-08-01"
 
@@ -14,11 +14,11 @@ compatibility_date = "2026-08-01"
 LEADER_MEDICAL_REMINDER_DAYS = "45"
 # Non-production secret used only for local/TEST action-link encryption.
 ACTION_LINK_SECRET = "test-only-action-link-secret-rotate-freely"
-FIREBASE_PROJECT_ID = "coolock-ardlea-scouts"
-SITE_URL = "https://coolock-ardlea-scouts.web.app"
+FIREBASE_PROJECT_ID = "demo-coolock-ardlea-scouts"
+SITE_URL = "http://127.0.0.1:5173"
 EMAIL_DELIVERY_MODE = "test"
 EMAIL_FROM = "80th 160th Coolock Ardlea Scout Group <onboarding@resend.dev>"
-ALLOWED_ORIGINS = "https://coolock-ardlea-scouts.web.app"
+ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173"
 
 # ADMIN_EMAILS and TEST_EMAIL_REDIRECT are intentionally not versioned here.
 # Provide them through the Cloudflare deployment environment / Wrangler secrets

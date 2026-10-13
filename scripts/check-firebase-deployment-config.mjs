@@ -10,6 +10,7 @@ const firebaseRc = JSON.parse(await readFile(new URL(".firebaserc", root), "utf8
 const firebase = JSON.parse(await readFile(new URL("firebase.json", root), "utf8"));
 const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", root), "utf8"));
 const testWorkerConfig = await readFile(new URL("email-worker/wrangler.test.toml", root), "utf8");
+const localWorkerConfig = await readFile(new URL("email-worker/wrangler.toml", root), "utf8");
 const testWorkerWorkflow = await readFile(new URL(".github/workflows/firebase-hosting-test.yml", root), "utf8");
 
 const PROD = "coolock-ardlea-scouts";
@@ -91,6 +92,8 @@ requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment expl
 requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
 requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
+requireContract(localWorkerConfig.includes('name = "coolock-ardlea-scouts-email-local"'), "Default Wrangler deploy cannot overwrite the TEST or PRODUCTION email Worker.");
+requireContract(localWorkerConfig.includes('FIREBASE_PROJECT_ID = "demo-coolock-ardlea-scouts"'), "Default Wrangler config targets the emulator project only.");
 requireContract(testWorkerConfig.includes('name = "coolock-ardlea-scouts-email-test"'), "TEST email Worker deploys as a separate Cloudflare Worker.");
 requireContract(testWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test"'), "TEST email Worker targets only TEST Firestore.");
 requireContract(testWorkerConfig.includes('SITE_URL = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker uses the stable TEST Hosting origin.");
