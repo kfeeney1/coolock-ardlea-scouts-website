@@ -29,6 +29,29 @@ function desktopOnly(testInfo: TestInfo) {
 }
 
 test.describe("dashboard polls", () => {
+  test("SW-357 saves the reported whole-group leader draft and blocks a repeated in-flight submission", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!adminEmail || !password, "Configure the super-admin E2E account.");
+    await login(page, "/leader/login", adminEmail!);
+    await page.goto("/leader/polls");
+    await expect(page.getByTestId("leader-polls")).toBeVisible();
+    await page.getByLabel("Poll question").fill("Poll");
+    await page.getByLabel("Answer options").fill("Poll1\nPoll2");
+    await page.getByRole("combobox", { name: "Poll scope" }).click();
+    await page.getByRole("option", { name: "Whole group" }).click();
+    const saveDraft = page.getByRole("button", { name: "Save draft" });
+    await Promise.all([saveDraft.dispatchEvent("click"), saveDraft.dispatchEvent("click")]);
+
+    const draft = page.getByTestId(/^leader-poll-manager-/).filter({ has: page.getByText("Poll", { exact: true }) });
+    await expect(draft).toHaveCount(1);
+    await expect(draft).toContainText("Leaders · Whole group · draft");
+    await expect(page.getByRole("status")).toContainText("Poll draft saved");
+    await expect(page.getByTestId("leader-polls").getByRole("alert")).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByTestId(/^leader-poll-manager-/).filter({ has: page.getByText("Poll", { exact: true }) })).toHaveCount(1);
+  });
+
   test("a scoped poll is explicitly published, answered once, and persists after reload", async ({ page, browser }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!parentEmail || !adminEmail || !password, "Configure the approved parent and super-admin E2E accounts.");

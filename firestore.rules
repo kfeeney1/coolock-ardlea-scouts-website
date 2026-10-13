@@ -1716,7 +1716,7 @@ service cloud.firestore {
     }
     function validPollDocument(data) {
       return data.keys().hasAll(["question", "options", "audienceType", "scopeType", "scopeSections", "status", "createdBy", "createdAt", "updatedBy", "updatedAt"])
-        && data.question is string && data.question.size() >= 5 && data.question.size() <= 240
+        && data.question is string && data.question.size() >= 1 && data.question.size() <= 240
         && data.options is list && data.options.size() >= 2 && data.options.size() <= 8
         && data.audienceType in ["leaders", "parents"]
         && data.scopeType in ["group", "sections"]
