@@ -23,9 +23,25 @@ test("public consent creation cannot forge a canonical member relationship", asy
   await assertSucceeds(setDoc(doc(db, "consentApplications/public-ok"), consent));
   await assertFails(setDoc(doc(db, "consentApplications/public-forged"), { ...consent, memberId: "member-other" }));
   await assertFails(setDoc(doc(db, "consentApplications/public-reversed"), { ...consent, consentFrom: "2027-09-01" }));
+  await assertFails(setDoc(doc(db, "consentApplications/public-impossible-end"), { ...consent, consentTo: "2026-02-30" }));
+  await assertFails(setDoc(doc(db, "consentApplications/public-non-leap-day"), { ...consent, consentFrom: "2025-02-29", consentTo: "2025-03-01" }));
+  await assertSucceeds(setDoc(doc(db, "consentApplications/public-leap-day"), { ...consent, consentFrom: "2024-02-29", consentTo: "2024-02-29" }));
   const missingStart = { ...consent };
   delete missingStart.consentFrom;
   await assertFails(setDoc(doc(db, "consentApplications/public-missing-start"), missingStart));
+});
+
+test("Scouter consent persistence rejects invalid validity ranges", async () => {
+  await seed([["adminUsers/scouter-range", { active: true, role: "leader", sections: ["Scouts"] }]]);
+  const db = testEnv.authenticatedContext("scouter-range", { email: "scouter@example.com" }).firestore();
+  const scouterConsent = {
+    status: "active", source: "website", section: "Scouts", formType: "scouter-es3-medical-advice",
+    formVersion: "stage2-2026-08", submittedByUid: "scouter-range", submittedAt: serverTimestamp(),
+    validityFrom: "2026-10-13", validityTo: "2027-08-31"
+  };
+  await assertSucceeds(setDoc(doc(db, "consentApplications/scouter-valid-range"), scouterConsent));
+  await assertFails(setDoc(doc(db, "consentApplications/scouter-reversed-range"), { ...scouterConsent, validityFrom: "2027-09-01" }));
+  await assertFails(setDoc(doc(db, "consentApplications/scouter-impossible-range"), { ...scouterConsent, validityFrom: "2026-02-30" }));
 });
 
 test("SW-309 profile sources are readable by UID owner only", async () => {
