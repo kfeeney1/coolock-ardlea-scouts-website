@@ -59,7 +59,7 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   const search = historyCard.getByLabel("Search meeting history");
   const section = historyCard.getByLabel("Meeting history section");
   const fromDate = historyCard.getByLabel("From date");
-  const toDate = historyCard.getByLabel("To date");
+  const toDate = historyCard.getByRole("textbox", { name: "To date", exact: true });
   await expect(search).toBeVisible();
   await expect(section).toBeVisible();
   await expect(fromDate).toBeVisible();
@@ -99,7 +99,7 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   await expect(fromDate).toBeFocused();
   const focusTargets = [search, section, fromDate, toDate];
   const expectedFocusOrder = await Promise.all(focusTargets.map((control) => control.getAttribute("id")));
-  const actualFocusOrder = await historyCard.locator('[data-testid="weekly-history-search"], #weekly-history-section, input[type="date"]').evaluateAll((controls) => controls.map((control) => control.id));
+  const actualFocusOrder = await historyCard.locator('[data-testid="weekly-history-search"], #weekly-history-section, input[type="date"], input[type="text"]:not([data-testid="weekly-history-search"])').evaluateAll((controls) => controls.map((control) => control.id));
   expect(actualFocusOrder).toEqual(expectedFocusOrder);
   const tabStops = await Promise.all(focusTargets.map((control) => control.evaluate((element) => element.tabIndex)));
   expect(tabStops).toEqual([0, 0, 0, 0]);
