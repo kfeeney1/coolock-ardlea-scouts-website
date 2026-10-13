@@ -154,7 +154,10 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   const savedStartDate = await page.getByLabel("Start date").inputValue();
   const editedStartDate = "2099-05-12";
   await page.getByLabel("Start date").fill(editedStartDate);
-  await page.getByRole("button", { name: "Open Leader Menu" }).click();
+  // The header labels this button with the current route ("Menu · Edit Event")
+  // when a navigation item is active, so target its stable control relationship.
+  const leaderMenuButton = page.locator('button[aria-controls="leader-navigation"]');
+  await leaderMenuButton.click();
   await page.getByTestId("leader-nav-dashboard").click();
 
   const menuLeaveDialog = leaveDialog(page);
@@ -166,7 +169,8 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   await expect(page).toHaveURL(`${second.eventUrl}/edit`);
   await expect(page.getByLabel("Start date")).toHaveValue(editedStartDate);
 
-  await page.getByRole("button", { name: "Open Leader Menu" }).click();
+  // Stay leaves the menu expanded; clicking the same route control again
+  // reopens the pending navigation attempt without toggling the menu closed.
   await page.getByTestId("leader-nav-dashboard").click();
   await leaveDialog(page).getByRole("button", { name: "Discard", exact: true }).click();
   await expect(page).toHaveURL(/\/leader$/);
