@@ -85,7 +85,11 @@ export default function TransientOverlayBackDismissBridge() {
       try {
         if (navigationType === "reload" || destination?.sameDocument === false) documentDeparturePending.current = true;
         const target = destinationUrl ? new URL(destinationUrl) : null;
-        if (documentDeparturePending.current || (target && `${target.pathname}${target.search}${target.hash}` !== currentUrl.current)) {
+        // List filters replace the query string in browser history without
+        // leaving the page. Treating that as departure cancels the pending POP
+        // and strands the dropdown marker indefinitely.
+        const currentPathname = new URL(currentUrl.current, window.location.origin).pathname;
+        if (documentDeparturePending.current || (target && target.pathname !== currentPathname)) {
           routeDeparturePending.current = true;
           cancelPendingClose();
         }
