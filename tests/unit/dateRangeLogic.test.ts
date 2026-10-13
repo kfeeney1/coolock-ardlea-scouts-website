@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dateRangeError, isIsoCalendarDate, isValidDateRange } from "../../src/services/dateRangeLogic.ts";
+import { dateRangeError, formatDateRangeInput, isIsoCalendarDate, isValidDateRange, parseDateRangeInput } from "../../src/services/dateRangeLogic.ts";
 
 test("date-only ranges require a valid start before an end and reject reversed or malformed dates", () => {
   assert.equal(dateRangeError("", "2026-10-01"), "Enter a valid start date before selecting an end date.");
@@ -16,4 +16,14 @@ test("ISO date validation uses calendar dates rather than UTC timestamp comparis
   assert.equal(isIsoCalendarDate("2025-02-29"), false);
   assert.equal(isIsoCalendarDate("2026-13-01"), false);
   assert.equal(isIsoCalendarDate("2026-01-00"), false);
+});
+
+test("date range text accepts ISO and site-formatted dates without timezone conversion", () => {
+  assert.equal(parseDateRangeInput("2026-10-18"), "2026-10-18");
+  assert.equal(parseDateRangeInput("18-10-2026"), "2026-10-18");
+  assert.equal(parseDateRangeInput("18/10/2026"), "2026-10-18");
+  assert.equal(parseDateRangeInput("31-02-2026"), null);
+  assert.equal(parseDateRangeInput("2026-02-30"), null);
+  assert.equal(formatDateRangeInput("2026-10-18"), "18-10-2026");
+  assert.equal(formatDateRangeInput("2026-02-30"), "2026-02-30");
 });

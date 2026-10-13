@@ -10,6 +10,21 @@ export function isIsoCalendarDate(value: string): boolean {
   return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1];
 }
 
+/** Accepts the site's displayed DD-MM-YYYY format and ISO date-only values. */
+export function parseDateRangeInput(value: string): string | null {
+  const input = value.trim();
+  if (isIsoCalendarDate(input)) return input;
+  const match = /^(\d{2})[-/](\d{2})[-/](\d{4})$/.exec(input);
+  if (!match) return null;
+  const isoDate = `${match[3]}-${match[2]}-${match[1]}`;
+  return isIsoCalendarDate(isoDate) ? isoDate : null;
+}
+
+export function formatDateRangeInput(value: string): string {
+  if (!isIsoCalendarDate(value)) return value;
+  return `${value.slice(8, 10)}-${value.slice(5, 7)}-${value.slice(0, 4)}`;
+}
+
 export function dateRangeError(startDate: string, endDate: string): string {
   if (!endDate) return "";
   if (!isIsoCalendarDate(startDate)) return "Enter a valid start date before selecting an end date.";

@@ -65,7 +65,7 @@ test("ordinary leader can compare attendance sources, preserve filters through h
   await expect(search).toHaveValue(seededMember);
   await expect(page.getByRole("combobox", { name: "Section" })).toContainText("Scouts");
   await expect(page.getByTestId("attendance-from-date")).toHaveValue("2099-01-15");
-  await expect(page.getByTestId("attendance-to-date")).toHaveValue("2099-01-15");
+  await expect(page.getByTestId("attendance-to-date")).toHaveValue("15-01-2099");
 
   await page.getByRole("button", { name: "Reset filters" }).click();
   await expect(search).toHaveValue("");
