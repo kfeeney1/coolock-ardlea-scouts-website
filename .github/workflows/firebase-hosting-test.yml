@@ -56,7 +56,7 @@ jobs:
       - name: Verify TEST event audience backend is reachable
         env:
           EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
-          TEST_SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
+          SITE_URL: ${{ vars.FIREBASE_HOSTING_URL }}
         shell: bash
         run: |
           set -euo pipefail
@@ -64,12 +64,12 @@ jobs:
           trap 'rm -f "$headers_file"' EXIT
           status="$(curl --silent --show-error --max-time 20 --dump-header "$headers_file" --output /dev/null --write-out '%{http_code}' \
             --request POST \
-            --header "Origin: $TEST_SITE_URL" \
+            --header "Origin: $SITE_URL" \
             --header 'Content-Type: application/json' \
             --data '{}' \
             "${EMAIL_API_URL%/}/event-audience-save")"
           allowed_origin="$(awk 'tolower($1) == "access-control-allow-origin:" { gsub("\\r", "", $2); print $2 }' "$headers_file" | tail -n 1)"
-          if { [ "$status" != "401" ] && [ "$status" != "403" ]; } || [ "$allowed_origin" != "$TEST_SITE_URL" ]; then
+          if { [ "$status" != "401" ] && [ "$status" != "403" ]; } || [ "$allowed_origin" != "$SITE_URL" ]; then
             echo "::error::TEST event-audience-save endpoint must be deployed, reject unauthenticated requests, and allow the TEST site origin (HTTP $status)."
             exit 1
           fi
