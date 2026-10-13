@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -120,6 +121,55 @@ test("session settings are readable when signed in but writable only by admins",
     updatedBy: "admin-1", updatedAt: serverTimestamp(),
   }));
   await assertFails(getDocs(collection(adminDb, "siteSettings")));
+});
+
+test("Parent Login settings are private to Super Admin while the safe navigation projection is public", async () => {
+  await seed([
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/leader-1", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["siteSettings/parentLogin", { parentLoginEnabled: true, updatedBy: "super-1", updatedAt: new Date() }],
+    ["siteSettings/publicNavigation", { parentLoginEnabled: true }],
+  ]);
+
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  const leaderDb = testEnv.authenticatedContext("leader-1").firestore();
+  const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+  const superDb = testEnv.authenticatedContext("super-1").firestore();
+  const canonicalPath = doc(publicDb, "siteSettings/parentLogin");
+  const publicPath = doc(publicDb, "siteSettings/publicNavigation");
+
+  await assertFails(getDoc(canonicalPath));
+  await assertSucceeds(getDoc(publicPath));
+  assert.deepEqual(Object.keys((await getDoc(publicPath)).data()).sort(), ["parentLoginEnabled"]);
+  await assertFails(getDoc(doc(leaderDb, "siteSettings/parentLogin")));
+  await assertFails(getDoc(doc(adminDb, "siteSettings/parentLogin")));
+  await assertSucceeds(getDoc(doc(superDb, "siteSettings/parentLogin")));
+  await assertFails(updateDoc(doc(leaderDb, "siteSettings/parentLogin"), { parentLoginEnabled: false }));
+  await assertFails(updateDoc(doc(adminDb, "siteSettings/parentLogin"), { parentLoginEnabled: false }));
+  await assertFails(updateDoc(doc(superDb, "siteSettings/parentLogin"), { parentLoginEnabled: false, updatedBy: "super-1", updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(superDb, "siteSettings/publicNavigation"), { parentLoginEnabled: false }));
+
+  const unauthorisedBatch = writeBatch(leaderDb);
+  unauthorisedBatch.set(doc(leaderDb, "siteSettings/parentLogin"), {
+    parentLoginEnabled: false, updatedBy: "leader-1", updatedAt: serverTimestamp(),
+  });
+  unauthorisedBatch.set(doc(leaderDb, "siteSettings/publicNavigation"), {
+    parentLoginEnabled: false,
+  });
+  await assertFails(unauthorisedBatch.commit());
+
+  const authorisedBatch = writeBatch(superDb);
+  authorisedBatch.set(doc(superDb, "siteSettings/parentLogin"), {
+    parentLoginEnabled: false, updatedBy: "super-1", updatedAt: serverTimestamp(),
+  });
+  authorisedBatch.set(doc(superDb, "siteSettings/publicNavigation"), {
+    parentLoginEnabled: false,
+  });
+  await assertSucceeds(authorisedBatch.commit());
+  await assertSucceeds(getDoc(doc(publicDb, "siteSettings/publicNavigation")));
+  await assertFails(getDoc(doc(publicDb, "siteSettings/parentLogin")));
+  await assertFails(setDoc(doc(publicDb, "siteSettings/publicNavigation"), { parentLoginEnabled: true }));
 });
 
 test("public site content exposes only canonical environment projections", async () => {

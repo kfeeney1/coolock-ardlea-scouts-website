@@ -12,7 +12,11 @@ function validCollections() {
     ["parentWeeklyMeetings", map({ w1: { section: "Cubs", meetingDate: "2026-09-08", status: "open", activities: [], badgework: [] } })],
     ["events", map({ e1: { title: "Camp", eventType: "Camp", section: "Scouts", startDate: "2026-09-10", endDate: "2026-09-12", status: "open" } })],
     ["parentGalleryEvents", map({ e1: { eventId: "e1", title: "Camp", eventType: "Camp", section: "Scouts", startDate: "2026-09-10", endDate: "2026-09-12", status: "open" } })],
-    ["siteSettings", map({ session: { parentInactivityMinutes: 20, leaderDesktopInactivityMinutes: 20, leaderPhoneInactivityMinutes: 90, updatedBy: "admin1" } })]
+    ["siteSettings", map({
+      session: { parentInactivityMinutes: 20, leaderDesktopInactivityMinutes: 20, leaderPhoneInactivityMinutes: 90, updatedBy: "admin1" },
+      parentLogin: { parentLoginEnabled: true, updatedBy: "super1", updatedAt: new Date() },
+      publicNavigation: { parentLoginEnabled: true }
+    })]
   ]);
 }
 
@@ -26,6 +30,7 @@ test("reports orphaned and drifted projections plus invalid settings", () => {
   collections.get("parentGalleryEvents")!.get("e1")!.status = "draft";
   collections.get("programmeLibrary")!.get("p1")!.durationMinutes = 500;
   collections.get("siteSettings")!.get("session")!.parentInactivityMinutes = 1;
+  collections.get("siteSettings")!.get("publicNavigation")!.parentLoginEnabled = "false";
   collections.get("parentGalleryEvents")!.set("orphan", { eventId: "orphan" });
 
   const errors = validateProjectionIntegrity(collections);
@@ -33,5 +38,6 @@ test("reports orphaned and drifted projections plus invalid settings", () => {
   assert.ok(errors.some((error: string) => error.includes("status differs from source event")));
   assert.ok(errors.some((error: string) => error.includes("durationMinutes")));
   assert.ok(errors.some((error: string) => error.includes("parentInactivityMinutes")));
+  assert.ok(errors.some((error: string) => error.includes("parentLoginEnabled must be boolean")));
   assert.ok(errors.some((error: string) => error.includes("has no events source")));
 });

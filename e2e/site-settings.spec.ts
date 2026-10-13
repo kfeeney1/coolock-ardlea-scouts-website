@@ -28,6 +28,7 @@ test("admin can open and save site inactivity settings", async ({ page }, testIn
   await expect(page.getByLabel("Parent account inactivity timeout")).toHaveValue("20");
   await expect(page.getByLabel("Leader desktop inactivity timeout")).toHaveValue("20");
   await expect(page.getByLabel("Leader phone inactivity timeout")).toHaveValue("90");
+  await expect(page.getByRole("switch", { name: "Enable Parent Login" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Save Settings" }).click();
   await expect(page.getByText(/Site settings saved/)).toBeVisible();
