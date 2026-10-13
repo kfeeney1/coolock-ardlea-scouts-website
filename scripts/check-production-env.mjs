@@ -1,4 +1,6 @@
-const required = [
+import { fileURLToPath } from "node:url";
+
+const REQUIRED_APPLICATION_VARIABLES = [
   "VITE_FIREBASE_API_KEY",
   "VITE_FIREBASE_AUTH_DOMAIN",
   "VITE_FIREBASE_PROJECT_ID",
@@ -8,21 +10,36 @@ const required = [
   "VITE_EMAIL_API_URL"
 ];
 
-const missing = required.filter((name) => !String(process.env[name] || "").trim());
+export function applicationEnvironmentErrors(environment = process.env) {
+  const errors = [];
+  const missing = REQUIRED_APPLICATION_VARIABLES.filter((name) => !String(environment[name] || "").trim());
+  if (missing.length > 0) errors.push(`Missing required application environment variables: ${missing.join(", ")}`);
 
-if (missing.length > 0) {
-  console.error(`Missing required production environment variables: ${missing.join(", ")}`);
-  process.exit(1);
+  const expectedProjectId = String(environment.FIREBASE_PROJECT_ID || "").trim();
+  const configuredProjectId = String(environment.VITE_FIREBASE_PROJECT_ID || "").trim();
+  if (expectedProjectId && configuredProjectId !== expectedProjectId) {
+    errors.push(`VITE_FIREBASE_PROJECT_ID must equal the deployment target ${expectedProjectId}.`);
+  }
+
+  const emailApiUrl = String(environment.VITE_EMAIL_API_URL || "").trim();
+  if (emailApiUrl) {
+    try {
+      const parsed = new URL(emailApiUrl);
+      if (parsed.protocol !== "https:") throw new Error("not https");
+    } catch {
+      errors.push("VITE_EMAIL_API_URL must be a valid HTTPS URL.");
+    }
+  }
+  return errors;
 }
 
-const emailApiUrl = process.env.VITE_EMAIL_API_URL.trim();
-try {
-  const parsed = new URL(emailApiUrl);
-  if (parsed.protocol !== "https:") throw new Error("not https");
-} catch {
-  console.error("VITE_EMAIL_API_URL must be a valid HTTPS URL.");
-  process.exit(1);
-}
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const errors = applicationEnvironmentErrors();
+  if (errors.length > 0) {
+    errors.forEach((error) => console.error(error));
+    process.exit(1);
+  }
 
-console.log("Production email endpoint is configured and valid.");
-console.log("Production environment configuration is present and valid.");
+  console.log("Application backend endpoint is configured and valid.");
+  console.log("Firebase application configuration matches the deployment target.");
+}
