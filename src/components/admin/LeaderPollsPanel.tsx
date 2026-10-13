@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Checkbox, CircularProgress, FormControl, FormControlLabel, FormGroup, MenuItem, Paper, Radio, RadioGroup, Stack, TextField, Typography } from "@mui/material";
-import { applicationErrorMessage } from "../../services/applicationErrors.ts";
+import { applicationErrorMessage, reportApplicationError } from "../../services/applicationErrors.ts";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { closePoll, createPollDraft, loadLeaderPolls, loadMyPollResponse, loadPollResultsForManager, publishPoll, submitPollResponse } from "../../services/polls.ts";
-import { canManagePollForLeader, GROUP_POLL_SECTIONS, pollDeadlinePassed, type PollLeaderActor, type PollRecord } from "../../services/pollLogic.ts";
+import { canManagePollForLeader, GROUP_POLL_SECTIONS, pollDeadlinePassed, pollDraftFailureMessage, type PollLeaderActor, type PollRecord } from "../../services/pollLogic.ts";
 
 type Results = Array<{ option: string; count: number }>;
 
@@ -29,6 +29,8 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
   const [scopeType, setScopeType] = useState<"group" | "sections">("sections");
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [closesAt, setClosesAt] = useState("");
+  const createRequestId = useRef<string | null>(null);
+  const createInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!actor) { setLoading(false); return; }
@@ -57,22 +59,47 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
   }, [scopeType, selectedSections.length, adminProfile?.sections]);
 
   const createDraft = async () => {
-    if (!actor) return;
+    if (!actor || createInFlight.current) return;
+    createInFlight.current = true;
+    const requestId = createRequestId.current ?? crypto.randomUUID();
+    createRequestId.current = requestId;
     setBusy((current) => ({ ...current, create: true }));
     setError("");
     setMessage("");
     try {
-      await createPollDraft(actor, { question, options: optionsText.split("\n"), audienceType, scopeType, sections: scopeType === "group" ? [...GROUP_POLL_SECTIONS] : selectedSections, closesAt });
+      await createPollDraft(actor, { question, options: optionsText.split("\n"), audienceType, scopeType, sections: scopeType === "group" ? [...GROUP_POLL_SECTIONS] : selectedSections, closesAt }, requestId);
+      createRequestId.current = null;
       setQuestion("");
       setOptionsText("");
       setClosesAt("");
       setMessage("Poll draft saved. Review it below and publish it when ready.");
       await refresh();
     } catch (createError) {
-      setError(applicationErrorMessage(createError, "The poll draft could not be saved.", "LeaderPollsPanel"));
+      try {
+        const savedDespiteLostAcknowledgement = (await loadLeaderPolls(actor)).some((poll) => poll.id === requestId);
+        if (savedDespiteLostAcknowledgement) {
+          createRequestId.current = null;
+          setQuestion("");
+          setOptionsText("");
+          setClosesAt("");
+          setMessage("Poll draft saved. Review it below and publish it when ready.");
+          await refresh();
+          return;
+        }
+      } catch {
+        // Keep the original save failure if the recovery read also fails.
+      }
+      reportApplicationError(createError, { area: "LeaderPollsPanel", operation: "Save poll draft", userMessage: "The poll draft could not be saved." });
+      setError(pollDraftFailureMessage(createError));
     } finally {
+      createInFlight.current = false;
       setBusy((current) => ({ ...current, create: false }));
     }
+  };
+
+  const changeDraft = <Value,>(setValue: (value: Value) => void, value: Value) => {
+    createRequestId.current = null;
+    setValue(value);
   };
 
   const manage = async (poll: PollRecord, action: "publish" | "close") => {
@@ -128,16 +155,16 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
     {message && <Alert severity="success" role="status" sx={{ mb: 2 }}>{message}</Alert>}
     <Stack spacing={1.5} sx={{ mb: 3 }} data-testid="poll-create-form">
       <Typography component="h3" variant="h6">Create a poll</Typography>
-      <TextField label="Poll question" value={question} onChange={(event) => setQuestion(event.target.value)} slotProps={{ htmlInput: { maxLength: 240 } }} required />
-      <TextField label="Answer options" value={optionsText} onChange={(event) => setOptionsText(event.target.value)} multiline minRows={3} helperText="Enter one answer per line. Use 2 to 8 distinct answers." />
-      <TextField select label="Poll audience" value={audienceType} onChange={(event) => setAudienceType(event.target.value as "leaders" | "parents")}>
+      <TextField label="Poll question" value={question} onChange={(event) => changeDraft(setQuestion, event.target.value)} helperText="Enter a question of 1 to 240 characters." slotProps={{ htmlInput: { maxLength: 240 } }} required />
+      <TextField label="Answer options" value={optionsText} onChange={(event) => changeDraft(setOptionsText, event.target.value)} multiline minRows={3} helperText="Enter one answer per line. Use 2 to 8 distinct answers." />
+      <TextField select label="Poll audience" value={audienceType} onChange={(event) => changeDraft(setAudienceType, event.target.value as "leaders" | "parents")}>
         <MenuItem value="leaders">Leaders</MenuItem><MenuItem value="parents">Parents and guardians</MenuItem>
       </TextField>
-      <TextField select label="Poll scope" value={scopeType} onChange={(event) => setScopeType(event.target.value as "group" | "sections")}>
+      <TextField select label="Poll scope" value={scopeType} onChange={(event) => changeDraft(setScopeType, event.target.value as "group" | "sections")}>
         {groupManager && <MenuItem value="group">Whole group</MenuItem>}<MenuItem value="sections">Selected sections</MenuItem>
       </TextField>
-      {scopeType === "sections" && <FormControl component="fieldset"><Typography variant="body2" sx={{ mb: 0.5 }}>Sections in scope</Typography><FormGroup row>{(groupManager ? GROUP_POLL_SECTIONS : adminProfile.sections).map((section) => <FormControlLabel key={section} label={section} control={<Checkbox checked={selectedSections.includes(section)} onChange={(event) => setSelectedSections((current) => event.target.checked ? [...new Set([...current, section])] : current.filter((value) => value !== section))} />} />)}</FormGroup></FormControl>}
-      <TextField type="datetime-local" label="Optional closing date and time" value={closesAt} onChange={(event) => setClosesAt(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+      {scopeType === "sections" && <FormControl component="fieldset"><Typography variant="body2" sx={{ mb: 0.5 }}>Sections in scope</Typography><FormGroup row>{(groupManager ? GROUP_POLL_SECTIONS : adminProfile.sections).map((section) => <FormControlLabel key={section} label={section} control={<Checkbox checked={selectedSections.includes(section)} onChange={(event) => changeDraft(setSelectedSections, event.target.checked ? [...new Set([...selectedSections, section])] : selectedSections.filter((value) => value !== section))} />} />)}</FormGroup></FormControl>}
+      <TextField type="datetime-local" label="Optional closing date and time" value={closesAt} onChange={(event) => changeDraft(setClosesAt, event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
       <Button variant="contained" color="success" disabled={busy.create || !question.trim() || optionsText.split("\n").map((option) => option.trim()).filter(Boolean).length < 2 || (scopeType === "sections" && selectedSections.length === 0)} onClick={() => void createDraft()}>{busy.create ? "Saving…" : "Save draft"}</Button>
       <Typography variant="body2" color="text.secondary">Saving a draft does not publish it. Only publish makes the poll visible to its audience.</Typography>
     </Stack>

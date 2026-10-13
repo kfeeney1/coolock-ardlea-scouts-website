@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
@@ -82,6 +81,28 @@ test("leaders cannot create polls outside their section and parents cannot reach
   await assertFails(setDoc(outside, { question: "Choose a group activity", options: ["Hike", "Camp"], audienceType: "parents", scopeType: "sections", scopeSections: ["Scouts"], status: "draft", createdBy: "beaver-leader", createdAt: serverTimestamp(), updatedBy: "beaver-leader", updatedAt: serverTimestamp() }));
   await seedPoll("scouts-poll", { scopeSections: ["Scouts"] });
   await assertSucceeds(getDoc(doc(parent, "polls/scouts-poll")));
+});
+
+test("group leadership can create a complete whole-group draft; section leaders cannot", async () => {
+  const makeGroupDraft = (db, id) => {
+    const batch = writeBatch(db);
+    batch.set(doc(db, `polls/${id}`), {
+      question: "Poll", options: ["Poll1", "Poll2"], audienceType: "leaders", scopeType: "group",
+      scopeSections: ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], status: "draft",
+      createdBy: "group-leader", createdAt: serverTimestamp(), updatedBy: "group-leader", updatedAt: serverTimestamp()
+    });
+    ["Poll1", "Poll2"].forEach((option, optionIndex) => batch.set(doc(db, `polls/${id}/results/${optionIndex}`), { option, optionIndex, count: 0 }));
+    ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"].forEach((section) => batch.set(doc(db, `polls/${id}/audienceSections/${section}`), {
+      pollId: id, section, audienceType: "leaders", scopeType: "group", status: "draft"
+    }));
+    return batch.commit();
+  };
+  const groupLeader = testEnv.authenticatedContext("group-leader").firestore();
+  const beaverLeader = testEnv.authenticatedContext("beaver-leader").firestore();
+  await assertSucceeds(makeGroupDraft(groupLeader, "whole-group-draft"));
+  // Replaying the same create cannot overwrite or duplicate the already-created poll.
+  await assertFails(makeGroupDraft(groupLeader, "whole-group-draft"));
+  await assertFails(makeGroupDraft(beaverLeader, "unauthorised-whole-group-draft"));
 });
 
 test("poll responses require a published poll, an eligible account, and atomic aggregate updates", async () => {
