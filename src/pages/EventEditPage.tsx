@@ -141,13 +141,13 @@ export default function EventEditPage() {
   }, [activeMembers, draft, dirty, event, eventId]);
 
   const { dialogOpen, stay, continueWithoutSaving, saveAndContinue } = useConfirmEventLeave(dirty, saveDraft);
-  const saveAndReturnToEvent = useCallback(async (removalsConfirmed = false) => {
+  const saveAndReturnToEvents = useCallback(async (removalsConfirmed = false) => {
     if (audienceRemovalCount > 0 && !removalsConfirmed) {
       setConfirmAudienceRemoval(true);
       return;
     }
-    if (await saveDraft(removalsConfirmed)) navigate(`/leader/events/${encodeURIComponent(eventId)}`);
-  }, [audienceRemovalCount, eventId, navigate, saveDraft]);
+    if (await saveDraft(removalsConfirmed)) navigate("/leader/events");
+  }, [audienceRemovalCount, navigate, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 
@@ -172,7 +172,7 @@ export default function EventEditPage() {
       <FormControlLabel control={<Switch checked={draft.consentRequired} onChange={(input) => updateDraft((current) => ({ ...current, consentRequired: input.target.checked }))} />} label="Event consent required" />
       <Alert severity={saveState === "failed" ? "error" : "info"} role="status">{saveState === "saving" ? "Saving…" : saveState === "unsaved" ? "Unsaved changes" : saveState === "failed" ? "Save failed — your edits are still here." : "Saved"}</Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant="contained" color="success" disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvent()}>{saving ? "Saving…" : "Save Event"}</Button>
+        <Button variant="contained" color="success" disabled={draft.audience?.mode === "members" && selectedIds.length === 0} onClick={() => void saveAndReturnToEvents()}>{saving ? "Saving…" : "Save Event"}</Button>
         <Button component="a" href={`/leader/events/${encodeURIComponent(eventId)}`} variant="outlined">Back to Event</Button>
       </Stack>
     </Stack></Box></Paper>
@@ -185,7 +185,7 @@ export default function EventEditPage() {
       </DialogContent>
       <DialogActions sx={{ flexWrap: "wrap", px: 3, pb: 2, "& .MuiButton-root": { minHeight: 44, minWidth: 44 } }}>
         <Button onClick={() => setConfirmAudienceRemoval(false)} autoFocus disabled={saving}>Back to editing</Button>
-        <Button color="error" onClick={() => { setConfirmAudienceRemoval(false); void saveAndReturnToEvent(true); }} disabled={saving}>Confirm removal and save</Button>
+        <Button color="error" onClick={() => { setConfirmAudienceRemoval(false); void saveAndReturnToEvents(true); }} disabled={saving}>Confirm removal and save</Button>
       </DialogActions>
     </Dialog>
     <Dialog open={dialogOpen} onClose={stay} aria-labelledby="event-unsaved-title" aria-describedby="event-unsaved-description" slotProps={{ paper: { role: "alertdialog" } }} fullWidth maxWidth="xs">
