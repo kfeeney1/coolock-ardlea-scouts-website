@@ -55,7 +55,7 @@ test("homepage shows section meeting times and the canonical meeting map", async
   await expect(mapLink).toHaveAttribute("href", "https://maps.app.goo.gl/iexSS8BtsViUA2D87?g_st=ac");
   await expect(mapLink).toHaveAttribute("target", "_blank");
   await expect(mapLink).toHaveAttribute("rel", "noopener noreferrer");
-  await expect(mapLink).toHaveClass(/MuiButton-outlined|MuiButton-contained/);
+  await expect(mapLink).toHaveClass(/MuiButton-contained/);
   await expect(mapLink).toHaveCSS("min-height", "44px");
 
   await expect(page.getByRole("button", { name: "Activity Consent" })).toHaveCount(0);
