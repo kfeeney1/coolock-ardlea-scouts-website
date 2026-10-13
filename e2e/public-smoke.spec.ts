@@ -87,9 +87,10 @@ test("public footer, privacy and contact navigation use visible link-buttons", a
     await expect(privacyContactLinks).toHaveCount(2);
     for (const link of await privacyContactLinks.all()) {
       await expect(link).toHaveAttribute("href", "/contact");
-      await expect(link).toHaveClass(/MuiButton-outlined/);
+      await expect(link).toHaveClass(/MuiButton-contained/);
+      await expect(link).toHaveCSS("color", "rgb(255, 255, 255)");
+      expect(await link.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
       await expect(link).toHaveCSS("min-height", "44px");
-      expect(await link.evaluate((node) => getComputedStyle(node).borderTopStyle)).toBe("solid");
     }
     const firstContactLink = privacyContactLinks.first();
     for (let index = 0; index < 50 && !(await firstContactLink.evaluate((node) => node === document.activeElement)); index += 1) {
@@ -101,12 +102,14 @@ test("public footer, privacy and contact navigation use visible link-buttons", a
     await expect(page).toHaveURL(/\/contact$/);
     await page.goto("/privacy");
     const footerPolicy = page.getByRole("contentinfo").getByRole("link", { name: "Policy documents" });
-    await expect(footerPolicy).toHaveClass(/MuiButton-outlined/);
+    await expect(footerPolicy).toHaveClass(/MuiButton-contained/);
+    await expect(footerPolicy).toHaveCSS("color", "rgb(255, 255, 255)");
     await expect(footerPolicy).toHaveAttribute("href", "/policies");
     await page.goto("/contact");
     const email = page.getByRole("link", { name: /@/ });
     await expect(email).toHaveAttribute("href", /^mailto:/);
-    await expect(email).toHaveClass(/MuiButton-outlined/);
+    await expect(email).toHaveClass(/MuiButton-contained/);
+    await expect(email).toHaveCSS("color", "rgb(255, 255, 255)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
 });
