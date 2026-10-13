@@ -223,7 +223,7 @@ test("SW-390 saving through the leave dialog releases the dashboard and menu", a
   const dialog = leaveDialog(page);
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\\/leader$/);
+  await expect(page).toHaveURL(new RegExp("/leader$"));
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.locator('button[aria-controls="leader-navigation"]').click();
