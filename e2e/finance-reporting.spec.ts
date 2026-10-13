@@ -75,7 +75,9 @@ test("Section Floats labels stay separate from default and selected filter value
     await expect(select).toHaveAttribute("aria-labelledby", new RegExp(labelId));
     const geometry = await select.evaluate((element, id) => {
       const inputLabel = document.getElementById(id);
-      const display = element.querySelector<HTMLElement>(".MuiSelect-select");
+      const display = element.matches(".MuiSelect-select")
+        ? element as HTMLElement
+        : element.querySelector<HTMLElement>(".MuiSelect-select");
       if (!inputLabel || !display) return null;
       const valueRange = document.createRange();
       valueRange.selectNodeContents(display);
