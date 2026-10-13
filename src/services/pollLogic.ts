@@ -1,4 +1,5 @@
 import { isGroupLeadershipAppointment } from "../security/scoutingAppointments.ts";
+import { errorCategory, UserFacingError, UserInputError } from "./applicationErrors.ts";
 
 export const GROUP_POLL_SECTIONS = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] as const;
 export type PollAudienceType = "leaders" | "parents";
@@ -36,15 +37,23 @@ export function normalizePollOptions(raw: readonly string[]): string[] {
     return true;
   });
   if (options.length < 2 || options.length > 8 || options.some((value) => value.length > 120)) {
-    throw new Error("Enter 2 to 8 distinct answer options, each no longer than 120 characters.");
+    throw new UserInputError("Enter 2 to 8 distinct answer options, each no longer than 120 characters.");
   }
   return options;
 }
 
 export function normalizePollQuestion(question: string): string {
   const value = question.trim();
-  if (value.length < 5 || value.length > 240) throw new Error("Enter a poll question between 5 and 240 characters.");
+  if (value.length < 1 || value.length > 240) throw new UserInputError("Enter a poll question between 1 and 240 characters.");
   return value;
+}
+
+export function pollDraftFailureMessage(error: unknown): string {
+  if (error instanceof UserInputError || error instanceof UserFacingError) return error.message;
+  const category = errorCategory(error);
+  if (category === "permission") return "You do not have permission to save this poll. Check your poll scope or contact an administrator.";
+  if (category === "network") return "The poll draft could not be saved because the connection failed. Check your connection and try again.";
+  return "The poll draft could not be saved. Please try again; contact an administrator if the problem continues.";
 }
 
 export function resolvePollSections(scopeType: PollScopeType, selected: readonly string[], authorised: readonly string[]): string[] {
@@ -52,7 +61,7 @@ export function resolvePollSections(scopeType: PollScopeType, selected: readonly
   const allowed = new Set(authorised);
   const sections = [...new Set(selected)].filter((section) => allowed.has(section) && GROUP_POLL_SECTIONS.includes(section as typeof GROUP_POLL_SECTIONS[number]));
   if (sections.length === 0 || sections.length !== new Set(selected).size) {
-    throw new Error("Choose one or more sections in your authorised scope.");
+    throw new UserInputError("Choose one or more sections in your authorised scope.");
   }
   return GROUP_POLL_SECTIONS.filter((section) => sections.includes(section));
 }

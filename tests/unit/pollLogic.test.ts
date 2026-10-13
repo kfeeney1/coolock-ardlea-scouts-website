@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { UserInputError } from "../../src/services/applicationErrors.ts";
 import {
   GROUP_POLL_SECTIONS,
   canCreatePollForLeader,
@@ -8,6 +9,7 @@ import {
   normalizePollOptions,
   normalizePollQuestion,
   pollDeadlinePassed,
+  pollDraftFailureMessage,
   pollResults,
   resolvePollSections,
   type PollRecord
@@ -22,9 +24,18 @@ const poll: PollRecord = {
 
 test("poll text and answers are normalized and constrained", () => {
   assert.equal(normalizePollQuestion("  Choose an activity?  "), "Choose an activity?");
+  assert.equal(normalizePollQuestion("Poll"), "Poll");
   assert.deepEqual(normalizePollOptions([" Hike ", "Camp", "camp"]), ["Hike", "Camp"]);
-  assert.throws(() => normalizePollQuestion("No"), /between 5 and 240/);
+  assert.throws(() => normalizePollQuestion(" "), /between 1 and 240/);
+  assert.throws(() => normalizePollQuestion("x".repeat(241)), /between 1 and 240/);
   assert.throws(() => normalizePollOptions(["One", " one "]), /2 to 8 distinct/);
+});
+
+test("poll draft failures give actionable non-diagnostic feedback", () => {
+  assert.match(pollDraftFailureMessage(new UserInputError("Choose a question.")), /Choose a question/);
+  assert.match(pollDraftFailureMessage({ code: "firestore/permission-denied" }), /permission.*scope/i);
+  assert.match(pollDraftFailureMessage({ code: "firestore/unavailable", message: "ERR-98D70E843310" }), /try again/);
+  assert.doesNotMatch(pollDraftFailureMessage({ code: "firestore/unavailable", message: "ERR-98D70E843310" }), /UNKNOWN_FAILURE|ERR-/);
 });
 
 test("section targeting deduplicates multi-section choices and denies out-of-scope sections", () => {

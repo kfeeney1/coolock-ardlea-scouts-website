@@ -107,7 +107,7 @@ export async function loadLeaderPolls(actor: PollLeaderActor): Promise<PollRecor
   return polls.filter((poll) => canManagePollForLeader(poll, actor) || (poll.audienceType === "leaders" && poll.status === "published"));
 }
 
-export async function createPollDraft(actor: PollLeaderActor, input: CreatePollInput): Promise<string> {
+export async function createPollDraft(actor: PollLeaderActor, input: CreatePollInput, requestId: string = crypto.randomUUID()): Promise<string> {
   const question = normalizePollQuestion(input.question);
   const options = normalizePollOptions(input.options);
   const groupManager = actor.role === "admin" || actor.role === "super-admin" || isGroupLeadershipAppointment(actor.scoutingRole);
@@ -122,7 +122,10 @@ export async function createPollDraft(actor: PollLeaderActor, input: CreatePollI
   }
   const user = auth.currentUser;
   if (!user) throw new UserFacingError("Sign in as an active leader to create a poll.");
-  const pollRef = doc(collection(db, "polls"));
+  // Keep the same document ID for retries of one submission. Firestore rules
+  // permit draft creation but reject overwriting an existing poll, so a retry
+  // can never create a second poll with the same submission ID.
+  const pollRef = doc(db, "polls", requestId);
   const batch = writeBatch(db);
   batch.set(pollRef, {
     question,
