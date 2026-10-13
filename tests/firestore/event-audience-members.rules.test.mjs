@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from "firebase/firestore";
@@ -56,6 +57,29 @@ before(async () => {
 });
 beforeEach(async () => testEnv.clearFirestore());
 after(async () => testEnv.cleanup());
+
+test("direct Cubs Activity save commits its roster, edits and reopens without a backend", async () => {
+  const ids = Array.from({ length: 7 }, (_, index) => `cub-${index}`);
+  await seed([
+    ["adminUsers/leader-cubs", { active: true, role: "leader", sections: ["Cubs"] }],
+    ...ids.map(id => [`members/${id}`, { status: "active", section: "Cubs", sections: ["Cubs"] }])
+  ]);
+  const db = testEnv.authenticatedContext("leader-cubs").firestore();
+  const ref = doc(db, "events/direct-camping");
+  const batch = writeBatch(db);
+  batch.set(ref, { ...eventRecord("Cubs", "sections", ["Cubs"]), title: "Camping1", eventType: "Activity" });
+  ids.forEach(id => batch.set(doc(db, `events/direct-camping/audienceMembers/${id}`), membership("direct-camping", id, "Cubs", { selectedBySection: true, selectedIndividually: false })));
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDoc(ref)).data().title, "Camping1");
+  const edit = writeBatch(db);
+  edit.update(ref, { title: "Camping1 edited", updatedAt: serverTimestamp(), updatedBy: "leader-cubs" });
+  await assertSucceeds(edit.commit());
+  assert.equal((await getDoc(ref)).data().title, "Camping1 edited");
+  assert.equal((await getDocs(query(collection(db, "events/direct-camping/audienceMembers"), where("eventId", "==", "direct-camping")))).size, 7);
+  const denied = testEnv.authenticatedContext("unrelated").firestore();
+  await assertFails(setDoc(doc(denied, "events/direct-camping"), { ...eventRecord(), title: "Denied edit" }));
+  assert.equal((await getDoc(ref)).data().title, "Camping1 edited");
+});
 
 test("a leader can invite an active member from another section in their own authorised scope", async () => {
   await seed([

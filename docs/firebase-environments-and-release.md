@@ -129,26 +129,23 @@ Once the reviewed release is on `main` with required checks green, production st
 
 ## SW-391 TEST event persistence
 
-Event saves in TEST use the same-origin `/api/event-audience-save` Hosting route,
-backed by the `eventAudienceSave` Firebase Function in the TEST-only `test-events`
-codebase. It reuses the authoritative event writer and its scope, date,
-audience, optimistic-concurrency and idempotency checks. It exposes no email
-routes and requires no Cloudflare, Resend, redirect or email URL configuration.
+TEST event creation and editing use authenticated client Firestore writes restored
+from the pre-SW-212 implementation. Events and audience membership changes commit
+in one batch under existing Firestore security rules. TEST requires no email URL,
+Firebase Function, Cloud Build or Artifact Registry deployment. Production retains
+its existing Worker and required email configuration.
 
-The TEST workflow deploys this Function before Hosting using the existing
-validated TEST Firebase deployment credential. The runtime uses Google
-Application Default Credentials; no service-account private key is copied to
-the application. Firebase Auth tokens must belong to the TEST project and the
-authoritative Firestore leader record still controls access.
+Both editor Save actions use the same persistence service. Save Event returns to
+the Events list after persistence; the navigation dialog Save continues to the
+requested destination. Failed commits retain edits. Creation retries reuse the
+allocated event ID and verify an existing record before reporting success.
 
-If the first Functions deployment is blocked by infrastructure permissions,
-the TEST project owner must enable the Cloud Functions, Cloud Run, Cloud Build
-and Artifact Registry services, grant the TEST deployer the corresponding
-deployment/build and runtime service-account impersonation permissions, and
-grant the TEST Function's runtime service account `roles/datastore.user` in
-`coolock-ardlea-scouts-test` only. Record the exact permission denied by the
-deployment before granting it. Rerun Firebase TEST Deploy, then verify new Cubs
-Activity creation, editing and persistence after reopening. A PR preview uses
-the already deployed TEST Function; it does not deploy Functions itself.
-
-Production retains its existing Worker and required email configuration.
+Existing Functions source/tests are retained temporarily for traceability but
+firebase.test.json and the TEST workflow no longer deploy or route to them.
+The restored client path retains the historical Firestore atomic-batch access
+limits; large audiences may be rejected by the rules. No rules are weakened and
+no partially committed audience is reported as saved. The seven-member Cubs
+Activity regression is covered by emulator rule tests; live TEST creation/editing
+must be verified after Hosting deployment. This restoration does not claim a
+new large-audience or optimistic-concurrency guarantee beyond the earlier client
+implementation.

@@ -93,11 +93,8 @@ requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TES
 requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
 requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
 requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
-requireContract(firebaseTest.functions?.[0]?.source === "functions" && firebaseTest.functions?.[0]?.codebase === "test-events", "TEST deploys a separate Firebase event persistence codebase.");
 requireContract(!firebase.functions, "Production/default Firebase config does not deploy the TEST event backend.");
-requireContract(firebaseTest.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save" && rewrite.function?.functionId === "eventAudienceSave"), "TEST event persistence is available through a same-origin Hosting rewrite.");
 requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
-requireContract(testWorkflow.includes("--only functions:test-events"), "TEST deploys its event backend before Hosting.");
 requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
 
 requireContract(previewWorkflow.includes("environment: test"), "PR previews use the test GitHub environment.");
@@ -117,3 +114,5 @@ if (failures.length > 0) {
 }
 
 console.log("\nFirebase deployment configuration check passed.");
+
+requireContract(!firebaseTest.functions && !testWorkflow.includes("--only functions:"), "TEST event saves require no Functions deployment.");
