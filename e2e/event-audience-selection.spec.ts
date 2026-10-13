@@ -34,11 +34,18 @@ test("section audience bulk controls are visible buttons and preserve the restor
   const clearSections = audience.getByRole("button", { name: "Clear sections", exact: true });
   const selectSections = audience.getByRole("button", { name: "Select all authorized sections", exact: true });
   await expect(clearSections).toHaveAttribute("type", "button");
-  await expect(clearSections).toHaveClass(/MuiButton-outlined/);
+  await expect(clearSections).toHaveClass(/MuiButton-contained/);
+  await expect(clearSections).toHaveClass(/MuiButton-colorSecondary/);
+  await expect(clearSections).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(selectSections).toHaveAttribute("type", "button");
   await expect(selectSections).toHaveClass(/MuiButton-contained/);
+  await expect(selectSections).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(clearSections).toHaveCSS("min-height", "44px");
   await expect(selectSections).toHaveCSS("min-height", "44px");
+  for (const control of [clearSections, selectSections]) {
+    const background = await control.evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(background).not.toBe("rgba(0, 0, 0, 0)");
+  }
   await expect(selectSections).toBeVisible();
 
   const sectionCheckboxes = audience.getByRole("checkbox");

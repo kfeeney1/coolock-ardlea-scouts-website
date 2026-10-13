@@ -77,13 +77,13 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
     <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Event audience</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Event section is classification only. Choose who is invited below.</Typography>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1.5 }}>
-      <Button type="button" disabled={disabled} variant={!isSelectedMembers ? "contained" : "outlined"} onClick={chooseWholeSections}>Whole section(s)</Button>
-      <Button type="button" disabled={disabled || members.length === 0} variant={isSelectedMembers ? "contained" : "outlined"} onClick={chooseSelectedMembers}>Selected members</Button>
+      <Button type="button" disabled={disabled} variant="contained" color={!isSelectedMembers ? "primary" : "secondary"} onClick={chooseWholeSections}>Whole section(s)</Button>
+      <Button type="button" disabled={disabled || members.length === 0} variant="contained" color={isSelectedMembers ? "primary" : "secondary"} onClick={chooseSelectedMembers}>Selected members</Button>
     </Stack>
     {!isSelectedMembers ? <>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
         <Button type="button" disabled={disabled || sections.length === 0} variant="contained" color="success" onClick={() => update(sections, selectedMemberIds)}>Select all authorized sections</Button>
-        <Button type="button" disabled={disabled} variant="outlined" color="secondary" onClick={() => update([], selectedMemberIds)}>Clear sections</Button>
+        <Button type="button" disabled={disabled} variant="contained" color="secondary" onClick={() => update([], selectedMemberIds)}>Clear sections</Button>
       </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} useFlexGap sx={{ flexWrap: "wrap", gap: 1 }}>
         {sections.map((section) => <FormControlLabel key={section} control={<Checkbox disabled={disabled} checked={selectedSectionIds.includes(section)} onChange={() => toggleSection(section)} />} label={`${section} (${members.filter((member) => member.status === "active" && sectionsFor(member).includes(section)).length})`} />)}
@@ -96,9 +96,9 @@ export default function EventAudienceBuilder({ classificationSection, audience, 
         {sections.map((section) => <FormControlLabel key={section} control={<Checkbox disabled={disabled} checked={selectedSectionIds.includes(section)} onChange={() => toggleSection(section)} />} label={`${section} section`} />)}
       </Stack>}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
-        <Button type="button" disabled={disabled} variant="outlined" onClick={() => setEditingMembers((open) => !open)}>{editingMembers ? "Close member selection" : "Edit selection"}</Button>
-        <Button type="button" disabled={disabled} variant="outlined" onClick={() => update(selectedSectionIds, [], selectedSectionIds.length ? "sections" : "members")}>Clear all members</Button>
-        <Button type="button" disabled={disabled} variant="outlined" onClick={() => { setAddingOtherMembers((open) => !open); setEditingMembers(true); setSearch(""); }}>
+        <Button type="button" disabled={disabled} variant="contained" onClick={() => setEditingMembers((open) => !open)}>{editingMembers ? "Close member selection" : "Edit selection"}</Button>
+        <Button type="button" disabled={disabled} variant="contained" onClick={() => update(selectedSectionIds, [], selectedSectionIds.length ? "sections" : "members")}>Clear all members</Button>
+        <Button type="button" disabled={disabled} variant="contained" onClick={() => { setAddingOtherMembers((open) => !open); setEditingMembers(true); setSearch(""); }}>
           {addingOtherMembers ? "Close group search" : "Add other group members"}
         </Button>
       </Stack>

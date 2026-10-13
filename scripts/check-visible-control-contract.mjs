@@ -29,14 +29,19 @@ for (const file of files) {
 }
 
 const theme = await readFile(join(root, "src/theme/theme.ts"), "utf8");
-const outlinedDefaults = theme.match(/MuiButton:\s*\{\s*defaultProps:\s*\{\s*variant:\s*["']outlined["']/g) ?? [];
-if (outlinedDefaults.length !== 3) failures.push("src/theme/theme.ts: all three site themes must default action buttons to outlined presentation");
+const containedDefaults = theme.match(/MuiButton:\s*\{\s*defaultProps:\s*\{\s*variant:\s*["']contained["']/g) ?? [];
+if (containedDefaults.length !== 3) failures.push("src/theme/theme.ts: all three site theme systems must default actions to filled presentation");
+if (!theme.includes("outlined: filledOutlinedButton") || !theme.includes("backgroundColor: palette.main") || !theme.includes("color: palette.contrastText")) {
+  failures.push("src/theme/theme.ts: explicitly outlined action buttons must receive a filled, high-contrast appearance");
+}
+const linkButton = await readFile(join(root, "src/components/ActionLinkButton.tsx"), "utf8");
+if (!linkButton.includes('variant="contained"')) failures.push("src/components/ActionLinkButton.tsx: navigation and contact links must use filled link-button presentation");
 
 const audience = await readFile(join(root, "src/components/admin/EventAudienceBuilder.tsx"), "utf8");
 for (const label of ["Select all authorized sections", "Clear sections"]) {
   const line = audience.split("\n").find((item) => item.includes(label));
-  if (!line || !/type="button"/.test(line) || !/variant="(?:contained|outlined)"/.test(line)) {
-    failures.push(`src/components/admin/EventAudienceBuilder.tsx: ${label} must remain a semantic button with visible styling`);
+  if (!line || !/type="button"/.test(line) || !/variant="contained"/.test(line)) {
+    failures.push(`src/components/admin/EventAudienceBuilder.tsx: ${label} must remain a semantic, filled button`);
   }
 }
 
