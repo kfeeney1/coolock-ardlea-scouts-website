@@ -96,14 +96,14 @@ export default function FinanceReportsPanel({ initialSection = "" }: Props) {
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
     <Box sx={{ mt: 2.5, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
       <FormControl fullWidth>
-        <InputLabel id="finance-report-section-label">Section</InputLabel>
+        <InputLabel id="finance-report-section-label" shrink>Section</InputLabel>
         <Select labelId="finance-report-section-label" label="Section" value={section} displayEmpty renderValue={(value) => value || "All permitted sections"} onChange={(event) => setSection(event.target.value)}>
           <MenuItem value="">All permitted sections</MenuItem>
           {permittedSections.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </Select>
       </FormControl>
       <FormControl fullWidth>
-        <InputLabel id="finance-report-category-label">Outgoing category</InputLabel>
+        <InputLabel id="finance-report-category-label" shrink>Outgoing category</InputLabel>
         <Select labelId="finance-report-category-label" label="Outgoing category" value={category} displayEmpty renderValue={(value) => value || "All outgoing categories"} onChange={(event) => setCategory(event.target.value)}>
           <MenuItem value="">All outgoing categories</MenuItem>
           {categories.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
