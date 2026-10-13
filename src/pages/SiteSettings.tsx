@@ -4,12 +4,14 @@ import {
     Box,
     Button,
     Container,
+    FormControlLabel,
     Paper,
     Stack,
+    Switch,
     TextField,
     Typography
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -17,7 +19,9 @@ import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import SubsSettingsPanel from "../components/admin/SubsSettingsPanel";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
+    loadParentLoginEnabled,
     loadSessionSettings,
+    saveParentLoginEnabled,
     saveSessionSettings
 } from "../services/siteSettings";
 import type { SessionSettings } from "../services/siteSettings";
@@ -35,11 +39,20 @@ export default function SiteSettings() {
     const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
     const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
     const showSessionSettings = canManageSiteSettings && pageIdentity === "settings";
+    const showParentLoginSettings = adminProfile?.role === "super-admin" && pageIdentity === "settings";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
     const [loading, setLoading] = useState(showSessionSettings);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [parentLoginEnabled, setParentLoginEnabled] = useState<boolean | null>(null);
+    const [parentLoginLoading, setParentLoginLoading] = useState(showParentLoginSettings);
+    const [parentLoginSaving, setParentLoginSaving] = useState(false);
+    const [parentLoginMessage, setParentLoginMessage] = useState("");
+    const [parentLoginError, setParentLoginError] = useState("");
+    const parentLoginSaveInFlight = useRef(false);
+    const parentLoginSettingsLoading = showParentLoginSettings
+        && (parentLoginLoading || (parentLoginEnabled === null && !parentLoginError));
 
     useEffect(() => {
         if (!showSessionSettings) {
@@ -65,6 +78,26 @@ export default function SiteSettings() {
         };
     }, [showSessionSettings]);
 
+    useEffect(() => {
+        if (!showParentLoginSettings) {
+            setParentLoginLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setParentLoginError("");
+        void loadParentLoginEnabled().then((enabled) => {
+            if (!cancelled) setParentLoginEnabled(enabled);
+        }).catch((loadError) => {
+            if (!cancelled) {
+                setParentLoginEnabled(null);
+                setParentLoginError(applicationErrorMessage(loadError, "Unable to load Parent Login settings. Reload the page and try again.", "SiteSettings"));
+            }
+        }).finally(() => {
+            if (!cancelled) setParentLoginLoading(false);
+        });
+        return () => { cancelled = true; };
+    }, [showParentLoginSettings]);
+
     const changeMinutes = (key: keyof SessionSettings, value: string) => {
         setSettings((current) => current ? { ...current, [key]: minutesValue(value) } : current);
         setMessage("");
@@ -86,6 +119,25 @@ export default function SiteSettings() {
             setError(applicationErrorMessage(saveError, "Unable to save site settings.", "SiteSettings"));
         } finally {
             setSaving(false);
+        }
+    };
+
+    const changeParentLogin = async (enabled: boolean) => {
+        if (parentLoginSaveInFlight.current || parentLoginEnabled === null || enabled === parentLoginEnabled) return;
+        parentLoginSaveInFlight.current = true;
+        const previousValue = parentLoginEnabled;
+        setParentLoginSaving(true);
+        setParentLoginMessage("");
+        setParentLoginError("");
+        try {
+            await saveParentLoginEnabled(enabled, previousValue);
+            setParentLoginEnabled(enabled);
+            setParentLoginMessage(`Parent Login ${enabled ? "enabled" : "disabled"}. Public navigation will use this setting immediately.`);
+        } catch (saveError) {
+            setParentLoginError(applicationErrorMessage(saveError, "Unable to save Parent Login settings. The previous setting is still active.", "SiteSettings"));
+        } finally {
+            parentLoginSaveInFlight.current = false;
+            setParentLoginSaving(false);
         }
     };
 
@@ -137,6 +189,38 @@ export default function SiteSettings() {
                                     <Button variant="contained" color="success" disabled={saving} onClick={() => void save()}>
                                         {saving ? "Saving…" : "Save Settings"}
                                     </Button>
+                                </Box>
+                            </Stack>
+                        )}
+                    </Paper>
+                )}
+
+                {showParentLoginSettings && (
+                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
+                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Public Parent Login</Typography>
+                        <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }}>
+                            Control whether signed-out visitors see Parent Login in the public desktop and mobile navigation. This setting does not change Parent Portal access, parent relationships, invitation or recovery links, or existing authenticated sessions.
+                        </Typography>
+                        {parentLoginMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentLoginMessage}</Alert>}
+                        {parentLoginError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentLoginError}</Alert>}
+                        {parentLoginSettingsLoading ? (
+                            <Typography color="text.secondary">Loading Parent Login setting…</Typography>
+                        ) : parentLoginEnabled === null ? (
+                            <Typography color="text.secondary">The setting is unavailable until it can be loaded. Reload the page to retry.</Typography>
+                        ) : (
+                            <Stack spacing={1}>
+                                <Box>
+                                    <FormControlLabel
+                                        label="Enable Parent Login"
+                                        control={(
+                                            <Switch
+                                                checked={parentLoginEnabled}
+                                                disabled={parentLoginSaving || parentLoginLoading}
+                                                onChange={(event) => void changeParentLogin(event.target.checked)}
+                                            />
+                                        )}
+                                    />
+                                    <Typography variant="body2" color="text.secondary">{parentLoginSaving ? "Saving…" : parentLoginEnabled ? "Enabled" : "Disabled"}</Typography>
                                 </Box>
                             </Stack>
                         )}
