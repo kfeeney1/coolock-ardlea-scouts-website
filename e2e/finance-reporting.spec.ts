@@ -106,10 +106,17 @@ test("Section Floats labels stay separate from default and selected filter value
   let section = await expectReadable("Section", "finance-report-section-label", "All permitted sections");
   let category = await expectReadable("Outgoing category", "finance-report-category-label", "All outgoing categories");
 
+  const sectionDisplay = panel.locator("#finance-report-section-label").locator("xpath=..").locator(".MuiSelect-select");
+  await sectionDisplay.focus();
+  await expect(sectionDisplay).toBeFocused();
+  await sectionDisplay.blur();
+  await expect(sectionDisplay).not.toBeFocused();
+  await expectReadable("Section", "finance-report-section-label", "All permitted sections");
+
   await section.click();
-  await expect(section).toBeFocused();
+  await expect(page.getByRole("listbox")).toBeVisible();
   await page.keyboard.press("Escape");
-  await section.blur();
+  await expect(page.getByRole("listbox")).toBeHidden();
   await expectReadable("Section", "finance-report-section-label", "All permitted sections");
 
   await section.click();
