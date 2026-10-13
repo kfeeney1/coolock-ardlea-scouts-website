@@ -114,6 +114,42 @@ test("SW-362 existing event editor confirms, preserves drafts, and saves only on
 
 });
 
+test("SW-383 first entry, direct URLs, reload, and event switches use the saved event baseline", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+
+  const firstTitle = `TEST SW-383 first entry ${Date.now()}`;
+  const first = await createEvent(page, firstTitle);
+  const firstEditUrl = `${first.eventUrl}/edit`;
+
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(page).toHaveURL(firstEditUrl);
+  await expect(page.getByLabel("Event title")).toHaveValue(firstTitle);
+  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(leaveDialog(page)).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByLabel("Event title")).toHaveValue(firstTitle);
+  await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to Event", exact: true }).click();
+  await expect(page).toHaveURL(first.eventUrl);
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: firstTitle, exact: true })).toBeVisible();
+
+  const secondTitle = `TEST SW-383 second event ${Date.now()}`;
+  const second = await createEvent(page, secondTitle);
+  await page.goto(firstEditUrl);
+  await expect(page.getByLabel("Event title")).toHaveValue(firstTitle);
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.goto(`${second.eventUrl}/edit`);
+  await expect(page.getByLabel("Event title")).toHaveValue(secondTitle);
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel("Event title")).toHaveValue(secondTitle);
+  await expect(leaveDialog(page)).toHaveCount(0);
+});
+
 test("SW-362 mobile confirmation fits the screen and Android Back can be cancelled", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "SW-362 mobile regression runs on Pixel 7 Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
