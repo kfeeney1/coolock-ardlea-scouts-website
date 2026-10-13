@@ -154,8 +154,8 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   const savedStartDate = await page.getByLabel("Start date").inputValue();
   const editedStartDate = "2099-05-12";
   await page.getByLabel("Start date").fill(editedStartDate);
-  // The header labels this button with the current route ("Menu · Edit Event")
-  // when a navigation item is active, so target its stable control relationship.
+  // The active route changes this button's accessible name, so use its stable
+  // control relationship instead of assuming the initial "Open Leader Menu" name.
   const leaderMenuButton = page.locator('button[aria-controls="leader-navigation"]');
   await leaderMenuButton.click();
   await page.getByTestId("leader-nav-dashboard").click();
