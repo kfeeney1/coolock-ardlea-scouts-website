@@ -301,7 +301,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("");
   await page.getByRole("textbox", { name: "End date", exact: true }).fill("09-05-2099");
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("End date cannot be before the start date");
+  await expect(page.getByRole("alert").filter({ hasText: "End date cannot be before the start date" })).toContainText("End date cannot be before the start date");
 });
 
 test("direct Create Event route remains protected", async ({ page }, testInfo) => {
