@@ -90,7 +90,7 @@ test.describe("approved parent journey", () => {
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     });
     await expect(page.getByLabel("Consent from")).toHaveValue(expectedToday);
-    await expect(page.getByLabel("Consent to")).toHaveValue(`${Number(expectedToday.slice(0, 4)) + 1}-08-31`);
+    await expect(page.getByRole("textbox", { name: "Consent to", exact: true })).toHaveValue(`31-08-${Number(expectedToday.slice(0, 4)) + 1}`);
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("type", "tel");
     await expect(page.getByLabel("Parent / guardian 2 mobile")).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -101,7 +101,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");
 
     await page.getByLabel("Consent from").fill("2026-09-01");
-    await page.getByLabel("Consent to").fill("2027-07-31");
+    await page.getByRole("textbox", { name: "Consent to", exact: true }).fill("2027-07-31");
     for (const label of ["photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"]) await choose(page, label, "No");
     await choose(page, "vaccinated", "Yes");
     await page.getByLabel("GP name").fill("Dr Test");
