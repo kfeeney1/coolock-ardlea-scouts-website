@@ -30,6 +30,16 @@ jobs:
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
       - name: Install dependencies
         run: npm ci
+      - name: Require TEST event-save backend configuration
+        env:
+          VITE_EMAIL_API_URL: ${{ vars.VITE_EMAIL_API_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VITE_EMAIL_API_URL:-}" || ! "$VITE_EMAIL_API_URL" =~ ^https:// ]]; then
+            echo "::error::TEST VITE_EMAIL_API_URL must be a configured HTTPS backend URL. Event create/update uses /event-audience-save and cannot work without it."
+            exit 1
+          fi
       - name: Build TEST artifact
         run: npm run build
         env:
