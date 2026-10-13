@@ -1595,10 +1595,13 @@ service cloud.firestore {
     }
 
     match /siteSettings/{settingsId} {
-      allow get: if signedIn() && settingsId == "session";
+      // Public navigation reads a single non-sensitive projection. The canonical
+      // Parent Login setting remains readable only by an active Super Admin.
+      allow get: if (signedIn() && settingsId == "session")
+        || (settingsId == "parentLogin" && isSuperAdmin())
+        || settingsId == "publicNavigation";
       allow list: if false;
-      allow create, update: if isAdmin()
-        && settingsId == "session"
+      allow create, update: if settingsId == "session" && isAdmin()
         && request.resource.data.parentInactivityMinutes is number
         && request.resource.data.parentInactivityMinutes >= 5
         && request.resource.data.parentInactivityMinutes <= 240
@@ -1610,7 +1613,17 @@ service cloud.firestore {
         && request.resource.data.leaderPhoneInactivityMinutes <= 240
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes", "updatedAt", "updatedBy"]);
+        && request.resource.data.keys().hasOnly(["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes", "updatedAt", "updatedBy"])
+        || settingsId == "parentLogin" && isSuperAdmin()
+        && request.resource.data.parentLoginEnabled is bool
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["parentLoginEnabled", "updatedAt", "updatedBy"])
+        && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentLoginEnabled == request.resource.data.parentLoginEnabled
+        || settingsId == "publicNavigation" && isSuperAdmin()
+        && request.resource.data.parentLoginEnabled is bool
+        && request.resource.data.keys().hasOnly(["parentLoginEnabled"])
+        && getAfter(/databases/$(database)/documents/siteSettings/parentLogin).data.parentLoginEnabled == request.resource.data.parentLoginEnabled;
       allow delete: if false;
     }
 

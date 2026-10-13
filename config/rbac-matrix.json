@@ -113,7 +113,7 @@
     "publicEvents": "public-read-leader-write",
     "publicLeadership": "public-read-admin-projection",
     "publicSiteContent": "public-read-admin-write",
-    "siteSettings": "signed-in-read-admin-write",
+    "siteSettings": "session-signed-in-read-parent-login-super-admin-with-public-projection",
     "subsAccounts": "group-finance-family-account",
     "subsAssignments": "finance-period-assignment",
     "subsPayments": "finance-section-ledger",

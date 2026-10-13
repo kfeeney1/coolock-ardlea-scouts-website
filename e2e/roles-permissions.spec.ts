@@ -119,6 +119,7 @@ test.describe("admin roles catalogue", () => {
     await page.goto("/leader/roles");
     await expect(page.getByTestId("permission-roles.manage.operational")).toContainText("Effective for you");
     await expect(page.getByTestId("permission-roles.manage.admin")).toContainText("Not granted");
+    await expect(page.getByTestId("permission-settings.parent-login.manage")).toContainText("Not granted");
     await expect(page.getByTestId("role-administration")).toContainText("cannot grant Admin or Super Admin system access");
     await expect(page.getByTestId("role-administration").getByRole("link", { name: "Manage user roles & appointments" })).toBeVisible();
   });
@@ -153,6 +154,7 @@ test.describe("super-admin roles catalogue", () => {
       "roles.manage.operational",
       "roles.manage.admin",
       "settings.session.manage",
+      "settings.parent-login.manage",
       "settings.subs.manage",
       "system.superadmin.protect"
     ]) {
