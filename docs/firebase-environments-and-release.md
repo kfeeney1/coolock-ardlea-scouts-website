@@ -32,7 +32,12 @@ Configure these environment values directly in GitHub. Do not copy them into rep
 - variable: `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - variable: `VITE_FIREBASE_APP_ID`
 - variable: `VITE_FIREBASE_MEASUREMENT_ID` when used
-- variable: `VITE_EMAIL_API_URL` pointing only to a TEST/sandbox/disabled-delivery endpoint
+- variable: `VITE_EMAIL_API_URL` pointing only to `https://coolock-ardlea-scouts-email-test.<account-subdomain>.workers.dev`
+- secret: `CLOUDFLARE_API_TOKEN` scoped to deploy the TEST Worker only
+- secret: `CLOUDFLARE_ACCOUNT_ID`
+- secret: `TEST_EMAIL_WORKER_ACTION_LINK_SECRET` (at least 32 random characters)
+- secret: `TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_EMAIL` and `TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY` for a least-privilege service account in the TEST Firebase project only
+- secret: `TEST_EMAIL_WORKER_EMAIL_REDIRECT` for the controlled TEST inbox; TEST email must never reach real members
 - variable: `FIREBASE_HOSTING_URL` containing the stable TEST HTTPS URL
 - variable: `FIREBASE_STORAGE_ENABLED` matching the TEST service state
 

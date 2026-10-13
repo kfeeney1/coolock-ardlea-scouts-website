@@ -26,6 +26,10 @@ export function applicationEnvironmentErrors(environment = process.env) {
     try {
       const parsed = new URL(emailApiUrl);
       if (parsed.protocol !== "https:") throw new Error("not https");
+      if (expectedProjectId === "coolock-ardlea-scouts-test"
+          && (!parsed.hostname.startsWith("coolock-ardlea-scouts-email-test.") || !parsed.hostname.endsWith(".workers.dev"))) {
+        errors.push("TEST VITE_EMAIL_API_URL must target the isolated TEST email Worker on workers.dev.");
+      }
     } catch {
       errors.push("VITE_EMAIL_API_URL must be a valid HTTPS URL.");
     }

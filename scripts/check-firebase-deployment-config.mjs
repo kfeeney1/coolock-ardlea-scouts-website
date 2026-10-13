@@ -9,6 +9,8 @@ const playwrightWorkflow = await readFile(new URL(".github/workflows/playwright-
 const firebaseRc = JSON.parse(await readFile(new URL(".firebaserc", root), "utf8"));
 const firebase = JSON.parse(await readFile(new URL("firebase.json", root), "utf8"));
 const firebaseTest = JSON.parse(await readFile(new URL("firebase.test.json", root), "utf8"));
+const testWorkerConfig = await readFile(new URL("email-worker/wrangler.test.toml", root), "utf8");
+const testWorkerWorkflow = await readFile(new URL(".github/workflows/firebase-hosting-test.yml", root), "utf8");
 
 const PROD = "coolock-ardlea-scouts";
 const TEST = "coolock-ardlea-scouts-test";
@@ -89,6 +91,13 @@ requireContract(exactProjectReference(testWorkflow, TEST), "TEST deployment expl
 requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment workflow contains no exact production project target.");
 requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
+requireContract(testWorkerConfig.includes('name = "coolock-ardlea-scouts-email-test"'), "TEST email Worker deploys as a separate Cloudflare Worker.");
+requireContract(testWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test"'), "TEST email Worker targets only TEST Firestore.");
+requireContract(testWorkerConfig.includes('SITE_URL = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker uses the stable TEST Hosting origin.");
+requireContract(testWorkerConfig.includes('ALLOWED_ORIGINS = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker allows only the stable TEST site origin.");
+requireContract(!testWorkerConfig.includes(PROD), "TEST email Worker config contains no production project or origin.");
+requireContract(testWorkerWorkflow.includes("npm run deploy:test") && testWorkerWorkflow.includes("wrangler.test.toml"), "Stable TEST deployment deploys the isolated TEST email Worker.");
+requireContract(testWorkerWorkflow.includes("TEST_EMAIL_WORKER_FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY"), "TEST Worker credentials are provisioned from environment secrets.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("smoke:live"), "TEST runs the same read-only public boundary smoke contract.");
 

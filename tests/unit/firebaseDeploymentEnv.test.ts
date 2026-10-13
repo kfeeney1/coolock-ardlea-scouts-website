@@ -31,3 +31,8 @@ test("application config rejects non-HTTPS event backend URLs", () => {
   const environment = { ...validTestEnvironment, VITE_EMAIL_API_URL: "http://coolock-ardlea-scouts-email-test.example.workers.dev" };
   assert.match(applicationEnvironmentErrors(environment).join(" "), /valid HTTPS URL/);
 });
+
+test("TEST application config rejects the PRODUCTION email Worker", () => {
+  const environment = { ...validTestEnvironment, VITE_EMAIL_API_URL: "https://coolock-ardlea-scouts-email.production.workers.dev" };
+  assert.match(applicationEnvironmentErrors(environment).join(" "), /isolated TEST email Worker/);
+});
