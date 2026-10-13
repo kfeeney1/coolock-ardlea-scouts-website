@@ -94,6 +94,7 @@ requireContract(testWorkflow.includes("--config firebase.test.json"), "TEST depl
 requireContract(testWorkflow.includes("firestore:rules,firestore:indexes,storage:test-default,hosting"), "TEST deploys reviewed Rules, indexes, explicit TEST Storage rules and Hosting together.");
 requireContract(localWorkerConfig.includes('name = "coolock-ardlea-scouts-email-local"'), "Default Wrangler deploy cannot overwrite the TEST or PRODUCTION email Worker.");
 requireContract(localWorkerConfig.includes('FIREBASE_PROJECT_ID = "demo-coolock-ardlea-scouts"'), "Default Wrangler config targets the emulator project only.");
+requireContract(!localWorkerConfig.includes(PROD), "Default Wrangler config contains no Production project ID.");
 requireContract(testWorkerConfig.includes('name = "coolock-ardlea-scouts-email-test"'), "TEST email Worker deploys as a separate Cloudflare Worker.");
 requireContract(testWorkerConfig.includes('FIREBASE_PROJECT_ID = "coolock-ardlea-scouts-test"'), "TEST email Worker targets only TEST Firestore.");
 requireContract(testWorkerConfig.includes('SITE_URL = "https://coolock-ardlea-scouts-test.web.app"'), "TEST email Worker uses the stable TEST Hosting origin.");

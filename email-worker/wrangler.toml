@@ -2,10 +2,9 @@ name = "coolock-ardlea-scouts-email-local"
 main = "src/entry.js"
 compatibility_date = "2026-08-01"
 
-# Safe default for local development and non-production deployment. A plain
-# `wrangler deploy` cannot send to real members/leaders because delivery is
-# test-only and fails closed until TEST_EMAIL_REDIRECT is explicitly supplied
-# through environment-managed configuration.
+# Local-only default. A plain `wrangler deploy` uses a distinct Worker name
+# and the demo Firebase project, so it cannot overwrite TEST or PRODUCTION.
+# TEST and PRODUCTION use their explicit top-level configs below.
 #
 # Production uses wrangler.production.toml via `npm run deploy:production`.
 # Do not add a named [env.production] here: modern Wrangler deploys named
