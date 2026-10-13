@@ -22,6 +22,8 @@ import { loadMembers } from "./memberAdmin";
 import { buildEventAudienceMemberships, shouldPreserveLegacyEventAudience } from "./eventAudienceMemberships";
 import { buildEventAudience, defaultEventAudienceForClassification } from "./eventManagementLogic";
 import { MEMBER_PROGRAMME_SECTIONS, canonicalMemberSection } from "./memberSectionCore.mjs";
+import { createEventDirect, updateEventDirect } from "./eventDirectPersistence.ts";
+import { usesDirectEventPersistence } from "./eventPersistenceMode.ts";
 import { saveEventAudience } from "./eventAudienceBackend";
 import { isValidDateRange } from "./dateRangeLogic.ts";
 
@@ -254,6 +256,8 @@ export async function createEvent(input: EventInput, eventId?: string, onEventId
     if (!isValidDateRange(input.startDate, input.endDate, { requireStart: true, requireEnd: true })) throw new UserFacingError("Enter a valid event end date on or after the start date.");
     if (input.status !== "draft" && input.status !== "open") throw new UserFacingError("New events must start as Draft or Open.");
 
+    if (usesDirectEventPersistence(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_FIREBASE_PROJECT_ID)) return createEventDirect(input, eventId, onEventIdAllocated);
+
     const [loadedMembers, authorisedSections] = await Promise.all([loadMembers(), authorisedEventAudienceSections(user.uid)]);
     const members = loadedMembers.filter((member) => member.status === "active");
     const canonicalAudience = buildEventAudience(input.audience?.sectionIds ?? [], input.audience?.memberIds ?? [], members);
@@ -277,6 +281,8 @@ export async function updateEvent(eventId: string, input: EventInput, removalsCo
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
     if (!isValidDateRange(input.startDate, input.endDate, { requireStart: true, requireEnd: true })) throw new UserFacingError("Enter a valid event end date on or after the start date.");
+
+    if (usesDirectEventPersistence(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_FIREBASE_PROJECT_ID)) return updateEventDirect(eventId, input, removalsConfirmed);
 
     const eventRef = doc(db, "events", eventId);
     const currentSnapshot = await getDoc(eventRef);
@@ -347,3 +353,5 @@ export async function updateEventRoster(
         description: `Updated attendance/consent status for ${Object.keys(attendance).length} roster member${Object.keys(attendance).length === 1 ? "" : "s"}.`
     });
 }
+
+export const eventPersistenceHelpers = { clean, authorisedEventAudienceSections, syncEventProjections, EVENT_STATUSES, mapAttendance, mapConsent, mapAudience };
