@@ -1,4 +1,5 @@
 import { expect, test, type ElementHandle, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
@@ -142,6 +143,7 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   const { listbox: firstListbox } = await openAttachedDropdown(page, reportsTo);
   await page.keyboard.press("Escape");
   await expect(firstListbox).toBeHidden();
+  await waitForTransientOverlayHistory(page);
 
   await page.getByRole("link", { name: "Back to leaders" }).click();
   await expect(page).toHaveURL(/\/leader\/access$/);

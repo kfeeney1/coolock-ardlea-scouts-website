@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
@@ -341,6 +342,7 @@ test("SW-257 places primary-section leaders before valid secondary-section match
     const sectionFilter = page.getByRole("combobox", { name: "Filter by section" });
     await sectionFilter.click();
     await page.getByRole("option", { name: "Cubs", exact: true }).click();
+    await waitForTransientOverlayHistory(page);
     await expect(page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader")).toBeVisible();
     expect(await ids()).toEqual(expectedCubsOrder);
 
