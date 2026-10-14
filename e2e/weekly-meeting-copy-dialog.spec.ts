@@ -24,7 +24,7 @@ test("SW-386 Copy Meeting uses a dedicated full page on desktop and mobile", asy
   await expect(copyLink).toHaveAttribute("href", `/leader/weekly/copy/${encodeURIComponent(id)}`);
   await copyLink.click();
   await expect(page).toHaveURL(new RegExp(`/leader/weekly/copy/${id}$`));
-  await expect(page.getByRole("heading", { name: "Copy Meeting" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Copy Weekly Meeting" })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
   await expect(page.getByRole("combobox", { name: "Destination section" })).toBeVisible();
