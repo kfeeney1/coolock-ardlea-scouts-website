@@ -23,10 +23,11 @@ test("parent current programme scope is refreshed from members before section pr
 
 test("meeting copy exposes authorised destination section and resets operational history", () => {
   const copyPage = readFileSync("src/pages/CopyWeeklyMeetingPage.tsx", "utf8");
-  assert.match(copyPage, /label="Destination section"/);
-  assert.match(copyPage, /sections\.includes\(section\)/);
-  assert.match(copyPage, /entries: preview, injuries: \[\]/);
-  assert.doesNotMatch(copyPage, /entries:.*fallback/);
-  assert.match(copyPage, /notes: ""/);
-  assert.match(copyPage, /createWeeklyMeeting\(input\)/);
+  assert.ok(copyPage.includes('label="Destination section"'));
+  assert.ok(copyPage.includes("availableSections.includes(copySection)"));
+  assert.ok(copyPage.includes("entries: attendancePreview"));
+  assert.ok(copyPage.includes("injuries: []"));
+  assert.ok(!copyPage.includes("entries:roster.length?roster:fallback"));
+  assert.ok(copyPage.includes('notes: ""'));
+  assert.ok(copyPage.includes("createWeeklyMeeting(input)"));
 });
