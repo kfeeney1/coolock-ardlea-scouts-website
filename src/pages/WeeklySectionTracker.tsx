@@ -1,4 +1,4 @@
-import { applicationErrorMessage } from "../services/applicationErrors.ts";
+import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -30,6 +30,7 @@ import type { EquipmentLoan } from "../services/equipmentLoans";
 import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 import { trySecondaryRefresh } from "../services/secondaryRefresh";
 import { loadLeaderAttendanceOptions } from "../services/leaderAttendance";
+import { reopenWeeklyMeetingAndNavigate } from "../services/weeklyMeetingReopenFlow.ts";
 
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
 type NavigationAction = "meetings" | "copy" | "create";
@@ -60,6 +61,7 @@ export default function WeeklySectionTracker() {
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const saveInFlight=useRef<Promise<boolean>|null>(null);
+  const reopenInFlight=useRef(false);
   const refreshSequence=useRef(0);
   const [error,setError]=useState("");
   const [success,setSuccess]=useState("");
@@ -106,6 +108,28 @@ export default function WeeklySectionTracker() {
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
 
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
+  const reopenMeeting=async(record:WeeklyMeetingRecord)=>{
+    if(reopenInFlight.current)return;
+    reopenInFlight.current=true;
+    setSaving(true);setError("");setSuccess("");
+    try{
+      await reopenWeeklyMeetingAndNavigate(
+        record,
+        reopenWeeklyMeeting,
+        (path)=>{
+          setSelected(null);setSavedSelected(null);setLoading(true);
+          setSuccess("Meeting reopened.");
+          navigate(path);
+        },
+        (meeting)=>auditWeeklyMeeting(meeting,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained."),
+        (error)=>reportApplicationError(error,{area:"WeeklySectionTracker",operation:"Audit reopened meeting",identifiers:{recordId:record.id,section:record.section}})
+      );
+    }catch(e){
+      setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));
+    }finally{
+      reopenInFlight.current=false;setSaving(false);
+    }
+  };
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
   const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{
     // A second explicit save must not silently reuse an earlier save of a different snapshot.
@@ -148,7 +172,7 @@ export default function WeeklySectionTracker() {
   {loading?<Box sx={{minHeight:300,display:"grid",placeItems:"center"}}><CircularProgress/></Box>:!selected?<Stack spacing={2}>
     {!readOnly&&<Button component={Link} to="/leader/weekly/create" variant="contained" color="success" size="large" sx={{alignSelf:"flex-start"}}>Create Meeting</Button>}
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Open Meeting</Typography>{!openRecords.length?<Alert severity="info">No meetings are currently open.</Alert>:<Stack spacing={1}>{openRecords.map(r=><Button key={r.id} variant="contained" onClick={()=>{setSelected(r);setSavedSelected(r);setStep(initialWeeklyStep(r.meetingDate));navigate(`?meeting=${r.id}`);}} sx={{justifyContent:"space-between",gap:1,textAlign:"left",minWidth:0}}><span>{displayWeeklyDate(r.meetingDate)} · {r.section}</span><Chip size="small" label="Open"/></Button>)}</Stack>}</Paper>
-    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?"Meeting reopened.":"Meeting reopened, but the screen could not refresh. Reload the page to see it.");const reopened={...record,status:"open" as const};setSelected(reopened);setSavedSelected(reopened);setStep(initialWeeklyStep(reopened.meetingDate));navigate(`/leader/weekly?meeting=${encodeURIComponent(record.id)}`);}catch(e){setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}})();}} />
+    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>void reopenMeeting(record)} />
 
 
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
