@@ -140,14 +140,17 @@ export default function EventEditPage() {
     return pending;
   }, [activeMembers, draft, dirty, event, eventId]);
 
-  const { dialogOpen, stay, continueWithoutSaving, saveAndContinue } = useConfirmEventLeave(dirty, saveDraft);
+  const { dialogOpen, stay, continueWithoutSaving, saveAndContinue, releaseAfterSuccessfulSave } = useConfirmEventLeave(dirty, saveDraft);
   const saveAndReturnToEvents = useCallback(async (removalsConfirmed = false) => {
     if (audienceRemovalCount > 0 && !removalsConfirmed) {
       setConfirmAudienceRemoval(true);
       return;
     }
-    if (await saveDraft(removalsConfirmed)) navigate("/leader/events");
-  }, [audienceRemovalCount, navigate, saveDraft]);
+    if (await saveDraft(removalsConfirmed)) {
+      releaseAfterSuccessfulSave();
+      navigate("/leader/events");
+    }
+  }, [audienceRemovalCount, navigate, releaseAfterSuccessfulSave, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
 

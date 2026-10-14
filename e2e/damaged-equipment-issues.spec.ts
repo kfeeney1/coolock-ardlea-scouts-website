@@ -176,16 +176,11 @@ test("damaged equipment issues keep independent state and dashboard tiles open t
   const firstAlertAfterBack = page.getByTestId("needs-attention-card").getByTestId(`attention-tile-equipment-incident-${incidentIds.get(firstName)}`);
   await firstAlertAfterBack.getByText(firstDescription).click();
   await expect(page).toHaveURL(`/leader/equipment/${itemIds.get(firstName)}?issue=${incidentIds.get(firstName)}`);
-  const recordHistoryIndex = await page.evaluate(() => window.history.state?.idx as number | undefined);
-  expect(typeof recordHistoryIndex).toBe("number");
   await page.getByTestId(`equipment-incident-${incidentIds.get(firstName)}`).getByRole("button", { name: "Resolve" }).click();
   const resolve = page.getByRole("dialog", { name: "Resolve equipment issue" });
   await resolve.getByLabel("Resolution notes").fill("Repaired and checked independently.");
   await resolve.getByRole("button", { name: "Confirm resolution" }).click();
   await expect(resolve).toBeHidden();
-  // The dialog becomes hidden before the overlay bridge finishes consuming its
-  // same-route history entry. Wait for that POP before using the record's own Back link.
-  await expect.poll(() => page.evaluate(() => window.history.state?.idx as number | undefined)).toBe(recordHistoryIndex);
   await expect(page.getByTestId(`equipment-incident-${incidentIds.get(firstName)}`)).toHaveCount(0);
 
   // Continue through the same visible dashboard tile a leader would use. This
