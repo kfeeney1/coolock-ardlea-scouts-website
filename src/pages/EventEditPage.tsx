@@ -146,7 +146,10 @@ export default function EventEditPage() {
       setConfirmAudienceRemoval(true);
       return;
     }
-    if (await saveDraft(removalsConfirmed)) {\n      releaseAfterSuccessfulSave();\n      navigate("/leader/events");\n    }
+    if (await saveDraft(removalsConfirmed)) {
+      releaseAfterSuccessfulSave();
+      navigate("/leader/events");
+    }
   }, [audienceRemovalCount, navigate, releaseAfterSuccessfulSave, saveDraft]);
   if (!draft) return <Box sx={{ minHeight: "100vh", py: 4 }}><Container maxWidth="lg"><LeaderDashboardHeader /><LeaderPageHeader title="Edit Event" description="" />{error && <Alert severity="error">{error}</Alert>}</Container></Box>;
   const selectedIds = draft.audience?.memberIds ?? [];
