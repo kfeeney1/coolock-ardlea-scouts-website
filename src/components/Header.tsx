@@ -12,7 +12,7 @@ import { brandColours } from "../theme/theme";
 import { usePublicSiteContent } from "./PublicSiteContentProvider";
 import { useAdminAuth } from "./admin/AdminAuthProvider";
 import { loadPublicParentLoginEnabled } from "../services/siteSettings";
-import { shouldShowPublicParentLogin } from "../security/parentLoginVisibility";
+import { shouldShowHeaderParentPortal, shouldShowPublicParentLogin } from "../security/parentLoginVisibility";
 
 function roleSummary(profile: ReturnType<typeof useAdminAuth>["adminProfile"]): string {
     if (!profile) return "";
@@ -36,6 +36,7 @@ export default function Header() {
     const isPublicRoute = !pathname.startsWith("/leader");
     const showDashboardReturn = isPublicRoute && authorised && Boolean(adminProfile);
     const showPublicParentLogin = shouldShowPublicParentLogin(parentLoginEnabled, Boolean(user), loading);
+    const showHeaderParentPortal = shouldShowHeaderParentPortal(Boolean(user), loading, pathname);
     const identity = adminProfile ? `${adminProfile.displayName} · ${roleSummary(adminProfile)}` : "";
     const menuHistoryReady = useBackDismiss(Boolean(anchorEl), () => setAnchorEl(null), "public-mobile-navigation");
 
@@ -86,11 +87,11 @@ export default function Header() {
                 {menuItems.map((item) => <Button key={item.path} data-control-role="menu" component={Link} to={item.path} variant="text" color="inherit" sx={{ color: "white", px: 1.25, "&:hover": { backgroundColor: "secondary.main" } }}>{item.label}</Button>)}
                 <Button component={Link} to="/join" variant="contained" color="success" sx={{ ml: 1, boxShadow: "none" }}>Join Us</Button>
                 {showDashboardReturn && <Button component={Link} to="/leader" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 800 }}>Dashboard</Button>}
-                {user && !loading && <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 700 }}>Parent Portal</Button>}
+                {showHeaderParentPortal && <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 700 }}>Parent Portal</Button>}
                 {user && isPublicRoute ? <Button onClick={() => void handleSignOut()} disabled={signingOut} variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>{signingOut ? "Signing Out…" : "Sign Out"}</Button> : !user && !loading ? <Button component={Link} to="/leader/login" variant="contained" color="secondary" sx={{ ml: 1, boxShadow: "none" }}>Leader Login</Button> : null}
                 {showPublicParentLogin && <Button component={Link} to="/parent" variant="outlined" color="inherit" sx={{ ml: 1, color: "white", borderColor: "rgba(255,255,255,0.75)", fontWeight: 800 }}>Parent Login</Button>}
             </Box>
-            <Box sx={{ display: { xs: "flex", md: "none" } }}><IconButton color="inherit" onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Open navigation menu"><MenuIcon /></IconButton><Menu anchorEl={anchorEl} open={Boolean(anchorEl) && menuHistoryReady} onClose={() => setAnchorEl(null)}>{menuItems.map((item) => <MenuItem key={item.path} component={Link} to={item.path} replace>{item.label}</MenuItem>)}<MenuItem component={Link} to="/join" replace sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem>{showDashboardReturn && <MenuItem component={Link} to="/leader" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Dashboard</MenuItem>}{user && !loading && <MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Portal</MenuItem>}{user ? <MenuItem component="button" disabled={signingOut} onClick={() => void handleSignOut()} sx={{ color: "secondary.main", fontWeight: 800, width: "100%" }}>{signingOut ? "Signing Out…" : "Sign Out"}</MenuItem> : !loading ? <><MenuItem component={Link} to="/leader/login" replace sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem>{showPublicParentLogin && <MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Login</MenuItem>}</> : null}</Menu></Box>
+            <Box sx={{ display: { xs: "flex", md: "none" } }}><IconButton color="inherit" onClick={(event) => setAnchorEl(event.currentTarget)} aria-label="Open navigation menu"><MenuIcon /></IconButton><Menu anchorEl={anchorEl} open={Boolean(anchorEl) && menuHistoryReady} onClose={() => setAnchorEl(null)}>{menuItems.map((item) => <MenuItem key={item.path} component={Link} to={item.path} replace>{item.label}</MenuItem>)}<MenuItem component={Link} to="/join" replace sx={{ color: "success.dark", fontWeight: 800 }}>Join Us</MenuItem>{showDashboardReturn && <MenuItem component={Link} to="/leader" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Dashboard</MenuItem>}{showHeaderParentPortal && <MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Portal</MenuItem>}{user ? <MenuItem component="button" disabled={signingOut} onClick={() => void handleSignOut()} sx={{ color: "secondary.main", fontWeight: 800, width: "100%" }}>{signingOut ? "Signing Out…" : "Sign Out"}</MenuItem> : !loading ? <><MenuItem component={Link} to="/leader/login" replace sx={{ color: "secondary.main", fontWeight: 800 }}>Leader Login</MenuItem>{showPublicParentLogin && <MenuItem component={Link} to="/parent" replace sx={{ color: "primary.dark", fontWeight: 800 }}>Parent Login</MenuItem>}</> : null}</Menu></Box>
         </Toolbar>
     </AppBar>{signOutError && <Alert severity="error" role="alert">{signOutError}</Alert>}</>;
 }

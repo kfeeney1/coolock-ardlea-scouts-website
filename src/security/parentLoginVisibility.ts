@@ -1,5 +1,15 @@
 export const DEFAULT_PARENT_LOGIN_ENABLED = true;
 
+/** Leader pages provide the Parent Portal through their own context navigation. */
+export function shouldShowHeaderParentPortal(
+    authenticated: boolean,
+    authenticationLoading: boolean,
+    pathname: string
+): boolean {
+    return authenticated && !authenticationLoading
+        && pathname !== "/leader" && !pathname.startsWith("/leader/");
+}
+
 export function normaliseParentLoginEnabled(
     data: Record<string, unknown> | null | undefined,
     documentExists = data !== null && data !== undefined

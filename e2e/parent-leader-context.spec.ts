@@ -33,8 +33,18 @@ async function signIn(page: Page, email: string, leader: boolean) {
   await expect(page.getByRole("heading", { name: leader ? "Leader Dashboard" : "Parent Portal", exact: true })).toBeVisible();
 }
 
-async function openParentFromHeader(page: Page, testInfo: TestInfo) {
-  if (testInfo.project.name === "mobile-chromium") {
+async function openParentFromNavigation(page: Page, testInfo: TestInfo) {
+  if (new URL(page.url()).pathname.startsWith("/leader")) {
+    await expect(page.getByRole("banner").getByRole("link", { name: /^Parent (Login|Portal)$/ })).toHaveCount(0);
+    if (testInfo.project.name === "mobile-chromium") {
+      await page.getByRole("button", { name: "Open navigation menu" }).click();
+      await expect(page.getByRole("menuitem", { name: "Home", exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: /^Parent (Login|Portal)$/ })).toHaveCount(0);
+      await page.keyboard.press("Escape");
+    }
+    await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
+    await page.getByRole("navigation", { name: "Leader navigation" }).getByRole("link", { name: "View Parent Portal ↗", exact: true }).click();
+  } else if (testInfo.project.name === "mobile-chromium") {
     await page.getByRole("button", { name: "Open navigation menu" }).click();
     await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
   } else {
@@ -67,7 +77,7 @@ test("combined leader and parent can switch contexts, reload and sign in again w
   const email = process.env.E2E_PARENT_LEADER_EMAIL;
   test.skip(!email, "Configure canonical combined account.");
   await signIn(page, email!, true);
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   await expect(page.getByText("Your account is approved and linked to 2 member records.")).toBeVisible();
   const children = await expectChildOptions(page, 2);
   expect(children).toEqual(["TEST_member_beaver_05", "TEST_member_beaver_06"]);
@@ -98,7 +108,7 @@ test("leaving Parent Portal cancels a pending child selection commit", async ({ 
   const email = process.env.E2E_PARENT_LEADER_EMAIL;
   test.skip(!email, "Configure canonical combined account.");
   await signIn(page, email!, true);
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
 
   await page.getByRole("combobox", { name: "Viewing information for" }).click();
@@ -122,7 +132,7 @@ test("reloading Parent Portal after closing a select preserves the destination",
   const email = process.env.E2E_PARENT_LEADER_EMAIL;
   test.skip(!email, "Configure canonical combined account.");
   await signIn(page, email!, true);
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   const select = page.getByRole("combobox", { name: "Viewing information for" });
   await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
   await select.click();
@@ -146,7 +156,7 @@ test("parent-only account retains portal navigation and cannot enter Leader Dash
   test.skip(!email, "Configure canonical parent account.");
   await signIn(page, email!, false);
   await page.goto("/about");
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   await expectChildOptions(page, 2);
   await page.goto("/leader");
   await expect(page).toHaveURL(/\/parent(?:\?.*)?$/);
@@ -157,7 +167,7 @@ test("leader-only account can reach parent registration without receiving child 
   const email = process.env.E2E_LEADER_EMAIL;
   test.skip(!email, "Configure canonical leader account.");
   await signIn(page, email!, true);
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   await expect(page.getByText(/Submit parent registration by identifying your child/)).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Viewing information for" })).toHaveCount(0);
   await expect(page.getByTestId("parent-portal-menu")).toHaveCount(0);
@@ -178,7 +188,7 @@ test("combined identity with one child outside its leader section retains indepe
   await db.doc(`organisationLeadership/${uid}`).set({ active: true, displayName: "Dual Context Fixture", scoutingRole: "Programme Scouter", organisationSection: "Scouts", appointments: [{ appointment: "Programme Scouter", scope: "Scouts", active: true }] });
   await db.doc(`parentAccounts/${uid}`).set({ uid, email, displayName: "Dual Context Fixture", mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
   await signIn(page, email, true);
-  await openParentFromHeader(page, testInfo);
+  await openParentFromNavigation(page, testInfo);
   await expect(page.getByText("Your account is approved and linked to 1 member record.")).toBeVisible();
   expect(await expectChildOptions(page, 1)).toEqual(["TEST_member_beaver_01"]);
   await page.goto("/parent?child=TEST_member_beaver_02");

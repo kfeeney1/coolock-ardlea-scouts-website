@@ -5,6 +5,7 @@ import {
   DEFAULT_PARENT_LOGIN_ENABLED,
   normaliseParentLoginEnabled,
   shouldShowPublicParentLogin,
+  shouldShowHeaderParentPortal,
 } from "../../src/security/parentLoginVisibility.ts";
 
 test("Parent Login defaults to enabled only when no persisted document exists", () => {
@@ -22,4 +23,17 @@ test("public Parent Login stays hidden until settings and authentication state r
   assert.equal(shouldShowPublicParentLogin(false, false, false), false);
   assert.equal(shouldShowPublicParentLogin(true, true, false), false);
   assert.equal(shouldShowPublicParentLogin(true, false, false), true);
+});
+
+// The setting controls signed-out entry only; authenticated context navigation
+// is determined by route and resolved session state.
+test("Header Parent Portal belongs on public/parent routes, never leader routes", () => {
+  for (const route of ["/leader", "/leader/", "/leader/settings", "/leader/weekly/meeting-1"]) {
+    assert.equal(shouldShowHeaderParentPortal(true, false, route), false, route);
+  }
+  for (const route of ["/", "/about", "/parent", "/parent/badgework"]) {
+    assert.equal(shouldShowHeaderParentPortal(true, false, route), true, route);
+    assert.equal(shouldShowHeaderParentPortal(false, false, route), false, route);
+    assert.equal(shouldShowHeaderParentPortal(true, true, route), false, route);
+  }
 });
