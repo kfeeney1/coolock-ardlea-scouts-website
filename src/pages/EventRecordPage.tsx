@@ -75,9 +75,7 @@ export default function EventRecordPage() {
             const supportingResults = await Promise.allSettled([
                 loadMembers().then((value) => { if (requestId === loadRequestRef.current) setMembers(value); }),
                 loadEquipmentItems().then((value) => { if (requestId === loadRequestRef.current) setEquipmentItems(value); }),
-                loadEquipmentLoans().then((value) => { if (requestId === loadRequestRef.current) setEquipmentLoans(value); }),
-                loadLeaderAttendanceOptions(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], true)
-                    .then((value) => { if (requestId === loadRequestRef.current) setLeaderOptions(value); })
+                loadEquipmentLoans().then((value) => { if (requestId === loadRequestRef.current) setEquipmentLoans(value); })
             ]);
             if (requestId !== loadRequestRef.current) return;
 
@@ -122,10 +120,14 @@ export default function EventRecordPage() {
         setMessage("");
         setError("");
         try {
-            const saved = await loadLeaderAttendance("events", event.id);
+            const [options, saved] = await Promise.all([
+                loadLeaderAttendanceOptions(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], true),
+                loadLeaderAttendance("events", event.id)
+            ]);
             const sections = event.audience?.sectionIds?.length ? event.audience.sectionIds : [event.section];
             const groupWide = sections.includes("All Sections") || event.section === "All Sections";
-            setLeaderAttendance(mergeLeaderAttendanceRoster(leaderOptions, sections, groupWide, saved));
+            setLeaderOptions(options);
+            setLeaderAttendance(mergeLeaderAttendanceRoster(options, sections, groupWide, saved));
         } catch (loadError) {
             setError(applicationErrorMessage(loadError, "Unable to load leader attendance.", "EventRecordPage"));
         } finally {
