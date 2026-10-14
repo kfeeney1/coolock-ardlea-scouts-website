@@ -35,15 +35,28 @@ async function expectPublicParentLogin(page: Page, visible: boolean, testInfo: T
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 }
 
+async function expectLeaderHeaderHasNoParentEntry(page: Page, testInfo: TestInfo) {
+  const banner = page.getByRole("banner");
+  await expect(banner.getByRole("link", { name: /^Parent (Login|Portal)$/ })).toHaveCount(0);
+  if (testInfo.project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await expect(page.getByRole("menuitem", { name: "Home", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^Parent (Login|Portal)$/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+  }
+}
+
 test("Super Admin can persist Parent Login visibility without changing portal access", async ({ page, browser }, testInfo) => {
   test.skip(!password, "Configure the canonical E2E password.");
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent Login visibility is checked on desktop and mobile Chromium.");
 
   await loginSuperAdmin(page);
+  await expectLeaderHeaderHasNoParentEntry(page, testInfo);
   await page.goto("/leader/settings");
   const setting = page.getByRole("switch", { name: "Enable Parent Login" });
   await expect(setting).toBeVisible();
   await expect(setting).toBeChecked();
+  await expectLeaderHeaderHasNoParentEntry(page, testInfo);
 
   const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:4173";
   const publicContext = await browser.newContext({ baseURL });
@@ -57,6 +70,7 @@ test("Super Admin can persist Parent Login visibility without changing portal ac
     await setting.click();
     await expect(page.getByRole("status").filter({ hasText: "Parent Login disabled" })).toBeVisible();
     await expect(setting).not.toBeChecked();
+    await expectLeaderHeaderHasNoParentEntry(page, testInfo);
 
     await expectPublicParentLogin(publicPage, false, testInfo);
 
@@ -90,6 +104,7 @@ test("Super Admin can persist Parent Login visibility without changing portal ac
     await setting.click();
     await expect(page.getByRole("status").filter({ hasText: "Parent Login enabled" })).toBeVisible();
     await expect(setting).toBeChecked();
+    await expectLeaderHeaderHasNoParentEntry(page, testInfo);
     await expectPublicParentLogin(publicPage, true, testInfo);
 
     // Authenticated parents continue to reach the same canonical route after
