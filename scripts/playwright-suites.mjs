@@ -164,6 +164,8 @@ export function suitesForChangedPath(file) {
   if (file === "src/components/admin/LeaderChildLinksSection.tsx") return ["authentication-rbac"];
   if (file === "src/components/admin/EquipmentItemFormDialog.tsx") return ["equipment"];
   if (file === "src/components/admin/BadgeworkTrackingDialogs.tsx") return ["badgework"];
+  if (file === "src/components/admin/WeeklyMeetingHistoryPanel.tsx") return ["activities-programme"];
+  if (file === "src/services/weeklyMeetingReopenFlow.ts") return ["activities-programme"];
   if (["src/services/weeklyTracker.ts", "src/services/weeklyTrackerLogic.ts", "src/services/weeklyMeetingDate.mjs", "src/services/weeklyMeetingDate.d.mts", "src/services/reporting.ts", "src/services/attendanceInsightsLogic.ts", "src/components/admin/WeeklyAttendancePanel.tsx", "src/components/admin/WeeklyMeetingSummary.tsx"].includes(file)) return ["activities-programme"];
 
   // Test infrastructure, shared application infrastructure, dependencies, Firebase rules,

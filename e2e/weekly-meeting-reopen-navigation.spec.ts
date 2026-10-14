@@ -106,6 +106,7 @@ test("reopening a closed meeting loads that exact editable record, preserves dat
   await expect(attendance).toBeChecked();
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click();
   await expect(page.getByText(/Saved reopen test incident/)).toBeVisible();
+  await page.getByRole("button", { name: "Programme", exact: true }).click();
 
   await page.getByLabel("Theme").fill(`${theme} edited`);
   await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
