@@ -22,8 +22,7 @@ test("SW-290 mobile WhatsApp share includes meeting Badgework", async ({ page },
 
   const share = page.getByTestId("weekly-whatsapp-share");
   await expect(share).toBeEnabled();
-  const href = await share.getAttribute("href");
-  expect(href).toBeTruthy();
+  // The share URL is populated after the selected meeting and badgework load.\n  // Enabled alone does not guarantee the asynchronous href has rendered yet.\n  await expect(share).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=.+/);\n  const href = await share.getAttribute("href");
   const text = decodeURIComponent(href!.split("?text=")[1] ?? "");
   expect(text).toContain("Scouts Weekly Meeting ·");
   expect(text).toContain("Activities / Games:");
