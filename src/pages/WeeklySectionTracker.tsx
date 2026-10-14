@@ -145,10 +145,20 @@ export default function WeeklySectionTracker() {
         if(editingPast)await updatePastWeeklyMeeting(id,{entries:sortWeeklyEntries(next.entries),injuries:next.injuries,notes:next.notes});
         else await updateWeeklyMeeting(id,input);
         await saveActivityLeaderAttendance(id);
-        await auditWeeklyMeeting(next,action,message);
         setSelected(next);setSavedSelected(next);
+        // Report the saved record as soon as its data writes finish. Audit and
+        // refresh are follow-up work and must not delay the save confirmation.
+        setSuccess(message);
+        let auditWarning="";
+        try {
+          await auditWeeklyMeeting(next,action,message);
+        } catch (auditError) {
+          const report=reportApplicationError(auditError,{area:"WeeklySectionTracker",operation:"Record meeting activity",userMessage:"The meeting was saved, but its activity log could not be updated."});
+          auditWarning=` The activity log could not be updated. Reference: ${report.diagnostic.reference}.`;
+        }
         const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");
-        setSuccess(refreshed?message:`${message} The meeting was saved, but the screen could not refresh. Reload the page to see the saved record.`);
+        const refreshWarning=refreshed?"":" The meeting was saved, but the screen could not refresh. Reload the page to see the saved record.";
+        setSuccess(`${message}${auditWarning}${refreshWarning}`);
         return true;
       }catch(e){setError(applicationErrorMessage(e, "Unable to save this meeting.", "WeeklySectionTracker"));return false;}
       finally{setSaving(false);saveInFlight.current=null;}
