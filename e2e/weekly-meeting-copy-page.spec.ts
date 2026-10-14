@@ -43,7 +43,9 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
 
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
-  await expect(page.getByTestId("weekly-meeting-summary")).toContainText("Scouts");
+  await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${sourceId}(?:&|$)`));
+  await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
+  await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
   await page.goto("/leader/weekly");
   await expect(page.getByTestId(`meeting-history-${sourceId}`)).toBeVisible();
 
@@ -60,7 +62,9 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Discard and cancel" }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
-  await expect(page.getByTestId("weekly-meeting-summary")).toContainText("Scouts");
+  await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${sourceId}(?:&|$)`));
+  await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
+  await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
 });
 
 test("SW-386 browser Back returns to the source meeting context", async ({ page }, testInfo) => {
