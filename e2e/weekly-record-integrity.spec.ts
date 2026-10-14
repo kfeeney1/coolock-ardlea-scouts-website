@@ -105,7 +105,7 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(copyDate).toBeVisible();
   await copyDate.fill("2099-04-08");
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
-  await expect(page.getByText("Discard your destination or date changes?")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Discard this new meeting copy?" })).toBeVisible();
   await page.getByRole("button", { name: "Keep editing" }).click();
   await expect(copyDate).toHaveValue("2099-04-08");
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
