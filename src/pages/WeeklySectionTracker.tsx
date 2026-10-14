@@ -31,7 +31,6 @@ import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 import { trySecondaryRefresh } from "../services/secondaryRefresh";
 import { loadLeaderAttendanceOptions } from "../services/leaderAttendance";
 
-const today = new Date().toISOString().slice(0, 10);
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
 type NavigationAction = "meetings" | "copy" | "create";
 
