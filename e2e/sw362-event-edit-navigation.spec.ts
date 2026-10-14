@@ -310,3 +310,25 @@ test("SW-390 saving through the leave dialog releases the dashboard and menu", a
   await page.getByRole("link", { name: "Back to Event", exact: true }).click();
   await expect(leaveDialog(page)).toHaveCount(0);
 });
+
+
+test("SW-390 explicit Save Event releases the dirty guard on desktop and mobile", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAdmin(page);
+  const title = `TEST SW-390 explicit ${Date.now()}`;
+  const { eventUrl } = await createEvent(page, title);
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await page.getByLabel("Event title").fill(`${title} saved`);
+  await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
+  await page.getByRole("button", { name: "Save Event", exact: true }).click();
+  await expect(page).toHaveURL(/\\/leader\\/events$/);
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.locator('button[aria-controls="leader-navigation"]').click();
+  await page.getByTestId("leader-nav-dashboard").click();
+  await expect(page).toHaveURL(/\\/leader$/);
+  await expect(leaveDialog(page)).toHaveCount(0);
+  await page.goto(eventUrl);
+  await expect(page.getByRole("heading", { name: `${title} saved` })).toBeVisible();
+  await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(leaveDialog(page)).toHaveCount(0);
+});
