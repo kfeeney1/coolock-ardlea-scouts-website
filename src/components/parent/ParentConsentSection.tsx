@@ -73,7 +73,9 @@ export default function ParentConsentSection({ memberIds, onSaved }: Props) {
       : members;
   }, [members, search]);
 
-  if (loading) {
+  // Keep an open consent editor mounted during background refreshes. Replacing the
+  // entire section with a spinner loses in-progress edits and the Save action.
+  if (loading && members.length === 0) {
     return <OperationalLoading minHeight={160} label="Loading linked consent and medical forms" />;
   }
 
