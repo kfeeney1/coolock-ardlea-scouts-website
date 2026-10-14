@@ -1,6 +1,6 @@
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import EventGalleryDialog from "../components/admin/EventGalleryDialog";
@@ -50,26 +50,48 @@ export default function EventRecordPage() {
     const [savingRoster, setSavingRoster] = useState(false);
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [equipmentOpen, setEquipmentOpen] = useState(false);
+    const loadRequestRef = useRef(0);
 
     const load = async (reportFailure = false) => {
+        const requestId = ++loadRequestRef.current;
         setLoading(true);
         setError("");
         try {
-            const [loadedEvents, loadedMembers, loadedItems, loadedLoans, loadedLeaders] = await Promise.all([
-                loadEvents(), loadMembers(), loadEquipmentItems(), loadEquipmentLoans(), loadLeaderAttendanceOptions(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], true)
-            ]);
+            const loadedEvents = await loadEvents();
             const requested = loadedEvents.find((item) => item.id === eventId) ?? null;
+            if (requestId !== loadRequestRef.current) return;
             setEvent(requested);
-            setMembers(loadedMembers);
-            setEquipmentItems(loadedItems);
-            setEquipmentLoans(loadedLoans);
-            setLeaderOptions(loadedLeaders);
+            setMembers([]);
+            setEquipmentItems([]);
+            setEquipmentLoans([]);
+            setLeaderOptions([]);
             if (!requested) setError("This event could not be found or is outside your permitted sections.");
+            setLoading(false);
+            if (!requested) return;
+
+            // Event details and Edit Event navigation do not depend on these
+            // supporting datasets. Keep slower attendance/equipment reads from
+            // leaving the whole record page on its loading screen.
+            const supportingResults = await Promise.allSettled([
+                loadMembers().then((value) => { if (requestId === loadRequestRef.current) setMembers(value); }),
+                loadEquipmentItems().then((value) => { if (requestId === loadRequestRef.current) setEquipmentItems(value); }),
+                loadEquipmentLoans().then((value) => { if (requestId === loadRequestRef.current) setEquipmentLoans(value); }),
+                loadLeaderAttendanceOptions(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], true)
+                    .then((value) => { if (requestId === loadRequestRef.current) setLeaderOptions(value); })
+            ]);
+            if (requestId !== loadRequestRef.current) return;
+
+            const failedSupportingRead = supportingResults.find((result) => result.status === "rejected");
+            if (failedSupportingRead?.status === "rejected") {
+                setError(applicationErrorMessage(failedSupportingRead.reason, "Some event supporting details could not be loaded.", "EventRecordPage"));
+                if (reportFailure) throw failedSupportingRead.reason;
+            }
         } catch (loadError) {
+            if (requestId !== loadRequestRef.current) return;
             setError(applicationErrorMessage(loadError, "Unable to load this event record.", "EventRecordPage"));
             if (reportFailure) throw loadError;
         } finally {
-            setLoading(false);
+            if (requestId === loadRequestRef.current) setLoading(false);
         }
     };
 
