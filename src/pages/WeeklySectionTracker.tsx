@@ -108,7 +108,9 @@ export default function WeeklySectionTracker() {
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
   const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{
-    if(saveInFlight.current)return saveInFlight.current;
+    // A second explicit save must not silently reuse an earlier save of a different snapshot.
+    // Wait for the in-flight operation, then persist the latest requested meeting state.
+    if(saveInFlight.current)await saveInFlight.current;
     const editingPast=selected?.id===next.id&&selected.status==="closed";
     if(editingPast&&!editMode.canEditOperationalFields)return false;
     if(!editingPast&&readOnly)return false;
