@@ -182,17 +182,31 @@ export default function ParentPortal() {
     useEffect(() => {
         if (!location.hash || !account || account.status !== "approved" || linkedChildren.length === 0) return;
         const targetId = decodeURIComponent(location.hash.slice(1));
+        let stoppedByUser = false;
         let settleTimer = 0;
+        let timeout = 0;
+        let frame = 0;
+        const stopFollowingUserInteraction = () => {
+            stoppedByUser = true;
+            observer.disconnect();
+            window.clearTimeout(settleTimer);
+            window.clearTimeout(timeout);
+            window.cancelAnimationFrame(frame);
+        };
         const scrollToTarget = () => {
+            if (stoppedByUser) return;
             document.getElementById(targetId)?.scrollIntoView({ behavior: "auto", block: "start" });
             window.clearTimeout(settleTimer);
             settleTimer = window.setTimeout(() => observer.disconnect(), 750);
         };
         const observer = new ResizeObserver(scrollToTarget);
+        const interactionEvents = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+        interactionEvents.forEach((eventName) => window.addEventListener(eventName, stopFollowingUserInteraction, true));
         if (portalContentRef.current) observer.observe(portalContentRef.current);
-        const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget));
-        const timeout = window.setTimeout(() => observer.disconnect(), 4_000);
+        frame = window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToTarget));
+        timeout = window.setTimeout(() => observer.disconnect(), 4_000);
         return () => {
+            interactionEvents.forEach((eventName) => window.removeEventListener(eventName, stopFollowingUserInteraction, true));
             window.cancelAnimationFrame(frame);
             window.clearTimeout(settleTimer);
             window.clearTimeout(timeout);
