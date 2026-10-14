@@ -10,7 +10,6 @@ import WeeklyMeetingAttendancePanel from "../components/admin/WeeklyMeetingAtten
 import WeeklyProgrammePlanner from "../components/admin/WeeklyProgrammePlanner";
 import WeeklyMeetingDetailsPanels from "../components/admin/WeeklyMeetingDetailsPanels";
 import WeeklyMeetingEditorControls from "../components/admin/WeeklyMeetingEditorControls";
-import WeeklyMeetingCopyDialog from "../components/admin/WeeklyMeetingCopyDialog";
 import WeeklyMeetingSaveActions from "../components/admin/WeeklyMeetingSaveActions";
 import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useWeeklyLeaderAttendance } from "../hooks/useWeeklyLeaderAttendance";
@@ -164,7 +163,7 @@ export default function WeeklySectionTracker() {
     }catch(e){setError(applicationErrorMessage(e, "Unable to copy this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}
   };
 
-  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);return;}setSelected(null);setSavedSelected(null);if(action==="meetings")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
+  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;if(action==="copy"&&current){navigate(`/leader/weekly/copy/${encodeURIComponent(current.id)}`);return;}setSelected(null);setSavedSelected(null);if(action==="meetings")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
   const requestNavigationAction=async(action:NavigationAction)=>{if(hasUnsavedChanges&&selected&&!(await persist(selected,"Meeting saved.")))return;applyNavigationAction(action);};
 
   const openRecords=sortOpenWeeklyMeetings(records.filter(r=>r.status==="open")),history=records.filter(r=>r.status==="closed");
@@ -174,7 +173,7 @@ export default function WeeklySectionTracker() {
   {loading?<Box sx={{minHeight:300,display:"grid",placeItems:"center"}}><CircularProgress/></Box>:!selected?<Stack spacing={2}>
     {!readOnly&&<Button component={Link} to="/leader/weekly/create" variant="contained" color="success" size="large" sx={{alignSelf:"flex-start"}}>Create Meeting</Button>}
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Open Meeting</Typography>{!openRecords.length?<Alert severity="info">No meetings are currently open.</Alert>:<Stack spacing={1}>{openRecords.map(r=><Button key={r.id} variant="contained" onClick={()=>{setSelected(r);setSavedSelected(r);setStep(initialWeeklyStep(r.meetingDate));navigate(`?meeting=${r.id}`);}} sx={{justifyContent:"space-between",gap:1,textAlign:"left",minWidth:0}}><span>{displayWeeklyDate(r.meetingDate)} · {r.section}</span><Chip size="small" label="Open"/></Button>)}</Stack>}</Paper>
-    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?"Meeting reopened.":"Meeting reopened, but the screen could not refresh. Reload the page to see it.");const reopened={...record,status:"open" as const};setSelected(reopened);setSavedSelected(reopened);setStep(initialWeeklyStep(reopened.meetingDate));navigate(`/leader/weekly?meeting=${encodeURIComponent(record.id)}`);}catch(e){setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}})();}} onCopy={(record)=>{setCopySource(record);setCopyDate(today);setCopySection(record.section);}}/>
+    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?"Meeting reopened.":"Meeting reopened, but the screen could not refresh. Reload the page to see it.");const reopened={...record,status:"open" as const};setSelected(reopened);setSavedSelected(reopened);setStep(initialWeeklyStep(reopened.meetingDate));navigate(`/leader/weekly?meeting=${encodeURIComponent(record.id)}`);}catch(e){setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}})();}} />
 
 
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
