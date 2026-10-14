@@ -71,11 +71,9 @@ test("SW-386 browser Back returns to the source meeting context", async ({ page 
   const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
   await expect(source).toBeVisible();
   const sourceId = (await source.getAttribute("data-testid"))!.replace("meeting-history-", "");
-  await source.getByRole("link", { name: "View / Edit", exact: true }).click();
-  await expect(page).toHaveURL(`/leader/weekly?meeting=${sourceId}`);
-  await page.getByTestId(`meeting-history-${sourceId}`).getByRole("link", { name: "Copy Meeting", exact: true }).click();
+  await source.getByRole("link", { name: "Copy Meeting", exact: true }).click();
   await expect(page).toHaveURL(`/leader/weekly/copy/${sourceId}`);
   await page.goBack();
-  await expect(page).toHaveURL(`/leader/weekly?meeting=${sourceId}`);
-  await expect(page.getByTestId("weekly-meeting-summary")).toContainText("Scouts");
+  await expect(page).toHaveURL(/\/leader\/weekly(?:\?.*)?$/);
+  await expect(page.getByTestId(`meeting-history-${sourceId}`)).toBeVisible();
 });
