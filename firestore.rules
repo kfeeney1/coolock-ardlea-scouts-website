@@ -1715,6 +1715,14 @@ service cloud.firestore {
         || (poll.scopeType == "sections" && poll.scopeSections is list && profile().sections is list && profile().sections.hasAll(poll.scopeSections))
       );
     }
+    function pollCanManageAudienceIndex(index) {
+      return isActiveLeader() && (
+        pollIsGroupManager()
+        || (index.get("scopeType", "") == "sections" && index.get("scopeSections", []) is list
+          && index.get("scopeSections", []).size() > 0
+          && profile().sections is list && profile().sections.hasAll(index.get("scopeSections", [])))
+      );
+    }
     function pollHasEligibleParent(poll) {
       return poll.scopeSections is list && (
         (poll.scopeSections.hasAny(["Beavers"]) && isApprovedParentForSection("Beavers"))
@@ -1793,27 +1801,20 @@ service cloud.firestore {
     // Collection-group reads need an explicit recursive match; nested rules alone
     // do not authorise queries over audienceSections across all polls.
     match /{path=**}/audienceSections/{section} {
-      // Administrators manage every poll. This unconditional role check is
-      // provable for collection-group queries; parent-document lookups are not.
-      // Only index documents are exposed here, never poll roots or responses.
+      // Only limited discovery-index documents are exposed here, never poll roots,
+      // responses or results. Managers use the index's canonical section scope so
+      // Firestore can prove each collection-group query is authorised.
       allow list: if isAdmin();
-      // A collection-group query cannot prove a parent-document get() predicate.
-      // The published index itself is a deliberately limited discovery record;
-      // root poll reads and votes remain separately authorised.
-      allow list: if resource.data.audienceType == "parents"
-        && resource.data.status == "published"
-        && isApprovedParentForSection(resource.data.section);
-      allow list: if resource.data.pollId is string
-        && resource.data.section == section
-        && exists(/databases/$(database)/documents/polls/$(resource.data.pollId))
-        && (
-          pollCanManage(get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data)
-          || (resource.data.status == "published"
-            && get(/databases/$(database)/documents/polls/$(resource.data.pollId)).data.status == "published"
-            && ((resource.data.audienceType == "parents" && isApprovedParentForSection(section))
-              || (resource.data.audienceType == "leaders" && isActiveLeader()
-                && profile().sections.hasAny([section]))))
-        );
+      // Parent and leader respondents can discover only published indexes in their
+      // approved/current sections. The poll root is authorised separately.
+      allow list: if resource.data.get("audienceType", "") == "parents"
+        && resource.data.get("status", "") == "published"
+        && isApprovedParentForSection(resource.data.get("section", ""));
+      allow list: if resource.data.get("pollId", "") is string
+        && pollCanManageAudienceIndex(resource.data);
+      allow list: if resource.data.get("audienceType", "") == "leaders"
+        && resource.data.get("status", "") == "published"
+        && isActiveLeader() && profile().sections.hasAny([resource.data.get("section", "")]);
     }
 
     match /polls/{pollId} {
@@ -1839,16 +1840,17 @@ service cloud.firestore {
 
       match /audienceSections/{section} {
         function parentCanReadIndex() {
-          return resource.data.audienceType == "parents" && resource.data.status == "published"
-            && isApprovedParentForSection(section)
-            && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "published";
+          return resource.data.get("audienceType", "") == "parents"
+            && resource.data.get("status", "") == "published"
+            && isApprovedParentForSection(section);
         }
         function leaderCanReadIndex() {
           return isActiveLeader() && profile().sections.hasAny([section])
-            && resource.data.audienceType == "leaders" && resource.data.status == "published"
-            && get(/databases/$(database)/documents/polls/$(pollId)).data.status == "published";
+            && resource.data.get("audienceType", "") == "leaders"
+            && resource.data.get("status", "") == "published";
         }
-        allow get, list: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
+        allow get: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data);
+        allow list: if pollCanManageAudienceIndex(resource.data)
           || parentCanReadIndex() || leaderCanReadIndex();
         allow create: if isActiveLeader()
           && pollCanManage(getAfter(/databases/$(database)/documents/polls/$(pollId)).data)
@@ -1857,6 +1859,7 @@ service cloud.firestore {
           && request.resource.data.pollId == pollId && request.resource.data.section == section
           && request.resource.data.audienceType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.audienceType
           && request.resource.data.scopeType == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeType
+          && request.resource.data.scopeSections == getAfter(/databases/$(database)/documents/polls/$(pollId)).data.scopeSections
           && request.resource.data.status == "draft";
         allow update: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])

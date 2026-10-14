@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, collectionGroup, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -15,7 +16,7 @@ async function seed(entries) {
 async function seedPoll(id = "poll-1", { audienceType = "parents", scopeSections = ["Beavers"], scopeType = "sections", status = "published" } = {}) {
   await seed([
     [`polls/${id}`, { question: "Choose a group activity", options: ["Hike", "Camp"], audienceType, scopeType, scopeSections, status, createdBy: "beaver-leader", createdAt: new Date(), updatedBy: "beaver-leader", updatedAt: new Date() }],
-    [`polls/${id}/audienceSections/Beavers`, { pollId: id, section: "Beavers", audienceType, scopeType, status }],
+    [`polls/${id}/audienceSections/Beavers`, { pollId: id, section: "Beavers", audienceType, scopeType, scopeSections, status }],
     [`polls/${id}/results/0`, { option: "Hike", optionIndex: 0, count: 0 }],
     [`polls/${id}/results/1`, { option: "Camp", optionIndex: 1, count: 0 }]
   ]);
@@ -57,6 +58,22 @@ test("draft poll roots and discovery indexes stay hidden from respondents until 
   await assertFails(getDoc(doc(parent, "polls/draft-poll/audienceSections/Beavers")));
 });
 
+test("section leader manager index reads constrain results to fully authorised poll scopes", async () => {
+  await seedPoll("beavers-draft", { audienceType: "parents", scopeSections: ["Beavers"], status: "draft" });
+  await seedPoll("overlapping-draft", { audienceType: "parents", scopeSections: ["Beavers", "Scouts"], status: "draft" });
+  const beaverLeader = testEnv.authenticatedContext("beaver-leader").firestore();
+  const broadQuery = query(collectionGroup(beaverLeader, "audienceSections"),
+    where("audienceType", "==", "parents"), where("scopeType", "==", "sections"));
+  await assertFails(getDocs(broadQuery));
+  const scopedQuery = query(collectionGroup(beaverLeader, "audienceSections"),
+    where("audienceType", "==", "parents"), where("scopeType", "==", "sections"), where("scopeSections", "in", [["Beavers"]]));
+  const snapshot = await assertSucceeds(getDocs(scopedQuery));
+  assert.deepEqual(snapshot.docs.map((item) => item.data().pollId), ["beavers-draft"]);
+  const outOfScopeQuery = query(collectionGroup(beaverLeader, "audienceSections"),
+    where("audienceType", "==", "parents"), where("scopeType", "==", "sections"), where("scopeSections", "in", [["Beavers", "Scouts"]]));
+  await assertFails(getDocs(outOfScopeQuery));
+});
+
 test("parent response is private, cannot list responses or view results", async () => {
   await seedPoll();
   await seed([
@@ -93,7 +110,7 @@ test("group leadership can create a complete whole-group draft; section leaders 
     });
     ["Poll1", "Poll2"].forEach((option, optionIndex) => batch.set(doc(db, `polls/${id}/results/${optionIndex}`), { option, optionIndex, count: 0 }));
     ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"].forEach((section) => batch.set(doc(db, `polls/${id}/audienceSections/${section}`), {
-      pollId: id, section, audienceType: "leaders", scopeType: "group", status: "draft"
+      pollId: id, section, audienceType: "leaders", scopeType: "group", scopeSections: ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"], status: "draft"
     }));
     return batch.commit();
   };

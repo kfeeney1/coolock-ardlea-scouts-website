@@ -66,6 +66,17 @@ export function resolvePollSections(scopeType: PollScopeType, selected: readonly
   return GROUP_POLL_SECTIONS.filter((section) => sections.includes(section));
 }
 
+/** Every section scope an account may manage, in canonical order. */
+export function pollManagerScopeSubsets(authorised: readonly string[]): string[][] {
+  const allowed = new Set(authorised);
+  const sections = GROUP_POLL_SECTIONS.filter((section) => allowed.has(section));
+  const subsets: string[][] = [];
+  for (let mask = 1; mask < 1 << sections.length; mask += 1) {
+    subsets.push(sections.filter((_, index) => (mask & (1 << index)) !== 0));
+  }
+  return subsets;
+}
+
 export function canManagePollForLeader(poll: Pick<PollRecord, "scopeType" | "scopeSections">, actor: PollLeaderActor): boolean {
   if (actor.role === "admin" || actor.role === "super-admin" || isGroupLeadershipAppointment(actor.scoutingRole)) return true;
   return poll.scopeType === "sections" && poll.scopeSections.length > 0 && poll.scopeSections.every((section) => actor.sections.includes(section));
