@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 4072)
+Total output lines: 243
+
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { getApps, initializeApp } from "firebase-admin/app";
@@ -56,7 +59,7 @@ test("cancelling member-to-leader transition leaves member status unchanged", as
   const member = page.getByTestId("member-card-TEST_member_beaver_01");
   await expect(member).toBeVisible();
   await expect(member).toContainText("Active");
-  await member.getByRole("button", { name: "Manage" }).click();
+  await member.getByRole("link", { name: "Manage", exact: true }).click();
   await page.getByRole("button", { name: "Transition to Leader" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Transition member to Leader" });
@@ -121,17 +124,13 @@ async function completeTransition(page: import("@playwright/test").Page, section
     await page.reload();
     await expect(member).toBeVisible();
   }
-  await member.getByRole("button", { name: "Manage" }).click();
+  await member.getByRole("link", { name: "Manage", exact: true }).click();
   await page.getByRole("button", { name: "Transition to Leader" }).click();
   const transitionDialog = page.getByRole("dialog", { name: "Transition member to Leader" });
   await expect(transitionDialog).toBeVisible();
   const endMembershipCheckbox = transitionDialog.getByRole("checkbox", { name: "End this member's current youth membership after leader approval" });
   await endMembershipCheckbox.setChecked(endMembership);
-  await transitionDialog.getByRole("button", { name: "Prepare registration link" }).click();
-  const link = await transitionDialog.getByLabel("Leader registration link").inputValue();
-  fixture.invitationId = new URL(link).searchParams.get("transition") || undefined;
-
-  const whatsapp = transitionDialog.getByRole("link", { name: "WhatsApp registration link" });
+  await transitionDialog.getByRole("button…72 tokens truncated…me: "WhatsApp registration link" });
   await expect(whatsapp).toBeVisible();
   const whatsappUrl = new URL(await whatsapp.getAttribute("href")!);
   expect(whatsappUrl.hostname).toBe("wa.me");
