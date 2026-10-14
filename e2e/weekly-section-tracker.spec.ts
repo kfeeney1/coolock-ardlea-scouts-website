@@ -141,10 +141,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
 
   await page.getByRole("button", { name: "Injuries / Medical", exact: true }).click(); if (!await page.getByText(/Small graze during wide game/).count()) { await page.getByLabel("Member").click(); await page.getByRole("option", { name: scoutMemberName }).click(); await expect(page.locator(".MuiModal-root")).toHaveCount(0); await page.getByLabel("Injury / medical concern").fill(incidentDescription); await page.getByLabel("Action taken").fill("Cleaned and covered"); await page.getByRole("checkbox", { name: "Parent informed" }).check(); await page.getByRole("button", { name: "Add Incident", exact: true }).click(); } await expect(page.getByText(/Small graze during wide game/)).toBeVisible();
   await page.getByRole("button", { name: "Notes", exact: true }).click(); await page.getByLabel("Additional meeting notes").fill("Visitors and equipment issue recorded after meeting."); await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
-  // This final save writes both the meeting and its parent projection after the
-  // attendance, programme, badgework, and incident edits. Allow for the loaded
-  // shared emulator while keeping the success and reload persistence checks.
-  await expect(page.getByText(/^Meeting saved\./)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^Meeting saved\./)).toBeVisible();
 
   await page.reload();
   await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
