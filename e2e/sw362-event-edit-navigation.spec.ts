@@ -321,11 +321,11 @@ test("SW-390 explicit Save Event releases the dirty guard on desktop and mobile"
   await page.getByLabel("Event title").fill(`${title} saved`);
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
   await page.getByRole("button", { name: "Save Event", exact: true }).click();
-  await expect(page).toHaveURL(/\\/leader\\/events$/);
+  await expect(page).toHaveURL(new RegExp("/leader/events$"));
   await expect(leaveDialog(page)).toHaveCount(0);
   await page.locator('button[aria-controls="leader-navigation"]').click();
   await page.getByTestId("leader-nav-dashboard").click();
-  await expect(page).toHaveURL(/\\/leader$/);
+  await expect(page).toHaveURL(new RegExp("/leader$"));
   await expect(leaveDialog(page)).toHaveCount(0);
   await page.goto(eventUrl);
   await expect(page.getByRole("heading", { name: `${title} saved` })).toBeVisible();
