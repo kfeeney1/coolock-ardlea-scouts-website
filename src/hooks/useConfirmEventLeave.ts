@@ -191,5 +191,13 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
     }
   }, [closeAndRestoreFocus, navigate, releaseGuard, request]);
 
-  return { dialogOpen, stay, continueWithoutSaving, saveAndContinue };
+  // Explicit Save Event also needs to release the guard before route navigation.
+  // Otherwise the committed baseline may not render before this editor unmounts.
+  const releaseAfterSuccessfulSave = useCallback(() => {
+    releaseGuard();
+    setDialogOpen(false);
+    setRequest(null);
+  }, [releaseGuard]);
+
+  return { dialogOpen, stay, continueWithoutSaving, saveAndContinue, releaseAfterSuccessfulSave };
 }
