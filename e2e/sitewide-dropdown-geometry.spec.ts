@@ -152,8 +152,10 @@ test("closing one dropdown before opening another leaves no stale overlay", asyn
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(secondListbox).toBeHidden();
+  await waitForTransientOverlayHistory(page);
 
   await leaderTile.click();
+  await expect(page.getByTestId("leader-access-TEST_uid_multi_section_leader")).toBeVisible();
   await expect(reportsTo).toBeVisible();
   const { listbox: reopenedFirstListbox } = await openAttachedDropdown(page, reportsTo);
   await expect(page.locator('[role="listbox"]:visible')).toHaveCount(1);
