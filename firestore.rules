@@ -200,6 +200,65 @@ service cloud.firestore {
         || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
         || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
+    // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
+    function badgeworkSectionAppointmentAt(data, index, section) {
+      return data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].scope == section
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+    }
+    function badgeworkMemberAppointmentAt(data, index, memberData) {
+      return data.appointments.size() > index
+        && data.appointments[index] is map
+        && memberHasSection(memberData, data.appointments[index].scope)
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+    }
+    function hasBadgeworkSectionAppointment(section) {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let leadership = get(organisationPath).data;
+      return exists(organisationPath) && leadership.active == true
+        && ((!leadership.keys().hasAny(["appointments"])
+            || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            && leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+            && leadership.organisationSection == section
+          || (leadership.appointments is list && (badgeworkSectionAppointmentAt(leadership, 0, section)
+          || badgeworkSectionAppointmentAt(leadership, 1, section)
+          || badgeworkSectionAppointmentAt(leadership, 2, section)
+          || badgeworkSectionAppointmentAt(leadership, 3, section))));
+    }
+    function hasBadgeworkMemberAppointment(memberData) {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let leadership = get(organisationPath).data;
+      return exists(organisationPath) && leadership.active == true
+        && (((!leadership.keys().hasAny(["appointments"])
+              || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            && leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+            && memberHasSection(memberData, leadership.organisationSection))
+          || (leadership.appointments is list && (badgeworkMemberAppointmentAt(leadership, 0, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 1, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 2, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 3, memberData))));
+    }
+    function validOpenWeeklyMeetingBadgeworkSource(memberData, sourceId) {
+      let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
+      return exists(sourcePath)
+        && get(sourcePath).data.status == "open"
+        && get(sourcePath).data.section is string
+        && memberHasSection(memberData, get(sourcePath).data.section)
+        && (profile().role in ["super-admin", "admin"]
+          || profileHasSection(get(sourcePath).data.section)
+          || isGroupLeader()
+          || hasBadgeworkSectionAppointment(get(sourcePath).data.section));
+    }
+    function canWriteAdventureRequirement(memberData, sourceData) {
+      return isActiveLeader()
+        && (sourceData.sourceType == "weeklyMeeting"
+          ? sourceData.sourceId is string && sourceData.sourceId.size() > 0
+            && validOpenWeeklyMeetingBadgeworkSource(memberData, sourceData.sourceId)
+          : canAccessMemberSections(memberData) || isGroupLeader());
+    }
     function isSelfManagedRoverMember() {
       return isActiveLeader()
         && request.auth.token.email is string
@@ -651,10 +710,11 @@ service cloud.firestore {
         allow get, list: if isApprovedParentForMember(memberId)
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
-            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
-        allow create, update: if isActiveLeader()
-          && exists(/databases/$(database)/documents/members/$(memberId))
-          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
+              || isGroupLeader() || isGroupSecretary()
+              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
+        allow create, update: if exists(/databases/$(database)/documents/members/$(memberId))
+          && canWriteAdventureRequirement(get(/databases/$(database)/documents/members/$(memberId)).data, request.resource.data)
           && request.resource.data.memberId == memberId
           && request.resource.data.requirementId == requirementId
           && request.resource.data.skillId is string
@@ -667,16 +727,17 @@ service cloud.firestore {
           && request.resource.data.sourceType in ["manual", "weeklyMeeting", "event", "activity", "migration"]
           && request.resource.data.sourceId is string
           && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
-        allow delete: if isActiveLeader()
-          && exists(/databases/$(database)/documents/members/$(memberId))
-          && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader());
+        allow delete: if exists(/databases/$(database)/documents/members/$(memberId))
+          && canWriteAdventureRequirement(get(/databases/$(database)/documents/members/$(memberId)).data, resource.data);
       }
 
       match /awards/{awardId} {
         allow get, list: if isApprovedParentForMember(memberId)
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
-            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader() || isGroupSecretary()));
+            && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
+              || isGroupLeader() || isGroupSecretary()
+              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
         allow create, update: if isActiveLeader()
           && exists(/databases/$(database)/documents/members/$(memberId))
           && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data) || isGroupLeader())
