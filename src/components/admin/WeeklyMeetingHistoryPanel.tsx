@@ -14,13 +14,12 @@ type Props = {
   sections: string[];
   canEditPast: boolean;
   readOnly: boolean;
-  onCopy: (record: WeeklyMeetingRecord) => void;
   onReopen: (record: WeeklyMeetingRecord) => void;
 };
 
 const displayDate = (value: string) => formatSiteDate(value);
 
-export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onCopy, onReopen }: Props) {
+export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPast, readOnly, onReopen }: Props) {
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -80,7 +79,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
                   "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }
               }}>
                 <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly?meeting=${encodeURIComponent(record.id)}`}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
-                {!readOnly && <Button fullWidth variant="outlined" onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth variant="outlined" onClick={() => onCopy(record)}>Copy Meeting</Button>}
+                {!readOnly && <Button fullWidth variant="outlined" onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly/copy/${encodeURIComponent(record.id)}`}>Copy Meeting</Button>}
               </Box>
             </Stack>
           </Paper>;
