@@ -21,6 +21,7 @@ import {
   normalizePollOptions,
   pollDeadlinePassed,
   normalizePollQuestion,
+  pollManagerScopeSubsets,
   resolvePollSections,
   type PollAudienceType,
   type PollLeaderActor,
@@ -61,11 +62,12 @@ function mapPoll(id: string, data: Record<string, unknown>): PollRecord | null {
   };
 }
 
-async function fetchAudienceIndexIds(section: string, audienceType: PollAudienceType, scopeType?: PollScopeType, publishedOnly = false): Promise<string[]> {
+async function fetchAudienceIndexIds(section: string | undefined, audienceType: PollAudienceType, scopeType?: PollScopeType, publishedOnly = false, scopeSectionOptions?: readonly (readonly string[])[]): Promise<string[]> {
   const constraints = [
-    where("section", "==", section),
+    ...(section ? [where("section", "==", section)] : []),
     where("audienceType", "==", audienceType),
     ...(scopeType ? [where("scopeType", "==", scopeType)] : []),
+    ...(scopeSectionOptions ? [where("scopeSections", "in", scopeSectionOptions.map((sections) => [...sections]))] : []),
     ...(publishedOnly ? [where("status", "==", "published")] : [])
   ];
   const snapshot = await getDocs(query(collectionGroup(db, "audienceSections"), ...constraints));
@@ -91,18 +93,32 @@ export async function loadLeaderPolls(actor: PollLeaderActor): Promise<PollRecor
   if (!auth.currentUser) return [];
   const groupManager = actor.role === "admin" || actor.role === "super-admin" || isGroupLeadershipAppointment(actor.scoutingRole);
   const querySections = groupManager ? [...GROUP_POLL_SECTIONS] : actor.sections;
-  const indexQueries = querySections.flatMap((section) => [
+  const publishedLeaderQueries = querySections.map((section) =>
     // Active leader polls, including group polls projected onto each canonical section.
-    fetchAudienceIndexIds(section, "leaders", undefined, true),
-    // Section-scoped manager views include drafts and closed polls for both audiences.
-    fetchAudienceIndexIds(section, "leaders", "sections"),
-    fetchAudienceIndexIds(section, "parents", "sections"),
-    ...(groupManager ? [
+    fetchAudienceIndexIds(section, "leaders", undefined, true)
+  );
+  const managerQueries = groupManager
+    ? querySections.flatMap((section) => [
+      // Group managers can see all poll indexes and use the root document rules for actions.
       fetchAudienceIndexIds(section, "leaders", "group"),
-      fetchAudienceIndexIds(section, "parents", "group")
-    ] : [])
-  ]);
-  const ids = await Promise.all(indexQueries);
+      fetchAudienceIndexIds(section, "parents", "group"),
+      fetchAudienceIndexIds(section, "leaders", "sections"),
+      fetchAudienceIndexIds(section, "parents", "sections")
+    ])
+    : (() => {
+      const permittedScopes = pollManagerScopeSubsets(actor.sections);
+      const scopeChunks: string[][][] = [];
+      for (let index = 0; index < permittedScopes.length; index += 30) {
+        scopeChunks.push(permittedScopes.slice(index, index + 30));
+      }
+      return scopeChunks.flatMap((scopeOptions) => [
+        // Exact-scope alternatives make each collection-group query provably readable
+        // under Firestore Rules, even when other polls overlap only part of this leader's sections.
+        fetchAudienceIndexIds(undefined, "leaders", "sections", false, scopeOptions),
+        fetchAudienceIndexIds(undefined, "parents", "sections", false, scopeOptions)
+      ]);
+    })();
+  const ids = await Promise.all([...publishedLeaderQueries, ...managerQueries]);
   const polls = await loadPollRecords(ids.flat());
   return polls.filter((poll) => canManagePollForLeader(poll, actor) || (poll.audienceType === "leaders" && poll.status === "published"));
 }
@@ -146,6 +162,7 @@ export async function createPollDraft(actor: PollLeaderActor, input: CreatePollI
     section,
     audienceType: input.audienceType,
     scopeType: input.scopeType,
+    scopeSections,
     status: "draft"
   }));
   await batch.commit();
