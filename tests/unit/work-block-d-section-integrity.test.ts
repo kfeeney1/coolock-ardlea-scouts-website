@@ -21,12 +21,18 @@ test("parent current programme scope is refreshed from members before section pr
   assert.match(helper, /"Group", "All Sections"/);
 });
 
-test("meeting copy exposes authorised destination section and resets operational history", () => {
+test("SW-386 meeting copy uses a dedicated route, authorised sections and resets operational history", () => {
   const weekly = readFileSync("src/pages/WeeklySectionTracker.tsx", "utf8");
-  const copyDialog = readFileSync("src/components/admin/WeeklyMeetingCopyDialog.tsx", "utf8");
-  assert.match(copyDialog, /label="Destination section"/);
-  assert.match(weekly, /availableSections\.includes\(copySection\)/);
-  assert.ok(weekly.includes("entries:roster,injuries:[]"));
-  assert.ok(!weekly.includes("entries:roster.length?roster:fallback"));
-  assert.match(weekly, /notes:""/);
+  const copyPage = readFileSync("src/pages/WeeklyMeetingCopyPage.tsx", "utf8");
+  const routes = readFileSync("src/App.tsx", "utf8");
+  assert.match(routes, /path="\/leader\/weekly\/copy\/:sourceMeetingId"/);
+  assert.match(weekly, /\/leader\/weekly\/copy\/\$\{encodeURIComponent\(current\.id\)\}/);
+  assert.match(copyPage, /label="Destination section"/);
+  assert.match(copyPage, /availableSections\.includes\(copySection\)/);
+  assert.match(copyPage, /entries: attendancePreview/);
+  assert.match(copyPage, /injuries: \[\]/);
+  assert.match(copyPage, /notes: ""/);
+  assert.match(copyPage, /activities: source\.activities\.map/);
+  assert.match(copyPage, /badgeworkPlan: source\.badgeworkPlan\.map/);
+  assert.doesNotMatch(weekly, /WeeklyMeetingCopyDialog/);
 });

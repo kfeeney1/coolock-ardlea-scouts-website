@@ -94,25 +94,28 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await expect(page.getByTestId("weekly-history-result-count")).toBeVisible();
   const destinationMeetings = page.getByText(/08-04-2099 · Scouts/);
   const existingDestinationCount = await destinationMeetings.count();
+  const sourceId=(await sourceMeeting.getAttribute("data-testid"))!.replace("meeting-history-","");
   await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
-  let copyDialog = page.getByRole("dialog", { name: /Copy .*Scouts/ });
-  await expect(copyDialog).toBeVisible();
-  await copyDialog.getByRole("button", { name: "Cancel copy", exact: true }).click();
+  await expect(page).toHaveURL(`/leader/weekly/copy/${sourceId}`);
+  const copyPage = page.getByTestId("weekly-meeting-copy-page");
+  await expect(copyPage).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /Copy .*Scouts/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Discard this new meeting copy?" })).toHaveCount(0);
-  await expect(copyDialog).toBeHidden();
+  await expect(page).toHaveURL(/\/leader\/weekly$/);
 
-  await sourceMeeting.getByRole("button", { name: "Copy Meeting", exact: true }).click();
-  copyDialog = page.getByRole("dialog", { name: /Copy .*Scouts/ });
-  const copyDate = copyDialog.getByLabel("Choose date");
+  const sourceAgain = page.getByTestId(`meeting-history-${sourceId}`);
+  await sourceAgain.getByRole("button", { name: "Copy Meeting", exact: true }).click();
+  await expect(page).toHaveURL(`/leader/weekly/copy/${sourceId}`);
+  const copyDate = page.getByLabel("Choose date");
   await copyDate.fill("2099-04-08");
-  await copyDialog.getByRole("button", { name: "Cancel copy", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   const discard = page.getByRole("dialog", { name: "Discard this new meeting copy?" });
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
   await expect(copyDate).toHaveValue("2099-04-08");
-  await copyDialog.getByRole("button", { name: "Cancel copy", exact: true }).click();
+  await page.getByRole("button", { name: "Back to Source Meeting", exact: true }).click();
   await page.getByRole("dialog", { name: "Discard this new meeting copy?" }).getByRole("button", { name: "Discard and cancel" }).click();
-  await expect(copyDialog).toBeHidden();
   await expect(page).toHaveURL(/\/leader\/weekly$/);
   await expect(page.getByText("Meeting copied.")).toHaveCount(0);
   // Other tests may already have created this date; cancellation must not add another.

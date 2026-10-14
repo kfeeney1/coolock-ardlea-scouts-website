@@ -75,6 +75,7 @@
     "/leader/equipment/:equipmentId": "leader",
     "/leader/equipment/:equipmentId/move-store": "leader",
     "/leader/weekly/create": "leader",
+    "/leader/weekly/copy/:sourceMeetingId": "leader",
     "/leader/events/:eventId/edit": "leader",
     "/leader/system": "super-admin",
     "/leader/medical/:consentId": "leader",
