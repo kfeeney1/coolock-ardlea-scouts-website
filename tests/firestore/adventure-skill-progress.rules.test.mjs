@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
@@ -19,7 +20,7 @@ before(async () => {
 beforeEach(async () => { await testEnv.clearFirestore(); });
 after(async () => { await testEnv.cleanup(); });
 
-const requirement = (uid, memberId = "member-1") => ({
+const requirement = (uid, memberId = "member-1", source = { type: "manual", id: "" }) => ({
   memberId,
   requirementId: "camping-stage-1-requirement-06",
   skillId: "camping",
@@ -27,8 +28,8 @@ const requirement = (uid, memberId = "member-1") => ({
   sharedCompetencyKey: "buddy-system",
   completedAt: serverTimestamp(),
   completedBy: uid,
-  sourceType: "manual",
-  sourceId: "",
+  sourceType: source.type,
+  sourceId: source.id,
 });
 
 const award = (uid, memberId = "member-1", awardId = "camping-stage-1", skillId = "camping", stage = 1) => ({
@@ -49,6 +50,69 @@ test("section leaders can manage progress for members in their current section o
   const db = testEnv.authenticatedContext("leader-beavers").firestore();
   await assertSucceeds(setDoc(doc(db, "memberAdventureSkillProgress/member-1/requirements/camping-stage-1-requirement-06"), requirement("leader-beavers")));
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-2/requirements/camping-stage-1-requirement-06"), requirement("leader-beavers", "member-2")));
+});
+
+test("Programme Scouter can save weekly-meeting badgework for the assigned appointment section and reload it", async () => {
+  const meetingSource = { type: "weeklyMeeting", id: "meeting-cubs-open" };
+  await seed([
+    ["adminUsers/programme-cubs", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/programme-cubs", {
+      active: true,
+      scoutingRole: "Programme Scouter",
+      organisationSection: "Group",
+      appointments: [
+        ...Array.from({ length: 3 }, (_, index) => ({ appointment: "Programme Scouter", scope: `Other ${index}`, active: false })),
+        { appointment: "Programme Scouter", scope: "Cubs", active: true },
+      ],
+    }],
+    ["members/member-1", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["members/member-2", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+  ]);
+
+  const db = testEnv.authenticatedContext("programme-cubs").firestore();
+  for (const memberId of ["member-1", "member-2"]) {
+    await assertSucceeds(setDoc(
+      doc(db, `memberAdventureSkillProgress/${memberId}/requirements/camping-stage-1-requirement-06`),
+      requirement("programme-cubs", memberId, meetingSource),
+    ));
+  }
+  for (const memberId of ["member-1", "member-2"]) {
+    const saved = await assertSucceeds(getDocs(collection(db, `memberAdventureSkillProgress/${memberId}/requirements`)));
+    assert.equal(saved.size, 1);
+    assert.equal(saved.docs[0].data().sourceId, "meeting-cubs-open");
+  }
+});
+
+test("Programme Scouter cannot write badgework for an unassigned section or a closed meeting", async () => {
+  await seed([
+    ["adminUsers/programme-cubs", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/programme-cubs", {
+      active: true,
+      scoutingRole: "Programme Scouter",
+      organisationSection: "Group",
+      appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }],
+    }],
+    ["members/member-cubs", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["members/member-scouts", { section: "Scouts", sections: ["Scouts"], status: "active" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+    ["weeklyMeetings/meeting-cubs-closed", { section: "Cubs", status: "closed" }],
+    ["weeklyMeetings/meeting-scouts-open", { section: "Scouts", status: "open" }],
+  ]);
+
+  const db = testEnv.authenticatedContext("programme-cubs").firestore();
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-scouts/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "member-scouts", { type: "weeklyMeeting", id: "meeting-scouts-open" }),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-cubs/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "member-cubs", { type: "weeklyMeeting", id: "meeting-cubs-closed" }),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-cubs/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "member-cubs", { type: "weeklyMeeting", id: "meeting-scouts-open" }),
+  ));
 });
 
 test("progress follows the member when their section changes", async () => {
