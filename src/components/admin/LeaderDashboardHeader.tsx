@@ -8,6 +8,7 @@ import { activeScoutingAppointments, isGroupLeadershipAppointment } from "../../
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
+import { loadWeeklySectionTracker } from "../../navigation/leaderRoutePreloads";
 
 function matchesNavPath(locationPath: string, itemPath: string, exactPath = false) {
  const current = new URL(locationPath, window.location.origin);
@@ -28,6 +29,10 @@ export default function LeaderDashboardHeader() {
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
  const signOutInFlight = useRef(false);
  const { user, adminProfile, logout, setUiTheme } = useAdminAuth();
+ useEffect(() => {
+  if (!user) return;
+  void loadWeeklySectionTracker().catch(() => undefined);
+ }, [user?.uid]);
  const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath)))?.label ?? null;
  const [menuOpen, setMenuOpen] = useState(false);
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);

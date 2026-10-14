@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Paper, Stack, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import DateRangeFields from "../DateRangeFields";
 import { useMemo, useState } from "react";
@@ -24,6 +24,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
   const [section, setSection] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [reopenTarget, setReopenTarget] = useState<WeeklyMeetingRecord | null>(null);
   const filteredRecords = useMemo(
     () => filterWeeklyMeetingHistory(records, { search, section, fromDate, toDate }),
     [records, search, section, fromDate, toDate]
@@ -79,12 +80,22 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
                   "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }
               }}>
                 <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly?meeting=${encodeURIComponent(record.id)}`}>{canEditPast && !readOnly ? "View / Edit" : "View"}</Button>
-                {!readOnly && <Button fullWidth variant="outlined" onClick={() => onReopen(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly/copy/${encodeURIComponent(record.id)}`}>Copy Meeting</Button>}
+                {!readOnly && <Button fullWidth variant="outlined" onClick={() => setReopenTarget(record)}>Reopen Meeting</Button>}{!readOnly && <Button fullWidth variant="outlined" component={Link} to={`/leader/weekly/copy/${encodeURIComponent(record.id)}`}>Copy Meeting</Button>}
               </Box>
             </Stack>
           </Paper>;
         })}
       </Stack>}
     </>}
+    <Dialog open={Boolean(reopenTarget)} onClose={() => setReopenTarget(null)} aria-labelledby="weekly-reopen-title">
+      <DialogTitle id="weekly-reopen-title">Reopen meeting?</DialogTitle>
+      <DialogContent>
+        <DialogContentText>{reopenTarget ? `${displayDate(reopenTarget.meetingDate)} · ${reopenTarget.section} will return to Open Meeting. Its saved attendance, programme, badgework, incidents and notes will be retained.` : ""}</DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setReopenTarget(null)}>Cancel</Button>
+        <Button variant="contained" onClick={() => { const record = reopenTarget; setReopenTarget(null); if (record) onReopen(record); }}>Reopen Meeting</Button>
+      </DialogActions>
+    </Dialog>
   </Paper>;
 }

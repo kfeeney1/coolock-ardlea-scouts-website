@@ -16,6 +16,7 @@ import RecordBackNavigationBridge from "./components/RecordBackNavigationBridge"
 import RouteScrollManager from "./components/RouteScrollManager";
 import TransientOverlayBackDismissBridge from "./components/TransientOverlayBackDismissBridge";
 import ThemeExperienceProvider from "./theme/ThemeExperienceProvider";
+import { loadWeeklySectionTracker } from "./navigation/leaderRoutePreloads";
 
 const Home = lazy(() => import("./pages/Home"));
 const About = lazy(() => import("./pages/About"));
@@ -42,7 +43,7 @@ const QuartermasterReports = lazy(() => import("./pages/QuartermasterReports"));
 const AttendanceInsights = lazy(() => import("./pages/AttendanceInsights"));
 const LeaderCommunications = lazy(() => import("./pages/LeaderCommunications"));
 const MeetingRecords = lazy(() => import("./pages/MeetingRecords"));
-const WeeklySectionTracker = lazy(() => import("./pages/WeeklySectionTracker"));
+const WeeklySectionTracker = lazy(loadWeeklySectionTracker);
 const CreateWeeklyMeetingPage = lazy(() => import("./pages/CreateWeeklyMeetingPage"));
 const CopyWeeklyMeetingPage = lazy(() => import("./pages/CopyWeeklyMeetingPage"));
 const CreateEventPage = lazy(() => import("./pages/CreateEventPage"));
