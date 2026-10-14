@@ -56,7 +56,7 @@ test("cancelling member-to-leader transition leaves member status unchanged", as
   const member = page.getByTestId("member-card-TEST_member_beaver_01");
   await expect(member).toBeVisible();
   await expect(member).toContainText("Active");
-  await member.getByRole("button", { name: "Manage" }).click();
+  await member.getByRole("link", { name: "Manage", exact: true }).click();
   await page.getByRole("button", { name: "Transition to Leader" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Transition member to Leader" });
@@ -121,7 +121,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
     await page.reload();
     await expect(member).toBeVisible();
   }
-  await member.getByRole("button", { name: "Manage" }).click();
+  await member.getByRole("link", { name: "Manage", exact: true }).click();
   await page.getByRole("button", { name: "Transition to Leader" }).click();
   const transitionDialog = page.getByRole("dialog", { name: "Transition member to Leader" });
   await expect(transitionDialog).toBeVisible();

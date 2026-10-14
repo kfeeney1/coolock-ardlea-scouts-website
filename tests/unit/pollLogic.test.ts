@@ -9,6 +9,7 @@ import {
   normalizePollOptions,
   normalizePollQuestion,
   pollDeadlinePassed,
+  pollManagerScopeSubsets,
   pollDraftFailureMessage,
   pollResults,
   resolvePollSections,
@@ -42,6 +43,13 @@ test("section targeting deduplicates multi-section choices and denies out-of-sco
   assert.deepEqual(resolvePollSections("sections", ["Cubs", "Beavers", "Cubs"], sectionLeader.sections), ["Beavers", "Cubs"]);
   assert.deepEqual(resolvePollSections("group", [], sectionLeader.sections), [...GROUP_POLL_SECTIONS]);
   assert.throws(() => resolvePollSections("sections", ["Scouts"], sectionLeader.sections), /authorised scope/);
+});
+
+test("section poll management scopes are enumerated once in canonical order", () => {
+  assert.deepEqual(pollManagerScopeSubsets(["Scouts", "Beavers", "Scouts"]), [
+    ["Beavers"], ["Scouts"], ["Beavers", "Scouts"]
+  ]);
+  assert.deepEqual(pollManagerScopeSubsets(["Other"]), []);
 });
 
 test("section leaders create and manage only polls wholly inside their scope; group managers can manage group polls", () => {
