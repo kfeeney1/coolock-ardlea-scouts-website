@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 4072)
-Total output lines: 243
-
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { getApps, initializeApp } from "firebase-admin/app";
@@ -130,7 +127,11 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await expect(transitionDialog).toBeVisible();
   const endMembershipCheckbox = transitionDialog.getByRole("checkbox", { name: "End this member's current youth membership after leader approval" });
   await endMembershipCheckbox.setChecked(endMembership);
-  await transitionDialog.getByRole("button…72 tokens truncated…me: "WhatsApp registration link" });
+  await transitionDialog.getByRole("button", { name: "Prepare registration link" }).click();
+  const link = await transitionDialog.getByLabel("Leader registration link").inputValue();
+  fixture.invitationId = new URL(link).searchParams.get("transition") || undefined;
+
+  const whatsapp = transitionDialog.getByRole("link", { name: "WhatsApp registration link" });
   await expect(whatsapp).toBeVisible();
   const whatsappUrl = new URL(await whatsapp.getAttribute("href")!);
   expect(whatsappUrl.hostname).toBe("wa.me");
