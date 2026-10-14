@@ -109,7 +109,7 @@ test("member status change requires review and cancel does not persist it", asyn
     await expect(card).toBeVisible();
     await expect(card).toContainText("Active");
     const memberName = (await card.getByRole("heading").textContent())?.trim() || "";
-    await card.getByRole("button", { name: "Manage" }).click();
+    await card.getByRole("link", { name: "Manage", exact: true }).click();
 
     await expect(page).toHaveURL(/\/leader\/members\/TEST_member_beaver_01$/);
     await expect(page.getByRole("heading", { name: memberName, level: 1 })).toBeVisible();

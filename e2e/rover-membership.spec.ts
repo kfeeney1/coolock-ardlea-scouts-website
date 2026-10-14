@@ -142,7 +142,7 @@ test("authorized Member Management can end Rover membership from the member reco
     accountLinked: element.getAttribute("data-member-account-linked"),
     candidateMatch: element.getAttribute("data-member-rover-candidate-match")
   }));
-  await roverMemberCard.getByRole("button", { name: "Manage", exact: true }).click();
+  await roverMemberCard.getByRole("link", { name: "Manage", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/members\/[^/?]+(?:\?.*)?$/);
 
   const memberDetailsHeading = page.getByRole("heading", { name: "Member Details", exact: true });
@@ -199,7 +199,7 @@ test("authorized Member Management can end Rover membership from the member reco
 
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Rovers", exact: true }).click();
-  await page.getByTestId(existingMemberId!).getByRole("button", { name: "Manage", exact: true }).click();
+  await page.getByTestId(existingMemberId!).getByRole("link", { name: "Manage", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Member Details", exact: true })).toBeVisible();
   const sectionChecklist = page.getByRole("group", { name: "Member sections" });
   const primarySection = page.getByRole("combobox", { name: "Primary section" });
