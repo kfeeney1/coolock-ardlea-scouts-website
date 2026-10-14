@@ -11,67 +11,26 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("SW-363 Copy Meeting opens an accessible dialog in view and restores focus and scroll", async ({ page }, testInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Copy dialog visibility runs at representative desktop and mobile sizes.");
+test("SW-386 Copy Meeting uses a dedicated full page on desktop and mobile", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run on desktop and mobile Chromium.");
   test.skip(!password, "Configure canonical E2E credentials.");
-  const viewport = testInfo.project.name === "mobile-chromium" ? { width: 320, height: 844 } : { width: 1280, height: 800 };
-  await page.setViewportSize(viewport);
+  await page.setViewportSize(testInfo.project.name === "mobile-chromium" ? { width: 320, height: 844 } : { width: 1280, height: 800 });
   await login(page);
   await page.goto("/leader/weekly");
-
   const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
   await expect(source).toBeVisible();
-  // SW-382: use the existing copy journey to cover the real tile without
-  // duplicating lifecycle, attendance or navigation scenarios.
-  const actions = source.getByTestId("weekly-history-actions");
-  const viewLink = actions.getByRole("link", { name: "View / Edit", exact: true });
-  const reopenButton = actions.getByRole("button", { name: "Reopen Meeting", exact: true });
-  await expect(viewLink).toHaveAttribute("href", `/leader/weekly?meeting=${encodeURIComponent((await source.getAttribute("data-testid"))!.replace("meeting-history-", ""))}`);
-  await actions.scrollIntoViewIfNeeded();
-  const tileBounds = (await source.boundingBox())!;
-  const controls = [viewLink, reopenButton, actions.getByRole("button", { name: "Copy Meeting", exact: true })];
-  const controlBounds = await Promise.all(controls.map(control => control.boundingBox()));
-  for (const bounds of controlBounds) {
-    expect(bounds).not.toBeNull();
-    expect(bounds!.height).toBeGreaterThanOrEqual(44);
-    expect(Math.abs(bounds!.y - controlBounds[0]!.y)).toBeLessThanOrEqual(1);
-    expect(bounds!.x).toBeGreaterThanOrEqual(tileBounds.x);
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(tileBounds.x + tileBounds.width + 1);
-    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(tileBounds.y + tileBounds.height + 1);
-  }
-  expect(controlBounds[0]!.x + controlBounds[0]!.width).toBeLessThan(controlBounds[1]!.x);
-  expect(controlBounds[1]!.x + controlBounds[1]!.width).toBeLessThan(controlBounds[2]!.x);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
-  await viewLink.focus();
-  await page.keyboard.press("Tab");
-  await expect(reopenButton).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(controls[2]).toBeFocused();
-
-  const copyButton = source.getByRole("button", { name: "Copy Meeting", exact: true });
-  await copyButton.scrollIntoViewIfNeeded();
-  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-  expect(pageHeight).toBeGreaterThan(viewport.height + 200);
-  const scrollBefore = await page.evaluate(() => window.scrollY);
-
-  await copyButton.click();
-  const dialog = page.getByRole("dialog", { name: /Copy .*Scouts/ });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute("aria-labelledby", "copy-weekly-meeting-title");
-  await expect(dialog.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
-  const destination = dialog.getByRole("combobox", { name: "Destination section" });
-  await expect(destination).toBeFocused();
-
-  const bounds = await dialog.boundingBox();
-  expect(bounds).not.toBeNull();
-  expect(bounds!.x).toBeGreaterThanOrEqual(0);
-  expect(bounds!.y).toBeGreaterThanOrEqual(0);
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height + 1);
-
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  await expect(copyButton).toBeFocused();
-  const scrollAfter = await page.evaluate(() => window.scrollY);
-  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(3);
+  const id = (await source.getAttribute("data-testid"))!.replace("meeting-history-", "");
+  const copyLink = source.getByRole("link", { name: "Copy Meeting", exact: true });
+  await expect(copyLink).toHaveAttribute("href", `/leader/weekly/copy/${encodeURIComponent(id)}`);
+  await copyLink.click();
+  await expect(page).toHaveURL(new RegExp(`/leader/weekly/copy/${id}$`));
+  await expect(page.getByRole("heading", { name: "Copy Weekly Meeting" })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
+  await expect(page.getByRole("combobox", { name: "Destination section" })).toBeVisible();
+  await expect(page.getByLabel("Choose date")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  await page.getByRole("button", { name: "Cancel copy" }).click();
+  await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${id}$`));
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

@@ -62,8 +62,8 @@ export default function EquipmentItemFormDialog({
   onClose,
   onSave
 }: EquipmentItemFormDialogProps) {
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-    <DialogTitle>Add equipment</DialogTitle>
+  return <Dialog open={open} onClose={onClose} aria-labelledby="equipment-item-form-title" fullWidth maxWidth="sm">
+    <DialogTitle id="equipment-item-form-title">Add equipment</DialogTitle>
     <DialogContent dividers><Stack spacing={2} sx={{ pt: 0.5 }}>
       <TextField label="Equipment name" value={form.name} onChange={(event) => onFormChange({ ...form, name: event.target.value })} required />
       <FormControl><InputLabel id="equipment-category-label">Category</InputLabel><Select labelId="equipment-category-label" label="Category" value={form.category} onChange={(event) => onFormChange({ ...form, category: event.target.value })}><MenuItem value=""><em>Select category</em></MenuItem>{categoryNames.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}<MenuItem value={OTHER}>Other…</MenuItem></Select></FormControl>

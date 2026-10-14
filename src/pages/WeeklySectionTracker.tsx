@@ -10,14 +10,13 @@ import WeeklyMeetingAttendancePanel from "../components/admin/WeeklyMeetingAtten
 import WeeklyProgrammePlanner from "../components/admin/WeeklyProgrammePlanner";
 import WeeklyMeetingDetailsPanels from "../components/admin/WeeklyMeetingDetailsPanels";
 import WeeklyMeetingEditorControls from "../components/admin/WeeklyMeetingEditorControls";
-import WeeklyMeetingCopyDialog from "../components/admin/WeeklyMeetingCopyDialog";
 import WeeklyMeetingSaveActions from "../components/admin/WeeklyMeetingSaveActions";
 import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useWeeklyLeaderAttendance } from "../hooks/useWeeklyLeaderAttendance";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import type { AttendanceInsightMember } from "../services/attendanceInsightsLogic";
-import { createWeeklyMeeting, loadWeeklyAccess, loadWeeklyMeetings, reopenWeeklyMeeting, updatePastWeeklyMeeting, updateWeeklyMeeting } from "../services/weeklyTracker";
+import { loadWeeklyAccess, loadWeeklyMeetings, reopenWeeklyMeeting, updatePastWeeklyMeeting, updateWeeklyMeeting } from "../services/weeklyTracker";
 import type { InjurySeverity, WeeklyAccess, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
 import { displayWeeklyDate, initialWeeklyStep, reconcileOpenWeeklyRoster, sortOpenWeeklyMeetings, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
@@ -28,12 +27,10 @@ import { loadEquipmentItems } from "../services/equipment";
 import type { EquipmentItem } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
 import type { EquipmentLoan } from "../services/equipmentLoans";
-import { copyEquipmentRequirement } from "../services/equipmentProgramme";
 import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 import { trySecondaryRefresh } from "../services/secondaryRefresh";
 import { loadLeaderAttendanceOptions } from "../services/leaderAttendance";
 
-const today = new Date().toISOString().slice(0, 10);
 type Step = "attendance" | "programme" | "badgework" | "injuries" | "notes";
 type NavigationAction = "meetings" | "copy" | "create";
 
@@ -55,10 +52,6 @@ export default function WeeklySectionTracker() {
   const [selected,setSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [savedSelected,setSavedSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [step,setStep]=useState<Step>("attendance");
-  const [copyDate,setCopyDate]=useState(today);
-  const [copySection,setCopySection]=useState("");
-  const [copySource,setCopySource]=useState<WeeklyMeetingRecord|null>(null);
-  const [confirmDiscard,setConfirmCopyDiscard]=useState(false);
   const [injuryMemberId,setInjuryMemberId]=useState("");
   const [injuryConcern,setInjuryConcern]=useState("");
   const [injurySeverity,setInjurySeverity]=useState<InjurySeverity>("minor");
@@ -68,8 +61,6 @@ export default function WeeklySectionTracker() {
   const [saving,setSaving]=useState(false);
   const saveInFlight=useRef<Promise<boolean>|null>(null);
   const refreshSequence=useRef(0);
-  // A cancelled copy must invalidate any pending creation intent.
-  const copyIntentRef=useRef(0);
   const [error,setError]=useState("");
   const [success,setSuccess]=useState("");
   const editorTopRef=useRef<HTMLDivElement|null>(null);
@@ -86,8 +77,6 @@ export default function WeeklySectionTracker() {
   const {url:whatsappUrl,loading:shareLoading,error:shareError}=useWeeklyMeetingShare(selected);
   const presentMemberIds=selected?.entries.filter(entry=>entry.attendance==="present").map(entry=>entry.memberId)??[];
   const hasUnsavedChanges=weeklyMeetingHasChanges(selected,savedSelected)||leaderAttendanceChanged;
-  const copyChanged=Boolean(copySource&&(copyDate!==today||copySection!==copySource.section));
-  const copyAttendancePreview=useMemo(()=>reconcileOpenWeeklyRoster([],members,copySection),[members,copySection]);
   const adventureBadgeworkHref=selected?badgeworkSourceHref({sourceType:"weeklyMeeting",sourceId:selected.id,memberIds:presentMemberIds,returnTo:`/leader/weekly?meeting=${encodeURIComponent(selected.id)}`}):"/leader/badgework";
 
   const refresh=async(known?:WeeklyAccess,reportFailure=false)=>{
@@ -115,12 +104,13 @@ export default function WeeklySectionTracker() {
   useEffect(()=>{void refresh();},[availableSections,isAdmin,meetingId]);
   useEffect(()=>{if(!meetingId){setSelected(null);setSavedSelected(null);}},[meetingId]);
   useEffect(()=>{if(!selected||selected.status!=="open")return;const reconciled=reconcileOpenWeeklyRoster(selected.entries,members,selected.section);if(JSON.stringify(reconciled)!==JSON.stringify(selected.entries))setSelected({...selected,entries:reconciled});},[members,selected?.id,selected?.status,selected?.section]);
-  useEffect(()=>{if(!copyChanged)return;const warnBeforeUnload=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warnBeforeUnload);return()=>window.removeEventListener("beforeunload",warnBeforeUnload);},[copyChanged]);
 
   const auditWeeklyMeeting=async(record:WeeklyMeetingRecord,action:string,description:string)=>recordAuditEvent({category:"system",action,targetId:record.id,targetLabel:`${record.section} Weekly Meeting · ${record.meetingDate}`,description,section:record.section});
   const patch=(p:Partial<WeeklyMeetingRecord>)=>setSelected(c=>c?{...c,...p}:c);
   const persist=async(next:WeeklyMeetingRecord,message:string,action="weekly-meeting-update"):Promise<boolean>=>{
-    if(saveInFlight.current)return saveInFlight.current;
+    // A second explicit save must not silently reuse an earlier save of a different snapshot.
+    // Wait for the in-flight operation, then persist the latest requested meeting state.
+    if(saveInFlight.current)await saveInFlight.current;
     const editingPast=selected?.id===next.id&&selected.status==="closed";
     if(editingPast&&!editMode.canEditOperationalFields)return false;
     if(!editingPast&&readOnly)return false;
@@ -148,23 +138,7 @@ export default function WeeklySectionTracker() {
   const saveForNavigation=async()=>!!selected&&(!hasUnsavedChanges||await persist(selected,"Meeting saved."));
   useSaveOnNavigation(hasUnsavedChanges,saveForNavigation,async()=>{if(!selected||readOnly||selected.status==="closed")return false;try{const{id,...input}=selected;await updateWeeklyMeeting(id,input);await saveActivityLeaderAttendance(id);setSavedSelected(selected);return true;}catch{return false;}});
 
-  const cancelCopy=()=>{copyIntentRef.current++;setConfirmCopyDiscard(false);setCopySource(null);};
-  const copyMeeting=async()=>{
-    if(!copySource||!copyDate||saving||confirmDiscard)return;
-    const intent=copyIntentRef.current;
-    if(!availableSections.includes(copySection)) { setError("You are not authorised to copy a meeting into that section."); return; }
-    const roster=copyAttendancePreview;
-    setSaving(true);
-    try{
-      if(intent!==copyIntentRef.current)return;
-      const input={section:copySection,meetingDate:copyDate,status:"open" as const,location:copySource.location,theme:copySource.theme,activities:copySource.activities.map(a=>({...a,id:crypto.randomUUID()})),badgeworkPlan:copySource.badgeworkPlan.map(b=>({...b,id:crypto.randomUUID()})),programmeNotes:copySource.programmeNotes,notes:"",entries:roster,injuries:[]};
-      const id=await createWeeklyMeeting(input);
-      await copyEquipmentRequirement("weeklyMeeting", copySource.id, "weeklyMeeting", id, `${copySection} Weekly Meeting · ${copyDate}`, copySection, copyDate);
-      const copied={id,...input}; await auditWeeklyMeeting(copied,"weekly-meeting-copy",`Copied weekly meeting from ${copySource.meetingDate}.`); setSelected(copied); setSavedSelected(copied); setCopySource(null); setStep(initialWeeklyStep(copyDate)); const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings"); setSuccess(`Meeting copied. Planner rows and planned equipment were retained; attendance, completed badgework, injuries, checkout transactions and post-meeting notes were reset.${refreshed?"":" The copy was saved, but the screen could not refresh. Reload the page to see it."}`);
-    }catch(e){setError(applicationErrorMessage(e, "Unable to copy this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}
-  };
-
-  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;if(action==="copy"&&current){setCopySource(current);setCopyDate(today);setCopySection(current.section);return;}setSelected(null);setSavedSelected(null);if(action==="meetings")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
+  const applyNavigationAction=(action:NavigationAction)=>{const current=selected;if(action==="copy"&&current){navigate(`/leader/weekly/copy/${encodeURIComponent(current.id)}`);return;}setSelected(null);setSavedSelected(null);if(action==="meetings")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
   const requestNavigationAction=async(action:NavigationAction)=>{if(hasUnsavedChanges&&selected&&!(await persist(selected,"Meeting saved.")))return;applyNavigationAction(action);};
 
   const openRecords=sortOpenWeeklyMeetings(records.filter(r=>r.status==="open")),history=records.filter(r=>r.status==="closed");
@@ -174,7 +148,7 @@ export default function WeeklySectionTracker() {
   {loading?<Box sx={{minHeight:300,display:"grid",placeItems:"center"}}><CircularProgress/></Box>:!selected?<Stack spacing={2}>
     {!readOnly&&<Button component={Link} to="/leader/weekly/create" variant="contained" color="success" size="large" sx={{alignSelf:"flex-start"}}>Create Meeting</Button>}
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Open Meeting</Typography>{!openRecords.length?<Alert severity="info">No meetings are currently open.</Alert>:<Stack spacing={1}>{openRecords.map(r=><Button key={r.id} variant="contained" onClick={()=>{setSelected(r);setSavedSelected(r);setStep(initialWeeklyStep(r.meetingDate));navigate(`?meeting=${r.id}`);}} sx={{justifyContent:"space-between",gap:1,textAlign:"left",minWidth:0}}><span>{displayWeeklyDate(r.meetingDate)} · {r.section}</span><Chip size="small" label="Open"/></Button>)}</Stack>}</Paper>
-    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?"Meeting reopened.":"Meeting reopened, but the screen could not refresh. Reload the page to see it.");const reopened={...record,status:"open" as const};setSelected(reopened);setSavedSelected(reopened);setStep(initialWeeklyStep(reopened.meetingDate));navigate(`/leader/weekly?meeting=${encodeURIComponent(record.id)}`);}catch(e){setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}})();}} onCopy={(record)=>{setCopySource(record);setCopyDate(today);setCopySection(record.section);}}/>
+    <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} onReopen={(record)=>{void (async()=>{setSaving(true);setError("");try{await reopenWeeklyMeeting(record.id);await auditWeeklyMeeting(record,"weekly-meeting-reopen","Reopened meeting; previous closure and meeting data retained.");const refreshed=await trySecondaryRefresh(()=>refresh(access,true),"weekly meetings");setSuccess(refreshed?"Meeting reopened.":"Meeting reopened, but the screen could not refresh. Reload the page to see it.");const reopened={...record,status:"open" as const};setSelected(reopened);setSavedSelected(reopened);setStep(initialWeeklyStep(reopened.meetingDate));navigate(`/leader/weekly?meeting=${encodeURIComponent(record.id)}`);}catch(e){setError(applicationErrorMessage(e, "Unable to reopen this meeting.", "WeeklySectionTracker"));}finally{setSaving(false);}})();}} />
 
 
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
@@ -185,6 +159,5 @@ export default function WeeklySectionTracker() {
     <ProgrammeEquipmentDialog open={equipmentOpen} sourceType="weeklyMeeting" sourceId={selected.id} sourceLabel={`${selected.section} Weekly Meeting · ${selected.meetingDate}`} section={selected.section} date={selected.meetingDate} items={equipmentItems} loans={equipmentLoans} readOnly={planningReadOnly} onClose={()=>setEquipmentOpen(false)} onChanged={async()=>{setEquipmentLoans(await loadEquipmentLoans());}} />
     {!operationalReadOnly&&<WeeklyMeetingSaveActions selected={selected} saving={saving} save={()=>void save()} closeMeeting={()=>void closeMeeting()}/>}
   </Stack>}
-  {copySource&&<WeeklyMeetingCopyDialog source={copySource} copyDate={copyDate} copySection={copySection} today={today} availableSections={availableSections} attendancePreview={copyAttendancePreview} copyChanged={copyChanged} saving={saving} confirmDiscard={confirmDiscard} setCopyDate={setCopyDate} setCopySection={setCopySection} setConfirmDiscard={setConfirmCopyDiscard} cancelCopy={cancelCopy} copyMeeting={()=>void copyMeeting()}/>} 
   </Container></Box>;
 }
