@@ -1,6 +1,7 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
+import { loginAsLeader, type LeaderCredentials } from "./authentication-helpers";
 
-type Credentials = { email: string; password: string };
+export type Credentials = LeaderCredentials;
 
 export function credentials(prefix: string): Credentials {
   const email = process.env[`${prefix}_EMAIL`];
@@ -9,13 +10,7 @@ export function credentials(prefix: string): Credentials {
   return { email, password };
 }
 
-export async function login(page: Page, account: Credentials) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(account.email);
-  await page.getByLabel("Password").fill(account.password);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
+export const login = loginAsLeader;
 
 export async function openMenu(page: Page, testInfo: TestInfo) {
   const header = page.getByTestId("leader-dashboard-header");

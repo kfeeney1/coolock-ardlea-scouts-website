@@ -1,22 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
-
-async function login(page: Page) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(adminEmail);
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
 
 test("SW-386 Copy Meeting opens a full page and returns to its source without creating a copy", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Copy Meeting page runs at representative desktop and mobile sizes.");
   test.skip(!password, "Configure canonical E2E credentials.");
   const viewport = testInfo.project.name === "mobile-chromium" ? { width: 320, height: 844 } : { width: 1280, height: 800 };
   await page.setViewportSize(viewport);
-  await login(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/weekly");
 
   const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
@@ -70,7 +63,7 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
 test("SW-386 browser Back returns to the source meeting context", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Verify browser and Android-style Back on desktop and mobile Chromium.");
   test.skip(!password, "Configure canonical E2E credentials.");
-  await login(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/weekly");
   const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
   await expect(source).toBeVisible();

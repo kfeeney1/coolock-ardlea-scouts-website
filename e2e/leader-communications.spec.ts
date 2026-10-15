@@ -1,8 +1,7 @@
 import { expect, test, type TestInfo } from "@playwright/test";
+import { loginAsLeader, type LeaderCredentials } from "./support/authentication-helpers";
 
-type Credentials = { email: string; password: string };
-
-function credentials(): Credentials | null {
+function credentials(): LeaderCredentials | null {
     const email = process.env.E2E_LEADER_EMAIL?.trim();
     const password = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
     return email && password ? { email, password } : null;
@@ -14,14 +13,6 @@ function desktopOnly(testInfo: TestInfo) {
 
 function mobileOnly(testInfo: TestInfo) {
     test.skip(testInfo.project.name !== "mobile-chromium", "Mobile navigation check runs on the Pixel 7 project.");
-}
-
-async function loginLeader(page: import("@playwright/test").Page, account: Credentials) {
-    await page.goto("/leader/login");
-    await page.getByLabel("Email address").fill(account.email);
-    await page.getByLabel("Password").fill(account.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
-    await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
 async function openLeaderMenu(page: import("@playwright/test").Page) {
@@ -64,7 +55,7 @@ test("ordinary leader composes first, then chooses recipients, while WhatsApp st
     desktopOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
-    await loginLeader(page, account!);
+    await loginAsLeader(page, account!);
     await openLeaderMenu(page);
 
     await page.getByRole("link", { name: "Parent Communications" }).click();
@@ -102,7 +93,7 @@ test("leader dashboard navigation uses an expandable desktop menu", async ({ pag
     desktopOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
-    await loginLeader(page, account!);
+    await loginAsLeader(page, account!);
 
     await openLeaderMenu(page);
     await page.getByRole("button", { name: "Hide Leader Menu" }).click();
@@ -113,7 +104,7 @@ test("leader dashboard navigation uses the same expandable menu on Pixel 7", asy
     mobileOnly(testInfo);
     const account = credentials();
     test.skip(!account, "Configure the seeded E2E leader account to run this check.");
-    await loginLeader(page, account!);
+    await loginAsLeader(page, account!);
 
     await openLeaderMenu(page);
     await page.getByRole("link", { name: "Parent Communications" }).click();

@@ -1,21 +1,14 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
-
-async function login(page: Page, email: string) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(email);
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
 
 test("admin sees grouped desktop navigation with administration tools", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Desktop navigation regression runs once on Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
 
-  await login(page, "test.webadmin@example.com");
+  await loginAsLeader(page, { email: "test.webadmin@example.com", password: password! });
   await page.goto("/leader/weekly");
   const menuToggle = page.getByRole("button", { name: /Leader Menu|Menu ·/ });
   await menuToggle.click();
@@ -50,7 +43,7 @@ test("admin sees grouped desktop navigation with administration tools", async ({
 test("Treasurer desktop menu opens each finance workspace with its own page identity", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Treasurer destination regression runs once on desktop Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.group.treasurer@example.com");
+  await loginAsLeader(page, { email: "test.group.treasurer@example.com", password: password! });
 
   for (const destination of [
     { itemId: "leader-nav-treasurer-subs", url: /\/leader\/subs\?view=treasurer$/, pageId: "page-treasurer-subs" },
@@ -71,7 +64,7 @@ test("Treasurer desktop menu opens each finance workspace with its own page iden
 test("Secretary mobile menu contains Meeting Records without Treasurer finance links", async ({ page }, testInfo: TestInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Secretary navigation regression runs once on mobile Chromium.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await login(page, "test.group.secretary@example.com");
+  await loginAsLeader(page, { email: "test.group.secretary@example.com", password: password! });
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
   const mobileNavigation = page.getByTestId("leader-navigation-mobile");
   await expect(mobileNavigation.getByRole("button", { name: "Treasurer" })).toHaveCount(0);
@@ -89,7 +82,7 @@ test("section leader gets compact mobile disclosure without privileged admin des
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile disclosure regression runs once on Pixel 7 Chromium.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page, leaderEmail!);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
 
   const navigation = page.getByRole("navigation", { name: "Leader navigation" });
@@ -138,7 +131,7 @@ test("mobile menu reopens the group containing the current route", async ({ page
   test.skip(testInfo.project.name !== "mobile-chromium", "Route-aware disclosure regression runs once on Pixel 7 Chromium.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page, leaderEmail!);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.goto("/leader/members");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
@@ -162,7 +155,7 @@ test("Leader Menu supports keyboard open and Escape focus restoration", async ({
   test.skip(testInfo.project.name !== "chromium", "Keyboard navigation regression runs once on Chromium.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page, leaderEmail!);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 
