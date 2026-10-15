@@ -21,7 +21,7 @@ async function ensureOpenScoutsMeeting(page: Page) {
 
   await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-  await page.getByLabel("Meeting date", { exact: true }).fill("2099-12-29");
+  await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-12-29");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
 

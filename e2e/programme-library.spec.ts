@@ -21,7 +21,7 @@ async function openOrCreate(page: Page) {
   if (await existing.count()) await existing.first().click();
   else {
     await page.getByRole("link", { name: "Create Meeting" }).click();
-    await page.getByLabel("Meeting date", { exact: true }).fill("2099-05-06");
+    await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-05-06");
     await page.getByRole("button", { name: "Create Meeting" }).click();
   }
   const planner = page.getByRole("heading", { name: "Programme Planner" });

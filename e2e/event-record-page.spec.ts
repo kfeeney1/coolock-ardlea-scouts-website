@@ -67,7 +67,7 @@ test("event editor saves valid edits before app and browser back navigation", as
   await page.goto("/leader/events/create");
   const title = `TEST event autosave ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date", { exact: true }).fill("2099-05-10");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-10");
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
   const eventUrl = page.url();
@@ -131,7 +131,7 @@ test("mobile event editor saves valid edits before navigating away", async ({ pa
   await page.goto("/leader/events/create");
   const title = `TEST mobile event autosave ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date", { exact: true }).fill("2099-05-11");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-11");
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
   const updatedTitle = `${title} updated`;
@@ -181,14 +181,14 @@ test("Clear resets the full-page event form without persisting or leaving it", a
   await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
   await page.getByLabel("Event title").fill("TEST clear-only event");
-  await page.getByLabel("Start date", { exact: true }).fill("2099-04-02");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-04-02");
   await page.getByLabel("Location").fill("Temporary location");
   await page.getByLabel("Description").fill("Temporary description");
   await page.getByRole("button", { name: "Clear", exact: true }).click();
 
   await expect(page).toHaveURL(/\/leader\/events\/create$/);
   await expect(page.getByLabel("Event title")).toHaveValue("");
-  await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: /^Start date/ })).toHaveValue("");
   await expect(page.getByLabel("Location")).toHaveValue("");
   await expect(page.getByLabel("Description")).toHaveValue("");
 });
@@ -198,7 +198,7 @@ test("future start opens the shared end calendar at a valid date and only applie
   await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
 
-  const start = page.getByLabel("Start date", { exact: true });
+  const start = page.getByRole("textbox", { name: /^Start date/ });
   const end = page.getByRole("textbox", { name: "End date", exact: true });
   await expect(start).toHaveAttribute("type", "text");
   await expect(end).toHaveAttribute("type", "text");
@@ -260,7 +260,7 @@ test("standalone date fields use the same confirmable calendar on mobile and des
   await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
 
-  const start = page.getByLabel("Start date", { exact: true });
+  const start = page.getByRole("textbox", { name: /^Start date/ });
   await expect(start).toHaveAttribute("type", "text");
   await start.fill("2096-02-28");
   await expect(start).toHaveValue("28-02-2096");
@@ -307,7 +307,7 @@ test.describe("date-only calendar in Europe/Dublin", () => {
     test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
     await loginAsLeader(page, { email: adminEmail, password: password! });
     await page.goto("/leader/events/create");
-    const start = page.getByLabel("Start date", { exact: true });
+    const start = page.getByRole("textbox", { name: /^Start date/ });
     await start.fill("2026-10-25");
     await expect(start).toHaveValue("25-10-2026");
     await page.getByRole("button", { name: "Choose start date" }).click();
@@ -328,7 +328,7 @@ test("Back and Cancel avoid empty events and save a valid draft before leaving",
   await page.getByRole("link", { name: "Add Event", exact: true }).click();
   const title = `TEST cancelled event ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date", { exact: true }).fill("2099-04-05");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-04-05");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events$/);
   await expect(page.getByText(title, { exact: true })).toBeVisible();
@@ -346,7 +346,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await page.getByRole("option", { name: "Day Trip", exact: true }).click();
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Beavers", exact: true }).click();
-  await page.getByLabel("Start date", { exact: true }).fill("2099-05-10");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-10");
   await page.getByRole("textbox", { name: "End date", exact: true }).fill("10-05-2099");
   await page.getByLabel("Location").fill("TEST full-page location");
   await page.getByRole("combobox", { name: "Status" }).click();
@@ -367,7 +367,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
   await page.goto(`/leader/events/${encodeURIComponent(eventId)}/edit`);
-  await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("10-05-2099");
+  await expect(page.getByRole("textbox", { name: /^Start date/ })).toHaveValue("10-05-2099");
   const savedEnd = page.getByRole("textbox", { name: "End date", exact: true });
   await expect(savedEnd).toHaveValue("10-05-2099");
   await page.getByRole("button", { name: "Choose end date" }).click();
@@ -375,7 +375,7 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await endCalendar.getByRole("button", { name: "Select 11-05-2099" }).click();
   await endCalendar.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(savedEnd).toHaveValue("10-05-2099");
-  await page.getByLabel("Start date", { exact: true }).fill("2099-05-11");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-11");
   await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("");
   await page.getByRole("textbox", { name: "End date", exact: true }).fill("09-05-2099");
   await page.getByRole("button", { name: "Save Event", exact: true }).click();

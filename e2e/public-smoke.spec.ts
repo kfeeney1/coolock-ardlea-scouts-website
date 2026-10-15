@@ -124,7 +124,7 @@ test("Join Us submits on mobile and desktop without collecting emergency contact
 
   await page.getByLabel("First name").fill("Taylor");
   await page.getByLabel("Last name").fill("Test");
-  await page.getByLabel("Date of birth", { exact: true }).fill("2016-05-10");
+  await page.getByRole("textbox", { name: /^Date of birth/ }).fill("2016-05-10");
   await page.getByLabel("Preferred section").click();
   await page.getByRole("option", { name: /Cubs/ }).click();
   await page.getByLabel("Parent / guardian name").fill("Alex Test");
