@@ -55,28 +55,28 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
 
   const date = page.getByLabel("Meeting date");
   const dateCases = [
-    { today: "2026-10-19", expected: { Cubs: "2026-10-20", Ventures: "2026-10-20", Beavers: "2026-10-21", Scouts: "2026-10-21" } },
-    { today: "2026-10-20", expected: { Cubs: "2026-10-27", Ventures: "2026-10-27", Beavers: "2026-10-21", Scouts: "2026-10-21" } },
-    { today: "2026-10-21", expected: { Cubs: "2026-10-27", Ventures: "2026-10-27", Beavers: "2026-10-28", Scouts: "2026-10-28" } },
-    { today: "2026-12-29", expected: { Cubs: "2027-01-05", Ventures: "2027-01-05", Beavers: "2026-12-30", Scouts: "2026-12-30" } },
-    { today: "2026-12-30", expected: { Cubs: "2027-01-05", Ventures: "2027-01-05", Beavers: "2027-01-06", Scouts: "2027-01-06" } }
+    { today: "2026-10-19", expected: [{ section: "Cubs", date: "2026-10-20" }, { section: "Ventures", date: "2026-10-20" }] },
+    { today: "2026-10-20", expected: [{ section: "Cubs", date: "2026-10-27" }, { section: "Ventures", date: "2026-10-27" }] },
+    { today: "2026-10-21", expected: [{ section: "Beavers", date: "2026-10-28" }, { section: "Scouts", date: "2026-10-28" }] },
+    { today: "2026-12-29", expected: [{ section: "Cubs", date: "2027-01-05" }, { section: "Ventures", date: "2027-01-05" }] },
+    { today: "2026-12-30", expected: [{ section: "Beavers", date: "2027-01-06" }, { section: "Scouts", date: "2027-01-06" }] }
   ];
 
   for (const dateCase of dateCases) {
     await page.clock.setFixedTime(localNoon(dateCase.today));
-    for (const section of sections) {
-      await selectSection(page, section.name);
-      await expect(date, `${section.name} from ${dateCase.today}`).toHaveValue(dateCase.expected[section.name]);
+    for (const expected of dateCase.expected) {
+      await selectSection(page, expected.section);
+      await expect(date, `${expected.section} from ${dateCase.today}`).toHaveValue(expected.date);
     }
   }
 
   await page.clock.setFixedTime(localNoon("2026-10-19"));
   await selectSection(page, "Cubs");
   await expect(date).toHaveValue("2026-10-20");
-  await selectSection(page, "Ventures");
-  await expect(date).toHaveValue("2026-10-20");
-  await date.fill("2027-02-17");
   await selectSection(page, "Beavers");
+  await expect(date).toHaveValue("2026-10-21");
+  await date.fill("2027-02-17");
+  await selectSection(page, "Ventures");
   await expect(date).toHaveValue("2027-02-17");
 
   await existingMeetingsPage.reload();
