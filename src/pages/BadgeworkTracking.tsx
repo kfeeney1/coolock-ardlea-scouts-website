@@ -35,6 +35,7 @@ import {
   setMemberRequirementDraft
 } from "../services/adventureSkillMemberDraftLogic.ts";
 import { sectionFilterOptions } from "../services/sectionOrder.ts";
+import { loadWeeklyMeetingBadgeworkAttendance } from "../services/weeklyTracker.ts";
 
 type BadgeworkStep = "members" | "badgework";
 type BadgeworkMode = "overview" | "record";
@@ -46,7 +47,8 @@ export default function BadgeworkTracking() {
   const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [sourceSelectionApplied, setSourceSelectionApplied] = useState(false);
+  const [sourceSelectionAppliedFor, setSourceSelectionAppliedFor] = useState<string | null>(null);
+  const [meetingAttendance, setMeetingAttendance] = useState<{ sourceId: string; status: "open" | "closed"; presentMemberIds: Set<string> } | null>(null);
   const [mode, setMode] = useState<BadgeworkMode>(sourceContext ? "record" : "overview");
   const [workflowStep, setWorkflowStep] = useState<BadgeworkStep>("members");
   const [skillId, setSkillId] = useState(adventureSkills[0]?.id ?? "");
@@ -61,20 +63,30 @@ export default function BadgeworkTracking() {
   const [message, setMessage] = useState("");
   const [pendingDiscard, setPendingDiscard] = useState<DiscardAction | null>(null);
   const [awardRemovalOpen, setAwardRemovalOpen] = useState(false);
+  const sourceSelectionKey = sourceContext ? `${sourceContext.sourceType}:${sourceContext.sourceId}:${sourceContext.memberIds.join(",")}` : null;
+  const sourceSelectionApplied = sourceSelectionKey !== null && sourceSelectionAppliedFor === sourceSelectionKey;
 
   const skill = adventureSkills.find((item) => item.id === skillId) ?? adventureSkills[0];
   const stage = skill?.stages.find((item) => item.stage === stageNumber) ?? skill?.stages[0];
   const unsavedChangeCount = draft.size + memberDraft.size;
   const hasUnsavedChanges = unsavedChangeCount > 0;
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+  const meetingSourceId = sourceContext?.sourceType === "weeklyMeeting" ? sourceContext.sourceId : null;
+  const currentMeetingAttendance = meetingSourceId && meetingAttendance?.sourceId === meetingSourceId ? meetingAttendance : null;
+  const meetingPresentMemberIds = currentMeetingAttendance?.presentMemberIds ?? null;
+  const meetingAttendanceLoading = Boolean(meetingSourceId && !currentMeetingAttendance);
+  const meetingMembers = useMemo(() => sourceContext?.sourceType === "weeklyMeeting" && meetingPresentMemberIds
+    ? activeMembers.filter((member) => meetingPresentMemberIds.has(member.id))
+    : activeMembers, [activeMembers, meetingPresentMemberIds, sourceContext]);
   const { progressByMemberId, overviewLoaded, setOverviewLoaded, overviewError, setOverviewError, refreshProgress } = useBadgeworkProgress(activeMembers, loading, mode, workflowStep, selectedIds, setError);
   const overviewLoading = !loading && mode === "overview" && !overviewLoaded && !overviewError && activeMembers.length > 0;
-  const sections = useMemo(() => sectionFilterOptions(activeMembers.map((member) => member.section)), [activeMembers]);
+  const selectionMembers = sourceContext?.sourceType === "weeklyMeeting" ? meetingMembers : activeMembers;
+  const sections = useMemo(() => sectionFilterOptions(selectionMembers.map((member) => member.section)), [selectionMembers]);
   const visibleMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return activeMembers.filter((member) => (section === "all" || member.section === section) && (!query || `${member.displayName} ${member.section}`.toLowerCase().includes(query)));
-  }, [activeMembers, search, section]);
-  const selectedMembers = useMemo(() => activeMembers.filter((member) => selectedIds.includes(member.id)), [activeMembers, selectedIds]);
+    return selectionMembers.filter((member) => (section === "all" || member.section === section) && (!query || `${member.displayName} ${member.section}`.toLowerCase().includes(query)));
+  }, [selectionMembers, search, section]);
+  const selectedMembers = useMemo(() => selectionMembers.filter((member) => selectedIds.includes(member.id)), [selectionMembers, selectedIds]);
   const awardState = skill && stage ? stageAwardSelectionState(selectedIds, progressByMemberId, skill.id, stage.stage) : "none";
   const incompleteMemberIds = skill && stage ? membersWithIncompleteStage(selectedIds, progressByMemberId, skill.id, stage.stage) : selectedIds;
   const canAward = selectedIds.length > 0 && incompleteMemberIds.length === 0 && !hasUnsavedChanges;
@@ -96,11 +108,33 @@ export default function BadgeworkTracking() {
   }, []);
 
   useEffect(() => {
-    if (!sourceContext || sourceSelectionApplied || activeMembers.length === 0) return;
-    const allowed = new Set(activeMembers.map((member) => member.id));
+    if (!meetingSourceId) return;
+    let active = true;
+    void loadWeeklyMeetingBadgeworkAttendance(meetingSourceId).then((meeting) => {
+      if (!active) return;
+      if (meeting.status !== "open") {
+        setMeetingAttendance({ sourceId: meetingSourceId, status: "closed", presentMemberIds: new Set() });
+        setSelectedIds([]);
+        setError("This Weekly Meeting is closed. Reopen it before recording badgework.");
+        return;
+      }
+      setMeetingAttendance({ sourceId: meetingSourceId, status: "open", presentMemberIds: new Set(meeting.presentMemberIds) });
+    }).catch((loadError) => {
+      if (active) {
+        setMeetingAttendance({ sourceId: meetingSourceId, status: "closed", presentMemberIds: new Set() });
+        setSelectedIds([]);
+        setError(applicationErrorMessage(loadError, "Unable to confirm which children are present at this Weekly Meeting.", "BadgeworkTracking", "Load persisted Weekly Meeting attendance"));
+      }
+    });
+    return () => { active = false; };
+  }, [meetingSourceId]);
+
+  useEffect(() => {
+    if (!sourceContext || sourceSelectionApplied || activeMembers.length === 0 || (sourceContext.sourceType === "weeklyMeeting" && (meetingAttendanceLoading || !meetingPresentMemberIds))) return;
+    const allowed = new Set((sourceContext.sourceType === "weeklyMeeting" ? meetingMembers : activeMembers).map((member) => member.id));
     setSelectedIds(sourceContext.memberIds.filter((memberId) => allowed.has(memberId)));
-    setSourceSelectionApplied(true);
-  }, [activeMembers, sourceContext, sourceSelectionApplied]);
+    setSourceSelectionAppliedFor(sourceSelectionKey);
+  }, [activeMembers, meetingAttendanceLoading, meetingMembers, meetingPresentMemberIds, sourceContext, sourceSelectionApplied, sourceSelectionKey]);
 
 
   useEffect(() => {
@@ -237,7 +271,7 @@ export default function BadgeworkTracking() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
-      {loading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
+      {loading || meetingAttendanceLoading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
         {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded || (!loading && !error && activeMembers.length === 0)} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
 
 
