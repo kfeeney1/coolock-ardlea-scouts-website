@@ -104,7 +104,7 @@ test("weekly-meeting badgework selection excludes children marked absent", async
   await recordBadgework.click();
   await expect(page.getByRole("heading", { name: "Select members" })).toBeVisible();
   await expect(page.getByText(scoutMemberName, { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Select members and continue", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Select.*members and continue/ })).toBeDisabled();
 });
 
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
