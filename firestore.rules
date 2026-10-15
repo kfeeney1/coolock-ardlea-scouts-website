@@ -221,21 +221,19 @@ service cloud.firestore {
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
     function badgeworkSectionAppointmentAt(data, index, sectionAliases) {
       let appointment = data.appointments.size() > index ? data.appointments[index] : null;
-      let scope = appointment is map ? appointment.get("scope", "") : "";
       return appointment is map
         && appointment.get("active", true) == true
         && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && scope is string
-        && scope in sectionAliases;
+        && appointment.get("scope", "") is string
+        && appointment.get("scope", "") in sectionAliases;
     }
     function badgeworkMemberAppointmentAt(data, index, memberData) {
       let appointment = data.appointments.size() > index ? data.appointments[index] : null;
-      let scope = appointment is map ? appointment.get("scope", "") : "";
       return appointment is map
         && appointment.get("active", true) == true
         && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && scope is string
-        && badgeworkMemberHasSection(memberData, scope);
+        && appointment.get("scope", "") is string
+        && badgeworkMemberHasSection(memberData, appointment.get("scope", ""));
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
