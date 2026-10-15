@@ -240,6 +240,39 @@ service cloud.firestore {
       return data.appointments.size() > index
         && badgeworkMemberAppointmentMatches(data.appointments[index], memberData);
     }
+    function eventSectionAppointmentMatches(appointment, sectionAliases) {
+      return appointment is map
+        && appointment.get("active", true) == true
+        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && appointment.get("scope", "") in sectionAliases;
+    }
+    function eventSectionAppointmentAt(data, index, sectionAliases) {
+      return data.appointments.size() > index
+        && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+    }
+    function hasEventSectionAppointment(section) {
+      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+      let leadership = get(organisationPath).data;
+      let aliases = badgeworkSectionAliases(section);
+      return exists(organisationPath) && leadership.active == true
+        && ((!leadership.keys().hasAny(["appointments"])
+              || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+          ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+            && leadership.organisationSection in aliases
+          : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
+            ? true
+            : eventSectionAppointmentAt(leadership, 1, aliases)
+              ? true
+              : eventSectionAppointmentAt(leadership, 2, aliases)
+                ? true
+                : eventSectionAppointmentAt(leadership, 3, aliases)));
+    }
+    function canAccessEventSection(section) {
+      // Every caller enforces active-leader access before this scoped check.
+      return profile().role in ["super-admin", "admin"]
+        ? true
+        : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
+    }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       let leadership = get(organisationPath).data;
@@ -977,8 +1010,8 @@ service cloud.firestore {
 
     match /events/{eventId} {
       // Parents read safe consent-link projections; raw event records can contain leader-only notes.
-      allow get: if isSuperAdmin() || (isActiveLeader() && hasSection(resource.data.section));
-      allow list: if isSuperAdmin() || (isActiveLeader() && hasSection(resource.data.section));
+      allow get: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section));
+      allow list: if isSuperAdmin() || (isActiveLeader() && canAccessEventSection(resource.data.section));
       allow create: if isActiveLeader() && hasSection(request.resource.data.section) && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.title is string && request.resource.data.eventType is string
         && validDateRange(request.resource.data.startDate, request.resource.data.endDate)
@@ -995,12 +1028,12 @@ service cloud.firestore {
     match /events/{eventId}/audienceMembers/{memberId} {
       allow get: if (isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
-        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
+        && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && isActiveMember(memberId));
       allow list: if (isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
-        && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
+        && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId);
       allow create, update: if validEventAudienceMembership(eventId, memberId);
@@ -1038,19 +1071,21 @@ service cloud.firestore {
       allow get: if resource.data.get("eventId", "") == eventId && isSafePublicEvent();
       allow list: if true;
       allow create: if isActiveLeader()
-        && hasSection(request.resource.data.section)
+        && canAccessEventSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
         && request.resource.data.title is string && request.resource.data.eventType is string
         && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
       allow update: if isActiveLeader()
-        && hasSection(resource.data.section)
-        && hasSection(request.resource.data.section)
+        && canAccessEventSection(resource.data.section)
+        && canAccessEventSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
         && request.resource.data.title is string && request.resource.data.eventType is string
         && request.resource.data.section is string && request.resource.data.startDate is string && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt"]);
-      allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
+      allow delete: if isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
 
     match /parentGalleryEvents/{eventId} {
@@ -1061,7 +1096,7 @@ service cloud.firestore {
       allow list: if resource.data.section is string
         && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
-        && hasSection(request.resource.data.section)
+        && canAccessEventSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
         && request.resource.data.status in ["open", "closed", "completed"]
         && request.resource.data.title is string
@@ -1070,8 +1105,8 @@ service cloud.firestore {
         && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
       allow update: if isActiveLeader()
-        && hasSection(resource.data.section)
-        && hasSection(request.resource.data.section)
+        && canAccessEventSection(resource.data.section)
+        && canAccessEventSection(request.resource.data.section)
         && request.resource.data.eventId == eventId
         && request.resource.data.status in ["open", "closed", "completed"]
         && request.resource.data.title is string
@@ -1079,7 +1114,9 @@ service cloud.firestore {
         && request.resource.data.startDate is string
         && request.resource.data.endDate is string
         && request.resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status", "updatedAt"]);
-      allow delete: if isActiveLeader() && (isAdmin() || hasSection(resource.data.section));
+      allow delete: if isActiveLeader()
+        && exists(/databases/$(database)/documents/events/$(eventId))
+        && (isAdmin() || canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section));
     }
 
     match /eventConsentLinks/{token} {

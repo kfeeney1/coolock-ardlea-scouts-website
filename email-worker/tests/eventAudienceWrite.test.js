@@ -8,6 +8,18 @@ function idToken(uid) { return `${encode({ alg: "none", typ: "JWT" })}.${encode(
 function stringValue(value) { return { stringValue: value }; }
 function booleanValue(value) { return { booleanValue: value }; }
 function arrayValue(values) { return { arrayValue: { values: values.map(stringValue) } }; }
+function mapValue(value) { return { mapValue: { fields: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, typeof item === "boolean" ? booleanValue(item) : stringValue(item)])) } }; }
+function appointmentDocument(appointments, scoutingRole = "Programme Scouter", organisationSection = "Cubs") {
+  return {
+    name: "projects/demo/databases/(default)/documents/organisationLeadership/leader-1",
+    fields: {
+      active: booleanValue(true),
+      scoutingRole: stringValue(scoutingRole),
+      organisationSection: stringValue(organisationSection),
+      appointments: { arrayValue: { values: appointments.map(mapValue) } }
+    }
+  };
+}
 function memberDocument(id, section, status = "active") {
   return {
     name: `projects/demo/databases/(default)/documents/members/${id}`,
@@ -26,14 +38,15 @@ const leader = {
   }
 };
 
-function makeEnvironment(memberDocs, commits) {
+function makeEnvironment(memberDocs, commits, leadership = null, profile = leader) {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
     const url = String(input);
     if (url === "https://oauth2.googleapis.com/token") {
       return Response.json({ access_token: "service-token", expires_in: 3600 });
     }
-    if (url.endsWith("/adminUsers/leader-1")) return Response.json(leader);
+    if (url.endsWith("/adminUsers/leader-1")) return Response.json(profile);
+    if (url.endsWith("/organisationLeadership/leader-1")) return leadership ? Response.json(leadership) : new Response("", { status: 404 });
     if (url.includes("/members?pageSize=100")) return Response.json({ documents: memberDocs });
     if (url.endsWith("/events/event-new")) return new Response("{}", { status: 404 });
     if (url.endsWith("/documents:commit")) {
@@ -44,6 +57,111 @@ function makeEnvironment(memberDocs, commits) {
   };
   return () => { globalThis.fetch = originalFetch; };
 }
+
+test("Programme Scouter event save accepts only active appointment sections", async () => {
+  const commits = [];
+  const assignedCubs = appointmentDocument([
+    { appointment: "Programme Scouter", scope: "Cubs", active: true },
+    { appointment: "Programme Scouter", scope: "Scouts", active: false }
+  ]);
+  const scopedLeader = {
+    ...leader,
+    fields: { ...leader.fields, sections: arrayValue(["Group"]) }
+  };
+  const originalFetch = globalThis.fetch;
+  const members = [memberDocument("cub-1", "Cubs"), memberDocument("scout-1", "Scouts")];
+  const restoreFetch = makeEnvironment(members, commits, assignedCubs);
+  // Keep the system role active while exercising appointment-only section scope.
+  const currentFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    if (String(input).endsWith("/adminUsers/leader-1")) return Response.json(scopedLeader);
+    return currentFetch(input, init);
+  };
+  try {
+    const body = {
+      operation: "create",
+      eventId: "event-new",
+      input: { ...eventInput(), section: "Cubs" },
+      audience: { sectionIds: ["Cubs"], memberIds: [] }
+    };
+    const response = await handleProductionRoute(request(body), {
+      FIREBASE_PROJECT_ID: "demo",
+      FIREBASE_SERVICE_ACCOUNT_EMAIL: "firebase-adminsdk@demo.iam.gserviceaccount.com",
+      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem
+    }, body, "/event-audience-save");
+
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).invitedCount, 1);
+    assert.equal(commits.length, 1);
+  } finally {
+    restoreFetch();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Programme Scouter cannot save events outside active appointment scope", async () => {
+  const commits = [];
+  const assignedCubs = appointmentDocument([
+    { appointment: "Programme Scouter", scope: "Cubs", active: true },
+    { appointment: "Programme Scouter", scope: "Scouts", active: false }
+  ]);
+  const scopedLeader = { ...leader, fields: { ...leader.fields, sections: arrayValue(["Group"]) } };
+  const originalFetch = globalThis.fetch;
+  const restoreFetch = makeEnvironment([memberDocument("scout-1", "Scouts")], commits, assignedCubs);
+  const currentFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    if (String(input).endsWith("/adminUsers/leader-1")) return Response.json(scopedLeader);
+    return currentFetch(input, init);
+  };
+  try {
+    const body = {
+      operation: "create",
+      eventId: "event-new",
+      input: { ...eventInput(), section: "Scouts" },
+      audience: { sectionIds: [], memberIds: ["scout-1"] }
+    };
+    const response = await handleProductionRoute(request(body), {
+      FIREBASE_PROJECT_ID: "demo",
+      FIREBASE_SERVICE_ACCOUNT_EMAIL: "firebase-adminsdk@demo.iam.gserviceaccount.com",
+      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem
+    }, body, "/event-audience-save");
+
+    assert.equal(response.status, 403);
+    assert.equal(commits.length, 0);
+  } finally {
+    restoreFetch();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("an inactive leader profile is denied before event audience writes", async () => {
+  const commits = [];
+  const inactiveLeader = {
+    ...leader,
+    fields: { ...leader.fields, active: booleanValue(false) }
+  };
+  const originalFetch = globalThis.fetch;
+  const restoreFetch = makeEnvironment([], commits, null, inactiveLeader);
+  try {
+    const body = {
+      operation: "create",
+      eventId: "event-new",
+      input: eventInput(),
+      audience: { sectionIds: ["Beavers"], memberIds: [] }
+    };
+    const response = await handleProductionRoute(request(body), {
+      FIREBASE_PROJECT_ID: "demo",
+      FIREBASE_SERVICE_ACCOUNT_EMAIL: "firebase-adminsdk@demo.iam.gserviceaccount.com",
+      FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY: privatePem
+    }, body, "/event-audience-save");
+
+    assert.equal(response.status, 403);
+    assert.equal(commits.length, 0);
+  } finally {
+    restoreFetch();
+    globalThis.fetch = originalFetch;
+  }
+});
 
 function request(body) {
   return new Request("https://worker.example.test/event-audience-save", {
@@ -147,6 +265,7 @@ test("event audience edit preserves RSVP and consent history in the atomic commi
     const url = String(input);
     if (url === "https://oauth2.googleapis.com/token") return Response.json({ access_token: "service-token", expires_in: 3600 });
     if (url.endsWith("/adminUsers/leader-1")) return Response.json(leader);
+    if (url.endsWith("/organisationLeadership/leader-1")) return new Response("", { status: 404 });
     if (url.includes("/members?pageSize=100")) return Response.json({ documents: [memberDocument("member-1", "Beavers"), memberDocument("member-2", "Beavers")] });
     if (url.endsWith("/events/event-existing")) return Response.json(existingEvent);
     if (url.includes("/events/event-existing/audienceMembers?pageSize=100")) return Response.json({ documents: [{
