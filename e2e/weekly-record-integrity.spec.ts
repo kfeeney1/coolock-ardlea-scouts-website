@@ -22,14 +22,14 @@ test("Clear resets a new meeting form without creating a record", async ({ page 
   await page.goto("/leader/weekly/create");
   const section = page.getByRole("combobox", { name: "Section" });
   const originalSection = await section.textContent();
-  await page.getByLabel("Meeting date").fill("2099-04-01");
+  await page.getByLabel("Meeting date", { exact: true }).fill("2099-04-01");
   await page.getByLabel("Location").fill("Temporary hall");
   await page.getByLabel("Theme / programme title").fill("Temporary theme");
   await page.getByLabel("Programme notes").fill("Temporary notes");
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
   await expect(section).toHaveText(originalSection || "");
-  await expect(page.getByLabel("Meeting date")).not.toHaveValue("01-04-2099");
+  await expect(page.getByLabel("Meeting date", { exact: true })).not.toHaveValue("01-04-2099");
   await expect(page.getByLabel("Location")).toHaveValue("");
   await expect(page.getByLabel("Theme / programme title")).toHaveValue("");
   await expect(page.getByLabel("Programme notes")).toHaveValue("");
@@ -48,7 +48,7 @@ test("new meeting Cancel saves valid entered data without creating an empty reco
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
-  await page.getByLabel("Meeting date").fill("2099-04-04");
+  await page.getByLabel("Meeting date", { exact: true }).fill("2099-04-04");
   await page.getByLabel("Location").fill("TEST cancelled meeting location");
   await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -69,7 +69,7 @@ test("browser Back saves an edited meeting before returning to the previous page
   await page.getByRole("link", { name: "Create Meeting", exact: true }).click();
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
-  await page.getByLabel("Meeting date").fill("2099-04-09");
+  await page.getByLabel("Meeting date", { exact: true }).fill("2099-04-09");
   await page.getByLabel("Theme / programme title").fill("TEST browser back autosave");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
@@ -121,7 +121,7 @@ test("multi-role Group Leader meeting round-trips completely when reopened by Su
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
-  await page.getByLabel("Meeting date").fill("2099-04-03");
+  await page.getByLabel("Meeting date", { exact: true }).fill("2099-04-03");
   await page.getByLabel("Location").fill("Cub Den");
   await page.getByLabel("Theme / programme title").fill("Cross-role hydration");
   await page.getByLabel("Programme notes").fill("Created by Group Leader with Cub appointment.");

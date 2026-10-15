@@ -67,7 +67,7 @@ test("SW-290 completed Badgework entered in UI survives save reload and WhatsApp
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/weekly/create");
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-  await page.getByLabel("Meeting date").fill("2099-04-12");
+  await page.getByLabel("Meeting date", { exact: true }).fill("2099-04-12");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
   const planned = page.getByLabel(/^Badgework 1$/);

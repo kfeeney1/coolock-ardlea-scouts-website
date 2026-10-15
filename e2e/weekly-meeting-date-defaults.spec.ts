@@ -53,7 +53,7 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
   const existingMeeting = existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(existingMeeting).toContainText("15-01-2099 · Scouts");
 
-  const date = page.getByLabel("Meeting date");
+  const date = page.getByLabel("Meeting date", { exact: true });
   const dateCases = [
     { today: "2026-10-19", expected: [{ section: "Cubs", date: "20-10-2026" }, { section: "Ventures", date: "20-10-2026" }] },
     { today: "2026-10-20", expected: [{ section: "Cubs", date: "27-10-2026" }, { section: "Ventures", date: "27-10-2026" }, { section: "Beavers", date: "21-10-2026" }, { section: "Scouts", date: "21-10-2026" }] },

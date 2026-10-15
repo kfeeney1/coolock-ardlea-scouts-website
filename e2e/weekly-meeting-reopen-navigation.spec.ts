@@ -44,7 +44,7 @@ test("reopening a closed meeting loads that exact editable record, preserves dat
   const meeting = await findUnusedScoutsDate(page, startDate);
 
   await page.getByRole("link", { name: "Create Meeting" }).click();
-  await page.getByLabel("Meeting date").fill(meeting.date);
+  await page.getByLabel("Meeting date", { exact: true }).fill(meeting.date);
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   const meetingId = new URL(page.url()).searchParams.get("meeting");

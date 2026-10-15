@@ -10,7 +10,7 @@ test.describe("Parent Portal", () => {
     await expect(page.getByLabel("Mobile number")).toBeVisible();
     await expect(page.getByLabel("Child 1 first name")).toBeVisible();
     await expect(page.getByLabel("Child 1 surname")).toBeVisible();
-    await expect(page.getByLabel("Child 1 date of birth")).toBeVisible();
+    await expect(page.getByLabel("Child 1 date of birth", { exact: true })).toBeVisible();
     await expect(page.getByText(/never grant access automatically/i)).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
@@ -20,7 +20,7 @@ test.describe("Parent Portal", () => {
     await page.getByRole("button", { name: "Add another child" }).click();
     await expect(page.getByLabel("Child 2 first name")).toBeVisible();
     await expect(page.getByLabel("Child 2 surname")).toBeVisible();
-    await expect(page.getByLabel("Child 2 date of birth")).toBeVisible();
+    await expect(page.getByLabel("Child 2 date of birth", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Remove Child 2" }).click();
     await expect(page.getByLabel("Child 2 first name")).toHaveCount(0);
   });

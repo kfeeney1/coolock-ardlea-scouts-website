@@ -27,7 +27,7 @@ test("SW-309 inherits own profile details, persists edits, renews without old ap
   await page.goto("/leader/profile/consent");
   await expect(page.getByText("Applicant Details")).toBeVisible();
   await expect(page.getByLabel("Applicant name")).toHaveValue("Scouts Programme Scouter");
-  await expect(page.getByLabel("Date of birth")).toHaveValue("12-04-1985");
+  await expect(page.getByLabel("Date of birth", { exact: true })).toHaveValue("12-04-1985");
   await expect(page.getByLabel("Address")).toHaveValue("42 Test Scouter Road");
   const mobileField = page.locator('input[name="mobile"]');
   await expect(mobileField).toHaveValue("0861234567");

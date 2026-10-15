@@ -93,7 +93,7 @@ test("authorized Member Management can end Rover membership from the member reco
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await addDialog.getByLabel("First name").fill("Scouts");
   await addDialog.getByLabel("Last name").fill("Section Leader");
-  await addDialog.getByLabel("Date of birth").fill("1985-01-01");
+  await addDialog.getByLabel("Date of birth", { exact: true }).fill("1985-01-01");
   await addDialog.getByLabel("Email address").fill("test.scout.section.leader@example.com");
   await addDialog.getByRole("checkbox", { name: "Scouts" }).check();
   await addDialog.getByRole("button", { name: "Add Member" }).click();

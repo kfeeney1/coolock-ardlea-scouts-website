@@ -42,7 +42,7 @@ async function createIsolatedLifecycleMeeting(page: Page): Promise<LifecycleMeet
   const lifecycle = await findUnusedMeetingDate(page, firstLifecycleDate);
   await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-  await page.getByLabel("Meeting date").fill(lifecycle.date);
+  await page.getByLabel("Meeting date", { exact: true }).fill(lifecycle.date);
   await page.getByRole("button", { name: "Create Meeting" }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   await page.goto("/leader/weekly");
@@ -194,7 +194,7 @@ test("section leader completes lifecycle with flexible planner rows, summary and
   await page.getByLabel("Theme").fill("Unsaved navigation draft"); await page.getByRole("button", { name: "Copy Meeting", exact: true }).click(); await expect(page).toHaveURL(/\/leader\/weekly\/copy\//); await expect(page.getByTestId("weekly-meeting-copy-page")).toBeVisible(); await page.getByRole("button", { name: "Cancel copy", exact: true }).click(); await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/); await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click(); await page.getByRole("button", { name: new RegExp(`${lifecycle.label} · Scouts`) }).click(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Theme")).toHaveValue("Unsaved navigation draft"); await page.getByLabel("Theme").fill("Navigation Night"); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await expect(page.getByText(/^Meeting saved\./)).toBeVisible();
 
   const editedDate = addDays(lifecycle.date, 1);
-  await page.getByRole("button", { name: "Edit Meeting", exact: true }).click(); await page.getByLabel("Meeting date").fill(editedDate); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await page.reload(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Meeting date")).toHaveValue(editedDate.split("-").reverse().join("-")); await page.getByLabel("Meeting date").fill(lifecycle.date); await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+  await page.getByRole("button", { name: "Edit Meeting", exact: true }).click(); await page.getByLabel("Meeting date", { exact: true }).fill(editedDate); await page.getByRole("button", { name: "Save Meeting", exact: true }).click(); await page.reload(); await page.getByRole("button", { name: "Programme", exact: true }).click(); await expect(page.getByLabel("Meeting date", { exact: true })).toHaveValue(editedDate.split("-").reverse().join("-")); await page.getByLabel("Meeting date", { exact: true }).fill(lifecycle.date); await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
   phases.push("meeting edit");
 
   await page.getByRole("button", { name: "Close Meeting", exact: true }).click(); await expect(page).toHaveURL((url) => url.pathname === "/leader/weekly"); const historyCard = page.getByTestId(/meeting-history-/).filter({ hasText: `${lifecycle.label} · Scouts` }); await expect(historyCard).toContainText("3 activities · 2 badgework"); phases.push("close/history"); await historyCard.getByRole("link", { name: "View / Edit", exact: true }).click(); await expectSectionLeaderHistoryRestrictions(page);

@@ -168,7 +168,7 @@ test.describe("leader permissions", () => {
     expect(backBox?.height).toBeGreaterThanOrEqual(44);
 
     await page.getByLabel("Applicant name").fill("Test Scouts Scouter");
-    await page.getByLabel("Date of birth").fill("1985-01-01");
+    await page.getByLabel("Date of birth", { exact: true }).fill("1985-01-01");
     await page.getByLabel("Address").fill("Test Scout Hall, Dublin");
     await page.getByRole("button", { name: "Continue" }).click();
 

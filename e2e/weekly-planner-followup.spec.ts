@@ -29,7 +29,7 @@ async function openOrCreate(page: Page, date: string, displayDate: RegExp) {
     await reopenMeeting.click();
   } else {
     await page.getByRole("link", { name: "Create Meeting" }).click();
-    await page.getByLabel("Meeting date").fill(date);
+    await page.getByLabel("Meeting date", { exact: true }).fill(date);
     await page.getByRole("button", { name: "Create Meeting" }).click();
     await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   }

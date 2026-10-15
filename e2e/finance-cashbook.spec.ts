@@ -101,7 +101,7 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
 
   await row.getByRole("button", { name: "Correct entry", exact: true }).click();
   const correction = page.getByRole("dialog", { name: "Correct float entry" });
-  await correction.getByLabel("Correction date").fill("2026-10-03");
+  await correction.getByLabel("Correction date", { exact: true }).fill("2026-10-03");
   await correction.getByRole("button", { name: "Create correction", exact: true }).click();
   const correctionRow = page.locator('[data-testid^="finance-transaction-"]').filter({ hasText: `Correction of ${description}` });
   await expect(correctionRow).toContainText("03-10-2026");

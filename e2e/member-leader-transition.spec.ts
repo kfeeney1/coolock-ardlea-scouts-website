@@ -96,7 +96,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await addDialog.getByLabel("First name").fill(firstName);
   await addDialog.getByLabel("Last name").fill(lastName);
-  await addDialog.getByLabel("Date of birth").fill("2000-01-01");
+  await addDialog.getByLabel("Date of birth", { exact: true }).fill("2000-01-01");
   await addDialog.getByRole("checkbox", { name: "Beavers", exact: true }).uncheck();
   await addDialog.getByRole("checkbox", { name: section, exact: true }).check();
   await addDialog.getByLabel("Email address").fill(email);
