@@ -100,7 +100,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByLabel("Parent / guardian 1", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");
 
-    await page.getByLabel("Consent from").fill("01-09-2026");
+    await page.getByRole("textbox", { name: /^Consent from/ }).fill("01-09-2026");
     await page.getByRole("textbox", { name: "Consent to", exact: true }).fill("31-07-2027");
     for (const label of ["photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"]) await choose(page, label, "No");
     await choose(page, "vaccinated", "Yes");
