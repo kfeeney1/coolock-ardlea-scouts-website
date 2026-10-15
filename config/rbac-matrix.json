@@ -81,6 +81,9 @@
     "/leader/equipment/inventory": "leader",
     "/leader/weekly/copy/:sourceId": "leader"
   },
+  "routeVariants": {
+    "/leader/settings?view=quartermaster": "leader-qm-appointment"
+  },
   "firestore": {
     "adminUsers": "system-role",
     "auditLog": "role-restricted-history",

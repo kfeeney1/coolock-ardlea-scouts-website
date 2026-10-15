@@ -227,7 +227,12 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                <SubsSettingsPanel />
+                {pageIdentity === "qm-settings" ? (
+                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760 }} data-testid="qm-settings-empty-state">
+                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Quartermaster settings</Typography>
+                        <Alert severity="info" role="status" sx={{ mt: 2 }}>No current settings.</Alert>
+                    </Paper>
+                ) : <SubsSettingsPanel />}
             </Container>
         </Box>
     );
