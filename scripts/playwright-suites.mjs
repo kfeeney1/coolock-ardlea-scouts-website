@@ -45,6 +45,7 @@ export const suiteSpecs = {
     "event-gallery.spec.ts",
     "event-record-page.spec.ts",
     "event-audience-selection.spec.ts",
+    "sw403-programme-scouter-event-save.spec.ts",
     "sw362-event-edit-navigation.spec.ts",
     "meeting-records.spec.ts",
     "programme-library.spec.ts",
