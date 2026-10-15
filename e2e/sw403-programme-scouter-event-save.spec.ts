@@ -44,7 +44,7 @@ test("SW-403 Programme Scouter saves and reopens an assigned-section event on de
   await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/create$/);
   await expect(page.getByLabel("Event title")).toHaveValue(title);
-  await expect(startDate).toHaveValue("2099-07-10");
+  await expect(startDate).toHaveValue("10-07-2099");
   await expect(page.getByRole("alert").filter({ hasText: /saved successfully|event created/i })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
