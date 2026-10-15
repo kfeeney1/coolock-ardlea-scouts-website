@@ -143,10 +143,16 @@ export async function saveParentConsentEnabled(enabled: boolean, expectedEnabled
     }
 
     await runTransaction(db, async (transaction) => {
-        const [canonical, projection] = await Promise.all([
+        const [loginCanonical, canonical, projection] = await Promise.all([
+            transaction.get(PARENT_LOGIN_SETTINGS_REF),
             transaction.get(PARENT_CONSENT_SETTINGS_REF),
             transaction.get(PUBLIC_NAVIGATION_SETTINGS_REF)
         ]);
+        const loginEnabled = normaliseParentLoginEnabled(loginCanonical.data(), loginCanonical.exists());
+        const projectedLoginEnabled = normaliseParentLoginEnabled(projection.data(), projection.exists());
+        if (loginCanonical.exists() !== projection.exists() || loginEnabled !== projectedLoginEnabled) {
+            throw new ServiceFailure("Parent Login settings are out of sync. Reload settings and try again.", "firestore/failed-precondition");
+        }
         const current = normaliseParentConsentEnabled(canonical.data());
         const projected = normaliseParentConsentEnabled(projection.data());
         const projectionConfigured = Object.hasOwn(projection.data() || {}, "parentConsentEnabled");
@@ -158,9 +164,15 @@ export async function saveParentConsentEnabled(enabled: boolean, expectedEnabled
         }
 
         const audit = { updatedAt: serverTimestamp(), updatedBy: user.uid };
+        // Parent Login defaults to enabled when unset. Materialise that existing
+        // default on the first consent save so the shared public projection has
+        // both canonical settings required by Firestore Rules.
+        if (!loginCanonical.exists()) {
+            transaction.set(PARENT_LOGIN_SETTINGS_REF, { parentLoginEnabled: loginEnabled, ...audit });
+        }
         transaction.set(PARENT_CONSENT_SETTINGS_REF, { parentConsentEnabled: enabled, ...audit });
         transaction.set(PUBLIC_NAVIGATION_SETTINGS_REF, {
-            ...projection.data(),
+            parentLoginEnabled: loginEnabled,
             parentConsentEnabled: enabled
         });
     });
