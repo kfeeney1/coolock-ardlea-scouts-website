@@ -17,6 +17,8 @@ const testDeploy = await source(".github/workflows/firebase-hosting-test.yml");
 const production = await source(".github/workflows/firebase-hosting-merge.yml");
 const guard = await source(".github/workflows/post-merge-ci-guard.yml");
 const guardEvidence = await source("scripts/post-merge-ci-evidence.mjs");
+const playwrightConfig = await source("playwright.config.ts");
+const assuranceReporter = await source("scripts/playwright-assurance-reporter.mjs");
 
 for (const [name, text] of [["Quality", quality], ["Playwright E2E", e2e], ["Firebase TEST Deploy", testDeploy]]) {
   requireMatch(text, /push:\s*\n\s*branches:\s*(?:\[main\]|\n\s*- main)/m, `${name} must run on pushes to main.`);
@@ -35,11 +37,18 @@ requireMatch(guard, /workflow_run:\s*\n\s*workflows:\s*\["Firebase TEST Deploy"\
 requireMatch(guard, /GITHUB_EVENT_NAME.*push[\s\S]*TARGET_SHA="\$\{GITHUB_SHA\}"/m, "Post-merge guard must bind a push-triggered run to the exact pushed SHA.");
 requireMatch(guard, /schedule:\s*\n\s*- cron:/m, "Post-merge guard must have a scheduled fallback for completely missing push workflows.");
 requireMatch(guard, /actions\/checkout@[0-9a-f]{40}[\s\S]*?ref:\s*\$\{\{\s*steps\.target\.outputs\.sha\s*\}\}[\s\S]*?node scripts\/post-merge-ci-evidence\.mjs/m, "Guard must resolve missing exact-SHA checks from the guarded revision.");
-requireMatch(guardEvidence, /workflowRun\.status === "completed"/, "A missing exact-SHA check must become a failure after its source workflow completes.");
+requireMatch(guard, /timeout-minutes:\s*40/m, "Post-merge guard job must have enough time to report after the bounded evidence wait.");
+requireMatch(guard, /--timeout-seconds 1800 --missing-grace-seconds 180 --poll-interval-seconds 30/, "Post-merge guard must use a bounded 30-minute wait and preserve its 3-minute missing-evidence grace.");
+requireMatch(guardEvidence, /run\.event === "push" && run\.head_sha === targetSha/, "Only push workflows for the exact guarded SHA may satisfy the workflow requirement.");
+requireMatch(guardEvidence, /check\.head_sha === targetSha/, "Only check runs for the exact guarded SHA may satisfy required checks.");
+requireMatch(guardEvidence, /return !pendingStates\.has\(sourceState\)/, "A missing exact-SHA check must remain pending while its source workflow is active.");
+requireMatch(guardEvidence, /Timed out after the bounded/, "The post-merge evidence wait must fail with a clear bounded-timeout report.");
 
 for (const expected of ["Quality", "Playwright E2E", "Firebase TEST Deploy", "quality", "e2e", "deploy_test"]) {
-  if (!guard.includes(`"${expected}"`)) failures.push(`Post-merge guard does not require ${expected}.`);
+  if (!guardEvidence.includes(`"${expected}"`)) failures.push(`Post-merge guard does not require ${expected}.`);
 }
+requireMatch(playwrightConfig, /failOnFlakyTests:\s*Boolean\(process\.env\.CI\)/, "CI must continue to reject Playwright tests that pass only on retry.");
+requireMatch(assuranceReporter, /test\.outcome\(\) === "flaky"[\s\S]*?return \{ status: "failed" \}/, "The Playwright assurance reporter must fail retry-only passes.");
 
 requireMatch(production, /required_check in 'quality' 'e2e'/m, "Production deployment must wait for exact-SHA quality and e2e checks.");
 requireMatch(production, /commits\/\$\{TARGET_SHA\}\/check-runs/m, "Production deployment must query checks for the exact release SHA.");
