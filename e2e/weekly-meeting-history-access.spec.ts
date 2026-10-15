@@ -55,6 +55,15 @@ test("SW-322 Meeting History filters stay compact and usable on desktop and mobi
   await page.goto("/leader/weekly");
   await expect(page.getByRole("heading", { name: "Meeting History" })).toBeVisible();
 
+  const displayedDates = await page.getByTestId("weekly-history-date").allInnerTexts();
+  expect(displayedDates.length).toBeGreaterThan(1);
+  const dateValues = displayedDates.map((label) => {
+    const match = /^(\d{2})-(\d{2})-(\d{4}) · /.exec(label);
+    expect(match, `Expected a DD-MM-YYYY history date, received ${label}`).not.toBeNull();
+    return Date.UTC(Number(match![3]), Number(match![2]) - 1, Number(match![1]));
+  });
+  expect(dateValues).toEqual([...dateValues].sort((a, b) => b - a));
+
   const historyCard = page.getByRole("heading", { name: "Meeting History" }).locator("xpath=..");
   const search = historyCard.getByLabel("Search meeting history");
   const section = historyCard.getByLabel("Meeting history section");
