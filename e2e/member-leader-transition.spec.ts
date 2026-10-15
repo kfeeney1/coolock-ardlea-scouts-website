@@ -118,7 +118,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
     await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
     original = (await db.collection("members").doc(memberId).get()).data();
     await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(member).toBeVisible();
   }
   await member.getByRole("link", { name: "Manage", exact: true }).click();
