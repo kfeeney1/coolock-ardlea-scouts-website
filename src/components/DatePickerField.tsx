@@ -6,12 +6,13 @@ import { formatDateRangeInput, isIsoCalendarDate, parseDateRangeInput } from "..
 type CalendarMonth = { year: number; month: number };
 type Props = Omit<TextFieldProps, "value" | "onChange" | "type"> & { value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; minDate?: string; maxDate?: string; minDateErrorMessage?: string; initialDate?: string; calendarDescription?: string };
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const pad = (value: number) => String(value).padStart(2, "0");
 const todayIso = () => { const now = new Date(); return now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()); };
 const monthOf = (value: string): CalendarMonth => isIsoCalendarDate(value) ? { year: Number(value.slice(0, 4)), month: Number(value.slice(5, 7)) } : { year: Number(todayIso().slice(0, 4)), month: Number(todayIso().slice(5, 7)) };
 const shiftMonth = (value: CalendarMonth, delta: number): CalendarMonth => { const index = value.year * 12 + value.month - 1 + delta; return { year: Math.floor(index / 12), month: index % 12 + 1 }; };
 const utcDate = (year: number, month: number, day: number) => { const date = new Date(0); date.setUTCHours(0, 0, 0, 0); date.setUTCFullYear(year, month - 1, day); return date; };
-const monthName = (value: CalendarMonth) => new Intl.DateTimeFormat("en-IE", { month: "long", year: "numeric", timeZone: "UTC" }).format(utcDate(value.year, value.month, 1));
+const monthName = (value: CalendarMonth) => MONTHS[value.month - 1] + " " + value.year;
 const dateFor = (year: number, month: number, day: number) => String(year).padStart(4, "0") + "-" + pad(month) + "-" + pad(day);
 const daysFor = (value: CalendarMonth) => {
   const offset = (utcDate(value.year, value.month, 1).getUTCDay() + 6) % 7;
