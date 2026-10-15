@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { setParentConsentEnabled } from "./helpers/parent-consent-setting";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const leaderPassword = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
@@ -77,6 +77,7 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
   test("approved parent dashboard and consent form fit phone width", async ({ page, browser }, testInfo) => {
     mobileOnly(testInfo);
     test.skip(!parentEmail || !parentPassword, "Canonical parent E2E credentials are required.");
+    const releaseSettingLock = await acquireParentConsentSettingLock();
     await setParentConsentEnabled(browser, true);
     try {
       await loginParent(page);
@@ -90,7 +91,11 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
       await expectNoHorizontalPageOverflow(page);
       await expectMobileAccessibilityBaseline(page);
     } finally {
-      await setParentConsentEnabled(browser, false);
+      try {
+        await setParentConsentEnabled(browser, false);
+      } finally {
+        await releaseSettingLock();
+      }
     }
   });
 
