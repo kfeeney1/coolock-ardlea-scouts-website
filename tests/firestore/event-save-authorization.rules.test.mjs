@@ -83,6 +83,11 @@ test("Programme Scouter can reopen an appointment-scoped event and save its proj
       scoutingRole: "Programme Scouter",
       organisationSection: "Cubs",
       appointments: [
+        { appointment: "Group Scout Leader", scope: "Group", active: true },
+        { appointment: "Programme Scouter", scope: "Scouts", active: false },
+        { appointment: "Group President", scope: "Group", active: true },
+        { appointment: "Assistant Group Scout Leader", scope: "Group", active: true },
+        { appointment: "Programme Scouter", scope: "Scouts", active: false },
         { appointment: "Programme Scouter", scope: "Cub Scouts", active: true },
         { appointment: "Programme Scouter", scope: "Scouts", active: false }
       ]

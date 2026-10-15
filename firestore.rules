@@ -260,12 +260,17 @@ service cloud.firestore {
           ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
             && leadership.organisationSection in aliases
           : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
-            ? true
-            : eventSectionAppointmentAt(leadership, 1, aliases)
-              ? true
-              : eventSectionAppointmentAt(leadership, 2, aliases)
-                ? true
-                : eventSectionAppointmentAt(leadership, 3, aliases)));
+            || eventSectionAppointmentAt(leadership, 1, aliases)
+            || eventSectionAppointmentAt(leadership, 2, aliases)
+            || eventSectionAppointmentAt(leadership, 3, aliases)
+            || eventSectionAppointmentAt(leadership, 4, aliases)
+            || eventSectionAppointmentAt(leadership, 5, aliases)
+            || eventSectionAppointmentAt(leadership, 6, aliases)
+            || eventSectionAppointmentAt(leadership, 7, aliases)
+            || eventSectionAppointmentAt(leadership, 8, aliases)
+            || eventSectionAppointmentAt(leadership, 9, aliases)
+            || eventSectionAppointmentAt(leadership, 10, aliases)
+            || eventSectionAppointmentAt(leadership, 11, aliases)));
     }
     function canAccessEventSection(section) {
       // Every caller enforces active-leader access before this scoped check.
