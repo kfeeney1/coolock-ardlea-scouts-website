@@ -65,7 +65,7 @@ test("Programme Scouter can save weekly-meeting badgework for the assigned appoi
         { appointment: "Programme Scouter", scope: "Cubs", active: true },
       ],
     }],
-    ["members/member-1", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["members/member-1", { section: "Cub Scouts", sections: ["Cub Scouts"], status: "active" }],
     ["members/member-2", { section: "Cubs", sections: ["Cubs"], status: "active" }],
     ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
   ]);
@@ -82,6 +82,25 @@ test("Programme Scouter can save weekly-meeting badgework for the assigned appoi
     assert.equal(saved.size, 1);
     assert.equal(saved.docs[0].data().sourceId, "meeting-cubs-open");
   }
+});
+
+test("Super Admin can save badgework for a legacy-labelled member from an open weekly meeting", async () => {
+  const meetingSource = { type: "weeklyMeeting", id: "meeting-cubs-open" };
+  await seed([
+    ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
+    // Member UI canonicalizes legacy labels, while Firestore stores their source value.
+    ["members/member-cubs", { section: "Cub Scouts", sections: ["Cub Scouts"], status: "active" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+  ]);
+
+  const db = testEnv.authenticatedContext("super-admin").firestore();
+  await assertSucceeds(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-cubs/requirements/camping-stage-1-requirement-06"),
+    requirement("super-admin", "member-cubs", meetingSource),
+  ));
+  const saved = await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/member-cubs/requirements")));
+  assert.equal(saved.size, 1);
+  assert.equal(saved.docs[0].data().sourceId, "meeting-cubs-open");
 });
 
 test("Programme Scouter cannot write badgework for an unassigned section or a closed meeting", async () => {

@@ -192,6 +192,24 @@ service cloud.firestore {
       return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
         || (data.keys().hasAny(["section"]) && data.section == section);
     }
+    function badgeworkSectionAliases(section) {
+      return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+        ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+        : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+          ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+          : section in ["Scouts", "Scout"]
+            ? ["Scouts", "Scout"]
+            : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+              ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+              : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                : [section];
+    }
+    function badgeworkMemberHasSection(data, section) {
+      let aliases = badgeworkSectionAliases(section);
+      return (data.keys().hasAny(["section"]) && data.section is string && data.section in aliases)
+        || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(aliases));
+    }
     // Call only after isActiveLeader() has been established by the enclosing rule.
     // Keeping this helper to section-overlap checks avoids repeatedly expanding the
     // authentication/profile predicates and hitting Firestore's expression limit.
@@ -211,9 +229,9 @@ service cloud.firestore {
     function badgeworkMemberAppointmentAt(data, index, memberData) {
       return data.appointments.size() > index
         && data.appointments[index] is map
-        && memberHasSection(memberData, data.appointments[index].scope)
         && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && badgeworkMemberHasSection(memberData, data.appointments[index].scope);
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -235,7 +253,7 @@ service cloud.firestore {
         && (((!leadership.keys().hasAny(["appointments"])
               || !(leadership.appointments is list) || leadership.appointments.size() == 0)
             && leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-            && memberHasSection(memberData, leadership.organisationSection))
+            && badgeworkMemberHasSection(memberData, leadership.organisationSection))
           || (leadership.appointments is list && (badgeworkMemberAppointmentAt(leadership, 0, memberData)
           || badgeworkMemberAppointmentAt(leadership, 1, memberData)
           || badgeworkMemberAppointmentAt(leadership, 2, memberData)
@@ -246,7 +264,7 @@ service cloud.firestore {
       return exists(sourcePath)
         && get(sourcePath).data.status == "open"
         && get(sourcePath).data.section is string
-        && memberHasSection(memberData, get(sourcePath).data.section)
+        && badgeworkMemberHasSection(memberData, get(sourcePath).data.section)
         && (profile().role in ["super-admin", "admin"]
           || profileHasSection(get(sourcePath).data.section)
           || isGroupLeader()
