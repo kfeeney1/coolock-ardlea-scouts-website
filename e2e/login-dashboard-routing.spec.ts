@@ -5,7 +5,8 @@ const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const combinedEmail = process.env.E2E_PARENT_LEADER_EMAIL;
 
-test.beforeEach((_fixtures, testInfo) => {
+test.beforeEach(({ page }, testInfo) => {
+  void page;
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Login landing behavior runs on desktop and mobile Chromium.");
   test.skip(!password, "Configure canonical E2E credentials.");
 });
