@@ -56,7 +56,7 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
   const date = page.getByLabel("Meeting date");
   const dateCases = [
     { today: "2026-10-19", expected: [{ section: "Cubs", date: "2026-10-20" }, { section: "Ventures", date: "2026-10-20" }] },
-    { today: "2026-10-20", expected: [{ section: "Cubs", date: "2026-10-27" }, { section: "Ventures", date: "2026-10-27" }] },
+    { today: "2026-10-20", expected: [{ section: "Cubs", date: "2026-10-27" }, { section: "Ventures", date: "2026-10-27" }, { section: "Beavers", date: "2026-10-21" }, { section: "Scouts", date: "2026-10-21" }] },
     { today: "2026-10-21", expected: [{ section: "Beavers", date: "2026-10-28" }, { section: "Scouts", date: "2026-10-28" }] },
     { today: "2026-12-29", expected: [{ section: "Cubs", date: "2027-01-05" }, { section: "Ventures", date: "2027-01-05" }] },
     { today: "2026-12-30", expected: [{ section: "Beavers", date: "2027-01-06" }, { section: "Scouts", date: "2027-01-06" }] }
