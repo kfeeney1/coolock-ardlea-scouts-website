@@ -69,7 +69,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
           return <Paper key={record.id} variant="outlined" sx={[{ p: 1.5, minWidth: 0 }, sectionCardSx(record.section)]} data-testid={`meeting-history-${record.id}`} data-section={record.section}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
               <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontWeight: 800 }}>{displayDate(record.meetingDate)} · {record.section}</Typography>
+                <Typography data-testid="weekly-history-date" sx={{ fontWeight: 800 }}>{displayDate(record.meetingDate)} · {record.section}</Typography>
                 <Box sx={{ mt: .5, mb: .5 }}><SectionIdentityChip section={record.section} /></Box>
                 <Typography color="text.secondary">{present}/{record.entries.length} Present · Closed · {record.activities.length} activities · {record.badgeworkPlan.length} badgework</Typography>
               </Box>

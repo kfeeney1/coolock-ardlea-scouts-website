@@ -231,6 +231,27 @@ export const joinWeeklyLeaders=(values:string[])=>[...new Set(values.map(v=>v.tr
 export const nonNegativeWeeklyNumber=(value:string)=>value===""?0:Math.max(0,Number(value)||0);
 
 
+function weeklyMeetingDateValue(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(value);
+  if (!match) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText), month = Number(monthText), day = Number(dayText);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? date.getTime()
+    : null;
+}
+
+export function sortWeeklyMeetingsNewestFirst(records: WeeklyMeetingRecord[]): WeeklyMeetingRecord[] {
+  return [...records].sort((a, b) => {
+    const aDate = weeklyMeetingDateValue(a.meetingDate), bDate = weeklyMeetingDateValue(b.meetingDate);
+    if (aDate !== null && bDate !== null && aDate !== bDate) return bDate - aDate;
+    if (aDate !== null && bDate === null) return -1;
+    if (aDate === null && bDate !== null) return 1;
+    return b.meetingDate.localeCompare(a.meetingDate) || a.id.localeCompare(b.id);
+  });
+}
+
 export function sortOpenWeeklyMeetings(records: WeeklyMeetingRecord[]): WeeklyMeetingRecord[] {
   const validDate = /^\d{4}-\d{2}-\d{2}$/;
   return [...records].sort((a, b) => {
