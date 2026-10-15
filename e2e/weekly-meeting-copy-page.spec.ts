@@ -4,7 +4,7 @@ import { loginAsLeader } from "./support/authentication-helpers";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
 
-test("SW-386 Copy Meeting opens a full page and returns to its source without creating a copy", async ({ page }, testInfo) => {
+test("SW-400 Copy Meeting page preserves preview and source context across desktop and mobile", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Copy Meeting page runs at representative desktop and mobile sizes.");
   test.skip(!password, "Configure canonical E2E credentials.");
   const viewport = testInfo.project.name === "mobile-chromium" ? { width: 320, height: 844 } : { width: 1280, height: 800 };
@@ -23,7 +23,7 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
   await expect(copyPage).toBeVisible();
   await expect(page.getByRole("heading", { name: "Copy Weekly Meeting" })).toBeAttached();
   await expect(copyPage.getByRole("heading", { name: /Copy .*Scouts/ })).toBeVisible();
-  await expect(page.getByRole("dialog", { name: /Copy .*Scouts/ })).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   const destination = page.getByRole("combobox", { name: "Destination section" });
   await expect(destination).toHaveText("Scouts");
   await expect(copyPage.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
@@ -60,7 +60,7 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
   await expect(page.getByTestId("weekly-meeting-summary")).toBeVisible();
 });
 
-test("SW-386 browser Back returns to the source meeting context", async ({ page }, testInfo) => {
+test("SW-400 browser Back returns to the source meeting context", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Verify browser and Android-style Back on desktop and mobile Chromium.");
   test.skip(!password, "Configure canonical E2E credentials.");
   await loginAsLeader(page, { email: adminEmail, password: password! });
