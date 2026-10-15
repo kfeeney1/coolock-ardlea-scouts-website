@@ -222,7 +222,8 @@ service cloud.firestore {
     function badgeworkSectionAppointmentAt(data, index, section) {
       return data.appointments.size() > index
         && data.appointments[index] is map
-        && data.appointments[index].scope == section
+        && data.appointments[index].scope is string
+        && data.appointments[index].scope in badgeworkSectionAliases(section)
         && data.appointments[index].get("active", true) == true
         && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
     }
