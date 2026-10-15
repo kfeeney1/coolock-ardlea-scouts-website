@@ -70,6 +70,19 @@ test("leader and parent eligibility includes multiple linked sections once and e
   assert.equal(canRespondToPoll({ ...poll, audienceType: "leaders" }, { kind: "leader", sections: ["Rovers"] }), false);
 });
 
+test("a group manager without a programme section assignment can manage but not vote in leader polls", () => {
+  const wholeGroupLeaderPoll: PollRecord = {
+    ...poll,
+    audienceType: "leaders",
+    scopeType: "group",
+    scopeSections: [...GROUP_POLL_SECTIONS]
+  };
+  const superAdmin = { uid: "super-admin", role: "super-admin", sections: ["Group"] };
+
+  assert.equal(canManagePollForLeader(wholeGroupLeaderPoll, superAdmin), true);
+  assert.equal(canRespondToPoll(wholeGroupLeaderPoll, { kind: "leader", sections: superAdmin.sections }), false);
+});
+
 test("optional close time rejects new or changed responses at and after the deadline", () => {
   const closesAt = new Date("2026-10-08T12:00:00.000Z");
   assert.equal(pollDeadlinePassed(closesAt, closesAt.getTime()), true);
