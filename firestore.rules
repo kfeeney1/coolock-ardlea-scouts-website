@@ -237,6 +237,7 @@ service cloud.firestore {
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       let leadership = get(organisationPath).data;
+      // Appointment writes permit up to 12 entries; include the whole persisted list in authorization.
       return exists(organisationPath) && leadership.active == true
         && ((!leadership.keys().hasAny(["appointments"])
             || !(leadership.appointments is list) || leadership.appointments.size() == 0)
@@ -245,7 +246,15 @@ service cloud.firestore {
           || (leadership.appointments is list && (badgeworkSectionAppointmentAt(leadership, 0, section)
           || badgeworkSectionAppointmentAt(leadership, 1, section)
           || badgeworkSectionAppointmentAt(leadership, 2, section)
-          || badgeworkSectionAppointmentAt(leadership, 3, section))));
+          || badgeworkSectionAppointmentAt(leadership, 3, section)
+          || badgeworkSectionAppointmentAt(leadership, 4, section)
+          || badgeworkSectionAppointmentAt(leadership, 5, section)
+          || badgeworkSectionAppointmentAt(leadership, 6, section)
+          || badgeworkSectionAppointmentAt(leadership, 7, section)
+          || badgeworkSectionAppointmentAt(leadership, 8, section)
+          || badgeworkSectionAppointmentAt(leadership, 9, section)
+          || badgeworkSectionAppointmentAt(leadership, 10, section)
+          || badgeworkSectionAppointmentAt(leadership, 11, section))));
     }
     function hasBadgeworkMemberAppointment(memberData) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -258,7 +267,15 @@ service cloud.firestore {
           || (leadership.appointments is list && (badgeworkMemberAppointmentAt(leadership, 0, memberData)
           || badgeworkMemberAppointmentAt(leadership, 1, memberData)
           || badgeworkMemberAppointmentAt(leadership, 2, memberData)
-          || badgeworkMemberAppointmentAt(leadership, 3, memberData))));
+          || badgeworkMemberAppointmentAt(leadership, 3, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 4, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 5, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 6, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 7, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 8, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 9, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 10, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 11, memberData))));
     }
     function validOpenWeeklyMeetingBadgeworkSource(memberData, sourceId) {
       let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
