@@ -62,7 +62,7 @@ test("Programme Scouter can save weekly-meeting badgework for one eligible membe
       organisationSection: "Group",
       appointments: [
         ...Array.from({ length: 3 }, (_, index) => ({ appointment: "Programme Scouter", scope: `Other ${index}`, active: false })),
-        { appointment: "Programme Scouter", scope: "Cubs", active: true },
+        { appointment: "Programme Scouter", scope: "Cub Scouts", active: true },
       ],
     }],
     ["members/member-1", { section: "Cub Scouts", sections: ["Cub Scouts"], status: "active" }],
@@ -108,6 +108,40 @@ test("Programme Scouter can atomically save badgework for ten eligible Beavers",
     const saved = await assertSucceeds(getDocs(collection(db, `memberAdventureSkillProgress/${memberId}/requirements`)));
     assert.equal(saved.size, 1);
     assert.equal(saved.docs[0].data().sourceId, "meeting-beavers-open");
+  }
+});
+
+test("Cub Scouter appointment in the persisted appointment list remains effective for two Cubs", async () => {
+  const meetingSource = { type: "weeklyMeeting", id: "meeting-cubs-open" };
+  const memberIds = ["cub-1", "cub-2"];
+  await seed([
+    ["adminUsers/cub-scouter", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/cub-scouter", {
+      active: true,
+      scoutingRole: "Programme Scouter",
+      organisationSection: "Group",
+      appointments: [
+        ...Array.from({ length: 11 }, (_, index) => ({ appointment: "Scouter", scope: `Other ${index}`, active: false })),
+        { appointment: "Programme Scouter", scope: "Cubs", active: true },
+      ],
+    }],
+    ...memberIds.map((memberId) => [`members/${memberId}`, { section: "Cubs", sections: ["Cubs"], status: "active" }]),
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+  ]);
+
+  const db = testEnv.authenticatedContext("cub-scouter").firestore();
+  const batch = writeBatch(db);
+  for (const memberId of memberIds) {
+    batch.set(
+      doc(db, `memberAdventureSkillProgress/${memberId}/requirements/camping-stage-1-requirement-06`),
+      requirement("cub-scouter", memberId, meetingSource),
+    );
+  }
+  await assertSucceeds(batch.commit());
+  for (const memberId of memberIds) {
+    const saved = await assertSucceeds(getDocs(collection(db, `memberAdventureSkillProgress/${memberId}/requirements`)));
+    assert.equal(saved.size, 1);
+    assert.equal(saved.docs[0].data().sourceId, "meeting-cubs-open");
   }
 });
 

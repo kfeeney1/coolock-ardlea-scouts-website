@@ -219,33 +219,43 @@ service cloud.firestore {
         || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
-    function badgeworkSectionAppointmentAt(data, index, section) {
+    function badgeworkSectionAppointmentAt(data, index, sectionAliases) {
       return data.appointments.size() > index
         && data.appointments[index] is map
-        && data.appointments[index].scope is string
-        && data.appointments[index].scope in badgeworkSectionAliases(section)
         && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && data.appointments[index].get("scope", "") in sectionAliases;
     }
     function badgeworkMemberAppointmentAt(data, index, memberData) {
       return data.appointments.size() > index
         && data.appointments[index] is map
         && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && badgeworkMemberHasSection(memberData, data.appointments[index].scope);
+        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && data.appointments[index].get("scope", "") is string
+        && badgeworkMemberHasSection(memberData, data.appointments[index].get("scope", ""));
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
       let leadership = get(organisationPath).data;
+      let sectionAliases = badgeworkSectionAliases(section);
+      // Appointment writes permit up to 12 entries; include the whole persisted list in authorization.
       return exists(organisationPath) && leadership.active == true
         && ((!leadership.keys().hasAny(["appointments"])
             || !(leadership.appointments is list) || leadership.appointments.size() == 0)
             && leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
             && leadership.organisationSection == section
-          || (leadership.appointments is list && (badgeworkSectionAppointmentAt(leadership, 0, section)
-          || badgeworkSectionAppointmentAt(leadership, 1, section)
-          || badgeworkSectionAppointmentAt(leadership, 2, section)
-          || badgeworkSectionAppointmentAt(leadership, 3, section))));
+          || (leadership.appointments is list && (badgeworkSectionAppointmentAt(leadership, 0, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 1, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 2, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 3, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 4, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 5, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 6, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 7, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 8, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 9, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 10, sectionAliases)
+          || badgeworkSectionAppointmentAt(leadership, 11, sectionAliases))));
     }
     function hasBadgeworkMemberAppointment(memberData) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -258,18 +268,31 @@ service cloud.firestore {
           || (leadership.appointments is list && (badgeworkMemberAppointmentAt(leadership, 0, memberData)
           || badgeworkMemberAppointmentAt(leadership, 1, memberData)
           || badgeworkMemberAppointmentAt(leadership, 2, memberData)
-          || badgeworkMemberAppointmentAt(leadership, 3, memberData))));
+          || badgeworkMemberAppointmentAt(leadership, 3, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 4, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 5, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 6, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 7, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 8, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 9, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 10, memberData)
+          || badgeworkMemberAppointmentAt(leadership, 11, memberData))));
     }
     function validOpenWeeklyMeetingBadgeworkSource(memberData, sourceId) {
       let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
-      return exists(sourcePath)
-        && get(sourcePath).data.status == "open"
-        && get(sourcePath).data.section is string
-        && badgeworkMemberHasSection(memberData, get(sourcePath).data.section)
-        && (profile().role in ["super-admin", "admin"]
-          || profileHasSection(get(sourcePath).data.section)
-          || isGroupLeader()
-          || hasBadgeworkSectionAppointment(get(sourcePath).data.section));
+      let meetingExists = exists(sourcePath);
+      let meeting = meetingExists ? get(sourcePath).data : {};
+      let section = meeting.get("section", "");
+      let sectionAliases = section is string ? badgeworkSectionAliases(section) : [];
+      let accessProfile = profile();
+      return meetingExists
+        && meeting.get("status", "") == "open"
+        && section is string
+        && badgeworkMemberHasSection(memberData, section)
+        && (accessProfile.role in ["super-admin", "admin"]
+          || (accessProfile.sections is list && accessProfile.sections.hasAny(sectionAliases))
+          || hasBadgeworkSectionAppointment(section)
+          || isGroupLeader());
     }
     function canWriteAdventureRequirement(memberData, sourceData) {
       return isActiveLeader()
@@ -730,8 +753,8 @@ service cloud.firestore {
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
-              || isGroupLeader() || isGroupSecretary()
-              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
+              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)
+              || isGroupLeader() || isGroupSecretary()));
         // The member read in canWriteAdventureRequirement also proves existence. Avoid a
         // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
         allow create, update: if canWriteAdventureRequirement(
