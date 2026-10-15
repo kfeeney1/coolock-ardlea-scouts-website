@@ -268,7 +268,9 @@ test("standalone date fields use the same confirmable calendar on mobile and des
   await calendarTrigger.click();
   const calendar = page.getByRole("dialog", { name: "Choose start date" });
   await expect(calendar.getByRole("button", { name: "Select 29-02-2096" })).toBeVisible();
-  await expect(calendar.getByRole("group", { name: "February 2096 dates" })).toBeVisible();
+  const calendarGrid = calendar.locator('[role="group"]');
+  await expect(calendarGrid).toBeVisible();
+  await expect(calendarGrid).toHaveAttribute("aria-label", "February 2096 dates");
   await expect(calendar.locator('[aria-label="Mon"]')).toHaveText("Mon");
   await expect(calendar.getByRole("button", { name: "Select 28-02-2096" })).toHaveAttribute("aria-pressed", "true");
   const bounds = await calendar.boundingBox();
