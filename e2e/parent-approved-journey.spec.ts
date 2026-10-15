@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { setParentConsentEnabled } from "./helpers/parent-consent-setting";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -25,14 +25,22 @@ async function loginParent(page: import("@playwright/test").Page) {
 }
 
 test.describe("approved parent journey", () => {
+  let releaseSettingLock: (() => Promise<void>) | null = null;
+
   test.beforeEach(async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "Authenticated parent journey runs once on desktop Chromium.");
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+    releaseSettingLock = await acquireParentConsentSettingLock();
     await setParentConsentEnabled(browser, true);
   });
 
   test.afterEach(async ({ browser }) => {
-    if (password && parentEmail) await setParentConsentEnabled(browser, false);
+    try {
+      if (password && parentEmail) await setParentConsentEnabled(browser, false);
+    } finally {
+      await releaseSettingLock?.();
+      releaseSettingLock = null;
+    }
   });
 
   test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
@@ -203,15 +211,23 @@ test("approved parent can sign out globally and must authenticate again", async 
 });
 
 test.describe("Parent Portal navigation on desktop and mobile", () => {
+  let releaseSettingLock: (() => Promise<void>) | null = null;
+
   test.beforeEach(async ({ page, browser }, testInfo) => {
     test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent navigation runs on desktop Chromium and Pixel 7 Chromium.");
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+    releaseSettingLock = await acquireParentConsentSettingLock();
     await setParentConsentEnabled(browser, true);
     await loginParent(page);
   });
 
   test.afterEach(async ({ browser }) => {
-    if (password && parentEmail) await setParentConsentEnabled(browser, false);
+    try {
+      if (password && parentEmail) await setParentConsentEnabled(browser, false);
+    } finally {
+      await releaseSettingLock?.();
+      releaseSettingLock = null;
+    }
   });
 
   test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
