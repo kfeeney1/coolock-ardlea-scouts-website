@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Alert, Box, TextField, Typography } from "@mui/material";
 import YesNoField from "./YesNoField";
 import type { YouthConsentStepProps } from "./YouthConsentStepProps";
@@ -41,9 +42,9 @@ export default function YouthConsentMemberSteps({ step, ...props }: YouthConsent
                                 }
                             />
 
-                            <TextField
+                            <DatePickerField
                                 required
-                                type="date"
+
                                 label="Date of birth"
                                 name="childDOB"
                                 value={formData.childDOB}

@@ -96,7 +96,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await addDialog.getByLabel("First name").fill(firstName);
   await addDialog.getByLabel("Last name").fill(lastName);
-  await addDialog.getByLabel("Date of birth").fill("2000-01-01");
+  await addDialog.getByRole("textbox", { name: /^Date of birth/ }).fill("2000-01-01");
   await addDialog.getByRole("checkbox", { name: "Beavers", exact: true }).uncheck();
   await addDialog.getByRole("checkbox", { name: section, exact: true }).check();
   await addDialog.getByLabel("Email address").fill(email);
@@ -118,7 +118,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
     await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
     original = (await db.collection("members").doc(memberId).get()).data();
     await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(member).toBeVisible();
   }
   await member.getByRole("link", { name: "Manage", exact: true }).click();

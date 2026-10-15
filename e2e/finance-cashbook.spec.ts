@@ -77,7 +77,7 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
   const emptyFloat = await page.getByText("No float transactions have been recorded for this section.", { exact: true }).isVisible();
   if (emptyFloat) {
     await page.getByRole("option", { name: "Open float", exact: true }).click();
-    await page.getByLabel("Date", { exact: true }).fill("2026-09-29");
+    await page.getByRole("textbox", { name: /^Date/ }).fill("2026-09-29");
     await page.getByLabel("Amount (€)").fill("10.00");
     await page.getByRole("button", { name: "Save transaction", exact: true }).click();
     const opening = page.locator('[data-testid^="finance-transaction-"]').filter({ has: page.getByText("Open float", { exact: true }) });
@@ -88,7 +88,7 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
   await page.getByRole("option", { name: "Money out", exact: true }).click();
 
   const description = `SW-215 date audit ${crypto.randomUUID()}`;
-  await page.getByLabel("Date", { exact: true }).fill("2026-10-03");
+  await page.getByRole("textbox", { name: /^Date/ }).fill("2026-10-03");
   await page.getByLabel("Amount (€)").fill("0.01");
   await page.getByLabel("What was the money spent on?").fill(description);
   await page.getByRole("button", { name: "Save transaction", exact: true }).click();
@@ -101,7 +101,7 @@ test("SW-215 float transaction and correction dates render DD-MM-YYYY on desktop
 
   await row.getByRole("button", { name: "Correct entry", exact: true }).click();
   const correction = page.getByRole("dialog", { name: "Correct float entry" });
-  await correction.getByLabel("Correction date").fill("2026-10-03");
+  await correction.getByRole("textbox", { name: /^Correction date/ }).fill("2026-10-03");
   await correction.getByRole("button", { name: "Create correction", exact: true }).click();
   const correctionRow = page.locator('[data-testid^="finance-transaction-"]').filter({ hasText: `Correction of ${description}` });
   await expect(correctionRow).toContainText("03-10-2026");

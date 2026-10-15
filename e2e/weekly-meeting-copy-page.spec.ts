@@ -44,13 +44,13 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
 
   await page.getByTestId(`meeting-history-${sourceId}`).getByRole("link", { name: "Copy Meeting", exact: true }).click();
   await expect(page).toHaveURL(`/leader/weekly/copy/${sourceId}`);
-  const copyDate = page.getByLabel("Choose date");
+  const copyDate = page.getByRole("textbox", { name: /^Choose date/ });
   await copyDate.fill("2099-04-08");
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   const discard = page.getByRole("dialog", { name: "Discard this new meeting copy?" });
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
-  await expect(copyDate).toHaveValue("2099-04-08");
+  await expect(copyDate).toHaveValue("08-04-2099");
   await page.getByRole("button", { name: "Back to Source Meeting" }).click();
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Discard and cancel" }).click();

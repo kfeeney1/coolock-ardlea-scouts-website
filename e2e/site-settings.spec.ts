@@ -142,7 +142,7 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
   await page.goto("/leader/settings?view=treasurer");
   const panel = page.getByTestId("subs-settings-panel");
   await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
-  const start = panel.getByLabel("Starts");
+  const start = panel.getByRole("textbox", { name: /^Starts/ });
   const end = panel.getByRole("textbox", { name: "Ends", exact: true });
   const savedStart = await start.inputValue();
   const savedEnd = await end.inputValue();
@@ -165,12 +165,12 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
 
   await end.fill("01-04-2099");
   await expect(end).toHaveAttribute("aria-invalid", "true");
-  await expect(panel.getByText("End date must be on or after the start date.", { exact: true })).toBeVisible();
+  await expect(panel.getByText("End date cannot be before the start date.", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
-  await expect(panel.getByText(/Subs period end date must be valid and on or after its start date/)).toBeVisible();
+  await expect(panel.getByText(/already saved and cannot be changed/)).toBeVisible();
 
   await page.reload();
   const reloadedPanel = page.getByTestId("subs-settings-panel");
-  await expect(reloadedPanel.getByLabel("Starts")).toHaveValue(savedStart);
+  await expect(reloadedPanel.getByRole("textbox", { name: /^Starts/ })).toHaveValue(savedStart);
   await expect(reloadedPanel.getByRole("textbox", { name: "Ends", exact: true })).toHaveValue(savedEnd);
 });

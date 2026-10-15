@@ -302,7 +302,7 @@ test("SW-218 newly created Venture member remains visible under Ventures and All
   const dialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await dialog.getByLabel("First name").fill(firstName);
   await dialog.getByLabel("Last name").fill("Venture-Test");
-  await dialog.getByLabel("Date of birth").fill("2009-04-18");
+  await dialog.getByRole("textbox", { name: /^Date of birth/ }).fill("2009-04-18");
   await dialog.getByRole("checkbox", { name: "Ventures" }).check();
   await expect(dialog.getByRole("checkbox", { name: "Ventures" })).toBeChecked();
   await expect(dialog.getByRole("combobox", { name: "Primary section" })).toHaveText("Ventures");

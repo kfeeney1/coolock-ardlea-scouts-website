@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Alert, Box, Checkbox, FormControl, FormControlLabel, FormHelperText, TextField, Typography } from "@mui/material";
 import MedicationManagementForm from "./MedicationManagementForm";
 import { brandColours } from "../../theme/theme";
@@ -129,9 +130,9 @@ export default function YouthConsentDeclarationSteps({ step, ...props }: YouthCo
                                 onChange={onTextChange}
                             />
 
-                            <TextField
+                            <DatePickerField
                                 required
-                                type="date"
+
                                 label="Signature date"
                                 name="sigDate"
                                 value={formData.sigDate}

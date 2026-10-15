@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Box, TextField, Typography } from "@mui/material";
 import type { ChangeEvent } from "react";
 import type { ScouterConsentData } from "../../services/consentApplications";
@@ -49,9 +50,9 @@ export function ScouterApplicantDetailsStep({
                     helperText={errors.name}
                 />
 
-                <TextField
+                <DatePickerField
                     required
-                    type="date"
+
                     label="Date of birth"
                     name="dob"
                     value={formData.dob}

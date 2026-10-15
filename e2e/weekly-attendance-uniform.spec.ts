@@ -19,7 +19,7 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
   await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
   await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-  await page.getByLabel("Meeting date").fill(meetingDate);
+  await page.getByRole("textbox", { name: /^Meeting date/ }).fill(meetingDate);
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
   await page.getByRole("button", { name: "Attendance", exact: true }).click();

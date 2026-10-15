@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Container, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -213,7 +214,7 @@ export default function CopyWeeklyMeetingPage() {
             <TextField select fullWidth label="Destination section" value={copySection} onChange={(event) => setCopySection(event.target.value)} disabled={saving || readOnly}>
               {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
             </TextField>
-            <TextField fullWidth label="Choose date" type="date" value={copyDate} onChange={(event) => setCopyDate(event.target.value)} disabled={saving} slotProps={{ inputLabel: { shrink: true } }} />
+            <DatePickerField fullWidth label="Choose date" value={copyDate} onChange={(event) => setCopyDate(event.target.value)} disabled={saving} slotProps={{ inputLabel: { shrink: true } }} />
             <Paper data-testid="copy-attendance-preview" variant="outlined" sx={{ p: 1.5, minWidth: 0, overflowWrap: "anywhere" }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Attendance preview · {copySection || "Select a destination section"} ({attendancePreview.length} members)</Typography>
               <Typography variant="body2" color="text.secondary">Attendance starts unrecorded. Source attendance, incidents and completed badgework are not copied.</Typography>

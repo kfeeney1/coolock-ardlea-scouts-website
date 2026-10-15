@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
     Alert,
@@ -820,9 +821,9 @@ export default function ScouterConsentForm({
                                 }
                             />
 
-                            <TextField
+                            <DatePickerField
                                 required
-                                type="date"
+
                                 label="Date"
                                 name="signatureDate"
                                 value={

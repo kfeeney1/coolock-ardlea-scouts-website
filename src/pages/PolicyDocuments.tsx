@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Card, CardActions, CardContent, Chip, Container, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
@@ -93,7 +94,7 @@ export default function PolicyDocuments() {
           <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
           <TextField label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required helperText="Use the Group's established category name; this does not create a separate category system." />
           <TextField select label="Audience" value={audience} onChange={(e) => setAudience(e.target.value as PolicyAudience)}>{POLICY_AUDIENCES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-          <TextField label="Effective / version date" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <DatePickerField label="Effective / version date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="Source owner / reference" value={sourceOwner} onChange={(e) => setSourceOwner(e.target.value)} />
           <Button component="label" variant="outlined">{file ? file.name : "Choose PDF"}<input hidden type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></Button>
           <Box><Button variant="contained" disabled={publishing || !file || !title.trim() || !category.trim()} onClick={() => void publish()}>{publishing ? "Publishing…" : "Publish document"}</Button></Box>
