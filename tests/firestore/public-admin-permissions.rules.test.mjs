@@ -172,6 +172,48 @@ test("Parent Login settings are private to Super Admin while the safe navigation
   await assertFails(setDoc(doc(publicDb, "siteSettings/publicNavigation"), { parentLoginEnabled: true }));
 });
 
+test("Parent Portal consent setting is Super Admin-only and updates its public presentation projection atomically", async () => {
+  await seed([
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-1", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/leader-1", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["siteSettings/parentLogin", { parentLoginEnabled: true, updatedBy: "super-1", updatedAt: new Date() }],
+    ["siteSettings/parentConsent", { parentConsentEnabled: false, updatedBy: "super-1", updatedAt: new Date() }],
+    ["siteSettings/publicNavigation", { parentLoginEnabled: true, parentConsentEnabled: false }],
+  ]);
+
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  const leaderDb = testEnv.authenticatedContext("leader-1").firestore();
+  const adminDb = testEnv.authenticatedContext("admin-1").firestore();
+  const superDb = testEnv.authenticatedContext("super-1").firestore();
+  const consentPath = (db) => doc(db, "siteSettings/parentConsent");
+  const navigationPath = (db) => doc(db, "siteSettings/publicNavigation");
+
+  await assertFails(getDoc(consentPath(publicDb)));
+  await assertFails(getDoc(consentPath(leaderDb)));
+  await assertFails(getDoc(consentPath(adminDb)));
+  await assertSucceeds(getDoc(consentPath(superDb)));
+  await assertSucceeds(getDoc(navigationPath(publicDb)));
+  assert.deepEqual(Object.keys((await getDoc(navigationPath(publicDb))).data()).sort(), ["parentConsentEnabled", "parentLoginEnabled"]);
+  await assertFails(updateDoc(consentPath(leaderDb), { parentConsentEnabled: true }));
+  await assertFails(updateDoc(consentPath(adminDb), { parentConsentEnabled: true }));
+  await assertFails(updateDoc(consentPath(superDb), { parentConsentEnabled: true, updatedBy: "super-1", updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(navigationPath(superDb), { parentConsentEnabled: true }));
+
+  const leaderBatch = writeBatch(leaderDb);
+  leaderBatch.set(consentPath(leaderDb), { parentConsentEnabled: true, updatedBy: "leader-1", updatedAt: serverTimestamp() });
+  leaderBatch.set(navigationPath(leaderDb), { parentLoginEnabled: true, parentConsentEnabled: true });
+  await assertFails(leaderBatch.commit());
+
+  const superBatch = writeBatch(superDb);
+  superBatch.set(consentPath(superDb), { parentConsentEnabled: true, updatedBy: "super-1", updatedAt: serverTimestamp() });
+  superBatch.set(navigationPath(superDb), { parentLoginEnabled: true, parentConsentEnabled: true });
+  await assertSucceeds(superBatch.commit());
+  await assertSucceeds(getDoc(navigationPath(publicDb)));
+  await assertFails(getDoc(consentPath(publicDb)));
+  await assertFails(setDoc(navigationPath(publicDb), { parentLoginEnabled: true, parentConsentEnabled: false }));
+});
+
 test("public site content exposes only canonical environment projections", async () => {
   const testProjection = { contentVersion: 1, testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
   const liveProjection = { contentVersion: 1, testData: false, visibility: "public", published: true };

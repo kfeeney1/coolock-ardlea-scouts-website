@@ -20,7 +20,9 @@ import SubsSettingsPanel from "../components/admin/SubsSettingsPanel";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import {
     loadParentLoginEnabled,
+    loadParentConsentEnabled,
     loadSessionSettings,
+    saveParentConsentEnabled,
     saveParentLoginEnabled,
     saveSessionSettings
 } from "../services/siteSettings";
@@ -51,6 +53,12 @@ export default function SiteSettings() {
     const [parentLoginMessage, setParentLoginMessage] = useState("");
     const [parentLoginError, setParentLoginError] = useState("");
     const parentLoginSaveInFlight = useRef(false);
+    const [parentConsentEnabled, setParentConsentEnabled] = useState<boolean | null>(null);
+    const [parentConsentLoading, setParentConsentLoading] = useState(showParentLoginSettings);
+    const [parentConsentSaving, setParentConsentSaving] = useState(false);
+    const [parentConsentMessage, setParentConsentMessage] = useState("");
+    const [parentConsentError, setParentConsentError] = useState("");
+    const parentConsentSaveInFlight = useRef(false);
     const parentLoginSettingsLoading = showParentLoginSettings
         && (parentLoginLoading || (parentLoginEnabled === null && !parentLoginError));
 
@@ -98,6 +106,27 @@ export default function SiteSettings() {
         return () => { cancelled = true; };
     }, [showParentLoginSettings]);
 
+    useEffect(() => {
+        if (!showParentLoginSettings) {
+            setParentConsentLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setParentConsentLoading(true);
+        setParentConsentError("");
+        void loadParentConsentEnabled().then((enabled) => {
+            if (!cancelled) setParentConsentEnabled(enabled);
+        }).catch((loadError) => {
+            if (!cancelled) {
+                setParentConsentEnabled(null);
+                setParentConsentError(applicationErrorMessage(loadError, "Unable to load Parent Portal consent settings. Reload the page and try again.", "SiteSettings"));
+            }
+        }).finally(() => {
+            if (!cancelled) setParentConsentLoading(false);
+        });
+        return () => { cancelled = true; };
+    }, [showParentLoginSettings]);
+
     const changeMinutes = (key: keyof SessionSettings, value: string) => {
         setSettings((current) => current ? { ...current, [key]: minutesValue(value) } : current);
         setMessage("");
@@ -138,6 +167,25 @@ export default function SiteSettings() {
         } finally {
             parentLoginSaveInFlight.current = false;
             setParentLoginSaving(false);
+        }
+    };
+
+    const changeParentConsent = async (enabled: boolean) => {
+        if (parentConsentSaveInFlight.current || parentConsentEnabled === null || enabled === parentConsentEnabled) return;
+        parentConsentSaveInFlight.current = true;
+        const previousValue = parentConsentEnabled;
+        setParentConsentSaving(true);
+        setParentConsentMessage("");
+        setParentConsentError("");
+        try {
+            await saveParentConsentEnabled(enabled, previousValue);
+            setParentConsentEnabled(enabled);
+            setParentConsentMessage(`Parent Portal Consent and Medical Consent ${enabled ? "enabled" : "disabled"}. The saved setting applies when Parent Portal content next loads.`);
+        } catch (saveError) {
+            setParentConsentError(applicationErrorMessage(saveError, "Unable to save Parent Portal consent settings. The previous setting is still active.", "SiteSettings"));
+        } finally {
+            parentConsentSaveInFlight.current = false;
+            setParentConsentSaving(false);
         }
     };
 
@@ -223,6 +271,36 @@ export default function SiteSettings() {
                                     <Typography variant="body2" color="text.secondary">{parentLoginSaving ? "Saving…" : parentLoginEnabled ? "Enabled" : "Disabled"}</Typography>
                                 </Box>
                             </Stack>
+                        )}
+                    </Paper>
+                )}
+
+                {showParentLoginSettings && (
+                    <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
+                        <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Parent Portal consent forms</Typography>
+                        <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }}>
+                            Control whether parents see the Consent and Medical Consent links and forms in Parent Portal. Disabling these entry points keeps existing forms, records, validation and parent-child permissions intact. Unset settings are disabled.
+                        </Typography>
+                        {parentConsentMessage && <Alert severity="success" role="status" sx={{ mb: 2 }}>{parentConsentMessage}</Alert>}
+                        {parentConsentError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{parentConsentError}</Alert>}
+                        {parentConsentLoading ? (
+                            <Typography color="text.secondary">Loading Parent Portal consent setting…</Typography>
+                        ) : parentConsentEnabled === null ? (
+                            <Typography color="text.secondary">The setting is unavailable until it can be loaded. Reload the page to retry.</Typography>
+                        ) : (
+                            <Box>
+                                <FormControlLabel
+                                    label="Enable Parent Portal Consent and Medical Consent"
+                                    control={(
+                                        <Switch
+                                            checked={parentConsentEnabled}
+                                            disabled={parentConsentSaving || parentConsentLoading}
+                                            onChange={(event) => void changeParentConsent(event.target.checked)}
+                                        />
+                                    )}
+                                />
+                                <Typography variant="body2" color="text.secondary">{parentConsentSaving ? "Saving…" : parentConsentEnabled ? "Enabled" : "Disabled"}</Typography>
+                            </Box>
                         )}
                     </Paper>
                 )}

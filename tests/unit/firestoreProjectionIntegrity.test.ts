@@ -41,3 +41,13 @@ test("reports orphaned and drifted projections plus invalid settings", () => {
   assert.ok(errors.some((error: string) => error.includes("parentLoginEnabled must be boolean")));
   assert.ok(errors.some((error: string) => error.includes("has no events source")));
 });
+
+test("accepts a paired Parent Portal consent setting and rejects drift", () => {
+  const collections = validCollections();
+  collections.get("siteSettings")!.set("parentConsent", { parentConsentEnabled: false, updatedBy: "super1", updatedAt: new Date() });
+  collections.get("siteSettings")!.get("publicNavigation")!.parentConsentEnabled = false;
+  assert.deepEqual(validateProjectionIntegrity(collections), []);
+
+  collections.get("siteSettings")!.get("publicNavigation")!.parentConsentEnabled = true;
+  assert.ok(validateProjectionIntegrity(collections).some((error: string) => error.includes("Parent Portal consent setting")));
+});
