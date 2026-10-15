@@ -1,23 +1,80 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const password=process.env.E2E_TEST_USER_PASSWORD;
-const adminEmail=process.env.E2E_ADMIN_EMAIL;
-function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Meeting date defaults run once on desktop Chromium."); }
-async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
+const password = process.env.E2E_TEST_USER_PASSWORD;
+const adminEmail = process.env.E2E_ADMIN_EMAIL;
+const timezoneId = "Europe/Dublin";
+const sections = [
+  { name: "Cubs" },
+  { name: "Ventures" },
+  { name: "Beavers" },
+  { name: "Scouts" }
+];
 
-test("SW-328 new meeting date follows section day until manually overridden", async ({ page }, testInfo) => {
-  desktopOnly(testInfo); test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
-  await login(page, adminEmail!); await page.goto("/leader/weekly/create");
+test.use({ timezoneId });
+
+async function login(page: Page) {
+  await page.goto("/leader/login");
+  await page.getByLabel("Email address").fill(adminEmail!);
+  await page.getByLabel("Password").fill(password!);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+}
+
+async function selectSection(page: Page, name: string) {
   const section = page.getByRole("combobox", { name: "Section" });
+  if (await section.inputValue() === name) {
+    const alternate = sections.find((candidate) => candidate.name !== name)!.name;
+    await section.click();
+    await page.getByRole("option", { name: alternate, exact: true }).click();
+  }
+  await section.click();
+  await page.getByRole("option", { name, exact: true }).click();
+}
+
+function localNoon(isoDate: string) {
+  const daylightOffset = isoDate < "2026-10-25" || isoDate >= "2027-03-28" ? "+01:00" : "+00:00";
+  return new Date(`${isoDate}T12:00:00${daylightOffset}`);
+}
+
+test("SW-398 next meeting date is the next local weekday across date boundaries", async ({ page }) => {
+  test.skip(!password || !adminEmail, "Configure canonical E2E admin credentials.");
+  await login(page);
+  await page.goto("/leader/weekly/create");
+  await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
+  await page.clock.install({ time: localNoon("2026-10-19") });
+
+  const existingMeetingsPage = await page.context().newPage();
+  await existingMeetingsPage.goto("/leader/weekly");
+  const existingMeeting = existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout");
+  await expect(existingMeeting).toContainText("15-01-2099 · Scouts");
+
   const date = page.getByLabel("Meeting date");
-  const expectWeekday = async (name: string, weekday: number) => {
-    await section.click(); await page.getByRole("option", { name, exact: true }).click();
-    const value = await date.inputValue();
-    const parsed = new Date(`${value}T12:00:00`);
-    expect(parsed.getDay()).toBe(weekday);
-  };
-  await expectWeekday("Cubs", 2); await expectWeekday("Ventures", 2); await expectWeekday("Beavers", 3); await expectWeekday("Scouts", 3);
-  await date.fill("2099-04-17");
-  await section.click(); await page.getByRole("option", { name: "Cubs", exact: true }).click();
-  await expect(date).toHaveValue("2099-04-17");
+  const dateCases = [
+    { today: "2026-10-19", expected: { Cubs: "2026-10-20", Ventures: "2026-10-20", Beavers: "2026-10-21", Scouts: "2026-10-21" } },
+    { today: "2026-10-20", expected: { Cubs: "2026-10-27", Ventures: "2026-10-27", Beavers: "2026-10-21", Scouts: "2026-10-21" } },
+    { today: "2026-10-21", expected: { Cubs: "2026-10-27", Ventures: "2026-10-27", Beavers: "2026-10-28", Scouts: "2026-10-28" } },
+    { today: "2026-12-29", expected: { Cubs: "2027-01-05", Ventures: "2027-01-05", Beavers: "2026-12-30", Scouts: "2026-12-30" } },
+    { today: "2026-12-30", expected: { Cubs: "2027-01-05", Ventures: "2027-01-05", Beavers: "2027-01-06", Scouts: "2027-01-06" } }
+  ];
+
+  for (const dateCase of dateCases) {
+    await page.clock.setFixedTime(localNoon(dateCase.today));
+    for (const section of sections) {
+      await selectSection(page, section.name);
+      await expect(date, `${section.name} from ${dateCase.today}`).toHaveValue(dateCase.expected[section.name]);
+    }
+  }
+
+  await page.clock.setFixedTime(localNoon("2026-10-19"));
+  await selectSection(page, "Cubs");
+  await expect(date).toHaveValue("2026-10-20");
+  await selectSection(page, "Ventures");
+  await expect(date).toHaveValue("2026-10-20");
+  await date.fill("2027-02-17");
+  await selectSection(page, "Beavers");
+  await expect(date).toHaveValue("2027-02-17");
+
+  await existingMeetingsPage.reload();
+  await expect(existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout")).toContainText("15-01-2099 · Scouts");
+  await existingMeetingsPage.close();
 });
