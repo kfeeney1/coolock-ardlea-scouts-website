@@ -289,8 +289,8 @@ service cloud.firestore {
         && badgeworkMemberHasSection(memberData, get(sourcePath).data.section)
         && (profile().role in ["super-admin", "admin"]
           || profileHasSection(get(sourcePath).data.section)
-          || isGroupLeader()
-          || hasBadgeworkSectionAppointment(get(sourcePath).data.section));
+          || hasBadgeworkSectionAppointment(get(sourcePath).data.section)
+          || isGroupLeader());
     }
     function canWriteAdventureRequirement(memberData, sourceData) {
       return isActiveLeader()
