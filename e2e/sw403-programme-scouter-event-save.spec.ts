@@ -37,13 +37,14 @@ test("SW-403 Programme Scouter saves and reopens an assigned-section event on de
   await page.getByLabel("Event title").fill(title);
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
-  await page.getByLabel("Start date").fill("2099-07-10");
+  const startDate = page.getByRole("textbox", { name: /^Start date/ });
+  await startDate.fill("2099-07-10");
   failNextSave = true;
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
   await expect(page).toHaveURL(/\/leader\/events\/create$/);
   await expect(page.getByLabel("Event title")).toHaveValue(title);
-  await expect(page.getByLabel("Start date")).toHaveValue("2099-07-10");
+  await expect(startDate).toHaveValue("2099-07-10");
   await expect(page.getByRole("alert").filter({ hasText: /saved successfully|event created/i })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
