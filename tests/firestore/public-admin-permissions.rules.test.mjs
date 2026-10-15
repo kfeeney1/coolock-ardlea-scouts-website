@@ -214,6 +214,30 @@ test("Parent Portal consent setting is Super Admin-only and updates its public p
   await assertFails(setDoc(navigationPath(publicDb), { parentLoginEnabled: true, parentConsentEnabled: false }));
 });
 
+test("first Parent Portal consent save materialises the unset Parent Login default atomically", async () => {
+  await seed([
+    ["adminUsers/super-1", { active: true, role: "super-admin", sections: ["Group"] }],
+  ]);
+
+  const superDb = testEnv.authenticatedContext("super-1").firestore();
+  const loginPath = doc(superDb, "siteSettings/parentLogin");
+  const consentPath = doc(superDb, "siteSettings/parentConsent");
+  const navigationPath = doc(superDb, "siteSettings/publicNavigation");
+  const firstConsentSave = writeBatch(superDb);
+  firstConsentSave.set(loginPath, { parentLoginEnabled: true, updatedBy: "super-1", updatedAt: serverTimestamp() });
+  firstConsentSave.set(consentPath, { parentConsentEnabled: true, updatedBy: "super-1", updatedAt: serverTimestamp() });
+  firstConsentSave.set(navigationPath, { parentLoginEnabled: true, parentConsentEnabled: true });
+  await assertSucceeds(firstConsentSave.commit());
+
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  assert.deepEqual((await getDoc(doc(publicDb, "siteSettings/publicNavigation"))).data(), {
+    parentLoginEnabled: true,
+    parentConsentEnabled: true,
+  });
+  await assertFails(getDoc(doc(publicDb, "siteSettings/parentLogin")));
+  await assertFails(getDoc(doc(publicDb, "siteSettings/parentConsent")));
+});
+
 test("public site content exposes only canonical environment projections", async () => {
   const testProjection = { contentVersion: 1, testData: true, testSeed: "public-site-content-v1", createdBySeed: "TEST_SEED" };
   const liveProjection = { contentVersion: 1, testData: false, visibility: "public", published: true };
