@@ -26,6 +26,10 @@ test("Firebase TEST creates, retries, edits and reopens a Cubs Activity without 
       assert.equal(init.headers.Authorization, `Bearer ${token}`);
       return Response.json(leader);
     }
+    if (parsed.pathname.endsWith("/organisationLeadership/leader-1")) {
+      assert.equal(init.headers.Authorization, `Bearer ${token}`);
+      return new Response("missing", { status: 404 });
+    }
     assert.equal(init.headers.Authorization, "Bearer runtime-access-token");
     if (parsed.pathname.endsWith("/members")) return Response.json({ documents: members });
     if (parsed.pathname.endsWith("/audienceMembers")) {
