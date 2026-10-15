@@ -1,18 +1,11 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
 
 function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Weekly planner follow-up runs once on desktop Chromium.");
-}
-
-async function login(page: Page) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(leaderEmail!);
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
 async function ensureProgramme(page: Page) {
@@ -47,7 +40,7 @@ test("future meeting opens in programme and saving retains the meeting editor", 
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-01", /01-04-2099 · Scouts/);
 
@@ -67,7 +60,7 @@ test("activity can have multiple section leaders and badgework is planned with p
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-08", /08-04-2099 · Scouts/);
 
@@ -99,7 +92,7 @@ test("weekly planner fits a phone viewport without horizontal overflow", async (
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile weekly planner regression runs once on the canonical Pixel 7 project.");
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
-  await login(page);
+  await loginAsLeader(page, { email: leaderEmail!, password: password! });
   await page.goto("/leader/weekly");
   await openOrCreate(page, "2099-04-15", /15-04-2099 · Scouts/);
 

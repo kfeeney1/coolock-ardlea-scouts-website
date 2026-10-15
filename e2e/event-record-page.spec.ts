@@ -1,4 +1,5 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -6,13 +7,7 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Event record navigation runs once on desktop Chromium.");
 }
 
-async function loginAdmin(page: Page) {
-  await page.goto("/leader/login");
-  await page.getByLabel("Email address").fill(process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com");
-  await page.getByLabel("Password").fill(password!);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
-}
+const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
 
 async function persistedAudienceMemberIds(eventId: string): Promise<string[]> {
   const projectId = process.env.VITE_FIREBASE_PROJECT_ID || "demo-coolock-ardlea-scouts";
@@ -29,7 +24,7 @@ async function persistedAudienceMemberIds(eventId: string): Promise<string[]> {
 test("clicking an event tile opens its full record with a clear list action", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events");
 
   const card = page.getByTestId("event-card-TEST_flow_event_beavers_open");
@@ -68,7 +63,7 @@ test("clicking an event tile opens its full record with a clear list action", as
 test("event editor saves valid edits before app and browser back navigation", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
   const title = `TEST event autosave ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
@@ -132,7 +127,7 @@ test("event editor saves valid edits before app and browser back navigation", as
 test("mobile event editor saves valid edits before navigating away", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Event auto-save mobile regression runs on the canonical mobile project.");
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
   const title = `TEST mobile event autosave ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
@@ -153,7 +148,7 @@ test("mobile event editor saves valid edits before navigating away", async ({ pa
 test("blocked event report pop-ups use in-page error feedback", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/TEST_flow_event_beavers_open");
 
   await page.evaluate(() => {
@@ -167,7 +162,7 @@ test("blocked event report pop-ups use in-page error feedback", async ({ page },
 
 test("Add Event opens the dedicated full-page editor on desktop and mobile", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events");
   await page.getByRole("link", { name: "Add Event", exact: true }).click();
 
@@ -183,7 +178,7 @@ test("Add Event opens the dedicated full-page editor on desktop and mobile", asy
 test("Clear resets the full-page event form without persisting or leaving it", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
   await page.getByLabel("Event title").fill("TEST clear-only event");
   await page.getByLabel("Start date").fill("2099-04-02");
@@ -200,7 +195,7 @@ test("Clear resets the full-page event form without persisting or leaving it", a
 
 test("future start opens the shared end calendar at a valid date and only applies after confirmation", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
 
   const start = page.getByLabel("Start date");
@@ -260,7 +255,7 @@ test("future start opens the shared end calendar at a valid date and only applie
 
 test("Back and Cancel avoid empty events and save a valid draft before leaving", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
   await page.getByRole("button", { name: "Back to Events", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events$/);
@@ -277,7 +272,7 @@ test("Back and Cancel avoid empty events and save a valid draft before leaving",
 test("full-page Create Event preserves fields and audience and saves to the event record", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
-  await loginAdmin(page);
+  await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/events/create");
 
   const title = `TEST full-page event ${Date.now()}`;

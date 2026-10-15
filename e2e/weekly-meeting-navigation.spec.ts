@@ -1,9 +1,9 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const sectionLeaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
 function desktopOnly(testInfo: TestInfo) { test.skip(testInfo.project.name !== "chromium", "Weekly meeting navigation runs once on desktop Chromium."); }
-async function login(page: Page, email: string) { await page.goto("/leader/login"); await page.getByLabel("Email address").fill(email); await page.getByLabel("Password").fill(password!); await page.getByRole("button", { name: "Sign In" }).click(); await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible(); }
 async function expectFilledAction(control: Locator) {
   await expect(control).toBeVisible();
   const disabled = (await control.getAttribute("aria-disabled")) === "true" || !(await control.isEnabled());
@@ -31,7 +31,7 @@ async function ensureOpenScoutsMeeting(page: Page) {
 
 test("SW-264 authorised meeting editor routes to canonical Create Meeting and protects unsaved changes", async ({ page }, testInfo) => {
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
-  await login(page, sectionLeaderEmail); await page.goto("/leader/weekly");
+  await loginAsLeader(page, { email: sectionLeaderEmail, password: password! }); await page.goto("/leader/weekly");
   const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
   if (await meeting.count()) await meeting.click(); else { const history=page.getByTestId(/meeting-history-/).filter({hasText:"· Scouts"}).first(); await history.getByRole("link", { name: /View/ }).click(); }
   const create = page.getByRole("button", { name: "Create Meeting", exact: true });
@@ -51,7 +51,7 @@ test("SW-369 open weekly meeting returns to the Weekly Meetings list with its me
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Weekly meeting return navigation runs on desktop and Pixel 7 Chromium.");
   test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
 
-  await login(page, sectionLeaderEmail);
+  await loginAsLeader(page, { email: sectionLeaderEmail, password: password! });
   await ensureOpenScoutsMeeting(page);
   await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Menu · Weekly Meetings" })).toBeVisible();
@@ -103,7 +103,7 @@ test("SW-369 browser Back from an open weekly meeting returns to the meeting lis
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Weekly meeting return navigation runs on desktop and Pixel 7 Chromium.");
   test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
 
-  await login(page, sectionLeaderEmail);
+  await loginAsLeader(page, { email: sectionLeaderEmail, password: password! });
   await ensureOpenScoutsMeeting(page);
   await expect(page.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
   const meeting = page.getByRole("button", { name: /· Scouts/ }).first();
