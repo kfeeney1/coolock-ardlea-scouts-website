@@ -22,11 +22,9 @@ async function login(page: Page) {
 
 async function selectSection(page: Page, name: string) {
   const section = page.getByRole("combobox", { name: "Section" });
-  if (await section.inputValue() === name) {
-    const alternate = sections.find((candidate) => candidate.name !== name)!.name;
-    await section.click();
-    await page.getByRole("option", { name: alternate, exact: true }).click();
-  }
+  const alternate = sections.find((candidate) => candidate.name !== name)!.name;
+  await section.click();
+  await page.getByRole("option", { name: alternate, exact: true }).click();
   await section.click();
   await page.getByRole("option", { name, exact: true }).click();
 }
