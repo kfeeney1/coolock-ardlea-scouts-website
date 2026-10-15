@@ -167,7 +167,7 @@ test("Scout-year date range anchors a future end to its start and blocks reverse
   await expect(end).toHaveAttribute("aria-invalid", "true");
   await expect(panel.getByText("End date cannot be before the start date.", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Save immutable rate policy" }).click();
-  await expect(panel.getByText(/Subs period end date must be valid and on or after its start date/)).toBeVisible();
+  await expect(panel.getByText(/already saved and cannot be changed/)).toBeVisible();
 
   await page.reload();
   const reloadedPanel = page.getByTestId("subs-settings-panel");
