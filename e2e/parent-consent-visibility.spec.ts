@@ -1,5 +1,5 @@
 import { expect, test, type TestInfo } from "@playwright/test";
-import { setParentConsentEnabled } from "./helpers/parent-consent-setting";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL || "test.beaver.parent1@example.com";
@@ -20,6 +20,7 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
 
   const parentContext = await browser.newContext({ baseURL });
   const parentPage = await parentContext.newPage();
+  const releaseSettingLock = await acquireParentConsentSettingLock();
   if (testInfo.project.name === "mobile-chromium") await parentPage.setViewportSize({ width: 390, height: 844 });
   try {
     await setParentConsentEnabled(browser, false);
@@ -75,5 +76,6 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
   } finally {
     await setParentConsentEnabled(browser, false);
     await parentContext.close();
+    await releaseSettingLock();
   }
 });
