@@ -222,7 +222,8 @@ service cloud.firestore {
     function badgeworkSectionAppointmentAt(data, index, section) {
       return data.appointments.size() > index
         && data.appointments[index] is map
-        && data.appointments[index].scope == section
+        && data.appointments[index].scope is string
+        && data.appointments[index].scope in badgeworkSectionAliases(section)
         && data.appointments[index].get("active", true) == true
         && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
     }
@@ -731,8 +732,12 @@ service cloud.firestore {
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
               || isGroupLeader() || isGroupSecretary()
               || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
-        allow create, update: if exists(/databases/$(database)/documents/members/$(memberId))
-          && canWriteAdventureRequirement(get(/databases/$(database)/documents/members/$(memberId)).data, request.resource.data)
+        // The member read in canWriteAdventureRequirement also proves existence. Avoid a
+        // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
+        allow create, update: if canWriteAdventureRequirement(
+          get(/databases/$(database)/documents/members/$(memberId)).data,
+          request.resource.data
+        )
           && request.resource.data.memberId == memberId
           && request.resource.data.requirementId == requirementId
           && request.resource.data.skillId is string
@@ -745,8 +750,10 @@ service cloud.firestore {
           && request.resource.data.sourceType in ["manual", "weeklyMeeting", "event", "activity", "migration"]
           && request.resource.data.sourceId is string
           && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
-        allow delete: if exists(/databases/$(database)/documents/members/$(memberId))
-          && canWriteAdventureRequirement(get(/databases/$(database)/documents/members/$(memberId)).data, resource.data);
+        allow delete: if canWriteAdventureRequirement(
+          get(/databases/$(database)/documents/members/$(memberId)).data,
+          resource.data
+        );
       }
 
       match /awards/{awardId} {
