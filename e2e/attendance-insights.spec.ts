@@ -47,8 +47,8 @@ test("ordinary leader can compare attendance sources, preserve filters through h
   await expect(cards.first()).toContainText("Combined");
   await expect(page.getByTestId("attendance-result-count")).toContainText("1");
 
-  await page.getByTestId("attendance-from-date").fill("2099-01-15");
-  await page.getByTestId("attendance-to-date").fill("2099-01-15");
+  await page.getByTestId("attendance-from-date").fill("15-01-2099");
+  await page.getByTestId("attendance-to-date").fill("15-01-2099");
   await expect(cards).toHaveCount(1);
   await cards.first().getByRole("button", { name: "View attendance" }).click();
 
@@ -64,7 +64,7 @@ test("ordinary leader can compare attendance sources, preserve filters through h
   await detail.getByRole("button", { name: "Back to members" }).click();
   await expect(search).toHaveValue(seededMember);
   await expect(page.getByRole("combobox", { name: "Section" })).toContainText("Scouts");
-  await expect(page.getByTestId("attendance-from-date")).toHaveValue("2099-01-15");
+  await expect(page.getByTestId("attendance-from-date")).toHaveValue("15-01-2099");
   await expect(page.getByTestId("attendance-to-date")).toHaveValue("15-01-2099");
 
   await page.getByRole("button", { name: "Reset filters" }).click();

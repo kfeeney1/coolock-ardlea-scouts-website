@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import type { MemberRecord } from "../../services/memberAdmin";
 import { balanceFor, formatEuro, paymentMethodLabel, SUBS_PAYMENT_METHODS, type SubsAssignment, type SubsPayment, type SubsPaymentMethod, type SubsRatePolicy } from "../../services/subsLogic";
@@ -78,7 +79,7 @@ export default function SubsPaymentPanel({
                   ))}
                 </Select>
               </FormControl>
-              <TextField required type="date" label="Payment date" value={paymentDate} onChange={(e) => onPaymentDateChange(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+              <DatePickerField required label="Payment date" value={paymentDate} onChange={(e) => onPaymentDateChange(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
               <TextField label="Note (optional)" value={note} onChange={(e) => onNoteChange(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
             </Box>
             {!error && visibleMembers.length === 0 && (

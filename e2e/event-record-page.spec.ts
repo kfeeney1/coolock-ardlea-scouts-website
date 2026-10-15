@@ -200,6 +200,8 @@ test("future start opens the shared end calendar at a valid date and only applie
 
   const start = page.getByLabel("Start date");
   const end = page.getByRole("textbox", { name: "End date", exact: true });
+  await expect(start).toHaveAttribute("type", "text");
+  await expect(end).toHaveAttribute("type", "text");
   await expect(end).toBeDisabled();
   await expect(page.getByText("Enter a valid start date.", { exact: true })).toBeVisible();
   await start.fill("2099-04-02");
@@ -253,6 +255,69 @@ test("future start opens the shared end calendar at a valid date and only applie
   await expect(end).toHaveValue("01-01-2100");
 });
 
+test("standalone date fields use the same confirmable calendar on mobile and desktop", async ({ page }) => {
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await loginAsLeader(page, { email: adminEmail, password: password! });
+  await page.goto("/leader/events/create");
+
+  const start = page.getByLabel("Start date");
+  await expect(start).toHaveAttribute("type", "text");
+  await start.fill("2096-02-28");
+  await expect(start).toHaveValue("28-02-2096");
+  const calendarTrigger = page.getByRole("button", { name: "Choose start date" });
+  await calendarTrigger.click();
+  const calendar = page.getByRole("dialog", { name: "Choose start date" });
+  await expect(calendar.getByRole("button", { name: "Select 29-02-2096" })).toBeVisible();
+  await expect(calendar.getByRole("group", { name: "February 2096 dates" })).toBeVisible();
+  await expect(calendar.locator('[aria-label="Mon"]')).toHaveText("Mon");
+  await expect(calendar.getByRole("button", { name: "Select 28-02-2096" })).toHaveAttribute("aria-pressed", "true");
+  const bounds = await calendar.boundingBox();
+  const viewport = page.viewportSize();
+  expect(bounds && viewport && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height).toBe(true);
+  await calendar.getByRole("button", { name: "Next month" }).click();
+  await expect(calendar.getByRole("button", { name: "Select 28-03-2096" })).toBeVisible();
+  await calendar.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(start).toHaveValue("28-02-2096");
+  await expect(calendarTrigger).toBeFocused();
+
+  await page.getByRole("button", { name: "Choose start date" }).click();
+  const reopened = page.getByRole("dialog", { name: "Choose start date" });
+  const selectedDay = reopened.getByRole("button", { name: "Select 29-02-2096" });
+  await selectedDay.focus();
+  await expect(selectedDay).toBeFocused();
+  await selectedDay.press("ArrowRight");
+  await expect(reopened.getByText("March 2096", { exact: true })).toBeVisible();
+  await expect(reopened.getByRole("button", { name: "Select 01-03-2096" })).toBeFocused();
+  await reopened.getByRole("button", { name: "Select 29-02-2096" }).click();
+  await reopened.getByRole("button", { name: "Confirm date" }).click();
+  await expect(start).toHaveValue("29-02-2096");
+  await expect(start).toHaveAttribute("aria-invalid", "false");
+
+  await start.fill("31-02-2096");
+  await expect(start).toHaveAttribute("aria-invalid", "true");
+  expect(await start.evaluate((node: HTMLInputElement) => node.checkValidity())).toBe(false);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test.describe("date-only calendar in Europe/Dublin", () => {
+  test.use({ timezoneId: "Europe/Dublin" });
+
+  test("the daylight-saving boundary remains the same date through the picker", async ({ page }) => {
+    test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+    await loginAsLeader(page, { email: adminEmail, password: password! });
+    await page.goto("/leader/events/create");
+    const start = page.getByLabel("Start date");
+    await start.fill("2026-10-25");
+    await expect(start).toHaveValue("25-10-2026");
+    await page.getByRole("button", { name: "Choose start date" }).click();
+    const calendar = page.getByRole("dialog", { name: "Choose start date" });
+    await expect(calendar.getByRole("button", { name: "Select 25-10-2026" })).toHaveAttribute("aria-pressed", "true");
+    await calendar.getByRole("button", { name: "Confirm date" }).click();
+    await expect(start).toHaveValue("25-10-2026");
+  });
+});
+
 test("Back and Cancel avoid empty events and save a valid draft before leaving", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAsLeader(page, { email: adminEmail, password: password! });
@@ -302,8 +367,14 @@ test("full-page Create Event preserves fields and audience and saves to the even
   await expect(page.getByText("TEST full-page location", { exact: true })).toBeVisible();
   const eventId = page.url().split("/").at(-1)!;
   await page.goto(`/leader/events/${encodeURIComponent(eventId)}/edit`);
-  await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
-  await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("10-05-2099");
+  await expect(page.getByLabel("Start date")).toHaveValue("10-05-2099");
+  const savedEnd = page.getByRole("textbox", { name: "End date", exact: true });
+  await expect(savedEnd).toHaveValue("10-05-2099");
+  await page.getByRole("button", { name: "Choose end date" }).click();
+  const endCalendar = page.getByRole("dialog", { name: "Choose end date" });
+  await endCalendar.getByRole("button", { name: "Select 11-05-2099" }).click();
+  await endCalendar.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(savedEnd).toHaveValue("10-05-2099");
   await page.getByLabel("Start date").fill("2099-05-11");
   await expect(page.getByRole("textbox", { name: "End date", exact: true })).toHaveValue("");
   await page.getByRole("textbox", { name: "End date", exact: true }).fill("09-05-2099");

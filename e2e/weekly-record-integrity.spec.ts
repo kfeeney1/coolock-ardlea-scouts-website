@@ -29,7 +29,7 @@ test("Clear resets a new meeting form without creating a record", async ({ page 
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\/create$/);
   await expect(section).toHaveText(originalSection || "");
-  await expect(page.getByLabel("Meeting date")).not.toHaveValue("2099-04-01");
+  await expect(page.getByLabel("Meeting date")).not.toHaveValue("01-04-2099");
   await expect(page.getByLabel("Location")).toHaveValue("");
   await expect(page.getByLabel("Theme / programme title")).toHaveValue("");
   await expect(page.getByLabel("Programme notes")).toHaveValue("");
@@ -103,11 +103,11 @@ test("meeting copy Cancel exits untouched and protects a changed destination dat
   await sourceMeeting.getByRole("link", { name: "Copy Meeting", exact: true }).click();
   const copyDate = page.getByLabel("Choose date");
   await expect(copyDate).toBeVisible();
-  await copyDate.fill("2099-04-08");
+  await copyDate.fill("08-04-2099");
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Discard this new meeting copy?" })).toBeVisible();
   await page.getByRole("button", { name: "Keep editing" }).click();
-  await expect(copyDate).toHaveValue("2099-04-08");
+  await expect(copyDate).toHaveValue("08-04-2099");
   await page.getByRole("button", { name: "Cancel copy", exact: true }).click();
   await page.getByRole("button", { name: "Discard and cancel", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=TEST_e2e_weekly_scout$/);

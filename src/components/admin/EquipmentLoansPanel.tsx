@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import {
   Alert,
@@ -191,7 +192,7 @@ export default function EquipmentLoansPanel({ profile, items, loans, onChanged, 
             }}>{sectionOptions.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}</Select>
             {sectionError && <FormHelperText id="checkout-section-error" role="alert">{sectionError}</FormHelperText>}
           </FormControl>
-          <TextField label="Expected return date" type="date" value={expectedReturnDate} onChange={(event) => setExpectedReturnDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <DatePickerField label="Expected return date" value={expectedReturnDate} onChange={(event) => setExpectedReturnDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="Checkout notes" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={2} placeholder="Optional event, camp or collection note" />
           <Typography sx={{ fontWeight: 800 }}>Equipment</Typography>
           <Stack spacing={1.25}>{activeItems.map((item) => {

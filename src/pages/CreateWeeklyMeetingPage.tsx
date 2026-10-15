@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -114,7 +115,7 @@ export default function CreateWeeklyMeetingPage() {
       {!accessLoaded ? <Typography role="status">Loading meeting access…</Typography> : <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack spacing={2}>
           <TextField select required label="Section" value={section} onChange={(event) => { const nextSection=event.target.value; setSection(nextSection); if(!dateManuallyChanged.current)setDate(nextSectionMeetingDate(nextSection)); }}>{sections.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>
-          <TextField required label="Meeting date" type="date" value={date} onChange={(event) => { dateManuallyChanged.current=true; setDate(event.target.value); }} slotProps={{ inputLabel: { shrink: true } }} />
+          <DatePickerField required label="Meeting date" value={date} onChange={(event) => { dateManuallyChanged.current=true; setDate(event.target.value); }} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="Location" value={location} onChange={(event) => setLocation(event.target.value)} />
           <TextField label="Theme / programme title" value={theme} onChange={(event) => setTheme(event.target.value)} />
           <TextField multiline minRows={4} label="Programme notes" value={programmeNotes} onChange={(event) => setProgrammeNotes(event.target.value)} />

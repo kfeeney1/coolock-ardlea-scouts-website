@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { formatSiteDateTime } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { useEffect, useMemo, useState } from "react";
@@ -234,7 +235,7 @@ export default function SectionCashbook() {
               slotProps={{ htmlInput: { inputMode: "decimal", pattern: "[0-9]*[.,]?[0-9]{0,2}" } }}
             />
             {isMoneyOut && <FormControl><InputLabel id="finance-category-label">Outgoing category</InputLabel><StableSelect labelId="finance-category-label" id="finance-category" label="Outgoing category" value={category} onChange={(event) => setCategory(String(event.target.value))}>{DEFAULT_FINANCE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</StableSelect></FormControl>}
-            <TextField type="date" label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+            <DatePickerField label="Date" value={transactionDate} onChange={(event) => setTransactionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField label={isMoneyOut ? "What was the money spent on?" : "Note (optional)"} value={description} onChange={(event) => setDescription(event.target.value)} sx={{ gridColumn: { md: "1 / -1" } }} />
           </Box>
           {isMoneyOut && <Stack spacing={0.75} sx={{ mt: 2, alignItems: "flex-start" }}>
@@ -269,7 +270,7 @@ export default function SectionCashbook() {
           }}
         />
       </Stack>
-      <Dialog open={Boolean(correction)} onClose={() => !saving && setCorrection(null)} fullWidth maxWidth="sm"><DialogTitle>Correct float entry</DialogTitle><DialogContent dividers>{correction && <Stack spacing={2}><Alert severity="warning">This does not edit or delete the original. It creates an equal and opposite correction linked to the original transaction. A correction that would take the float below €0.00 is blocked.</Alert><Typography><strong>Original:</strong> {correction.description} · {formatEuro(signedAmountCents(correction))}</Typography><TextField type="date" label="Correction date" value={correctionDate} onChange={(event) => setCorrectionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /><TextField label="Reason / note" value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder={`Correction of ${correction.description}`} multiline minRows={2} /></Stack>}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setCorrection(null)}>Cancel</Button><Button disabled={saving} variant="contained" color="warning" onClick={() => void saveCorrection()}>{saving ? "Saving…" : "Create correction"}</Button></DialogActions></Dialog>
+      <Dialog open={Boolean(correction)} onClose={() => !saving && setCorrection(null)} fullWidth maxWidth="sm"><DialogTitle>Correct float entry</DialogTitle><DialogContent dividers>{correction && <Stack spacing={2}><Alert severity="warning">This does not edit or delete the original. It creates an equal and opposite correction linked to the original transaction. A correction that would take the float below €0.00 is blocked.</Alert><Typography><strong>Original:</strong> {correction.description} · {formatEuro(signedAmountCents(correction))}</Typography><DatePickerField label="Correction date" value={correctionDate} onChange={(event) => setCorrectionDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /><TextField label="Reason / note" value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} placeholder={`Correction of ${correction.description}`} multiline minRows={2} /></Stack>}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setCorrection(null)}>Cancel</Button><Button disabled={saving} variant="contained" color="warning" onClick={() => void saveCorrection()}>{saving ? "Saving…" : "Create correction"}</Button></DialogActions></Dialog>
     </Container>
   </Box>;
 }

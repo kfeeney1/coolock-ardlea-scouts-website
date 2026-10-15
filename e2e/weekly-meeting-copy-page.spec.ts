@@ -50,7 +50,7 @@ test("SW-386 Copy Meeting opens a full page and returns to its source without cr
   const discard = page.getByRole("dialog", { name: "Discard this new meeting copy?" });
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Keep editing" }).click();
-  await expect(copyDate).toHaveValue("2099-04-08");
+  await expect(copyDate).toHaveValue("08-04-2099");
   await page.getByRole("button", { name: "Back to Source Meeting" }).click();
   await expect(discard).toBeVisible();
   await discard.getByRole("button", { name: "Discard and cancel" }).click();

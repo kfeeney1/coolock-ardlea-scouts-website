@@ -149,7 +149,7 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
   await expect(page.getByLabel("Event title")).toHaveValue(title);
-  await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
+  await expect(page.getByLabel("Start date")).toHaveValue("10-05-2099");
   await expect(page.getByLabel("Section")).toHaveText("Cubs");
   await expect(page.getByLabel("Event type")).toHaveText("Activity");
 
