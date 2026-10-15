@@ -51,6 +51,7 @@ type AdminAuthContextValue = {
     adminProfile: AdminProfile | null;
     loading: boolean;
     authorised: boolean;
+    sessionEnded: boolean;
     accessError: string;
     sessionSettings: SessionSettings;
     refreshSessionSettings: () => Promise<void>;
@@ -101,7 +102,9 @@ export function AdminAuthProvider({ children }: Props) {
     const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
     const [sessionSettings, setSessionSettings] = useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [sessionEnded, setSessionEnded] = useState(false);
     const authStateVersion = useRef(0);
+    const hasAuthenticatedSession = useRef(false);
 
     const refreshSessionSettings = async () => {
         try {
@@ -115,6 +118,14 @@ export function AdminAuthProvider({ children }: Props) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
             const version = ++authStateVersion.current;
+            if (nextUser) {
+                hasAuthenticatedSession.current = true;
+            } else if (hasAuthenticatedSession.current) {
+                // Once a signed-in session ends, a subsequent login starts at
+                // the account's home. A route saved by the protected-route
+                // guard during this transition is stale session state.
+                setSessionEnded(true);
+            }
             setLoading(true);
             setAccessError("");
             setUser(nextUser);
@@ -253,6 +264,7 @@ export function AdminAuthProvider({ children }: Props) {
         }
         setUser(credential.user);
         setAdminProfile(profile);
+        setSessionEnded(false);
         await refreshSessionSettings();
     };
 
@@ -264,6 +276,7 @@ export function AdminAuthProvider({ children }: Props) {
         ++authStateVersion.current;
         setUser(null);
         setAdminProfile(null);
+        setSessionEnded(true);
         setSessionSettings(DEFAULT_SESSION_SETTINGS);
         setLoading(false);
         window.localStorage.removeItem(SESSION_LAST_ACTIVITY_KEY);
@@ -281,12 +294,13 @@ export function AdminAuthProvider({ children }: Props) {
         loading,
         accessError,
         authorised: Boolean(user) && Boolean(adminProfile),
+        sessionEnded,
         sessionSettings,
         refreshSessionSettings,
         setUiTheme,
         login,
         logout
-    }), [user, adminProfile, loading, accessError, sessionSettings, setUiTheme]);
+    }), [user, adminProfile, loading, accessError, sessionSettings, sessionEnded, setUiTheme]);
 
     return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;
 }
