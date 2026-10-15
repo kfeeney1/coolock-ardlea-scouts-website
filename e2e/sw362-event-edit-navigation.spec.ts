@@ -227,7 +227,7 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   // A real field edit followed immediately by a dashboard menu transition must
   // still be intercepted even if React's passive effects have not rerun yet.
   const savedStartDate = await page.getByRole("textbox", { name: /^Start date/ }).inputValue();
-  const editedStartDate = "2099-05-12";
+  const editedStartDate = "12-05-2099";
   await page.getByRole("textbox", { name: /^Start date/ }).fill(editedStartDate);
   // The active route changes this button's accessible name, so use its stable
   // control relationship instead of assuming the initial "Open Leader Menu" name.
