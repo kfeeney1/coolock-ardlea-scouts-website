@@ -219,20 +219,26 @@ service cloud.firestore {
         || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
     }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
+    function badgeworkSectionAppointmentMatches(appointment, sectionAliases) {
+      return appointment is map
+        && appointment.get("active", true) == true
+        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && appointment.get("scope", "") in sectionAliases;
+    }
     function badgeworkSectionAppointmentAt(data, index, sectionAliases) {
       return data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && data.appointments[index].get("scope", "") in sectionAliases;
+        && badgeworkSectionAppointmentMatches(data.appointments[index], sectionAliases);
+    }
+    function badgeworkMemberAppointmentMatches(appointment, memberData) {
+      return appointment is map
+        && appointment.get("active", true) == true
+        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && appointment.get("scope", "") is string
+        && badgeworkMemberHasSection(memberData, appointment.get("scope", ""));
     }
     function badgeworkMemberAppointmentAt(data, index, memberData) {
       return data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && data.appointments[index].get("scope", "") is string
-        && badgeworkMemberHasSection(memberData, data.appointments[index].get("scope", ""));
+        && badgeworkMemberAppointmentMatches(data.appointments[index], memberData);
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -278,7 +284,150 @@ service cloud.firestore {
           || badgeworkMemberAppointmentAt(leadership, 10, memberData)
           || badgeworkMemberAppointmentAt(leadership, 11, memberData))));
     }
-    function validOpenWeeklyMeetingBadgeworkSource(memberData, sourceId) {
+    function weeklyMeetingPresentEntryMatches(entry, memberId) {
+      return entry is map
+        && entry.get("memberId", "") == memberId
+        && entry.get("attendance", "") == "present";
+    }
+    function weeklyMeetingPresentEntryAt(meeting, index, memberId) {
+      return meeting.entries.size() > index
+        && weeklyMeetingPresentEntryMatches(meeting.entries[index], memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup0(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 0, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 1, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 2, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 3, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 4, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 5, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 6, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 7, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 8, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 9, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup1(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 10, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 11, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 12, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 13, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 14, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 15, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 16, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 17, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 18, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 19, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup2(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 20, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 21, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 22, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 23, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 24, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 25, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 26, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 27, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 28, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 29, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup3(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 30, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 31, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 32, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 33, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 34, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 35, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 36, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 37, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 38, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 39, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup4(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 40, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 41, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 42, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 43, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 44, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 45, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 46, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 47, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 48, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 49, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup5(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 50, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 51, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 52, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 53, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 54, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 55, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 56, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 57, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 58, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 59, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup6(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 60, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 61, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 62, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 63, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 64, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 65, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 66, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 67, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 68, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 69, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup7(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 70, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 71, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 72, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 73, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 74, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 75, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 76, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 77, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 78, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 79, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup8(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 80, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 81, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 82, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 83, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 84, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 85, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 86, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 87, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 88, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 89, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup9(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 90, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 91, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 92, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 93, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 94, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 95, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 96, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 97, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 98, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 99, memberId);
+    }
+    // Weekly meeting rosters are capped at 100 persisted entries. Check the persisted
+    // attendance record itself; a client-supplied badgework member list is not authority.
+    function weeklyMeetingHasPresentMember(meeting, memberId) {
+      return meeting.entries is list && (weeklyMeetingHasPresentMemberGroup0(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup1(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup2(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup3(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup4(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup5(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup6(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup7(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup8(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup9(meeting, memberId));
+    }
+    function validOpenWeeklyMeetingBadgeworkSource(memberData, memberId, sourceId) {
       let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
       let meetingExists = exists(sourcePath);
       let meeting = meetingExists ? get(sourcePath).data : {};
@@ -289,16 +438,17 @@ service cloud.firestore {
         && meeting.get("status", "") == "open"
         && section is string
         && badgeworkMemberHasSection(memberData, section)
+        && weeklyMeetingHasPresentMember(meeting, memberId)
         && (accessProfile.role in ["super-admin", "admin"]
           || (accessProfile.sections is list && accessProfile.sections.hasAny(sectionAliases))
           || hasBadgeworkSectionAppointment(section)
           || isGroupLeader());
     }
-    function canWriteAdventureRequirement(memberData, sourceData) {
+    function canWriteAdventureRequirement(memberData, memberId, sourceData) {
       return isActiveLeader()
         && (sourceData.sourceType == "weeklyMeeting"
           ? sourceData.sourceId is string && sourceData.sourceId.size() > 0
-            && validOpenWeeklyMeetingBadgeworkSource(memberData, sourceData.sourceId)
+            && validOpenWeeklyMeetingBadgeworkSource(memberData, memberId, sourceData.sourceId)
           : canAccessMemberSections(memberData) || isGroupLeader());
     }
     function isSelfManagedRoverMember() {
@@ -759,6 +909,7 @@ service cloud.firestore {
         // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
         allow create, update: if canWriteAdventureRequirement(
           get(/databases/$(database)/documents/members/$(memberId)).data,
+          memberId,
           request.resource.data
         )
           && request.resource.data.memberId == memberId
@@ -775,6 +926,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
         allow delete: if canWriteAdventureRequirement(
           get(/databases/$(database)/documents/members/$(memberId)).data,
+          memberId,
           resource.data
         );
       }
@@ -1069,6 +1221,7 @@ service cloud.firestore {
         && request.resource.data.programmeNotes is string
         && request.resource.data.notes is string
         && request.resource.data.entries is list
+        && request.resource.data.entries.size() <= 100
         && request.resource.data.injuries is list
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.updatedBy == request.auth.uid
@@ -1085,6 +1238,7 @@ service cloud.firestore {
         && request.resource.data.programmeNotes is string
         && request.resource.data.notes is string
         && request.resource.data.entries is list
+        && request.resource.data.entries.size() <= 100
         && request.resource.data.injuries is list
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);

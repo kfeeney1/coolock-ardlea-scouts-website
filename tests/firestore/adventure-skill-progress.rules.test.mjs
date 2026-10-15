@@ -66,7 +66,7 @@ test("Programme Scouter can save weekly-meeting badgework for one eligible membe
       ],
     }],
     ["members/member-1", { section: "Cub Scouts", sections: ["Cub Scouts"], status: "active" }],
-    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open", entries: [{ memberId: "member-1", attendance: "present" }] }],
   ]);
 
   const db = testEnv.authenticatedContext("programme-cubs").firestore();
@@ -91,7 +91,7 @@ test("Programme Scouter can atomically save badgework for ten eligible Beavers",
       appointments: [{ appointment: "Programme Scouter", scope: "Beavers", active: true }],
     }],
     ...memberIds.map((memberId) => [`members/${memberId}`, { section: "Beavers", sections: ["Beavers"], status: "active" }]),
-    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open" }],
+    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open", entries: memberIds.map((memberId) => ({ memberId, attendance: "present" })) }],
   ]);
 
   const db = testEnv.authenticatedContext("programme-beavers").firestore();
@@ -126,7 +126,7 @@ test("Cub Scouter appointment in the persisted appointment list remains effectiv
       ],
     }],
     ...memberIds.map((memberId) => [`members/${memberId}`, { section: "Cubs", sections: ["Cubs"], status: "active" }]),
-    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open", entries: memberIds.map((memberId) => ({ memberId, attendance: "present" })) }],
   ]);
 
   const db = testEnv.authenticatedContext("cub-scouter").firestore();
@@ -145,6 +145,53 @@ test("Cub Scouter appointment in the persisted appointment list remains effectiv
   }
 });
 
+test("weekly-meeting badgework requires every selected child to be present in the persisted roster", async () => {
+  const meetingSource = { type: "weeklyMeeting", id: "meeting-cubs-open" };
+  await seed([
+    ["adminUsers/programme-cubs", { active: true, role: "leader", sections: ["Group"] }],
+    ["organisationLeadership/programme-cubs", {
+      active: true,
+      scoutingRole: "Programme Scouter",
+      organisationSection: "Group",
+      appointments: [{ appointment: "Programme Scouter", scope: "Cubs", active: true }],
+    }],
+    ["members/cub-present", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["members/cub-absent", { section: "Cubs", sections: ["Cubs"], status: "active" }],
+    ["weeklyMeetings/meeting-cubs-open", {
+      section: "Cubs",
+      status: "open",
+      entries: [
+        { memberId: "cub-present", attendance: "present" },
+        ...Array.from({ length: 98 }, (_, index) => ({ memberId: `other-${index}`, attendance: "unrecorded" })),
+        { memberId: "cub-absent", attendance: "absent" },
+      ],
+    }],
+  ]);
+
+  const db = testEnv.authenticatedContext("programme-cubs").firestore();
+  const batch = writeBatch(db);
+  for (const memberId of ["cub-present", "cub-absent"]) {
+    batch.set(
+      doc(db, `memberAdventureSkillProgress/${memberId}/requirements/camping-stage-1-requirement-06`),
+      requirement("programme-cubs", memberId, meetingSource),
+    );
+  }
+  await assertFails(batch.commit());
+  const presentProgress = await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/cub-present/requirements")));
+  const absentProgress = await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/cub-absent/requirements")));
+  assert.equal(presentProgress.size, 0, "the authorized member write remains atomic with the denied absent member");
+  assert.equal(absentProgress.size, 0);
+
+  await assertSucceeds(setDoc(
+    doc(db, "memberAdventureSkillProgress/cub-present/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "cub-present", meetingSource),
+  ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/cub-absent/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "cub-absent", meetingSource),
+  ));
+});
+
 test("Programme Scouter appointment aliases match the canonical weekly-meeting section", async () => {
   const meetingSource = { type: "weeklyMeeting", id: "meeting-beavers-open" };
   await seed([
@@ -156,7 +203,7 @@ test("Programme Scouter appointment aliases match the canonical weekly-meeting s
       appointments: [{ appointment: "Programme Scouter", scope: "Beaver Scouts", active: true }],
     }],
     ["members/beaver-1", { section: "Beavers", sections: ["Beavers"], status: "active" }],
-    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open" }],
+    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open", entries: [{ memberId: "beaver-1", attendance: "present" }] }],
   ]);
 
   const db = testEnv.authenticatedContext("programme-beavers").firestore();
@@ -175,7 +222,7 @@ test("Super Admin can save badgework for a legacy-labelled member from an open w
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
     // Member UI canonicalizes legacy labels, while Firestore stores their source value.
     ["members/member-cubs", { section: "Cub Scouts", sections: ["Cub Scouts"], status: "active" }],
-    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open", entries: [{ memberId: "member-cubs", attendance: "present" }] }],
   ]);
 
   const db = testEnv.authenticatedContext("super-admin").firestore();
@@ -199,9 +246,9 @@ test("Programme Scouter cannot write badgework for an unassigned section or a cl
     }],
     ["members/member-cubs", { section: "Cubs", sections: ["Cubs"], status: "active" }],
     ["members/member-scouts", { section: "Scouts", sections: ["Scouts"], status: "active" }],
-    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open" }],
-    ["weeklyMeetings/meeting-cubs-closed", { section: "Cubs", status: "closed" }],
-    ["weeklyMeetings/meeting-scouts-open", { section: "Scouts", status: "open" }],
+    ["weeklyMeetings/meeting-cubs-open", { section: "Cubs", status: "open", entries: [{ memberId: "member-cubs", attendance: "present" }] }],
+    ["weeklyMeetings/meeting-cubs-closed", { section: "Cubs", status: "closed", entries: [{ memberId: "member-cubs", attendance: "present" }] }],
+    ["weeklyMeetings/meeting-scouts-open", { section: "Scouts", status: "open", entries: [{ memberId: "member-scouts", attendance: "present" }] }],
   ]);
 
   const db = testEnv.authenticatedContext("programme-cubs").firestore();
@@ -233,7 +280,7 @@ test("a leader without an eligible section appointment cannot write weekly-meeti
       appointments: [{ appointment: "Group Secretary", scope: "Group", active: true }],
     }],
     ["members/member-beavers", { section: "Beavers", sections: ["Beavers"], status: "active" }],
-    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open" }],
+    ["weeklyMeetings/meeting-beavers-open", { section: "Beavers", status: "open", entries: [{ memberId: "member-beavers", attendance: "present" }] }],
   ]);
 
   const db = testEnv.authenticatedContext("group-secretary").firestore();

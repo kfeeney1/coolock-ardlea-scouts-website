@@ -55,7 +55,7 @@ test.describe("Adventure Skills badgework", () => {
     test.skip(!seededJourneyData, "Run against the canonical deterministic E2E seed.");
   });
 
-  test("admin can select multiple members and meeting handoff preselects attendees", async ({ page }) => {
+  test("admin can select multiple members and closed meeting handoff blocks badgework", async ({ page }) => {
     await loginLeader(page, adminEmail!);
     await page.goto("/leader/badgework");
     await expect(page.getByRole("heading", { name: "Adventure Skills Badgework" })).toBeVisible();
@@ -120,15 +120,11 @@ test.describe("Adventure Skills badgework", () => {
 
     await page.goto(`/leader/badgework?sourceType=weeklyMeeting&sourceId=TEST_e2e_weekly_scout&memberIds=${firstMemberId},${secondMemberId}&returnTo=/leader/weekly`);
     await expect(page.getByText(/Recording badgework from Weekly Meeting/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Select 2 members and continue" })).toBeEnabled();
+    await expect(page.getByText("This Weekly Meeting is closed. Reopen it before recording badgework.")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: firstMemberName })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: secondMemberName })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Select members and continue" })).toBeDisabled();
     await expect(page.getByRole("link", { name: "Back to Weekly Meeting" })).toBeVisible();
-    await page.getByRole("button", { name: "Select 2 members and continue" }).click();
-    await expect(page.getByText("Group competency changes", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Review individual progress and exceptions/ })).toBeVisible();
-    const sourceSavePanel = page.getByTestId("badgework-save-panel");
-    await expect(sourceSavePanel.getByRole("button", { name: "Save and return to Weekly Meeting" })).toBeDisabled();
-    await page.getByRole("button", { name: "Mark full stage complete" }).click();
-    await expect(sourceSavePanel.getByRole("button", { name: "Save and return to Weekly Meeting" })).toBeEnabled();
   });
 
   test("unsaved badgework context changes use in-app confirmation and cancel keeps the draft", async ({ page }) => {

@@ -87,6 +87,30 @@ async function expectSectionLeaderHistoryRestrictions(page: Page) {
 
 test("weekly meetings reject unauthenticated users", async ({ page }) => { await page.goto("/leader/weekly"); await expect(page).toHaveURL(/\/leader\/login$/); });
 
+test("weekly-meeting badgework selection excludes children marked absent", async ({ page }, testInfo) => {
+  desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
+  await login(page, sectionLeaderEmail);
+  await createIsolatedLifecycleMeeting(page);
+  await page.getByRole("button", { name: "Attendance", exact: true }).click();
+  await page.getByRole("button", { name: "Mark all present", exact: true }).click();
+  const absentChild = page.getByRole("checkbox", { name: `Attendance · ${scoutMemberName}`, exact: true });
+  await absentChild.uncheck();
+  await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+  await expect(page.getByText(/^Meeting saved\./)).toBeVisible();
+
+  await page.getByRole("button", { name: "Completed Badgework", exact: true }).click();
+  const recordBadgework = page.getByRole("link", { name: "Record Adventure Skills for present children" });
+  await expect(recordBadgework).toBeEnabled();
+  await recordBadgework.click();
+  await expect(page.getByRole("heading", { name: "Select members" })).toBeVisible();
+  await expect(page.getByText(scoutMemberName, { exact: true })).toHaveCount(0);
+  const continueWithPresentChildren = page.getByRole("button", { name: "Select 5 members and continue", exact: true });
+  await expect(continueWithPresentChildren).toBeEnabled();
+  await continueWithPresentChildren.click();
+  await expect(page.getByText("5 selected:", { exact: true })).toBeVisible();
+  await expect(page.getByText(scoutMemberName, { exact: true })).toHaveCount(0);
+});
+
 test("section leader completes lifecycle with flexible planner rows, summary and retained save state", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   desktopOnly(testInfo); test.skip(!password || !sectionLeaderEmail, "Configure canonical E2E section leader credentials.");
