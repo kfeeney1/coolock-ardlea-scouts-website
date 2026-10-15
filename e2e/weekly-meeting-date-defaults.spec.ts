@@ -44,7 +44,9 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
   await page.clock.install({ time: localNoon("2026-10-19") });
 
   const existingMeetingsPage = await page.context().newPage();
+  await login(existingMeetingsPage);
   await existingMeetingsPage.goto("/leader/weekly");
+  await expect(existingMeetingsPage.getByRole("heading", { name: "Weekly Meetings" })).toBeVisible();
   const existingMeeting = existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(existingMeeting).toContainText("15-01-2099 · Scouts");
 
