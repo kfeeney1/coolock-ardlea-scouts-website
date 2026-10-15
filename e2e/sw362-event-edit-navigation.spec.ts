@@ -17,7 +17,7 @@ async function loginAdmin(page: Page) {
 async function createEvent(page: Page, title: string) {
   await page.goto("/leader/events/create");
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-10");
   await page.getByRole("switch", { name: "Event consent required" }).check();
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/events\/(?!create$)[^/]+$/);
@@ -140,7 +140,7 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
 
   await page.goto("/leader/events/create");
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date").fill("2099-05-10");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-05-10");
   await page.getByLabel("Section").click();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
   await expect(page.getByLabel("Event type")).toHaveText("Activity");
@@ -149,7 +149,7 @@ test("SW-391 backend failures retain create and edit drafts and retries persist 
   await page.getByRole("button", { name: "Create Event", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Unable to save the event. Your edits are still here." })).toBeVisible();
   await expect(page.getByLabel("Event title")).toHaveValue(title);
-  await expect(page.getByLabel("Start date")).toHaveValue("2099-05-10");
+  await expect(page.getByRole("textbox", { name: /^Start date/ })).toHaveValue("10-05-2099");
   await expect(page.getByLabel("Section")).toHaveText("Cubs");
   await expect(page.getByLabel("Event type")).toHaveText("Activity");
 
@@ -226,9 +226,9 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
 
   // A real field edit followed immediately by a dashboard menu transition must
   // still be intercepted even if React's passive effects have not rerun yet.
-  const savedStartDate = await page.getByLabel("Start date").inputValue();
-  const editedStartDate = "2099-05-12";
-  await page.getByLabel("Start date").fill(editedStartDate);
+  const savedStartDate = await page.getByRole("textbox", { name: /^Start date/ }).inputValue();
+  const editedStartDate = "12-05-2099";
+  await page.getByRole("textbox", { name: /^Start date/ }).fill(editedStartDate);
   // The active route changes this button's accessible name, so use its stable
   // control relationship instead of assuming the initial "Open Leader Menu" name.
   const leaderMenuButton = page.locator('button[aria-controls="leader-navigation"]');
@@ -242,7 +242,7 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   await expect(menuLeaveDialog.getByRole("button", { name: "Stay", exact: true })).toBeVisible();
   await menuLeaveDialog.getByRole("button", { name: "Stay", exact: true }).click();
   await expect(page).toHaveURL(`${second.eventUrl}/edit`);
-  await expect(page.getByLabel("Start date")).toHaveValue(editedStartDate);
+  await expect(page.getByRole("textbox", { name: /^Start date/ })).toHaveValue(editedStartDate);
 
   // Stay leaves the menu expanded; clicking the same route control again
   // reopens the pending navigation attempt without toggling the menu closed.
@@ -251,7 +251,7 @@ test("SW-383 first entry, direct URLs, reload, and event switches use the saved 
   await expect(page).toHaveURL(/\/leader$/);
 
   await page.goto(`${second.eventUrl}/edit`);
-  await expect(page.getByLabel("Start date")).toHaveValue(savedStartDate);
+  await expect(page.getByRole("textbox", { name: /^Start date/ })).toHaveValue(savedStartDate);
   await expect(leaveDialog(page)).toHaveCount(0);
 });
 

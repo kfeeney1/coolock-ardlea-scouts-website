@@ -53,13 +53,13 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
   const existingMeeting = existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout");
   await expect(existingMeeting).toContainText("15-01-2099 · Scouts");
 
-  const date = page.getByLabel("Meeting date");
+  const date = page.getByRole("textbox", { name: /^Meeting date/ });
   const dateCases = [
-    { today: "2026-10-19", expected: [{ section: "Cubs", date: "2026-10-20" }, { section: "Ventures", date: "2026-10-20" }] },
-    { today: "2026-10-20", expected: [{ section: "Cubs", date: "2026-10-27" }, { section: "Ventures", date: "2026-10-27" }, { section: "Beavers", date: "2026-10-21" }, { section: "Scouts", date: "2026-10-21" }] },
-    { today: "2026-10-21", expected: [{ section: "Beavers", date: "2026-10-28" }, { section: "Scouts", date: "2026-10-28" }] },
-    { today: "2026-12-29", expected: [{ section: "Cubs", date: "2027-01-05" }, { section: "Ventures", date: "2027-01-05" }] },
-    { today: "2026-12-30", expected: [{ section: "Beavers", date: "2027-01-06" }, { section: "Scouts", date: "2027-01-06" }] }
+    { today: "2026-10-19", expected: [{ section: "Cubs", date: "20-10-2026" }, { section: "Ventures", date: "20-10-2026" }] },
+    { today: "2026-10-20", expected: [{ section: "Cubs", date: "27-10-2026" }, { section: "Ventures", date: "27-10-2026" }, { section: "Beavers", date: "21-10-2026" }, { section: "Scouts", date: "21-10-2026" }] },
+    { today: "2026-10-21", expected: [{ section: "Beavers", date: "28-10-2026" }, { section: "Scouts", date: "28-10-2026" }] },
+    { today: "2026-12-29", expected: [{ section: "Cubs", date: "05-01-2027" }, { section: "Ventures", date: "05-01-2027" }] },
+    { today: "2026-12-30", expected: [{ section: "Beavers", date: "06-01-2027" }, { section: "Scouts", date: "06-01-2027" }] }
   ];
 
   for (const dateCase of dateCases) {
@@ -72,12 +72,12 @@ test("SW-398 next meeting date is the next local weekday across date boundaries"
 
   await page.clock.setFixedTime(localNoon("2026-10-19"));
   await selectSection(page, "Cubs");
-  await expect(date).toHaveValue("2026-10-20");
+  await expect(date).toHaveValue("20-10-2026");
   await selectSection(page, "Beavers");
-  await expect(date).toHaveValue("2026-10-21");
-  await date.fill("2027-02-17");
+  await expect(date).toHaveValue("21-10-2026");
+  await date.fill("17-02-2027");
   await selectSection(page, "Ventures");
-  await expect(date).toHaveValue("2027-02-17");
+  await expect(date).toHaveValue("17-02-2027");
 
   await existingMeetingsPage.reload();
   await expect(existingMeetingsPage.getByTestId("meeting-history-TEST_e2e_weekly_scout")).toContainText("15-01-2099 · Scouts");

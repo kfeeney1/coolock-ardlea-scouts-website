@@ -74,7 +74,7 @@ test("selected-member event audience stays exact across sections, edit, save, pa
 
   const title = `TEST selected audience ${Date.now()}`;
   await page.getByLabel("Event title").fill(title);
-  await page.getByLabel("Start date").fill("2099-06-10");
+  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-06-10");
   await page.getByLabel("Event consent required").check();
   await page.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "Open", exact: true }).click();

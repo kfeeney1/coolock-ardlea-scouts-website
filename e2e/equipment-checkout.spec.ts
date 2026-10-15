@@ -152,7 +152,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await expect(sectionField.locator("input")).toHaveValue("");
   await quantityField.fill("2");
   await checkoutDialog.getByLabel("Checkout notes").fill("SW-364 preserve checkout details");
-  await checkoutDialog.getByLabel("Expected return date").fill("2030-08-31");
+  await checkoutDialog.getByRole("textbox", { name: "Expected return date" }).fill("2030-08-31");
   await quantityField.scrollIntoViewIfNeeded();
   await checkoutDialog.getByRole("button", { name: "Confirm checkout" }).click();
   await expect(checkoutDialog).toBeVisible();
@@ -165,7 +165,7 @@ test("missing checkout equipment can be investigated and resolved back into stoc
   await expect(sectionField.getByRole("alert")).toBeInViewport();
   await expect(quantityField).toHaveValue("2");
   await expect(checkoutDialog.getByLabel("Checkout notes")).toHaveValue("SW-364 preserve checkout details");
-  await expect(checkoutDialog.getByLabel("Expected return date")).toHaveValue("2030-08-31");
+  await expect(checkoutDialog.getByRole("textbox", { name: "Expected return date" })).toHaveValue("31-08-2030");
   await checkoutDialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Scouts" }).click();
   await expect(sectionField.getByRole("alert")).toHaveCount(0);

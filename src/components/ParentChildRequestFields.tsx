@@ -1,3 +1,4 @@
+import DatePickerField from "./DatePickerField";
 import { Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import type { ParentChildRequest } from "../services/parentChildMatching";
 
@@ -11,7 +12,7 @@ export default function ParentChildRequestFields({ children, setChildren }: { ch
                 <Typography sx={{ fontWeight: 800 }}>Child {index + 1}</Typography>
                 <TextField label={`Child ${index + 1} first name`} value={child.firstName} onChange={(event) => update(index, "firstName", event.target.value)} required />
                 <TextField label={`Child ${index + 1} surname`} value={child.lastName} onChange={(event) => update(index, "lastName", event.target.value)} required />
-                <TextField label={`Child ${index + 1} date of birth`} type="date" value={child.dateOfBirth} onChange={(event) => update(index, "dateOfBirth", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
+                <DatePickerField label={`Child ${index + 1} date of birth`} value={child.dateOfBirth} onChange={(event) => update(index, "dateOfBirth", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} required />
                 {children.length > 1 && <Button color="secondary" onClick={() => setChildren(children.filter((_, i) => i !== index))}>Remove Child {index + 1}</Button>}
             </Stack>
         </Paper>)}

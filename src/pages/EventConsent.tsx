@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
@@ -190,9 +191,9 @@ export default function EventConsent() {
                                     sx={{ gridColumn: { sm: "1 / -1" } }}
                                 />
 
-                                <TextField
+                                <DatePickerField
                                     required
-                                    type="date"
+
                                     label="Date of birth"
                                     value={dateOfBirth}
                                     slotProps={{ inputLabel: { shrink: true } }}

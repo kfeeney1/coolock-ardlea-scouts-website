@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Alert, Box, TextField, Typography } from "@mui/material";
 import YesNoField from "./YesNoField";
 import type { YouthConsentStepProps } from "./YouthConsentStepProps";
@@ -165,8 +166,8 @@ export default function YouthConsentMedicalSteps({ step, ...props }: YouthConsen
                                 }}
                             />
 
-                            <TextField
-                                type="date"
+                            <DatePickerField
+
                                 label="Date of last check-up"
                                 name="lastCheckup"
                                 value={formData.lastCheckup}

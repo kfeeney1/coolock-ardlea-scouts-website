@@ -1,3 +1,4 @@
+import DatePickerField from "../components/DatePickerField";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
     Alert,
@@ -135,7 +136,7 @@ export default function Join() {
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
                             <TextField required label="First name" name="childFirstName" value={form.childFirstName} onChange={updateText} />
                             <TextField required label="Last name" name="childLastName" value={form.childLastName} onChange={updateText} />
-                            <TextField required type="date" label="Date of birth" name="dateOfBirth" value={form.dateOfBirth} onChange={updateText} slotProps={{ inputLabel: { shrink: true } }} />
+                            <DatePickerField required label="Date of birth" name="dateOfBirth" value={form.dateOfBirth} onChange={updateText} slotProps={{ inputLabel: { shrink: true } }} />
                             <TextField label="School" name="school" value={form.school} onChange={updateText} />
                         </Box>
 

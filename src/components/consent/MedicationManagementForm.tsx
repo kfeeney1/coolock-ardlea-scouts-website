@@ -1,3 +1,4 @@
+import DatePickerField from "../DatePickerField";
 import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -148,7 +149,7 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
             <Typography variant="h5" color="secondary" sx={{ mb: 2 }}>{mode === "youth" ? "Child's Information" : "Scouter's Information"}</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
                 <TextField required label={mode === "youth" ? "Child's name" : "Scouter's name"} name="memberName" value={value.memberName} onChange={textChange} error={Boolean(errors.memberName)} helperText={errors.memberName} />
-                <TextField required type="date" label="Date of birth" name="dateOfBirth" value={value.dateOfBirth} onChange={textChange} error={Boolean(errors.dateOfBirth)} helperText={errors.dateOfBirth} slotProps={{ inputLabel: { shrink: true } }} />
+                <DatePickerField required label="Date of birth" name="dateOfBirth" value={value.dateOfBirth} onChange={textChange} error={Boolean(errors.dateOfBirth)} helperText={errors.dateOfBirth} slotProps={{ inputLabel: { shrink: true } }} />
                 <TextField required label={mode === "youth" ? "Child's address" : "Scouter's address"} name="address" value={value.address} onChange={textChange} error={Boolean(errors.address)} helperText={errors.address} sx={{ gridColumn: { sm: "1 / -1" } }} />
             </Box>
 
@@ -205,7 +206,7 @@ export default function MedicationManagementForm({ mode, value, errors, onChange
             </Box>}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5, mt: 3 }}>
                 <TextField required label={mode === "youth" ? "Signature of parent / guardian" : "Signature (full name)"} name="signature" value={value.signature} onChange={textChange} error={Boolean(errors.signature)} helperText={errors.signature ?? "Type the full name as the electronic signature."} />
-                <TextField required type="date" label="Date" name="signatureDate" value={value.signatureDate} onChange={textChange} error={Boolean(errors.signatureDate)} helperText={errors.signatureDate} slotProps={{ inputLabel: { shrink: true } }} />
+                <DatePickerField required label="Date" name="signatureDate" value={value.signatureDate} onChange={textChange} error={Boolean(errors.signatureDate)} helperText={errors.signatureDate} slotProps={{ inputLabel: { shrink: true } }} />
             </Box>
         </Box>}
     </Box>;
