@@ -23,6 +23,11 @@ test("role-labelled destinations do not silently alias another role workspace", 
   assert.match(nav, /id: "group-equipment-stores"[^\n]+path: "\/leader\/equipment\?view=group-operations"/);
 });
 
+test("Quartermaster navigation includes the canonical appointment label", async () => {
+  const nav = await read("src/navigation/leaderNavigation.ts");
+  assert.match(nav, /const quartermasterAppointments = \["Group Quartermaster \/ Bo'sun"/);
+});
+
 
 test("canonical navigation has no duplicate complete destinations", async () => {
   const nav = await read("src/navigation/leaderNavigation.ts");

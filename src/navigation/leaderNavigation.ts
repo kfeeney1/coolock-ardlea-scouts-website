@@ -15,7 +15,7 @@ export type LeaderNavItem = {
 
 export type LeaderNavGroup = { id: string; label: string; items: LeaderNavItem[] };
 
-const quartermasterAppointments = ["Group Quartermaster", "Group Bo'sun", "Group Bosun"];
+const quartermasterAppointments = ["Group Quartermaster / Bo'sun", "Group Quartermaster", "Group Bo'sun", "Group Bosun"];
 
 export const dashboardNavItem: LeaderNavItem = { id: "dashboard", label: "Dashboard", path: "/leader", pageId: "leader-dashboard" };
 
