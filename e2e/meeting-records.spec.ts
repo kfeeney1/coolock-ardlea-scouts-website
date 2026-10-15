@@ -98,7 +98,7 @@ test("section leader can import a text meeting document, review it and save it",
   }
   await preview.getByRole("button", { name: "Apply selected values" }).click();
   await expect(page.getByLabel("Meeting title")).toHaveValue(title);
-  await expect(page.getByLabel("Meeting date and time", { exact: true })).toHaveValue("2026-09-05T19:30");
+  await expect(page.getByLabel("Meeting date and time")).toHaveValue("2026-09-05T19:30");
   await expect(page.getByLabel("Attendees")).toHaveValue("Test Scout Leader\nTest Assistant Leader");
   await expect(page.getByLabel("Notes / Minutes")).toHaveValue(importedMinutes);
   await expect(page.getByLabel("Decisions")).toHaveValue("TEST use the den as the wet-weather fallback.");
@@ -171,7 +171,7 @@ test("administrator can save and retrieve a Group Council meeting", async ({ pag
 
   const title = `TEST E2E Group Council retry-${testInfo.retry}`;
   await page.getByLabel("Meeting title").fill(title);
-  await page.getByLabel("Meeting date and time", { exact: true }).fill("2026-08-24T19:30");
+  await page.getByLabel("Meeting date and time").fill("2026-08-24T19:30");
   await page.getByLabel("Attendees").fill("Test Web Admin\nTest Group Leader");
   await page.getByLabel("Notes / Minutes").fill("TEST admin meeting persistence check.");
   const saveButton = page.getByRole("button", { name: "Save Meeting" });
@@ -203,7 +203,7 @@ test("administrator can create a Group Leaders Meeting and retains the pre-edit 
   const originalMinutes = "TEST original Group Leaders minutes retained for audit.";
   const revisedMinutes = "TEST revised Group Leaders minutes.";
   await page.getByLabel("Meeting title").fill(title);
-  await page.getByLabel("Meeting date and time", { exact: true }).fill("2026-08-25T20:00");
+  await page.getByLabel("Meeting date and time").fill("2026-08-25T20:00");
   await page.getByLabel("Attendees").fill("Test Group Leader\nTest Cub Leader\nTest Scout Leader");
   await page.getByLabel("Notes / Minutes").fill(originalMinutes);
   await page.getByRole("button", { name: "Save Meeting" }).click();
