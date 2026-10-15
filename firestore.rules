@@ -220,20 +220,19 @@ service cloud.firestore {
     }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
     function badgeworkSectionAppointmentAt(data, index, sectionAliases) {
-      let appointment = data.appointments.size() > index ? data.appointments[index] : null;
-      return appointment is map
-        && appointment.get("active", true) == true
-        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && appointment.get("scope", "") is string
-        && appointment.get("scope", "") in sectionAliases;
+      return data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && data.appointments[index].get("scope", "") in sectionAliases;
     }
     function badgeworkMemberAppointmentAt(data, index, memberData) {
-      let appointment = data.appointments.size() > index ? data.appointments[index] : null;
-      return appointment is map
-        && appointment.get("active", true) == true
-        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && appointment.get("scope", "") is string
-        && badgeworkMemberHasSection(memberData, appointment.get("scope", ""));
+      return data.appointments.size() > index
+        && data.appointments[index] is map
+        && data.appointments[index].get("active", true) == true
+        && data.appointments[index].get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && data.appointments[index].get("scope", "") is string
+        && badgeworkMemberHasSection(memberData, data.appointments[index].get("scope", ""));
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
@@ -281,13 +280,18 @@ service cloud.firestore {
     }
     function validOpenWeeklyMeetingBadgeworkSource(memberData, sourceId) {
       let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
-      return exists(sourcePath)
-        && get(sourcePath).data.status == "open"
-        && get(sourcePath).data.section is string
-        && badgeworkMemberHasSection(memberData, get(sourcePath).data.section)
-        && (profile().role in ["super-admin", "admin"]
-          || profileHasSection(get(sourcePath).data.section)
-          || hasBadgeworkSectionAppointment(get(sourcePath).data.section)
+      let meetingExists = exists(sourcePath);
+      let meeting = meetingExists ? get(sourcePath).data : {};
+      let section = meeting.get("section", "");
+      let sectionAliases = section is string ? badgeworkSectionAliases(section) : [];
+      let accessProfile = profile();
+      return meetingExists
+        && meeting.get("status", "") == "open"
+        && section is string
+        && badgeworkMemberHasSection(memberData, section)
+        && (accessProfile.role in ["super-admin", "admin"]
+          || (accessProfile.sections is list && accessProfile.sections.hasAny(sectionAliases))
+          || hasBadgeworkSectionAppointment(section)
           || isGroupLeader());
     }
     function canWriteAdventureRequirement(memberData, sourceData) {
