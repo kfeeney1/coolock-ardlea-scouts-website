@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, decodeWeeklyBadgeworkSources, filterWeeklyMeetingHistory, mergeLeaderAttendanceRoster, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
+import { buildWeeklyMemberSummaries, defaultActivityPlans, defaultBadgeworkPlans, decodeWeeklyBadgeworkSources, filterWeeklyMeetingHistory, mergeLeaderAttendanceRoster, newWeeklyEntry, totalProgrammeDuration, reconcileOpenWeeklyRoster, sortWeeklyEntries, sortWeeklyMeetingsNewestFirst, weeklyMeetingHasChanges } from "../../src/services/weeklyTrackerLogic.ts";
 import type { WeeklyMeetingRecord } from "../../src/services/weeklyTracker.ts";
 
 function record(id: string, meetingDate: string, entries: WeeklyMeetingRecord["entries"]): WeeklyMeetingRecord {
@@ -30,6 +30,22 @@ test("filterWeeklyMeetingHistory combines section, date and programme search fil
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "pioneering", section: "Scouts", fromDate: "2026-08-10", toDate: "2026-08-20" }), [scouts]);
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "scout den", section: "all", fromDate: "", toDate: "" }), [cubs]);
   assert.deepEqual(filterWeeklyMeetingHistory(history, { search: "", section: "all", fromDate: "", toDate: "" }), history);
+});
+
+test("closed meeting history sorts by calendar date across day, month and year boundaries, then by stable id", () => {
+  const withIndependentTimestamps = (id: string, meetingDate: string, closedAt: string, createdAt: string) =>
+    Object.assign(record(id, meetingDate, []), { closedAt, createdAt });
+  const meetings = [
+    withIndependentTimestamps("late-id", "2026-10-01", "2026-10-01T09:00:00Z", "2026-10-01T08:00:00Z"),
+    withIndependentTimestamps("older-year", "2026-09-30", "2056-10-04T20:00:00Z", "2026-10-01T10:00:00Z"),
+    withIndependentTimestamps("newer-year", "2056-10-04", "2026-09-30T20:00:00Z", "2026-10-01T07:00:00Z"),
+    withIndependentTimestamps("early-id", "2026-10-01", "2026-10-01T20:00:00Z", "2026-10-01T11:00:00Z"),
+    withIndependentTimestamps("middle-year", "2029-09-30", "2026-10-01T21:00:00Z", "2026-10-01T06:00:00Z"),
+    withIndependentTimestamps("2026-october", "2026-10-13", "2026-09-30T08:00:00Z", "2026-10-01T12:00:00Z")
+  ];
+  const expected = ["newer-year", "middle-year", "2026-october", "early-id", "late-id", "older-year"];
+  assert.deepEqual(sortWeeklyMeetingsNewestFirst(meetings).map(({ id }) => id), expected);
+  assert.deepEqual(sortWeeklyMeetingsNewestFirst([...meetings].reverse()).map(({ id }) => id), expected);
 });
 
 test("open roster reconciliation adds newly eligible members once and preserves historical entries", () => {
