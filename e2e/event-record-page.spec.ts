@@ -230,7 +230,7 @@ test("future start opens the shared end calendar at a valid date and only applie
 
   await end.fill("04-04-2099");
   await expect(end).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("alert")).toContainText("on or after the start date");
+  await expect(page.getByRole("alert")).toContainText("End date cannot be before the start date");
   await expect(end).toHaveValue("04-04-2099");
 
   await end.fill("31-02-2099");
