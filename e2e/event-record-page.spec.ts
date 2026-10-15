@@ -290,6 +290,7 @@ test("standalone date fields use the same confirmable calendar on mobile and des
   await selectedDay.press("ArrowRight");
   await expect(reopened.getByText("March 2096", { exact: true })).toBeVisible();
   await expect(reopened.getByRole("button", { name: "Select 01-03-2096" })).toBeFocused();
+  await reopened.getByRole("button", { name: "Previous month" }).click();
   await reopened.getByRole("button", { name: "Select 29-02-2096" }).click();
   await reopened.getByRole("button", { name: "Confirm date" }).click();
   await expect(start).toHaveValue("29-02-2096");
