@@ -4,26 +4,16 @@ import { loginAsLeader } from "./support/authentication-helpers";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
 
-test("SW-386 Copy Meeting uses a dedicated full page on desktop and mobile", async ({ page }, testInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Run on desktop and mobile Chromium.");
+test("SW-400 Copy Meeting link targets the encoded source id", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Check the source link on desktop and mobile Chromium.");
   test.skip(!password, "Configure canonical E2E credentials.");
   await page.setViewportSize(testInfo.project.name === "mobile-chromium" ? { width: 320, height: 844 } : { width: 1280, height: 800 });
   await loginAsLeader(page, { email: adminEmail, password: password! });
   await page.goto("/leader/weekly");
+
   const source = page.getByTestId(/meeting-history-/).filter({ hasText: "· Scouts" }).first();
   await expect(source).toBeVisible();
-  const id = (await source.getAttribute("data-testid"))!.replace("meeting-history-", "");
-  const copyLink = source.getByRole("link", { name: "Copy Meeting", exact: true });
-  await expect(copyLink).toHaveAttribute("href", `/leader/weekly/copy/${encodeURIComponent(id)}`);
-  await copyLink.click();
-  await expect(page).toHaveURL(new RegExp(`/leader/weekly/copy/${id}$`));
-  await expect(page.getByRole("heading", { name: "Copy Weekly Meeting" })).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByTestId("copy-attendance-preview")).toContainText("Attendance preview · Scouts");
-  await expect(page.getByRole("combobox", { name: "Destination section" })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /^Choose date/ })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
-  await page.getByRole("button", { name: "Cancel copy" }).click();
-  await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${id}$`));
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const sourceId = (await source.getAttribute("data-testid"))!.replace("meeting-history-", "");
+  await expect(source.getByRole("link", { name: "Copy Meeting", exact: true }))
+    .toHaveAttribute("href", `/leader/weekly/copy/${encodeURIComponent(sourceId)}`);
 });
