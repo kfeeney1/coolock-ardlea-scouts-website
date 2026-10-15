@@ -4,6 +4,7 @@ import { FIRESTORE_ROOT_COLLECTIONS } from "./firestore-collection-contract.mjs"
 
 const root = new URL("../", import.meta.url);
 const app = await readFile(new URL("src/App.tsx", root), "utf8");
+const settingsGuard = await readFile(new URL("src/components/admin/ProtectedSiteSettingsRoute.tsx", root), "utf8");
 const matrix = JSON.parse(await readFile(new URL("config/rbac-matrix.json", root), "utf8"));
 const firestoreRules = await readFile(new URL("firestore.rules", root), "utf8");
 const storageRules = await readFile(new URL("storage.rules", root), "utf8");
@@ -25,6 +26,11 @@ compare("RBAC identities", new Set(matrix.identities || []), expectedIdentities)
 
 const appRoutes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1]));
 compare("Route matrix", new Set(Object.keys(matrix.routes || {})), appRoutes);
+const expectedRouteVariants = new Set(["/leader/settings?view=quartermaster"]);
+compare("Query-specific route matrix", new Set(Object.keys(matrix.routeVariants || {})), expectedRouteVariants);
+if (matrix.routeVariants?.["/leader/settings?view=quartermaster"] !== "leader-qm-appointment") fail("QM Settings must remain restricted to a Quartermaster / Bo'sun appointment.");
+if (!settingsGuard.includes('get("view") === "quartermaster"') || !settingsGuard.includes("hasGroupQuartermasterAppointment")) fail("QM Settings route variant must use its appointment-specific route guard.");
+else pass("QM Settings remains restricted to the Quartermaster / Bo'sun appointment.");
 for (const route of appRoutes) {
   const gate = matrix.routes[route];
   const routeSource = app.match(new RegExp(`<Route\\s+path="${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]+`))?.[0] || "";

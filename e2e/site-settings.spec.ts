@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { exposeQuartermaster } from "./support/navigation-recovery-helpers";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
@@ -51,12 +52,42 @@ test("Treasurer settings keep finance controls and hide session inactivity setti
   await expect(page.getByRole("button", { name: "Save Settings" })).toHaveCount(0);
 });
 
+test("QM-only users see a clear QM empty state without finance settings", async ({ page }, testInfo) => {
+  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "QM settings presentation runs on desktop and mobile Chromium.");
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+
+  await login(page, "test.group.quartermaster@example.com");
+  await page.goto("/leader/settings?view=quartermaster");
+
+  const emptyState = page.getByTestId("qm-settings-empty-state");
+  await expect(page.getByTestId("page-qm-settings")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "QM Settings", exact: true })).toBeVisible();
+  await expect(emptyState.getByRole("heading", { name: "Quartermaster settings", exact: true })).toBeVisible();
+  await expect(emptyState.getByRole("status")).toHaveText("No current settings.");
+  await expect(page.getByTestId("subs-settings-panel")).toHaveCount(0);
+  await expect(page.getByText(/Rate policy|Family Billing Account/i)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save immutable rate policy" })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
+  await expect(page.getByTestId("qm-settings-empty-state").getByRole("status")).toHaveText("No current settings.");
+  await expect(page.getByTestId("subs-settings-panel")).toHaveCount(0);
+
+  const navigation = await exposeQuartermaster(page, testInfo);
+  await navigation.getByTestId("leader-nav-qm-settings").click();
+  await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
+  await expect(page.getByTestId("qm-settings-empty-state").getByRole("status")).toHaveText("No current settings.");
+});
+
 test("ordinary leader cannot access site settings", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password || !leaderEmail, "Configure canonical E2E leader credentials.");
 
   await login(page, leaderEmail!);
   await page.goto("/leader/settings");
+  await expect(page).toHaveURL(/\/leader$/);
+
+  await page.goto("/leader/settings?view=quartermaster");
   await expect(page).toHaveURL(/\/leader$/);
 
   await page.getByRole("button", { name: /Leader Menu|Menu ·/ }).click();
