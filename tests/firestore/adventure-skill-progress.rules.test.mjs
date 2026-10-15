@@ -183,6 +183,10 @@ test("Programme Scouter cannot write badgework for an unassigned section or a cl
     doc(db, "memberAdventureSkillProgress/member-cubs/requirements/camping-stage-1-requirement-06"),
     requirement("programme-cubs", "member-cubs", { type: "weeklyMeeting", id: "meeting-scouts-open" }),
   ));
+  await assertFails(setDoc(
+    doc(db, "memberAdventureSkillProgress/member-missing/requirements/camping-stage-1-requirement-06"),
+    requirement("programme-cubs", "member-missing", { type: "weeklyMeeting", id: "meeting-cubs-open" }),
+  ));
 });
 
 test("a leader without an eligible section appointment cannot write weekly-meeting badgework", async () => {
