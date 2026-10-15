@@ -84,6 +84,30 @@ function fieldStringArray(document, key) {
   return values.map((value) => value?.stringValue || "").filter(Boolean);
 }
 
+const SECTION_SCOPED_EVENT_APPOINTMENTS = new Set([
+  "Section Leader",
+  "Assistant Section Leader",
+  "Programme Scouter",
+  "Scouter"
+]);
+
+function authorisedEventAppointmentSections(leadership) {
+  const appointments = fieldMapArray(leadership, "appointments");
+  const activeSections = appointments
+    .filter((appointment) => appointment.active?.booleanValue !== false)
+    .filter((appointment) => SECTION_SCOPED_EVENT_APPOINTMENTS.has(appointment.appointment?.stringValue || ""))
+    .map((appointment) => canonicalAudienceSection(appointment.scope?.stringValue || ""))
+    .filter(Boolean);
+  if (activeSections.length || appointments.length) return activeSections;
+
+  // Legacy records predate the appointments array and store one active role/scope.
+  const legacyRole = fieldString(leadership, "scoutingRole");
+  const legacySection = fieldString(leadership, "organisationSection");
+  return SECTION_SCOPED_EVENT_APPOINTMENTS.has(legacyRole)
+    ? [canonicalAudienceSection(legacySection)].filter(Boolean)
+    : [];
+}
+
 function fieldMapArray(document, key) {
   const values = document?.fields?.[key]?.arrayValue?.values;
   return Array.isArray(values) ? values.map((value) => value?.mapValue?.fields || {}).filter(Boolean) : [];
@@ -299,6 +323,7 @@ export async function handleEventAudienceSave(request, env, body) {
   if (!leader || !fieldBoolean(leader, "active") || !new Set(["leader", "admin", "super-admin"]).has(fieldString(leader, "role"))) {
     return json(request, env, 403, { ok: false, error: "Active leader access required." });
   }
+  const leadership = await getDocumentWithToken(env, idToken, "organisationLeadership", uid);
 
   const input = body.input && typeof body.input === "object" ? body.input : {};
   const rawAudience = body.audience && typeof body.audience === "object" ? body.audience : {};
@@ -316,7 +341,10 @@ export async function handleEventAudienceSave(request, env, body) {
   const isAdmin = ["admin", "super-admin"].includes(fieldString(leader, "role"));
   const authorisedSections = isAdmin
     ? ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
-    : [...new Set(fieldStringArray(leader, "sections").map(canonicalAudienceSection).filter(Boolean))];
+    : [...new Set([
+      ...fieldStringArray(leader, "sections").map(canonicalAudienceSection),
+      ...authorisedEventAppointmentSections(leadership)
+    ].filter(Boolean))];
   const sectionIds = [...new Set((Array.isArray(rawAudience.sectionIds) ? rawAudience.sectionIds : []).map(canonicalAudienceSection).filter(Boolean))];
   const memberIds = [...new Set((Array.isArray(rawAudience.memberIds) ? rawAudience.memberIds : []).map((value) => clean(value, 100)).filter(Boolean))];
   if ((!isAdmin && sectionIds.some((section) => !authorisedSections.includes(section)))
