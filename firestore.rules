@@ -753,8 +753,8 @@ service cloud.firestore {
           || (isActiveLeader()
             && exists(/databases/$(database)/documents/members/$(memberId))
             && (canAccessMemberSections(get(/databases/$(database)/documents/members/$(memberId)).data)
-              || isGroupLeader() || isGroupSecretary()
-              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)));
+              || hasBadgeworkMemberAppointment(get(/databases/$(database)/documents/members/$(memberId)).data)
+              || isGroupLeader() || isGroupSecretary()));
         // The member read in canWriteAdventureRequirement also proves existence. Avoid a
         // separate exists() call so a ten-member atomic batch stays within Rules' 20-call cap.
         allow create, update: if canWriteAdventureRequirement(
