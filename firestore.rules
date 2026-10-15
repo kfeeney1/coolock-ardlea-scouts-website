@@ -284,10 +284,8 @@ service cloud.firestore {
         && meeting.entries[index].get("memberId", "") == memberId
         && meeting.entries[index].get("attendance", "") == "present";
     }
-    // Weekly meeting rosters are capped at 100 persisted entries. Check the persisted
-    // attendance record itself; a client-supplied badgework member list is not authority.
-    function weeklyMeetingHasPresentMember(meeting, memberId) {
-      return meeting.entries is list && (weeklyMeetingPresentEntryAt(meeting, 0, memberId)
+    function weeklyMeetingHasPresentMemberGroup0(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 0, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 1, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 2, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 3, memberId)
@@ -296,8 +294,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 6, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 7, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 8, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 9, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 10, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 9, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup1(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 10, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 11, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 12, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 13, memberId)
@@ -306,8 +306,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 16, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 17, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 18, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 19, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 20, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 19, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup2(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 20, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 21, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 22, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 23, memberId)
@@ -316,8 +318,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 26, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 27, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 28, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 29, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 30, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 29, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup3(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 30, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 31, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 32, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 33, memberId)
@@ -326,8 +330,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 36, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 37, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 38, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 39, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 40, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 39, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup4(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 40, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 41, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 42, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 43, memberId)
@@ -336,8 +342,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 46, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 47, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 48, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 49, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 50, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 49, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup5(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 50, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 51, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 52, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 53, memberId)
@@ -346,8 +354,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 56, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 57, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 58, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 59, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 60, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 59, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup6(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 60, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 61, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 62, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 63, memberId)
@@ -356,8 +366,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 66, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 67, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 68, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 69, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 70, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 69, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup7(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 70, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 71, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 72, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 73, memberId)
@@ -366,8 +378,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 76, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 77, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 78, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 79, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 80, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 79, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup8(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 80, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 81, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 82, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 83, memberId)
@@ -376,8 +390,10 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 86, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 87, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 88, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 89, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 90, memberId)
+          || weeklyMeetingPresentEntryAt(meeting, 89, memberId);
+    }
+    function weeklyMeetingHasPresentMemberGroup9(meeting, memberId) {
+      return weeklyMeetingPresentEntryAt(meeting, 90, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 91, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 92, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 93, memberId)
@@ -386,7 +402,21 @@ service cloud.firestore {
           || weeklyMeetingPresentEntryAt(meeting, 96, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 97, memberId)
           || weeklyMeetingPresentEntryAt(meeting, 98, memberId)
-          || weeklyMeetingPresentEntryAt(meeting, 99, memberId));
+          || weeklyMeetingPresentEntryAt(meeting, 99, memberId);
+    }
+    // Weekly meeting rosters are capped at 100 persisted entries. Check the persisted
+    // attendance record itself; a client-supplied badgework member list is not authority.
+    function weeklyMeetingHasPresentMember(meeting, memberId) {
+      return meeting.entries is list && (weeklyMeetingHasPresentMemberGroup0(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup1(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup2(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup3(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup4(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup5(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup6(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup7(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup8(meeting, memberId)
+          || weeklyMeetingHasPresentMemberGroup9(meeting, memberId));
     }
     function validOpenWeeklyMeetingBadgeworkSource(memberData, memberId, sourceId) {
       let sourcePath = /databases/$(database)/documents/weeklyMeetings/$(sourceId);
