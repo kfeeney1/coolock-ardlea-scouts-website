@@ -220,19 +220,22 @@ service cloud.firestore {
     }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
     function badgeworkSectionAppointmentAt(data, index, section) {
-      return data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].scope is string
-        && data.appointments[index].scope in badgeworkSectionAliases(section)
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+      let appointment = data.appointments.size() > index ? data.appointments[index] : null;
+      let scope = appointment is map ? appointment.get("scope", "") : "";
+      return appointment is map
+        && scope is string
+        && scope in badgeworkSectionAliases(section)
+        && appointment.get("active", true) == true
+        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
     }
     function badgeworkMemberAppointmentAt(data, index, memberData) {
-      return data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && badgeworkMemberHasSection(memberData, data.appointments[index].scope);
+      let appointment = data.appointments.size() > index ? data.appointments[index] : null;
+      let scope = appointment is map ? appointment.get("scope", "") : "";
+      return appointment is map
+        && scope is string
+        && appointment.get("active", true) == true
+        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+        && badgeworkMemberHasSection(memberData, scope);
     }
     function hasBadgeworkSectionAppointment(section) {
       let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
