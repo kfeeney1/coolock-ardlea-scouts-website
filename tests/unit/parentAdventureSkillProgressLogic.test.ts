@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { adventureSkillsById } from "../../src/data/adventureSkills/index.ts";
+import { adventureSkillOverview } from "../../src/services/adventureSkillOverviewLogic.ts";
 import { parentAdventureSkillSummaries } from "../../src/services/parentAdventureSkillProgressLogic.ts";
 import type { MemberAdventureProgress } from "../../src/services/adventureSkillProgress.ts";
 
@@ -33,8 +34,7 @@ test("parent summaries keep requirements complete separate from awarded", () => 
   const summary = parentAdventureSkillSummaries(progress(campingStage1.requirements.map((requirement) => requirement.id)))
     .find((skill) => skill.skillId === "camping")!;
 
-  assert.equal(summary.stages[0].requirementsComplete, true);
-  assert.equal(summary.stages[0].awarded, false);
+  assert.equal(summary.stages[0].status, "requirements-complete");
   assert.equal(summary.completedStages, 1);
   assert.equal(summary.awardedStages, 0);
 });
@@ -43,8 +43,7 @@ test("parent summaries show awarded stages independently", () => {
   const summary = parentAdventureSkillSummaries(progress([], [{ skillId: "camping", stage: 1 }]))
     .find((skill) => skill.skillId === "camping")!;
 
-  assert.equal(summary.stages[0].requirementsComplete, false);
-  assert.equal(summary.stages[0].awarded, true);
+  assert.equal(summary.stages[0].status, "awarded");
   assert.equal(summary.awardedStages, 1);
 });
 
@@ -79,4 +78,36 @@ test("Swimming parent progress exposes six stages only", () => {
   const swimming = parentAdventureSkillSummaries(progress([])).find((skill) => skill.skillId === "swimming")!;
   assert.equal(swimming.stageCount, 6);
   assert.deepEqual(swimming.stages.map((stage) => stage.stage), [1, 2, 3, 4, 5, 6]);
+});
+
+test("parent tiles use the exact leader ordering, counts, and progress states", () => {
+  const campingStage1 = adventureSkillsById.get("camping")!.stages[0];
+  const backwoodsStage1 = adventureSkillsById.get("backwoods")!.stages[0];
+  const representative = progress([
+    campingStage1.requirements[0].id,
+    ...campingStage1.requirements.slice(1).map((requirement) => requirement.id),
+    backwoodsStage1.requirements[0].id
+  ], [{ skillId: "camping", stage: 1 }]);
+  const leader = adventureSkillOverview(representative);
+  const parent = parentAdventureSkillSummaries(representative);
+
+  assert.deepEqual(parent.map((skill) => skill.skillId), leader.map((skill) => skill.skillId));
+  assert.deepEqual(parent.map((skill) => ({
+    skillId: skill.skillId,
+    skillName: skill.skillName,
+    nextStage: skill.nextStage,
+    highestAwardedStage: skill.highestAwardedStage,
+    status: skill.status,
+    stages: skill.stages.map(({ stage, completedRequirements, totalRequirements, status }) => ({ stage, completedRequirements, totalRequirements, status }))
+  })), leader.map((skill) => ({
+    skillId: skill.skillId,
+    skillName: skill.skillName,
+    nextStage: skill.nextStage,
+    highestAwardedStage: skill.highestAwardedStage,
+    status: skill.status,
+    stages: skill.stages.map(({ stage, completedRequirements, totalRequirements, status }) => ({ stage, completedRequirements, totalRequirements, status }))
+  })));
+  assert.equal(parent.find((skill) => skill.skillId === "camping")?.stages[0].status, "awarded");
+  assert.equal(parent.find((skill) => skill.skillId === "backwoods")?.stages[0].status, "in-progress");
+  assert.equal(parent.find((skill) => skill.skillId === "air-activities")?.stages[0].status, "not-started");
 });
