@@ -27,11 +27,11 @@ async function prepareUnlinkedChildOption(page: Page, childSelect: Locator, chil
     return "loading child options and existing relationships";
   }, {
     timeout: 10000,
-    message: "Leader Access must load Cub Child 02 as an available child or show its existing relationship before the SW-219 journey can continue."
+    message: "Leader Access must load TEST_member_cub_02 as an available child or show its existing relationship before the SW-219 journey can continue."
   }).toMatch(/^(available|already linked)$/);
 
   if (await linkedChild.isVisible().catch(() => false)) {
-    if (!allowExistingLink) throw new Error("The SW-219 seed must start with Cub Child 02 unlinked on the first attempt.");
+    if (!allowExistingLink) throw new Error("The SW-219 seed must start with TEST_member_cub_02 unlinked on the first attempt.");
     await childSelect.press("Escape");
     await linkedChild.locator("..").getByRole("button", { name: "Unlink" }).click();
     await expect(page.getByRole("alert")).toContainText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.");
@@ -296,7 +296,6 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await loginAdmin(page);
 
   const leaderUid = "TEST_uid_multi_section_leader";
-  const memberName = "Cub Child 02";
   await page.goto(`/leader/access/${leaderUid}`);
   const card = page.getByTestId(`leader-access-${leaderUid}`);
   await expect(card).toContainText("Test Multi Section Leader");
@@ -304,7 +303,7 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
 
   const childSelect = card.getByRole("combobox", { name: "Child member" });
   const childOption = page.getByRole("option", { name: new RegExp(`Cub.*02.*Cubs`, "i") }).first();
-  const linkedChild = card.getByText(`${memberName} · Cubs`, { exact: true });
+  const linkedChild = card.getByText(/Cubs 02 · Cubs$/);
   // Push-triggered Playwright retries reuse the same emulator. If an earlier
   // attempt linked the child before failing later in the journey, restore the
   // seeded unlinked state so this retry exercises the same link operation.
@@ -346,20 +345,19 @@ test("SW-219 retry recovery restores the seeded child option after a persisted l
   await loginAdmin(page);
 
   const leaderUid = "TEST_uid_multi_section_leader";
-  const memberName = "Cub Child 02";
   await page.goto(`/leader/access/${leaderUid}`);
   const card = page.getByTestId(`leader-access-${leaderUid}`);
   await expect(card).toContainText("Test Multi Section Leader");
   const childSelect = card.getByRole("combobox", { name: "Child member" });
   const childOption = page.getByRole("option", { name: /Cub.*02.*Cubs/i }).first();
-  const linkedChild = card.getByText(`${memberName} · Cubs`, { exact: true });
+  const linkedChild = card.getByText(/Cubs 02 · Cubs$/);
 
   await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, testInfo.retry > 0);
   await childOption.click();
   await card.getByRole("button", { name: "Link child" }).click();
   await expect(page.getByRole("alert")).toContainText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId(`leader-access-${leaderUid}`)).toContainText(`${memberName} · Cubs`);
+  await expect(linkedChild).toBeVisible();
 
   await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, true);
   await expect(linkedChild).toHaveCount(0);
