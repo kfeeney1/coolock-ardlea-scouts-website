@@ -28,7 +28,22 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
     await expect(parentPage.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Consent & Medical" })).toHaveCount(0);
     await expect(parentPage.getByRole("heading", { name: "Consent & Medical Forms" })).toHaveCount(0);
     await expect(parentPage.getByTestId("parent-consent-search")).toHaveCount(0);
-    await expect(parentPage.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
+    await expect(parentPage.getByRole("heading", { name: "Upcoming Events & Galleries" })).toBeVisible();
+    const thingsToDo = parentPage.getByTestId("parent-things-to-do");
+    await expect(thingsToDo.getByText("Event consent", { exact: true })).toHaveCount(0);
+    await expect(thingsToDo.getByRole("button", { name: "Review events", exact: true })).toHaveCount(0);
+    await expect(thingsToDo.getByText("Upcoming events", { exact: true })).toBeVisible();
+    await expect(thingsToDo.getByTestId("parent-next-action")).toHaveCount(0);
+    await expect(parentPage.getByRole("link", { name: "Complete Event Consent" })).toHaveCount(0);
+    await expect(parentPage.getByRole("heading", { name: "Event Galleries" })).toBeVisible();
+
+    // A direct token route must stop before loading or rendering the public event form.
+    await parentPage.goto("/event-consent/TESTFLOWBEAVERSOPEN2026");
+    await expect(parentPage.getByRole("alert")).toContainText("Event consent forms are currently unavailable.");
+    await expect(parentPage.getByRole("heading", { name: "TEST Beavers Open Day Trip", exact: true })).toHaveCount(0);
+    await expect(parentPage.getByLabel("Young person's full name")).toHaveCount(0);
+
+    await parentPage.goto("/parent?child=TEST_member_beaver_01");
 
     // A direct URL to the hidden section remains within Parent Portal but cannot
     // mount the protected consent editor or expose the linked child's record.
@@ -41,9 +56,15 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
     await parentPage.reload();
     const consentLink = parentPage.getByRole("navigation", { name: "Parent Portal sections" }).getByRole("link", { name: "Consent & Medical" });
     await expect(consentLink).toBeVisible();
+    await expect(parentPage.getByTestId("parent-things-to-do").getByText("Event consent", { exact: true })).toBeVisible();
+    await expect(parentPage.getByTestId("parent-things-to-do").getByRole("button", { name: "Review events", exact: true })).toBeVisible();
+    await parentPage.goto("/event-consent/TESTFLOWBEAVERSOPEN2026");
+    await expect(parentPage.getByRole("heading", { name: "TEST Beavers Open Day Trip", exact: true })).toBeVisible();
+    await expect(parentPage.getByLabel("Young person's full name")).toBeVisible();
     await parentPage.goto("/parent?child=UNLINKED_MEMBER#parent-medical-consent");
     await expect(parentPage).toHaveURL(/child=TEST_member_beaver_01#parent-medical-consent$/);
     await expect(parentPage.getByRole("heading", { name: "Consent & Medical Forms" })).toBeVisible();
+    await expect(parentPage.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
     await expect(parentPage.getByText("Dylan Dunne Beavers 03", { exact: true })).toHaveCount(0);
     await parentPage.goto("/activities/consent");
     await expect(parentPage).toHaveURL(/\/parent#parent-medical-consent$/);
@@ -72,7 +93,8 @@ test("Superuser controls Parent Portal Consent and Medical Consent entry points"
     await parentPage.reload();
     await expect(parentPage.getByRole("link", { name: "Consent & Medical", exact: true })).toHaveCount(0);
     await expect(parentPage.getByRole("heading", { name: "Consent & Medical Forms" })).toHaveCount(0);
-    await expect(parentPage.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
+    await expect(parentPage.getByRole("heading", { name: "Upcoming Events & Galleries" })).toBeVisible();
+    await expect(parentPage.getByTestId("parent-things-to-do").getByText("Upcoming events", { exact: true })).toBeVisible();
   } finally {
     await setParentConsentEnabled(browser, false);
     await parentContext.close();

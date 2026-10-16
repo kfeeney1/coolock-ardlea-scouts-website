@@ -1,7 +1,26 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
+let releaseConsentSettingLock: (() => Promise<void>) | null = null;
+
+test.beforeEach(async ({ browser }, testInfo) => {
+  if (!testInfo.title.startsWith("selected-member event audience") || !password) return;
+  releaseConsentSettingLock = await acquireParentConsentSettingLock();
+  await setParentConsentEnabled(browser, true);
+});
+
+test.afterEach(async ({ browser }, testInfo) => {
+  if (!testInfo.title.startsWith("selected-member event audience") || !password) return;
+  try {
+    await setParentConsentEnabled(browser, false);
+  } finally {
+    await releaseConsentSettingLock?.();
+    releaseConsentSettingLock = null;
+  }
+});
 
 async function loginAdmin(page: Page) {
   await page.goto("/leader/login");
