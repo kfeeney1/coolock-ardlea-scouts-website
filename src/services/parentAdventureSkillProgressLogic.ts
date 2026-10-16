@@ -1,5 +1,6 @@
-import { adventureSkills } from "../data/adventureSkills/index.ts";
+import { adventureSkillsById } from "../data/adventureSkills/index.ts";
 import { isStageRequirementComplete } from "./adventureSkillProgressLogic.ts";
+import { adventureSkillOverview, type AdventureSkillOverview } from "./adventureSkillOverviewLogic.ts";
 import type { MemberAdventureProgress } from "./adventureSkillProgress.ts";
 
 export type ParentAdventureRequirementSummary = {
@@ -8,18 +9,11 @@ export type ParentAdventureRequirementSummary = {
   completed: boolean;
 };
 
-export type ParentAdventureStageSummary = {
-  stage: number;
-  completedRequirements: number;
-  totalRequirements: number;
-  requirementsComplete: boolean;
-  awarded: boolean;
+export type ParentAdventureStageSummary = AdventureSkillOverview["stages"][number] & {
   requirements: ParentAdventureRequirementSummary[];
 };
 
-export type ParentAdventureSkillSummary = {
-  skillId: string;
-  skillName: string;
+export type ParentAdventureSkillSummary = Omit<AdventureSkillOverview, "stages"> & {
   completedRequirements: number;
   totalRequirements: number;
   completedStages: number;
@@ -28,36 +22,27 @@ export type ParentAdventureSkillSummary = {
   stages: ParentAdventureStageSummary[];
 };
 
+/** Adds read-only competency detail to the same progress summaries used by leaders. */
 export function parentAdventureSkillSummaries(progress: MemberAdventureProgress): ParentAdventureSkillSummary[] {
   const completedIds = new Set(progress.requirements.map((requirement) => requirement.requirementId));
-  const awarded = new Set(progress.awards.map((award) => `${award.skillId}-stage-${award.stage}`));
 
-  return adventureSkills.map((skill) => {
-    const stages = skill.stages.map((stage) => {
-      const requirements = stage.requirements.map((requirement) => ({
+  return adventureSkillOverview(progress).map((skill) => {
+    const definition = adventureSkillsById.get(skill.skillId);
+    const stages = skill.stages.map((stage) => ({
+      ...stage,
+      requirements: (definition?.stages.find((item) => item.stage === stage.stage)?.requirements ?? []).map((requirement) => ({
         requirementId: requirement.id,
         statement: requirement.statement,
         completed: isStageRequirementComplete(completedIds, requirement.id)
-      }));
-      const completedRequirements = requirements.filter((requirement) => requirement.completed).length;
-      const totalRequirements = requirements.length;
-      return {
-        stage: stage.stage,
-        completedRequirements,
-        totalRequirements,
-        requirementsComplete: totalRequirements > 0 && completedRequirements === totalRequirements,
-        awarded: awarded.has(`${skill.id}-stage-${stage.stage}`),
-        requirements
-      };
-    });
+      }))
+    }));
 
     return {
-      skillId: skill.id,
-      skillName: skill.name,
+      ...skill,
       completedRequirements: stages.reduce((total, stage) => total + stage.completedRequirements, 0),
       totalRequirements: stages.reduce((total, stage) => total + stage.totalRequirements, 0),
-      completedStages: stages.filter((stage) => stage.requirementsComplete).length,
-      awardedStages: stages.filter((stage) => stage.awarded).length,
+      completedStages: stages.filter((stage) => stage.status === "requirements-complete" || stage.status === "awarded").length,
+      awardedStages: stages.filter((stage) => stage.status === "awarded").length,
       stageCount: stages.length,
       stages
     };

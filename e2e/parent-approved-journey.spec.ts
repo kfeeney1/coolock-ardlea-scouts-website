@@ -265,4 +265,25 @@ test.describe("Parent Portal navigation on desktop and mobile", () => {
     await expect(page).toHaveURL(new RegExp(`child=${firstChild}#parent-event-consent$`));
     await expect(page.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeInViewport();
   });
+
+  test("approved parent sees the leader skill grid and read-only stage details on desktop and mobile", async ({ page }) => {
+    const grid = page.getByTestId("badgework-skill-grid");
+    await expect(grid).toBeVisible();
+    await expect(grid.locator('[data-testid^="badgework-skill-tile-"]')).toHaveCount(10);
+
+    const camping = page.getByTestId("badgework-skill-tile-camping");
+    await expect(camping).toHaveAccessibleName(/Riley Nolan Beavers 01 · Camping ·/);
+    await camping.click();
+    const details = page.getByTestId("parent-adventure-skill-camping");
+    await expect(details).toBeVisible();
+    await expect(details.getByRole("button", { name: /Stage 1/ })).toBeVisible();
+    await details.getByRole("button", { name: /Stage 1/ }).click();
+    await expect(details.locator('[data-testid^="parent-adventure-requirement-"]').first()).toBeVisible();
+    await expect(details.getByText(/Completed|Outstanding/).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Award badge|Save changes|Record badgework|Edit badgework/i })).toHaveCount(0);
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+
+    const fitsViewport = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+    expect(fitsViewport).toBe(true);
+  });
 });

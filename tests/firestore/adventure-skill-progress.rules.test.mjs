@@ -307,11 +307,15 @@ test("approved parents can read linked-child progress but cannot write it or rea
     ["members/member-1", { section: "Beavers", status: "active" }],
     ["members/member-2", { section: "Beavers", status: "active" }],
     ["memberAdventureSkillProgress/member-1/requirements/camping-stage-1-requirement-06", { ...requirement("leader-1"), completedAt: new Date(), completedBy: "leader-1" }],
+    ["memberAdventureSkillProgress/member-1/awards/camping-stage-1", { ...award("leader-1"), awardedAt: new Date(), awardedBy: "leader-1" }],
   ]);
   const db = testEnv.authenticatedContext("parent-1").firestore();
   await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/member-1/requirements")));
+  await assertSucceeds(getDocs(collection(db, "memberAdventureSkillProgress/member-1/awards")));
   await assertFails(getDocs(collection(db, "memberAdventureSkillProgress/member-2/requirements")));
+  await assertFails(getDocs(collection(db, "memberAdventureSkillProgress/member-2/awards")));
   await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/requirements/camping-stage-1-requirement-06"), requirement("parent-1")));
+  await assertFails(setDoc(doc(db, "memberAdventureSkillProgress/member-1/awards/camping-stage-1"), award("parent-1")));
 });
 
 test("awards are separately protected and attributed", async () => {
