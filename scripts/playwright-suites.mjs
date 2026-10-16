@@ -55,6 +55,7 @@ export const suiteSpecs = {
     "weekly-mobile-layout.spec.ts",
     "weekly-meeting-share.spec.ts",
     "weekly-parent-sharing.spec.ts",
+    "weekly-parent-programme-history.spec.ts",
     "weekly-planner-followup.spec.ts",
     "weekly-record-integrity.spec.ts",
     "weekly-meeting-date-defaults.spec.ts",
@@ -160,8 +161,8 @@ export function suitesForChangedPath(file) {
     "src/services/scouterConsentPrefillLogic.ts",
     "tests/unit/leaderMedicalProfileLogic.test.ts",
     "tests/unit/scouterConsentPrefill.test.ts",
-    "scripts/seed-playwright-records.mjs"
   ].includes(file)) return ["members-parents-consent"];
+  if (file === "scripts/seed-playwright-records.mjs") return ["members-parents-consent", "activities-programme"];
   if (file === "tests/unit/work-block-d-section-integrity.test.ts") return ["activities-programme", "members-parents-consent"];
   // Rover membership must always receive its focused lifecycle and permission coverage.
   if (/rover/i.test(file) && (file.startsWith("src/") || file.startsWith("tests/"))) return ["members-parents-consent", "authentication-rbac"];

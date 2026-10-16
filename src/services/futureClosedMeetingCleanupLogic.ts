@@ -1,10 +1,4 @@
-export function groupLocalDate(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit"
-  }).formatToParts(now);
-  const value = (type: "year" | "month" | "day") => parts.find((part) => part.type === type)?.value ?? "";
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
+export { groupLocalDate } from "./groupLocalDate.ts";
 
 export function isFutureClosedMeeting(record: { status: string; meetingDate: string }, today: string): boolean {
   const date = record.meetingDate;
