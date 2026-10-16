@@ -4,7 +4,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { formatDateRangeInput, isIsoCalendarDate, parseDateRangeInput } from "../services/dateRangeLogic";
 
 type CalendarMonth = { year: number; month: number };
-type Props = Omit<TextFieldProps, "value" | "onChange" | "type"> & { value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; minDate?: string; maxDate?: string; minDateErrorMessage?: string; initialDate?: string; calendarDescription?: string };
+type Props = Omit<TextFieldProps, "value" | "onChange" | "type"> & { value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; minDate?: string; maxDate?: string; minDateErrorMessage?: string; initialDate?: string; calendarDescription?: string; calendarDescriptionVisuallyHidden?: boolean };
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -23,7 +23,7 @@ const compareMonth = (a: CalendarMonth, b: CalendarMonth) => a.year - b.year || 
 function changeEvent(value: string, name: string): ChangeEvent<HTMLInputElement> { return { target: { value, name }, currentTarget: { value, name } } as ChangeEvent<HTMLInputElement>; }
 
 /** Date-only input and calendar used throughout the site. Parent values remain ISO date-only strings. */
-export default function DatePickerField({ value, onChange, minDate, maxDate, minDateErrorMessage, initialDate, calendarDescription, label, disabled, required, error, helperText, slotProps, ...props }: Props) {
+export default function DatePickerField({ value, onChange, minDate, maxDate, minDateErrorMessage, initialDate, calendarDescription, calendarDescriptionVisuallyHidden = false, label, disabled, required, error, helperText, slotProps, ...props }: Props) {
   const id = useId();
   const inputElement = useRef<HTMLInputElement>(null);
   const dayButtons = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -79,7 +79,7 @@ export default function DatePickerField({ value, onChange, minDate, maxDate, min
     <Dialog open={open} onClose={() => setOpen(false)} aria-labelledby={id + "-title"} aria-describedby={id + "-description"} fullWidth maxWidth="xs" scroll="paper">
       <DialogTitle id={id + "-title"}>Choose {title.toLowerCase()}</DialogTitle>
       <DialogContent>
-        <Typography id={id + "-description"} color="text.secondary" sx={{ mb: 1 }}>{calendarDescription || "Enter or select a date. The selected date is not applied until you confirm."}</Typography>
+        <Typography id={id + "-description"} color="text.secondary" sx={calendarDescriptionVisuallyHidden ? { border: 0, clip: "rect(0 0 0 0)", clipPath: "inset(50%)", height: "1px", margin: "-1px", overflow: "hidden", padding: 0, position: "absolute", whiteSpace: "nowrap", width: "1px" } : { mb: 1 }}>{calendarDescription || "Enter or select a date. The selected date is not applied until you confirm."}</Typography>
         <Stack direction="row" sx={{ mb: 1, alignItems: "center", justifyContent: "space-between" }}>
           <IconButton aria-label="Previous month" disabled={Boolean(minMonth && compareMonth(visibleMonth, minMonth) <= 0)} onClick={() => setVisibleMonth(previousMonth)}>‹</IconButton>
           <Typography aria-live="polite" sx={{ fontWeight: 700 }}>{monthName(visibleMonth)}</Typography>
