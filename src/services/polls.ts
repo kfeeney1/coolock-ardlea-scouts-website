@@ -5,6 +5,7 @@ import {
   increment,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   runTransaction,
   serverTimestamp,
@@ -23,6 +24,7 @@ import {
   normalizePollQuestion,
   pollManagerScopeSubsets,
   resolvePollSections,
+  uniquePollIds,
   type PollAudienceType,
   type PollLeaderActor,
   type PollRecord,
@@ -75,7 +77,7 @@ async function fetchAudienceIndexIds(section: string | undefined, audienceType: 
 }
 
 async function loadPollRecords(pollIds: readonly string[]): Promise<PollRecord[]> {
-  const records = await Promise.all([...new Set(pollIds)].map(async (pollId) => {
+  const records = await Promise.all(uniquePollIds(pollIds).map(async (pollId) => {
     const snapshot = await getDoc(doc(db, "polls", pollId));
     return snapshot.exists() ? mapPoll(snapshot.id, snapshot.data()) : null;
   }));
@@ -217,6 +219,20 @@ export async function submitPollResponse(poll: PollRecord, option: string): Prom
     }
     transaction.set(responseRef, { accountUid: user.uid, option, optionIndex: nextIndex, createdAt, updatedAt: serverTimestamp() });
   });
+}
+
+export function subscribeToPollResults(
+  poll: PollRecord,
+  onResults: (results: Array<{ option: string; count: number }>) => void,
+  onError: (error: unknown) => void
+): () => void {
+  return onSnapshot(collection(db, "polls", poll.id, "results"), (snapshot) => {
+    const counts = new Map(snapshot.docs.map((item) => {
+      const data = item.data();
+      return [Number(data.optionIndex), typeof data.count === "number" ? data.count : 0] as const;
+    }));
+    onResults(poll.options.map((option, optionIndex) => ({ option, count: counts.get(optionIndex) ?? 0 })));
+  }, onError);
 }
 
 export async function loadPollResultsForManager(poll: PollRecord): Promise<Array<{ option: string; count: number }>> {

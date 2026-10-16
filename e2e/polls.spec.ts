@@ -28,6 +28,14 @@ function desktopOnly(testInfo: TestInfo) {
   test.skip(testInfo.project.name !== "chromium", "Poll publishing and vote persistence run once on desktop Chromium.");
 }
 
+async function expectPollsAboveOverview(page: Page) {
+  await expect.poll(() => page.evaluate(() => {
+    const polls = document.querySelector('[data-testid="leader-polls"]');
+    const overview = document.querySelector('[data-testid="admin-overview"]');
+    return Boolean(polls && overview && (polls.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING));
+  })).toBe(true);
+}
+
 test.describe("dashboard polls", () => {
   test("SW-357 saves the reported whole-group leader draft and blocks a repeated in-flight submission", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
@@ -45,7 +53,8 @@ test.describe("dashboard polls", () => {
     const draft = page.getByTestId(/^leader-poll-manager-/).filter({ has: page.getByText("Poll", { exact: true }) });
     await expect(draft).toHaveCount(1);
     await expect(draft).toContainText("Leaders · Whole group · draft");
-    await expect(page.getByRole("status")).toContainText("Poll draft saved");
+    await expect(page.getByTestId("leader-polls").getByRole("status").filter({ hasText: "Poll draft saved" })).toBeVisible();
+    await expect(page.getByTestId("leader-polls-empty")).toHaveAttribute("role", "status");
     await expect(page.getByTestId("leader-polls").getByRole("alert")).toHaveCount(0);
 
     await page.reload();
@@ -130,6 +139,74 @@ test.describe("dashboard polls", () => {
     await parentContext.close();
   });
 
+  test("SW-407 shows eligible leader polls first and refreshes aggregate results", async ({ page, browser }, testInfo) => {
+    desktopOnly(testInfo);
+    const cubsLeaderEmail = process.env.E2E_CUBS_SECTION_LEADER_EMAIL || "test.cub.section.leader@example.com";
+    test.skip(!adminEmail || !password, "Configure the super-admin E2E account.");
+    const question = `SW-407 leader dashboard poll ${Date.now()}`;
+
+    await login(page, "/leader/login", adminEmail!);
+    await page.goto("/leader/polls");
+    await page.getByLabel("Poll question").fill(question);
+    await page.getByLabel("Answer options").fill("Hike\nCamp");
+    await page.getByRole("combobox", { name: "Poll audience" }).click();
+    await page.getByRole("option", { name: "Leaders", exact: true }).click();
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await page.getByRole("combobox", { name: "Poll scope" }).click();
+    await page.getByRole("option", { name: "Selected sections" }).click();
+    await expect(page.getByRole("listbox")).toBeHidden();
+    for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
+      if (await checkbox.isChecked()) await checkbox.uncheck();
+    }
+    await page.getByRole("checkbox", { name: "Cubs" }).check();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    const managerPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+    await expect(managerPoll).toBeVisible();
+    await managerPoll.getByRole("button", { name: "Publish poll" }).click();
+    await expect(managerPoll).toContainText("published");
+
+    const leaderContext = await browser.newContext();
+    const leaderPage = await leaderContext.newPage();
+    await login(leaderPage, "/leader/login", cubsLeaderEmail);
+    await expectPollsAboveOverview(leaderPage);
+    const leaderPoll = leaderPage.locator('[data-testid^="leader-poll-"]:not([data-testid^="leader-poll-manager-"])').filter({ hasText: question });
+    await expect(leaderPoll).toHaveCount(1);
+    await expect(leaderPoll.getByRole("radio", { name: "Hike" })).toBeVisible();
+    await expect(leaderPoll.getByTestId(/^leader-poll-audience-results-/)).toHaveCount(0);
+    await leaderPoll.getByRole("radio", { name: "Hike" }).check();
+    await leaderPoll.getByRole("button", { name: "Save response" }).click();
+    await expect(leaderPoll.getByRole("status").filter({ hasText: "Saved choice: Hike" })).toBeVisible();
+    const audienceResults = leaderPoll.getByTestId(/^leader-poll-audience-results-/);
+    await expect(audienceResults).toContainText("Current results · 1 response(s)");
+    await expect(audienceResults).toContainText("Hike: 1 (100%)");
+    await leaderPoll.getByRole("radio", { name: "Camp" }).check();
+    await leaderPoll.getByRole("button", { name: "Save changed response" }).click();
+    await expect(leaderPoll.getByRole("status").filter({ hasText: "Saved choice: Camp" })).toBeVisible();
+    await expect(audienceResults).toContainText("Current results · 1 response(s)");
+    await expect(audienceResults).toContainText("Hike: 0 (0%)");
+    await expect(audienceResults).toContainText("Camp: 1 (100%)");
+
+    const secondLeaderEmail = process.env.E2E_CUBS_SECOND_SECTION_LEADER_EMAIL;
+    if (secondLeaderEmail) {
+      const secondContext = await browser.newContext();
+      const secondPage = await secondContext.newPage();
+      await login(secondPage, "/leader/login", secondLeaderEmail);
+      const secondPoll = secondPage.locator('[data-testid^="leader-poll-"]:not([data-testid^="leader-poll-manager-"])').filter({ hasText: question });
+      await secondPoll.getByRole("radio", { name: "Hike" }).check();
+      await secondPoll.getByRole("button", { name: "Save response" }).click();
+      await expect(leaderPoll.getByTestId(/^leader-poll-audience-results-/)).toContainText("Current results · 2 response(s)");
+      await secondContext.close();
+    }
+
+    await leaderPage.reload();
+    const restoredPoll = leaderPage.locator('[data-testid^="leader-poll-"]:not([data-testid^="leader-poll-manager-"])').filter({ hasText: question });
+    await expect(restoredPoll.getByRole("radio", { name: "Camp" })).toBeChecked();
+    await expect(restoredPoll.getByRole("status").filter({ hasText: "Saved choice: Camp" })).toBeVisible();
+    await expect(restoredPoll.getByTestId(/^leader-poll-audience-results-/)).toContainText(secondLeaderEmail ? "Current results · 2 response(s)" : "Current results · 1 response(s)");
+    await leaderContext.close();
+    await managerPoll.getByRole("button", { name: "Close poll" }).click();
+  });
+
   test("a Super Admin can manage a leader poll outside their voting sections", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!adminEmail || !password, "Configure the super-admin E2E account.");
@@ -189,6 +266,7 @@ for (const account of eligibleLeaders) {
     await expect(page).toHaveURL(/\/leader$/);
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
     await expect(page.getByTestId("leader-polls")).toBeVisible();
+    await expectPollsAboveOverview(page);
 
     await page.getByRole("button", { name: /Open Leader Menu|Menu ·/ }).click();
     if (testInfo.project.name === "mobile-chromium") await page.getByRole("button", { name: "Programme", exact: true }).click();

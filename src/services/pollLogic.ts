@@ -28,6 +28,10 @@ export type PollLeaderActor = {
   scoutingRole?: string;
 };
 
+export function uniquePollIds(ids: readonly string[]): string[] {
+  return [...new Set(ids)];
+}
+
 export function normalizePollOptions(raw: readonly string[]): string[] {
   const seen = new Set<string>();
   const options = raw.map((value) => value.trim()).filter((value) => {

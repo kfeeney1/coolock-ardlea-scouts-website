@@ -2207,7 +2207,10 @@ service cloud.firestore {
       }
 
       match /results/{resultId} {
-        allow get, list: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data);
+        allow get, list: if pollCanManage(get(/databases/$(database)/documents/polls/$(pollId)).data)
+          || (get(/databases/$(database)/documents/polls/$(pollId)).data.audienceType == "leaders"
+            && pollHasEligibleLeader(get(/databases/$(database)/documents/polls/$(pollId)).data)
+            && exists(/databases/$(database)/documents/polls/$(pollId)/responses/$(request.auth.uid)));
         allow create: if isActiveLeader()
           && pollCanManage(getAfter(/databases/$(database)/documents/polls/$(pollId)).data)
           && getAfter(/databases/$(database)/documents/polls/$(pollId)).data.status == "draft"
