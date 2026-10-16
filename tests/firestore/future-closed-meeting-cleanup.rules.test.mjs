@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { deleteDoc, doc, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 
 const projectId = "coolock-ardlea-scouts";
 let testEnv;
@@ -32,6 +32,7 @@ after(async () => { await testEnv.cleanup(); });
 
 test("active super-admin can remove a closed meeting and its linked records", async () => {
   const db = testEnv.authenticatedContext("admin-1").firestore();
+  await assertSucceeds(getDoc(doc(db, "parentWeeklyMeetings/closed")));
   await assertSucceeds(deleteDoc(doc(db, "weeklyMeetings/closed/leaderAttendance/leader-1")));
   await assertSucceeds(deleteDoc(doc(db, "memberAdventureSkillProgress/member-1/requirements/requirement-1")));
   await assertSucceeds(deleteDoc(doc(db, "parentWeeklyMeetings/closed")));
