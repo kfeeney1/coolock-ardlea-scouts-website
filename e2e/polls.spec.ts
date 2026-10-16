@@ -175,13 +175,13 @@ test.describe("dashboard polls", () => {
     await expect(leaderPoll.getByTestId(/^leader-poll-audience-results-/)).toHaveCount(0);
     await leaderPoll.getByRole("radio", { name: "Hike" }).check();
     await leaderPoll.getByRole("button", { name: "Save response" }).click();
-    await expect(leaderPoll.getByRole("status")).toContainText("Saved choice: Hike");
+    await expect(leaderPoll.getByRole("status").filter({ hasText: "Saved choice: Hike" })).toBeVisible();
     const audienceResults = leaderPoll.getByTestId(/^leader-poll-audience-results-/);
     await expect(audienceResults).toContainText("Current results · 1 response(s)");
     await expect(audienceResults).toContainText("Hike: 1 (100%)");
     await leaderPoll.getByRole("radio", { name: "Camp" }).check();
     await leaderPoll.getByRole("button", { name: "Save changed response" }).click();
-    await expect(leaderPoll.getByRole("status")).toContainText("Saved choice: Camp");
+    await expect(leaderPoll.getByRole("status").filter({ hasText: "Saved choice: Camp" })).toBeVisible();
     await expect(audienceResults).toContainText("Current results · 1 response(s)");
     await expect(audienceResults).toContainText("Hike: 0 (0%)");
     await expect(audienceResults).toContainText("Camp: 1 (100%)");
@@ -201,7 +201,7 @@ test.describe("dashboard polls", () => {
     await leaderPage.reload();
     const restoredPoll = leaderPage.locator('[data-testid^="leader-poll-"]:not([data-testid^="leader-poll-manager-"])').filter({ hasText: question });
     await expect(restoredPoll.getByRole("radio", { name: "Camp" })).toBeChecked();
-    await expect(restoredPoll.getByRole("status")).toContainText("Saved choice: Camp");
+    await expect(restoredPoll.getByRole("status").filter({ hasText: "Saved choice: Camp" })).toBeVisible();
     await expect(restoredPoll.getByTestId(/^leader-poll-audience-results-/)).toContainText(secondLeaderEmail ? "Current results · 2 response(s)" : "Current results · 1 response(s)");
     await leaderContext.close();
     await managerPoll.getByRole("button", { name: "Close poll" }).click();
