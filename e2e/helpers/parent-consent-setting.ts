@@ -50,7 +50,13 @@ export async function setParentConsentEnabled(browser: Browser, enabled: boolean
     await expect(setting).toBeVisible();
     if ((await setting.isChecked()) !== enabled) {
       await setting.click();
-      await expect(page.getByRole("status").filter({ hasText: `Parent Portal Consent and Medical Consent ${enabled ? "enabled" : "disabled"}` })).toBeVisible();
+      const saveError = page.getByRole("alert").filter({ hasText: /Unable to save Parent Portal consent settings/i });
+      await expect.poll(async () => (await setting.isChecked()) === enabled || (await saveError.count()) > 0, {
+        message: `Parent Portal consent setting did not reach ${enabled ? "enabled" : "disabled"} state.`
+      }).toBe(true);
+      if (await saveError.count()) {
+        throw new Error(`Unable to update Parent Portal consent setting: ${(await saveError.first().innerText()).trim()}`);
+      }
     }
     await expect(setting).toHaveJSProperty("checked", enabled);
   } finally {
