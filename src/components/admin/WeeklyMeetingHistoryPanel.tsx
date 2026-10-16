@@ -33,6 +33,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const cleanupBusyRef = useRef(false);
+  const [cleanupRefreshPending, setCleanupRefreshPending] = useState(false);
   const [cleanupPreview, setCleanupPreview] = useState<CleanupPreview | null>(null);
   const [cleanupError, setCleanupError] = useState("");
   const [cleanupNotice, setCleanupNotice] = useState("");
@@ -45,9 +46,18 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
 
   const openCleanup = async () => {
     setCleanupOpen(true); setCleanupLoading(true); setCleanupError(""); setCleanupNotice("");
+    setCleanupRefreshPending(false);
     try { setCleanupPreview(await previewFutureClosedMeetings()); }
     catch { setCleanupError("Unable to refresh the closed meetings. Try again before deleting anything."); }
     finally { setCleanupLoading(false); }
+  };
+  const closeCleanup = () => {
+    if (cleanupBusy) return;
+    setCleanupOpen(false);
+    if (cleanupRefreshPending) {
+      setCleanupRefreshPending(false);
+      void onRefresh();
+    }
   };
   const confirmCleanup = async () => {
     if (!cleanupPreview || cleanupBusyRef.current || cleanupPreview.meetings.length === 0) return;
@@ -63,18 +73,16 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
       if (result.failed.length) {
         const refreshed = await previewFutureClosedMeetings();
         setCleanupPreview(refreshed);
+        if (result.deleted.length) setCleanupRefreshPending(true);
         setCleanupNotice(`${result.deleted.length} meeting${result.deleted.length === 1 ? " was" : "s were"} deleted. ${result.failed.length} could not be fully deleted. Review the updated count and retry.`);
       } else {
         setCleanupPreview({ today: cleanupPreview.today, meetings: [] });
+        setCleanupRefreshPending(result.deleted.length > 0);
         setCleanupNotice(`${result.deleted.length} future-dated closed meeting${result.deleted.length === 1 ? " was" : "s were"} deleted with associated records.`);
       }
-      // A saved deletion should not leave the confirmation dialog stuck in a
-      // busy state while the larger weekly dashboard reloads its other data.
-      void onRefresh().catch(() => {
-        setCleanupNotice((notice) => `${notice} Meeting history could not refresh; reload the page to see the latest list.`);
-      });
     } catch {
       setCleanupError("The cleanup could not be completed. Refresh the count and try again; completed deletions will not be repeated.");
+      setCleanupRefreshPending(true);
       try { setCleanupPreview(await previewFutureClosedMeetings()); } catch { /* retain the last reviewed count */ }
     } finally { cleanupBusyRef.current = false; setCleanupBusy(false); }
   };
@@ -145,7 +153,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
         <Button variant="contained" onClick={() => { const record = reopenTarget; setReopenTarget(null); if (record) onReopen(record); }}>Reopen Meeting</Button>
       </DialogActions>
     </Dialog>
-    <Dialog open={cleanupOpen} onClose={cleanupBusy ? undefined : () => setCleanupOpen(false)} aria-labelledby="future-meeting-cleanup-title" data-testid="future-meeting-cleanup-dialog">
+    <Dialog open={cleanupOpen} onClose={cleanupBusy ? undefined : closeCleanup} aria-labelledby="future-meeting-cleanup-title" data-testid="future-meeting-cleanup-dialog">
       <DialogTitle id="future-meeting-cleanup-title">Delete future-dated closed meetings?</DialogTitle>
       <DialogContent>
         <DialogContentText>
@@ -158,7 +166,7 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
         {cleanupPreview?.meetings.length ? <Box component="ul" sx={{ pl: 2.5, mb: 0, mt: 1 }}>{cleanupPreview.meetings.map((meeting) => <li key={meeting.id}>{displayDate(meeting.meetingDate)} · {meeting.section}</li>)}</Box> : null}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setCleanupOpen(false)} disabled={cleanupBusy}>Cancel</Button>
+        <Button onClick={closeCleanup} disabled={cleanupBusy}>{cleanupRefreshPending ? "Close" : "Cancel"}</Button>
         <Button variant="contained" color="error" onClick={() => void confirmCleanup()} disabled={cleanupLoading || cleanupBusy || !cleanupPreview?.meetings.length} data-testid="confirm-future-meeting-cleanup">
           {cleanupBusy ? <><CircularProgress size={18} sx={{ mr: 1 }} />Deleting…</> : "Confirm deletion"}
         </Button>
