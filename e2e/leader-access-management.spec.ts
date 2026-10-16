@@ -281,6 +281,30 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   const childSelect = card.getByRole("combobox", { name: "Child member" });
   await childSelect.click();
   const childOption = page.getByRole("option", { name: new RegExp(`Cub.*02.*Cubs`, "i") }).first();
+  const linkedChild = card.getByText(`${memberName} · Cubs`, { exact: true });
+  await expect.poll(async () => {
+    if (await childOption.isVisible().catch(() => false)) return "available";
+    if (await linkedChild.isVisible().catch(() => false)) return "already linked";
+    const error = page.getByRole("alert");
+    if (await error.count()) return `error: ${(await error.first().innerText()).trim()}`;
+    return "loading child options and existing relationships";
+  }, {
+    timeout: 10000,
+    message: "Leader Access must load Cub Child 02 as an available child or show its existing relationship before the SW-219 journey can continue."
+  }).toMatch(/^(available|already linked)$/);
+
+  // Push-triggered Playwright retries reuse the same emulator. If an earlier
+  // attempt linked the child before failing later in the journey, restore the
+  // seeded unlinked state so this retry exercises the same link operation.
+  if (testInfo.retry > 0 && await linkedChild.isVisible().catch(() => false)) {
+    await childSelect.press("Escape");
+    await linkedChild.locator("..").getByRole("button", { name: "Unlink" }).click();
+    await expect(page.getByRole("alert")).toContainText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.");
+    await expect(linkedChild).toHaveCount(0);
+    await childSelect.click();
+  } else {
+    await expect(linkedChild, "The SW-219 seed must start with Cub Child 02 unlinked on the first attempt.").toHaveCount(0);
+  }
   await expect(childOption).toBeVisible();
   const optionText = (await childOption.textContent())?.split(" · ")[0]?.trim() || memberName;
   await childOption.click();
@@ -288,7 +312,7 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await expect(card).toContainText(optionText);
   await expect(page.getByRole("alert")).toContainText(/relationship linked|reconciled|saved/i);
 
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByTestId(`leader-access-${leaderUid}`)).toContainText(optionText);
 
   await page.goto("/leader/subs");
@@ -303,7 +327,7 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await linkedRow.getByRole("button", { name: "Unlink" }).click();
   await expect(page.getByText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.")).toBeVisible();
 
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByTestId(`leader-access-${leaderUid}`)).not.toContainText(optionText);
 
   await page.goto("/leader/subs");
