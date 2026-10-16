@@ -1,5 +1,6 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
+import { assertEndDatePickerMinimum } from "./support/end-date-picker-assertions";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -210,8 +211,7 @@ test("future start opens the shared end calendar at a valid date and only applie
   await expect(end).toHaveValue("");
   await page.getByRole("button", { name: "Choose end date" }).click();
   const calendar = page.getByRole("dialog", { name: "Choose end date" });
-  await expect(calendar.getByRole("button", { name: "Select 01-04-2099" })).toBeDisabled();
-  await expect(calendar.getByRole("button", { name: "Select 02-04-2099" })).toHaveAttribute("aria-pressed", "true");
+  await assertEndDatePickerMinimum(calendar, page, "02-04-2099");
   await calendar.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(end).toHaveValue("");
   await page.getByRole("button", { name: "Choose end date" }).click();
