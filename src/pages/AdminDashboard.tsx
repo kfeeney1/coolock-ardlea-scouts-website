@@ -125,8 +125,8 @@ export default function AdminDashboard() {
     return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 6 } }}>
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
-            <AdminOverviewPanel />
             <Box id="group-polls" sx={{ scrollMarginTop: 24 }}><LeaderPollsPanel /></Box>
+            <AdminOverviewPanel />
             {adminProfile?.role === "super-admin" && <OperationalHealthPanel />}
 
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}

@@ -13,6 +13,7 @@ import {
   pollDraftFailureMessage,
   pollResults,
   resolvePollSections,
+  uniquePollIds,
   type PollRecord
 } from "../../src/services/pollLogic.ts";
 
@@ -68,6 +69,7 @@ test("leader and parent eligibility includes multiple linked sections once and e
   assert.equal(canRespondToPoll(poll, { kind: "parent", approved: true, memberSections: ["Scouts"] }), false);
   assert.equal(canRespondToPoll({ ...poll, audienceType: "leaders" }, { kind: "leader", sections: ["Cubs", "Beavers"] }), true);
   assert.equal(canRespondToPoll({ ...poll, audienceType: "leaders" }, { kind: "leader", sections: ["Rovers"] }), false);
+  assert.deepEqual(uniquePollIds(["poll-a", "poll-b", "poll-a", "poll-b"]), ["poll-a", "poll-b"]);
 });
 
 test("a group manager without a programme section assignment can manage but not vote in leader polls", () => {
