@@ -177,12 +177,12 @@ test.describe("approved parent journey", () => {
     await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
 
-  test("Things to do summary retries successfully after a temporary audience query failure", async ({ page }) => {
-    let failAudienceQuery = true;
-    await page.route("**/google.firestore.v1.Firestore/Listen/channel**", async (route) => {
-      const requestBody = route.request().postData() || "";
-      const requestData = Array.from(new URLSearchParams(requestBody).values()).join("\n");
-      if (failAudienceQuery && requestData.includes('"collectionId":"audienceMembers"') && requestData.includes('"fieldPath":"memberId"')) {
+  test("Things to do summary retries successfully after a temporary Firestore query failure", async ({ page }) => {
+    let failNextListenerRequest = false;
+    let injectedFailure = false;
+    await page.route("**/Listen/channel*", async (route) => {
+      if (failNextListenerRequest && !injectedFailure && route.request().method() === "POST") {
+        injectedFailure = true;
         await route.fulfill({
           status: 400,
           contentType: "text/plain",
@@ -194,17 +194,19 @@ test.describe("approved parent journey", () => {
     });
 
     await loginParent(page);
+    failNextListenerRequest = true;
+    await page.reload();
     const summary = page.getByTestId("parent-things-to-do");
     await expect(summary.getByTestId("parent-things-to-do-error")).toBeVisible();
 
-    failAudienceQuery = false;
+    expect(injectedFailure).toBe(true);
+    failNextListenerRequest = false;
     await summary.getByRole("button", { name: "Retry" }).click();
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
     await expect(summary.getByTestId("parent-things-to-do-error")).toHaveCount(0);
-  });
-});
+  });});
 
 test("approved parent can sign out globally and must authenticate again", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent logout regression runs on desktop and Pixel 7 Chromium.");
