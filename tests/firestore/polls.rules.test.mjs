@@ -30,6 +30,7 @@ beforeEach(async () => {
   await seed([
     ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/outside-leader", { active: true, role: "leader", sections: ["Other"] }],
     ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
     ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
@@ -172,15 +173,15 @@ test("unapproved links and closed polls reject direct response writes", async ()
   await assertFails(makeResponse(parent, "parent-a"));
 });
 
-test("leader audience polls exclude parents and require a currently active leader account", async () => {
-  await seedPoll("leader-poll", { audienceType: "leaders" });
+test("leader audience polls exclude parents and reveal aggregate results to eligible voters only after voting", async () => {
+  await seedPoll("leader-poll", { audienceType: "leaders", scopeType: "group", scopeSections: ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] });
   const beaverLeader = testEnv.authenticatedContext("beaver-leader").firestore();
   const parent = testEnv.authenticatedContext("parent-a").firestore();
-  const scoutLeader = testEnv.authenticatedContext("scout-leader").firestore();
+  const outsideLeader = testEnv.authenticatedContext("outside-leader").firestore();
   await assertSucceeds(getDoc(doc(beaverLeader, "polls/leader-poll")));
   await assertFails(getDoc(doc(parent, "polls/leader-poll")));
-  await assertFails(getDoc(doc(scoutLeader, "polls/leader-poll")));
-  await assertFails(getDocs(collection(scoutLeader, "polls/leader-poll/results")));
+  await assertFails(getDoc(doc(outsideLeader, "polls/leader-poll")));
+  await assertFails(getDocs(collection(outsideLeader, "polls/leader-poll/results")));
   await assertFails(getDocs(collection(beaverLeader, "polls/leader-poll/results")));
 
   const responseBatch = writeBatch(beaverLeader);
