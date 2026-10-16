@@ -1,6 +1,6 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
-import { assertEndDatePickerMinimum } from "./support/end-date-picker-assertions";
+import { assertEndDatePickerMinimum, assertStartDatePicker } from "./support/end-date-picker-assertions";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 
@@ -273,17 +273,21 @@ test("standalone date fields use the same confirmable calendar on mobile and des
   await expect(calendarGrid).toHaveAttribute("aria-label", "February 2096 dates");
   await expect(calendar.locator('[aria-label="Mon"]')).toHaveText("Mon");
   await expect(calendar.getByRole("button", { name: "Select 28-02-2096" })).toHaveAttribute("aria-pressed", "true");
+  await assertStartDatePicker(calendar, page);
   const bounds = await calendar.boundingBox();
   const viewport = page.viewportSize();
   expect(bounds && viewport && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height).toBe(true);
   await calendar.getByRole("button", { name: "Next month" }).click();
   await expect(calendar.getByRole("button", { name: "Select 28-03-2096" })).toBeVisible();
+  await calendar.getByRole("button", { name: "Select 15-03-2096" }).click();
+  await expect(calendar.getByText("Selected date: 15-03-2096", { exact: true })).toBeVisible();
   await calendar.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(start).toHaveValue("28-02-2096");
   await expect(calendarTrigger).toBeFocused();
 
   await page.getByRole("button", { name: "Choose start date" }).click();
   const reopened = page.getByRole("dialog", { name: "Choose start date" });
+  await expect(reopened.getByRole("button", { name: "Select 28-02-2096" })).toHaveAttribute("aria-pressed", "true");
   const selectedDay = reopened.getByRole("button", { name: "Select 29-02-2096" });
   await selectedDay.focus();
   await expect(selectedDay).toBeFocused();
