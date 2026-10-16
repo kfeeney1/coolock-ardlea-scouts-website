@@ -43,10 +43,10 @@ export default function RedesignedLeaderNavigation({ groups, expanded, setExpand
       const heading = `redesigned-${group.id}-heading`;
       const panel = `redesigned-${group.id}-panel`;
       return <Paper key={group.id} variant="outlined" sx={{ overflow: "hidden", borderRadius: 2 }}>
-        <Button fullWidth id={heading} aria-expanded={open} aria-controls={panel}
+        <Button fullWidth variant="text" color="secondary" id={heading} aria-expanded={open} aria-controls={panel}
           onClick={() => setExpanded(open ? null : group.id)}
           startIcon={category.icon} endIcon={<ExpandMoreIcon sx={{ transform: open ? "rotate(180deg)" : "none" }} />}
-          sx={{ minHeight: 64, justifyContent: "flex-start", px: 2, gap: 1, "& .MuiButton-endIcon": { ml: "auto" }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: -3 } }}>
+          sx={{ minHeight: 64, borderRadius: 1, textTransform: "none", justifyContent: "flex-start", px: 2, gap: 1, "& .MuiButton-endIcon": { ml: "auto" }, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: -3 } }}>
           <Box component="span" sx={{ textAlign: "left", flex: 1 }}>
             <Typography component="span" sx={{ display: "block", fontWeight: 800 }}>{group.label}</Typography>
             <Typography component="span" variant="body2" color="text.secondary" sx={{ display: "block", textTransform: "none" }}>{category.description}</Typography>
