@@ -58,9 +58,18 @@ test.describe("stable TEST environment smoke", () => {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   });
 
-  test("parent journey authenticates an approved synthetic parent read-only", async ({ page }) => {
+  test("parent journey loads event consent requests for linked synthetic children", async ({ page }) => {
     await signIn(page, "/parent", "test.cub.parent1@example.com");
     await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
     await expect(page.getByText(/Your account is approved and linked to/i)).toBeVisible();
+
+    const eventSection = page.locator("#parent-event-consent");
+    await expect(eventSection.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
+    await expect(eventSection.getByTestId("parent-event-consent-error")).toHaveCount(0);
+    await expect(eventSection.getByTestId("parent-event-consent-permission")).toHaveCount(0);
+    await expect.poll(async () =>
+      (await eventSection.getByTestId("parent-event-consent-tiles").count())
+      + (await eventSection.getByText("No upcoming consent requests", { exact: true }).count())
+    ).toBe(1);
   });
 });
