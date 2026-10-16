@@ -173,7 +173,6 @@ test("selected-event consent-link lists require a matching server-authorized aud
     ["events/event-1", eventRecord()],
     ["events/event-1/audienceMembers/member-cub", { ...membership("event-1", "member-cub", "Cubs"), selectedBySection: true, selectedIndividually: false }],
     ["events/event-1/audienceMembers/member-cub-2", { ...membership("event-1", "member-cub-2", "Cubs"), selectedBySection: true, selectedIndividually: false }],
-    ["events/event-1/audienceMembers/member-scout", { ...membership("event-1", "member-scout", "Scouts"), selectedBySection: true, selectedIndividually: false }],
     ["eventConsentLinks/link-1", {
       token: "link-1", eventId: "event-1", title: "Selected Cubs event", eventType: "Camp", section: "Cubs",
       startDate: "2099-05-10", endDate: "2099-05-11", active: true, audienceVersion: 3,
