@@ -49,6 +49,9 @@ async function snapshotExistingCandidates(firestore: FirebaseFirestore.Firestore
     attendance.docs.forEach((record) => save(record.ref.path, record.data()));
   }
   requirements.flatMap((snapshot) => snapshot.docs).forEach((record) => save(record.ref.path, record.data()));
+  const isolate = firestore.batch();
+  meetings.forEach((meeting) => isolate.update(meeting.ref, { status: "open" }));
+  if (meetings.length) await isolate.commit();
   return meetings.map((meeting) => meeting.id);
 }
 
@@ -105,7 +108,7 @@ test("administrator reviews, cancels, and confirms deletion of future closed mee
   await expect(action).toBeVisible();
   await action.click();
   const dialog = page.getByTestId("future-meeting-cleanup-dialog");
-  const expectedCount = existingCandidateIds.length + 1;
+  const expectedCount = 1;
   await expect(dialog).toContainText(`${expectedCount} closed meeting${expectedCount === 1 ? "" : "s"} dated after today`);
   await expect(dialog).toContainText("attendance, activity and badgework data may also be removed");
   await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -115,21 +118,22 @@ test("administrator reviews, cancels, and confirms deletion of future closed mee
   expect((await firestore.doc(`weeklyMeetings/${id}/leaderAttendance/test.cleanup.leader`).get()).exists).toBe(true);
   expect((await firestore.doc("memberAdventureSkillProgress/TEST_member_scout_01/requirements/sw411-cleanup").get()).exists).toBe(true);
   for (const existingId of existingCandidateIds) {
-    expect((await firestore.doc(`weeklyMeetings/${existingId}`).get()).exists).toBe(true);
+    const existing = await firestore.doc(`weeklyMeetings/${existingId}`).get();
+    expect(existing.exists).toBe(true);
+    expect(existing.get("status")).toBe("open");
   }
 
   await action.click();
   await expect(dialog).toContainText(`${expectedCount} closed meeting${expectedCount === 1 ? "" : "s"} dated after today`);
   await dialog.getByTestId("confirm-future-meeting-cleanup").click();
-  await expect(dialog).toContainText(
-    `${expectedCount} future-dated closed meeting${expectedCount === 1 ? " was" : "s were"} deleted with associated records.`,
-    { timeout: 60_000 }
-  );
+  await expect(dialog).toContainText(`${expectedCount} future-dated closed meeting was deleted with associated records.`);
   await expect.poll(async () => (await firestore.doc(`weeklyMeetings/${id}`).get()).exists).toBe(false);
   expect((await firestore.doc(`parentWeeklyMeetings/${id}`).get()).exists).toBe(false);
   expect((await firestore.doc(`weeklyMeetings/${id}/leaderAttendance/test.cleanup.leader`).get()).exists).toBe(false);
   expect((await firestore.doc("memberAdventureSkillProgress/TEST_member_scout_01/requirements/sw411-cleanup").get()).exists).toBe(false);
   for (const existingId of existingCandidateIds) {
-    expect((await firestore.doc(`weeklyMeetings/${existingId}`).get()).exists).toBe(false);
+    const existing = await firestore.doc(`weeklyMeetings/${existingId}`).get();
+    expect(existing.exists).toBe(true);
+    expect(existing.get("status")).toBe("open");
   }
 });
