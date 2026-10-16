@@ -16,11 +16,11 @@ import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import type { ParentEventConsentLink } from "../../services/parentEvents";
 import ParentEventGallerySection from "./ParentEventGallerySection";
 
-type Props = { memberIds: string[]; sections: string[] };
+type Props = { memberIds: string[]; sections: string[]; consentFlowsEnabled: boolean };
 
 
 
-export default function ParentEventConsentSection({ memberIds, sections }: Props) {
+export default function ParentEventConsentSection({ memberIds, sections, consentFlowsEnabled }: Props) {
   const [events, setEvents] = useState<ParentEventConsentLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,6 +30,13 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
 
   useEffect(() => {
     let cancelled = false;
+    if (!consentFlowsEnabled) {
+      setEvents([]);
+      setLoading(false);
+      setError("");
+      setPermissionDenied(false);
+      return () => { cancelled = true; };
+    }
     void (async () => {
       setLoading(true);
       setError("");
@@ -54,7 +61,7 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
       }
     })();
     return () => { cancelled = true; };
-  }, [memberIds, sections, retryVersion]);
+  }, [consentFlowsEnabled, memberIds, sections, retryVersion]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -162,7 +169,7 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
 
   return (
     <Stack spacing={4}>
-      {eventConsentContent}
+      {consentFlowsEnabled && eventConsentContent}
       <Box id="parent-event-galleries" sx={{ scrollMarginTop: 24 }}>
         <Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Event Galleries</Typography>
         <ParentEventGallerySection sections={sections} />

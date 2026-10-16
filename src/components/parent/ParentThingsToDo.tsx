@@ -62,7 +62,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                 events: () => loadParentEventConsentLinks(memberIds, sections),
                 members: () => loadLinkedMembers(memberIds),
                 consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
-            });
+            }, { eventConsentEnabled: consentFlowsEnabled });
             setSummary(nextSummary);
         } catch (error) {
             const eventOperation = error && typeof error === "object" && "parentEventOperation" in error
@@ -134,7 +134,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                     </Alert>
                 )}
 
-                {summary.nextConsentEvent && (
+                {consentFlowsEnabled && summary.nextConsentEvent && (
                     <Paper variant="outlined" sx={{ p: 2.25, mb: 2 }} data-testid="parent-next-action">
                         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}>
                             <Box>
@@ -164,12 +164,12 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                 )}
 
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
-                    <Paper variant="outlined" sx={{ p: 2.25 }}>
+                    {consentFlowsEnabled && <Paper variant="outlined" sx={{ p: 2.25 }}>
                         <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{summary.eventConsentCount}</Typography>
                         <Typography sx={{ fontWeight: 700 }}>Event consent</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Upcoming consent request{summary.eventConsentCount === 1 ? "" : "s"} for linked sections.</Typography>
                         <Button onClick={() => scrollTo("parent-event-consent")} sx={{ mt: 1.5, px: 0 }}>Review events</Button>
-                    </Paper>
+                    </Paper>}
 
                     {consentFlowsEnabled && <Paper variant="outlined" sx={{ p: 2.25 }}>
                         <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }} data-testid="parent-medical-attention-count">{summary.medicalAttentionCount}</Typography>
