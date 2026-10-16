@@ -181,7 +181,7 @@ test.describe("approved parent journey", () => {
     let failListenerRequests = false;
     let injectedFailures = 0;
     await page.route("**/Listen/channel*", async (route) => {
-      if (failListenerRequests && route.request().method() === "POST") {
+      if (failListenerRequests) {
         injectedFailures += 1;
         await route.fulfill({
           status: 400,
