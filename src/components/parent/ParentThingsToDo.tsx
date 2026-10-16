@@ -27,6 +27,7 @@ type Props = {
     memberIds: string[];
     sections: string[];
     refreshVersion?: number;
+    consentFlowsEnabled?: boolean;
 };
 
 const emptySummary: ParentTaskSummary = {
@@ -48,7 +49,7 @@ function eventDate(startDate: string, endDate: string): string {
     return formatSiteDate(startDate);
 }
 
-export default function ParentThingsToDo({ memberIds, sections, refreshVersion = 0 }: Props) {
+export default function ParentThingsToDo({ memberIds, sections, refreshVersion = 0, consentFlowsEnabled = false }: Props) {
     const [summary, setSummary] = useState<ParentTaskSummary>(emptySummary);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<unknown>(null);
@@ -60,7 +61,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
             const [events, members, consents] = await Promise.all([
                 loadParentEventConsentLinks(memberIds, sections),
                 loadLinkedMembers(memberIds),
-                loadParentConsents(memberIds)
+                consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
             ]);
             setSummary(summariseParentTasks(events, members, consents));
         } catch (error) {
@@ -75,7 +76,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
         } finally {
             setLoading(false);
         }
-    }, [memberIds, sections]);
+    }, [consentFlowsEnabled, memberIds, sections]);
 
     useEffect(() => {
         if (refreshVersion < 0) return;
@@ -123,13 +124,13 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
 
         return (
             <>
-                {summary.totalAttentionCount === 0 ? (
+                {(summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0)) === 0 ? (
                     <Alert severity="success" sx={{ mb: 2 }} role="status">
                         Nothing needs your attention right now.
                     </Alert>
                 ) : (
                     <Alert severity="info" sx={{ mb: 2 }} role="status">
-                        You have {summary.totalAttentionCount} item{summary.totalAttentionCount === 1 ? "" : "s"} to review.
+                        You have {summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0)} item{summary.eventConsentCount + (consentFlowsEnabled ? summary.medicalAttentionCount : 0) === 1 ? "" : "s"} to review.
                     </Alert>
                 )}
 
@@ -170,12 +171,12 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                         <Button onClick={() => scrollTo("parent-event-consent")} sx={{ mt: 1.5, px: 0 }}>Review events</Button>
                     </Paper>
 
-                    <Paper variant="outlined" sx={{ p: 2.25 }}>
+                    {consentFlowsEnabled && <Paper variant="outlined" sx={{ p: 2.25 }}>
                         <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }} data-testid="parent-medical-attention-count">{summary.medicalAttentionCount}</Typography>
                         <Typography sx={{ fontWeight: 700 }}>Medical & consent</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Linked child record{summary.medicalAttentionCount === 1 ? "" : "s"} missing a parent-reviewed consent update.</Typography>
                         <Button onClick={() => scrollTo("parent-medical-consent")} sx={{ mt: 1.5, px: 0 }}>Review forms</Button>
-                    </Paper>
+                    </Paper>}
 
                     <Paper variant="outlined" sx={{ p: 2.25 }}>
                         <Typography variant="h3" color="secondary" sx={{ fontWeight: 800 }}>{summary.upcomingEventCount}</Typography>
