@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -25,22 +24,9 @@ async function loginParent(page: import("@playwright/test").Page) {
 }
 
 test.describe("approved parent journey", () => {
-  let releaseSettingLock: (() => Promise<void>) | null = null;
-
-  test.beforeEach(async ({ browser }, testInfo) => {
+  test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "Authenticated parent journey runs once on desktop Chromium.");
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
-    releaseSettingLock = await acquireParentConsentSettingLock();
-    await setParentConsentEnabled(browser, true);
-  });
-
-  test.afterEach(async ({ browser }) => {
-    try {
-      if (password && parentEmail) await setParentConsentEnabled(browser, false);
-    } finally {
-      await releaseSettingLock?.();
-      releaseSettingLock = null;
-    }
   });
 
   test("parent sees searchable consent tiles and refreshes tasks after completing a missing linked consent form", async ({ page }) => {
@@ -101,10 +87,10 @@ test.describe("approved parent journey", () => {
     await expect(save).toBeVisible();
     const expectedToday = await page.evaluate(() => {
       const now = new Date();
-      return `${String(now.getDate()).padStart(2, "0")}-${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`;
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     });
-    await expect(page.getByRole("textbox", { name: /^Consent from/ })).toHaveValue(expectedToday);
-    await expect(page.getByRole("textbox", { name: "Consent to", exact: true })).toHaveValue(`31-08-${Number(expectedToday.slice(-4)) + 1}`);
+    await expect(page.getByLabel("Consent from")).toHaveValue(expectedToday);
+    await expect(page.getByRole("textbox", { name: "Consent to", exact: true })).toHaveValue(`31-08-${Number(expectedToday.slice(0, 4)) + 1}`);
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("type", "tel");
     await expect(page.getByLabel("Parent / guardian 2 mobile")).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -114,8 +100,8 @@ test.describe("approved parent journey", () => {
     await expect(page.getByLabel("Parent / guardian 1", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");
 
-    await page.getByRole("textbox", { name: /^Consent from/ }).fill("01-09-2026");
-    await page.getByRole("textbox", { name: "Consent to", exact: true }).fill("31-07-2027");
+    await page.getByLabel("Consent from").fill("2026-09-01");
+    await page.getByRole("textbox", { name: "Consent to", exact: true }).fill("2027-07-31");
     for (const label of ["photoConsent", "waterActivities", "canSwim", "seriousIllness", "regularMeds", "medAllergies", "allergies", "dietaryReqs"]) await choose(page, label, "No");
     await choose(page, "vaccinated", "Yes");
     await page.getByLabel("GP name").fill("Dr Test");
@@ -176,6 +162,33 @@ test.describe("approved parent journey", () => {
     await expect(page.getByTestId("parent-event-gallery-error")).toHaveCount(0);
     await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
+
+  test("Things to do summary retries successfully after a temporary audience query failure", async ({ page }) => {
+    let failAudienceQuery = true;
+    await page.route("**/documents:runQuery**", async (route) => {
+      const requestBody = route.request().postData() || "";
+      if (failAudienceQuery && requestBody.includes("audienceMembers") && requestBody.includes("memberId")) {
+        await route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: { code: 400, status: "FAILED_PRECONDITION", message: "temporary test failure" } })
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await loginParent(page);
+    const summary = page.getByTestId("parent-things-to-do");
+    await expect(summary.getByTestId("parent-things-to-do-error")).toBeVisible();
+
+    failAudienceQuery = false;
+    await summary.getByRole("button", { name: "Retry" }).click();
+    await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
+    await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
+    await expect(summary.getByTestId("parent-things-to-do-error")).toHaveCount(0);
+  });
 });
 
 test("approved parent can sign out globally and must authenticate again", async ({ page }, testInfo) => {
@@ -211,23 +224,10 @@ test("approved parent can sign out globally and must authenticate again", async 
 });
 
 test.describe("Parent Portal navigation on desktop and mobile", () => {
-  let releaseSettingLock: (() => Promise<void>) | null = null;
-
-  test.beforeEach(async ({ page, browser }, testInfo) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent navigation runs on desktop Chromium and Pixel 7 Chromium.");
     test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
-    releaseSettingLock = await acquireParentConsentSettingLock();
-    await setParentConsentEnabled(browser, true);
     await loginParent(page);
-  });
-
-  test.afterEach(async ({ browser }) => {
-    try {
-      if (password && parentEmail) await setParentConsentEnabled(browser, false);
-    } finally {
-      await releaseSettingLock?.();
-      releaseSettingLock = null;
-    }
   });
 
   test("menu preserves the linked child, deep links and browser Back", async ({ page }) => {
