@@ -24,11 +24,23 @@ export function sameCleanupCandidateIds(expectedIds: string[], actualIds: string
 export async function deleteCandidatesIndependently<T extends { id: string }>(
   candidates: T[], deleteCandidate: (candidate: T) => Promise<void>
 ): Promise<{ deleted: string[]; failed: string[] }> {
-  const deleted: string[] = [];
-  const failed: string[] = [];
-  for (const candidate of candidates) {
-    try { await deleteCandidate(candidate); deleted.push(candidate.id); }
-    catch { failed.push(candidate.id); }
-  }
-  return { deleted, failed };
+  const outcomes: Array<{ id: string; deleted: boolean } | undefined> = new Array(candidates.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < candidates.length) {
+      const index = nextIndex++;
+      const candidate = candidates[index];
+      try {
+        await deleteCandidate(candidate);
+        outcomes[index] = { id: candidate.id, deleted: true };
+      } catch {
+        outcomes[index] = { id: candidate.id, deleted: false };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, candidates.length) }, () => worker()));
+  return {
+    deleted: outcomes.flatMap((outcome) => outcome?.deleted ? [outcome.id] : []),
+    failed: outcomes.flatMap((outcome) => outcome && !outcome.deleted ? [outcome.id] : [])
+  };
 }
