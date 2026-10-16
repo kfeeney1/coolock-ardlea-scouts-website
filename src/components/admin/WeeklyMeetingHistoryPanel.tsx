@@ -68,7 +68,11 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
         setCleanupPreview({ today: cleanupPreview.today, meetings: [] });
         setCleanupNotice(`${result.deleted.length} future-dated closed meeting${result.deleted.length === 1 ? " was" : "s were"} deleted with associated records.`);
       }
-      await onRefresh();
+      // A saved deletion should not leave the confirmation dialog stuck in a
+      // busy state while the larger weekly dashboard reloads its other data.
+      void onRefresh().catch(() => {
+        setCleanupNotice((notice) => `${notice} Meeting history could not refresh; reload the page to see the latest list.`);
+      });
     } catch {
       setCleanupError("The cleanup could not be completed. Refresh the count and try again; completed deletions will not be repeated.");
       try { setCleanupPreview(await previewFutureClosedMeetings()); } catch { /* retain the last reviewed count */ }
