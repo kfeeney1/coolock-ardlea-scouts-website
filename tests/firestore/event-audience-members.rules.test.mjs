@@ -165,11 +165,15 @@ test("only an approved linked parent can read their active child's event audienc
 
 test("selected-event consent-link lists require a matching server-authorized audience record", async () => {
   await seed([
-    ["parentAccounts/parent-cub", { status: "approved", memberIds: ["member-cub"], linkedSections: ["Cubs"] }],
+    ["parentAccounts/parent-cub", { status: "approved", memberIds: ["member-cub", "member-cub-2"], linkedSections: ["Cubs"] }],
     ["parentAccounts/parent-other", { status: "approved", memberIds: ["member-scout"], linkedSections: ["Scouts"] }],
     ["members/member-cub", { status: "active", section: "Cubs", sections: ["Cubs"] }],
+    ["members/member-cub-2", { status: "active", section: "Cubs", sections: ["Cubs"] }],
+    ["members/member-scout", { status: "active", section: "Scouts", sections: ["Scouts"] }],
     ["events/event-1", eventRecord()],
     ["events/event-1/audienceMembers/member-cub", { ...membership("event-1", "member-cub", "Cubs"), selectedBySection: true, selectedIndividually: false }],
+    ["events/event-1/audienceMembers/member-cub-2", { ...membership("event-1", "member-cub-2", "Cubs"), selectedBySection: true, selectedIndividually: false }],
+    ["events/event-1/audienceMembers/member-scout", { ...membership("event-1", "member-scout", "Scouts"), selectedBySection: true, selectedIndividually: false }],
     ["eventConsentLinks/link-1", {
       token: "link-1", eventId: "event-1", title: "Selected Cubs event", eventType: "Camp", section: "Cubs",
       startDate: "2099-05-10", endDate: "2099-05-11", active: true, audienceVersion: 3,
@@ -186,9 +190,9 @@ test("selected-event consent-link lists require a matching server-authorized aud
 
   const audience = await assertSucceeds(getDocs(query(
     collectionGroup(parentDb, "audienceMembers"),
-    where("memberId", "in", ["member-cub"]),
+    where("memberId", "in", ["member-cub", "member-cub-2"]),
   )));
-  if (audience.size !== 1) throw new Error(`Expected one linked-parent event audience record, received ${audience.size}.`);
+  assert.deepEqual(audience.docs.map((item) => item.data().memberId).sort(), ["member-cub", "member-cub-2"]);
   await assertFails(getDoc(doc(parentDb, "events/event-1")));
   await assertFails(getDoc(doc(otherDb, "events/event-1")));
   const selectedLinks = await assertSucceeds(getDocs(query(

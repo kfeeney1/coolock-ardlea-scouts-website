@@ -10,7 +10,7 @@ import {
   OperationalPermissionState,
   OperationalUnavailableState
 } from "../admin/OperationalStates";
-import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
+import { classifyFirestoreFailure } from "../../services/firestoreErrors";
 import { formatSiteDate } from "../../services/siteDateFormat";
 import { loadParentEventConsentLinks } from "../../services/parentEvents";
 import type { ParentEventConsentLink } from "../../services/parentEvents";
@@ -38,15 +38,16 @@ export default function ParentEventConsentSection({ memberIds, sections }: Props
         const loaded = await loadParentEventConsentLinks(memberIds, sections);
         if (!cancelled) setEvents(loaded);
       } catch (loadError) {
-        const parentEventOperation = loadError && typeof loadError === "object" && "parentEventOperation" in loadError
+        const failedOperation = loadError && typeof loadError === "object" && "parentEventOperation" in loadError
           ? Reflect.get(loadError, "parentEventOperation") : undefined;
-        reportApplicationError(loadError, { area: "ParentEventConsentSection", operation: "Unable to load parent event consent links" });
+        const errorReport = reportApplicationError(loadError, {
+          area: "ParentEventConsentSection",
+          operation: typeof failedOperation === "string" ? failedOperation : "Unable to load parent event consent links",
+          userMessage: "Unable to load upcoming event consent requests. Please retry."
+        });
         if (!cancelled) {
           setPermissionDenied(classifyFirestoreFailure(loadError) === "permission");
-          const fallback = typeof parentEventOperation === "string"
-            ? `Unable to load upcoming event consent requests while checking ${parentEventOperation.toLowerCase()}.`
-            : "Unable to load upcoming event consent requests.";
-          setError(firestoreFailureMessage(loadError, fallback));
+          setError(errorReport.userMessage);
         }
       } finally {
         if (!cancelled) setLoading(false);
