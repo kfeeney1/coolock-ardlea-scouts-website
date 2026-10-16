@@ -26,6 +26,7 @@ import {
 } from "../services/eventConsent";
 import type { PublicEventLink } from "../services/eventConsent";
 import { formatSiteDate } from "../services/siteDateFormat";
+import { loadParentConsentEnabled } from "../services/siteSettings";
 
 export default function EventConsent() {
     const { token = "" } = useParams();
@@ -52,6 +53,11 @@ export default function EventConsent() {
             setError("");
 
             try {
+                const consentEnabled = await loadParentConsentEnabled();
+                if (!consentEnabled) {
+                    setError("Event consent forms are currently unavailable.");
+                    return;
+                }
                 const result = await loadPublicEventLink(token);
 
                 if (!result || !result.active) {

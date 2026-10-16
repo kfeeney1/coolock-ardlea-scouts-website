@@ -35,7 +35,7 @@ export async function acquireParentConsentSettingLock(): Promise<() => Promise<v
   throw new Error("Timed out waiting for the shared Parent Portal consent setting lock.");
 }
 
-export async function setParentConsentEnabled(browser: Browser, enabled: boolean): Promise<void> {
+export async function setParentConsentEnabled(browser: Browser, enabled: boolean): Promise<boolean> {
   if (!password) throw new Error("Configure E2E_TEST_USER_PASSWORD to manage Parent Portal consent settings.");
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
@@ -48,11 +48,13 @@ export async function setParentConsentEnabled(browser: Browser, enabled: boolean
     await page.goto("/leader/settings");
     const setting = page.getByRole("switch", { name: "Enable Parent Portal Consent and Medical Consent" });
     await expect(setting).toBeVisible();
-    if ((await setting.isChecked()) !== enabled) {
+    const previousEnabled = await setting.isChecked();
+    if (previousEnabled !== enabled) {
       await setting.click();
       await expect(page.getByRole("status").filter({ hasText: `Parent Portal Consent and Medical Consent ${enabled ? "enabled" : "disabled"}` })).toBeVisible();
     }
     await expect(setting).toHaveJSProperty("checked", enabled);
+    return previousEnabled;
   } finally {
     await context.close();
   }

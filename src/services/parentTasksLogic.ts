@@ -33,7 +33,8 @@ export function summariseParentTasks(
     events: ParentEventConsentLink[],
     members: ParentLinkedMember[],
     consents: ParentConsentRecord[],
-    asOf: Date = new Date()
+    asOf: Date = new Date(),
+    eventConsentEnabled = true
 ): ParentTaskSummary {
     const lifecycleConsents = consents.map(lifecycleConsent);
     const medicalAttentionCount = members.filter((member) => {
@@ -46,7 +47,7 @@ export function summariseParentTasks(
     }).length;
 
     const sortedEvents = [...events].sort((a, b) => a.startDate.localeCompare(b.startDate));
-    const consentEvents = sortedEvents.filter((event) => event.consentRequired);
+    const consentEvents = eventConsentEnabled ? sortedEvents.filter((event) => event.consentRequired) : [];
     const eventConsentCount = consentEvents.length;
 
     return {
@@ -60,11 +61,14 @@ export function summariseParentTasks(
 }
 
 
-export async function loadParentTaskSummary(sources: ParentTaskSummarySources): Promise<ParentTaskSummary> {
+export async function loadParentTaskSummary(
+    sources: ParentTaskSummarySources,
+    options: { eventConsentEnabled?: boolean } = {}
+): Promise<ParentTaskSummary> {
     const [events, members, consents] = await Promise.all([
         sources.events(),
         sources.members(),
         sources.consents()
     ]);
-    return summariseParentTasks(events, members, consents);
+    return summariseParentTasks(events, members, consents, new Date(), options.eventConsentEnabled ?? true);
 }
