@@ -19,7 +19,7 @@ import {
 import ParentWeeklyProgramme from "./ParentWeeklyProgramme";
 import { loadLinkedMembers, loadParentConsents } from "../../services/parentConsent";
 import { loadParentEventConsentLinks } from "../../services/parentEvents";
-import { summariseParentTasks, type ParentTaskSummary } from "../../services/parentTasksLogic";
+import { loadParentTaskSummary, type ParentTaskSummary } from "../../services/parentTasksLogic";
 import { classifyFirestoreFailure, firestoreFailureMessage } from "../../services/firestoreErrors";
 import { formatSiteDate } from "../../services/siteDateFormat";
 
@@ -58,12 +58,12 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
         setLoading(true);
         setLoadError(null);
         try {
-            const [events, members, consents] = await Promise.all([
-                loadParentEventConsentLinks(memberIds, sections),
-                loadLinkedMembers(memberIds),
-                consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
-            ]);
-            setSummary(summariseParentTasks(events, members, consents));
+            const nextSummary = await loadParentTaskSummary({
+                events: () => loadParentEventConsentLinks(memberIds, sections),
+                members: () => loadLinkedMembers(memberIds),
+                consents: () => consentFlowsEnabled ? loadParentConsents(memberIds) : Promise.resolve([])
+            });
+            setSummary(nextSummary);
         } catch (error) {
             const eventOperation = error && typeof error === "object" && "parentEventOperation" in error
                 ? Reflect.get(error, "parentEventOperation")
