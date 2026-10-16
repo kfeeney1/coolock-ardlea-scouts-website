@@ -70,6 +70,7 @@ jobs:
           set -euo pipefail
           node scripts/seed-population-data.mjs seed
           node scripts/seed-test-family-scenarios.mjs seed
+          node scripts/seed-parent-consent-smoke.mjs seed
           node scripts/seed-public-site-content.mjs seed
           npm run seed:equipment -- --execute
           node scripts/verify-test-population.mjs

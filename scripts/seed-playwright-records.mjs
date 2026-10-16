@@ -1,6 +1,7 @@
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
+import { buildParentConsentSmokeFixture, parentConsentSmokeIds, validateParentConsentSmokeFixture } from "./parent-consent-smoke-fixture.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 requireFirebaseMutationTarget({ operation: "seed-playwright-records", credentialJson: rawCredentials });
@@ -105,6 +106,55 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
 }
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });
+
+const consentSmokeParent = await requireDoc("parentAccounts", parentConsentSmokeIds.parentId);
+const consentSmokeChild = await requireDoc("members", parentConsentSmokeIds.childId);
+const consentSmokeFixture = buildParentConsentSmokeFixture();
+const parentLoginSnapshot = await db.doc("siteSettings/parentLogin").get();
+const publicNavigationSnapshot = await db.doc("siteSettings/publicNavigation").get();
+const parentLoginEnabled = parentLoginSnapshot.exists
+  ? parentLoginSnapshot.data()?.parentLoginEnabled === true
+  : true;
+if (publicNavigationSnapshot.exists
+  && publicNavigationSnapshot.data()?.parentLoginEnabled !== parentLoginEnabled) {
+  throw new Error("Parent Portal consent smoke seed failed: siteSettings/parentLogin and siteSettings/publicNavigation disagree on parentLoginEnabled.");
+}
+validateParentConsentSmokeFixture({
+  parent: consentSmokeParent,
+  child: consentSmokeChild,
+  ...consentSmokeFixture,
+  consentSettings: { parentConsentEnabled: true },
+  publicNavigationSettings: { parentConsentEnabled: true }
+});
+const consentSmokeBatch = db.batch();
+consentSmokeBatch.set(db.doc(`events/${parentConsentSmokeIds.eventId}`), {
+  ...consentSmokeFixture.event,
+  createdAt: FieldValue.serverTimestamp(),
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+});
+consentSmokeBatch.set(db.doc(`events/${parentConsentSmokeIds.eventId}/audienceMembers/${parentConsentSmokeIds.childId}`), {
+  ...consentSmokeFixture.audienceMembership,
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+});
+consentSmokeBatch.set(db.doc(`eventConsentLinks/${parentConsentSmokeIds.consentToken}`), {
+  ...consentSmokeFixture.consentLink,
+  createdAt: FieldValue.serverTimestamp(),
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+});
+consentSmokeBatch.set(db.doc("siteSettings/parentConsent"), {
+  parentConsentEnabled: true,
+  updatedBy: "TEST_SEED",
+  updatedAt: FieldValue.serverTimestamp(),
+  ...marker
+}, { merge: true });
+consentSmokeBatch.set(db.doc("siteSettings/publicNavigation"), {
+  parentLoginEnabled,
+  parentConsentEnabled: true
+}, { merge: true });
+await consentSmokeBatch.commit();
 
 const equipmentSeedItems = [
   { id: "TEST_equipment_tents", name: "TEST Patrol Tents", category: "Camping & Sleeping", trackingMode: "quantity", totalQuantity: 8, location: "Main Equipment Store", condition: "good", notes: "Four-person patrol tents used for weekend camps.", replacementValue: 220, purchaseDate: "2098-07-22", disposalDate: "", replacementValueNote: "", assetRegisterSection: "Equipment", source: "spreadsheet-import", importBatch: "TEST_sw42", importSourceRef: "Equipment:row-3" },

@@ -6,7 +6,9 @@ const APPROVED_SEEDS = [
   "scripts/seed-population-data.mjs",
   "scripts/seed-flow-data.mjs",
   "scripts/seed-public-site-content.mjs",
-  "scripts/seed-playwright-records.mjs"
+  "scripts/seed-playwright-records.mjs",
+  "scripts/parent-consent-smoke-fixture.mjs",
+  "scripts/seed-parent-consent-smoke.mjs"
 ];
 const EXCLUDED_DIRS = new Set([".git", "node_modules", "dist", "playwright-report", "test-results", ".firebase"]);
 const MIGRATION_ONLY_FILES = new Set([

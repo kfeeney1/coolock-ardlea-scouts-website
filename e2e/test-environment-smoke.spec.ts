@@ -65,11 +65,24 @@ test.describe("stable TEST environment smoke", () => {
 
     const eventSection = page.locator("#parent-event-consent");
     await expect(eventSection.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
+    const expectedRequest = eventSection.getByTestId("parent-event-consent-tile-TEST_CUB_PARENT_CONSENT_SMOKE");
+    await expect.poll(async () => {
+      if (await expectedRequest.count()) return "request";
+      const error = eventSection.getByTestId("parent-event-consent-error");
+      if (await error.count()) return `error: ${await error.innerText()}`;
+      const permission = eventSection.getByTestId("parent-event-consent-permission");
+      if (await permission.count()) return `permission denied: ${await permission.innerText()}`;
+      if (await eventSection.getByText("No upcoming consent requests", { exact: true }).count()) return "empty state";
+      return "still loading the consent query";
+    }, {
+      timeout: 20000,
+      message: "The eligible parent must receive the seeded Cubs consent request; the smoke gate reports query errors, permission failures, empty results, or a loading timeout."
+    }).toBe("request");
     await expect(eventSection.getByTestId("parent-event-consent-error")).toHaveCount(0);
     await expect(eventSection.getByTestId("parent-event-consent-permission")).toHaveCount(0);
-    await expect.poll(async () =>
-      (await eventSection.getByTestId("parent-event-consent-tiles").count())
-      + (await eventSection.getByText("No upcoming consent requests", { exact: true }).count())
-    ).toBe(1);
+    await expect(eventSection.getByText("No upcoming consent requests", { exact: true })).toHaveCount(0);
+    await expect(expectedRequest).toContainText("TEST Cubs Parent Consent Smoke");
+    await expect(eventSection.getByText("Showing 1 of 1 upcoming consent request.", { exact: true })).toBeVisible();
+    await expect(expectedRequest.getByRole("link", { name: "Complete Event Consent" })).toBeVisible();
   });
 });
