@@ -181,7 +181,8 @@ test.describe("approved parent journey", () => {
     let failAudienceQuery = true;
     await page.route("**/google.firestore.v1.Firestore/Listen/channel**", async (route) => {
       const requestBody = route.request().postData() || "";
-      if (failAudienceQuery && requestBody.includes('"collectionId":"audienceMembers"') && requestBody.includes('"fieldPath":"memberId"')) {
+      const requestData = Array.from(new URLSearchParams(requestBody).values()).join("\n");
+      if (failAudienceQuery && requestData.includes('"collectionId":"audienceMembers"') && requestData.includes('"fieldPath":"memberId"')) {
         await route.fulfill({
           status: 400,
           contentType: "text/plain",
