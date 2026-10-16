@@ -75,6 +75,7 @@ test.afterEach(async () => {
     baselineDocuments.slice(offset, offset + 400).forEach(({ path, data }) => batch.set(firestore.doc(path), data));
     await batch.commit();
   }
+  // Keep canonical seeded meetings available to later E2E cases.
   baselineDocuments.length = 0;
 });
 
