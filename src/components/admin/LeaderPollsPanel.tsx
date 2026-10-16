@@ -198,7 +198,7 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
             </Stack>}
           </Paper>;
         })}
-      </> : <Alert severity="info" data-testid="leader-polls-empty">There are no active polls for your sections right now.</Alert>}
+      </> : <Alert severity="info" role="status" data-testid="leader-polls-empty">There are no active polls for your sections right now.</Alert>}
     </Stack>}
     {manageable.length > 0 && <Stack spacing={1.5} sx={{ mb: 3 }}>
       <Typography component="h3" variant="h6">Poll management</Typography>

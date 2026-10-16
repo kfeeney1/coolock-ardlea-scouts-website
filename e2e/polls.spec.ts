@@ -54,6 +54,7 @@ test.describe("dashboard polls", () => {
     await expect(draft).toHaveCount(1);
     await expect(draft).toContainText("Leaders · Whole group · draft");
     await expect(page.getByRole("status")).toContainText("Poll draft saved");
+    await expect(page.getByTestId("leader-polls-empty")).toHaveAttribute("role", "status");
     await expect(page.getByTestId("leader-polls").getByRole("alert")).toHaveCount(0);
 
     await page.reload();
