@@ -111,6 +111,11 @@ test("administrator reviews, cancels, and confirms deletion of future closed mee
   await expect(dialog).toBeHidden();
   expect((await firestore.doc(`weeklyMeetings/${id}`).get()).exists).toBe(true);
   expect((await firestore.doc(`parentWeeklyMeetings/${id}`).get()).exists).toBe(true);
+  expect((await firestore.doc(`weeklyMeetings/${id}/leaderAttendance/test.cleanup.leader`).get()).exists).toBe(true);
+  expect((await firestore.doc("memberAdventureSkillProgress/TEST_member_scout_01/requirements/sw411-cleanup").get()).exists).toBe(true);
+  for (const existingId of existingCandidateIds) {
+    expect((await firestore.doc(`weeklyMeetings/${existingId}`).get()).exists).toBe(true);
+  }
 
   await action.click();
   await expect(dialog).toContainText(`${expectedCount} closed meeting${expectedCount === 1 ? "" : "s"} dated after today`);
