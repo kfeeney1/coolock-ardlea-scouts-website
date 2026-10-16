@@ -94,6 +94,7 @@ requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:rules")
 requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:indexes,storage:test-default,hosting")'), "TEST deploys indexes, explicit TEST Storage rules and Hosting after Firestore Rules succeed.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
+requireContract(testWorkflow.includes("seed-parent-consent-smoke.mjs seed"), "TEST seeds and verifies the linked-parent consent smoke fixture before browser checks.");
 requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
 requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
 requireContract(!firebase.functions, "Production/default Firebase config does not deploy the TEST event backend.");
