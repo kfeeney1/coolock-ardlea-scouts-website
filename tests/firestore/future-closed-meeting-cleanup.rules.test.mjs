@@ -20,6 +20,7 @@ beforeEach(async () => {
   await seed([
     ["adminUsers/admin-1", { active: true, role: "super-admin", sections: ["Beavers"] }],
     ["adminUsers/leader-1", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["adminUsers/programme-scouter-1", { active: true, role: "leader", scoutingRole: "Programme Scouter", sections: ["Beavers"] }],
     ["weeklyMeetings/closed", { section: "Beavers", meetingDate: "2099-01-02", status: "closed", entries: [] }],
     ["weeklyMeetings/open", { section: "Beavers", meetingDate: "2099-01-03", status: "open", entries: [] }],
     ["parentWeeklyMeetings/closed", { section: "Beavers", meetingDate: "2099-01-02", status: "closed" }],
@@ -46,6 +47,14 @@ test("section leader and signed-out user cannot delete closed meeting records", 
   await assertFails(deleteDoc(doc(leader, "parentWeeklyMeetings/closed")));
   await assertFails(deleteDoc(doc(anonymous, "weeklyMeetings/closed")));
   await assertFails(deleteDoc(doc(anonymous, "weeklyMeetings/closed/leaderAttendance/leader-1")));
+});
+
+test("programme scouter cannot invoke future closed meeting cleanup", async () => {
+  const db = testEnv.authenticatedContext("programme-scouter-1").firestore();
+  await assertFails(deleteDoc(doc(db, "weeklyMeetings/closed")));
+  await assertFails(deleteDoc(doc(db, "parentWeeklyMeetings/closed")));
+  await assertFails(deleteDoc(doc(db, "weeklyMeetings/closed/leaderAttendance/leader-1")));
+  await assertFails(deleteDoc(doc(db, "memberAdventureSkillProgress/member-1/requirements/requirement-1")));
 });
 
 test("administrators cannot delete an open meeting", async () => {
