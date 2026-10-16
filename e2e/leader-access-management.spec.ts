@@ -34,7 +34,7 @@ async function prepareUnlinkedChildOption(page: Page, childSelect: Locator, chil
     if (!allowExistingLink) throw new Error("The SW-219 seed must start with TEST_member_cub_02 unlinked on the first attempt.");
     await page.keyboard.press("Escape");
     await linkedChild.locator("..").getByRole("button", { name: "Unlink" }).click();
-    await expect(page.getByRole("alert")).toContainText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.");
+    await expect(page.getByRole("alert").filter({ hasText: "Leader-child relationship unlinked." })).toContainText("Current Scout-year family Subs classification has been reconciled.");
     await expect(linkedChild).toHaveCount(0);
     await childSelect.click();
   }
