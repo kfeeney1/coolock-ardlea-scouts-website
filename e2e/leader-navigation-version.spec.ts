@@ -45,7 +45,9 @@ test("Superuser chooses both navigation versions; independent sessions retain ro
       if (redesigned || mobile) {
         for (const category of await modeRoot.getByRole("button").all()) {
           if (await category.getAttribute("aria-expanded") !== "true") await category.click();
-          destinations.push(...await modeRoot.getByRole("link").evaluateAll((links) => links.map((link) => `${link.getAttribute("data-testid")}:${link.getAttribute("href")}`)));
+          const region = modeRoot.getByRole("region");
+          await expect(region).toHaveCount(1);
+          destinations.push(...await region.getByRole("link").evaluateAll((links) => links.map((link) => `${link.getAttribute("data-testid")}:${link.getAttribute("href")}`)));
         }
       } else {
         destinations.push(...await modeRoot.getByRole("link").evaluateAll((links) => links.map((link) => `${link.getAttribute("data-testid")}:${link.getAttribute("href")}`)));
