@@ -11,6 +11,12 @@ export type ParentTaskSummary = {
     nextConsentEvent: ParentEventConsentLink | null;
 };
 
+export type ParentTaskSummarySources = {
+    events: () => Promise<ParentEventConsentLink[]>;
+    members: () => Promise<ParentLinkedMember[]>;
+    consents: () => Promise<ParentConsentRecord[]>;
+};
+
 function lifecycleConsent(record: ParentConsentRecord): FormRenewalConsent {
     return {
         memberId: record.memberId,
@@ -51,4 +57,14 @@ export function summariseParentTasks(
         nextEvent: sortedEvents[0] || null,
         nextConsentEvent: consentEvents[0] || null
     };
+}
+
+
+export async function loadParentTaskSummary(sources: ParentTaskSummarySources): Promise<ParentTaskSummary> {
+    const [events, members, consents] = await Promise.all([
+        sources.events(),
+        sources.members(),
+        sources.consents()
+    ]);
+    return summariseParentTasks(events, members, consents);
 }
