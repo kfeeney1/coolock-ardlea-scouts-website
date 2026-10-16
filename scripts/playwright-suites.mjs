@@ -62,6 +62,7 @@ export const suiteSpecs = {
     "weekly-meeting-reopen-navigation.spec.ts",
     "weekly-meeting-copy-dialog.spec.ts",
     "weekly-meeting-copy-page.spec.ts",
+    "future-closed-meeting-cleanup.spec.ts",
     "weekly-section-tracker.spec.ts",
     "weekly-section-tracker-history-permissions.spec.ts",
     "weekly-attendance-uniform.spec.ts",
