@@ -130,6 +130,34 @@ test.describe("dashboard polls", () => {
     await parentContext.close();
   });
 
+  test("a Super Admin can manage a leader poll outside their voting sections", async ({ page }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!adminEmail || !password, "Configure the super-admin E2E account.");
+    const question = `SW-357 manager-only leader poll ${Date.now()}`;
+
+    await login(page, "/leader/login", adminEmail!);
+    await page.goto("/leader/polls");
+    await page.getByLabel("Poll question").fill(question);
+    await page.getByLabel("Answer options").fill("Hike\nCamp");
+    await page.getByRole("combobox", { name: "Poll scope" }).click();
+    await page.getByRole("option", { name: "Whole group" }).click();
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await page.getByRole("button", { name: "Save draft" }).click();
+
+    const pollCard = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+    await expect(pollCard).toBeVisible();
+    const managerTestId = await pollCard.getAttribute("data-testid");
+    const pollId = managerTestId?.replace("leader-poll-manager-", "");
+    expect(pollId).toBeTruthy();
+    await pollCard.getByRole("button", { name: "Publish poll" }).click();
+    await expect(pollCard.getByText(/published/i)).toBeVisible();
+    await expect(page.getByTestId("leader-polls").getByRole("alert")).toHaveCount(0);
+    await expect(page.getByTestId(`leader-poll-${pollId}`)).toHaveCount(0);
+
+    await pollCard.getByRole("button", { name: "View results" }).click();
+    await expect(pollCard.getByTestId(/^poll-results-/)).toContainText("Results · 0 response(s)");
+  });
+
   test("the parent poll dashboard fits desktop and mobile viewports", async ({ page }, testInfo) => {
     test.skip(!parentEmail || !password, "Configure the approved parent E2E account.");
     const mobile = testInfo.project.name === "mobile-chromium";

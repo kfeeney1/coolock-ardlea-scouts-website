@@ -31,6 +31,7 @@ beforeEach(async () => {
     ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
     ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Beavers"] }],
+    ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
     ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
     ["parentAccounts/parent-a", { status: "approved", memberIds: ["member-a"], linkedSections: ["Beavers"] }],
     ["parentAccounts/parent-b", { status: "approved", memberIds: ["member-b"], linkedSections: ["Scouts"] }],
@@ -171,4 +172,23 @@ test("leader audience polls exclude parents and require a currently active leade
   await assertSucceeds(getDoc(doc(beaverLeader, "polls/leader-poll")));
   await assertFails(getDoc(doc(parent, "polls/leader-poll")));
   await assertFails(getDoc(doc(scoutLeader, "polls/leader-poll")));
+});
+
+test("Super Admin can discover and manage polls without gaining respondent access outside assigned sections", async () => {
+  await seedPoll("group-leader-poll", {
+    audienceType: "leaders",
+    scopeType: "group",
+    scopeSections: ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"]
+  });
+  const superAdmin = testEnv.authenticatedContext("super-admin").firestore();
+  const indexQuery = query(collectionGroup(superAdmin, "audienceSections"),
+    where("section", "==", "Beavers"),
+    where("audienceType", "==", "leaders"),
+    where("scopeType", "==", "group"));
+
+  const indexes = await assertSucceeds(getDocs(indexQuery));
+  assert.deepEqual(indexes.docs.map((item) => item.data().pollId), ["group-leader-poll"]);
+  await assertSucceeds(getDoc(doc(superAdmin, "polls/group-leader-poll")));
+  await assertSucceeds(getDocs(collection(superAdmin, "polls/group-leader-poll/results")));
+  await assertFails(getDoc(doc(superAdmin, "polls/group-leader-poll/responses/super-admin")));
 });

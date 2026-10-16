@@ -94,7 +94,7 @@ export function canRespondToPoll(
 ): boolean {
   if (poll.status !== "published" || pollDeadlinePassed(poll.closesAt, now)) return false;
   if (poll.audienceType === "leaders") {
-    return actor.kind === "leader" && (poll.scopeType === "group" || poll.scopeSections.some((section) => actor.sections.includes(section)));
+    return actor.kind === "leader" && poll.scopeSections.some((section) => actor.sections.includes(section));
   }
   return actor.kind === "parent" && actor.approved && poll.scopeSections.some((section) => actor.memberSections.includes(section));
 }

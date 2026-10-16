@@ -3,7 +3,7 @@ import { Alert, Button, Checkbox, CircularProgress, FormControl, FormControlLabe
 import { applicationErrorMessage, reportApplicationError } from "../../services/applicationErrors.ts";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { closePoll, createPollDraft, loadLeaderPolls, loadMyPollResponse, loadPollResultsForManager, publishPoll, submitPollResponse } from "../../services/polls.ts";
-import { canManagePollForLeader, GROUP_POLL_SECTIONS, pollDeadlinePassed, pollDraftFailureMessage, type PollLeaderActor, type PollRecord } from "../../services/pollLogic.ts";
+import { canManagePollForLeader, canRespondToPoll, GROUP_POLL_SECTIONS, pollDeadlinePassed, pollDraftFailureMessage, type PollLeaderActor, type PollRecord } from "../../services/pollLogic.ts";
 
 type Results = Array<{ option: string; count: number }>;
 
@@ -39,7 +39,8 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
     try {
       const loaded = await loadLeaderPolls(actor);
       setPolls(loaded);
-      const responses = await Promise.all(loaded.filter((poll) => poll.audienceType === "leaders" && poll.status === "published").map(async (poll) => [poll.id, await loadMyPollResponse(poll.id)] as const));
+      const eligibleLeaderPolls = loaded.filter((poll) => canRespondToPoll(poll, { kind: "leader", sections: actor.sections }));
+      const responses = await Promise.all(eligibleLeaderPolls.map(async (poll) => [poll.id, await loadMyPollResponse(poll.id)] as const));
       const next: Record<string, string> = {};
       responses.forEach(([id, response]) => { if (response) next[id] = response.option; });
       setAnswers((current) => ({ ...current, ...next }));
@@ -148,7 +149,7 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
 
   if (!adminProfile) return null;
   const manageable = polls.filter((poll) => actor && canManagePollForLeader(poll, actor));
-  const leaderAudience = polls.filter((poll) => poll.audienceType === "leaders" && poll.status === "published");
+  const leaderAudience = polls.filter((poll) => actor && canRespondToPoll(poll, { kind: "leader", sections: actor.sections }));
   return <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 3 }} data-testid="leader-polls">
     {showTitle && <Typography component="h2" variant="h5" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Group Polls</Typography>}
     {error && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{error}</Alert>}
