@@ -30,6 +30,8 @@ test("Superuser chooses both navigation versions; independent sessions retain ro
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   const mobile = testInfo.project.name === "mobile-chromium";
   await loginAsLeader(page, { email: superEmail, password: password! });
+  await page.goto("/leader/settings");
+  await expect(page.getByRole("button", { name: "Existing navigation", exact: true })).toHaveAttribute("aria-pressed", "true");
   let redesignedDestinations: string[] = [];
   try {
     for (const redesigned of [true, false]) {
@@ -68,6 +70,7 @@ test("Superuser chooses both navigation versions; independent sessions retain ro
           const navigation = await expose(other, account.group, redesigned, mobile);
           await expect(navigation.getByText(account.hidden, { exact: true })).toHaveCount(0);
           await expect(navigation.getByTestId("leader-nav-system-information")).toHaveCount(0);
+          expect(await other.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
           const destination = navigation.getByTestId(`leader-nav-${account.id}`);
           await expect(destination).toBeVisible();
           const bounds = await destination.boundingBox();
@@ -84,6 +87,8 @@ test("Superuser chooses both navigation versions; independent sessions retain ro
           await other.goBack();
           await expect(other.getByRole("navigation", { name: "Leader navigation" })).toBeHidden();
           await expect(other.getByTestId(`page-${account.identity}`)).toBeVisible();
+          await other.goBack();
+          await expect(other).toHaveURL(/\/leader$/);
           await other.goto("/leader/system");
           await expect(other).toHaveURL(/\/leader$/);
           await expect(other.getByTestId("page-system-information")).toHaveCount(0);
@@ -104,6 +109,11 @@ test("Superuser chooses both navigation versions; independent sessions retain ro
         await expect(root.getByRole("region", { name: /Quartermaster/ })).toHaveCount(0);
         expect(await page.evaluate(() => window.history.length)).toBe(history);
       }
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("navigation", { name: "Leader navigation" })).toBeHidden();
+      await page.getByRole("link", { name: "Back to Equipment & Stores", exact: true }).click();
+      await expect(page).toHaveURL(/\/leader\/equipment\?view=quartermaster$/);
+      await expect(page.getByTestId("page-qm-equipment-stores")).toBeVisible();
     }
   } finally { await selectVersion(page, "Existing"); }
 });
