@@ -4,7 +4,7 @@ import test from "node:test";
 
 const rules = readFileSync(new URL("../../firestore.rules", import.meta.url), "utf8");
 
-test("site settings keep session reads separate from Super Admin Parent Login access", () => {
+test("site settings keep session reads separate from Super Admin-only canonical settings", () => {
     const start = rules.indexOf("match /siteSettings/{settingsId}");
     const end = rules.indexOf("match /publicSiteContent/{contentId}", start);
     assert.notEqual(start, -1);
@@ -13,9 +13,11 @@ test("site settings keep session reads separate from Super Admin Parent Login ac
     const block = rules.slice(start, end);
     assert.match(block, /allow get: if \(signedIn\(\) && settingsId == "session"\)/);
     assert.match(block, /settingsId == "parentLogin" && isSuperAdmin\(\)/);
+    assert.match(block, /settingsId == "parentConsent" && isSuperAdmin\(\)/);
     assert.match(block, /settingsId == "publicNavigation"/);
     assert.match(block, /settingsId == "session" && isAdmin\(\)/);
     assert.match(block, /settingsId == "parentLogin" && isSuperAdmin\(\)/);
+    assert.match(block, /settingsId == "parentConsent" && isSuperAdmin\(\)/);
     assert.match(block, /settingsId == "publicNavigation" && isSuperAdmin\(\)/);
     assert.match(block, /allow delete: if false/);
     assert.doesNotMatch(block, /allow (create|update).*isActiveLeader\(\)/);
@@ -39,5 +41,8 @@ test("site session settings enforce bounded timeout values and audit fields", ()
     assert.match(block, /getAfter\([^\n]+siteSettings\/publicNavigation\)/);
     assert.match(block, /getAfter\([^\n]+siteSettings\/parentLogin\)/);
     assert.match(block, /request\.resource\.data\.parentLoginEnabled is bool/);
-    assert.match(block, /request\.resource\.data\.keys\(\)\.hasOnly\(\["parentLoginEnabled"\]\)/);
+    assert.match(block, /request\.resource\.data\.keys\(\)\.hasOnly\(\["parentLoginEnabled", "parentConsentEnabled"\]\)/);
+    assert.match(block, /request\.resource\.data\.parentConsentEnabled is bool/);
+    assert.match(block, /request\.resource\.data\.keys\(\)\.hasOnly\(\["parentConsentEnabled", "updatedAt", "updatedBy"\]\)/);
+    assert.match(block, /getAfter\([^\n]+siteSettings\/parentConsent\)/);
 });

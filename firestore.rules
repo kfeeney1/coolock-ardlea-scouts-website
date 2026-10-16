@@ -1914,6 +1914,7 @@ service cloud.firestore {
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
         || (settingsId == "parentLogin" && isSuperAdmin())
+        || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
       allow list: if false;
       allow create, update: if settingsId == "session" && isAdmin()
@@ -1935,10 +1936,21 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && request.resource.data.keys().hasOnly(["parentLoginEnabled", "updatedAt", "updatedBy"])
         && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentLoginEnabled == request.resource.data.parentLoginEnabled
+        || settingsId == "parentConsent" && isSuperAdmin()
+        && request.resource.data.parentConsentEnabled is bool
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["parentConsentEnabled", "updatedAt", "updatedBy"])
+        && getAfter(/databases/$(database)/documents/siteSettings/publicNavigation).data.parentConsentEnabled == request.resource.data.parentConsentEnabled
         || settingsId == "publicNavigation" && isSuperAdmin()
         && request.resource.data.parentLoginEnabled is bool
-        && request.resource.data.keys().hasOnly(["parentLoginEnabled"])
-        && getAfter(/databases/$(database)/documents/siteSettings/parentLogin).data.parentLoginEnabled == request.resource.data.parentLoginEnabled;
+        && request.resource.data.keys().hasOnly(["parentLoginEnabled", "parentConsentEnabled"])
+        && getAfter(/databases/$(database)/documents/siteSettings/parentLogin).data.parentLoginEnabled == request.resource.data.parentLoginEnabled
+        && ((!existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
+              && !("parentConsentEnabled" in request.resource.data.keys()))
+          || (existsAfter(/databases/$(database)/documents/siteSettings/parentConsent)
+              && request.resource.data.parentConsentEnabled is bool
+              && getAfter(/databases/$(database)/documents/siteSettings/parentConsent).data.parentConsentEnabled == request.resource.data.parentConsentEnabled));
       allow delete: if false;
     }
 

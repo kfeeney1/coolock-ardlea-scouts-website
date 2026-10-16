@@ -20,6 +20,7 @@ export const suiteSpecs = {
     "role-permissions.spec.ts",
     "roles-permissions.spec.ts",
     "parent-login-visibility.spec.ts",
+    "parent-consent-visibility.spec.ts",
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [

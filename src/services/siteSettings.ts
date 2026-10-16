@@ -2,7 +2,7 @@ import { ServiceFailure } from "./applicationErrors.ts";
 import { doc, getDoc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 
 import { auth, db } from "../firebase";
-import { normaliseParentLoginEnabled } from "../security/parentLoginVisibility";
+import { normaliseParentConsentEnabled, normaliseParentLoginEnabled } from "../security/parentLoginVisibility";
 
 export type SessionSettings = {
     parentInactivityMinutes: number;
@@ -18,11 +18,13 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
 
 const SETTINGS_REF = doc(db, "siteSettings", "session");
 const PARENT_LOGIN_SETTINGS_REF = doc(db, "siteSettings", "parentLogin");
+const PARENT_CONSENT_SETTINGS_REF = doc(db, "siteSettings", "parentConsent");
 const PUBLIC_NAVIGATION_SETTINGS_REF = doc(db, "siteSettings", "publicNavigation");
 const MIN_TIMEOUT_MINUTES = 5;
 const MAX_TIMEOUT_MINUTES = 240;
 
 export { DEFAULT_PARENT_LOGIN_ENABLED, normaliseParentLoginEnabled } from "../security/parentLoginVisibility";
+export { DEFAULT_PARENT_CONSENT_ENABLED, normaliseParentConsentEnabled } from "../security/parentLoginVisibility";
 
 function validMinutes(value: unknown, fallback: number): number {
     return typeof value === "number" && Number.isFinite(value) && value >= MIN_TIMEOUT_MINUTES && value <= MAX_TIMEOUT_MINUTES
@@ -97,14 +99,21 @@ export async function saveParentLoginEnabled(enabled: boolean, expectedEnabled: 
     }
 
     await runTransaction(db, async (transaction) => {
-        const [canonical, projection] = await Promise.all([
+        const [canonical, projection, consentCanonical] = await Promise.all([
             transaction.get(PARENT_LOGIN_SETTINGS_REF),
-            transaction.get(PUBLIC_NAVIGATION_SETTINGS_REF)
+            transaction.get(PUBLIC_NAVIGATION_SETTINGS_REF),
+            transaction.get(PARENT_CONSENT_SETTINGS_REF)
         ]);
         const current = normaliseParentLoginEnabled(canonical.data(), canonical.exists());
         const projected = normaliseParentLoginEnabled(projection.data(), projection.exists());
+        const consentProjectionPresent = Object.hasOwn(projection.data() || {}, "parentConsentEnabled");
+        const consentCanonicalEnabled = normaliseParentConsentEnabled(consentCanonical.data());
+        const consentProjectedEnabled = normaliseParentConsentEnabled(projection.data());
         if (current !== projected) {
             throw new ServiceFailure("Parent Login settings are out of sync. Reload the page and try again.", "firestore/failed-precondition");
+        }
+        if (consentCanonical.exists() !== consentProjectionPresent || consentCanonicalEnabled !== consentProjectedEnabled) {
+            throw new ServiceFailure("Parent Portal consent settings are out of sync. Reload settings and try again.", "firestore/failed-precondition");
         }
         if (current !== expectedEnabled) {
             throw new ServiceFailure("Parent Login was changed in another session. Reload settings before trying again.", "firestore/aborted");
@@ -112,6 +121,59 @@ export async function saveParentLoginEnabled(enabled: boolean, expectedEnabled: 
 
         const audit = { updatedAt: serverTimestamp(), updatedBy: user.uid };
         transaction.set(PARENT_LOGIN_SETTINGS_REF, { parentLoginEnabled: enabled, ...audit });
-        transaction.set(PUBLIC_NAVIGATION_SETTINGS_REF, { parentLoginEnabled: enabled });
+        transaction.set(PUBLIC_NAVIGATION_SETTINGS_REF, {
+            parentLoginEnabled: enabled,
+            ...(consentCanonical.exists() ? { parentConsentEnabled: consentCanonicalEnabled } : {})
+        });
+    });
+}
+
+/** Parents read only the non-sensitive public projection; unset consent settings fail closed. */
+export async function loadParentConsentEnabled(): Promise<boolean> {
+    const snapshot = await getDocFromServer(PUBLIC_NAVIGATION_SETTINGS_REF);
+    return normaliseParentConsentEnabled(snapshot.data());
+}
+
+/** Compare-and-set the private consent setting and its public, non-sensitive projection atomically. */
+export async function saveParentConsentEnabled(enabled: boolean, expectedEnabled: boolean): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new ServiceFailure("You must be signed in as a Super Admin to change Parent Portal consent settings.", "auth/unauthenticated");
+    if (typeof enabled !== "boolean" || typeof expectedEnabled !== "boolean") {
+        throw new ServiceFailure("Choose whether Parent Portal Consent and Medical Consent should be enabled.", "app/invalid-argument");
+    }
+
+    await runTransaction(db, async (transaction) => {
+        const [loginCanonical, canonical, projection] = await Promise.all([
+            transaction.get(PARENT_LOGIN_SETTINGS_REF),
+            transaction.get(PARENT_CONSENT_SETTINGS_REF),
+            transaction.get(PUBLIC_NAVIGATION_SETTINGS_REF)
+        ]);
+        const loginEnabled = normaliseParentLoginEnabled(loginCanonical.data(), loginCanonical.exists());
+        const projectedLoginEnabled = normaliseParentLoginEnabled(projection.data(), projection.exists());
+        if (loginCanonical.exists() !== projection.exists() || loginEnabled !== projectedLoginEnabled) {
+            throw new ServiceFailure("Parent Login settings are out of sync. Reload settings and try again.", "firestore/failed-precondition");
+        }
+        const current = normaliseParentConsentEnabled(canonical.data());
+        const projected = normaliseParentConsentEnabled(projection.data());
+        const projectionConfigured = Object.hasOwn(projection.data() || {}, "parentConsentEnabled");
+        if (current !== projected || canonical.exists() !== projectionConfigured) {
+            throw new ServiceFailure("Parent Portal consent settings are out of sync. Reload settings and try again.", "firestore/failed-precondition");
+        }
+        if (current !== expectedEnabled) {
+            throw new ServiceFailure("Parent Portal consent settings changed in another session. Reload settings before trying again.", "firestore/aborted");
+        }
+
+        const audit = { updatedAt: serverTimestamp(), updatedBy: user.uid };
+        // Parent Login defaults to enabled when unset. Materialise that existing
+        // default on the first consent save so the shared public projection has
+        // both canonical settings required by Firestore Rules.
+        if (!loginCanonical.exists()) {
+            transaction.set(PARENT_LOGIN_SETTINGS_REF, { parentLoginEnabled: loginEnabled, ...audit });
+        }
+        transaction.set(PARENT_CONSENT_SETTINGS_REF, { parentConsentEnabled: enabled, ...audit });
+        transaction.set(PUBLIC_NAVIGATION_SETTINGS_REF, {
+            parentLoginEnabled: loginEnabled,
+            parentConsentEnabled: enabled
+        });
     });
 }

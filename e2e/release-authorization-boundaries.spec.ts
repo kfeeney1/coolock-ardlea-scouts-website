@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 type Credentials = { email: string; password: string };
 
@@ -54,17 +55,26 @@ test.describe("release authorization boundaries", () => {
     await expect(page.getByRole("heading", { name: "Member Details" })).toHaveCount(0);
   });
 
-  test("parent portal exposes linked members but not an unlinked member from the same section", async ({ page }, testInfo) => {
+  test("parent portal exposes linked members but not an unlinked member from the same section", async ({ page, browser }, testInfo) => {
     chromiumOnly(testInfo);
     test.skip(!parent, "Configure canonical E2E parent credentials.");
-    await loginParent(page, parent!);
+    const releaseSettingLock = await acquireParentConsentSettingLock();
+    await setParentConsentEnabled(browser, true);
+    try {
+      await loginParent(page, parent!);
+      await expect(page.getByText(linkedParentMember, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(unlinkedParentMember, { exact: true })).toHaveCount(0);
 
-    await expect(page.getByText(linkedParentMember, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(unlinkedParentMember, { exact: true })).toHaveCount(0);
-
-    const search = page.getByTestId("parent-consent-search");
-    await search.fill(unlinkedParentMember);
-    await expect(page.getByText(unlinkedParentMember, { exact: true })).toHaveCount(0);
-    await expect(page.getByText("No linked children match that search.")).toBeVisible();
+      const search = page.getByTestId("parent-consent-search");
+      await search.fill(unlinkedParentMember);
+      await expect(page.getByText(unlinkedParentMember, { exact: true })).toHaveCount(0);
+      await expect(page.getByText("No linked children match that search.")).toBeVisible();
+    } finally {
+      try {
+        await setParentConsentEnabled(browser, false);
+      } finally {
+        await releaseSettingLock();
+      }
+    }
   });
 });

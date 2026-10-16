@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   DEFAULT_PARENT_LOGIN_ENABLED,
+  DEFAULT_PARENT_CONSENT_ENABLED,
+  normaliseParentConsentEnabled,
   normaliseParentLoginEnabled,
   shouldShowPublicParentLogin,
   shouldShowHeaderParentPortal,
@@ -15,6 +17,14 @@ test("Parent Login defaults to enabled only when no persisted document exists", 
   assert.equal(normaliseParentLoginEnabled({}, true), false);
   assert.equal(normaliseParentLoginEnabled({ parentLoginEnabled: false }, true), false);
   assert.equal(normaliseParentLoginEnabled({ parentLoginEnabled: true }, true), true);
+});
+
+test("Parent Portal consent flows default to disabled when unset", () => {
+  assert.equal(DEFAULT_PARENT_CONSENT_ENABLED, false);
+  assert.equal(normaliseParentConsentEnabled(undefined), false);
+  assert.equal(normaliseParentConsentEnabled({}), false);
+  assert.equal(normaliseParentConsentEnabled({ parentConsentEnabled: false }), false);
+  assert.equal(normaliseParentConsentEnabled({ parentConsentEnabled: true }), true);
 });
 
 test("public Parent Login stays hidden until settings and authentication state resolve", () => {
