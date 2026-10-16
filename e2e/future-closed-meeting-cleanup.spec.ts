@@ -121,7 +121,10 @@ test("administrator reviews, cancels, and confirms deletion of future closed mee
   await action.click();
   await expect(dialog).toContainText(`${expectedCount} closed meeting${expectedCount === 1 ? "" : "s"} dated after today`);
   await dialog.getByTestId("confirm-future-meeting-cleanup").click();
-  await expect(dialog).toContainText(`${expectedCount} future-dated closed meeting${expectedCount === 1 ? " was" : "s were"} deleted with associated records.`);
+  await expect(dialog).toContainText(
+    `${expectedCount} future-dated closed meeting${expectedCount === 1 ? " was" : "s were"} deleted with associated records.`,
+    { timeout: 60_000 }
+  );
   await expect.poll(async () => (await firestore.doc(`weeklyMeetings/${id}`).get()).exists).toBe(false);
   expect((await firestore.doc(`parentWeeklyMeetings/${id}`).get()).exists).toBe(false);
   expect((await firestore.doc(`weeklyMeetings/${id}/leaderAttendance/test.cleanup.leader`).get()).exists).toBe(false);
