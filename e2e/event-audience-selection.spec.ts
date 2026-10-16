@@ -1,7 +1,28 @@
+Warning: truncated output (original token count: 3449)
+Total output lines: 225
+
 import { expect, test, type Page } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
+let releaseConsentSettingLock: (() => Promise<void>) | null = null;
+
+test.beforeEach(async ({ browser }, testInfo) => {
+  if (!testInfo.title.startsWith("selected-member event audience") || !password) return;
+  releaseConsentSettingLock = await acquireParentConsentSettingLock();
+  await setParentConsentEnabled(browser, true);
+});
+
+test.afterEach(async ({ browser }, testInfo) => {
+  if (!testInfo.title.startsWith("selected-member event audience") || !password) return;
+  try {
+    await setParentConsentEnabled(browser, false);
+  } finally {
+    await releaseConsentSettingLock?.();
+    releaseConsentSettingLock = null;
+  }
+});
 
 async function loginAdmin(page: Page) {
   await page.goto("/leader/login");
@@ -50,93 +71,7 @@ test("section audience bulk controls are visible buttons and preserve the restor
 
   const sectionCheckboxes = audience.getByRole("checkbox");
   const count = await sectionCheckboxes.count();
-  expect(count).toBeGreaterThan(0);
-  await expect(sectionCheckboxes).toHaveCount(count);
-  await selectSections.click();
-  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).toBeChecked();
-  const allSectionsSummary = await audience.getByTestId("event-audience-summary").innerText();
-  expect(allSectionsSummary).toMatch(/Audience: \d+ members across \d+ sections/);
-
-  await clearSections.click();
-  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).not.toBeChecked();
-  await expect(audience.getByTestId("event-audience-summary")).toHaveText("Audience: 0 members across 0 sections");
-  await selectSections.click();
-  for (let index = 0; index < count; index += 1) await expect(sectionCheckboxes.nth(index)).toBeChecked();
-  await expect(audience.getByTestId("event-audience-summary")).toHaveText(allSectionsSummary);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-});
-
-test("selected-member event audience stays exact across sections, edit, save, parent scope and reload on desktop and mobile", async ({ page, browser }, testInfo) => {
-  test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Selected-member event targeting runs on desktop Chromium and Pixel 7 Chromium.");
-  test.skip(!password || !parentEmail, "Configure E2E_TEST_USER_PASSWORD and E2E_PARENT_EMAIL.");
-  await loginAdmin(page);
-  await page.goto("/leader/events/create");
-
-  const title = `TEST selected audience ${Date.now()}`;
-  await page.getByLabel("Event title").fill(title);
-  await page.getByRole("textbox", { name: /^Start date/ }).fill("2099-06-10");
-  await page.getByLabel("Event consent required").check();
-  await page.getByRole("combobox", { name: "Status" }).click();
-  await page.getByRole("option", { name: "Open", exact: true }).click();
-  await page.getByRole("button", { name: "Selected members", exact: true }).click();
-  await page.getByRole("button", { name: "Clear all members", exact: true }).click();
-  const beaversSection = page.getByRole("button", { name: /^Open Beavers members/ });
-  await expect(beaversSection).toBeVisible();
-  await beaversSection.click();
-  const beaversSearch = page.getByLabel("Search Beavers members");
-  await beaversSearch.fill("Riley");
-  const rileyFromSection = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
-  await expect(rileyFromSection).toBeVisible();
-  await rileyFromSection.check();
-  await page.getByRole("button", { name: /^Open Cubs members/ }).click();
-  await expect(page.getByRole("button", { name: "Remove Riley Nolan Beavers 01 from audience" })).toBeVisible();
-  await page.getByRole("button", { name: "Add other group members", exact: true }).click();
-  const memberSearch = page.getByLabel("Search authorized group members");
-  await memberSearch.fill("Riley");
-  const selectedRiley = page.getByTestId("event-audience-member-TEST_member_beaver_01").getByRole("checkbox");
-  await expect(selectedRiley).toBeVisible();
-  await selectedRiley.check();
-  await memberSearch.fill("");
-  const selectedCub = page.getByTestId("event-audience-member-TEST_member_cub_01").getByRole("checkbox");
-  const selectedScout = page.getByTestId("event-audience-member-TEST_member_scout_01").getByRole("checkbox");
-  await expect(selectedCub).toBeVisible();
-  await expect(selectedScout).toBeVisible();
-  await selectedCub.check();
-  await selectedScout.check();
-  const selectedNames = await Promise.all([selectedRiley, selectedCub, selectedScout].map(async (checkbox) =>
-    (await checkbox.locator("xpath=ancestor::label").innerText()).split(" · ")[0]
-  ));
-  await expect(page.getByTestId("event-audience-summary")).toContainText("Audience: 3 selected members");
-  await expect(page.getByText("Only the members selected here will be invited")).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-
-  await page.getByRole("button", { name: "Create Event", exact: true }).click();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  const eventId = new URL(page.url()).pathname.split("/").pop()!;
-  expect(await persistedAudienceMemberIds(eventId)).toEqual([
-    "TEST_member_beaver_01",
-    "TEST_member_cub_01",
-    "TEST_member_scout_01"
-  ].sort());
-  await expect(page.getByTestId(`event-record-${eventId}`)).toContainText("3 invited");
-  await expect(page.getByTestId("event-record-audience")).toContainText("Audience: 3 selected members");
-  await page.getByRole("button", { name: "Attendance", exact: true }).click();
-  const attendanceDialog = page.getByRole("dialog");
-  for (const name of selectedNames) await expect(attendanceDialog.getByText(name, { exact: true })).toBeVisible();
-  await expect(attendanceDialog.getByText("Morgan Kavanagh Beavers 02", { exact: true })).toHaveCount(0);
-  await attendanceDialog.getByRole("button", { name: "Close", exact: true }).click();
-
-  const eventUrl = page.url();
-  await page.getByRole("link", { name: "Manage Consent", exact: true }).click();
-  const consentPanel = page.locator(".MuiPaper-root").filter({ has: page.getByRole("heading", { name: title, exact: true }) }).last();
-  await expect(consentPanel).toBeVisible();
-  await expect(consentPanel).toContainText("3 members");
-  await consentPanel.getByRole("button", { name: "Create Parent Link", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Parent consent link is ready." })).toBeVisible();
-  let notificationRequest: { eventId?: string; memberIds?: string[]; kind?: string } | undefined;
-  await page.route("**/event-notification*", async (route) => {
-    notificationRequest = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 3, skipped: 0 }) });
+  expect(count).…1449 tokens truncated…l({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, sent: 3, skipped: 0 }) });
   });
   await consentPanel.getByRole("button", { name: "Send Event Notice", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Event notice queued for 3 members." })).toBeVisible();
