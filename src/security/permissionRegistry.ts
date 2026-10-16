@@ -23,6 +23,7 @@ export type PermissionGrant =
   | "admin"
   | "super-admin"
   | "Group Leader"
+  | "Section Leader"
   | "Group Secretary"
   | "Group Treasurer"
   | "Group Quartermaster / Bo'sun";
@@ -55,6 +56,7 @@ export const CURRENT_SCOUTING_APPOINTMENTS = [
 ] as const;
 
 export const PERMISSION_REGISTRY: PermissionDefinition[] = [
+  { id: "join.manage", name: "Manage Join Us applications", description: "Use Join Us management under the existing Section Leader, Group leadership and administrator access policy.", area: "Members", scope: "assigned-section", grantedBy: ["Section Leader", "Group Leader", "admin", "super-admin"], enforcement: ["ProtectedJoinManagementRoute", "Firestore joinApplications rules"], protected: true },
   { id: "members.read.linked", name: "View linked children", description: "View approved member records linked to the signed-in parent account.", area: "Members", scope: "linked-members", grantedBy: ["parent"], enforcement: ["Firestore members rules", "parentAccounts linkage"], protected: true },
   { id: "members.read.section", name: "View section members", description: "View member records in assigned sections.", area: "Members", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore members rules", "leader section profile"], protected: true },
   { id: "members.read.group", name: "View members group-wide", description: "View member records across all sections without becoming a system administrator.", area: "Members", scope: "group-wide", grantedBy: ["Group Leader", "Group Secretary", "Group Treasurer"], enforcement: ["Firestore members rules", "organisationLeadership appointment"], protected: true },
@@ -87,6 +89,7 @@ export const PERMISSION_REGISTRY: PermissionDefinition[] = [
   { id: "roles.manage.operational", name: "Manage ordinary leader access", description: "Maintain ordinary leader activation, assigned sections and organisation records within server-enforced limits.", area: "Role Management", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Firestore adminUsers/organisationLeadership rules", "Leader Access UI"], protected: true },
   { id: "roles.manage.admin", name: "Promote or demote Admin", description: "Promote or demote non-Super-Admin accounts between Leader and Admin.", area: "Role Management", scope: "system", grantedBy: ["super-admin"], enforcement: ["Firestore adminUsers rules", "Leader Access UI"], protected: true },
   { id: "settings.session.manage", name: "Manage session settings", description: "Manage protected system session/security settings.", area: "Settings", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Firestore siteSettings rules", "route/UI guard"], protected: true },
+  { id: "settings.leader-navigation.manage", name: "Manage Leader navigation version", description: "Choose the group-wide Leader Dashboard navigation presentation.", area: "Settings", scope: "system", grantedBy: ["super-admin"], enforcement: ["Firestore siteSettings rules", "Super Admin Settings UI"], protected: true },
   { id: "settings.parent-login.manage", name: "Manage public Parent Login visibility", description: "Change the public Parent Login navigation setting without changing Parent Portal access or parent permissions.", area: "Settings", scope: "system", grantedBy: ["super-admin"], enforcement: ["Firestore siteSettings rules", "Super Admin Settings UI"], protected: true },
   { id: "settings.subs.manage", name: "Manage subs settings", description: "Manage the finance-specific subs configuration exposed in Settings.", area: "Settings", scope: "group-wide", grantedBy: ["Group Leader", "Group Treasurer", "admin", "super-admin"], enforcement: ["Firestore subs policy rules", "settings section guard"], protected: true },
   { id: "system.superadmin.protect", name: "Protect Super Admin accounts", description: "No ordinary role or appointment may grant Super Admin or alter a protected Super Admin account.", area: "System Administration", scope: "system", grantedBy: ["super-admin"], enforcement: ["Firestore adminUsers rules"], protected: true }
