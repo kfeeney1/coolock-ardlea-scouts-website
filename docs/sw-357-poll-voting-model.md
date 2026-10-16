@@ -4,6 +4,7 @@ SW-357 uses the following voting model:
 
 - Poll answers are **single choice**. Each poll has two to eight distinct options.
 - The voting unit is one authenticated account per poll. A leader account can submit one response to a leader poll. A parent poll allows one response per approved parent account, regardless of how many linked children or guardians are in the family.
+- Leader voting eligibility requires an overlap between the poll's target sections and the account's registered programme sections. Management access does not make an account a respondent; for example, a Super Admin scoped only to `Group` can manage and view aggregate results for a group poll but cannot vote without a programme-section assignment.
 - A respondent may change their selected answer while the poll remains open. The response document is keyed by the authenticated account ID, so another account cannot create a second response for that person.
 - A poll is open only while its status is published and before its optional closing timestamp. Closing it manually or reaching the timestamp rejects new and changed responses.
 - Results are aggregate option counts and are visible to authorised poll managers only, both while the poll is open and after it closes. Respondents can read their own saved response; they cannot read other response records or aggregate results, including through direct Firestore access.
