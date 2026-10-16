@@ -179,13 +179,13 @@ test.describe("approved parent journey", () => {
 
   test("Things to do summary retries successfully after a temporary audience query failure", async ({ page }) => {
     let failAudienceQuery = true;
-    await page.route("**/documents:runQuery**", async (route) => {
+    await page.route("**/google.firestore.v1.Firestore/Listen/channel**", async (route) => {
       const requestBody = route.request().postData() || "";
-      if (failAudienceQuery && requestBody.includes("audienceMembers") && requestBody.includes("memberId")) {
+      if (failAudienceQuery && requestBody.includes('"collectionId":"audienceMembers"') && requestBody.includes('"fieldPath":"memberId"')) {
         await route.fulfill({
           status: 400,
-          contentType: "application/json",
-          body: JSON.stringify({ error: { code: 400, status: "FAILED_PRECONDITION", message: "temporary test failure" } })
+          contentType: "text/plain",
+          body: JSON.stringify({ error: { code: 9, status: "FAILED_PRECONDITION", message: "temporary test failure" } })
         });
         return;
       }
