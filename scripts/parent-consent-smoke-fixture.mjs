@@ -65,6 +65,17 @@ export function buildParentConsentSmokeFixture(startDate = futureDate()) {
   return { event, audienceMembership, consentLink };
 }
 
+/** Preserve Parent Login's existing value and materialize its default when creating the shared projection. */
+export function resolveParentLoginSeedState(parentLogin, publicNavigation) {
+  const parentLoginEnabled = parentLogin
+    ? parentLogin.parentLoginEnabled === true
+    : true;
+  if (publicNavigation && publicNavigation.parentLoginEnabled !== parentLoginEnabled) {
+    throw new Error("Parent Portal consent smoke fixture invalid: siteSettings/parentLogin and siteSettings/publicNavigation disagree on parentLoginEnabled.");
+  }
+  return { parentLoginEnabled, createCanonicalSetting: !parentLogin };
+}
+
 export function validateParentConsentSmokeFixture({
   parent,
   child,

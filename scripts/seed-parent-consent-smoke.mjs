@@ -1,7 +1,7 @@
 import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
-import { buildParentConsentSmokeFixture, parentConsentSmokeIds, validateParentConsentSmokeFixture } from "./parent-consent-smoke-fixture.mjs";
+import { buildParentConsentSmokeFixture, parentConsentSmokeIds, resolveParentLoginSeedState, validateParentConsentSmokeFixture } from "./parent-consent-smoke-fixture.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 const action = process.argv[2] || "seed";
@@ -60,13 +60,10 @@ if (action === "seed") {
     db.doc("siteSettings/parentLogin").get(),
     db.doc("siteSettings/publicNavigation").get()
   ]);
-  const parentLoginEnabled = parentLoginSnapshot.exists
-    ? parentLoginSnapshot.data()?.parentLoginEnabled === true
-    : true;
-  if (publicNavigationSnapshot.exists
-    && publicNavigationSnapshot.data()?.parentLoginEnabled !== parentLoginEnabled) {
-    throw new Error("Parent Portal consent smoke fixture invalid: siteSettings/parentLogin and siteSettings/publicNavigation disagree on parentLoginEnabled.");
-  }
+  const parentLoginState = resolveParentLoginSeedState(
+    parentLoginSnapshot.exists ? parentLoginSnapshot.data() : null,
+    publicNavigationSnapshot.exists ? publicNavigationSnapshot.data() : null
+  );
   const batch = db.batch();
   batch.set(db.doc(`events/${eventId}`), {
     ...event,
@@ -92,9 +89,17 @@ if (action === "seed") {
     ...marker
   }, { merge: true });
   batch.set(db.doc("siteSettings/publicNavigation"), {
-    parentLoginEnabled,
+    parentLoginEnabled: parentLoginState.parentLoginEnabled,
     parentConsentEnabled: true
   }, { merge: true });
+  if (parentLoginState.createCanonicalSetting) {
+    batch.set(db.doc("siteSettings/parentLogin"), {
+      parentLoginEnabled: parentLoginState.parentLoginEnabled,
+      updatedBy: "TEST_SEED",
+      updatedAt: FieldValue.serverTimestamp(),
+      ...marker
+    }, { merge: true });
+  }
   await batch.commit();
 }
 

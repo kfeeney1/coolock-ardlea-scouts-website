@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { buildParentConsentSmokeFixture, parentConsentSmokeIds, validateParentConsentSmokeFixture } from "../../scripts/parent-consent-smoke-fixture.mjs";
+import { buildParentConsentSmokeFixture, parentConsentSmokeIds, resolveParentLoginSeedState, validateParentConsentSmokeFixture } from "../../scripts/parent-consent-smoke-fixture.mjs";
 
 function validFixture() {
   const { parentEmail, childId } = parentConsentSmokeIds;
@@ -58,15 +58,37 @@ test("consent smoke fixture requires the persisted Parent Portal consent setting
   );
 });
 
+test("consent smoke seeding materializes Parent Login's default alongside the public projection", () => {
+  assert.deepEqual(resolveParentLoginSeedState(null, null), {
+    parentLoginEnabled: true,
+    createCanonicalSetting: true
+  });
+  assert.deepEqual(resolveParentLoginSeedState(
+    { parentLoginEnabled: false },
+    { parentLoginEnabled: false }
+  ), {
+    parentLoginEnabled: false,
+    createCanonicalSetting: false
+  });
+  assert.throws(
+    () => resolveParentLoginSeedState(null, { parentLoginEnabled: false }),
+    /siteSettings\/parentLogin and siteSettings\/publicNavigation disagree on parentLoginEnabled/
+  );
+});
+
 test("deployment smoke requires the named request and bounds loading diagnostics on both browser projects", () => {
   const workflow = readFileSync(".github/workflows/firebase-hosting-test.yml", "utf8");
   const smoke = readFileSync("e2e/test-environment-smoke.spec.ts", "utf8");
   const localSeed = readFileSync("scripts/seed-playwright-records.mjs", "utf8");
+  const testSeed = readFileSync("scripts/seed-parent-consent-smoke.mjs", "utf8");
 
   assert.match(workflow, /seed-parent-consent-smoke\.mjs seed/);
   assert.match(workflow, /--project=chromium --project=mobile-chromium/);
   assert.match(localSeed, /buildParentConsentSmokeFixture/);
   assert.match(localSeed, /validateParentConsentSmokeFixture/);
+  assert.match(localSeed, /resolveParentLoginSeedState/);
+  assert.match(testSeed, /resolveParentLoginSeedState/);
+  assert.match(testSeed, /siteSettings\/parentLogin/);
   assert.match(smoke, /parent-event-consent-tile-TEST_CUB_PARENT_CONSENT_SMOKE/);
   assert.match(smoke, /timeout:\s*20000/);
   assert.match(smoke, /message:\s*"The eligible parent must receive the seeded Cubs consent request/);

@@ -1,7 +1,7 @@
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
-import { buildParentConsentSmokeFixture, parentConsentSmokeIds, validateParentConsentSmokeFixture } from "./parent-consent-smoke-fixture.mjs";
+import { buildParentConsentSmokeFixture, parentConsentSmokeIds, resolveParentLoginSeedState, validateParentConsentSmokeFixture } from "./parent-consent-smoke-fixture.mjs";
 
 const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 requireFirebaseMutationTarget({ operation: "seed-playwright-records", credentialJson: rawCredentials });
@@ -112,13 +112,10 @@ const consentSmokeChild = await requireDoc("members", parentConsentSmokeIds.chil
 const consentSmokeFixture = buildParentConsentSmokeFixture();
 const parentLoginSnapshot = await db.doc("siteSettings/parentLogin").get();
 const publicNavigationSnapshot = await db.doc("siteSettings/publicNavigation").get();
-const parentLoginEnabled = parentLoginSnapshot.exists
-  ? parentLoginSnapshot.data()?.parentLoginEnabled === true
-  : true;
-if (publicNavigationSnapshot.exists
-  && publicNavigationSnapshot.data()?.parentLoginEnabled !== parentLoginEnabled) {
-  throw new Error("Parent Portal consent smoke seed failed: siteSettings/parentLogin and siteSettings/publicNavigation disagree on parentLoginEnabled.");
-}
+const parentLoginState = resolveParentLoginSeedState(
+  parentLoginSnapshot.exists ? parentLoginSnapshot.data() : null,
+  publicNavigationSnapshot.exists ? publicNavigationSnapshot.data() : null
+);
 validateParentConsentSmokeFixture({
   parent: consentSmokeParent,
   child: consentSmokeChild,
@@ -151,9 +148,17 @@ consentSmokeBatch.set(db.doc("siteSettings/parentConsent"), {
   ...marker
 }, { merge: true });
 consentSmokeBatch.set(db.doc("siteSettings/publicNavigation"), {
-  parentLoginEnabled,
+  parentLoginEnabled: parentLoginState.parentLoginEnabled,
   parentConsentEnabled: true
 }, { merge: true });
+if (parentLoginState.createCanonicalSetting) {
+  consentSmokeBatch.set(db.doc("siteSettings/parentLogin"), {
+    parentLoginEnabled: parentLoginState.parentLoginEnabled,
+    updatedBy: "TEST_SEED",
+    updatedAt: FieldValue.serverTimestamp(),
+    ...marker
+  }, { merge: true });
+}
 await consentSmokeBatch.commit();
 
 const equipmentSeedItems = [
