@@ -61,7 +61,7 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-service-account.json
           trap 'rm -f /tmp/firebase-service-account.json' EXIT
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
-          npx --yes firebase-tools@15.28.1 deploy --config firebase.test.json --only firestore:rules,firestore:indexes,storage:test-default,hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+          node scripts/deploy-firebase-test-with-rules-retry.mjs
       - name: Seed canonical synthetic TEST identities, families, public content and equipment
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
