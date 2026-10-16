@@ -178,11 +178,11 @@ test.describe("approved parent journey", () => {
   });
 
   test("Things to do summary retries successfully after a temporary Firestore query failure", async ({ page }) => {
-    let failNextListenerRequest = false;
-    let injectedFailure = false;
+    let failListenerRequests = false;
+    let injectedFailures = 0;
     await page.route("**/Listen/channel*", async (route) => {
-      if (failNextListenerRequest && !injectedFailure && route.request().method() === "POST") {
-        injectedFailure = true;
+      if (failListenerRequests && route.request().method() === "POST") {
+        injectedFailures += 1;
         await route.fulfill({
           status: 400,
           contentType: "text/plain",
@@ -194,13 +194,13 @@ test.describe("approved parent journey", () => {
     });
 
     await loginParent(page);
-    failNextListenerRequest = true;
+    failListenerRequests = true;
     await page.reload();
     const summary = page.getByTestId("parent-things-to-do");
     await expect(summary.getByTestId("parent-things-to-do-error")).toBeVisible();
 
-    expect(injectedFailure).toBe(true);
-    failNextListenerRequest = false;
+    expect(injectedFailures).toBeGreaterThan(0);
+    failListenerRequests = false;
     await summary.getByRole("button", { name: "Retry" }).click();
     await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
     await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
