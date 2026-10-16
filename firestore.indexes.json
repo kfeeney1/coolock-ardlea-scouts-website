@@ -1,6 +1,23 @@
 {
   "indexes": [
     {
+      "collectionGroup": "weeklyMeetings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "section", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "meetingDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "requirements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sourceType", "order": "ASCENDING" },
+        { "fieldPath": "sourceId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "eventConsentLinks",
       "queryScope": "COLLECTION",
       "fields": [

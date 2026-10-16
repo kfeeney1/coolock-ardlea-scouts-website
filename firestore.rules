@@ -962,11 +962,16 @@ service cloud.firestore {
           && request.resource.data.sourceType in ["manual", "weeklyMeeting", "event", "activity", "migration"]
           && request.resource.data.sourceId is string
           && request.resource.data.keys().hasOnly(["memberId", "requirementId", "skillId", "stage", "sharedCompetencyKey", "completedAt", "completedBy", "sourceType", "sourceId"]);
-        allow delete: if canWriteAdventureRequirement(
-          get(/databases/$(database)/documents/members/$(memberId)).data,
-          memberId,
-          resource.data
-        );
+        allow delete: if (isAdmin()
+            && resource.data.sourceType == "weeklyMeeting"
+            && resource.data.sourceId is string
+            && exists(/databases/$(database)/documents/weeklyMeetings/$(resource.data.sourceId))
+            && get(/databases/$(database)/documents/weeklyMeetings/$(resource.data.sourceId)).data.status == "closed")
+          || canWriteAdventureRequirement(
+            get(/databases/$(database)/documents/members/$(memberId)).data,
+            memberId,
+            resource.data
+          );
       }
 
       match /awards/{awardId} {
@@ -1284,7 +1289,7 @@ service cloud.firestore {
         && request.resource.data.injuries is list
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["section", "meetingDate", "status", "location", "plannedActivities", "plannedBadgework", "programmeNotes", "notes", "entries", "injuries", "updatedBy", "updatedAt"]);
-      allow delete: if false;
+      allow delete: if isAdmin() && resource.data.status == "closed";
     }
 
     match /weeklyMeetings/{weeklyMeetingId}/leaderAttendance/{leaderUid} {
@@ -1301,7 +1306,7 @@ service cloud.firestore {
       allow get, list: if canReadWeeklyAttendance();
       allow create, update: if canWriteWeeklyAttendance()
         && validLeaderAttendanceRecord(leaderUid);
-      allow delete: if canWriteWeeklyAttendance() && isActiveRegisteredLeader(leaderUid);
+      allow delete: if (canWriteWeeklyAttendance() && isActiveRegisteredLeader(leaderUid)) || isAdmin();
     }
 
     match /programmeLibrary/{templateId} {
@@ -1347,7 +1352,8 @@ service cloud.firestore {
     }
 
     match /parentWeeklyMeetings/{weeklyMeetingId} {
-      allow get, list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
+      allow get: if isAdmin() || (resource.data.section is string && isApprovedParentForSection(resource.data.section));
+      allow list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
         && request.resource.data.section is string
         && (hasSection(request.resource.data.section) || isGroupLeader())
@@ -1370,7 +1376,7 @@ service cloud.firestore {
         && request.resource.data.activities is list
         && request.resource.data.badgework is list
         && request.resource.data.keys().hasOnly(["section", "meetingDate", "status", "location", "theme", "activities", "badgework", "updatedAt"]);
-      allow delete: if false;
+      allow delete: if isAdmin() && resource.data.status == "closed";
     }
 
     match /financeTransactions/{transactionId} {

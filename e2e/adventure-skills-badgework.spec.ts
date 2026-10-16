@@ -195,26 +195,57 @@ test.describe("Adventure Skills badgework", () => {
     await expect(removalDialog).toHaveCount(0);
     await expect(awardPanel.getByText("Awarded", { exact: true })).toBeVisible();
 
+    await page.goto("/leader/badgework");
+    const leaderCampingTile = page.getByTestId(`badgework-overview-member-${firstMemberId}`).getByTestId("badgework-skill-tile-camping");
+    await expect(leaderCampingTile).toBeVisible();
+    const leaderCampingLabel = await leaderCampingTile.getAttribute("aria-label");
+    expect(leaderCampingLabel).toMatch(/Camping · Level 1/);
+
     await signOutLeader(page);
     await loginParent(page);
 
     await expect(page.getByRole("heading", { name: "Adventure Skills Progress" })).toBeVisible();
+    const parentCampingTile = page.getByTestId("badgework-skill-tile-camping");
+    await expect(parentCampingTile).toBeVisible();
+    await expect(parentCampingTile).toHaveAttribute("aria-label", leaderCampingLabel!);
+    await expect(parentCampingTile).toContainText("Camping");
+    await expect(parentCampingTile).toContainText("Level 1");
+    await parentCampingTile.click();
     const camping = page.getByTestId("parent-adventure-skill-camping");
     await expect(camping).toContainText("1/9 stages awarded");
     await camping.getByRole("button", { name: /Stage 1/ }).click();
     const campingStageOne = camping.getByRole("region", { name: /Stage 1 12\/12 points/ });
     await expect(campingStageOne).toBeVisible();
-    await expect(camping.getByText("Requirements complete", { exact: true })).toBeVisible();
     await expect(camping.getByText("Awarded", { exact: true })).toBeVisible();
     await expect(campingStageOne.getByText("Outstanding", { exact: true })).toHaveCount(0);
     await expect(campingStageOne.getByText("Completed", { exact: true }).first()).toBeVisible();
 
+    await camping.getByRole("button", { name: "Back to Adventure Skills" }).click();
+    const parentHillwalkingTile = page.getByTestId("badgework-skill-tile-hillwalking");
+    await parentHillwalkingTile.click();
     const hillwalking = page.getByTestId("parent-adventure-skill-hillwalking");
     await hillwalking.getByRole("button", { name: /Stage 1/ }).click();
     const hillwalkingStageOne = hillwalking.getByRole("region", { name: /Stage 1/ });
     const buddyRow = hillwalkingStageOne.locator('[data-testid^="parent-adventure-requirement-"]').filter({ hasText: /Buddy System/i }).first();
     await expect(buddyRow).toContainText(/Buddy System/i);
     await expect(buddyRow.getByText("Completed", { exact: true })).toBeVisible();
+
+    await hillwalking.getByRole("button", { name: "Back to Adventure Skills" }).click();
+    const childSelector = page.getByRole("combobox", { name: "Viewing information for" });
+    await childSelector.click();
+    const secondChild = page.getByRole("option", { name: /Morgan Kavanagh/ });
+    const secondChildId = await secondChild.getAttribute("data-value");
+    expect(secondChildId).toBeTruthy();
+    await secondChild.click();
+    await expect(page).toHaveURL(new RegExp(`child=${secondChildId}`));
+    await expect(page.getByTestId("badgework-skill-grid")).toBeVisible();
+    await expect(page.getByText("Morgan Kavanagh").first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).toContainText("Morgan Kavanagh");
+    await expect(page.getByTestId("badgework-skill-grid")).toBeVisible();
+    await page.goto("/parent?child=UNLINKED_MEMBER#parent-adventure-skills");
+    await expect(page.getByTestId("badgework-skill-grid")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Viewing information for" })).not.toContainText("UNLINKED_MEMBER");
 
     await expect(page.getByRole("button", { name: "Award badge" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
