@@ -12,11 +12,9 @@ export type CleanupResult = { kind: "deleted"; deleted: string[]; failed: string
 
 export async function previewFutureClosedMeetings(now = new Date()): Promise<CleanupPreview> {
   const today = groupLocalDate(now);
-  const snapshots = await Promise.all(GROUP_SECTIONS.map((section) =>
-    getDocsFromServer(query(collection(db, "weeklyMeetings"),
-      where("section", "==", section), where("status", "==", "closed"), where("meetingDate", ">", today)))
-  ));
-  const meetings = snapshots.flatMap((snapshot) => snapshot.docs.flatMap((item) => {
+  const snapshot = await getDocsFromServer(query(collection(db, "weeklyMeetings"),
+    where("section", "in", GROUP_SECTIONS), where("status", "==", "closed"), where("meetingDate", ">", today)));
+  const meetings = snapshot.docs.flatMap((item) => {
     const data = item.data();
     const candidate: CleanupMeeting = {
       id: item.id,
@@ -27,7 +25,7 @@ export async function previewFutureClosedMeetings(now = new Date()): Promise<Cle
         entry && typeof entry.memberId === "string" ? [{ memberId: entry.memberId }] : []) : []
     };
     return isFutureClosedMeeting(candidate, today) ? [candidate] : [];
-  })).sort((a, b) => a.meetingDate.localeCompare(b.meetingDate) || a.id.localeCompare(b.id));
+  }).sort((a, b) => a.meetingDate.localeCompare(b.meetingDate) || a.id.localeCompare(b.id));
   return { today, meetings };
 }
 
