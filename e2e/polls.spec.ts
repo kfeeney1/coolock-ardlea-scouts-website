@@ -53,7 +53,7 @@ test.describe("dashboard polls", () => {
     const draft = page.getByTestId(/^leader-poll-manager-/).filter({ has: page.getByText("Poll", { exact: true }) });
     await expect(draft).toHaveCount(1);
     await expect(draft).toContainText("Leaders · Whole group · draft");
-    await expect(page.getByRole("status")).toContainText("Poll draft saved");
+    await expect(page.getByTestId("leader-polls").getByRole("status").filter({ hasText: "Poll draft saved" })).toBeVisible();
     await expect(page.getByTestId("leader-polls-empty")).toHaveAttribute("role", "status");
     await expect(page.getByTestId("leader-polls").getByRole("alert")).toHaveCount(0);
 
