@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 type Credentials = { email: string; password: string };
 
@@ -18,12 +19,20 @@ async function loginLeader(page: Page, account: Credentials) {
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
 }
 
-test("event notification response link opens its specific active event consent workflow", async ({ page }) => {
-  await page.goto("/event-consent/TESTFLOWBEAVERSOPEN2026");
-  await expect(page).toHaveURL(/\/event-consent\/TESTFLOWBEAVERSOPEN2026$/);
-  await expect(page.getByRole("heading", { name: "Event Consent", exact: true })).toBeVisible();
-  await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
-  await expect(page.getByText("Section: Beavers", { exact: true })).toBeVisible();
+test("event notification response link opens its specific active event consent workflow", async ({ page, browser }) => {
+  test.skip(!process.env.E2E_TEST_USER_PASSWORD, "Configure the canonical E2E password to enable the persisted consent setting.");
+  const releaseSettingLock = await acquireParentConsentSettingLock();
+  try {
+    await setParentConsentEnabled(browser, true);
+    await page.goto("/event-consent/TESTFLOWBEAVERSOPEN2026");
+    await expect(page).toHaveURL(/\/event-consent\/TESTFLOWBEAVERSOPEN2026$/);
+    await expect(page.getByRole("heading", { name: "Event Consent", exact: true })).toBeVisible();
+    await expect(page.getByText("TEST Beavers Open Day Trip", { exact: true })).toBeVisible();
+    await expect(page.getByText("Section: Beavers", { exact: true })).toBeVisible();
+  } finally {
+    await setParentConsentEnabled(browser, false);
+    await releaseSettingLock();
+  }
 });
 
 test("broken equipment email target opens the exact issue after login and protects section scope", async ({ page, browser }, testInfo) => {
