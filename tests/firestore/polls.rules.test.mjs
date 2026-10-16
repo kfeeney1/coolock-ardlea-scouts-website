@@ -30,6 +30,7 @@ beforeEach(async () => {
   await seed([
     ["adminUsers/beaver-leader", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/scout-leader", { active: true, role: "leader", sections: ["Scouts"] }],
+    ["adminUsers/outside-leader", { active: true, role: "leader", sections: ["Other"] }],
     ["adminUsers/group-leader", { active: true, role: "leader", sections: ["Beavers"] }],
     ["adminUsers/super-admin", { active: true, role: "super-admin", sections: ["Group"] }],
     ["organisationLeadership/group-leader", { active: true, scoutingRole: "Group Leader" }],
@@ -75,7 +76,7 @@ test("section leader manager index reads constrain results to fully authorised p
   await assertFails(getDocs(outOfScopeQuery));
 });
 
-test("parent response is private, cannot list responses or view results", async () => {
+test("parent responses stay private and parent voters cannot read results", async () => {
   await seedPoll();
   await seed([
     ["polls/poll-1/responses/parent-a", { accountUid: "parent-a", option: "Hike", optionIndex: 0, createdAt: new Date(), updatedAt: new Date() }]
@@ -88,6 +89,7 @@ test("parent response is private, cannot list responses or view results", async 
   await assertFails(getDocs(collection(parent, "polls/poll-1/responses")));
   await assertFails(getDocs(query(collection(anotherParent, "polls/poll-1/responses"))));
   await assertFails(getDoc(doc(parent, "polls/poll-1/results/0")));
+  await assertFails(getDocs(collection(parent, "polls/poll-1/results")));
   await assertSucceeds(getDocs(collection(beaverLeader, "polls/poll-1/results")));
   await assertFails(getDocs(collection(testEnv.authenticatedContext("scout-leader").firestore(), "polls/poll-1/results")));
 });
@@ -126,6 +128,7 @@ test("group leadership can create a complete whole-group draft; section leaders 
 test("poll responses require a published poll, an eligible account, and atomic aggregate updates", async () => {
   await seedPoll();
   const parent = testEnv.authenticatedContext("parent-a").firestore();
+  await assertFails(getDocs(collection(parent, "polls/poll-1/results")));
   const responseRef = doc(parent, "polls/poll-1/responses/parent-a");
   const resultRef = doc(parent, "polls/poll-1/results/0");
   const batch = writeBatch(parent);
@@ -133,6 +136,8 @@ test("poll responses require a published poll, an eligible account, and atomic a
   batch.set(responseRef, { accountUid: "parent-a", option: "Hike", optionIndex: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   await assertSucceeds(batch.commit());
   await assertSucceeds(getDoc(responseRef));
+  await assertFails(getDocs(collection(parent, "polls/poll-1/results")));
+  await assertFails(getDocs(collection(testEnv.authenticatedContext("parent-b").firestore(), "polls/poll-1/results")));
 
   const changed = writeBatch(parent);
   changed.update(doc(parent, "polls/poll-1/results/0"), { count: 0, updatedAt: serverTimestamp() });
@@ -144,6 +149,10 @@ test("poll responses require a published poll, an eligible account, and atomic a
   duplicate.update(doc(parent, "polls/poll-1/results/1"), { count: 2, updatedAt: serverTimestamp() });
   duplicate.set(doc(parent, "polls/poll-1/responses/parent-a"), { accountUid: "parent-a", option: "Camp", optionIndex: 1, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   await assertFails(duplicate.commit());
+
+  const forgedAggregate = writeBatch(parent);
+  forgedAggregate.update(doc(parent, "polls/poll-1/results/0"), { count: 7, updatedAt: serverTimestamp() });
+  await assertFails(forgedAggregate.commit());
 });
 
 test("unapproved links and closed polls reject direct response writes", async () => {
@@ -164,14 +173,25 @@ test("unapproved links and closed polls reject direct response writes", async ()
   await assertFails(makeResponse(parent, "parent-a"));
 });
 
-test("leader audience polls exclude parents and require a currently active leader account", async () => {
-  await seedPoll("leader-poll", { audienceType: "leaders" });
+test("leader audience polls exclude parents and reveal aggregate results to eligible voters only after voting", async () => {
+  await seedPoll("leader-poll", { audienceType: "leaders", scopeType: "group", scopeSections: ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"] });
   const beaverLeader = testEnv.authenticatedContext("beaver-leader").firestore();
   const parent = testEnv.authenticatedContext("parent-a").firestore();
-  const scoutLeader = testEnv.authenticatedContext("scout-leader").firestore();
+  const outsideLeader = testEnv.authenticatedContext("outside-leader").firestore();
   await assertSucceeds(getDoc(doc(beaverLeader, "polls/leader-poll")));
   await assertFails(getDoc(doc(parent, "polls/leader-poll")));
-  await assertFails(getDoc(doc(scoutLeader, "polls/leader-poll")));
+  await assertFails(getDoc(doc(outsideLeader, "polls/leader-poll")));
+  await assertFails(getDocs(collection(outsideLeader, "polls/leader-poll/results")));
+  await assertFails(getDocs(collection(beaverLeader, "polls/leader-poll/results")));
+
+  const responseBatch = writeBatch(beaverLeader);
+  responseBatch.update(doc(beaverLeader, "polls/leader-poll/results/0"), { count: 1, updatedAt: serverTimestamp() });
+  responseBatch.set(doc(beaverLeader, "polls/leader-poll/responses/beaver-leader"), {
+    accountUid: "beaver-leader", option: "Hike", optionIndex: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+  });
+  await assertSucceeds(responseBatch.commit());
+  await assertSucceeds(getDocs(collection(beaverLeader, "polls/leader-poll/results")));
+  await assertFails(getDocs(collection(beaverLeader, "polls/leader-poll/responses")));
 });
 
 test("Super Admin can discover and manage polls without gaining respondent access outside assigned sections", async () => {
