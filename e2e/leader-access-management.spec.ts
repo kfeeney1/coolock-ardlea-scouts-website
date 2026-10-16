@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
@@ -15,6 +15,30 @@ async function loginAdmin(page: Page) {
   await page.getByLabel("Password").fill(password!);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
+}
+
+async function prepareUnlinkedChildOption(page: Page, childSelect: Locator, childOption: Locator, linkedChild: Locator, allowExistingLink: boolean) {
+  await childSelect.click();
+  await expect.poll(async () => {
+    if (await childOption.isVisible().catch(() => false)) return "available";
+    if (await linkedChild.isVisible().catch(() => false)) return "already linked";
+    const error = page.getByRole("alert");
+    if (await error.count()) return `error: ${(await error.first().innerText()).trim()}`;
+    return "loading child options and existing relationships";
+  }, {
+    timeout: 10000,
+    message: "Leader Access must load Cub Child 02 as an available child or show its existing relationship before the SW-219 journey can continue."
+  }).toMatch(/^(available|already linked)$/);
+
+  if (await linkedChild.isVisible().catch(() => false)) {
+    if (!allowExistingLink) throw new Error("The SW-219 seed must start with Cub Child 02 unlinked on the first attempt.");
+    await childSelect.press("Escape");
+    await linkedChild.locator("..").getByRole("button", { name: "Unlink" }).click();
+    await expect(page.getByRole("alert")).toContainText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.");
+    await expect(linkedChild).toHaveCount(0);
+    await childSelect.click();
+  }
+  await expect(childOption).toBeVisible();
 }
 
 async function viewportState(page: Page) {
@@ -279,33 +303,12 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await expect(card.getByTestId("leader-child-links")).toBeVisible();
 
   const childSelect = card.getByRole("combobox", { name: "Child member" });
-  await childSelect.click();
   const childOption = page.getByRole("option", { name: new RegExp(`Cub.*02.*Cubs`, "i") }).first();
   const linkedChild = card.getByText(`${memberName} · Cubs`, { exact: true });
-  await expect.poll(async () => {
-    if (await childOption.isVisible().catch(() => false)) return "available";
-    if (await linkedChild.isVisible().catch(() => false)) return "already linked";
-    const error = page.getByRole("alert");
-    if (await error.count()) return `error: ${(await error.first().innerText()).trim()}`;
-    return "loading child options and existing relationships";
-  }, {
-    timeout: 10000,
-    message: "Leader Access must load Cub Child 02 as an available child or show its existing relationship before the SW-219 journey can continue."
-  }).toMatch(/^(available|already linked)$/);
-
   // Push-triggered Playwright retries reuse the same emulator. If an earlier
   // attempt linked the child before failing later in the journey, restore the
   // seeded unlinked state so this retry exercises the same link operation.
-  if (testInfo.retry > 0 && await linkedChild.isVisible().catch(() => false)) {
-    await childSelect.press("Escape");
-    await linkedChild.locator("..").getByRole("button", { name: "Unlink" }).click();
-    await expect(page.getByRole("alert")).toContainText("Leader-child relationship unlinked. Current Scout-year family Subs classification has been reconciled.");
-    await expect(linkedChild).toHaveCount(0);
-    await childSelect.click();
-  } else {
-    await expect(linkedChild, "The SW-219 seed must start with Cub Child 02 unlinked on the first attempt.").toHaveCount(0);
-  }
-  await expect(childOption).toBeVisible();
+  await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, testInfo.retry > 0);
   const optionText = (await childOption.textContent())?.split(" · ")[0]?.trim() || memberName;
   await childOption.click();
   await card.getByRole("button", { name: "Link child" }).click();
@@ -335,6 +338,32 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   const standardRevision = page.locator('[data-testid^="subs-report-row-family-2026-27--TEST_member_cub_02"]').filter({ hasText: "Standard family" });
   await expect(standardRevision).toContainText("Standard family");
   await expect(standardRevision).toContainText("€100.00 due");
+});
+
+test("SW-219 retry recovery restores the seeded child option after a persisted link", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password || !adminEmail || !seededJourneyData, "Canonical leader journey seed data is required.");
+  await loginAdmin(page);
+
+  const leaderUid = "TEST_uid_multi_section_leader";
+  const memberName = "Cub Child 02";
+  await page.goto(`/leader/access/${leaderUid}`);
+  const card = page.getByTestId(`leader-access-${leaderUid}`);
+  await expect(card).toContainText("Test Multi Section Leader");
+  const childSelect = card.getByRole("combobox", { name: "Child member" });
+  const childOption = page.getByRole("option", { name: /Cub.*02.*Cubs/i }).first();
+  const linkedChild = card.getByText(`${memberName} · Cubs`, { exact: true });
+
+  await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, testInfo.retry > 0);
+  await childOption.click();
+  await card.getByRole("button", { name: "Link child" }).click();
+  await expect(page.getByRole("alert")).toContainText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId(`leader-access-${leaderUid}`)).toContainText(`${memberName} · Cubs`);
+
+  await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, true);
+  await expect(linkedChild).toHaveCount(0);
+  await expect(childOption).toBeVisible();
 });
 
 
