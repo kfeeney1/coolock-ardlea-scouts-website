@@ -89,7 +89,15 @@ export default function WeeklyMeetingHistoryPanel({ records, sections, canEditPa
 
   return <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }}>
     <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>Meeting History</Typography>
-    {canDeleteFutureClosed && <Button variant="outlined" color="error" onClick={() => void openCleanup()} sx={{ mb: 2 }} data-testid="future-closed-meeting-cleanup">Delete future-dated closed meetings</Button>}
+    {canDeleteFutureClosed && <Button variant="outlined" color="error" onClick={() => void openCleanup()} sx={{
+      mb: 2,
+      position: "sticky",
+      top: "calc(env(safe-area-inset-top, 0px) + 8px)",
+      zIndex: 2,
+      width: { xs: "100%", sm: "auto" },
+      minHeight: 48,
+      backgroundColor: "background.paper"
+    }} data-testid="future-closed-meeting-cleanup">Delete future-dated closed meetings</Button>}
     {!records.length ? <Alert severity="info">No closed meetings yet.</Alert> : <>
       <OperationalFilterBar>
         <Box sx={{ flex: { xs: "0 0 auto", md: "1 1 260px" } }}>

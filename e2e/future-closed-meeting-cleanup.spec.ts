@@ -82,8 +82,7 @@ test.afterEach(async () => {
   baselineDocuments.length = 0;
 });
 
-test("administrator reviews, cancels, and confirms deletion of future closed meetings with linked records", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "Cleanup is verified once in Chromium.");
+test("administrator can reach cleanup on desktop and mobile and safely delete future closed meetings", async ({ page }) => {
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   const firestore = db();
   const existingCandidateIds = await snapshotExistingCandidates(firestore);
@@ -106,6 +105,9 @@ test("administrator reviews, cancels, and confirms deletion of future closed mee
   await page.goto("/leader/weekly");
   const action = page.getByTestId("future-closed-meeting-cleanup");
   await expect(action).toBeVisible();
+  await expect(action).toHaveText("Delete future-dated closed meetings");
+  await page.getByTestId(`meeting-history-${id}`).scrollIntoViewIfNeeded();
+  await expect(action).toBeInViewport();
   await action.click();
   const dialog = page.getByTestId("future-meeting-cleanup-dialog");
   const expectedCount = 1;
