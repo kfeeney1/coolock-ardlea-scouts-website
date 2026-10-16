@@ -40,6 +40,18 @@ function parentProgramme(section, meetingDate, activityItems, badgeItems) {
   };
 }
 
+function groupLocalDate(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(now);
+  const value = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+function shiftDate(date, days) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
 const scoutMember = await requireDoc("members", "TEST_member_scout_01");
 const scoutMemberName = scoutMember.displayName;
 if (typeof scoutMemberName !== "string" || !scoutMemberName.trim()) throw new Error("TEST_member_scout_01 must have a canonical displayName.");
@@ -103,6 +115,35 @@ for (const [section, key, primaryDate, secondDate, activityCount, badgeCount] of
   await db.collection("weeklyMeetings").doc(secondId).set({ ...base, meetingDate: secondDate, notes: "Second deterministic historical meeting." });
   await db.collection("parentWeeklyMeetings").doc(primaryId).set(parentProgramme(section, primaryDate, activityItems, badgeItems));
   await db.collection("parentWeeklyMeetings").doc(secondId).set(parentProgramme(section, secondDate, activityItems, badgeItems));
+}
+
+// SW-415: date-relative Parent Portal coverage includes today (upcoming), the
+// latest previous meeting, older history, and a section that the parent cannot read.
+const sw415Today = groupLocalDate();
+const sw415Programme = [
+  ["TEST_sw415_parent_meeting_today", "Beavers", sw415Today, "open", "SW-415 today planned activity"],
+  ["TEST_sw415_parent_meeting_future", "Beavers", shiftDate(sw415Today, 2), "open", "SW-415 future planned activity"],
+  ["TEST_sw415_parent_meeting_previous", "Beavers", shiftDate(sw415Today, -1), "closed", "SW-415 previous planned activity"],
+  ["TEST_sw415_parent_meeting_history", "Beavers", shiftDate(sw415Today, -7), "closed", "SW-415 historical planned activity"],
+  ["TEST_sw415_unlinked_section_history", "Scouts", shiftDate(sw415Today, -8), "closed", "SW-415 unrelated section activity"]
+];
+for (const [id, section, meetingDate, status, activityName] of sw415Programme) {
+  const activityItems = [activity(`${id}-a1`, activityName, "Section Leader", "Cones", 15, "Private leader note")];
+  const badgeItems = [plannedBadgework(`${id}-b1`, "SW-415 planned badgework", "Section Leader", "Rope", 20, "Private badge note")];
+  const source = {
+    section, meetingDate, status, location: "Scout Den",
+    plannedActivities: activities(activityItems), plannedBadgework: badgework(badgeItems),
+    programmeNotes: programme("SW-415 test theme", "SW-415 private leader note"),
+    notes: "SW-415 private post-meeting note",
+    entries: [{ memberId: "TEST_member_beaver_01", memberName: "SW-415 private child name", attendance: "present", subsPaid: true, subsAmount: 5, badges: ["SW-415 completed badgework"] }],
+    injuries: [{ memberId: "TEST_member_beaver_01", memberName: "SW-415 private child name", concern: "SW-415 private incident" }],
+    createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker
+  };
+  await db.collection("weeklyMeetings").doc(id).set(source);
+  await db.collection("parentWeeklyMeetings").doc(id).set({
+    ...parentProgramme(section, meetingDate, activityItems, badgeItems), status,
+    updatedAt: FieldValue.serverTimestamp()
+  });
 }
 
 await db.collection("events").doc("TEST_e2e_scout_consent").set({ title: "TEST Scout Consent Night", description: "Deterministic Scouts consent fixture for Playwright.", eventType: "Weekly Meeting", section: "Scouts", location: "Scout Den", meetingPoint: "Scout Den", returnDetails: "Scout Den", leaderNotes: "TEST DATA ONLY.", startDate: "2099-01-22", endDate: "2099-01-22", status: "open", consentRequired: true, attendance: { TEST_member_scout_01: "invited" }, consent: { TEST_member_scout_01: "required" }, createdBy: "TEST_SEED", createdAt: FieldValue.serverTimestamp(), updatedBy: "TEST_SEED", updatedAt: FieldValue.serverTimestamp(), ...marker });

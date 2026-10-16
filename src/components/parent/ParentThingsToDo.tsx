@@ -186,7 +186,7 @@ export default function ParentThingsToDo({ memberIds, sections, refreshVersion =
                     </Paper>
                 </Box>
 
-                <ParentWeeklyProgramme sections={sections} />
+                <ParentWeeklyProgramme sections={sections} childId={memberIds[0] ?? ""} />
             </>
         );
     };

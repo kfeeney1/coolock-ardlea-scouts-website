@@ -1,5 +1,6 @@
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { formatSiteDate } from "./siteDateFormat.ts";
+import { isCanonicalDateOnly } from "./weeklyMeetingProgrammeLogic.ts";
 
 export type ParentProgrammeItem = {
   name: string;
@@ -53,7 +54,7 @@ function mapProgramme(snapshot: QueryDocumentSnapshot<DocumentData>): ParentWeek
   const data = snapshot.data();
   const section = typeof data.section === "string" ? data.section.trim() : "";
   const meetingDate = typeof data.meetingDate === "string" ? data.meetingDate.trim() : "";
-  if (!section || !meetingDate || !Array.isArray(data.activities) || !Array.isArray(data.badgework)) return null;
+  if (!section || !isCanonicalDateOnly(meetingDate) || !Array.isArray(data.activities) || !Array.isArray(data.badgework)) return null;
   const mapItems = (items: unknown[]) => items
     .map((value) => {
       if (!value || typeof value !== "object" || Array.isArray(value)) return null;
