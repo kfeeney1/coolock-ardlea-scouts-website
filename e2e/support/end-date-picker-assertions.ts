@@ -28,3 +28,14 @@ export async function assertEndDatePickerMinimum(calendar: Locator, page: Page, 
   const content = await calendar.locator(".MuiDialogContent-root").evaluate((element) => ({ clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }));
   expect(content.scrollHeight).toBeLessThanOrEqual(content.clientHeight + 1);
 }
+
+export async function assertStartDatePicker(calendar: Locator, page: Page) {
+  const description = page.locator(`[id="${await calendar.getAttribute("aria-describedby")}"]`);
+  await expect(description).toHaveText("Enter or select a date. The selected date is not applied until you confirm.");
+  await expect(description).toHaveCSS("clip-path", "inset(50%)");
+  await expect(description).toHaveCSS("position", "absolute");
+  await expect(calendar.getByRole("button", { name: "Confirm date" })).toBeVisible();
+  await expect(calendar.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+  const content = await calendar.locator(".MuiDialogContent-root").evaluate((element) => ({ clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }));
+  expect(content.scrollHeight).toBeLessThanOrEqual(content.clientHeight + 1);
+}
