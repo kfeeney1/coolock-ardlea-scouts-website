@@ -20,6 +20,7 @@ import { classifyFirestoreFailure, firestoreFailureMessage } from "../services/f
 import type { ParentChildRequest } from "../services/parentChildMatching";
 import { createParentAccessForCurrentUser, loadParentAccount, loginParent, logoutParent, registerParent } from "../services/parentPortal";
 import type { ParentAccount } from "../services/parentPortal";
+import { loadParentConsentEnabled } from "../services/siteSettings";
 
 const emptyChild = (): ParentChildRequest => ({ firstName: "", lastName: "", dateOfBirth: "" });
 
@@ -45,6 +46,8 @@ export default function ParentPortal() {
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [joinConsentNotice, setJoinConsentNotice] = useState("");
+    const [consentFlowsEnabled, setConsentFlowsEnabled] = useState(false);
+    const [consentSettingsReady, setConsentSettingsReady] = useState(false);
     const [taskSummaryVersion, setTaskSummaryVersion] = useState(0);
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -57,6 +60,19 @@ export default function ParentPortal() {
     const childCommitTimerRef = useRef<number | null>(null);
     const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
+
+    useEffect(() => {
+        let cancelled = false;
+        void loadParentConsentEnabled().then((enabled) => {
+            if (!cancelled) setConsentFlowsEnabled(enabled);
+        }).catch((settingsError) => {
+            reportApplicationError(settingsError, { area: "ParentPortal", operation: "Unable to load Parent Portal consent setting" });
+            if (!cancelled) setConsentFlowsEnabled(false);
+        }).finally(() => {
+            if (!cancelled) setConsentSettingsReady(true);
+        });
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         const cancelPendingChildCommit = () => {
@@ -128,7 +144,7 @@ export default function ParentPortal() {
     }, [requestedChildId, searchParams, selectedChild, navigate, location.hash]);
 
     useEffect(() => {
-        if (!joinConsentToken || !user || handledJoinConsentTokenRef.current === joinConsentToken) return;
+        if (!joinConsentToken || !user || !consentSettingsReady || handledJoinConsentTokenRef.current === joinConsentToken) return;
         handledJoinConsentTokenRef.current = joinConsentToken;
         let cancelled = false;
         void resolveJoinConsentContext(joinConsentToken).then(async ({ memberId }) => {
@@ -140,8 +156,10 @@ export default function ParentPortal() {
             const next = new URLSearchParams(searchParams);
             next.delete("joinToken");
             next.set("child", memberId);
-            setJoinConsentNotice("Your accepted child is linked to this Parent Portal account. Review and submit the consent form below.");
-            navigate({ pathname: "/parent", search: next.toString(), hash: "#parent-medical-consent" }, { replace: true, state: location.state });
+            setJoinConsentNotice(consentFlowsEnabled
+                ? "Your accepted child is linked to this Parent Portal account. Review and submit the consent form below."
+                : "Your accepted child is linked to this Parent Portal account. Consent and Medical Consent are currently disabled in the Parent Portal.");
+            navigate({ pathname: "/parent", search: next.toString(), hash: consentFlowsEnabled ? "#parent-medical-consent" : "" }, { replace: true, state: location.state });
         }).catch((contextError) => {
             if (cancelled) return;
             handledJoinConsentTokenRef.current = "";
@@ -149,7 +167,7 @@ export default function ParentPortal() {
             setJoinConsentNotice("This accepted-child link is unavailable for this account. Confirm that you are signed in with the parent email used for the application or contact a leader.");
         });
         return () => { cancelled = true; };
-    }, [joinConsentToken, user, searchParams, navigate, location.state]);
+    }, [joinConsentToken, user, consentSettingsReady, consentFlowsEnabled, searchParams, navigate, location.state]);
 
     const rememberChildSelection = (childId: string) => {
         if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
@@ -282,6 +300,7 @@ export default function ParentPortal() {
                 selectedChild={selectedChild}
                 pendingChildId={pendingChildId}
                 childrenLoadError={childrenLoadError}
+                consentFlowsEnabled={consentFlowsEnabled}
                 taskSummaryVersion={taskSummaryVersion}
                 onRememberChildSelection={rememberChildSelection}
                 onCommitChildSelectionAfterClose={commitChildSelectionAfterClose}

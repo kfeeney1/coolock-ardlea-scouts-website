@@ -46,19 +46,33 @@ export function validateProjectionIntegrity(collections) {
       for (const field of ["parentInactivityMinutes", "leaderDesktopInactivityMinutes", "leaderPhoneInactivityMinutes"]) {
         if (!whole(data[field]) || data[field] < 5 || data[field] > 240) fail("siteSettings", id, `${field} must be a whole number from 5 to 240`);
       }
-    } else if (["parentLogin", "publicNavigation"].includes(id)) {
+    } else if (id === "parentLogin") {
       if (typeof data.parentLoginEnabled !== "boolean") fail("siteSettings", id, "parentLoginEnabled must be boolean");
-      if (id === "parentLogin" && !text(data.updatedBy)) fail("siteSettings", id, "updatedBy is required");
+      if (!text(data.updatedBy)) fail("siteSettings", id, "updatedBy is required");
+      if (data.updatedAt === undefined) fail("siteSettings", id, "updatedAt is required");
+    } else if (id === "parentConsent") {
+      if (typeof data.parentConsentEnabled !== "boolean") fail("siteSettings", id, "parentConsentEnabled must be boolean");
+      if (!text(data.updatedBy)) fail("siteSettings", id, "updatedBy is required");
+      if (data.updatedAt === undefined) fail("siteSettings", id, "updatedAt is required");
+    } else if (id === "publicNavigation") {
+      if (typeof data.parentLoginEnabled !== "boolean") fail("siteSettings", id, "parentLoginEnabled must be boolean");
+      if (Object.hasOwn(data, "parentConsentEnabled") && typeof data.parentConsentEnabled !== "boolean") fail("siteSettings", id, "parentConsentEnabled must be boolean when present");
     } else {
       fail("siteSettings", id, "unexpected settings document id");
     }
-    if (id === "parentLogin" && data.updatedAt === undefined) fail("siteSettings", id, "updatedAt is required");
   }
   const parentLogin = records("siteSettings").get("parentLogin");
+  const parentConsent = records("siteSettings").get("parentConsent");
   const publicNavigation = records("siteSettings").get("publicNavigation");
   if (Boolean(parentLogin) !== Boolean(publicNavigation)) fail("siteSettings", "parentLogin", "canonical setting and public projection must exist together");
   if (parentLogin && publicNavigation && parentLogin.parentLoginEnabled !== publicNavigation.parentLoginEnabled) {
     fail("siteSettings", "publicNavigation", "public projection differs from the canonical Parent Login setting");
+  }
+  if (Boolean(parentConsent) !== Boolean(publicNavigation && Object.hasOwn(publicNavigation, "parentConsentEnabled"))) {
+    fail("siteSettings", "parentConsent", "canonical setting and public consent projection must exist together");
+  }
+  if (parentConsent && publicNavigation && parentConsent.parentConsentEnabled !== publicNavigation.parentConsentEnabled) {
+    fail("siteSettings", "publicNavigation", "public projection differs from the canonical Parent Portal consent setting");
   }
 
   return errors.sort();

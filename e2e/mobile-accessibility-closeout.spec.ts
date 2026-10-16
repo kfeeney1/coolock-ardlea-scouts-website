@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const leaderEmail = process.env.E2E_LEADER_EMAIL;
 const leaderPassword = process.env.E2E_LEADER_PASSWORD || process.env.E2E_TEST_USER_PASSWORD;
@@ -73,19 +74,29 @@ test.describe("Stage 10 mobile and accessibility close-out", () => {
     }
   });
 
-  test("approved parent dashboard and consent form fit phone width", async ({ page }, testInfo) => {
+  test("approved parent dashboard and consent form fit phone width", async ({ page, browser }, testInfo) => {
     mobileOnly(testInfo);
     test.skip(!parentEmail || !parentPassword, "Canonical parent E2E credentials are required.");
-    await loginParent(page);
-    await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
-    await expectNoHorizontalPageOverflow(page);
-    await expectMobileAccessibilityBaseline(page);
+    const releaseSettingLock = await acquireParentConsentSettingLock();
+    await setParentConsentEnabled(browser, true);
+    try {
+      await loginParent(page);
+      await expect(page.getByRole("contentinfo")).toContainText(registeredCharityText);
+      await expectNoHorizontalPageOverflow(page);
+      await expectMobileAccessibilityBaseline(page);
 
-    const consentTile = page.getByTestId("parent-consent-tile-TEST_member_beaver_01");
-    await consentTile.getByRole("button", { name: "Review Consent" }).click();
-    await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
-    await expectNoHorizontalPageOverflow(page);
-    await expectMobileAccessibilityBaseline(page);
+      const consentTile = page.getByTestId("parent-consent-tile-TEST_member_beaver_01");
+      await consentTile.getByRole("button", { name: "Review Consent" }).click();
+      await expect(page.getByRole("button", { name: "Save Consent & Medical Details" })).toBeVisible();
+      await expectNoHorizontalPageOverflow(page);
+      await expectMobileAccessibilityBaseline(page);
+    } finally {
+      try {
+        await setParentConsentEnabled(browser, false);
+      } finally {
+        await releaseSettingLock();
+      }
+    }
   });
 
   test("leader menu and core Stage 10 pages fit phone width", async ({ page }, testInfo) => {
