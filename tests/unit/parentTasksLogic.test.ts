@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ParentConsentRecord, ParentLinkedMember } from "../../src/services/parentConsent.ts";
 import type { ParentEventConsentLink } from "../../src/services/parentEvents.ts";
-import { summariseParentTasks } from "../../src/services/parentTasksLogic.ts";
+import { loadParentTaskSummary, summariseParentTasks } from "../../src/services/parentTasksLogic.ts";
 
 const event = (overrides: Partial<ParentEventConsentLink> = {}): ParentEventConsentLink => ({
     token: "token-1",
@@ -122,4 +122,23 @@ test("summariseParentTasks flags a consent form after its annual validity period
         asOf
     );
     assert.equal(summary.medicalAttentionCount, 1);
+});
+
+test("parent task summary can recover when its event query is retried", async () => {
+    let shouldFail = true;
+    const sources = {
+        events: async () => {
+            if (shouldFail) throw Object.assign(new Error("internal Firestore details"), { code: "failed-precondition" });
+            return [event()];
+        },
+        members: async () => [],
+        consents: async () => []
+    };
+
+    await assert.rejects(loadParentTaskSummary(sources), /internal Firestore details/);
+    shouldFail = false;
+    const summary = await loadParentTaskSummary(sources);
+
+    assert.equal(summary.eventConsentCount, 1);
+    assert.equal(summary.nextConsentEvent?.title, "Camp");
 });
