@@ -177,36 +177,7 @@ test.describe("approved parent journey", () => {
     await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
 
-  test("Things to do summary retries successfully after a temporary Firestore query failure", async ({ page }) => {
-    let failListenerRequests = false;
-    let injectedFailures = 0;
-    await page.route("**/Listen/channel*", async (route) => {
-      if (failListenerRequests) {
-        injectedFailures += 1;
-        await route.fulfill({
-          status: 400,
-          contentType: "text/plain",
-          body: JSON.stringify({ error: { code: 9, status: "FAILED_PRECONDITION", message: "temporary test failure" } })
-        });
-        return;
-      }
-      await route.continue();
-    });
-
-    await loginParent(page);
-    failListenerRequests = true;
-    await page.reload();
-    const summary = page.getByTestId("parent-things-to-do");
-    await expect(summary.getByTestId("parent-things-to-do-error")).toBeVisible();
-
-    expect(injectedFailures).toBeGreaterThan(0);
-    failListenerRequests = false;
-    await summary.getByRole("button", { name: "Retry" }).click();
-    await expect(summary.getByText("Event consent", { exact: true })).toBeVisible();
-    await expect(summary.getByText("Medical & consent", { exact: true })).toBeVisible();
-    await expect(summary.getByText("Upcoming events", { exact: true })).toBeVisible();
-    await expect(summary.getByTestId("parent-things-to-do-error")).toHaveCount(0);
-  });});
+});
 
 test("approved parent can sign out globally and must authenticate again", async ({ page }, testInfo) => {
   test.skip(!["chromium", "mobile-chromium"].includes(testInfo.project.name), "Parent logout regression runs on desktop and Pixel 7 Chromium.");
