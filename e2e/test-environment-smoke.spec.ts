@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const testPassword = process.env.E2E_TEST_USER_PASSWORD;
 const stableTestSmoke = process.env.E2E_STABLE_ENVIRONMENT_SMOKE === "true";
@@ -58,18 +59,43 @@ test.describe("stable TEST environment smoke", () => {
     await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   });
 
-  test("parent journey loads event consent requests for linked synthetic children", async ({ page }) => {
-    await signIn(page, "/parent", "test.cub.parent1@example.com");
-    await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
-    await expect(page.getByText(/Your account is approved and linked to/i)).toBeVisible();
+  test("parent journey loads event consent requests for linked synthetic children", async ({ page, browser }) => {
+    const settingLock = testSmokeContract ? await acquireParentConsentSettingLock() : null;
+    let previousConsentEnabled: boolean | null = null;
+    try {
+      // PR smoke must exercise the enabled consent journey even when another test
+      // has left the shared emulator setting disabled. Stable TEST smoke respects
+      // the deployed setting and checks the matching consent or events-only state.
+      if (testSmokeContract) previousConsentEnabled = await setParentConsentEnabled(browser, true);
 
-    const eventSection = page.locator("#parent-event-consent");
-    await expect(eventSection.getByRole("heading", { name: "Upcoming Events & Event Consent" })).toBeVisible();
-    await expect(eventSection.getByTestId("parent-event-consent-error")).toHaveCount(0);
-    await expect(eventSection.getByTestId("parent-event-consent-permission")).toHaveCount(0);
-    await expect.poll(async () =>
-      (await eventSection.getByTestId("parent-event-consent-tiles").count())
-      + (await eventSection.getByText("No upcoming consent requests", { exact: true }).count())
-    ).toBe(1);
+      await signIn(page, "/parent", "test.cub.parent1@example.com");
+      await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
+      await expect(page.getByText(/Your account is approved and linked to/i)).toBeVisible();
+
+      const eventSection = page.locator("#parent-event-consent");
+      const consentHeading = eventSection.getByRole("heading", { name: "Upcoming Events & Event Consent" });
+      const eventsHeading = eventSection.getByRole("heading", { name: "Upcoming Events & Galleries" });
+      await expect.poll(async () => (await consentHeading.count()) + (await eventsHeading.count())).toBe(1);
+      if (await consentHeading.count() > 0) {
+        await expect(consentHeading).toBeVisible();
+        await expect(eventSection.getByTestId("parent-event-consent-error")).toHaveCount(0);
+        await expect(eventSection.getByTestId("parent-event-consent-permission")).toHaveCount(0);
+        await expect.poll(async () =>
+          (await eventSection.getByTestId("parent-event-consent-tiles").count())
+          + (await eventSection.getByText("No upcoming consent requests", { exact: true }).count())
+        ).toBe(1);
+      } else {
+        await expect(eventsHeading).toBeVisible();
+        await expect(eventSection.getByRole("heading", { name: "Event Galleries" })).toBeVisible();
+      }
+    } finally {
+      try {
+        if (previousConsentEnabled !== null) {
+          await setParentConsentEnabled(browser, previousConsentEnabled);
+        }
+      } finally {
+        await settingLock?.();
+      }
+    }
   });
 });

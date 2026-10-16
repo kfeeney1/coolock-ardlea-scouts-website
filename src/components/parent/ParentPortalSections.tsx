@@ -55,7 +55,7 @@ export default function ParentPortalSections({
     <Box id="parent-dashboard-polls" sx={{ mb: 3 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Group Polls</Typography><ParentPollsSection key={pollSections.join("|")} sections={pollSections} /></Box>
     <Box id="parent-things-to-do" sx={{ scrollMarginTop: 24 }}><ParentThingsToDo memberIds={memberIds} sections={sections} refreshVersion={taskSummaryVersion} consentFlowsEnabled={consentFlowsEnabled} /></Box>
     <Box id="parent-adventure-skills" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Adventure Skills Progress</Typography><ParentAdventureSkillsSection memberIds={memberIds} /></Box>
-    <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Upcoming Events & Event Consent</Typography><ParentEventConsentSection memberIds={memberIds} sections={sections} /></Box>
+    <Box id="parent-event-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>{consentFlowsEnabled ? "Upcoming Events & Event Consent" : "Upcoming Events & Galleries"}</Typography><ParentEventConsentSection memberIds={memberIds} sections={sections} consentFlowsEnabled={consentFlowsEnabled} /></Box>
     {consentFlowsEnabled && <Box id="parent-medical-consent" sx={{ mt: 4, scrollMarginTop: 24 }}><Typography variant="h5" color="secondary" sx={{ mb: 2, fontWeight: 800 }}>Consent & Medical Forms</Typography><ParentConsentSection memberIds={memberIds} onSaved={onConsentSaved} /></Box>}
   </>;
 }

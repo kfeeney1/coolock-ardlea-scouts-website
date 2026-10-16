@@ -91,6 +91,18 @@ test("summariseParentTasks exposes the next event and next consent action in dat
     assert.equal(summary.nextConsentEvent?.title, "Consent Trip");
 });
 
+test("disabled event consent hides consent actions while keeping upcoming events", () => {
+    const consentEvent = event({ title: "Consent Trip" });
+    const ordinaryEvent = event({ token: "ordinary", eventId: "ordinary", title: "Community Hike", consentRequired: false });
+    const summary = summariseParentTasks([consentEvent, ordinaryEvent], [], [], asOf, false);
+
+    assert.equal(summary.eventConsentCount, 0);
+    assert.equal(summary.nextConsentEvent, null);
+    assert.equal(summary.upcomingEventCount, 2);
+    assert.equal(summary.nextEvent?.title, "Consent Trip");
+    assert.equal(summary.totalAttentionCount, 0);
+});
+
 test("summariseParentTasks flags missing and undated legacy medical records", () => {
     const summary = summariseParentTasks(
         [],
