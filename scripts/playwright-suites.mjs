@@ -11,6 +11,7 @@ export const suiteSpecs = {
   ],
   "authentication-rbac": [
     "admin-overview.spec.ts",
+    "login-dashboard-routing.spec.ts",
     "leader-access-management.spec.ts",
     "organisation-chart.spec.ts",
     "parent-access-management.spec.ts",

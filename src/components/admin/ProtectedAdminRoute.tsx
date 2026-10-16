@@ -26,7 +26,8 @@ export default function ProtectedAdminRoute({
         user,
         loading,
         authorised,
-        accessError
+        accessError,
+        sessionEnded
     } = useAdminAuth();
 
     const location = useLocation();
@@ -70,7 +71,7 @@ export default function ProtectedAdminRoute({
             <Navigate
                 to="/leader/login"
                 replace
-                state={{
+                state={sessionEnded ? null : {
                     from: `${location.pathname}${location.search}${location.hash}`
                 }}
             />
