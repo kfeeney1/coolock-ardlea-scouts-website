@@ -176,7 +176,6 @@ test.describe("approved parent journey", () => {
     await expect(page.getByTestId("parent-event-gallery-error")).toHaveCount(0);
     await expect(page.getByTestId("parent-event-gallery-retry")).toHaveCount(0);
   });
-
 });
 
 test("approved parent can sign out globally and must authenticate again", async ({ page }, testInfo) => {
