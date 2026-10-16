@@ -221,12 +221,13 @@ test("selected-event consent-link lists require a matching server-authorized aud
     where("section", "in", ["Cubs", "Group", "All Sections"]),
   )));
   if (legacyLinks.size !== 1 || legacyLinks.docs[0].id !== "link-legacy") throw new Error("Legacy parent event links remain available to the linked account.");
-  await assertFails(getDocs(query(
+  const unrelatedLegacyLinks = await assertSucceeds(getDocs(query(
     collection(otherDb, "eventConsentLinks"),
     where("active", "==", true),
     where("audienceVersion", "==", 2),
     where("section", "in", ["Scouts"]),
   )));
+  assert.equal(unrelatedLegacyLinks.size, 0);
   await assertFails(getDocs(query(
     collectionGroup(otherDb, "audienceMembers"),
     where("memberId", "in", ["member-cub"]),
