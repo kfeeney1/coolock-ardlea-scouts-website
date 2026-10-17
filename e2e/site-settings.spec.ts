@@ -65,7 +65,9 @@ test("QM-only users see a clear QM empty state without finance settings", async 
   await expect(emptyState.getByRole("heading", { name: "Quartermaster settings", exact: true })).toBeVisible();
   await expect(emptyState.getByRole("status")).toHaveText("No current settings.");
   await expect(page.getByTestId("subs-settings-panel")).toHaveCount(0);
-  await expect(page.getByText(/Rate policy|Family Billing Account/i)).toHaveCount(0);
+  // Section-finance navigation is permitted independently of subs settings.
+  // Assert the actual finance sections are absent, including hidden sections.
+  await expect(page.getByRole("heading", { name: /Rate policy|Family Billing Account/i, includeHidden: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save immutable rate policy" })).toHaveCount(0);
 
   await page.reload();
@@ -77,6 +79,12 @@ test("QM-only users see a clear QM empty state without finance settings", async 
   await navigation.getByTestId("leader-nav-qm-settings").click();
   await expect(page).toHaveURL(/\/leader\/settings\?view=quartermaster$/);
   await expect(page.getByTestId("qm-settings-empty-state").getByRole("status")).toHaveText("No current settings.");
+
+  await page.goto("/leader/settings?view=treasurer");
+  await expect(page).toHaveURL(/\/leader$/);
+  await expect(page.getByTestId("subs-settings-panel")).toHaveCount(0);
+  await expect(page.getByTestId("leader-nav-treasurer-settings")).toHaveCount(0);
+  await expect(page.getByTestId("leader-nav-settings")).toHaveCount(0);
 });
 
 test("ordinary leader cannot access site settings", async ({ page }, testInfo) => {
