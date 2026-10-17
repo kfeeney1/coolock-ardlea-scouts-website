@@ -1,4 +1,6 @@
 import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const adminEmail = process.env.E2E_SUPER_ADMIN_EMAIL;
@@ -74,6 +76,7 @@ async function publishScopedParentPoll(page: Page, browser: Browser, testInfo: T
   const parentContext = await browser.newContext();
   const parentPage = await parentContext.newPage();
   await login(parentPage, "/parent", parentEmail!);
+  await expect(parentPage.getByTestId("parent-polls")).toBeVisible();
   await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
 
   await pollCard.getByRole("button", { name: "Publish poll" }).click();
@@ -140,27 +143,49 @@ test.describe("dashboard polls", () => {
     await parentContext.close();
   });
 
-  // Publication/vote amendment and closure are independent journeys. Keeping
-  // three acknowledged management writes in one test exhausted the normal 30s
-  // budget in CI before the close acknowledgement; retain every UI assertion.
+  // Publication is exercised above. Start closure from its own published fixture
+  // so UI creation/publication writes do not consume the closure/reload budget.
   test("a published scoped poll closes and disappears from the parent dashboard", async ({ page, browser }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!parentEmail || !adminEmail || !password, "Configure the approved parent and super-admin E2E accounts.");
-    const { question, parentContext, parentPage, pollCard: cleanupPoll } = await publishScopedParentPoll(page, browser, testInfo);
-    await parentPage.reload();
-    const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
-    await expect(parentPoll).toBeVisible();
-    await parentPoll.getByRole("radio", { name: "Outdoor activity" }).check();
-    await parentPoll.getByRole("button", { name: "Save response" }).click();
-    await expect(parentPoll.getByRole("status")).toContainText("Your response is saved");
-    await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
-    await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();
-    await expect(cleanupPoll.getByRole("button", { name: "View results" })).toBeVisible();
-    await parentPage.reload();
-    await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question })).toContainText("closed");
-    await parentContext.close();
+    if (process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts") {
+      throw new Error("Poll closure fixtures require the local demo Firestore emulator.");
+    }
+    const firestore = getFirestore(getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" }));
+    const pollRef = firestore.collection("polls").doc();
+    const question = `SW-357 closure ${pollRef.id}`;
+    const options = ["Outdoor activity", "Indoor activity"];
+    const scope = { audienceType: "parents", scopeType: "sections", scopeSections: ["Beavers"], status: "published" };
+    const batch = firestore.batch();
+    batch.set(pollRef, { ...scope, question, options, createdBy: "e2e-poll-fixture", updatedBy: "e2e-poll-fixture", createdAt: Timestamp.now(), updatedAt: Timestamp.now(), publishedAt: Timestamp.now() });
+    batch.set(pollRef.collection("audienceSections").doc("Beavers"), { ...scope, pollId: pollRef.id, section: "Beavers" });
+    options.forEach((option, optionIndex) => batch.set(pollRef.collection("results").doc(String(optionIndex)), { option, optionIndex, count: 0 }));
+    await batch.commit();
+    const parentContext = await browser.newContext();
+    try {
+      const parentPage = await parentContext.newPage();
+      await login(page, "/leader/login", adminEmail!);
+      await login(parentPage, "/parent", parentEmail!);
+      const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+      await expect(cleanupPoll).toContainText("published");
+      await parentPage.reload();
+      const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
+      await expect(parentPoll).toBeVisible();
+      await parentPoll.getByRole("radio", { name: "Outdoor activity" }).check();
+      await parentPoll.getByRole("button", { name: "Save response" }).click();
+      await expect(parentPoll.getByRole("status")).toContainText("Your response is saved");
+      await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
+      await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();
+      await expect(cleanupPoll.getByRole("button", { name: "View results" })).toBeVisible();
+      await parentPage.reload();
+      await expect(parentPage.getByTestId("parent-polls")).toBeVisible();
+      await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question })).toContainText("closed");
+    } finally {
+      await parentContext.close();
+      await firestore.recursiveDelete(pollRef);
+    }
   });
 
   test("SW-407 shows eligible leader polls first and refreshes aggregate results", async ({ page, browser }, testInfo) => {
