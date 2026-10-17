@@ -16,12 +16,13 @@ async function expectFilledAction(control: Locator) {
 
 async function ensureOpenScoutsMeeting(page: Page) {
   await page.goto("/leader/weekly");
+  await expect(page.getByText("Open Meeting", { exact: true })).toBeVisible();
   const openMeeting = page.getByRole("button", { name: /· Scouts/ }).first();
   if (await openMeeting.count()) return;
 
   await page.getByRole("link", { name: "Create Meeting" }).click();
   await expect(page.getByRole("heading", { name: "Create Meeting" })).toBeVisible();
-  await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-12-29");
+  await page.getByRole("textbox", { name: /^Meeting date/ }).fill("29-12-2099");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
   await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
 
@@ -122,3 +123,66 @@ test("SW-369 browser Back from an open weekly meeting returns to the meeting lis
   await expect(weeklyNav.nth(0)).toHaveAttribute("aria-current", "page");
   await expect(weeklyNav.nth(1)).toHaveAttribute("aria-current", "page");
 });
+
+for (const redesigned of [false, true]) {
+  test(`${redesigned ? "Redesigned" : "Existing"} rapid browser Back keeps the weekly list and editor identity consistent`, async ({ page, browser, baseURL }) => {
+    test.skip(!password, "Configure canonical E2E credentials.");
+    const settingsContext = await browser.newContext({ baseURL });
+    const settingsPage = await settingsContext.newPage();
+    const choice = (name: string) => settingsPage.getByRole("button", { name: `${name} navigation`, exact: true });
+    try {
+      await loginAsLeader(settingsPage, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+      await settingsPage.goto("/leader/settings");
+      const selectedMode = choice(redesigned ? "Redesigned" : "Existing");
+      await expect(selectedMode).toBeEnabled();
+      if (await selectedMode.getAttribute("aria-pressed") !== "true") await selectedMode.click();
+      await expect(selectedMode).toHaveAttribute("aria-pressed", "true");
+      await loginAsLeader(page, { email: sectionLeaderEmail, password: password! });
+      await ensureOpenScoutsMeeting(page);
+      const menu = page.locator('button[aria-controls="leader-navigation"]');
+      await menu.click();
+      const version = page.getByTestId(redesigned ? "leader-navigation-redesigned" : /^leader-navigation-(desktop|mobile)$/);
+      await expect(version.filter({ visible: true })).toHaveCount(1);
+      await page.goBack();
+      await expect(menu).toHaveAttribute("aria-expanded", "false");
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        // Exercise Back during the route transition, before React necessarily
+        // observes the meeting query. The real click and browser history stay
+        // intact; the Navigation API gives this regression a reliable ordering.
+        await page.evaluate(() => {
+          const navigation = (window as Window & { navigation: EventTarget }).navigation;
+          const returnImmediately = (event: Event) => {
+            const target = new URL((event as Event & { destination: { url: string } }).destination.url);
+            if (target.pathname !== "/leader/weekly" || !target.searchParams.has("meeting")) return;
+            navigation.removeEventListener("navigate", returnImmediately);
+            queueMicrotask(() => window.history.back());
+          };
+          navigation.addEventListener("navigate", returnImmediately);
+        });
+        await page.getByRole("button", { name: /· Scouts/ }).first().click();
+        await expect(page).toHaveURL(/\/leader\/weekly$/);
+        await expect(page.getByText("Open Meeting", { exact: true })).toBeVisible();
+        await expect(page.getByTestId("weekly-meeting-editor-top")).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "Menu · Weekly Meetings", exact: true })).toBeVisible();
+      }
+      // An ordinary open, deep-link reload and Back must still work afterwards.
+      await page.getByRole("button", { name: /· Scouts/ }).first().click();
+      await expect(page).toHaveURL(/\/leader\/weekly\?meeting=/);
+      await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
+      await page.reload();
+      await expect(page.getByTestId("weekly-meeting-editor-top")).toBeVisible();
+      await page.goBack();
+      await expect(page).toHaveURL(/\/leader\/weekly$/);
+      await expect(page.getByText("Open Meeting", { exact: true })).toBeVisible();
+      await expect(page.getByTestId("weekly-meeting-editor-top")).toHaveCount(0);
+    } finally {
+      try {
+        if (redesigned) {
+          await choice("Existing").click();
+          await expect(choice("Existing")).toHaveAttribute("aria-pressed", "true");
+        }
+      } finally { await settingsContext.close(); }
+    }
+  });
+}

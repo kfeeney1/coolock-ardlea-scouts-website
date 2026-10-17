@@ -50,7 +50,10 @@ export default function WeeklySectionTracker() {
   const [equipmentItems,setEquipmentItems]=useState<EquipmentItem[]>([]);
   const [equipmentLoans,setEquipmentLoans]=useState<EquipmentLoan[]>([]);
   const [equipmentOpen,setEquipmentOpen]=useState(false);
-  const [selected,setSelected]=useState<WeeklyMeetingRecord|null>(null);
+  const [selectedRecord,setSelected]=useState<WeeklyMeetingRecord|null>(null);
+  // A fast POP may cancel the route transition after the click selected a record.
+  // Only the meeting named by the committed route may expose an editor.
+  const selected=selectedRecord?.id===meetingId?selectedRecord:null;
   const [savedSelected,setSavedSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [step,setStep]=useState<Step>("attendance");
   const [injuryMemberId,setInjuryMemberId]=useState("");

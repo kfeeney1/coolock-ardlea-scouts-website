@@ -11,22 +11,16 @@ async function loginAdmin(page: Page, email = "test.webadmin@example.com") {
 }
 
 async function signOutLeader(page: Page) {
-  // Reset transient dialogs and their browser-history markers before opening
-  // the header menu to switch the signed-in test account.
-  await page.goto("/leader/profile");
+  // Switch accounts through the current page's actual controls. A forced
+  // document navigation can race a closing dialog's history cleanup.
   const header = page.getByTestId("leader-dashboard-header");
   const signOut = header.getByRole("button", { name: "Sign Out", exact: true });
-  if (!(await signOut.isVisible().catch(() => false))) {
-    await header.getByRole("button", { name: /^(?:Menu ·|Open Leader Menu|Hide Leader Menu)/ }).click();
+  const menu = header.locator('button[aria-controls="leader-navigation"]');
+  if (await menu.getAttribute("aria-expanded") !== "true") {
+    await menu.click();
   }
   await expect(signOut).toBeVisible();
-  await page.evaluate(() => {
-    const header = document.querySelector('[data-testid="leader-dashboard-header"]');
-    const button = Array.from(header?.querySelectorAll("button") ?? [])
-      .find((item) => item.textContent?.trim() === "Sign Out");
-    if (!button) throw new Error("Sign Out button was detached before dispatch.");
-    button.click();
-  });
+  await signOut.click();
   await expect(page).toHaveURL(/\/leader\/login$/);
 }
 
