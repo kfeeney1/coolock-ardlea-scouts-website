@@ -317,7 +317,23 @@ test("SW-390 explicit Save Event releases the dirty guard on desktop and mobile"
   await loginAdmin(page);
   const title = `TEST SW-390 explicit ${Date.now()}`;
   const { eventUrl } = await createEvent(page, title);
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  const eventId = new URL(eventUrl).pathname.split("/").pop()!;
+  const audienceReads = new Set<string>();
+  // Firestore WebChannel batches query targets in form-encoded requests.
+  // Opening this editor must not wait for every other event's audience.
+  page.on("request", (request) => {
+    if (!new URL(request.url()).pathname.endsWith("/Listen/channel")) return;
+    for (const [key, value] of new URLSearchParams(request.postData() ?? "")) {
+      if (!key.endsWith("___data__")) continue;
+      const target = JSON.parse(value).addTarget?.query;
+      if (!target?.structuredQuery?.from?.some((entry: { collectionId: string }) => entry.collectionId === "audienceMembers")) continue;
+      audienceReads.add(target.parent.split("/").pop());
+    }
+  });
   await page.getByRole("link", { name: "Edit Event", exact: true }).click();
+  await expect(page.getByLabel("Event title")).toHaveValue(title);
+  expect([...audienceReads]).toEqual([eventId]);
   await page.getByLabel("Event title").fill(`${title} saved`);
   await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
   await page.getByRole("button", { name: "Save Event", exact: true }).click();

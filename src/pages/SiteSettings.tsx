@@ -14,6 +14,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { effectivePermissionsFor } from "../security/permissionRegistry";
+import LeaderNavigationSettings from "../components/admin/LeaderNavigationSettings";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
 import SubsSettingsPanel from "../components/admin/SubsSettingsPanel";
@@ -40,6 +42,7 @@ export default function SiteSettings() {
     const pageIdentity = navigationView === "quartermaster" ? "qm-settings" : navigationView === "treasurer" ? "treasurer-settings" : "settings";
     const pageTitle = navigationView === "quartermaster" ? "QM Settings" : navigationView === "treasurer" ? "Treasurer Settings" : "Settings";
     const canManageSiteSettings = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
+    const canManageNavigation = Boolean(adminProfile && effectivePermissionsFor(adminProfile.role, adminProfile.scoutingRole, adminProfile.appointments).some((permission) => permission.id === "settings.leader-navigation.manage"));
     const showSessionSettings = canManageSiteSettings && pageIdentity === "settings";
     const showParentLoginSettings = adminProfile?.role === "super-admin" && pageIdentity === "settings";
     const [settings, setSettings] = useState<SessionSettings | null>(null);
@@ -242,6 +245,8 @@ export default function SiteSettings() {
                         )}
                     </Paper>
                 )}
+
+                {canManageNavigation && pageIdentity === "settings" && <LeaderNavigationSettings />}
 
                 {showParentLoginSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>

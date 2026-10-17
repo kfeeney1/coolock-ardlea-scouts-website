@@ -1,10 +1,12 @@
+import RedesignedLeaderNavigation from "./RedesignedLeaderNavigation";
+import { watchLeaderNavigation, type LeaderNavigationVersion } from "../../services/leaderNavigationSettings";
 import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, Collapse, Divider, Paper, Stack, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
-import { activeScoutingAppointments, isGroupLeadershipAppointment } from "../../security/scoutingAppointments";
+import { leaderNavigationFilter } from "../../navigation/leaderNavigationPermissions";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
 import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
@@ -33,34 +35,32 @@ export default function LeaderDashboardHeader() {
   if (!user) return;
   void loadWeeklySectionTracker().catch(() => undefined);
  }, [user?.uid]);
- const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath)))?.label ?? null;
+ const [navigationVersion, setNavigationVersion] = useState<LeaderNavigationVersion>("existing");
+ useEffect(() => {
+  setNavigationVersion("existing");
+  if (!user) return;
+  return watchLeaderNavigation(setNavigationVersion, () => setNavigationVersion("existing"));
+ }, [user?.uid]);
+ const redesigned = navigationVersion === "redesigned";
+ const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath)))?.id ?? null;
+ const activeCategory = redesigned && location.pathname === "/leader/system" ? "super-admin" : activeMobileGroup;
  const [menuOpen, setMenuOpen] = useState(false);
- const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeMobileGroup);
+ const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeCategory);
  const [signingOut, setSigningOut] = useState(false);
  const [signOutError, setSignOutError] = useState("");
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
- const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
- const isGroupLeadership = isGroupLeadershipAppointment(adminProfile?.scoutingRole);
- const isGroupOfficer = isGroupLeadership || adminProfile?.scoutingRole === "Group Secretary";
- const canViewActivityLog = isAdmin || isGroupOfficer;
- const canViewSettings = isAdmin || isGroupLeadership || adminProfile?.scoutingRole === "Group Treasurer";
- const canViewLeaderAccess = isAdmin || isGroupLeadership;
- const activeAppointments = activeScoutingAppointments(adminProfile?.appointments ?? []);
- const appointments = new Set([adminProfile?.scoutingRole, ...activeAppointments.map((item) => item.appointment)].filter(Boolean));
- const hasAppointment = (required?: string[]) => !required || isAdmin || required.some((appointment) => appointments.has(appointment));
- const canViewJoinManagement = isAdmin || activeAppointments.some((item) => item.appointment === "Section Leader" || isGroupLeadershipAppointment(item.appointment));
- const canView = (item: LeaderNavItem) => hasAppointment(item.appointments) && (!item.adminOnly || isAdmin) && (!item.superAdminOnly || adminProfile?.role === "super-admin") && (!item.leaderAccessOnly || canViewLeaderAccess) && (!item.activityLogOnly || canViewActivityLog) && (!item.settingsOnly || canViewSettings) && (!item.joinManagementOnly || canViewJoinManagement);
+ const canView = leaderNavigationFilter(adminProfile);
  const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: group.items.filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const visibleItems = [dashboardNavItem, ...visibleGroups.flatMap((group) => group.items), ...visibleAccountItems];
  const currentItem = visibleItems.find((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath));
- useEffect(() => { setMobileGroupOpen(activeMobileGroup); }, [activeMobileGroup]);
+ useEffect(() => { setMobileGroupOpen(activeCategory); }, [activeCategory]);
  // Busy UI is local to this header. Clear any completed/stale state when the
  // authenticated identity or route changes; the ref still prevents a second
  // Firebase signOut call if navigation happens while the first is pending.
  useEffect(() => { setSigningOut(false); setSignOutError(""); }, [user?.uid, location.pathname]);
- const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeMobileGroup); return !open; }); };
+ const handleMenuToggle = () => { setMenuOpen((open) => { if (!open) setMobileGroupOpen(activeCategory); return !open; }); };
  const closeMenuAndRestoreFocus = () => { setMenuOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus()); };
  const menuHistoryReady = useBackDismiss(menuOpen, closeMenuAndRestoreFocus, "leader-navigation");
  const handleSignOut = async () => {
@@ -88,15 +88,17 @@ export default function LeaderDashboardHeader() {
  };
  const navButton = (item: LeaderNavItem) => {
   const active = matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath);
-  return <Button key={item.id} data-control-role="menu" data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700 }}>{item.label}</Button>;
+  return <Button key={item.id} data-control-role="menu" data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace aria-current={active ? "page" : undefined} variant={active && !redesigned ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700, ...(redesigned ? { borderRadius: 1, borderLeft: "4px solid", borderLeftColor: active ? "secondary.main" : "transparent", bgcolor: active ? "action.selected" : undefined, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: -3 } } : {}) }}>{item.label}</Button>;
  };
- return <Paper data-testid="leader-dashboard-header" elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: "100%", maxWidth: 1536, boxSizing: "border-box" }}>
+ return <Paper data-testid="leader-dashboard-header" onKeyDown={(event) => { if (menuOpen && event.key === "Escape") { event.preventDefault(); closeMenuAndRestoreFocus(); } }} elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: "100%", maxWidth: 1536, boxSizing: "border-box" }}>
   <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>
   <Button ref={menuButtonRef} fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
-  <Collapse in={menuOpen && menuHistoryReady} timeout={0} unmountOnExit><Box id="leader-navigation" component="nav" aria-label="Leader navigation" onKeyDown={(event) => { if (event.key === "Escape") closeMenuAndRestoreFocus(); }} sx={{ mt: 1.5 }}>
+  <Collapse in={menuOpen && menuHistoryReady} timeout={0} unmountOnExit><Box id="leader-navigation" component="nav" aria-label="Leader navigation" sx={{ mt: 1.5 }}>
    <Box sx={{ mb: 1.5 }}>{navButton(dashboardNavItem)}</Box>
-   <Box data-testid="leader-navigation-mobile" sx={{ display: { xs: "block", md: "none" } }}><Stack spacing={1}>{visibleGroups.map((group) => { const expanded=mobileGroupOpen===group.label; const containsActive=group.items.some((item)=>matchesNavPath(`${location.pathname}${location.search}${location.hash}`,item.path,item.exactPath)); const slug=group.label.toLowerCase().replace(/[^a-z0-9]+/g,"-"); const buttonId=`leader-nav-${slug}-button`; const panelId=`leader-nav-${slug}`; return <Paper key={group.label} variant="outlined" sx={{borderRadius:2,overflow:"hidden"}}><Button id={buttonId} fullWidth color="secondary" aria-expanded={expanded} aria-controls={panelId} onClick={()=>setMobileGroupOpen((open)=>open===group.label?null:group.label)} endIcon={<ExpandMoreIcon sx={{transform:expanded?"rotate(180deg)":"none",transition:"transform 160ms ease"}}/>} sx={{minHeight:48,px:1.5,justifyContent:"space-between",fontWeight:containsActive?800:700}}>{group.label}</Button><Collapse in={expanded} timeout={0} unmountOnExit><Stack id={panelId} role="region" aria-labelledby={buttonId} spacing={0.25} sx={{px:1,pb:1}}>{group.items.map(navButton)}</Stack></Collapse></Paper>; })}</Stack></Box>
+   {redesigned ? <RedesignedLeaderNavigation groups={visibleGroups} expanded={mobileGroupOpen} setExpanded={setMobileGroupOpen} renderItem={navButton} /> : <>
+   <Box data-testid="leader-navigation-mobile" sx={{ display: { xs: "block", md: "none" } }}><Stack spacing={1}>{visibleGroups.map((group) => { const expanded=mobileGroupOpen===group.id; const containsActive=group.items.some((item)=>matchesNavPath(`${location.pathname}${location.search}${location.hash}`,item.path,item.exactPath)); const slug=group.label.toLowerCase().replace(/[^a-z0-9]+/g,"-"); const buttonId=`leader-nav-${slug}-button`; const panelId=`leader-nav-${slug}`; return <Paper key={group.label} variant="outlined" sx={{borderRadius:2,overflow:"hidden"}}><Button id={buttonId} fullWidth color="secondary" aria-expanded={expanded} aria-controls={panelId} onClick={()=>setMobileGroupOpen((open)=>open===group.id?null:group.id)} endIcon={<ExpandMoreIcon sx={{transform:expanded?"rotate(180deg)":"none",transition:"transform 160ms ease"}}/>} sx={{minHeight:48,px:1.5,justifyContent:"space-between",fontWeight:containsActive?800:700}}>{group.label}</Button><Collapse in={expanded} timeout={0} unmountOnExit><Stack id={panelId} role="region" aria-labelledby={buttonId} spacing={0.25} sx={{px:1,pb:1}}>{group.items.map(navButton)}</Stack></Collapse></Paper>; })}</Stack></Box>
    <Box data-testid="leader-navigation-desktop" sx={{display:{xs:"none",md:"grid"},gridTemplateColumns:"repeat(2, minmax(0, 1fr))",gap:1.5,alignItems:"start",minWidth:0}}>{[0,1].map((column)=><Stack key={column} spacing={1.5} data-testid={`leader-navigation-column-${column + 1}`} sx={{minWidth:0}}>{visibleGroups.filter((_,index)=>index%2===column).map((group)=><Paper key={group.label} variant="outlined" sx={{p:1.5,borderRadius:2,minWidth:0}}><Typography variant="overline" color="text.secondary" sx={{display:"block",px:1.5,pb:0.5,fontWeight:800,letterSpacing:0.8}}>{group.label}</Typography><Stack spacing={0.25}>{group.items.map(navButton)}</Stack></Paper>)}</Stack>)}</Box>
+   </>}
    {adminProfile?.role === "super-admin" && <><Divider sx={{my:1.75}}/><Typography variant="overline" color="text.secondary" sx={{display:"block",mb:0.5,fontWeight:800,letterSpacing:0.8}}>Look & feel</Typography><Typography variant="body2" color="text.secondary" sx={{mb:1}}>Preview a visual style across the public site and leader portal. This changes only your Super Admin account.</Typography>{themeError&&<Alert severity="error" sx={{mb:1}}>{themeError}</Alert>}<Box data-testid="theme-menu" sx={{display:"grid",gridTemplateColumns:{xs:"1fr",md:"repeat(2, minmax(0, 1fr))",xl:"repeat(5, minmax(0, 1fr))"},gap:1}}>{THEME_OPTIONS.map((option)=>{const selected=adminProfile.uiTheme===option.name;return <Button key={option.name} variant={selected?"contained":"outlined"} color={selected?"secondary":"primary"} aria-pressed={selected} disabled={Boolean(themeSaving)} onClick={()=>void handleThemeChange(option.name)} sx={{minHeight:76,alignItems:"flex-start",flexDirection:"column",textAlign:"left",p:1.25}}><Box sx={{display:"flex",width:"100%",alignItems:"center",gap:.75}}><span>{themeSaving===option.name?"Applying…":option.label}</span>{option.isNew&&<Chip label="New" size="small" color="success" sx={{ml:"auto"}}/>}</Box><Typography component="span" variant="caption" sx={{mt:.4,opacity:.82,textTransform:"none",lineHeight:1.3}}>{option.description}</Typography></Button>})}</Box></>}
    <Divider sx={{my:1.75}}/><Typography variant="overline" color="text.secondary" sx={{display:"block",mb:0.5,fontWeight:800,letterSpacing:0.8}}>Account & Help</Typography>{signOutError&&<Alert severity="error" sx={{mb:1}}>{signOutError}</Alert>}<Box sx={{display:"grid",gridTemplateColumns:{xs:"1fr",sm:"repeat(2, minmax(0, 1fr))",lg:"repeat(4, minmax(0, 1fr))"},gap:0.75}}>{visibleAccountItems.map(navButton)}<Button data-control-role="menu" variant="text" color="secondary" disabled={signingOut} onClick={()=>void handleSignOut()} sx={{width:"100%",minHeight:44,px:1.5,justifyContent:"flex-start",fontWeight:700}}>{signingOut?"Signing Out…":"Sign Out"}</Button></Box>
   </Box></Collapse>

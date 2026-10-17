@@ -262,3 +262,30 @@ test("public site content exposes only canonical environment projections", async
   await assertFails(getDoc(doc(publicDb, "subsPayments/private-finance")));
   await assertFails(setDoc(doc(publicDb, "publicSiteContent/TEST_site"), testProjection));
 });
+
+test("Leader navigation version is private to signed-in readers and writable only by active Super Admin", async () => {
+  await seed([
+    ["adminUsers/super-nav", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-nav", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/leader-nav", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/inactive-nav", { active: false, role: "super-admin", sections: ["Group"] }],
+  ]);
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(publicDb, "siteSettings/leaderNavigation")));
+  for (const uid of ["admin-nav", "leader-nav", "inactive-nav", "parent-nav"]) {
+    const db = testEnv.authenticatedContext(uid).firestore();
+    await assertSucceeds(getDoc(doc(db, "siteSettings/leaderNavigation")));
+    await assertFails(setDoc(doc(db, "siteSettings/leaderNavigation"), { version: "redesigned", updatedBy: uid, updatedAt: serverTimestamp() }));
+  }
+  const db = testEnv.authenticatedContext("super-nav").firestore();
+  const ref = doc(db, "siteSettings/leaderNavigation");
+  for (const version of ["existing", "redesigned"]) {
+    await assertSucceeds(setDoc(ref, { version, updatedBy: "super-nav", updatedAt: serverTimestamp() }));
+    assert.equal((await getDoc(ref)).data().version, version);
+  }
+  await assertFails(setDoc(ref, { version: "unknown", updatedBy: "super-nav", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "other", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: new Date(0) }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
+  await assertFails(getDocs(collection(db, "siteSettings")));
+});
