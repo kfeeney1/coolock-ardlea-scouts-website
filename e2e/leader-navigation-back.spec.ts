@@ -4,17 +4,6 @@ import { loginAsLeader } from "./support/authentication-helpers";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const email = process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com";
 const eventPath = "/leader/events/TEST_flow_event_beavers_open";
-// Native tab creation shares Chromium process state beyond BrowserContexts.
-// Give this journey a fresh process while retaining real UI and authentication.
-const nativeTabTest = test.extend({
-  page: async ({ browser, baseURL }, runTest, testInfo) => {
-    const isolated = await browser.browserType().launch(testInfo.project.use.launchOptions);
-    const { viewport, userAgent, isMobile, hasTouch, deviceScaleFactor } = testInfo.project.use;
-    const context = await isolated.newContext({ baseURL, viewport, userAgent, isMobile, hasTouch, deviceScaleFactor });
-    try { await runTest(await context.newPage()); }
-    finally { await isolated.close(); }
-  }
-});
 async function selectMode(page: Page, redesigned: boolean) {
   await page.goto("/leader/settings");
   const option = page.getByRole("button", { name: `${redesigned ? "Redesigned" : "Existing"} navigation`, exact: true });
@@ -89,7 +78,7 @@ for (const redesigned of [false, true]) {
       await expect(notes).toHaveValue(original);
     });
 
-    nativeTabTest("record links preserve modified clicks and reload uses its safe parent", async ({ page }) => {
+    test("record links preserve modified clicks and reload uses its safe parent", async ({ page }, testInfo) => {
       await setup(page, redesigned);
       await page.goto("/leader/events?section=Beavers");
       await page.getByTestId("event-card-TEST_flow_event_beavers_open").click();
@@ -97,18 +86,22 @@ for (const redesigned of [false, true]) {
       const back = page.getByRole("link", { name: "Back to Events", exact: true });
       await expect(back).toHaveAttribute("href", "/leader/events");
       await page.bringToFront();
-      const nativeBrowser = await page.context().browser()!.newBrowserCDPSession();
       const popupPromise = page.context().waitForEvent("page");
-      await back.click({ modifiers: ["Control"] });
-      // Check browser-native creation separately from the tab's loaded UI.
-      const { targetInfos } = await nativeBrowser.send("Target.getTargets");
-      const popup = await popupPromise;
-      await nativeBrowser.detach();
+      // Let Playwright finish attaching the native tab before its document
+      // commits. Otherwise the driver can miss the initial frame commit and
+      // strand later UI actions on a navigation that has already finished.
+      // Continue the real request unchanged; no page or data is stubbed.
+      await page.context().route("**/leader/events", async route => {
+        await popupPromise;
+        await route.continue();
+      });
+      const [popup] = await Promise.all([popupPromise, back.click({ modifiers: ["Control"] })]);
       try {
-        const source = targetInfos.find(target => target.type === "page" && target.url === page.url());
-        expect(source).toBeDefined();
-        expect(targetInfos.filter(target => target.type === "page" && target.browserContextId === source!.browserContextId)).toHaveLength(2);
-        await popup.waitForLoadState("domcontentloaded");
+        expect(page.context().pages()).toHaveLength(2);
+        expect(popup.context()).toBe(page.context());
+        // Wait for this tab's requested document, rather than accepting the
+        // initial empty document's load state as destination readiness.
+        await popup.waitForURL(/\/leader\/(?:events|login)(?:\?.*)?$/, { waitUntil: "load" });
         await popup.bringToFront();
         // Native tabs need not inherit Firebase's tab-scoped session. Complete
         // any required login in that tab and prove its saved target survives.
@@ -123,7 +116,13 @@ for (const redesigned of [false, true]) {
         }
         await expect(popup).toHaveURL(/\/leader\/events$/);
         await expect(eventsHeading).toBeVisible();
-      } finally { await popup.close(); }
+      } catch (error) {
+        await testInfo.attach("native-tab-url", { body: popup.url(), contentType: "text/plain" });
+        // Preserve the original assertion failure if the tab itself is unresponsive.
+        const screenshot = await popup.screenshot({ timeout: 3000 }).catch(() => undefined);
+        if (screenshot) await testInfo.attach("native-tab-screenshot", { body: screenshot, contentType: "image/png" });
+        throw error;
+      } finally { await popup.close().catch(() => undefined); }
       await expect(page).toHaveURL(new RegExp(`${eventPath}$`));
       await back.click();
       await expect(page).toHaveURL(/\/leader\/events\?section=Beavers$/);
