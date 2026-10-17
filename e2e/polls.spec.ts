@@ -1,4 +1,6 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 const parentEmail = process.env.E2E_PARENT_EMAIL;
 const adminEmail = process.env.E2E_SUPER_ADMIN_EMAIL;
@@ -36,6 +38,55 @@ async function expectPollsAboveOverview(page: Page) {
   })).toBe(true);
 }
 
+async function publishScopedParentPoll(page: Page, browser: Browser, testInfo: TestInfo) {
+  const question = `SW-357 poll assurance ${Date.now()}-${testInfo.testId}`;
+
+  await login(page, "/leader/login", adminEmail!);
+  await expect(page.getByTestId("leader-polls")).toBeVisible();
+  await page.getByLabel("Poll question").fill(question);
+  await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
+  await page.getByRole("combobox", { name: "Poll audience" }).click();
+  const audienceOptions = page.getByRole("listbox", { name: "Poll audience" });
+  await expect(audienceOptions).toBeVisible();
+  await audienceOptions.getByRole("option", { name: "Parents and guardians", exact: true }).press("Enter");
+  // The preceding MUI menu exits asynchronously. Wait for its overlay to
+  // disappear before clicking the adjacent scope control.
+  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(page.getByRole("combobox", { name: "Poll audience" })).toHaveText("Parents and guardians");
+  await page.getByRole("combobox", { name: "Poll scope" }).click();
+  await expect(page.getByRole("listbox", { name: "Poll scope" })).toBeVisible();
+  await page.getByRole("option", { name: "Selected sections" }).click();
+  await expect(page.getByRole("listbox")).toBeHidden();
+  const beavers = page.getByRole("checkbox", { name: "Beavers" });
+  for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
+    if (await checkbox.isChecked()) await checkbox.uncheck();
+  }
+  await beavers.check();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  // Surface Firestore permission/index errors at their source instead of timing out
+  // on an absent management card with no actionable diagnostics.
+  await expect.poll(async () => {
+    const error = await page.getByTestId("leader-polls").getByRole("alert").allTextContents();
+    if (error.length) return `Poll draft failed: ${error.join(" | ")}`;
+    const card = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+    return await card.isVisible() ? "draft visible" : "waiting for draft";
+  }, { message: "Poll draft must save and become visible without Firestore errors" }).toBe("draft visible");
+  const pollCard = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+  await expect(pollCard).toBeVisible();
+  await expect(pollCard.getByRole("button", { name: "Publish poll" })).toBeVisible();
+
+  const parentContext = await browser.newContext();
+  const parentPage = await parentContext.newPage();
+  await login(parentPage, "/parent", parentEmail!);
+  await expect(parentPage.getByTestId("parent-polls")).toBeVisible();
+  await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
+
+  await pollCard.getByRole("button", { name: "Publish poll" }).click();
+  await expect(pollCard.getByText(/published/i)).toBeVisible();
+
+  return { question, parentContext, parentPage, pollCard };
+}
+
 test.describe("dashboard polls", () => {
   test("SW-357 saves the reported whole-group leader draft and blocks a repeated in-flight submission", async ({ page }, testInfo) => {
     desktopOnly(testInfo);
@@ -64,47 +115,7 @@ test.describe("dashboard polls", () => {
   test("a scoped poll is explicitly published, answered once, and persists after reload", async ({ page, browser }, testInfo) => {
     desktopOnly(testInfo);
     test.skip(!parentEmail || !adminEmail || !password, "Configure the approved parent and super-admin E2E accounts.");
-    const question = `SW-357 poll assurance ${Date.now()}`;
-
-    await login(page, "/leader/login", adminEmail!);
-    await expect(page.getByTestId("leader-polls")).toBeVisible();
-    await page.getByLabel("Poll question").fill(question);
-    await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
-    await page.getByRole("combobox", { name: "Poll audience" }).click();
-    await page.getByRole("option", { name: "Parents and guardians" }).click();
-    // The preceding MUI menu exits asynchronously. Wait for its overlay to
-    // disappear before clicking the adjacent scope control.
-    await expect(page.getByRole("listbox")).toBeHidden();
-    await expect(page.getByRole("combobox", { name: "Poll audience" })).toHaveText("Parents and guardians");
-    await page.getByRole("combobox", { name: "Poll scope" }).click();
-    await expect(page.getByRole("listbox", { name: "Poll scope" })).toBeVisible();
-    await page.getByRole("option", { name: "Selected sections" }).click();
-    await expect(page.getByRole("listbox")).toBeHidden();
-    const beavers = page.getByRole("checkbox", { name: "Beavers" });
-    for (const checkbox of await page.getByTestId("poll-create-form").getByRole("checkbox").all()) {
-      if (await checkbox.isChecked()) await checkbox.uncheck();
-    }
-    await beavers.check();
-    await page.getByRole("button", { name: "Save draft" }).click();
-    // Surface Firestore permission/index errors at their source instead of timing out
-    // on an absent management card with no actionable diagnostics.
-    await expect.poll(async () => {
-      const error = await page.getByTestId("leader-polls").getByRole("alert").allTextContents();
-      if (error.length) return `Poll draft failed: ${error.join(" | ")}`;
-      const card = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
-      return await card.isVisible() ? "draft visible" : "waiting for draft";
-    }, { message: "Poll draft must save and become visible without Firestore errors" }).toBe("draft visible");
-    const pollCard = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
-    await expect(pollCard).toBeVisible();
-    await expect(pollCard.getByRole("button", { name: "Publish poll" })).toBeVisible();
-
-    const parentContext = await browser.newContext();
-    const parentPage = await parentContext.newPage();
-    await login(parentPage, "/parent", parentEmail!);
-    await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
-
-    await pollCard.getByRole("button", { name: "Publish poll" }).click();
-    await expect(pollCard.getByText(/published/i)).toBeVisible();
+    const { question, parentContext, parentPage } = await publishScopedParentPoll(page, browser, testInfo);
 
     await parentPage.reload();
     const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
@@ -118,9 +129,35 @@ test.describe("dashboard polls", () => {
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
     await expect(restoredPoll.getByRole("button", { name: "View results" })).toHaveCount(0);
 
+    // Hold the amendment commit until the pending UI is asserted. This makes
+    // the acknowledgement race deterministic instead of relying on CI latency.
+    let releaseCommit!: () => void;
+    let reachedCommit!: () => void;
+    const commitGate = new Promise<void>((resolve) => { releaseCommit = resolve; });
+    const commitReached = new Promise<void>((resolve) => { reachedCommit = resolve; });
+    const commitUrl = "**/documents:commit?*";
+    await parentPage.route(commitUrl, async (route) => {
+      if (route.request().method() !== "POST") { await route.continue(); return; }
+      reachedCommit();
+      await commitGate;
+      await route.continue();
+    });
     await restoredPoll.getByRole("radio", { name: "Indoor activity" }).check();
     await restoredPoll.getByRole("button", { name: "Save changed response" }).click();
+    try {
+      await commitReached;
+      await expect(restoredPoll.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
+      await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    } finally {
+      releaseCommit();
+    }
+    // The saved status belongs to the previous response and remains visible
+    // while an amendment is in flight. The enabled action returns only after
+    // submitPollResponse settles; wait for it before destroying the page.
+    await expect(restoredPoll.getByRole("button", { name: "Save changed response", exact: true })).toBeEnabled();
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    await expect(parentPage.getByTestId("parent-polls").getByRole("alert")).toHaveCount(0);
+    await parentPage.unroute(commitUrl);
     await parentPage.reload();
     const amendedPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(amendedPoll.getByRole("radio", { name: "Indoor activity" })).toBeChecked();
@@ -131,12 +168,52 @@ test.describe("dashboard polls", () => {
     await expect(aggregate).toContainText("Results · 1 response(s)");
     await expect(aggregate).toContainText("Outdoor activity: 0");
     await expect(aggregate).toContainText("Indoor activity: 1");
-    await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
-    await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();
-    await expect(cleanupPoll.getByRole("button", { name: "View results" })).toBeVisible();
-    await parentPage.reload();
-    await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
     await parentContext.close();
+  });
+
+  // Publication is exercised above. Start closure from its own published fixture
+  // so UI creation/publication writes do not consume the closure/reload budget.
+  test("a published scoped poll closes and disappears from the parent dashboard", async ({ page, browser }, testInfo) => {
+    desktopOnly(testInfo);
+    test.skip(!parentEmail || !adminEmail || !password, "Configure the approved parent and super-admin E2E accounts.");
+    if (process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts") {
+      throw new Error("Poll closure fixtures require the local demo Firestore emulator.");
+    }
+    const firestore = getFirestore(getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" }));
+    const pollRef = firestore.collection("polls").doc();
+    const question = `SW-357 closure ${pollRef.id}`;
+    const options = ["Outdoor activity", "Indoor activity"];
+    const scope = { audienceType: "parents", scopeType: "sections", scopeSections: ["Beavers"], status: "published" };
+    const batch = firestore.batch();
+    batch.set(pollRef, { ...scope, question, options, createdBy: "e2e-poll-fixture", updatedBy: "e2e-poll-fixture", createdAt: Timestamp.now(), updatedAt: Timestamp.now(), publishedAt: Timestamp.now() });
+    batch.set(pollRef.collection("audienceSections").doc("Beavers"), { ...scope, pollId: pollRef.id, section: "Beavers" });
+    options.forEach((option, optionIndex) => batch.set(pollRef.collection("results").doc(String(optionIndex)), { option, optionIndex, count: 0 }));
+    await batch.commit();
+    const parentContext = await browser.newContext();
+    try {
+      const parentPage = await parentContext.newPage();
+      await login(page, "/leader/login", adminEmail!);
+      await login(parentPage, "/parent", parentEmail!);
+      const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
+      await expect(cleanupPoll).toContainText("published");
+      await parentPage.reload();
+      const parentPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
+      await expect(parentPoll).toBeVisible();
+      await parentPoll.getByRole("radio", { name: "Outdoor activity" }).check();
+      await parentPoll.getByRole("button", { name: "Save response" }).click();
+      await expect(parentPoll.getByRole("status")).toContainText("Your response is saved");
+      await cleanupPoll.getByRole("button", { name: "Close poll" }).click();
+      await expect(cleanupPoll.getByText(/closed/i)).toBeVisible();
+      await expect(cleanupPoll.getByRole("button", { name: "View results" })).toBeVisible();
+      await parentPage.reload();
+      await expect(parentPage.getByTestId("parent-polls")).toBeVisible();
+      await expect(parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question })).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question })).toContainText("closed");
+    } finally {
+      await parentContext.close();
+      await firestore.recursiveDelete(pollRef);
+    }
   });
 
   test("SW-407 shows eligible leader polls first and refreshes aggregate results", async ({ page, browser }, testInfo) => {

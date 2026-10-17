@@ -8,7 +8,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import type { ReactNode } from "react";
-import type { LeaderNavGroup, LeaderNavItem } from "../../navigation/leaderNavigation";
+import { redesignedNavigationGroups, type LeaderNavGroup, type LeaderNavItem } from "../../navigation/leaderNavigation";
 
 const categories: Record<string, { description: string; icon: ReactNode }> = {
   programme: { description: "Meetings, events and badgework", icon: <EventIcon /> },
@@ -26,16 +26,7 @@ export default function RedesignedLeaderNavigation({ groups, expanded, setExpand
   groups: LeaderNavGroup[]; expanded: string | null; setExpanded: (id: string | null) => void;
   renderItem: (item: LeaderNavItem) => ReactNode;
 }) {
-  const order = ["programme", "people-parents", "secretary", "quartermaster", "group-operations", "treasurer", "insights-records", "administration", "super-admin"];
-  const redesignedGroups = groups.flatMap((group) => {
-    if (group.id !== "administration") return [group];
-    const ordinary = group.items.filter((item) => !item.superAdminOnly);
-    const system = group.items.filter((item) => item.superAdminOnly);
-    return [
-      ...(ordinary.length ? [{ ...group, items: ordinary }] : []),
-      ...(system.length ? [{ id: "super-admin", label: "Super Admin", items: system }] : [])
-    ];
-  }).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  const redesignedGroups = redesignedNavigationGroups(groups);
   return <Stack spacing={1} data-testid="leader-navigation-redesigned">
     {redesignedGroups.map((group) => {
       const open = expanded === group.id;

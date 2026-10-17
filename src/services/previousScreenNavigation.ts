@@ -1,9 +1,5 @@
-export const RECORD_PARENT_ROUTES = [
-  { prefix: "/leader/members/", parent: "/leader/members" },
-  { prefix: "/leader/events/", parent: "/leader/events" },
-  { prefix: "/leader/join/", parent: "/leader/join" },
-  { prefix: "/leader/consents/", parent: "/leader/consents" }
-] as const;
+import { RECORD_PARENT_ROUTES } from "../navigation/leaderNavigation.ts";
+export { RECORD_PARENT_ROUTES } from "../navigation/leaderNavigation.ts";
 
 export function recordParentRoute(pathname: string): string | null {
   return RECORD_PARENT_ROUTES.find(({ prefix }) => pathname.startsWith(prefix))?.parent ?? null;

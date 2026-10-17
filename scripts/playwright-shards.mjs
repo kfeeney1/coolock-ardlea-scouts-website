@@ -2,7 +2,11 @@
 // Each estimate sums test durations from all browser projects. A PR run from
 // 2026-10-01 confirmed the same high-cost specs and ordering. Refresh these
 // weights from Playwright HTML reports when workload changes materially.
+// Initial local estimates for substantial new coverage are labelled below.
 export const measuredPlaywrightSpecSeconds = {
+  // SW-182: 44 local desktop/mobile contract cases totalled 396.2s (17 Oct 2026), rounded to 400s;
+  // refresh from the first successful CI report rather than using the 15s fallback.
+  "leader-navigation-contract.spec.ts": 400.0,
   "navigation-recovery.spec.ts": 93.1,
   "equipment-checkout.spec.ts": 73.0,
   "role-permissions.spec.ts": 42.0,

@@ -9,7 +9,7 @@ import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { leaderNavigationFilter } from "../../navigation/leaderNavigationPermissions";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
-import { accountNavItems, dashboardNavItem, leaderNavGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
+import { accountNavItems, dashboardNavItem, leaderNavGroups, redesignedNavigationGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
 import { loadWeeklySectionTracker } from "../../navigation/leaderRoutePreloads";
 
 function matchesNavPath(locationPath: string, itemPath: string, exactPath = false) {
@@ -42,8 +42,8 @@ export default function LeaderDashboardHeader() {
   return watchLeaderNavigation(setNavigationVersion, () => setNavigationVersion("existing"));
  }, [user?.uid]);
  const redesigned = navigationVersion === "redesigned";
- const activeMobileGroup = leaderNavGroups.find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath)))?.id ?? null;
- const activeCategory = redesigned && location.pathname === "/leader/system" ? "super-admin" : activeMobileGroup;
+ const activeMobileGroup = (redesigned ? redesignedNavigationGroups(leaderNavGroups) : leaderNavGroups).find((group) => group.items.some((item) => matchesNavPath(`${location.pathname}${location.search}${location.hash}`, item.path, item.exactPath)))?.id ?? null;
+ const activeCategory = activeMobileGroup;
  const [menuOpen, setMenuOpen] = useState(false);
  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(activeCategory);
  const [signingOut, setSigningOut] = useState(false);

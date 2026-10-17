@@ -1,3 +1,4 @@
+import { leaderLegacyRedirects } from "./navigation/leaderNavigation";
 import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -130,7 +131,7 @@ export default function App() {
         <Route path="/leader/members" element={protectedRoute(<MemberManagement />)} />
         <Route path="/leader/members/:memberId" element={protectedRoute(<MemberRecordPage />)} />
         <Route path="/leader/subs" element={protectedRoute(<SubsManagement />)} />
-        <Route path="/leader/member-history" element={<Navigate to="/leader/members" replace />} />
+        <Route path="/leader/member-history" element={<Navigate to={leaderLegacyRedirects["/leader/member-history"]} replace />} />
         <Route path="/leader/events" element={protectedRoute(<EventsManagement />)} />
         <Route path="/leader/events/create" element={protectedRoute(<CreateEventPage />)} />
         <Route path="/leader/events/:eventId" element={protectedRoute(<EventRecordPage />)} />
