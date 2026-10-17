@@ -61,6 +61,8 @@ For every destination: selecting a menu link replaces the transient menu entry. 
 
 `inAppBack` describes the landing-route control; inline member/detail views, form steps and modal Back controls retain their own workflow state. `parentPath` is the logical parent, not a new automatic redirect. Pages without an explicit Back control keep that behavior. QM Reports, Detailed Inventory and QM Issues retain their existing fixed in-app returns to the Quartermaster Equipment & Stores context. Parent Portal is a separate account boundary, not a Leader subpage.
 
+Active state is resolved once from the permission-filtered menu using stable destination and category IDs. Query order and additional filters do not change the active destination; the view parameter still distinguishes role workspaces. Specific fragment destinations take precedence, saved redirects resolve to canonical items, and unavailable items cannot supply an active parent. Both navigation versions use the same resolver.
+
 Family Billing keeps its supported Subs fragment URL and renders `page-subs`; no distinct family-billing page marker or automatic fragment scrolling is claimed.
 
 The existing record Back bridge consumes the following safe-parent map. With a previous route observed by the current app instance and valid in-app history, semantic Back/Return controls pop the observed history. Direct entry/reload retains the explicit parent link. Record edit/save confirmation guards remain authoritative; this map does not bypass them.

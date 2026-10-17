@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { resolveLeaderNavigation } from "../../src/navigation/leaderNavigationState.ts";
+import { leaderNavGroups } from "../../src/navigation/leaderNavigation.ts";
 
 const root = process.cwd();
 
@@ -19,12 +21,12 @@ test("leader dashboard header fits its container without viewport-width overflow
 });
 
 test("leader dashboard navigation keeps nested record routes matched to their parent item", () => {
-  const header = source("src/components/admin/LeaderDashboardHeader.tsx");
-  assert.ok(header.includes('current.search !== target.search'));
-  assert.ok(header.includes('target.pathname === "/leader/equipment/inventory"'));
-  assert.ok(header.includes('current.searchParams.get(key) !== value'));
-  assert.ok(header.includes('target.hash && current.hash !== target.hash'));
-  assert.ok(header.includes('${location.pathname}${location.search}${location.hash}'));
+  const resolve = (route: string) => resolveLeaderNavigation(route, leaderNavGroups, []);
+  assert.equal(resolve("/leader/events/record-1/edit")?.item.id, "events-activities");
+  assert.equal(resolve("/leader/equipment/inventory?section=Cubs&view=quartermaster")?.item.id, "qm-detailed-inventory");
+  assert.equal(resolve("/leader/equipment/inventory?view=unknown"), null);
+  assert.equal(resolve("/leader/subs#family-billing")?.item.id, "family-billing");
+  assert.notEqual(resolve("/leader/subs#other")?.item.id, "family-billing");
 });
 
 
