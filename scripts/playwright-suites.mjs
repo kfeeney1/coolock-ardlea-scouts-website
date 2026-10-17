@@ -8,6 +8,7 @@ export const suiteSpecs = {
     "leader-navigation-contract.spec.ts",
     "leader-navigation-state.spec.ts",
     "leader-navigation-back.spec.ts",
+    "leader-navigation-accessibility.spec.ts",
     "navigation-recovery.spec.ts",
     "navigation-route-identities.spec.ts",
     "loading-shell.spec.ts",
@@ -28,6 +29,7 @@ export const suiteSpecs = {
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [
+    "consent-action-stability.spec.ts",
     "consent-section-symbols.spec.ts",
     "form-validation-focus.spec.ts",
     "section-consent-ux.spec.ts",

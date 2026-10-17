@@ -78,16 +78,51 @@ for (const redesigned of [false, true]) {
       await expect(notes).toHaveValue(original);
     });
 
-    test("record links preserve modified clicks and reload uses its safe parent", async ({ page }) => {
+    test("record links preserve modified clicks and reload uses its safe parent", async ({ page }, testInfo) => {
       await setup(page, redesigned);
       await page.goto("/leader/events?section=Beavers");
       await page.getByTestId("event-card-TEST_flow_event_beavers_open").click();
       await expect(page.getByTestId("event-record-TEST_flow_event_beavers_open")).toBeVisible();
       const back = page.getByRole("link", { name: "Back to Events", exact: true });
+      await expect(back).toHaveAttribute("href", "/leader/events");
+      await page.bringToFront();
       const popupPromise = page.context().waitForEvent("page");
-      await back.click({ modifiers: ["Control"] });
-      const popup = await popupPromise;
-      try { await expect(popup).toHaveURL(/\/leader\/events$/); } finally { await popup.close(); }
+      // Let Playwright finish attaching the native tab before its document
+      // commits. Otherwise the driver can miss the initial frame commit and
+      // strand later UI actions on a navigation that has already finished.
+      // Continue the real request unchanged; no page or data is stubbed.
+      await page.context().route("**/leader/events", async route => {
+        await popupPromise;
+        await route.continue();
+      });
+      const [popup] = await Promise.all([popupPromise, back.click({ modifiers: ["Control"] })]);
+      try {
+        expect(page.context().pages()).toHaveLength(2);
+        expect(popup.context()).toBe(page.context());
+        // Wait for this tab's requested document, rather than accepting the
+        // initial empty document's load state as destination readiness.
+        await popup.waitForURL(/\/leader\/(?:events|login)(?:\?.*)?$/, { waitUntil: "load" });
+        await popup.bringToFront();
+        // Native tabs need not inherit Firebase's tab-scoped session. Complete
+        // any required login in that tab and prove its saved target survives.
+        const eventsHeading = popup.getByRole("heading", { name: "Events & Activities", exact: true, level: 1 });
+        const signIn = popup.getByRole("button", { name: "Sign In", exact: true });
+        await expect(eventsHeading.or(signIn)).toBeVisible();
+        if (await signIn.isVisible()) {
+          await expect(popup).toHaveURL(/\/leader\/login(\?.*)?$/);
+          await popup.getByLabel("Email address").fill(email);
+          await popup.getByLabel("Password").fill(password!);
+          await signIn.click();
+        }
+        await expect(popup).toHaveURL(/\/leader\/events$/);
+        await expect(eventsHeading).toBeVisible();
+      } catch (error) {
+        await testInfo.attach("native-tab-url", { body: popup.url(), contentType: "text/plain" });
+        // Preserve the original assertion failure if the tab itself is unresponsive.
+        const screenshot = await popup.screenshot({ timeout: 3000 }).catch(() => undefined);
+        if (screenshot) await testInfo.attach("native-tab-screenshot", { body: screenshot, contentType: "image/png" });
+        throw error;
+      } finally { await popup.close().catch(() => undefined); }
       await expect(page).toHaveURL(new RegExp(`${eventPath}$`));
       await back.click();
       await expect(page).toHaveURL(/\/leader\/events\?section=Beavers$/);

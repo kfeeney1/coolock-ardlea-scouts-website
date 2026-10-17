@@ -43,8 +43,8 @@ export default function RedesignedLeaderNavigation({ groups, expanded, setExpand
             <Typography component="span" variant="body2" color="text.secondary" sx={{ display: "block", textTransform: "none" }}>{category.description}</Typography>
           </Box>
         </Button>
-        <Collapse in={open} timeout={0} unmountOnExit>
-          <Stack id={panel} role="region" aria-labelledby={heading} spacing={0.5} sx={{ px: 1, pb: 1 }}>{group.items.map(renderItem)}</Stack>
+        <Collapse in={open} timeout={0}>
+          <Stack id={panel} role="region" aria-labelledby={heading} inert={!open} spacing={0.5} sx={{ display: open ? "flex" : "none", px: 1, pb: 1 }}>{group.items.map(renderItem)}</Stack>
         </Collapse>
       </Paper>;
     })}

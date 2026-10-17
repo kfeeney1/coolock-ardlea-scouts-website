@@ -36,7 +36,8 @@ test("equipment quantity can be cleared from zero, replaced and persisted", asyn
   await addDialog.getByLabel("Category").click();
   await page.getByRole("option", { name: "Camping & Sleeping" }).click();
   await addDialog.getByLabel("Store").click();
-  await page.getByRole("option", { name: "TEST Checkout Store" }).click();
+  // Use a canonical seed fixture, independent of equipment-checkout's shard.
+  await page.getByRole("option", { name: "Main Equipment Store", exact: true }).click();
   const quantity = addDialog.getByTestId("equipment-total-quantity");
   await quantity.fill("0");
   await addDialog.getByRole("button", { name: "Save equipment" }).click();
