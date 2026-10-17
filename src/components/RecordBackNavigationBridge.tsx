@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   hasInAppPreviousScreen,
   isRecordBackControl,
+  isPlainRecordBackClick,
   recordParentRoute
 } from "../services/previousScreenNavigation";
 
@@ -35,6 +36,7 @@ export default function RecordBackNavigationBridge() {
     if (!parentRoute) return;
 
     const handleClick = (event: MouseEvent) => {
+      if (!isPlainRecordBackClick(event)) return;
       if (!hasInAppPreviousScreen(window.history.state) || !previousPathRef.current) return;
       const target = event.target instanceof Element ? event.target : null;
       if (!isRecordBackControl(target, parentRoute)) return;
