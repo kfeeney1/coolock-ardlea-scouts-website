@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   hasInAppPreviousScreen,
+  isPlainRecordBackClick,
   recordParentRoute
 } from "../../src/services/previousScreenNavigation.ts";
 
@@ -37,4 +38,14 @@ test("record Back interception requires a previous route observed by the current
   assert.match(bridge, /previousPathRef\s*=\s*useRef<string \| null>\(null\)/);
   assert.match(bridge, /previousPathRef\.current\s*=\s*currentPathRef\.current/);
   assert.match(bridge, /!hasInAppPreviousScreen\(window\.history\.state\)\s*\|\|\s*!previousPathRef\.current/);
+});
+
+test("record Back interception preserves modified and already-handled clicks", () => {
+  const plain = { defaultPrevented: false, button: 0, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
+  assert.equal(isPlainRecordBackClick(plain), true);
+  for (const key of ["defaultPrevented", "altKey", "ctrlKey", "metaKey", "shiftKey"] as const) {
+    assert.equal(isPlainRecordBackClick({ ...plain, [key]: true }), false, key);
+  }
+  assert.equal(isPlainRecordBackClick({ ...plain, button: 1 }), false);
+  assert.equal(isPlainRecordBackClick({ ...plain, button: 2 }), false);
 });

@@ -65,7 +65,7 @@ Active state is resolved once from the permission-filtered menu using stable des
 
 Family Billing keeps its supported Subs fragment URL and renders `page-subs`; no distinct family-billing page marker or automatic fragment scrolling is claimed.
 
-The existing record Back bridge consumes the following safe-parent map. With a previous route observed by the current app instance and valid in-app history, semantic Back/Return controls pop the observed history. Direct entry/reload retains the explicit parent link. Record edit/save confirmation guards remain authoritative; this map does not bypass them.
+The existing record Back bridge consumes the following safe-parent map. With a previous route observed by the current app instance and valid in-app history, ordinary same-origin parent Back/Return links pop the observed history; modified clicks and page-owned buttons retain their existing handlers. Direct entry/reload retains the explicit parent link. Record edit/save confirmation guards remain authoritative; this map does not bypass them.
 
 | Record prefix | Safe explicit parent |
 | --- | --- |
