@@ -44,6 +44,7 @@ export const suiteSpecs = {
     "parent-approved-journey.spec.ts",
     "parent-leader-context.spec.ts",
     "parent-portal.spec.ts",
+    "poll-management-acknowledgement.spec.ts",
     "polls.spec.ts"
   ],
   "activities-programme": [
