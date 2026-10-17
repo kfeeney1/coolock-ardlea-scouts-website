@@ -139,7 +139,7 @@ export default function ConsentRecordPage() {
       <LeaderPageHeader
         title={record ? record.memberName : "Consent Record"}
         description="Full consent and medical-information record."
-        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button>{record && <Button variant="contained" color="success" onClick={printRecord}>Print / Save PDF</Button>}</Stack>}
+        actions={<Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Button component={Link} to={resolvedReturnPath} onClick={(event) => { event.preventDefault(); navigate(resolvedReturnPath); }} variant="outlined" color="secondary">{returnLabel}</Button><Button variant="contained" color="success" disabled={!record} onClick={printRecord}>Print / Save PDF</Button></Stack>}
       />
 
       {loading ? <Box sx={{ minHeight: 320, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : <>

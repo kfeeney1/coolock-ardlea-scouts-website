@@ -29,6 +29,7 @@ export const suiteSpecs = {
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [
+    "consent-action-stability.spec.ts",
     "consent-section-symbols.spec.ts",
     "form-validation-focus.spec.ts",
     "section-consent-ux.spec.ts",
