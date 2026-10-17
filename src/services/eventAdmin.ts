@@ -203,7 +203,7 @@ async function syncEventProjections(eventId: string, input: EventInput): Promise
     ]);
 }
 
-export async function loadEvents(): Promise<EventRecord[]> {
+export async function loadEvents(eventId?: string): Promise<EventRecord[]> {
     const user = auth.currentUser;
     if (!user) throw new ServiceFailure("No signed-in leader.", "auth/unauthenticated");
 
@@ -220,7 +220,11 @@ export async function loadEvents(): Promise<EventRecord[]> {
             )
           )).flatMap((snapshot) => snapshot.docs);
 
+    // Keep the existing profile/section query boundary, but hydrate only the
+    // requested record when opening an editor. Unrelated audience queries must
+    // not block this page or grow with the number of events in the group.
     const events = docs
+        .filter((snapshot) => eventId === undefined || snapshot.id === eventId)
         .map(mapEvent)
         .filter((event): event is EventRecord => event !== null)
         .sort((a, b) => b.startDate.localeCompare(a.startDate));

@@ -41,3 +41,26 @@ Local validation: all 821 unit tests and all 10 tests in `public-admin-permissio
 The first PR browser run detected that Weekly Meetings and Member Management declared navigation page IDs without rendering their corresponding markers. Both visible page roots now render those stable IDs. The new tests retain explicit URL and visible destination-identity assertions, and also cover returning to Dashboard with browser Back and the QM in-app return link.
 
 The browser coverage separates switch/parity from per-mode role journeys while retaining the same assertions and per-action budgets. Escape now closes the shared menu when focus remains on its main toggle as well as when focus is inside navigation.
+
+CI follow-up (17 October 2026): run 38983149055 passed shard 1, Quality,
+Rules and preview, but shard 2 stopped at the mobile explicit Save Event
+regression (263 passes before the stop). Its trace shows Edit Event routing
+completed in about 60ms; the editor then waited on `loadEvents()` audience
+hydration for unrelated events. Thirteen audience queries were started; four
+had not completed when the 30-second case budget expired. The editor now passes
+its event ID to the existing permission-filtered loader, restricting audience
+hydration to that event. Profile checks, section queries, route guards, writes
+and Firestore rules are unchanged. List callers still load all events.
+
+The explicit-save browser case now asserts that opening the editor queries
+only the selected event's audience, then retains all save, dirty-guard and
+navigation assertions. Focused desktop/mobile checks pass in both navigation
+versions (four cases, 4–5 seconds each, normal 30-second budgets, zero retries).
+They use the canonical Firebase emulator seeds and the actual worker entry
+handler served through a temporary Node HTTP adapter because Wrangler cannot
+enumerate network interfaces in this sandbox. Unit tests (821), lint, build
+and the source-complexity guard pass. These are development checks; a new full
+CI run, live Firebase TEST acceptance and PMT remain separate.
+The new audience-read assertion was also run against unmodified head
+`0b4cbaa4`: it fails because the editor reads the unrelated seeded consent
+event's audience. The same assertion passes with the fix in all four cases.

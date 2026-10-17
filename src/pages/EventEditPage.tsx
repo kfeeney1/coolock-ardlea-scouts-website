@@ -38,7 +38,7 @@ export default function EventEditPage() {
     setConfirmAudienceRemoval(false);
     void (async () => {
       try {
-        const [events, loadedMembers] = await Promise.all([loadEvents(), loadMembers()]);
+        const [events, loadedMembers] = await Promise.all([loadEvents(eventId), loadMembers()]);
         if (!active) return;
         const found = events.find((item) => item.id === eventId) ?? null;
         const initial = found ? {
