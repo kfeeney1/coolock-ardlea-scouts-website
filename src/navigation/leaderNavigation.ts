@@ -35,7 +35,7 @@ export const leaderNavGroups: LeaderNavGroup[] = [
   { id: "programme", label: "Programme", items: [
     destination({ id: "weekly-meetings", label: "Weekly Meetings", path: "/leader/weekly", pageId: "weekly-meetings", permissions: ["meetings.manage.section", "weekly-meetings.manage.group"], identity: {testId: "page-weekly-meetings"} }),
     destination({ id: "events-activities", label: "Events & Activities", path: "/leader/events", pageId: "events-activities", permissions: ["events.manage.section"], identity: {heading: "Events & Activities", level: 1} }),
-    destination({ id: "group-polls", label: "Group Polls", path: "/leader/polls", pageId: "group-polls", permissions: ["leader.portal.access"], identity: {heading: "Group Polls"} }),
+    destination({ id: "group-polls", label: "Group Polls", path: "/leader/polls", pageId: "group-polls", permissions: ["leader.portal.access"], identity: {heading: "Group Polls", level: 1} }),
     destination({ id: "badgework", label: "Badgework", path: "/leader/badgework", pageId: "badgework", permissions: ["badgework.manage.section", "badgework.manage.group", "badgework.read.group"], identity: {heading: "Adventure Skills Badgework", level: 1} }),
     destination({ id: "programme-equipment", label: "Equipment", path: "/leader/programme-equipment", pageId: "programme-equipment", permissions: ["equipment.loan.section"], identity: {testId: "page-programme-equipment"} })
   ]},

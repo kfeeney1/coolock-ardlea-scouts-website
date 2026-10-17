@@ -19,7 +19,7 @@ Permissions are ANY-of the listed canonical registry IDs, in addition to Leader 
 | Dashboard / Dashboard | dashboard | leader-dashboard | /leader | leader.portal.access | None | admin-overview | None | None; Dashboard navigation remains available |
 | Programme / Programme | weekly-meetings | weekly-meetings | /leader/weekly | meetings.manage.section, weekly-meetings.manage.group | None | page-weekly-meetings | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | events-activities | events-activities | /leader/events | events.manage.section | None | heading: Events & Activities (h1) | /leader | None; Dashboard navigation remains available |
-| Programme / Programme | group-polls | group-polls | /leader/polls | leader.portal.access | None | heading: Group Polls | /leader | None; Dashboard navigation remains available |
+| Programme / Programme | group-polls | group-polls | /leader/polls | leader.portal.access | None | heading: Group Polls (h1) | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | badgework | badgework | /leader/badgework | badgework.manage.section, badgework.manage.group, badgework.read.group | None | heading: Adventure Skills Badgework (h1) | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | programme-equipment | programme-equipment | /leader/programme-equipment | equipment.loan.section | None | page-programme-equipment | /leader | None; Dashboard navigation remains available |
 | People & Parents / People & Parents | member-management | member-management | /leader/members | members.read.section, members.read.group | None | page-member-management | /leader | None; Dashboard navigation remains available |

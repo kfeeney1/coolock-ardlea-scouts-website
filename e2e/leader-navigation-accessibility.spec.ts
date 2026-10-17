@@ -60,7 +60,7 @@ for (const redesigned of [false, true]) {
       await tabTo(page, polls);
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/leader\/polls$/);
-      await expect(page.getByRole("heading", { name: "Group Polls", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Group Polls", exact: true, level: 1 })).toBeVisible();
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(nav).toBeVisible();
