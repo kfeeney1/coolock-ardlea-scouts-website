@@ -56,6 +56,8 @@ export const CURRENT_SCOUTING_APPOINTMENTS = [
 ] as const;
 
 export const PERMISSION_REGISTRY: PermissionDefinition[] = [
+  { id: "leader.portal.access", name: "Use the Leader portal", description: "Use the authenticated Leader dashboard, account pages and shared Leader information. Requires an active leader profile at the route boundary.", area: "Role Management", scope: "own", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["ProtectedAdminRoute", "AdminAuthProvider active adminUsers profile"], protected: true },
+  { id: "navigation.appointment-views.all", name: "View all appointment navigation contexts", description: "Show the existing administrator shortcuts for Treasurer, Secretary and Quartermaster views. Does not grant page or data access.", area: "Role Management", scope: "system", grantedBy: ["admin", "super-admin"], enforcement: ["Leader navigation filter", "independent route and Firestore guards"], protected: true },
   { id: "join.manage", name: "Manage Join Us applications", description: "Use Join Us management under the existing Section Leader, Group leadership and administrator access policy.", area: "Members", scope: "assigned-section", grantedBy: ["Section Leader", "Group Leader", "admin", "super-admin"], enforcement: ["ProtectedJoinManagementRoute", "Firestore joinApplications rules"], protected: true },
   { id: "members.read.linked", name: "View linked children", description: "View approved member records linked to the signed-in parent account.", area: "Members", scope: "linked-members", grantedBy: ["parent"], enforcement: ["Firestore members rules", "parentAccounts linkage"], protected: true },
   { id: "members.read.section", name: "View section members", description: "View member records in assigned sections.", area: "Members", scope: "assigned-section", grantedBy: ["leader", "admin", "super-admin"], enforcement: ["Firestore members rules", "leader section profile"], protected: true },
@@ -110,7 +112,10 @@ const grantMatches = (grant: PermissionGrant, role: string, scoutingRole: string
 export function effectivePermissionsFor(role: string, scoutingRole: string, appointments?: unknown): PermissionDefinition[] {
   const activeAppointments = activeScoutingAppointments(normalizeScoutingAppointmentAssignments(appointments, scoutingRole))
     .map((item) => item.appointment);
-  const appointmentNames = activeAppointments.length > 0 ? activeAppointments : [scoutingRole];
+  // Normalization already supplies the legacy appointment only when no current
+  // assignments exist. An inactive/future/expired assignment must never revive
+  // its legacy label. Evaluate system-role grants even with no active appointment.
+  const appointmentNames = activeAppointments.length > 0 ? activeAppointments : [""];
   return PERMISSION_REGISTRY.filter((permission) => permission.grantedBy.some((grant) =>
     appointmentNames.some((appointment) => grantMatches(grant, role, appointment))
   ));

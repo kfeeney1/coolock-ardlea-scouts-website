@@ -70,3 +70,24 @@ test("Super Admin receives every administrative and operational permission regar
   assert.equal(ids.has("members.read.linked"), false);
   assert.equal(ids.has("badgework.read.linked"), false);
 });
+
+test("inactive, future and expired appointments never revive a legacy privilege", () => {
+  for (const assignment of [
+    { appointment: "Group Secretary", scope: "Group", active: false },
+    { appointment: "Group Secretary", scope: "Group", active: true, startDate: "2999-01-01" },
+    { appointment: "Group Secretary", scope: "Group", active: true, endDate: "2000-01-01" }
+  ]) {
+    const ids = effectivePermissionsFor("leader", "Group Secretary", [assignment]).map((permission) => permission.id);
+    assert.ok(!ids.includes("audit.read"), "an inactive appointment must not revive its legacy audit grant");
+    assert.ok(ids.includes("leader.portal.access"));
+    assert.ok(ids.includes("members.read.section"));
+    assert.ok(!ids.includes("meeting-records.read.group"));
+    assert.ok(!ids.includes("members.read.group"));
+  }
+});
+
+test("legacy profiles retain their appointment and role-only accounts retain their system grants", () => {
+  assert.ok(effectivePermissionsFor("leader", "Group Secretary").some((permission) => permission.id === "audit.read"));
+  assert.ok(effectivePermissionsFor("admin", "", []).some((permission) => permission.id === "navigation.appointment-views.all"));
+  assert.ok(!effectivePermissionsFor("leader", "Group Leader").some((permission) => permission.id === "navigation.appointment-views.all"));
+});
