@@ -46,7 +46,9 @@ async function publishScopedParentPoll(page: Page, browser: Browser, testInfo: T
   await page.getByLabel("Poll question").fill(question);
   await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
   await page.getByRole("combobox", { name: "Poll audience" }).click();
-  await page.getByRole("option", { name: "Parents and guardians" }).click();
+  const audienceOptions = page.getByRole("listbox", { name: "Poll audience" });
+  await expect(audienceOptions).toBeVisible();
+  await audienceOptions.getByRole("option", { name: "Parents and guardians", exact: true }).press("Enter");
   // The preceding MUI menu exits asynchronously. Wait for its overlay to
   // disappear before clicking the adjacent scope control.
   await expect(page.getByRole("listbox")).toBeHidden();
@@ -127,9 +129,35 @@ test.describe("dashboard polls", () => {
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
     await expect(restoredPoll.getByRole("button", { name: "View results" })).toHaveCount(0);
 
+    // Hold the amendment commit until the pending UI is asserted. This makes
+    // the acknowledgement race deterministic instead of relying on CI latency.
+    let releaseCommit!: () => void;
+    let reachedCommit!: () => void;
+    const commitGate = new Promise<void>((resolve) => { releaseCommit = resolve; });
+    const commitReached = new Promise<void>((resolve) => { reachedCommit = resolve; });
+    const commitUrl = "**/documents:commit?*";
+    await parentPage.route(commitUrl, async (route) => {
+      if (route.request().method() !== "POST") { await route.continue(); return; }
+      reachedCommit();
+      await commitGate;
+      await route.continue();
+    });
     await restoredPoll.getByRole("radio", { name: "Indoor activity" }).check();
     await restoredPoll.getByRole("button", { name: "Save changed response" }).click();
+    try {
+      await commitReached;
+      await expect(restoredPoll.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
+      await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    } finally {
+      releaseCommit();
+    }
+    // The saved status belongs to the previous response and remains visible
+    // while an amendment is in flight. The enabled action returns only after
+    // submitPollResponse settles; wait for it before destroying the page.
+    await expect(restoredPoll.getByRole("button", { name: "Save changed response", exact: true })).toBeEnabled();
     await expect(restoredPoll.getByRole("status")).toContainText("Your response is saved");
+    await expect(parentPage.getByTestId("parent-polls").getByRole("alert")).toHaveCount(0);
+    await parentPage.unroute(commitUrl);
     await parentPage.reload();
     const amendedPoll = parentPage.getByTestId(/^parent-poll-/).filter({ hasText: question });
     await expect(amendedPoll.getByRole("radio", { name: "Indoor activity" })).toBeChecked();
