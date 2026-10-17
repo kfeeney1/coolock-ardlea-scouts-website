@@ -49,7 +49,7 @@ test("unresolved identities and parent-only profiles receive no Leader destinati
 test("new or inherited-property destinations fail closed until explicitly mapped", () => {
   const filter = leaderNavigationFilter({ role: "super-admin", scoutingRole: "" });
   for (const id of ["unreconciled-page", "toString", "constructor", "__proto__"]) {
-    assert.equal(filter({ id, label: id, path: "/leader/new", pageId: id }), false);
+    assert.equal(filter({ ...dashboardNavItem, id, label: id, path: "/leader/new", pageId: id }), false);
   }
 });
 
