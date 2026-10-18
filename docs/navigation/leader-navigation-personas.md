@@ -93,3 +93,39 @@ emulators and matching Chromium Headless Shell 151.0.7922.34.
 This addresses the confirmed cleanup hazard consistent with the CI snapshot;
 a fresh full CI run must establish the reported full-suite result. Live TEST
 acceptance and PMT remain separate.
+
+## Bounded shard execution follow-up (18 October)
+
+Run `39132415935` at `570cc8bf` did not report an assertion failure in shard 1:
+GitHub cancelled the job at its 30-minute ceiling. Shard 2 completed with 334
+passes, 85 intentional skips and zero failures/flaky outcomes in 26.9 minutes;
+its report includes the previously failing Rover lifecycle as a pass. Shard 1
+logged no test progress after selection. Its uploaded HTML contained only the
+earlier `--list` discovery, not completed execution evidence. The exact blocked
+phase cannot be reconstructed from those artifacts.
+
+The full workload now uses four isolated emulator runners, keeping one worker
+per runner and the protected `e2e` aggregate. Unit coverage proves exact-once,
+complete, deterministic assignment for full and affected suites. Current full
+estimates are 755.2/755.4/754.2/754.4 seconds of browser work, plus setup. No
+coverage or test assertions are removed and the 30-minute job ceiling is unchanged.
+
+The suite runner launches the installed Playwright CLI directly under a separate
+Node supervisor. A dedicated reporter sends lifecycle/step IPC events and logs
+actual test starts/ends. The watchdog allows 60 seconds before startup/onBegin
+and 90 seconds without lifecycle progress afterward. It sends SIGINT for reporting,
+then force-kills the isolated process group after 10 seconds. Even a graceful
+zero exit after interruption remains a failed run. A test's source line/category
+identifies the last step without echoing filled values or token-bearing API titles.
+Existing Playwright timeouts, retries, fail-on-flaky policy and failure limits remain.
+
+Discovery is separately bounded at two minutes and uses only the list reporter,
+so it cannot masquerade as an execution report. Failure/cancellation collection
+preserves service logs and available test artifacts.
+
+Verification: five child-process supervisor tests, exact-once/balance checks for
+all four shards, and two real Chromium desktop/mobile UI cases through the actual
+supervisor/progress reporter passed. Full quality: 848 unit, 51 worker and eight
+backend tests plus static/build checks. Full four-shard CI remains required;
+the estimated wall-time improvement is not yet an observed CI result. Live TEST
+acceptance and PMT remain separate.
