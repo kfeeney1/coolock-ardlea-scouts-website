@@ -124,6 +124,24 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "audienceSections",
+      "fieldPath": "audienceType",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "audienceMembers",
       "fieldPath": "memberId",
       "indexes": [
