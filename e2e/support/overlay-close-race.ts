@@ -61,3 +61,42 @@ export async function holdReopenUntilOverlayCleanup(page: Page) {
     }
   };
 }
+
+/** Hold a dialog's deferred close until the next overlay owner has committed. */
+export async function holdOverlayCloseForMenu(page: Page) {
+  await page.evaluate(() => {
+    const originalSet = window.setTimeout.bind(window);
+    const originalClear = window.clearTimeout.bind(window);
+    const held = new Map<number, () => void>();
+    window.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
+      if (delay !== 500 || typeof handler !== "function") return originalSet(handler, delay, ...args);
+      const id = originalSet(() => undefined, 60_000);
+      held.set(id, () => handler(...args));
+      return id;
+    }) as typeof window.setTimeout;
+    window.clearTimeout = (id?: number) => { if (id !== undefined) held.delete(id); originalClear(id); };
+    const control = window as Window & { overlayMenuRace?: { count: () => number; flush: () => void; restore: () => void } };
+    control.overlayMenuRace = {
+      count: () => held.size,
+      flush: () => { for (const [id, run] of held) { held.delete(id); originalClear(id); run(); } },
+      restore: () => {
+        for (const id of held.keys()) originalClear(id);
+        held.clear();
+        window.setTimeout = originalSet;
+        window.clearTimeout = originalClear;
+      }
+    };
+  });
+  return {
+    ready: () => expect.poll(() => page.evaluate(() => (window as Window & { overlayMenuRace?: { count: () => number } }).overlayMenuRace?.count() || 0)).toBeGreaterThan(0),
+    flush: async () => {
+      await page.evaluate(async () => {
+        (window as Window & { overlayMenuRace?: { flush: () => void } }).overlayMenuRace?.flush();
+        // Observe the resulting history traversal and rendered menu, not merely
+        // the synchronous state before the browser has delivered its POP.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      });
+    },
+    restore: () => page.evaluate(() => (window as Window & { overlayMenuRace?: { restore: () => void } }).overlayMenuRace?.restore())
+  };
+}

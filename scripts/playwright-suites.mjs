@@ -108,6 +108,7 @@ export const suiteSpecs = {
     "accessibility-baseline.spec.ts",
     "mobile-accessibility-closeout.spec.ts",
     "mobile-back-navigation.spec.ts",
+    "overlay-menu-history.spec.ts",
     "mobile-dialog-actions.spec.ts",
     "mobile-operational-pass.spec.ts",
     "section-aware-cards.spec.ts",
