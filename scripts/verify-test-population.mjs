@@ -12,6 +12,7 @@ const WEB_ADMIN_UID = "TEST_uid_web_admin_01";
 const SUPER_ADMIN_UID = "TEST_uid_super_admin_01";
 const MODERN_SUPER_ADMIN_UID = "TEST_uid_modern_super_admin_01";
 const MULTI_SECTION_UID = "TEST_uid_multi_section_leader";
+const NAVIGATION_MULTI_UID = "TEST_uid_navigation_multi_appointment";
 const MEMBERS_PER_SECTION = 6;
 const SECTIONS = [
   { section: "Beavers", key: "beaver" },
@@ -60,7 +61,7 @@ if (!roverManagementFixture
 }
 
 const adminUsers = await seededDocs("adminUsers");
-if (adminUsers.length !== 32) fail(`expected 32 leader/admin profiles, found ${adminUsers.length}`);
+if (adminUsers.length !== 33) fail(`expected 33 leader/admin profiles, found ${adminUsers.length}`);
 for (const doc of adminUsers) {
   const data = doc.data();
   if (!(data.role === "leader" || data.role === "admin" || data.role === "super-admin")) fail(`adminUsers/${doc.id} has invalid role`);
@@ -70,7 +71,7 @@ for (const doc of adminUsers) {
 }
 
 const organisation = await seededDocs("organisationLeadership");
-if (organisation.length !== 32) fail(`expected 32 organisation records, found ${organisation.length}`);
+if (organisation.length !== 33) fail(`expected 33 organisation records, found ${organisation.length}`);
 const publicLeadership = await seededDocs("publicLeadership");
 if (publicLeadership.length !== 27) fail(`expected 27 public leadership records, found ${publicLeadership.length}`);
 for (const doc of publicLeadership) {
@@ -92,7 +93,7 @@ for (const { section } of SECTIONS) {
   for (const doc of sectionDocs) if (!SECTION_ROLES.has(doc.data().scoutingRole)) fail(`${section} contains unexpected public role ${doc.data().scoutingRole}`);
 }
 
-for (const uid of [WEB_ADMIN_UID, SUPER_ADMIN_UID, MODERN_SUPER_ADMIN_UID, MULTI_SECTION_UID]) {
+for (const uid of [WEB_ADMIN_UID, SUPER_ADMIN_UID, MODERN_SUPER_ADMIN_UID, MULTI_SECTION_UID, NAVIGATION_MULTI_UID]) {
   if (publicLeadership.some((doc) => doc.id === uid)) fail(`${uid} is present in publicLeadership`);
 }
 for (const uid of [WEB_ADMIN_UID, SUPER_ADMIN_UID, MODERN_SUPER_ADMIN_UID]) {
@@ -105,6 +106,30 @@ if (modernProfile?.data().uiTheme !== "modern") fail(`${MODERN_SUPER_ADMIN_UID} 
 const multiSection = adminUsers.find((doc) => doc.id === MULTI_SECTION_UID);
 if (!multiSection) fail("multi-section leader fixture is missing");
 if (JSON.stringify(multiSection.data().sections) !== JSON.stringify(["Beavers", "Cubs"])) fail("multi-section leader must have Beavers and Cubs");
+
+// The permission matrix requires exactly this private identity, not an arbitrary
+// extra leader that merely makes the profile count pass.
+const navigationAppointments = [
+  { appointment: "Group Secretary", scope: "Group", active: true },
+  { appointment: "Group Quartermaster / Bo'sun", scope: "Group", active: true },
+  { appointment: "Group Treasurer", scope: "Group", active: false }
+];
+const appointmentSignature = (value) => Array.isArray(value)
+  ? value.map((item) => JSON.stringify([item?.appointment, item?.scope, item?.active])).sort().join("|")
+  : "";
+const navigationProfile = adminUsers.find((doc) => doc.id === NAVIGATION_MULTI_UID)?.data();
+const navigationOrganisation = organisation.find((doc) => doc.id === NAVIGATION_MULTI_UID)?.data();
+if (!navigationProfile || navigationProfile.role !== "leader"
+  || navigationProfile.email !== "test.navigation.multi.appointment@example.com"
+  || JSON.stringify(navigationProfile.sections) !== JSON.stringify(["Group"])
+  || appointmentSignature(navigationProfile.appointments) !== appointmentSignature(navigationAppointments)) {
+  fail("navigation multi-appointment profile must retain active Secretary/Bosun and inactive Treasurer appointments");
+}
+if (!navigationOrganisation || navigationOrganisation.showPublicly !== false
+  || navigationOrganisation.active !== true
+  || appointmentSignature(navigationOrganisation.appointments) !== appointmentSignature(navigationAppointments)) {
+  fail("navigation multi-appointment organisation record must be private and retain the canonical appointments");
+}
 
 const parents = await seededDocs("parentAccounts");
 if (parents.length !== 15) fail(`expected 15 parent accounts, found ${parents.length}`);
@@ -121,11 +146,12 @@ const expectedAuthUids = new Set([
   ...SECTIONS.flatMap(({ key }) => SECTION_ROLE_KEYS.map((roleKey) => `TEST_uid_${key}_${roleKey}`)),
   ...SECTIONS.flatMap(({ key }) => [1, 2].map((number) => `TEST_uid_${key}_parent_${number}`)),
   MULTI_SECTION_UID,
+  NAVIGATION_MULTI_UID,
   WEB_ADMIN_UID,
   SUPER_ADMIN_UID,
   MODERN_SUPER_ADMIN_UID
 ]);
-if (expectedAuthUids.size !== 41) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 41`);
+if (expectedAuthUids.size !== 42) fail(`internal verifier expected UID set is ${expectedAuthUids.size}, not 42`);
 
 const missingAuthUids = [];
 for (const uid of expectedAuthUids) {
@@ -138,5 +164,5 @@ console.log("Minimal canonical TEST population verified successfully.");
 console.log(`- Members: ${expectedMemberCount} total, exactly ${MEMBERS_PER_SECTION} in each youth section`);
 console.log("- Who's Who: exactly seven Group roles + four approved section roles per youth section");
 console.log("- Parent accounts: 10 parent-only + 5 parent+leader");
-console.log("- Leader/admin profiles: 27 public leaders + 2 private multi-section leaders + 3 private website admins");
-console.log("- Firebase Auth: all 41 canonical identities present");
+console.log("- Leader/admin profiles: 27 public leaders + 2 private multi-section leaders + 3 private website admins + 1 private navigation multi-appointment leader");
+console.log("- Firebase Auth: all 42 canonical identities present");
