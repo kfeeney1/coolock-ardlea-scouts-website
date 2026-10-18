@@ -37,3 +37,11 @@ export function shouldDismissForMissingBackMarker(
 ): boolean {
   return markerWasCommitted || Boolean(openingLocation && openingLocation !== currentLocation);
 }
+
+/** Query replacements are list filters; query pushes can open a record. */
+export function overlayNavigationLeavesSurface(currentUrl: string, destinationUrl: string, navigationType: string | undefined): boolean {
+  const current = new URL(currentUrl, "https://navigation.invalid");
+  const destination = new URL(destinationUrl, current);
+  return destination.pathname !== current.pathname
+    || (navigationType === "push" && destination.href !== current.href);
+}

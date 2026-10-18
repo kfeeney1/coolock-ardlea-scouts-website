@@ -19,7 +19,7 @@ Permissions are ANY-of the listed canonical registry IDs, in addition to Leader 
 | Dashboard / Dashboard | dashboard | leader-dashboard | /leader | leader.portal.access | None | admin-overview | None | None; Dashboard navigation remains available |
 | Programme / Programme | weekly-meetings | weekly-meetings | /leader/weekly | meetings.manage.section, weekly-meetings.manage.group | None | page-weekly-meetings | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | events-activities | events-activities | /leader/events | events.manage.section | None | heading: Events & Activities (h1) | /leader | None; Dashboard navigation remains available |
-| Programme / Programme | group-polls | group-polls | /leader/polls | leader.portal.access | None | heading: Group Polls | /leader | None; Dashboard navigation remains available |
+| Programme / Programme | group-polls | group-polls | /leader/polls | leader.portal.access | None | heading: Group Polls (h1) | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | badgework | badgework | /leader/badgework | badgework.manage.section, badgework.manage.group, badgework.read.group | None | heading: Adventure Skills Badgework (h1) | /leader | None; Dashboard navigation remains available |
 | Programme / Programme | programme-equipment | programme-equipment | /leader/programme-equipment | equipment.loan.section | None | page-programme-equipment | /leader | None; Dashboard navigation remains available |
 | People & Parents / People & Parents | member-management | member-management | /leader/members | members.read.section, members.read.group | None | page-member-management | /leader | None; Dashboard navigation remains available |
@@ -62,6 +62,8 @@ For every destination: selecting a menu link replaces the transient menu entry. 
 `inAppBack` describes the landing-route control; inline member/detail views, form steps and modal Back controls retain their own workflow state. `parentPath` is the logical parent, not a new automatic redirect. Pages without an explicit Back control keep that behavior. QM Reports, Detailed Inventory and QM Issues retain their existing fixed in-app returns to the Quartermaster Equipment & Stores context. Parent Portal is a separate account boundary, not a Leader subpage.
 
 Active state is resolved once from the permission-filtered menu using stable destination and category IDs. Query order and additional filters do not change the active destination; the view parameter still distinguishes role workspaces. Specific fragment destinations take precedence, saved redirects resolve to canonical items, and unavailable items cannot supply an active parent. Both navigation versions use the same resolver.
+
+Menu and category control targets remain mounted while closed but hidden and inert. Unauthorized destinations remain omitted. A menu destination requests focus on the destination header’s menu trigger; Escape restores that trigger. See leader-navigation-accessibility.md for automated checks and separate manual acceptance.
 
 Family Billing keeps its supported Subs fragment URL and renders `page-subs`; no distinct family-billing page marker or automatic fragment scrolling is claimed.
 

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
+import { backDismissStack, isTopBackDismissMarker, overlayNavigationLeavesSurface, withBackDismissMarker } from "../services/backDismissHistory";
 
 const MARKER_PREFIX = "transient-overlay:";
 
@@ -86,10 +86,13 @@ export default function TransientOverlayBackDismissBridge() {
         if (navigationType === "reload" || destination?.sameDocument === false) documentDeparturePending.current = true;
         const target = destinationUrl ? new URL(destinationUrl) : null;
         // List filters replace the query string in browser history without
-        // leaving the page. Treating that as departure cancels the pending POP
+        // leaving the page. A PUSH to a different query opens a record and must
+        // cancel cleanup before the React location commits. Treating a filter
+        // replacement as departure cancels the pending POP
         // and strands the dropdown marker indefinitely.
-        const currentPathname = new URL(currentUrl.current, window.location.origin).pathname;
-        if (documentDeparturePending.current || (target && target.pathname !== currentPathname)) {
+        if (documentDeparturePending.current || (target && overlayNavigationLeavesSurface(
+          new URL(currentUrl.current, window.location.origin).href, target.href, navigationType
+        ))) {
           routeDeparturePending.current = true;
           cancelPendingClose();
         }
@@ -178,6 +181,19 @@ export default function TransientOverlayBackDismissBridge() {
     }
     if (routeDeparturePending.current && surfaces.length > markerCount) routeDeparturePending.current = false;
 
+    // Another overlay owner (for example the Leader menu) may have pushed
+    // above the dialog that just closed. Its entry must never be consumed by
+    // this bridge's delayed cleanup. Resume once our marker is on top again.
+    if (surfaces.length < markerCount && !isTopBackDismissMarker(location.state, managedMarkers.at(-1)!)) {
+      if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
+      pendingCloseTimer.current = null;
+      pendingCloseFromMarkerCount.current = null;
+      consumingClose.current = false;
+      previousMarkerCount.current = markerCount;
+      latestMarkerCount.current = markerCount;
+      return;
+    }
+
     if (pendingCloseFromMarkerCount.current !== null) {
       if (markerCount >= pendingCloseFromMarkerCount.current) {
         // If another surface opens before the close marker is consumed, let the
@@ -220,7 +236,11 @@ export default function TransientOverlayBackDismissBridge() {
       if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
       pendingCloseTimer.current = window.setTimeout(() => {
         pendingCloseTimer.current = null;
-        if (routeDeparturePending.current) {
+        // Read actual browser state: a newer marker can be pushed before its
+        // React location effect has committed.
+        if (routeDeparturePending.current || !isTopBackDismissMarker(
+          locationStateFromHistoryState(window.history.state), managedMarkers.at(-1)!
+        )) {
           pendingCloseFromMarkerCount.current = null;
           consumingClose.current = false;
           return;

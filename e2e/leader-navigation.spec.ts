@@ -171,6 +171,11 @@ test("Leader Menu supports keyboard open and Escape focus restoration", async ({
   await page.keyboard.press("Escape");
 
   await expect(navigation).toHaveCount(0);
+  const closedMenu = page.locator("#leader-navigation");
+  await expect(closedMenu).toHaveCount(1);
+  await expect(closedMenu).toBeHidden();
+  await expect(closedMenu).toHaveAttribute("inert", "");
+  await closedMenu.locator("a").first().evaluate((link: HTMLAnchorElement) => link.focus());
   await expect(menuToggle).toBeFocused();
   await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
 });

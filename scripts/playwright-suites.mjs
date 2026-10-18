@@ -8,6 +8,7 @@ export const suiteSpecs = {
     "leader-navigation-contract.spec.ts",
     "leader-navigation-state.spec.ts",
     "leader-navigation-back.spec.ts",
+    "leader-navigation-accessibility.spec.ts",
     "navigation-recovery.spec.ts",
     "navigation-route-identities.spec.ts",
     "loading-shell.spec.ts",
@@ -28,6 +29,7 @@ export const suiteSpecs = {
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [
+    "consent-action-stability.spec.ts",
     "consent-section-symbols.spec.ts",
     "form-validation-focus.spec.ts",
     "section-consent-ux.spec.ts",
@@ -42,6 +44,7 @@ export const suiteSpecs = {
     "parent-approved-journey.spec.ts",
     "parent-leader-context.spec.ts",
     "parent-portal.spec.ts",
+    "poll-management-acknowledgement.spec.ts",
     "polls.spec.ts"
   ],
   "activities-programme": [
@@ -104,6 +107,7 @@ export const suiteSpecs = {
     "accessibility-baseline.spec.ts",
     "mobile-accessibility-closeout.spec.ts",
     "mobile-back-navigation.spec.ts",
+    "overlay-menu-history.spec.ts",
     "mobile-dialog-actions.spec.ts",
     "mobile-operational-pass.spec.ts",
     "section-aware-cards.spec.ts",

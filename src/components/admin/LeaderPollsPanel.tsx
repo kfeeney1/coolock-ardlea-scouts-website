@@ -34,28 +34,32 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
   const [closesAt, setClosesAt] = useState("");
   const createRequestId = useRef<string | null>(null);
   const createInFlight = useRef(false);
+  const refreshSequence = useRef(0);
 
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     if (!actor) { setLoading(false); return; }
     setLoading(true);
     setError("");
     try {
       const loaded = await loadLeaderPolls(actor);
+      if (sequence !== refreshSequence.current) return;
       setPolls(loaded);
       const eligibleLeaderPolls = loaded.filter((poll) => canRespondToPoll(poll, { kind: "leader", sections: actor.sections }));
       const responses = await Promise.all(eligibleLeaderPolls.map(async (poll) => [poll.id, await loadMyPollResponse(poll.id)] as const));
+      if (sequence !== refreshSequence.current) return;
       const next: Record<string, string> = {};
       responses.forEach(([id, response]) => { if (response) next[id] = response.option; });
       setAnswers((current) => ({ ...current, ...next }));
       setSavedAnswers(next);
       setSaved((current) => ({ ...current, ...Object.fromEntries(responses.map(([id, response]) => [id, Boolean(response)])) }));
     } catch (loadError) {
-      setError(applicationErrorMessage(loadError, "Polls could not be loaded for your authorised sections.", "LeaderPollsPanel"));
+      if (sequence === refreshSequence.current) setError(applicationErrorMessage(loadError, "Polls could not be loaded for your authorised sections.", "LeaderPollsPanel"));
     } finally {
-      setLoading(false);
+      if (sequence === refreshSequence.current) setLoading(false);
     }
   }, [actor]);
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); return () => { ++refreshSequence.current; }; }, [refresh]);
 
   useEffect(() => {
     if (!actor) return undefined;
@@ -130,8 +134,12 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
     try {
       if (action === "publish") await publishPoll(actor, poll);
       else await closePoll(actor, poll);
+      // Acknowledge only the server-confirmed transition. Reloading every
+      // authorised index is follow-up work, not part of the write's busy state.
+      setPolls((current) => current.map((item) => item.id === poll.id
+        ? { ...item, status: action === "publish" ? "published" : "closed" } : item));
       setMessage(action === "publish" ? "Poll published." : "Poll closed. New responses are no longer accepted.");
-      await refresh();
+      void refresh();
     } catch (manageError) {
       setError(applicationErrorMessage(manageError, "The poll could not be updated.", "LeaderPollsPanel"));
     } finally {

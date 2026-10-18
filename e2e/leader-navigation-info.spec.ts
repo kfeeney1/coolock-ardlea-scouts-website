@@ -38,7 +38,11 @@ test("leader menu prioritises Weekly Meetings and Events and moves organisation 
   await infoLink.focus();
   await expect(infoLink).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(menu).toHaveCount(0);
+  await expect(menu).toHaveCount(1);
+  await expect(menu).toBeHidden();
+  await expect(menu).toHaveAttribute("inert", "");
+  await expect(menu.getByRole("link")).toHaveCount(0);
+  await menu.locator('a[href="/leader/info"]').evaluate((link: HTMLAnchorElement) => link.focus());
   await expect(menuButton).toBeFocused();
 
   await menuButton.click();
