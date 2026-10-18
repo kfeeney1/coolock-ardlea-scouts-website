@@ -240,7 +240,10 @@ export default function TransientOverlayBackDismissBridge() {
         // React location effect has committed.
         if (routeDeparturePending.current || !isTopBackDismissMarker(
           locationStateFromHistoryState(window.history.state), managedMarkers.at(-1)!
-        )) {
+        ) || visibleSurfaces().length >= managedMarkers.length) {
+          // A new dialog may already occupy this same marker before its
+          // MutationObserver update reaches React. Recheck the live DOM just
+          // as we recheck browser ownership; stale surface state cannot close it.
           pendingCloseFromMarkerCount.current = null;
           consumingClose.current = false;
           return;

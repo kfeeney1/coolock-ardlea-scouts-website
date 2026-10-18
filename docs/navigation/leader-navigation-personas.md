@@ -64,3 +64,32 @@ Firebase emulator runs are development assurance. A Firebase TEST preview build
 is not manual acceptance. Live TEST acceptance remains SW-189, including the
 physical Android and assistive-technology checks. Production Manual Testing is
 separate. This document does not mark SW-179 or its children Done.
+
+## CI Rover follow-up (18 October)
+
+PR #862 at `d88e7e66`, run `39130556414`, failed at Rover re-designation.
+The CI snapshot shows the success message and the existing member card with
+Scouts/Rovers, while the management dialog has disappeared. The write succeeded;
+the missing dialog prevented the unchanged End Rover Membership assertion.
+
+A controlled real-UI regression confirms a same-marker cleanup hazard: after a
+select closes, a newly opened Rover dialog can occupy its transient history entry
+before MutationObserver state reaches React. The delayed cleanup checked browser
+ownership but used stale surface state and consumed that entry (history index
+2 → 1 on both projects). It now checks the live DOM as well before navigating
+Back. The regression holds only cleanup/observer timing; portals, clicks, native
+history and Firestore operations remain real. It also verifies that genuine
+browser Back still dismisses the new dialog.
+
+The original bridge fails both desktop/mobile regression cases. With the fix,
+17 actual UI cases passed with five established project-specific skips, zero
+retries and zero flaky outcomes: the complete Rover spec, both version/persistence
+journeys, active deep-link/reload cases, menu ownership/Sign Out regressions and
+the new same-marker cases. The Rover lifecycle assertions, identity/section
+preservation, timeout and retry limits are unchanged. Full local quality passed:
+842 unit, 51 worker, eight backend tests plus static/build checks, using Firebase
+emulators and matching Chromium Headless Shell 151.0.7922.34.
+
+This addresses the confirmed cleanup hazard consistent with the CI snapshot;
+a fresh full CI run must establish the reported full-suite result. Live TEST
+acceptance and PMT remain separate.
