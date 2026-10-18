@@ -1,5 +1,5 @@
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DateRangeFields from "../DateRangeFields";
 import { useBackDismiss } from "../../hooks/useBackDismiss";
@@ -8,7 +8,7 @@ import { eventCopyInput } from "../../services/scheduleRecordActions";
 import { isValidDateRange } from "../../services/dateRangeLogic";
 import { applicationErrorMessage } from "../../services/applicationErrors";
 
-export default function EventScheduleCopyDialog({ source, onClose }: { source: EventRecord; onClose: () => void }) {
+export default function EventScheduleCopyDialog({ source, onClose }: { source: EventRecord | null; onClose: () => void }) {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -18,9 +18,11 @@ export default function EventScheduleCopyDialog({ source, onClose }: { source: E
   const [error, setError] = useState("");
   const [discard, setDiscard] = useState(false);
   const cancel = () => { if (inFlight.current) return; if (startDate || endDate) setDiscard(true); else onClose(); };
-  useBackDismiss(true, cancel, "event-schedule-copy");
+  useBackDismiss(Boolean(source), cancel, "event-schedule-copy");
+  useBackDismiss(Boolean(source) && discard, () => setDiscard(false), "event-copy-discard");
+  useEffect(() => { setStartDate(""); setEndDate(""); setDiscard(false); setError(""); pendingId.current = undefined; }, [source?.id]);
   const save = async () => {
-    if (inFlight.current || !isValidDateRange(startDate, endDate, { requireStart: true, requireEnd: true })) return;
+    if (!source || inFlight.current || !isValidDateRange(startDate, endDate, { requireStart: true, requireEnd: true })) return;
     inFlight.current = true; setSaving(true); setError("");
     try {
       const id = await createEvent(eventCopyInput(source, startDate, endDate), pendingId.current, id => { pendingId.current = id; });
@@ -28,6 +30,7 @@ export default function EventScheduleCopyDialog({ source, onClose }: { source: E
     } catch (failure) { setError(applicationErrorMessage(failure, "Unable to create an event copy. Retry without changing the source.", "EventScheduleCopyDialog")); }
     finally { inFlight.current = false; setSaving(false); }
   };
+  if (!source) return null;
   return <>
     <Dialog open onClose={cancel} fullWidth maxWidth="sm" aria-labelledby="event-copy-title">
       <DialogTitle id="event-copy-title">Copy event</DialogTitle>

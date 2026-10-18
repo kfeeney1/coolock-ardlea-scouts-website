@@ -30,5 +30,5 @@ export default function EventSchedule({ events, members }: { events: EventRecord
         {actions.copy && <Button variant="outlined" color="secondary" onClick={() => setCopySource(event)}>Copy event</Button>}
       </>
     };
-  })} />{copySource && <EventScheduleCopyDialog source={copySource} onClose={() => setCopySource(null)} />}</>;
+  })} /><EventScheduleCopyDialog source={copySource} onClose={() => setCopySource(null)} /></>;
 }
