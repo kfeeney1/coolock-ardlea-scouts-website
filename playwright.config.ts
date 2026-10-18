@@ -7,6 +7,7 @@ const runTestSmokeContract = process.env.E2E_DEPLOYMENT_SMOKE_CONTRACT === "true
 const runTestEnvironmentSmoke = runStableEnvironmentSmoke || runTestSmokeContract;
 const configuredWorkers = Number.parseInt(process.env.E2E_WORKERS || "1", 10);
 const workers = Number.isFinite(configuredWorkers) && configuredWorkers > 0 ? configuredWorkers : 1;
+const progressReporters: [string][] = process.env.E2E_SUPERVISED === "true" ? [["./scripts/playwright-progress-reporter.mjs"]] : [];
 
 if (process.env.CI) {
   const required = runStableEnvironmentSmoke
@@ -49,8 +50,8 @@ export default defineConfig({
     timeout: 10_000
   },
   reporter: process.env.CI
-    ? [["github"], ["html", { outputFolder: "playwright-report", open: "never" }], ["./scripts/playwright-assurance-reporter.mjs"]]
-    : "list",
+    ? [["github"], ["html", { outputFolder: "playwright-report", open: "never" }], ["./scripts/playwright-assurance-reporter.mjs"], ...progressReporters]
+    : [["list"], ...progressReporters],
   use: {
     // Fail away from production by default. Any non-local target must be supplied
     // explicitly by the dedicated TEST or manual PRODUCTION smoke workflow.

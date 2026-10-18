@@ -14,15 +14,19 @@ permissions:
 
 jobs:
   e2e_shard:
-    name: e2e shard ${{ matrix.id }} of 2
+    name: e2e shard ${{ matrix.id }} of 4
     strategy:
       fail-fast: false
       matrix:
         include:
           - id: 1
-            shard: 1/2
+            shard: 1/4
           - id: 2
-            shard: 2/2
+            shard: 2/4
+          - id: 3
+            shard: 3/4
+          - id: 4
+            shard: 4/4
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     container:
@@ -201,7 +205,9 @@ jobs:
 
       - name: List discovered Playwright tests
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
-        run: npx --no-install playwright test --list
+        timeout-minutes: 2
+        # Discovery must not leave a misleading HTML report for a later hang.
+        run: npx --no-install playwright test --list --reporter=list
 
 
       - name: Run Playwright tests
@@ -215,7 +221,7 @@ jobs:
           fi
 
       - name: Collect E2E service logs on failure
-        if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
+        if: ${{ (failure() || cancelled()) && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
         run: |
           mkdir -p e2e-debug
           cp /tmp/firebase-emulator.log e2e-debug/firebase-emulator.log 2>/dev/null || true
@@ -233,7 +239,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload failure artifacts
-        if: ${{ failure() && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
+        if: ${{ (failure() || cancelled()) && (github.event_name != 'pull_request' || github.actor != 'dependabot[bot]') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-test-results-shard-${{ matrix.id }}
