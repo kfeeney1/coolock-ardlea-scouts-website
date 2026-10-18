@@ -2,7 +2,7 @@ import { Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { WeeklyMeetingRecord } from "../../services/weeklyTracker";
-import { scheduleToday } from "../../services/scheduleSelection";
+import { scheduleRecordActions } from "../../services/scheduleRecordActions";
 import ScheduleTiles from "./ScheduleTiles";
 
 export default function WeeklyMeetingSchedule({ records, readOnly, canEditAll, sections }: {
@@ -19,7 +19,7 @@ export default function WeeklyMeetingSchedule({ records, readOnly, canEditAll, s
     <ScheduleTiles key={section} label="Meetings" items={visible.map(record => {
       const href = `/leader/weekly?meeting=${encodeURIComponent(record.id)}`;
       const canChange = !readOnly && (canEditAll || sections.includes(record.section));
-      const future = record.meetingDate >= scheduleToday() && record.status === "open";
+      const actions = scheduleRecordActions(record.meetingDate, record.status === "open", canChange);
       return {
         id: record.id, date: record.meetingDate, title: `${record.section} · ${record.theme || "Weekly meeting"}`,
         content: <Stack spacing={2}>
@@ -31,8 +31,8 @@ export default function WeeklyMeetingSchedule({ records, readOnly, canEditAll, s
           {record.programmeNotes && <Typography>{record.programmeNotes}</Typography>}
         </Stack>,
         actions: <>
-          <Button component={Link} to={href} variant="contained" color="secondary">{future && canChange ? "Edit meeting" : "View meeting"}</Button>
-          {canChange && <Button component={Link} to={`/leader/weekly/copy/${encodeURIComponent(record.id)}`} variant="outlined" color="secondary">Copy meeting</Button>}
+          <Button component={Link} to={href} variant="contained" color="secondary">{actions.edit ? "Edit meeting" : "View meeting"}</Button>
+          {actions.copy && <Button component={Link} to={`/leader/weekly/copy/${encodeURIComponent(record.id)}`} variant="outlined" color="secondary">Copy meeting</Button>}
         </>
       };
     })} />
