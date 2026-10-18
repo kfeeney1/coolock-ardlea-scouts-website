@@ -5,6 +5,7 @@ export const suiteSpecs = {
     "leader-navigation-info.spec.ts",
     "leader-navigation.spec.ts",
     "leader-navigation-version.spec.ts",
+    "leader-navigation-personas.spec.ts",
     "leader-navigation-contract.spec.ts",
     "leader-navigation-state.spec.ts",
     "leader-navigation-back.spec.ts",
