@@ -162,6 +162,24 @@ function parentOnlyUsers() {
 
 const scenarioLeaders = [
   {
+    uid: "TEST_uid_navigation_multi_appointment",
+    email: "test.navigation.multi.appointment@example.com",
+    displayName: "Test Navigation Secretary and Bosun",
+    accessRole: "leader",
+    sections: ["Group"],
+    scoutingRole: "Group Secretary",
+    appointments: [
+      { appointment: "Group Secretary", scope: "Group", active: true },
+      { appointment: "Group Quartermaster / Bo'sun", scope: "Group", active: true },
+      { appointment: "Group Treasurer", scope: "Group", active: false }
+    ],
+    organisationSection: "Group",
+    organisationOrder: 97,
+    reportsToUid: "TEST_uid_group_leader",
+    showPublicly: false,
+    kind: "navigation-multi-appointment"
+  },
+  {
     uid: "TEST_uid_multi_section_leader",
     email: "test.multi.section.leader@example.com",
     displayName: "Test Multi Section Leader",
