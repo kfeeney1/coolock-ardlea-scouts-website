@@ -24,3 +24,20 @@ export async function clearScheduleMeetings() {
   for (const id of scheduleMeetingIds) await db.collection("weeklyMeetings").doc(id).delete();
   await db.doc("siteSettings/scheduleExperience").delete();
 }
+
+export const scheduleEventIds = ["000-sw177-event-past", "000-sw177-event-today", "000-sw177-event-future"];
+export async function seedScheduleEvents() {
+  const db = scheduleFixtureDb();
+  const today = new Date(`${groupLocalDate()}T12:00:00Z`);
+  const date = (offset: number) => { const d = new Date(today); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+  for (const [index, id] of scheduleEventIds.entries()) await db.collection("events").doc(id).set({
+    title: `Schedule event ${index}`, description: "A deliberately long event description to verify mobile wrapping without losing any of the audience or consent summaries.", eventType: "Activity", section: "Scouts", location: "Scout den", meetingPoint: "Entrance", returnDetails: "", leaderNotes: "", startDate: date(index - 1), endDate: date(index - 1), status: index === 0 ? "completed" : "open", consentRequired: true,
+    attendance: { TEST_member_scout_01: "attending" }, consent: { TEST_member_scout_01: "received" }, audience: { version: 2, mode: "members", semantics: "snapshot", sectionIds: [], memberIds: ["TEST_member_scout_01"], resolvedMemberIds: ["TEST_member_scout_01"] }, testData: true
+  });
+  return date(0);
+}
+export async function clearScheduleEvents() {
+  const db = scheduleFixtureDb();
+  for (const id of scheduleEventIds) await db.collection("events").doc(id).delete();
+  await db.doc("siteSettings/scheduleExperience").delete();
+}
