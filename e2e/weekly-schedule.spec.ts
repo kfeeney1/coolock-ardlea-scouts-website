@@ -33,6 +33,8 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
     await selected.getByRole("link", { name: "Edit meeting", exact: true }).click();
     await expect(page).toHaveURL(/\/leader\/weekly\?meeting=000-sw177-schedule-today$/);
     await expect(page.getByRole("button", { name: "Programme", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
+    await expect(page.getByText("Meeting saved.", { exact: true })).toBeVisible();
     await page.goto("/leader/settings");
     await page.getByRole("button", { name: "Existing schedules", exact: true }).click();
     await expect(page.getByRole("button", { name: "Existing schedules", exact: true })).toHaveAttribute("aria-pressed", "true");
