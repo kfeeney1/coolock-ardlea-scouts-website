@@ -17,9 +17,8 @@ export default function EventScheduleCopyDialog({ source, onClose }: { source: E
   const pendingId = useRef<string | undefined>(undefined);
   const [error, setError] = useState("");
   const [discard, setDiscard] = useState(false);
-  const cancel = () => { if (inFlight.current) return; if (startDate || endDate) setDiscard(true); else onClose(); };
+  const cancel = () => { if (inFlight.current) return; if (discard) { setDiscard(false); return; } if (startDate || endDate) setDiscard(true); else onClose(); };
   useBackDismiss(Boolean(source), cancel, "event-schedule-copy");
-  useBackDismiss(Boolean(source) && discard, () => setDiscard(false), "event-copy-discard");
   useEffect(() => { setStartDate(""); setEndDate(""); setDiscard(false); setError(""); pendingId.current = undefined; }, [source?.id]);
   const save = async () => {
     if (!source || inFlight.current || !isValidDateRange(startDate, endDate, { requireStart: true, requireEnd: true })) return;
