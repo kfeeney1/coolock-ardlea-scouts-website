@@ -8,6 +8,7 @@ export const suiteSpecs = {
     "leader-navigation-personas.spec.ts",
     "leader-navigation-contract.spec.ts",
     "leader-navigation-state.spec.ts",
+    "leader-navigation-direct-routes.spec.ts",
     "leader-navigation-back.spec.ts",
     "leader-navigation-accessibility.spec.ts",
     "navigation-recovery.spec.ts",
