@@ -6,8 +6,20 @@ const password = process.env.E2E_TEST_USER_PASSWORD;
 test("confirmed poll publish and close remain usable while follow-up reads are pending", async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+  const discoveryTargets: unknown[] = [];
+  page.on("request", (request) => {
+    if (!request.url().includes("google.firestore.v1.Firestore/Listen/channel")) return;
+    for (const value of new URLSearchParams(request.postData() || "").values()) {
+      if (value.includes('"addTarget"') && value.includes('"collectionId":"audienceSections"')) discoveryTargets.push(JSON.parse(value));
+    }
+  });
   await page.goto("/leader/polls");
   const panel = page.getByTestId("leader-polls");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("Loading active polls…", { exact: true })).toHaveCount(0);
+  // Group management must discover both audiences without the former 25
+  // overlapping section/scope queries. Root reads and rules remain real.
+  expect(discoveryTargets).toHaveLength(2);
   const question = `Poll acknowledgement ${Date.now()} ${testInfo.project.name}`;
   await page.getByLabel("Poll question").fill(question);
   await page.getByLabel("Answer options").fill("Hike\nCamp");

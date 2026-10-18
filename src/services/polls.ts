@@ -95,18 +95,15 @@ export async function loadLeaderPolls(actor: PollLeaderActor): Promise<PollRecor
   if (!auth.currentUser) return [];
   const groupManager = actor.role === "admin" || actor.role === "super-admin" || isGroupLeadershipAppointment(actor.scoutingRole);
   const querySections = groupManager ? [...GROUP_POLL_SECTIONS] : actor.sections;
-  const publishedLeaderQueries = querySections.map((section) =>
-    // Active leader polls, including group polls projected onto each canonical section.
+  // Group managers are authorised to discover every poll audience index. Query
+  // each audience once rather than repeating the same group poll in all five
+  // section queries and fetching both scope types separately (25 queries).
+  // Root documents are still fetched and authorised individually below.
+  const publishedLeaderQueries = groupManager ? [] : querySections.map((section) =>
     fetchAudienceIndexIds(section, "leaders", undefined, true)
   );
   const managerQueries = groupManager
-    ? querySections.flatMap((section) => [
-      // Group managers can see all poll indexes and use the root document rules for actions.
-      fetchAudienceIndexIds(section, "leaders", "group"),
-      fetchAudienceIndexIds(section, "parents", "group"),
-      fetchAudienceIndexIds(section, "leaders", "sections"),
-      fetchAudienceIndexIds(section, "parents", "sections")
-    ])
+    ? [fetchAudienceIndexIds(undefined, "leaders"), fetchAudienceIndexIds(undefined, "parents")]
     : (() => {
       const permittedScopes = pollManagerScopeSubsets(actor.sections);
       const scopeChunks: string[][][] = [];
