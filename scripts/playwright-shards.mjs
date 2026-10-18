@@ -3,6 +3,8 @@
 // Failed/unfinished specs keep their previous estimates; no partial duration is used.
 // SW-186 persona/version replacements use the latest local Chromium 151 run below.
 export const measuredPlaywrightSpecSeconds = {
+  // SW-188: complete local Pixel 7 Chromium 151 run at 393px and 320px.
+  "leader-navigation-mobile-transition.spec.ts": 27.0,
   // SW-187: complete local Chromium 151 desktop/mobile run, both saved modes.
   "leader-navigation-direct-routes.spec.ts": 108.3,
   "leader-navigation-contract.spec.ts": 377.8,
