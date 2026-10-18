@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { holdReopenUntilOverlayCleanup } from "./support/overlay-close-race";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const leaderEmail = process.env.E2E_SECTION_LEADER_EMAIL || "test.scout.section.leader@example.com";
@@ -82,17 +83,29 @@ test("reopening a closed meeting loads that exact editable record, preserves dat
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(confirmation).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    (window.history.state?.usr?.__coolockArdleaBackDismissStack || []).filter((marker: string) => marker.startsWith("transient-overlay:")).length
+  )).toBe(0);
   await expect(page).toHaveURL((url) => url.pathname === "/leader/weekly");
   await expect(historyCard).toContainText("Closed");
 
   await historyCard.getByRole("button", { name: "Reopen Meeting", exact: true }).click();
-  await page.getByRole("dialog", { name: "Reopen meeting?" }).getByRole("button", { name: "Reopen Meeting", exact: true }).click();
+  await expect.poll(() => page.evaluate(() =>
+    (window.history.state?.usr?.__coolockArdleaBackDismissStack || []).filter((marker: string) => marker.startsWith("transient-overlay:")).length
+  )).toBe(1);
+  const race = await holdReopenUntilOverlayCleanup(page);
+  try {
+    await page.getByRole("dialog", { name: "Reopen meeting?" }).getByRole("button", { name: "Reopen Meeting", exact: true }).click();
+    await race.ready();
+    race.release();
 
-  await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${encodeURIComponent(meetingId!)}`));
-  const editor = page.getByTestId("weekly-meeting-editor-top");
-  await expect(editor).toBeVisible();
-  await expect(editor).toContainText("Open");
-  await expect(editor).toContainText(meeting.label);
+    await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${encodeURIComponent(meetingId!)}`));
+    const editor = page.getByTestId("weekly-meeting-editor-top");
+    await expect(editor).toBeVisible();
+    await expect(editor).toContainText("Open");
+    await expect(editor).toContainText(meeting.label);
+    await expect(page).toHaveURL(new RegExp(`/leader/weekly\\?meeting=${encodeURIComponent(meetingId!)}`));
+  } finally { await race.restore(); }
   await expect(page.getByTestId("weekly-meeting-summary")).toContainText(theme);
 
   await page.getByRole("button", { name: "Programme", exact: true }).click();

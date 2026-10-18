@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { backDismissStack, withBackDismissMarker } from "../services/backDismissHistory";
+import { backDismissStack, overlayNavigationLeavesSurface, withBackDismissMarker } from "../services/backDismissHistory";
 
 const MARKER_PREFIX = "transient-overlay:";
 
@@ -86,10 +86,13 @@ export default function TransientOverlayBackDismissBridge() {
         if (navigationType === "reload" || destination?.sameDocument === false) documentDeparturePending.current = true;
         const target = destinationUrl ? new URL(destinationUrl) : null;
         // List filters replace the query string in browser history without
-        // leaving the page. Treating that as departure cancels the pending POP
+        // leaving the page. A PUSH to a different query opens a record and must
+        // cancel cleanup before the React location commits. Treating a filter
+        // replacement as departure cancels the pending POP
         // and strands the dropdown marker indefinitely.
-        const currentPathname = new URL(currentUrl.current, window.location.origin).pathname;
-        if (documentDeparturePending.current || (target && target.pathname !== currentPathname)) {
+        if (documentDeparturePending.current || (target && overlayNavigationLeavesSurface(
+          new URL(currentUrl.current, window.location.origin).href, target.href, navigationType
+        ))) {
           routeDeparturePending.current = true;
           cancelPendingClose();
         }
