@@ -15,7 +15,7 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
     const schedule = page.getByRole("region", { name: "Meetings schedule", exact: true });
     const selected = schedule.getByRole("article", { name: "Scouts · Schedule fixture 1", exact: true });
     await expect(selected).toHaveAttribute("aria-current", "true");
-    await expect(schedule.getByLabel("Meetings date", { exact: true })).toHaveValue(today);
+    await expect(schedule.getByLabel("Meetings date", { exact: true })).toHaveValue(today.split("-").reverse().join("-"));
     await expect(selected.getByText("Games & activities · 2", { exact: true })).toBeVisible();
     await expect(selected.getByText("River banks", { exact: true })).toBeVisible();
     await expect(selected.getByText("Teamwork · Level 2", { exact: true })).toBeVisible();

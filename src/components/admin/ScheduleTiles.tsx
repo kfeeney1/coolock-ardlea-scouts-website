@@ -1,4 +1,5 @@
-import { Alert, Box, Button, CircularProgress, Paper, Stack, TextField, Typography } from "@mui/material";
+import DatePickerField from "../DatePickerField";
+import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatSiteDate } from "../../services/siteDateFormat";
 import { initialScheduleId, orderedSchedule, scheduleIdForDate, type ScheduleIdentity } from "../../services/scheduleSelection";
@@ -36,9 +37,9 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
   if (loading) return <Box role="status" sx={{ p: 3 }}><CircularProgress aria-label={`Loading ${label}`} /><Typography>Loading {label}…</Typography></Box>;
   if (error) return <Alert severity="error">{error}{onRetry && <Button onClick={onRetry}>Retry {label}</Button>}</Alert>;
   if (!sorted.length) return <Alert severity="info">No {label} match the current filters.</Alert>;
-  return <Stack spacing={2} role="region" aria-label={`${label} schedule`} sx={{ minWidth: 0 }}>
+  return <Stack spacing={2} role="region" aria-label={`${label} schedule`} sx={{ minWidth: 0, "& .MuiIconButton-root": { minWidth: 44, minHeight: 44 } }}>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-      <TextField label={`${label} date`} type="date" value={sorted[index]?.date ?? ""} slotProps={{ inputLabel: { shrink: true } }} onChange={(event) => { if (event.target.value) setSelection(scheduleIdForDate(sorted, event.target.value)); }} />
+      <DatePickerField label={`${label} date`} value={sorted[index]?.date ?? ""} slotProps={{ inputLabel: { shrink: true } }} onChange={(event) => { if (event.target.value) setSelection(scheduleIdForDate(sorted, event.target.value)); }} />
       <Stack direction="row" spacing={1}>
         <Button color="secondary" disabled={index <= 0} onClick={() => choose(index - 1)} aria-controls={`${id}-tiles`} sx={{ minHeight: 44 }}>Previous</Button>
         <Button color="secondary" disabled={index === sorted.length - 1} onClick={() => choose(index + 1)} aria-controls={`${id}-tiles`} sx={{ minHeight: 44 }}>Next</Button>
