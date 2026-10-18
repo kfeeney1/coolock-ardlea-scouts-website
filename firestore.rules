@@ -1919,12 +1919,12 @@ service cloud.firestore {
       // Public navigation reads a single non-sensitive projection. The canonical
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
-        || (signedIn() && settingsId == "leaderNavigation")
+        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience"])
         || (settingsId == "parentLogin" && isSuperAdmin())
         || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
       allow list: if false;
-      allow create, update: if settingsId == "leaderNavigation" && isSuperAdmin()
+      allow create, update: if settingsId in ["leaderNavigation", "scheduleExperience"] && isSuperAdmin()
         && request.resource.data.version in ["existing", "redesigned"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
