@@ -1,7 +1,11 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import process from "node:process";
 import { smokeSpecs, suiteSpecs, suitesForChangedPath } from "./playwright-suites.mjs";
 import { assignSpecsToShard, estimateSpecsSeconds } from "./playwright-shards.mjs";
+import { supervisePlaywright } from "./playwright-process-supervisor.mjs";
+
+const require = createRequire(import.meta.url);
 
 const args = process.argv.slice(2);
 const modeIndex = args.indexOf("--mode");
@@ -29,7 +33,7 @@ function selectedForShard(specs) {
   return assigned;
 }
 
-function run(specs, label) {
+async function run(specs, label) {
   const selected = selectedForShard(specs);
   const unique = selected.map((name) => `e2e/${name}`);
   console.log(`Playwright selection: ${label}`);
@@ -39,15 +43,14 @@ function run(specs, label) {
     process.exit(0);
   }
   const extra = focused ? ["--retries=0", "--timeout=30000"] : [];
-  const result = spawnSync("npx", ["--no-install", "playwright", "test", ...unique, ...extra], {
-    stdio: "inherit",
-    shell: process.platform === "win32"
+  const result = await supervisePlaywright(process.execPath, [require.resolve("@playwright/test/cli"), "test", ...unique, ...extra], {
+    env: { ...process.env, E2E_SUPERVISED: "true" }
   });
-  process.exit(result.status ?? 1);
+  process.exit(result.code);
 }
 
 if (mode === "full") {
-  run(Object.values(suiteSpecs).flat(), "full suite");
+  await run(Object.values(suiteSpecs).flat(), "full suite");
 }
 
 if (mode === "suite") {
@@ -56,7 +59,7 @@ if (mode === "suite") {
     console.error(`Unknown Playwright suite: ${requestedSuite}`);
     process.exit(2);
   }
-  run(specs, requestedSuite);
+  await run(specs, requestedSuite);
 }
 
 if (mode !== "pr") {
@@ -78,7 +81,7 @@ try {
 } catch (error) {
   console.error("Unable to determine changed files safely; running full Playwright suite.");
   console.error(error instanceof Error ? error.message : error);
-  run(Object.values(suiteSpecs).flat(), "full-suite fallback");
+  await run(Object.values(suiteSpecs).flat(), "full-suite fallback");
 }
 
 const selectedSuites = new Set();
@@ -100,9 +103,9 @@ for (const file of changedFiles) {
 }
 
 if (requiresFullSuite) {
-  run(Object.values(suiteSpecs).flat(), "full-suite fallback");
+  await run(Object.values(suiteSpecs).flat(), "full-suite fallback");
 }
 
 const selectedSpecs = [...smokeSpecs];
 for (const suite of selectedSuites) selectedSpecs.push(...suiteSpecs[suite]);
-run(selectedSpecs, `PR smoke + ${selectedSuites.size ? [...selectedSuites].join(", ") : "no affected functional suite"}`);
+await run(selectedSpecs, `PR smoke + ${selectedSuites.size ? [...selectedSuites].join(", ") : "no affected functional suite"}`);
