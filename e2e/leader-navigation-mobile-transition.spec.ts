@@ -12,7 +12,7 @@ async function mode(page: Page, redesigned: boolean) {
 
 for (const redesigned of [false, true]) for (const width of [393, 320]) {
   test(`${redesigned ? "Redesigned" : "Existing"} mobile menu preserves identity and Back across ${width}px rotation`, async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "mobile-chromium", "Responsive mobile transitions use the Pixel 7 project.");
+    test.skip(testInfo.project.name !== "mobile-chromium", "Responsive mobile transitions run only in the Pixel 7 project.");
     test.skip(!password, "Configure canonical E2E credentials.");
     await page.setViewportSize({ width, height: 851 });
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
