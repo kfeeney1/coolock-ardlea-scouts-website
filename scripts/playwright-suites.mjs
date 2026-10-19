@@ -67,6 +67,7 @@ export const suiteSpecs = {
     "weekly-mobile-layout.spec.ts",
     "weekly-schedule.spec.ts",
     "schedule-accessibility.spec.ts",
+    "schedule-experience-matrix.spec.ts",
     "weekly-meeting-share.spec.ts",
     "weekly-parent-sharing.spec.ts",
     "weekly-parent-programme-history.spec.ts",
