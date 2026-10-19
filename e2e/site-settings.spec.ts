@@ -102,6 +102,49 @@ test("ordinary leader cannot access site settings", async ({ page }, testInfo) =
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
 });
 
+test("subs policy waits for initial records before allowing edits", async ({ page }, testInfo) => {
+  desktopOnly(testInfo);
+  test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
+  await login(page, "test.webadmin@example.com");
+  let release!: () => void;
+  let held = false;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const channel = "**/google.firestore.v1.Firestore/Listen/channel?**";
+  await page.route(channel, async (route) => {
+    const payload = new URLSearchParams(route.request().postData() || "");
+    if ([...payload.values()].some((value) => value.includes("subsRatePolicies"))) {
+      held = true;
+      await gate;
+    }
+    await route.continue();
+  });
+  try {
+    await page.goto("/leader/settings");
+    await expect.poll(() => held).toBe(true);
+    const panel = page.getByTestId("subs-settings-panel");
+    await expect(panel.getByText("Loading subs settings…", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("group", { name: "Subs rate policy" })).toHaveAttribute("disabled", "");
+    await expect(panel.getByTestId("subs-add-standard-rate")).toBeDisabled();
+    await expect(panel.getByTestId("subs-add-leader-rate")).toBeDisabled();
+    await expect(panel.getByLabel("Scout year", { exact: true })).toBeDisabled();
+    await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeDisabled();
+    release();
+    await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
+    await expect(panel.getByRole("group", { name: "Subs rate policy" })).not.toHaveAttribute("disabled");
+    await expect(panel.getByLabel("Scout year", { exact: true })).toBeEnabled();
+    await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeEnabled();
+    await panel.getByTestId("subs-add-standard-rate").click();
+    await panel.getByTestId("subs-standard-rate-5").getByRole("textbox").fill("734.00");
+    await panel.getByTestId("subs-add-leader-rate").click();
+    await panel.getByTestId("subs-leader-rate-4").getByRole("textbox").fill("570.00");
+    await expect(panel.getByTestId("subs-standard-rate-5").getByRole("textbox")).toHaveValue("734.00");
+    await expect(panel.getByTestId("subs-leader-rate-4").getByRole("textbox")).toHaveValue("570.00");
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 test("admin can extend standard and leader family rate tables", async ({ page }, testInfo) => {
   desktopOnly(testInfo);
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { holdOverlayCloseForMenu } from "./support/overlay-close-race";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const ownedAccounts: string[] = [];
@@ -102,6 +103,34 @@ test("combined leader and parent can switch contexts, reload and sign in again w
   await signIn(page, email!, true);
   await page.goto("/parent");
   await expectChildOptions(page, 2);
+});
+
+test("selected child commits after the closing select releases Back and survives reload", async ({ page }, testInfo) => {
+  const email = process.env.E2E_PARENT_LEADER_EMAIL;
+  test.skip(!email, "Configure canonical combined account.");
+  await signIn(page, email!, true);
+  await openParentFromNavigation(page, testInfo);
+  await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
+  const cleanup = await holdOverlayCloseForMenu(page);
+  try {
+    await page.getByRole("combobox", { name: "Viewing information for" }).click();
+    await page.locator('[role="option"][data-value="TEST_member_beaver_06"]').click();
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    await cleanup.ready();
+    // The visible selection may update immediately, but the URL must not be
+    // replaced while the old select still owns a pending browser Back entry.
+    await expect(page.getByTestId("parent-child-context").locator("input")).toHaveValue("TEST_member_beaver_06");
+    await expect(page).toHaveURL(/child=TEST_member_beaver_05/);
+    await cleanup.flush();
+    await expect(page).toHaveURL(/child=TEST_member_beaver_06/);
+    expect(await page.evaluate(() => window.history.state?.usr?.__coolockArdleaBackDismissStack || [])).toEqual([]);
+  } finally {
+    await cleanup.restore();
+  }
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Viewing information for" })).toBeVisible();
+  await expect(page).toHaveURL(/child=TEST_member_beaver_06/);
+  await expect(page.getByTestId("parent-child-context").locator("input")).toHaveValue("TEST_member_beaver_06");
 });
 
 test("leaving Parent Portal cancels a pending child selection commit", async ({ page }, testInfo) => {
