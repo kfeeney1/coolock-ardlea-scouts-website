@@ -11,7 +11,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { OperationalErrorState, OperationalLoading, OperationalPermissionState } from "../components/admin/OperationalStates";
 import ParentPortalSections from "../components/parent/ParentPortalSections";
 import ParentChildRequestFields from "../components/ParentChildRequestFields";
-import { BACK_DISMISS_STATE_KEY, backDismissStack } from "../services/backDismissHistory";
+import { afterTransientOverlayClose } from "../services/afterTransientOverlayClose";
 import { loadLinkedMembers } from "../services/parentConsent";
 import type { ParentLinkedMember } from "../services/parentConsent";
 import { auth } from "../firebase";
@@ -57,7 +57,7 @@ export default function ParentPortal() {
     const [pendingChildId, setPendingChildId] = useState<string | null>(null);
     const pendingChildIdRef = useRef<string | null>(null);
     const handledJoinConsentTokenRef = useRef("");
-    const childCommitTimerRef = useRef<number | null>(null);
+    const cancelChildCommitRef = useRef<(() => void) | null>(null);
     const portalContentRef = useRef<HTMLDivElement | null>(null);
     const leaderAccessDenied = Boolean((location.state as { leaderAccessDenied?: boolean } | null)?.leaderAccessDenied);
 
@@ -76,8 +76,8 @@ export default function ParentPortal() {
 
     useEffect(() => {
         const cancelPendingChildCommit = () => {
-            if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
-            childCommitTimerRef.current = null;
+            cancelChildCommitRef.current?.();
+            cancelChildCommitRef.current = null;
             pendingChildIdRef.current = null;
         };
         const handleNavigation = (event: Event) => {
@@ -170,31 +170,24 @@ export default function ParentPortal() {
     }, [joinConsentToken, user, consentSettingsReady, consentFlowsEnabled, searchParams, navigate, location.state]);
 
     const rememberChildSelection = (childId: string) => {
-        if (childCommitTimerRef.current !== null) window.clearTimeout(childCommitTimerRef.current);
-        childCommitTimerRef.current = null;
+        cancelChildCommitRef.current?.();
+        cancelChildCommitRef.current = null;
         pendingChildIdRef.current = childId;
         setPendingChildId(childId);
     };
     const commitChildSelectionAfterClose = () => {
         const childId = pendingChildIdRef.current;
-        if (!childId || childCommitTimerRef.current !== null) return;
-        // Commit once the closing select has released its transient Back-dismiss
-        // marker. Do not retain a one-second window in which the selected child
-        // can be lost to a parent route state refresh.
-        childCommitTimerRef.current = window.setTimeout(() => {
-            childCommitTimerRef.current = null;
+        if (!childId || cancelChildCommitRef.current !== null) return;
+        // Commit only after the select's browser Back entry is consumed. A
+        // query replacement during its exit transition can otherwise leave a
+        // stale marker which restores the previous child after a reload.
+        cancelChildCommitRef.current = afterTransientOverlayClose((routerState) => {
+            cancelChildCommitRef.current = null;
             if (pendingChildIdRef.current !== childId || window.location.pathname !== "/parent") return;
-            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
-            const nextState = routerState && typeof routerState === "object" && !Array.isArray(routerState)
-                ? { ...(routerState as Record<string, unknown>) }
-                : {};
-            const remainingMarkers = backDismissStack(nextState).filter((marker) => !marker.startsWith("transient-overlay:"));
-            if (remainingMarkers.length > 0) nextState[BACK_DISMISS_STATE_KEY] = remainingMarkers;
-            else delete nextState[BACK_DISMISS_STATE_KEY];
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
-            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: nextState });
-        }, 0);
+            navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: routerState });
+        });
     };
 
     useEffect(() => {

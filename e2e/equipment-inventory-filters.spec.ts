@@ -85,6 +85,16 @@ test("dashboard tile filters inventory through the URL and browser Back restores
   await expect(page.locator("#equipment-status-filter")).toContainText("All statuses");
   await expect(page.getByRole("button", { name: "Reset filters" })).toHaveCount(0);
 
+  await page.goForward();
+  await expect(page).toHaveURL(/status=available/);
+  await expect(page.locator("#equipment-status-filter")).toContainText("Available stock");
+  await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible();
+  await page.reload();
+  await expect(page.locator("#equipment-status-filter")).toContainText("Available stock");
+  await page.goBack();
+  await expect(page).not.toHaveURL(/status=/);
+  await expect(page.locator("#equipment-status-filter")).toContainText("All statuses");
+
   if (testInfo.project.name === "mobile-chromium") {
     await expect(page.getByTestId("equipment-inventory-controls")).toBeVisible();
     await expect(page.getByLabel("Search equipment")).toBeVisible();
