@@ -123,14 +123,16 @@ test("subs policy waits for initial records before allowing edits", async ({ pag
     await expect.poll(() => held).toBe(true);
     const panel = page.getByTestId("subs-settings-panel");
     await expect(panel.getByText("Loading subs settings…", { exact: true })).toBeVisible();
-    await expect(panel.getByRole("group", { name: "Subs rate policy" })).toBeDisabled();
+    await expect(panel.getByRole("group", { name: "Subs rate policy" })).toHaveAttribute("disabled", "");
     await expect(panel.getByTestId("subs-add-standard-rate")).toBeDisabled();
     await expect(panel.getByTestId("subs-add-leader-rate")).toBeDisabled();
     await expect(panel.getByLabel("Scout year", { exact: true })).toBeDisabled();
     await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeDisabled();
     release();
     await expect(panel.getByTestId("subs-saved-policy-status")).toBeVisible();
-    await expect(panel.getByRole("group", { name: "Subs rate policy" })).toBeEnabled();
+    await expect(panel.getByRole("group", { name: "Subs rate policy" })).not.toHaveAttribute("disabled");
+    await expect(panel.getByLabel("Scout year", { exact: true })).toBeEnabled();
+    await expect(panel.getByRole("button", { name: "Save immutable rate policy" })).toBeEnabled();
     await panel.getByTestId("subs-add-standard-rate").click();
     await panel.getByTestId("subs-standard-rate-5").getByRole("textbox").fill("734.00");
     await panel.getByTestId("subs-add-leader-rate").click();
@@ -139,7 +141,7 @@ test("subs policy waits for initial records before allowing edits", async ({ pag
     await expect(panel.getByTestId("subs-leader-rate-4").getByRole("textbox")).toHaveValue("570.00");
   } finally {
     release();
-    await page.unroute(channel);
+    await page.unrouteAll({ behavior: "wait" });
   }
 });
 
