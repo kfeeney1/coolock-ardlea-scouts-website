@@ -14,11 +14,11 @@ The redesign remains disabled by default. These are separate gates:
 - Live Firebase TEST: A190–A197 acceptance is NOT executed. Acceptance candidate main
   is `f0816fe00ece2c2a58d846e312e0390b1d12c9fa`. Its deployment run
   [39238309355](https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions/runs/39238309355)
-  is still in progress. The independently fetched public `build-info.json` now
+  completed successfully for that exact main SHA. The independently fetched public `build-info.json`
   matches that exact SHA: environment `test`, build time
   `2026-10-19T10:33:57.843Z`, source `github-actions`.
-  This proves Hosting build identity only; deploy smoke/post-merge results and
-  authenticated functional acceptance remain pending.
+  Hosting identity and the deploy workflow are verified. Authenticated schedule
+  acceptance and screen-reader checks remain pending; this is not a TEST pass.
 - Access: the live acceptance browser reached Leader Login and requires secure
   authentication with an authorised synthetic TEST Superuser. No credentials were
   entered and no live setting or canonical record was changed.
@@ -113,7 +113,7 @@ versions. Confirm the environment banner before mutating fixtures.
 ## Evidence to fill after deployment
 
 - Acceptance candidate merged main SHA: `f0816fe00ece2c2a58d846e312e0390b1d12c9fa`; Hosting build-info SHA MATCHED.
-- Firebase TEST deploy run: `39238309355`, completion PENDING. Hosting build-info matches candidate SHA, build time `2026-10-19T10:33:57.843Z`.
+- Firebase TEST deploy run: `39238309355`, SUCCESS. Hosting build-info matches candidate SHA, build time `2026-10-19T10:33:57.843Z`.
 - Device/browser/keyboard/screen-reader versions: PENDING.
 - A190–A197 result, timestamp, tester, screenshots and defects: PENDING.
 - Canonical source/destination IDs and before/after snapshots: PENDING.
