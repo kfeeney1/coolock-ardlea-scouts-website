@@ -49,13 +49,12 @@ async function openParentFromNavigation(page: Page, testInfo: TestInfo) {
     await page.getByRole("button", { name: "Open navigation menu" }).click();
     await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
   } else {
+    // The header deliberately hides authenticated Parent Portal navigation
+    // until Firebase has restored the session after a full route load.
+    // Wait for that state rather than treating initial invisibility as mobile.
     const parentLink = page.getByRole("banner").getByRole("link", { name: "Parent Portal", exact: true });
-    if (await parentLink.isVisible()) {
-      await parentLink.click();
-    } else {
-      await page.getByRole("button", { name: "Open navigation menu" }).click();
-      await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
-    }
+    await expect(parentLink).toBeVisible();
+    await parentLink.click();
   }
   await expect(page.getByRole("heading", { name: "Parent Portal", exact: true })).toBeVisible();
 }
