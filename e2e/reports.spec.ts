@@ -94,8 +94,13 @@ test("Pixel 7 report result actions fit the viewport and keep application state"
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await login(page);
   await page.goto("/leader/reports");
-
-  await page.getByRole("button", { name: "Export Membership Summary" }).click();
+  // Wait for report data and controls to hydrate before requesting the export.
+  // Otherwise the initial mobile click can race the route's loading state.
+  await expect(page.getByRole("heading", { name: "Reports & Exports" })).toBeVisible();
+  await expect(page.getByTestId("report-summary-cards")).toBeVisible();
+  const exportButton = page.getByRole("button", { name: "Export Membership Summary" });
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
   const dialog = await expectReportReady(page);
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
