@@ -52,6 +52,12 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await page.keyboard.press("Home");
     await expect.poll(() => scroll.evaluate(node => node.scrollLeft)).toBe(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const contextBounds = await member.boundingBox();
+    const cellBounds = await table.getByRole("row").nth(1).getByRole("cell").first().boundingBox();
+    const viewportBounds = await scroll.boundingBox();
+    expect(contextBounds).not.toBeNull(); expect(cellBounds).not.toBeNull(); expect(viewportBounds).not.toBeNull();
+    expect(cellBounds!.x).toBeGreaterThanOrEqual(contextBounds!.x + contextBounds!.width - 1);
+    expect(cellBounds!.x + cellBounds!.width).toBeLessThanOrEqual(viewportBounds!.x + viewportBounds!.width + 1);
     await scroll.evaluate(node => { node.scrollTop = 0; });
     const screenshot = await scroll.locator("..").screenshot({ path: testInfo.outputPath(`attendance-matrix-${testInfo.project.name}.png`) });
     await testInfo.attach("Attendance matrix", { body: screenshot, contentType: "image/png" });

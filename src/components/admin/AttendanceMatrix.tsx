@@ -30,7 +30,7 @@ export default function AttendanceMatrix({ matrix }: { matrix: Matrix }) {
           else node.scrollBy({ left: event.key === "ArrowLeft" ? -140 : event.key === "ArrowRight" ? 140 : 0, top: event.key === "ArrowUp" ? -64 : event.key === "ArrowDown" ? 64 : 0 });
         }
       }} sx={{ maxHeight: { xs: 420, md: 540 }, width: "100%", overflow: "auto", overscrollBehaviorX: "contain", "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: -3 } }}>
-        <Table stickyHeader size="small" aria-label="Member attendance by meeting" sx={{ width: "max-content", minWidth: "100%", borderCollapse: "separate", tableLayout: "fixed" }}>
+        <Table stickyHeader size="small" aria-label="Member attendance by meeting" sx={{ width: { xs: 160 + matrix.meetings.length * 140, sm: 200 + matrix.meetings.length * 140 }, minWidth: "100%", borderCollapse: "separate", tableLayout: "fixed" }}>
           <TableHead><TableRow>
             <TableCell component="th" scope="col" sx={{ ...memberCell, zIndex: 4, bgcolor: "background.paper", fontWeight: 800 }}>Member</TableCell>
             {matrix.meetings.map(meeting => <TableCell key={meeting.id} component="th" scope="col" sx={{ width: 140, minWidth: 140, maxWidth: 140, boxSizing: "border-box", p: 1.5, bgcolor: "background.paper", verticalAlign: "top", overflowWrap: "anywhere" }}>
@@ -41,7 +41,7 @@ export default function AttendanceMatrix({ matrix }: { matrix: Matrix }) {
           </TableRow></TableHead>
           <TableBody>{matrix.rows.map(row => <TableRow key={row.memberId}>
             <TableCell component="th" scope="row" sx={{ ...memberCell, p: 1.5, fontWeight: 700 }}>{row.displayName}</TableCell>
-            {row.states.map((key, index) => <TableCell key={matrix.meetings[index].id} sx={{ textAlign: "center", py: 1.5, bgcolor: index % 2 ? "action.hover" : "background.paper" }}>
+            {row.states.map((key, index) => <TableCell key={matrix.meetings[index].id} sx={{ textAlign: "center", py: 1.5, px: 1, bgcolor: index % 2 ? "action.hover" : "background.paper" }}>
               <Chip size="small" variant="outlined" color={states[key].color} label={`${states[key].symbol} ${states[key].label}`} />
             </TableCell>)}
           </TableRow>)}</TableBody>
