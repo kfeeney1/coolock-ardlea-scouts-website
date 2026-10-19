@@ -21,6 +21,9 @@ export async function seedScheduleMeetings() {
 }
 export async function clearScheduleMeetings() {
   const db = scheduleFixtureDb();
-  for (const id of scheduleMeetingIds) await db.collection("weeklyMeetings").doc(id).delete();
+  for (const id of scheduleMeetingIds) {
+    await db.collection("weeklyMeetings").doc(id).delete();
+    await db.collection("parentWeeklyMeetings").doc(id).delete();
+  }
   await db.doc("siteSettings/scheduleExperience").delete();
 }
