@@ -108,7 +108,7 @@ export default function SubsSettingsPanel() {
     {message && <Alert severity="success" sx={{ mt: 2 }}>{message}</Alert>}
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
     {refreshWarning && <Alert severity="warning" sx={{ mt: 2 }} data-testid="subs-refresh-warning">{refreshWarning}</Alert>}
-    <Box sx={{ mt: 3 }}>
+    <Box component="fieldset" aria-label="Subs rate policy" aria-busy={loading} disabled={loading || saving} sx={{ mt: 3, mx: 0, p: 0, border: 0, minWidth: 0 }}>
       <Typography variant="h6" sx={{ fontWeight: 800 }}>Rate policy</Typography>
       <Alert severity="info" sx={{ mt: 1.5, mb: 2 }}>2026/27 is prefilled with the agreed rates. The Scout subs year runs from September through June. Policies are immutable once saved; a correction is made by creating a later version.</Alert>
       {!loading && currentPolicy ? (
