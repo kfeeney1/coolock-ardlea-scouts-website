@@ -1,10 +1,10 @@
-import { installMenuRaceClock, installReopenRaceClock } from "./overlay-race-clock.ts";
+import { installOverlayRaceClock } from "./overlay-race-clock.ts";
 import { expect, type Page } from "@playwright/test";
 
 /** Put the UI-close cleanup at the incoming record navigation, before React's
  * location effects run. Firestore writes are held, then continued unchanged. */
 export async function holdReopenUntilOverlayCleanup(page: Page) {
-  await page.evaluate(installReopenRaceClock);
+  await page.evaluate(installOverlayRaceClock, "reopen");
   let release!: () => void;
   let writeHeld = false;
   const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -33,7 +33,7 @@ export async function holdReopenUntilOverlayCleanup(page: Page) {
 
 /** Hold a dialog's deferred close until the next overlay owner has committed. */
 export async function holdOverlayCloseForMenu(page: Page) {
-  await page.evaluate(installMenuRaceClock);
+  await page.evaluate(installOverlayRaceClock, "menu");
   return {
     ready: () => expect.poll(() => page.evaluate(() => (window as Window & { overlayMenuRace?: { count: () => number } }).overlayMenuRace?.count() || 0)).toBeGreaterThan(0),
     flush: async () => {
