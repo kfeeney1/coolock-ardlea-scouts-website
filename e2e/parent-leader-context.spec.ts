@@ -49,7 +49,13 @@ async function openParentFromNavigation(page: Page, testInfo: TestInfo) {
     await page.getByRole("button", { name: "Open navigation menu" }).click();
     await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
   } else {
-    await page.getByRole("banner").getByRole("link", { name: "Parent Portal", exact: true }).click();
+    const parentLink = page.getByRole("banner").getByRole("link", { name: "Parent Portal", exact: true });
+    if (await parentLink.isVisible()) {
+      await parentLink.click();
+    } else {
+      await page.getByRole("button", { name: "Open navigation menu" }).click();
+      await page.getByRole("menuitem", { name: "Parent Portal", exact: true }).click();
+    }
   }
   await expect(page.getByRole("heading", { name: "Parent Portal", exact: true })).toBeVisible();
 }
