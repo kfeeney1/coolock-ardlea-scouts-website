@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Page } from "@playwright/test";
-import { holdOverlayCloseForMenu, holdReopenUntilOverlayCleanup } from "../../e2e/support/overlay-close-race.ts";
+import { installMenuRaceClock, installReopenRaceClock } from "../../e2e/support/overlay-race-clock.ts";
 
-for (const [name, install] of [["menu", holdOverlayCloseForMenu], ["reopen", holdReopenUntilOverlayCleanup]] as const) {
+for (const [name, install, control] of [["menu", installMenuRaceClock, "overlayMenuRace"], ["reopen", installReopenRaceClock, "overlayCloseRace"]] as const) {
   test(`${name} race cleanup preserves pending SDK timers and honours cancellation`, async () => {
     let nextId = 0;
     const pending = new Map<number, { run: () => void; delay: number }>();
@@ -15,11 +14,8 @@ for (const [name, install] of [["menu", holdOverlayCloseForMenu], ["reopen", hol
     const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
     Object.defineProperty(globalThis, "window", { configurable: true, value: clock });
     try {
-      const page = {
-        evaluate: async (callback: () => unknown) => callback(),
-        route: async () => {}, unroute: async () => {}
-      } as unknown as Page;
-      const gate = await install(page);
+      install();
+      const gate = (clock as unknown as Record<string, { restore: () => void }>)[control];
       let sdkCalls = 0, cancelledCalls = 0, unrelatedCalls = 0;
       clock.setTimeout(() => { sdkCalls++; }, 500);
       const cancelled = clock.setTimeout(() => { cancelledCalls++; }, 500);
