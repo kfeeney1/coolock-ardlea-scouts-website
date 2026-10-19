@@ -238,7 +238,7 @@ export default function TransientOverlayBackDismissBridge() {
       pendingCloseFromMarkerCount.current = markerCount;
       consumingClose.current = true;
       if (pendingCloseTimer.current !== null) window.clearTimeout(pendingCloseTimer.current);
-      pendingCloseTimer.current = window.setTimeout(() => {
+      pendingCloseTimer.current = window.setTimeout(Object.assign(() => {
         pendingCloseTimer.current = null;
         // Read actual browser state: a newer marker can be pushed before its
         // React location effect has committed.
@@ -253,7 +253,7 @@ export default function TransientOverlayBackDismissBridge() {
           return;
         }
         navigate(-1);
-      }, 500);
+      }, { overlayCloseTimer: true }), 500);
     }
   }, [location.hash, location.pathname, location.search, location.state, managedMarkers, navigate, surfaces]);
 
