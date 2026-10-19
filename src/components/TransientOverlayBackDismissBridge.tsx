@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { backDismissStack, isTopBackDismissMarker, overlayNavigationLeavesSurface, withBackDismissMarker } from "../services/backDismissHistory";
+import { backDismissStack, hasBackDismissMarker, isTopBackDismissMarker, overlayNavigationLeavesSurface, withBackDismissMarker } from "../services/backDismissHistory";
 
 const MARKER_PREFIX = "transient-overlay:";
 
@@ -224,6 +224,10 @@ export default function TransientOverlayBackDismissBridge() {
     if (surfaces.length > markerCount) {
       latestMarkerCount.current = surfaces.length;
       const marker = `${MARKER_PREFIX}${markerCount + 1}`;
+      // DOM observers can render again before React Router commits this PUSH.
+      // Browser history updates synchronously: never duplicate an already
+      // pushed marker just because location.state still describes its parent.
+      if (hasBackDismissMarker(locationStateFromHistoryState(window.history.state), marker)) return;
       navigate(`${location.pathname}${location.search}${location.hash}`, {
         state: withBackDismissMarker(location.state, marker)
       });
