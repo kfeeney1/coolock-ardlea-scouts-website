@@ -119,9 +119,9 @@ export default function EquipmentInventoryFilters({
       </FormControl>
     </Stack>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} useFlexGap sx={{ mt: 2, flexWrap: "wrap" }}>
-      {canManage && <Button variant="contained" color="success" onClick={onAddEquipment}>Add equipment</Button>}
-      {canManage && <Button variant="outlined" onClick={onManageStores}>Manage Stores</Button>}
-      {canManage && <Button variant="outlined" onClick={onManageCategories}>Manage categories</Button>}
+      {canManage && <Button variant="contained" color="success" disabled={loading} onClick={onAddEquipment}>Add equipment</Button>}
+      {canManage && <Button variant="outlined" disabled={loading} onClick={onManageStores}>Manage Stores</Button>}
+      {canManage && <Button variant="outlined" disabled={loading} onClick={onManageCategories}>Manage categories</Button>}
       <Button variant="outlined" onClick={onToggleArchived} aria-pressed={showArchived} data-testid="equipment-archived-filter">
         {showArchived ? "Hide archived" : "Show archived"}
       </Button>
