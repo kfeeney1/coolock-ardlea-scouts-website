@@ -1,6 +1,8 @@
 export type AttendanceInsightMember = {
     id: string;
     displayName: string;
+    firstName?: string;
+    lastName?: string;
     section: string;
     sections: string[];
     status: string;
@@ -16,6 +18,7 @@ export type AttendanceInsightEvent = {
 };
 
 export type AttendanceInsightMeeting = {
+    theme?: string;
     id: string;
     section: string;
     meetingDate: string;
