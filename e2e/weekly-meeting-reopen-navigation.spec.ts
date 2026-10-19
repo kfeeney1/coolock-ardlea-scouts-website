@@ -121,7 +121,11 @@ test("reopening a closed meeting loads that exact editable record, preserves dat
   await expect(page.getByText(/Saved reopen test incident/)).toBeVisible();
   await page.getByRole("button", { name: "Programme", exact: true }).click();
 
+  // A reopened editor must finish loading its saved state before accepting edits.
+  // Otherwise an in-flight refresh can overwrite the new theme before Save.
+  await expect(page.getByRole("button", { name: "Save Meeting", exact: true })).toBeEnabled();
   await page.getByLabel("Theme").fill(`${theme} edited`);
+  await expect(page.getByLabel("Theme")).toHaveValue(`${theme} edited`);
   await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
   await expect(page.getByText(/^Meeting saved\./)).toBeVisible();
   await page.goBack();
