@@ -2,41 +2,54 @@
 
 ## Status and release boundary
 
-Development is proposed in focused draft PRs. No child or epic is Done. The new
-experience is disabled by default; no live TEST or production setting was changed.
-These are separate gates:
+Implementation PRs SW-190–SW-196 are merged into main. No child or epic is Done.
+The redesign remains disabled by default. These are separate gates:
 
-- Development: local quality checks pass; scoped schedule-setting Rules test passes.
-  Browser scenarios are authored but have not passed locally. Local installation of
-  repository-pinned Playwright 1.62.1 Chromium and headless shell failed because the
-  download endpoint returned HTML instead of a browser archive. This is a tooling
-  blocker, not a test pass or evidence that application scenarios work.
-- CI: SW-190 PR #865 Quality, Firebase Rules and TEST PR Preview passed on its exact
-  head. All four Playwright shards and aggregate run #4108 also completed successfully. Other draft PRs are
-  stacked on feature bases and must receive fresh required main-targeted CI in order.
-- Live Firebase TEST: SW-197 acceptance is NOT executed. A PR Hosting preview alone
-  does not prove its Firestore Rules or complete stack is deployed to TEST.
+- Development: full local repository quality checks passed on each integrated branch.
+  The latest implementation check passed 861 unit, 51 email-worker and 8 backend
+  tests plus repository policies/build. Basic regression coverage shipped with each
+  implementation PR; SW-196 supplements it.
+- PR CI: each implementation received fresh checks targeting main before merge.
+  The results below identify the final tested heads. They are development evidence.
+- Live Firebase TEST: A190–A197 acceptance is NOT executed. Acceptance candidate main
+  is `f0816fe00ece2c2a58d846e312e0390b1d12c9fa`. Its deployment run
+  [39238309355](https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions/runs/39238309355)
+  is still in progress. The independently fetched public `build-info.json` now
+  matches that exact SHA: environment `test`, build time
+  `2026-10-19T10:33:57.843Z`, source `github-actions`.
+  This proves Hosting build identity only; deploy smoke/post-merge results and
+  authenticated functional acceptance remain pending.
+- Access: the live acceptance browser reached Leader Login and requires secure
+  authentication with an authorised synthetic TEST Superuser. No credentials were
+  entered and no live setting or canonical record was changed.
 - PMT: NOT executed. No production deployment or enablement has been performed.
-- Screenshots: the SW-195 browser test captures and attaches both schedule pages on
-  desktop and mobile. Actual screenshots are still pending successful browser runs.
+- Screenshots: four SW-195 CI captures (both pages, desktop/mobile) were reviewed.
+  Text wraps and controls remain within page width. The full-page captures follow
+  keyboard focus scrolling and show the sticky banner at that scroll position;
+  physical Android/TalkBack and live visual acceptance remain open. Download the
+  [screenshot artifact](https://github.com/kfeeney1/coolock-ardlea-scouts-website/actions/runs/39233836904/artifacts/12179021067).
+  Local pinned-browser downloads remain unavailable; successful browser evidence
+  comes from CI, not a claimed local browser pass.
 
-## Focused PR sequence
+## Focused PR sequence and final development checks
 
-| Jira | PR | Change and validation | Remaining gate |
-| --- | --- | --- | --- |
-| SW-190 | #865 | Persisted Superuser setting, Rules, settings UI; full local quality and scoped emulator Rules pass; persistence/independence/rollback browser test added | Required-check review and live settings acceptance |
-| SW-191 | #866 | Shared schedule component and deterministic selection; selection unit cases, build/lint/contracts pass | Browser swipe, keyboard, selection and focus acceptance |
-| SW-192 | #867 | Canonical Weekly Meetings list integration; full local quality passes; selection/summary/destination/fallback browser test added | Main CI, functional browser and TEST acceptance |
-| SW-193 | #868 | Canonical Events list integration and existing filters/summaries; full local quality passes; selection/summary/fallback browser test added | Main CI, event parity and TEST acceptance |
-| SW-194 | #869 | Past/future action presentation, distinct canonical event draft copy; action/copy unit cases and full local quality pass; browser source-integrity test added | Main CI, meeting/event copy and permission acceptance |
-| SW-195 | #870 | Shared DD-MM-YYYY picker, Ireland date, blank-summary handling; full local quality passes; axe/focus/layout/screenshots browser checks added | Main CI, screenshots, physical Android and screen-reader acceptance |
-| SW-196 | #871 | Four targeted flag-combination cases, native touch/pointer synchronisation, no-write snapshots, read-only/section negatives, empty state and owned-fixture cleanup; local quality/contracts pass | Execute browser suite and main CI |
-| SW-197 | Acceptance documentation PR | Acceptance plan, inventory and rollout/rollback evidence template | Exact-SHA live TEST and PMT remain open |
+| Jira | Merged PR | Final tested head | Green PR checks | Remaining acceptance |
+| --- | --- | --- | --- | --- |
+| SW-190 | #865 | `75ca5e7a0fc6c219cf1312623e0c0021b4516366` | Quality, Rules, Playwright, TEST preview | A190 live settings/rollback |
+| SW-191 | #866 | `3ad41c1f7d0e169bd67b47859bf7f64ff69a5630` | Quality #4076, Rules #2303, Playwright #4113, preview #3363 | A191 live interaction/focus |
+| SW-192 | #867 | `8996c3320e9b11665b6521a8c5f07c7cf25a5648` | Quality #4082, Playwright #4119, preview #3369 | A192 live meeting parity |
+| SW-193 | #868 | `d6cca316e5b68b0d17b99d8016309e6ac644ca3c` | Quality #4089, Playwright #4126, preview #3374 | A193 live event parity |
+| SW-194 | #869 | `16339166e3f590ea36fa62ff5ce18b9cd88511b5` | Quality #4091, Rules #2309, Playwright #4128, preview #3375 | A194 live copy/permissions |
+| SW-195 | #870 | `c897c226878ed7ef94945b6597484cd3cafe7640` | Quality #4093, Rules #2311, Playwright #4130, preview #3376 | A195 physical Android/screen reader |
+| SW-196 | #871 | `b1c9efecf8801a5c1857b0f128adcf7a66f0367e` | Quality #4095, Playwright #4132, preview #3377 | A196 deployed-build combinations |
+| SW-197 | #872 documentation | See PR exact head | Documentation checks pending | A197 exact-SHA live TEST and rollback |
 
-PRs #866 onward use the preceding feature branch solely to keep each review focused.
-Do not merge into those feature bases. After each dependency is merged, rebase and
-retarget its successor to main and require fresh policy checks. No merge is implied
-by opening these drafts.
+Each implementation was integrated with current main and checked before merging
+into main; no PR was merged into a feature base. Separate focused assurance fixes
+SW-431/#873 and SW-432/#877 were also checked and merged first. They preserve exact
+query and meeting-save assertions without increasing retries or test timeouts.
+Current main post-merge checks/deployment must also finish successfully; PR checks
+alone do not establish the live TEST or production acceptance result.
 
 ## Reconciliation and functional inventory
 
@@ -99,8 +112,8 @@ versions. Confirm the environment banner before mutating fixtures.
 
 ## Evidence to fill after deployment
 
-- Approved merged main SHA: PENDING.
-- Firebase TEST deployment run and build-info SHA: PENDING.
+- Acceptance candidate merged main SHA: `f0816fe00ece2c2a58d846e312e0390b1d12c9fa`; Hosting build-info SHA MATCHED.
+- Firebase TEST deploy run: `39238309355`, completion PENDING. Hosting build-info matches candidate SHA, build time `2026-10-19T10:33:57.843Z`.
 - Device/browser/keyboard/screen-reader versions: PENDING.
 - A190–A197 result, timestamp, tester, screenshots and defects: PENDING.
 - Canonical source/destination IDs and before/after snapshots: PENDING.
