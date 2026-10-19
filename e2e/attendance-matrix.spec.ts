@@ -59,7 +59,11 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     expect(cellBounds!.x).toBeGreaterThanOrEqual(contextBounds!.x + contextBounds!.width - 1);
     expect(cellBounds!.x + cellBounds!.width).toBeLessThanOrEqual(viewportBounds!.x + viewportBounds!.width + 1);
     await scroll.evaluate(node => { node.scrollTop = 0; });
-    const screenshot = await scroll.locator("..").screenshot({ path: testInfo.outputPath(`attendance-matrix-${testInfo.project.name}.png`) });
+    // Capture document coordinates from the top so the sticky site banner does not cover the panel.
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
+    const panel = await scroll.locator("..").boundingBox();
+    expect(panel).not.toBeNull();
+    const screenshot = await page.screenshot({ fullPage: true, clip: panel!, path: testInfo.outputPath(`attendance-matrix-${testInfo.project.name}.png`) });
     await testInfo.attach("Attendance matrix", { body: screenshot, contentType: "image/png" });
     await page.getByRole("combobox", { name: "Section", exact: true }).click();
     await page.getByRole("option", { name: "Scouts", exact: true }).click();
