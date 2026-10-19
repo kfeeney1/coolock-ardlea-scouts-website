@@ -356,7 +356,9 @@ test("SW-219 retry recovery restores the seeded child option after a persisted l
   await childOption.click();
   await card.getByRole("button", { name: "Link child" }).click();
   await expect(page.getByRole("alert")).toContainText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.");
-  await page.reload({ waitUntil: "domcontentloaded" });
+  // Commit navigation first; the persisted relationship assertion below waits
+  // for the hydrated application instead of coupling navigation to all scripts.
+  await page.reload({ waitUntil: "commit" });
   await expect(linkedChild).toBeVisible();
 
   await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, true);
