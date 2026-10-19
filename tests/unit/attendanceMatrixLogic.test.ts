@@ -31,3 +31,16 @@ test("section/date/search filters apply to concurrent members and meeting column
   assert.equal(buildAttendanceMatrix(members, meetings, { section: "Beavers" }).meetings.length, 0);
   assert.equal(buildAttendanceMatrix(members, meetings, { from: "2026-11-01" }).meetings.length, 0);
 });
+
+
+test("persisted historical roster entries survive later membership changes", () => {
+  const moved = [{ ...members[1], sections: ["Scouts"] }];
+  const history = meetings.map(meeting => meeting.id === "first" ? { ...meeting, entries: [{ memberId: "a", attendance: "present" }] } : meeting);
+  const matrix = buildAttendanceMatrix(moved, history);
+  assert.deepEqual(matrix.meetings.map(meeting => meeting.id), ["first", "later"]);
+  assert.deepEqual(matrix.rows[0].states, ["present", "absent"]);
+  history[1].entries[0].attendance = "unrecorded";
+  assert.equal(buildAttendanceMatrix(moved, history).rows[0].states[0], "unrecorded");
+  history[1].entries = [];
+  assert.equal(buildAttendanceMatrix(moved, history).rows[0].states[0], "not-applicable");
+});

@@ -23,9 +23,8 @@ export function buildAttendanceMatrix(
     && (!search || member.displayName.toLocaleLowerCase().includes(search)))
     .map(member => ({ ...member, firstName: member.firstName || "", lastName: member.lastName || "" }))
     .sort(compareMembersBySurname);
-  const memberSections = new Set(roster.flatMap(member => [...sectionsFor(member)]));
   const history = meetings.filter(meeting => meeting.status === "closed"
-    && (!selected || meeting.section === selected) && memberSections.has(meeting.section)
+    && (!selected || meeting.section === selected)
     && (!options.from || meeting.meetingDate >= options.from)
     && (!options.to || meeting.meetingDate <= options.to))
     .slice().sort((a, b) => a.meetingDate.localeCompare(b.meetingDate) || a.id.localeCompare(b.id));
@@ -34,8 +33,9 @@ export function buildAttendanceMatrix(
     meetings: history.map(meeting => ({ id: meeting.id, date: meeting.meetingDate, title: meeting.theme?.trim() || "Weekly Meeting", section: meeting.section })),
     rows: roster.map(member => ({ memberId: member.id, displayName: member.displayName,
       states: history.map((meeting, index) => {
-        if (!sectionsFor(member).has(meeting.section)) return "not-applicable";
         const attendance = indexes[index].get(member.id);
+        // A persisted roster entry remains authoritative after a section transition.
+        if (!indexes[index].has(member.id) && !sectionsFor(member).has(meeting.section)) return "not-applicable";
         return attendance === "present" || attendance === "absent" ? attendance : "unrecorded";
       })
     }))

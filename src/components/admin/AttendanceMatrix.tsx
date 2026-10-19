@@ -18,7 +18,7 @@ export default function AttendanceMatrix({ matrix }: { matrix: Matrix }) {
       <Stack direction="row" useFlexGap spacing={1} sx={{ mt: 2, flexWrap: "wrap" }} aria-label="Attendance legend">
         {Object.entries(states).map(([key, state]) => <Chip key={key} size="small" variant="outlined" color={state.color} label={`${state.symbol} ${state.label}`} />)}
       </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Not applicable: outside the meeting’s section. Unrecorded: no recorded Present or Absent value.</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Not applicable: no saved entry and outside the meeting’s section. Unrecorded: no recorded Present or Absent value.</Typography>
     </Box>
     {!matrix.rows.length || !matrix.meetings.length ? <Alert severity="info" sx={{ m: 2 }}>No members or closed meetings match the current filters.</Alert> : <>
       <TableContainer tabIndex={0} role="region" aria-label="Scrollable attendance matrix" aria-describedby="attendance-matrix-help" data-testid="attendance-matrix-scroll" onKeyDown={event => {
