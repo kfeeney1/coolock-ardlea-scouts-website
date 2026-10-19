@@ -56,12 +56,32 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
   const helperRow = leaderPanel.getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
   await helperRow.getByRole("combobox", { name: "Leader attendance" }).click();
   await page.getByRole("option", { name: "Present", exact: true }).click();
-  await page.getByRole("button", { name: "Save Meeting" }).click();
+  const meetingUrl = page.url();
+  const saveMeeting = page.getByRole("button", { name: "Save Meeting", exact: true });
+  await saveMeeting.click();
   await expect(page.getByRole("alert").filter({ hasText: "Meeting saved." })).toBeVisible();
-  await page.reload();
+  // The confirmation follows data writes; audit/refresh still keep Save disabled.
+  // Wait for the user-visible completion before testing a fresh document load.
+  await expect(saveMeeting).toBeEnabled();
+  const navigationPrompts: string[] = [];
+  const recordPrompt = async (dialog: import("@playwright/test").Dialog) => {
+    navigationPrompts.push(dialog.type());
+    // Complete the navigation so an unexpected prompt fails the assertion below
+    // immediately instead of silently cancelling reload until the test expires.
+    await dialog.accept();
+  };
+  page.on("dialog", recordPrompt);
+  try {
+    await page.reload();
+    expect(navigationPrompts, "A completed save must reload without a native prompt").toEqual([]);
+  } finally { page.off("dialog", recordPrompt); }
+  await expect(page).toHaveURL(meetingUrl);
   await page.getByRole("button", { name: "Attendance", exact: true }).click();
   const restoredLeaderRow = page.getByTestId("leader-attendance-section").getByTestId("leader-attendance-row").filter({ hasText: "Beavers Assistant Section Leader" });
   await expect(restoredLeaderRow.getByRole("combobox", { name: "Leader attendance" })).toHaveText("Present");
+
+  await expect(attendance).toBeChecked();
+  await expect(uniform).not.toBeChecked();
 
   const pageWidth = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(pageWidth.content).toBeLessThanOrEqual(pageWidth.viewport);

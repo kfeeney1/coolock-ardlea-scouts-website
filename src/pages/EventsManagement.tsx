@@ -49,7 +49,7 @@ export default function EventsManagement() {
         <Container maxWidth="xl">
             <LeaderDashboardHeader />
             <LeaderPageHeader title="Events & Activities" actions={<Button component={Link} to="/leader/events/create" variant="contained" color="success">Add Event</Button>} />
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}<Button onClick={() => void load()}>Retry events</Button></Alert>}
             <EventListPanel events={events} visibleEvents={visibleEvents} members={members} loading={loading} search={search} sectionFilter={sectionFilter} statusFilter={statusFilter} onSearchChange={setSearch} onSectionFilterChange={setSectionFilter} onStatusFilterChange={setStatusFilter} />
         </Container>
     </Box>;
