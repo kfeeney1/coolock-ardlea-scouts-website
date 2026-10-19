@@ -92,6 +92,7 @@ export const suiteSpecs = {
   equipment: [
     "damaged-equipment-issues.spec.ts",
     "equipment-checkout.spec.ts",
+    "equipment-loading.spec.ts",
     "equipment-inventory-filters.spec.ts",
     "programme-equipment.spec.ts",
     "email-action-links.spec.ts",
