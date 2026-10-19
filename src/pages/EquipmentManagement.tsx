@@ -134,9 +134,16 @@ export default function EquipmentManagement({ inventoryOnly = false }: { invento
 
   useEffect(() => { if (!inventoryOnly || canManage) void refresh(); }, [inventoryOnly, canManage]);
   useEffect(() => {
-    const next = new URLSearchParams(routeSearchParams);
-    filterParamsRef.current = next;
-    setSearchParams(next);
+    const syncBrowserFilters = () => {
+      // A browser POP can overtake a pending React Router transition. The
+      // address bar remains authoritative even when location.search is unchanged.
+      const next = new URLSearchParams(window.location.search);
+      filterParamsRef.current = next;
+      setSearchParams(next);
+    };
+    syncBrowserFilters();
+    window.addEventListener("popstate", syncBrowserFilters);
+    return () => window.removeEventListener("popstate", syncBrowserFilters);
   }, [routeSearchParams]);
 
   const categoryNames = useMemo(() => Array.from(new Set([
