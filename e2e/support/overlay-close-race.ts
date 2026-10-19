@@ -28,7 +28,11 @@ export async function holdReopenUntilOverlayCleanup(page: Page) {
     control.overlayCloseRace = {
       count: () => held.size,
       restore: () => {
-        for (const id of held.keys()) originalClear(id);
+        // The delay gate can also capture SDK timers. Restore must not
+        // discard live callbacks and strand Firestore's next write/read.
+        window.setTimeout = originalSet;
+        window.clearTimeout = originalClear;
+        for (const [id, run] of held) { originalClear(id); originalSet(run, 500); }
         held.clear();
         navigation.removeEventListener("navigate", flushAtRecordPush);
         window.setTimeout = originalSet;
@@ -80,7 +84,11 @@ export async function holdOverlayCloseForMenu(page: Page) {
       count: () => held.size,
       flush: () => { for (const [id, run] of held) { held.delete(id); originalClear(id); run(); } },
       restore: () => {
-        for (const id of held.keys()) originalClear(id);
+        // The delay gate can also capture SDK timers. Restore must not
+        // discard live callbacks and strand Firestore's next write/read.
+        window.setTimeout = originalSet;
+        window.clearTimeout = originalClear;
+        for (const [id, run] of held) { originalClear(id); originalSet(run, 500); }
         held.clear();
         window.setTimeout = originalSet;
         window.clearTimeout = originalClear;
