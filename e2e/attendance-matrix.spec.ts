@@ -103,3 +103,28 @@ test("unset and invalid attendance settings retain existing insights; navigation
     await expect(page.getByRole("button", { name: "Attendance matrix", exact: true })).toHaveCount(0);
   } finally { await cleanup(); }
 });
+
+test("attendance rollout reaches a separate leader session independently of mixed navigation and schedule choices", async ({ page, browser, baseURL }) => {
+  test.skip(!password, "Configure canonical E2E credentials.");
+  const cleanup = await seedAttendanceMatrix();
+  const db = scheduleFixtureDb();
+  const otherSession = await browser.newContext({ baseURL });
+  try {
+    await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+    await page.goto("/leader/settings");
+    const enable = page.getByRole("button", { name: "Attendance matrix", exact: true });
+    await enable.click();
+    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    const leaderPage = await otherSession.newPage();
+    await loginAsLeader(leaderPage, { email: process.env.E2E_LEADER_EMAIL || "test.scout.programme.scouter@example.com", password: password! });
+    for (const navigation of [true, false]) {
+      await db.doc("siteSettings/leaderNavigation").set({ version: navigation ? "redesigned" : "existing" });
+      await db.doc("siteSettings/scheduleExperience").set({ version: navigation ? "existing" : "redesigned" });
+      await leaderPage.goto("/leader/attendance");
+      await expect(leaderPage.getByRole("table", { name: "Member attendance by meeting" })).toBeVisible();
+    }
+    await page.getByRole("button", { name: "Existing attendance", exact: true }).click();
+    await expect(leaderPage.getByRole("table", { name: "Member attendance by meeting" })).toHaveCount(0);
+    await expect(leaderPage.getByTestId("meeting-average-rate")).toBeVisible();
+  } finally { await otherSession.close(); await cleanup(); }
+});
