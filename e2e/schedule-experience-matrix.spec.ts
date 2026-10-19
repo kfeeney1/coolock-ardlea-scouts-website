@@ -104,7 +104,14 @@ test("Touch swipe and pointer browsing keep the event tile and date in sync", as
       await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(future.split("-").reverse().join("-"));
       await expect(dates.getByRole("button", { name: `Select ${future.split("-").reverse().join("-")} · Schedule event 2`, exact: true })).toHaveAttribute("aria-pressed", "true");
       await schedule.getByRole("button", { name: "Previous", exact: true }).click();
-      await expect(schedule.getByRole("article", { name: "Schedule event 1", exact: true })).toHaveAttribute("aria-current", "true");
+      const current = schedule.getByRole("article", { name: "Schedule event 1", exact: true });
+      await expect(current).toHaveAttribute("aria-current", "true");
+      await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue((await scheduleFixtureDb().doc("events/000-sw177-event-today").get()).get("startDate").split("-").reverse().join("-"));
+      await expect(dates.getByRole("button", { name: /Schedule event 1$/, exact: false })).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => {
+        const tile = await current.boundingBox(); const view = await browse.boundingBox();
+        return tile && view ? Math.abs(tile.x + tile.width / 2 - view.x - view.width / 2) : Infinity;
+      }).toBeLessThan(3);
     }
   } finally { await clearScheduleEvents(); }
 });

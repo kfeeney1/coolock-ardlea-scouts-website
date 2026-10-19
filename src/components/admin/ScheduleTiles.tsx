@@ -1,7 +1,8 @@
+import { createScheduleScrollIntent } from "../../services/scheduleScrollIntent";
 import ScheduleDateRail from "./ScheduleDateRail";
 import DatePickerField from "../DatePickerField";
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatSiteDate } from "../../services/siteDateFormat";
 import { initialScheduleId, orderedSchedule, scheduleIdForDate, type ScheduleIdentity } from "../../services/scheduleSelection";
 
@@ -19,12 +20,17 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
   selectedIndex.current = index;
   const scrollFrame = useRef(0);
   const fromScroll = useRef(false);
+  const scrollIntent = useRef(createScheduleScrollIntent());
   const identity = sorted.map((item) => item.id).join("|");
-  useEffect(() => {
+  const alignViewport = () => {
     const node = viewport.current;
-    const card = node?.children[index] as HTMLElement | undefined;
+    const card = node?.children[selectedIndex.current] as HTMLElement | undefined;
     if (!node || !card) return;
-    if (!fromScroll.current) node.scrollTo({ left: card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2, behavior: "instant" });
+    const left = Math.max(0, Math.min(node.scrollWidth - node.clientWidth, card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2));
+    if (Math.abs(node.scrollLeft - left) > 1) node.scrollTo({ left, behavior: "instant" });
+  };
+  useLayoutEffect(() => {
+    if (!fromScroll.current) { scrollIntent.current.command(); cancelAnimationFrame(scrollFrame.current); alignViewport(); }
     fromScroll.current = false;
   }, [selected, identity, index]);
   useEffect(() => {
@@ -32,20 +38,23 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
     if (!node) return;
     const observer = new ResizeObserver(() => {
       const card = node.children[selectedIndex.current] as HTMLElement | undefined;
-      if (card) node.scrollTo({ left: card.offsetLeft - (node.clientWidth - card.offsetWidth) / 2, behavior: "instant" });
+      if (card) { scrollIntent.current.command(); alignViewport(); }
     });
     observer.observe(node);
     return () => { observer.disconnect(); cancelAnimationFrame(scrollFrame.current); };
   }, [identity]);
-  const choose = (next: number) => {
-    if (sorted[next]) setSelection(sorted[next].id);
+  const selectCommand = (id: string) => {
+    scrollIntent.current.command(); cancelAnimationFrame(scrollFrame.current); fromScroll.current = false;
+    const next = sorted.findIndex(item => item.id === id);
+    if (next >= 0) { selectedIndex.current = next; setSelection(id); }
   };
+  const choose = (next: number) => { if (sorted[next]) selectCommand(sorted[next].id); };
   if (loading) return <Box role="status" sx={{ p: 3 }}><CircularProgress aria-label={`Loading ${label}`} /><Typography>Loading {label}…</Typography></Box>;
   if (error) return <Alert severity="error">{error}{onRetry && <Button onClick={onRetry}>Retry {label}</Button>}</Alert>;
   if (!sorted.length) return <Alert severity="info">No {label} match the current filters.</Alert>;
   return <Stack spacing={2} role="region" aria-label={`${label} schedule`} sx={{ minWidth: 0, "& .MuiIconButton-root": { minWidth: 44, minHeight: 44 } }}>
     <Typography color="text.secondary" variant="body2">Swipe dates or {label.toLowerCase()} tiles · select a date to browse</Typography>
-    <ScheduleDateRail items={sorted} selected={selected} label={label} onSelect={setSelection} />
+    <ScheduleDateRail items={sorted} selected={selected} label={label} onSelect={selectCommand} />
     {sorted.length > 1 && <Stack direction="row" sx={{ justifyContent: "center" }} spacing={0.75} aria-hidden="true">{sorted.slice(Math.max(0, Math.min(index - 2, sorted.length - 5)), Math.max(0, Math.min(index - 2, sorted.length - 5)) + 5).map(item => <Box key={item.id} sx={{ height: 6, width: selected === item.id ? 24 : 6, borderRadius: 2, bgcolor: selected === item.id ? "secondary.main" : "action.disabledBackground" }} />)}</Stack>}
     <Typography role="status" aria-live="polite" variant="body2">{index + 1} of {sorted.length} · {formatSiteDate(sorted[index].date)} · {sorted[index].title}</Typography>
     <Box ref={viewport} id={`${id}-tiles`} tabIndex={0} aria-label={`Browse ${label}; use Left and Right arrow keys`} onKeyDown={(event) => {
@@ -54,9 +63,12 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
         event.preventDefault();
         choose(event.key === "Home" ? 0 : event.key === "End" ? sorted.length - 1 : index + (event.key === "ArrowRight" ? 1 : -1));
       }
-    }} onScroll={() => {
+    }} onPointerDown={() => scrollIntent.current.beginGesture()} onTouchStart={() => scrollIntent.current.beginGesture()} onWheel={() => scrollIntent.current.beginGesture()} onScroll={() => {
+      const ticket = scrollIntent.current.ticket();
+      if (ticket === null) { alignViewport(); return; }
       cancelAnimationFrame(scrollFrame.current);
       scrollFrame.current = requestAnimationFrame(() => {
+        if (!scrollIntent.current.accepts(ticket)) return;
         const node = viewport.current;
         if (!node?.clientWidth) return;
         const centre = node.scrollLeft + node.clientWidth / 2;
@@ -77,7 +89,7 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
       </Box>)}
     </Box>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-      <DatePickerField label={`${label} date`} value={sorted[index]?.date ?? ""} slotProps={{ inputLabel: { shrink: true } }} onChange={(event) => { if (event.target.value) setSelection(scheduleIdForDate(sorted, event.target.value)); }} />
+      <DatePickerField label={`${label} date`} value={sorted[index]?.date ?? ""} slotProps={{ inputLabel: { shrink: true } }} onChange={(event) => { if (event.target.value) selectCommand(scheduleIdForDate(sorted, event.target.value)); }} />
       <Stack direction="row" spacing={1}>
         <Button color="secondary" disabled={index <= 0} onClick={() => choose(index - 1)} aria-controls={`${id}-tiles`} sx={{ minHeight: 44 }}>Previous</Button>
         <Button color="secondary" disabled={index === sorted.length - 1} onClick={() => choose(index + 1)} aria-controls={`${id}-tiles`} sx={{ minHeight: 44 }}>Next</Button>
