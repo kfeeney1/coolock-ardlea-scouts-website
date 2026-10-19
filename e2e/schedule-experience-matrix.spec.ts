@@ -82,8 +82,10 @@ test("Touch swipe and pointer browsing keep the event tile and date in sync", as
     const schedule = page.getByRole("region", { name: "Events schedule", exact: true });
     await expect(schedule.getByRole("article", { name: "Schedule event 1", exact: true })).toHaveAttribute("aria-current", "true");
     const browse = schedule.getByLabel("Browse Events; use Left and Right arrow keys", { exact: true });
-    await browse.scrollIntoViewIfNeeded();
-    const box = (await browse.boundingBox())!;
+    const dates = schedule.getByRole("group", { name: "Events dates", exact: true });
+    for (const surface of [browse, dates]) {
+    await surface.scrollIntoViewIfNeeded();
+    const box = (await surface.boundingBox())!;
     const viewport = page.viewportSize()!;
     const y = (Math.max(0, box.y) + Math.min(viewport.height, box.y + box.height)) / 2;
     const x = box.x + box.width * 0.8;
@@ -99,7 +101,9 @@ test("Touch swipe and pointer browsing keep the event tile and date in sync", as
     await expect(schedule.getByRole("article", { name: "Schedule event 2", exact: true })).toHaveAttribute("aria-current", "true");
     const future = (await scheduleFixtureDb().doc("events/000-sw177-event-future").get()).get("startDate") as string;
     await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(future.split("-").reverse().join("-"));
+    await expect(dates.getByRole("button", { name: `Select ${future.split("-").reverse().join("-")} · Schedule event 2`, exact: true })).toHaveAttribute("aria-pressed", "true");
     await schedule.getByRole("button", { name: "Previous", exact: true }).click();
     await expect(schedule.getByRole("article", { name: "Schedule event 1", exact: true })).toHaveAttribute("aria-current", "true");
+    }
   } finally { await clearScheduleEvents(); }
 });
