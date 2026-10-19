@@ -131,6 +131,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/members");
+  const memberListHistoryIndex = await page.evaluate(() => window.history.state.idx as number);
   await page.getByRole("button", { name: "Add Member", exact: true }).click();
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await addDialog.getByLabel("First name").fill(firstName);
@@ -140,11 +141,16 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await addDialog.getByRole("checkbox", { name: section, exact: true }).check();
   await addDialog.getByLabel("Email address").fill(email);
   await addDialog.getByLabel("Mobile number").fill("0871234567");
+  await expect.poll(() => page.evaluate(() => window.history.state.idx), {
+    message: "One Add Member dialog must add exactly one history entry, including while its fields change"
+  }).toBe(memberListHistoryIndex + 1);
   await addDialog.getByRole("button", { name: "Add Member", exact: true }).click();
   await expect(addDialog).toBeHidden();
 
   const member = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
   await expect(member).toBeVisible();
+  await waitForTransientOverlayHistoryCleanup(page);
+  await expect.poll(() => page.evaluate(() => window.history.state.idx)).toBe(memberListHistoryIndex);
   const memberId = (await member.getAttribute("data-testid"))!.replace("member-card-", "");
   const fixture: { memberId: string; email: string; invitationId?: string } = { memberId, email };
   ownedMembers.push(fixture);
