@@ -19,6 +19,45 @@ async function waitForTransientOverlayHistoryCleanup(page: import("@playwright/t
   }), { message: "Transient overlay history markers should be consumed before a document navigation" }).toBe(0);
 }
 
+// Keep a credential-free history journal in failed traces. A stranded marker
+// must be diagnosed at its navigation boundary rather than hidden by a retry.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const journal: unknown[] = [];
+    const record = (kind: string, detail: Record<string, unknown> = {}) => {
+      const state = window.history.state;
+      journal.push({ kind, ...detail, index: state?.idx,
+        markers: state?.usr?.__coolockArdleaBackDismissStack || [],
+        surfaces: [...document.querySelectorAll('[role="dialog"], [role="listbox"]')].map((node) => ({
+          role: node.getAttribute("role"), hidden: node.getAttribute("aria-hidden"),
+          rects: node.getClientRects().length, visibility: getComputedStyle(node).visibility
+        })) });
+      if (journal.length > 100) journal.shift();
+    };
+    (window as Window & { transitionHistoryJournal?: unknown[] }).transitionHistoryJournal = journal;
+    for (const method of ["pushState", "replaceState"] as const) {
+      const original = window.history[method].bind(window.history);
+      window.history[method] = (...args: Parameters<typeof original>) => {
+        original(...args);
+        record(method);
+      };
+    }
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
+    navigation?.addEventListener("navigate", (event) => {
+      const detail = event as Event & { navigationType?: string; destination?: { sameDocument?: boolean } };
+      record("navigate", { type: detail.navigationType, sameDocument: detail.destination?.sameDocument });
+    });
+    window.addEventListener("popstate", () => record("popstate"));
+    window.addEventListener("beforeunload", () => record("beforeunload"));
+  });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus || page.isClosed()) return;
+  const journal = await page.evaluate(() => (window as Window & { transitionHistoryJournal?: unknown[] }).transitionHistoryJournal || []);
+  await testInfo.attach("transition-history", { body: JSON.stringify(journal, null, 2), contentType: "application/json" });
+});
+
 function fixtureApp() {
   if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
   return getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
