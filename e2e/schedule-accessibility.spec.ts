@@ -37,6 +37,7 @@ test("Schedule tiles wrap on mobile, expose selection, retain keyboard focus and
       const dateButton = dates.getByRole("button", { name: `Select ${today.split("-").reverse().join("-")} · ${fixtureTitle}`, exact: true });
       await dateButton.click();
       await expect(dateButton).toHaveAttribute("aria-pressed", "true");
+      await expect(dateButton.getByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/, { exact: true })).toBeVisible();
       const fixture = schedule.getByRole("article", { name: fixtureTitle, exact: true });
       await expect(fixture).toHaveAttribute("aria-current", "true");
       const record = path === "weekly" ? "/leader/weekly?meeting=000-sw177-schedule-today" : "/leader/events/000-sw177-event-today/edit";

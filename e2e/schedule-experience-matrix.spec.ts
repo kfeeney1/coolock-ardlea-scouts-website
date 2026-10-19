@@ -84,26 +84,27 @@ test("Touch swipe and pointer browsing keep the event tile and date in sync", as
     const browse = schedule.getByLabel("Browse Events; use Left and Right arrow keys", { exact: true });
     const dates = schedule.getByRole("group", { name: "Events dates", exact: true });
     for (const surface of [browse, dates]) {
-    await surface.scrollIntoViewIfNeeded();
-    const box = (await surface.boundingBox())!;
-    const viewport = page.viewportSize()!;
-    const y = (Math.max(0, box.y) + Math.min(viewport.height, box.y + box.height)) / 2;
-    const x = box.x + box.width * 0.8;
-    if (testInfo.project.name === "mobile-chromium") {
-      const client = await context.newCDPSession(page);
-      await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
-      for (let step = 1; step <= 6; step++) await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - box.width * 0.65 * step / 6, y }] });
-      await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await client.detach();
-    } else {
-      await page.mouse.move(x, y); await page.mouse.wheel(box.width * 0.8, 0);
-    }
-    await expect(schedule.getByRole("article", { name: "Schedule event 2", exact: true })).toHaveAttribute("aria-current", "true");
-    const future = (await scheduleFixtureDb().doc("events/000-sw177-event-future").get()).get("startDate") as string;
-    await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(future.split("-").reverse().join("-"));
-    await expect(dates.getByRole("button", { name: `Select ${future.split("-").reverse().join("-")} · Schedule event 2`, exact: true })).toHaveAttribute("aria-pressed", "true");
-    await schedule.getByRole("button", { name: "Previous", exact: true }).click();
-    await expect(schedule.getByRole("article", { name: "Schedule event 1", exact: true })).toHaveAttribute("aria-current", "true");
+      await surface.evaluate(node => node.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
+      const box = (await surface.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      const y = (Math.max(0, box.y) + Math.min(viewport.height, box.y + box.height)) / 2;
+      const x = box.x + box.width * 0.8;
+      expect(await surface.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y }), "Swipe must start on the schedule surface, clear of the sticky banner").toBe(true);
+      if (testInfo.project.name === "mobile-chromium") {
+        const client = await context.newCDPSession(page);
+        await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+        for (let step = 1; step <= 6; step++) await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - box.width * 0.65 * step / 6, y }] });
+        await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await client.detach();
+      } else {
+        await page.mouse.move(x, y); await page.mouse.wheel(box.width * 0.8, 0);
+      }
+      await expect(schedule.getByRole("article", { name: "Schedule event 2", exact: true })).toHaveAttribute("aria-current", "true");
+      const future = (await scheduleFixtureDb().doc("events/000-sw177-event-future").get()).get("startDate") as string;
+      await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(future.split("-").reverse().join("-"));
+      await expect(dates.getByRole("button", { name: `Select ${future.split("-").reverse().join("-")} · Schedule event 2`, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await schedule.getByRole("button", { name: "Previous", exact: true }).click();
+      await expect(schedule.getByRole("article", { name: "Schedule event 1", exact: true })).toHaveAttribute("aria-current", "true");
     }
   } finally { await clearScheduleEvents(); }
 });
