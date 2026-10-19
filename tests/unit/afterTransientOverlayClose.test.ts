@@ -60,3 +60,16 @@ test("a selection without an overlay commits after the current event and can be 
   fixture.flush();
   assert.equal(commits, 1);
 });
+
+test("null browser state after POP cannot resurrect the consumed React marker", () => {
+  const fixture = browser(["transient-overlay:1"]);
+  const committed: unknown[] = [];
+  afterTransientOverlayClose((state) => { committed.push(state); }, fixture.target);
+  fixture.flush();
+  assert.deepEqual(committed, []);
+  (fixture.history.state as { usr: unknown }).usr = null;
+  fixture.pop();
+  assert.deepEqual(committed, [null], "the URL replacement must use the cleared browser state");
+  fixture.pop();
+  assert.deepEqual(committed, [null]);
+});

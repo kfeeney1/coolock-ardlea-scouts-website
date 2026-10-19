@@ -181,10 +181,9 @@ export default function ParentPortal() {
         // Commit only after the select's browser Back entry is consumed. A
         // query replacement during its exit transition can otherwise leave a
         // stale marker which restores the previous child after a reload.
-        cancelChildCommitRef.current = afterTransientOverlayClose(() => {
+        cancelChildCommitRef.current = afterTransientOverlayClose((routerState) => {
             cancelChildCommitRef.current = null;
             if (pendingChildIdRef.current !== childId || window.location.pathname !== "/parent") return;
-            const routerState = (window.history.state as { usr?: unknown } | null)?.usr ?? location.state;
             const next = new URLSearchParams(window.location.search);
             next.set("child", childId);
             navigate({ pathname: "/parent", search: `?${next.toString()}`, hash: window.location.hash }, { replace: true, state: routerState });
