@@ -37,3 +37,5 @@ One table viewport scrolls horizontally and vertically, retaining row identity a
 | SW-373 | On desktop and Android, enable Attendance matrix in Superuser Settings, reload and open Attendance Insights in another signed-in session. Check summaries, filters, long names/titles, all legend states and scrolling with retained row/header context, with no page overflow. Change navigation/schedule choices independently. Switch back to Existing attendance and reload: the matrix disappears, summaries/history still work and saved attendance is unchanged. A non-Superuser must have no rollout control. |
 
 Development/CI results, Firebase TEST deployment verification and Production Manual Testing are separate evidence. Neither these scenarios nor a green PR records a Production pass.
+
+The deployed TEST smoke reads the Superuser rollout choice and verifies Attendance Insights summaries and the matching presentation across reloads, against the exact deployed build. It does not change the TEST group’s setting; enabled/disabled writes and cross-session rollout are exercised in the isolated emulator suite.
