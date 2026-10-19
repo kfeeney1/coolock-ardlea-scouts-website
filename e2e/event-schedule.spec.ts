@@ -15,7 +15,7 @@ test("Event schedule preserves summaries, date selection, past actions and legac
     const schedule = page.getByRole("region", { name: "Events schedule", exact: true });
     const selected = schedule.getByRole("article", { name: "Schedule event 1", exact: true });
     await expect(selected).toHaveAttribute("aria-current", "true");
-    await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(today);
+    await expect(schedule.getByLabel("Events date", { exact: true })).toHaveValue(today.split("-").reverse().join("-"));
     await expect(selected.getByText("1 attending · 0 not attending · 0 invited", { exact: true })).toBeVisible();
     await expect(selected.getByText("1 consent received · 0 consent outstanding", { exact: true })).toBeVisible();
     await expect(selected.getByRole("link", { name: "Edit event", exact: true })).toHaveAttribute("href", "/leader/events/000-sw177-event-today/edit");

@@ -66,7 +66,7 @@ export default function EventListPanel({ events, visibleEvents, members, loading
         {statusFilter === "completed" && <Alert severity="info" sx={{ mb: 3 }}>Completed events are retained as read-only history. Open an event to access reports, exports and its gallery.</Alert>}
 
         <Box id="event-results" role="region" aria-label="Event results" tabIndex={-1}>
-            {loading ? <Box sx={{ minHeight: 300, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" /></Box> : redesigned ? <EventSchedule events={visibleEvents} members={members} /> : <Box sx={{ display: "grid", gap: 2 }}>
+            {loading ? <Box sx={{ minHeight: 300, display: "flex", justifyContent: "center", alignItems: "center" }}><CircularProgress color="success" aria-label="Loading events" /></Box> : redesigned ? <EventSchedule events={visibleEvents} members={members} /> : <Box sx={{ display: "grid", gap: 2 }}>
                 {visibleEvents.length === 0 && <Alert severity="info">No events match the current filters.</Alert>}
                 {visibleEvents.map((event) => {
                     const summary = eventCounts(event, members);
