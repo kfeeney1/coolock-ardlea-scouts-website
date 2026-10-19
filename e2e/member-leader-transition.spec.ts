@@ -19,6 +19,45 @@ async function waitForTransientOverlayHistoryCleanup(page: import("@playwright/t
   }), { message: "Transient overlay history markers should be consumed before a document navigation" }).toBe(0);
 }
 
+// Keep a credential-free history journal in failed traces. A stranded marker
+// must be diagnosed at its navigation boundary rather than hidden by a retry.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const journal: unknown[] = [];
+    const record = (kind: string, detail: Record<string, unknown> = {}) => {
+      const state = window.history.state;
+      journal.push({ kind, ...detail, index: state?.idx,
+        markers: state?.usr?.__coolockArdleaBackDismissStack || [],
+        surfaces: [...document.querySelectorAll('[role="dialog"], [role="listbox"]')].map((node) => ({
+          role: node.getAttribute("role"), hidden: node.getAttribute("aria-hidden"),
+          rects: node.getClientRects().length, visibility: getComputedStyle(node).visibility
+        })) });
+      if (journal.length > 100) journal.shift();
+    };
+    (window as Window & { transitionHistoryJournal?: unknown[] }).transitionHistoryJournal = journal;
+    for (const method of ["pushState", "replaceState"] as const) {
+      const original = window.history[method].bind(window.history);
+      window.history[method] = (...args: Parameters<typeof original>) => {
+        original(...args);
+        record(method);
+      };
+    }
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
+    navigation?.addEventListener("navigate", (event) => {
+      const detail = event as Event & { navigationType?: string; destination?: { sameDocument?: boolean } };
+      record("navigate", { type: detail.navigationType, sameDocument: detail.destination?.sameDocument });
+    });
+    window.addEventListener("popstate", () => record("popstate"));
+    window.addEventListener("beforeunload", () => record("beforeunload"));
+  });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus || page.isClosed()) return;
+  const journal = await page.evaluate(() => (window as Window & { transitionHistoryJournal?: unknown[] }).transitionHistoryJournal || []);
+  await testInfo.attach("transition-history", { body: JSON.stringify(journal, null, 2), contentType: "application/json" });
+});
+
 function fixtureApp() {
   if (process.env.FIREBASE_PROJECT_ID !== "demo-coolock-ardlea-scouts" || process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099") throw new Error("Identity fixture requires local demo emulators.");
   return getApps()[0] || initializeApp({ projectId: "demo-coolock-ardlea-scouts" });
@@ -92,6 +131,7 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page.getByRole("heading", { name: "Leader Dashboard" })).toBeVisible();
   await page.goto("/leader/members");
+  const memberListHistoryIndex = await page.evaluate(() => window.history.state.idx as number);
   await page.getByRole("button", { name: "Add Member", exact: true }).click();
   const addDialog = page.getByRole("dialog", { name: "Add Existing Member" });
   await addDialog.getByLabel("First name").fill(firstName);
@@ -101,11 +141,16 @@ async function completeTransition(page: import("@playwright/test").Page, section
   await addDialog.getByRole("checkbox", { name: section, exact: true }).check();
   await addDialog.getByLabel("Email address").fill(email);
   await addDialog.getByLabel("Mobile number").fill("0871234567");
+  await expect.poll(() => page.evaluate(() => window.history.state.idx), {
+    message: "One Add Member dialog must add exactly one history entry, including while its fields change"
+  }).toBe(memberListHistoryIndex + 1);
   await addDialog.getByRole("button", { name: "Add Member", exact: true }).click();
   await expect(addDialog).toBeHidden();
 
   const member = page.locator(`[data-testid^="member-card-"][data-member-last-name="${lastName}"]`);
   await expect(member).toBeVisible();
+  await waitForTransientOverlayHistoryCleanup(page);
+  await expect.poll(() => page.evaluate(() => window.history.state.idx)).toBe(memberListHistoryIndex);
   const memberId = (await member.getAttribute("data-testid"))!.replace("member-card-", "");
   const fixture: { memberId: string; email: string; invitationId?: string } = { memberId, email };
   ownedMembers.push(fixture);
@@ -118,7 +163,12 @@ async function completeTransition(page: import("@playwright/test").Page, section
     await db.collection("members").doc(memberId).update({ accountUid: existingUid, familyId: `transition-family-${suffix}`, sections: ["Cubs", "Rovers"], sectionRoles: { Cubs: "Sixer", Rovers: "Crew Leader" } });
     original = (await db.collection("members").doc(memberId).get()).data();
     await db.collection("parentAccounts").doc(existingUid).set({ uid: existingUid, email, displayName: `${firstName} ${lastName}`, mobileNumber: "0871234567", status: "approved", memberIds: ["TEST_member_beaver_01"], linkedSections: ["Beavers"], requestedChildren: [] });
+    // Add Member becoming hidden does not mean its deferred Back marker is
+    // consumed. A late history traversal can abort this fixture-refresh reload.
+    await waitForTransientOverlayHistoryCleanup(page);
+    const memberListUrl = page.url();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(memberListUrl);
     await expect(member).toBeVisible();
   }
   await member.getByRole("link", { name: "Manage", exact: true }).click();

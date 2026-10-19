@@ -77,6 +77,8 @@ test("signing out from a deep route and signing in again starts at the dashboard
 test("an expired session followed by login starts at the dashboard", async ({ page }) => {
   test.skip(!leaderEmail, "Configure the canonical leader account.");
   await signInLeader(page, leaderEmail!);
+  await expect(page).toHaveURL(/\/leader$/);
+  await expect(page.getByRole("heading", { name: "Leader Dashboard", exact: true })).toBeVisible();
   await page.goto("/leader/members");
   await expect(page.getByRole("heading", { name: "Member Management", exact: true })).toBeVisible();
 
