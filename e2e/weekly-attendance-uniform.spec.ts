@@ -72,7 +72,7 @@ test("SW-325 attendance and uniform checklist keeps one compact row and applies 
   };
   page.on("dialog", recordPrompt);
   try {
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     expect(navigationPrompts, "A completed save must reload without a native prompt").toEqual([]);
   } finally { page.off("dialog", recordPrompt); }
   await expect(page).toHaveURL(meetingUrl);
