@@ -82,7 +82,7 @@ export async function loadAttendanceInsightMembers(scope: Scope): Promise<Attend
     const docs = await scopedDocs("members", scope);
     const members = docs.flatMap((item) => {
         const member = canonicalMember(item);
-        return member ? [{ id: member.id, displayName: member.displayName, section: member.section, sections: member.sections, status: member.status }] : [];
+        return member ? [{ firstName: stringValue(member.data, "firstName"), lastName: stringValue(member.data, "lastName"), id: member.id, displayName: member.displayName, section: member.section, sections: member.sections, status: member.status }] : [];
     });
     if (scope.isAdmin) return members;
 
@@ -104,7 +104,7 @@ export async function loadAttendanceInsightMembers(scope: Scope): Promise<Attend
             if (existing) {
                 if (!existing.sections.includes(section)) existing.sections = [...existing.sections, section];
             } else {
-                byId.set(id, { id, displayName, section: primarySection, sections: canonicalMemberSections(data.sections, primarySection), status });
+                byId.set(id, { firstName: stringValue(data, "firstName"), lastName: stringValue(data, "lastName"), id, displayName, section: primarySection, sections: canonicalMemberSections(data.sections, primarySection), status });
             }
         }
     }
