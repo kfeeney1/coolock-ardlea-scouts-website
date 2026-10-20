@@ -1,5 +1,6 @@
 import WeeklyMeetingSchedule from "../components/admin/WeeklyMeetingSchedule";
 import { useScheduleExperience } from "../hooks/useScheduleExperience";
+import { useAttendanceExperience } from "../hooks/useAttendanceExperience";
 import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +41,7 @@ type NavigationAction = "meetings" | "copy" | "create";
 export default function WeeklySectionTracker() {
   const { adminProfile } = useAdminAuth();
   const redesignedSchedules = useScheduleExperience();
+  const attendanceMatrixEnabled = useAttendanceExperience();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const meetingId=searchParams.get("meeting")??"";
@@ -190,6 +192,7 @@ export default function WeeklySectionTracker() {
     {redesignedSchedules ? <WeeklyMeetingSchedule records={records} readOnly={readOnly} canEditAll={!!isAdmin || access.canEditAll} sections={availableSections} /> : <>
     <Paper variant="outlined" sx={{p:{xs:1.5,sm:2}}}><Typography variant="h5" sx={{fontWeight:800,mb:2}}>Open Meeting</Typography>{!openRecords.length?<Alert severity="info">No meetings are currently open.</Alert>:<Stack spacing={1}>{openRecords.map(r=><Button key={r.id} variant="contained" onClick={()=>{setSelected(r);setSavedSelected(r);setStep(initialWeeklyStep(r.meetingDate));navigate(`?meeting=${r.id}`);}} sx={{justifyContent:"space-between",gap:1,textAlign:"left",minWidth:0}}><span>{displayWeeklyDate(r.meetingDate)} · {r.section}</span><Chip size="small" label="Open"/></Button>)}</Stack>}</Paper>
     </>}
+    {attendanceMatrixEnabled && <Button component={Link} to="/leader/attendance?view=matrix" variant="contained" color="primary" data-testid="weekly-attendance-matrix-link" sx={{ alignSelf: "flex-start", minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "normal" }}>Attendance Matrix</Button>}
     <WeeklyMeetingHistoryPanel records={history} sections={availableSections} canEditPast={canEditPast} readOnly={readOnly} canDeleteFutureClosed={isAdmin} onReopen={(record)=>void reopenMeeting(record)} onRefresh={()=>refresh(access)} />
 
 
