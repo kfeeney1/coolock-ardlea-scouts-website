@@ -91,13 +91,13 @@ requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment wor
 requireContract(testDeployScript.includes('"firebase.test.json"'), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("deploy-firebase-test-with-rules-retry.mjs"), "TEST deployment uses the Rules API bounded-retry runner.");
 requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:rules")'), "TEST deploy validates and publishes Firestore Rules in an isolated operation.");
-requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:indexes,storage:test-default,hosting")'), "TEST deploys indexes, explicit TEST Storage rules and Hosting after Firestore Rules succeed.");
+requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:indexes,storage:test-default,hosting,functions:maintenance")'), "TEST deploys indexes, explicit TEST Storage rules and Hosting after Firestore Rules succeed.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
 requireContract(testWorkflow.includes("seed-parent-consent-smoke.mjs seed"), "TEST seeds and verifies the linked-parent consent smoke fixture before browser checks.");
 requireContract(testWorkflow.includes('VITE_EMAIL_API_URL: ""'), "TEST explicitly disables email communications.");
 requireContract(!testWorkflow.includes("CLOUDFLARE_API_TOKEN") && !testWorkflow.includes("TEST_EMAIL_REDIRECT"), "TEST has no email provider or Worker secret requirement.");
-requireContract(!firebase.functions, "Production/default Firebase config does not deploy the TEST event backend.");
+requireContract(firebase.functions?.length === 1 && firebase.functions[0].source === "maintenance-functions" && firebase.functions[0].codebase === "maintenance", "Production/default deploys only the isolated Maintenance codebase, never the TEST event backend.");
 requireContract(!firebase.hosting.rewrites?.some((rewrite) => rewrite.source === "/api/event-audience-save"), "Production/default Hosting has no TEST event backend rewrite.");
 requireContract(previewWorkflow.includes("cp firebase.test.json firebase.json"), "PR previews use the TEST backend rewrite.");
 
@@ -119,4 +119,4 @@ if (failures.length > 0) {
 
 console.log("\nFirebase deployment configuration check passed.");
 
-requireContract(!firebaseTest.functions && !testWorkflow.includes("--only functions:"), "TEST event saves require no Functions deployment.");
+requireContract(firebaseTest.functions?.length === 1 && firebaseTest.functions[0].source === "maintenance-functions", "Maintenance has an isolated Functions codebase; event saves retain their existing direct path.");

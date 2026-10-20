@@ -28,6 +28,9 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COOLOCK_ARDLEA_SCOUTS_TEST }}
         run: node scripts/validate-firebase-environment.mjs --environment test --project "$FIREBASE_PROJECT_ID" --credential-env FIREBASE_SERVICE_ACCOUNT_JSON
+      - name: Install Maintenance backend dependencies
+        run: npm ci --prefix maintenance-functions --no-audit
+
       - name: Install dependencies
         run: npm ci
       - name: Validate TEST Firebase application configuration

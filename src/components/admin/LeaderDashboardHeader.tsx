@@ -46,7 +46,7 @@ export default function LeaderDashboardHeader() {
  const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const presentationGroups = redesigned ? redesignedNavigationGroups(visibleGroups) : visibleGroups;
- const activeNavigation = resolveLeaderNavigation(`${location.pathname}${location.search}${location.hash}`, presentationGroups, [dashboardNavItem, ...visibleAccountItems]);
+ const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [dashboardNavItem, ...visibleAccountItems]);
  const activeCategory = activeNavigation?.groupId ?? null;
  const currentItem = activeNavigation?.item;
  useEffect(() => { setMobileGroupOpen(activeCategory); }, [activeCategory]);

@@ -35,7 +35,7 @@
     "smoke:live": "node scripts/check-live-deployment.mjs",
     "seed:equipment": "node scripts/import-equipment.mjs --manifest=config/sw-42-equipment-seed.json",
     "seed:members": "node scripts/import-members.mjs",
-    "quality:checks": "npm run lint && npm test && npm run test:email-worker && npm run test:event-backend && npm run check:seed-contract && npm run check:playwright-suite && npm run check:dropdown-implementation && npm run check:visible-control-contract && npm run check:source-complexity && npm run check:hosting-config && npm run check:firebase-deploy-config && npm run check:firestore-audit-coverage && npm run check:rbac-matrix && npm run check:rbac-test-coverage && npm run check:workflow-permissions && npm run check:workflow-action-pinning && npm run check:workflow-production-credentials && npm run check:post-merge-ci-contract && npm run check:leader-navigation-contract && npm run check:system-information && npm run check:smoke-script && npm run check:event-backend-build && npm run build",
+    "quality:checks": "npm run lint && npm test && npm run test:email-worker && npm run test:maintenance-backend && npm run test:event-backend && npm run check:seed-contract && npm run check:playwright-suite && npm run check:dropdown-implementation && npm run check:visible-control-contract && npm run check:source-complexity && npm run check:hosting-config && npm run check:firebase-deploy-config && npm run check:firestore-audit-coverage && npm run check:rbac-matrix && npm run check:rbac-test-coverage && npm run check:workflow-permissions && npm run check:workflow-action-pinning && npm run check:workflow-production-credentials && npm run check:post-merge-ci-contract && npm run check:leader-navigation-contract && npm run check:system-information && npm run check:smoke-script && npm run check:event-backend-build && npm run build",
     "quality": "npm run audit:production && npm run quality:checks",
     "preview": "vite preview",
     "check:post-merge-ci-contract": "node scripts/check-post-merge-ci-contract.mjs",
@@ -44,7 +44,8 @@
     "test:event-backend": "node --test functions/tests/*.test.js",
     "check:event-backend-build": "node functions/build.mjs && node --check functions/lib/index.js",
     "document:leader-navigation": "node --experimental-strip-types scripts/document-leader-navigation.mjs",
-    "check:leader-navigation-contract": "npm run document:leader-navigation -- --check"
+    "check:leader-navigation-contract": "npm run document:leader-navigation -- --check",
+    "test:maintenance-backend": "node --test maintenance-functions/tests/*.test.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
