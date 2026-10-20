@@ -138,3 +138,52 @@ test("attendance rollout reaches a separate leader session independently of mixe
     await expect(leaderPage.getByTestId("meeting-average-rate")).toBeVisible();
   } finally { await otherSession.close(); await cleanup(); }
 });
+
+test("Weekly Meetings opens a matrix-only view before Meeting History and keeps both existing experiences available when disabled", async ({ page }) => {
+  test.skip(!password, "Configure canonical E2E credentials.");
+  const cleanup = await seedAttendanceMatrix();
+  try {
+    await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+    await page.goto("/leader/settings");
+    const enable = page.getByRole("button", { name: "Attendance matrix", exact: true });
+    const disable = page.getByRole("button", { name: "Existing attendance", exact: true });
+    await expect(disable).toHaveAttribute("aria-pressed", "true");
+    await enable.click();
+    await expect(enable).toHaveAttribute("aria-pressed", "true");
+
+    await page.goto("/leader/weekly");
+    const link = page.getByRole("link", { name: "Attendance Matrix", exact: true });
+    const historyHeading = page.getByRole("heading", { name: "Meeting History", exact: true });
+    await expect(link).toBeVisible();
+    await expect(historyHeading).toBeVisible();
+    expect(await link.evaluate(node => node.nextElementSibling?.querySelector("h5")?.textContent?.trim() === "Meeting History")).toBe(true);
+
+    await link.click();
+    await expect(page).toHaveURL(/\/leader\/attendance\?view=matrix$/);
+    await expect(page.getByTestId("attendance-matrix-only-view")).toBeVisible();
+    const matrix = page.getByRole("table", { name: "Member attendance by meeting" });
+    await expect(matrix).toBeVisible();
+    await expect(matrix.getByRole("row")).toHaveCount(32);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(page.getByTestId("meeting-average-rate")).toHaveCount(0);
+    await expect(page.getByTestId("attendance-member-card")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Back to Weekly Meetings", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click();
+    await expect(historyHeading).toBeVisible();
+    await expect(link).toBeVisible();
+
+    await page.goto("/leader/settings");
+    await disable.click();
+    await expect(disable).toHaveAttribute("aria-pressed", "true");
+    await page.goto("/leader/weekly");
+    await expect(page.getByRole("link", { name: "Attendance Matrix", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Meeting History", exact: true })).toBeVisible();
+    await page.goto("/leader/attendance?view=matrix");
+    await expect(page.getByTestId("attendance-matrix-disabled")).toBeVisible();
+    await expect(page.getByRole("table", { name: "Member attendance by meeting" })).toHaveCount(0);
+    await expect(page.getByTestId("meeting-average-rate")).toHaveCount(0);
+    await page.goto("/leader/attendance");
+    await expect(page.getByTestId("meeting-average-rate")).toBeVisible();
+
+  } finally { await cleanup(); }
+});
