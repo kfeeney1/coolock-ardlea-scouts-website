@@ -45,7 +45,7 @@
     "check:event-backend-build": "node functions/build.mjs && node --check functions/lib/index.js",
     "document:leader-navigation": "node --experimental-strip-types scripts/document-leader-navigation.mjs",
     "check:leader-navigation-contract": "npm run document:leader-navigation -- --check",
-    "test:maintenance-backend": "node --test maintenance-functions/tests/*.test.js"
+    "test:maintenance-backend": "node maintenance-functions/build.mjs --check && node --test maintenance-functions/tests/*.test.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
