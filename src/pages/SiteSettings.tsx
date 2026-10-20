@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { effectivePermissionsFor } from "../security/permissionRegistry";
+import AttendanceExperienceSettings from "../components/admin/AttendanceExperienceSettings";
 import ScheduleExperienceSettings from "../components/admin/ScheduleExperienceSettings";
 import LeaderNavigationSettings from "../components/admin/LeaderNavigationSettings";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -247,7 +248,7 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /></>}
+                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><AttendanceExperienceSettings /></>}
 
                 {showParentLoginSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>

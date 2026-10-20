@@ -1,3 +1,6 @@
+import AttendanceMatrix from "../components/admin/AttendanceMatrix";
+import { useAttendanceExperience } from "../hooks/useAttendanceExperience";
+import { buildAttendanceMatrix } from "../services/attendanceMatrixLogic";
 import { formatSiteDate } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
@@ -48,6 +51,8 @@ function rateLabel(rate: number | null): string {
 
 export default function AttendanceInsights() {
     const { adminProfile } = useAdminAuth();
+    const matrixEnabled = useAttendanceExperience();
+    const surface = matrixEnabled ? { borderRadius: 3, boxShadow: 1 } : {};
     const [members, setMembers] = useState<AttendanceInsightMember[]>([]);
     const [events, setEvents] = useState<EventReportRecord[]>([]);
     const [meetings, setMeetings] = useState<WeeklyMeetingRecord[]>([]);
@@ -98,11 +103,15 @@ export default function AttendanceInsights() {
         [members, events, meetings, dateRange]
     );
     const availableSections = useMemo(
-        () => sortScoutSections(insights.map((item) => item.section).filter(Boolean)),
-        [insights]
+        () => sortScoutSections(matrixEnabled
+            ? members.flatMap(member => [member.section, ...member.sections]).filter(section => isAdmin || sections.includes(section))
+            : insights.map(item => item.section).filter(Boolean)),
+        [matrixEnabled, members, insights, isAdmin, sections]
     );
+    const matrix = useMemo(() => matrixEnabled ? buildAttendanceMatrix(members, meetings, { ...dateRange, section: sectionFilter, search }) : null, [matrixEnabled, members, meetings, dateRange, sectionFilter, search]);
     const normalizedSearch = search.trim().toLocaleLowerCase();
-    const visibleInsights = insights.filter((item) =>
+    const matrixMemberIds = new Set(matrix?.rows.map(row => row.memberId));
+    const visibleInsights = insights.filter((item) => matrix ? matrixMemberIds.has(item.memberId) :
         (sectionFilter === "all" || item.section === sectionFilter)
         && (!normalizedSearch || item.displayName.toLocaleLowerCase().includes(normalizedSearch))
     );
@@ -159,7 +168,7 @@ export default function AttendanceInsights() {
 
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
-            <Container maxWidth="xl">
+            <Container maxWidth="xl" sx={{ minWidth: 0 }}>
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
                     title="Attendance History & Insights"
@@ -179,7 +188,7 @@ export default function AttendanceInsights() {
                     <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
                 ) : selectedMember && selectedHistory ? (
                     <Stack spacing={2} data-testid="attendance-member-detail">
-                        <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
+                        <Paper variant="outlined" sx={{ ...surface, p: { xs: 2, md: 2.5 } }}>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                                 <Box>
                                     <Typography variant="h4" color="secondary">{selectedMember.displayName}</Typography>
@@ -189,7 +198,7 @@ export default function AttendanceInsights() {
                             </Stack>
                         </Paper>
 
-                        <Paper variant="outlined" sx={{ p: 2.5 }}>
+                        <Paper variant="outlined" sx={{ ...surface, p: 2.5 }}>
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
                                 <Button aria-pressed={historyType === "meetings"} variant={historyType === "meetings" ? "contained" : "outlined"} onClick={() => setHistoryType("meetings")}>
                                     Meetings ({selectedHistory.meetings.length})
@@ -203,7 +212,7 @@ export default function AttendanceInsights() {
                             ) : (
                                 <Stack spacing={1} data-testid="attendance-history-list">
                                     {historyRows.map((row) => (
-                                        <Paper key={`${historyType}-${row.id}`} variant="outlined" sx={{ p: 2 }}>
+                                        <Paper key={`${historyType}-${row.id}`} variant="outlined" sx={{ ...surface, p: 2 }}>
                                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
                                                 <Box>
                                                     <Typography sx={{ fontWeight: 800 }}>{row.title}</Typography>
@@ -223,8 +232,8 @@ export default function AttendanceInsights() {
                     </Stack>
                 ) : (
                     <>
-                        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
+                        <Paper variant="outlined" sx={{ ...surface, p: 2.5, mb: 3 }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: matrixEnabled ? { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(170px, 1fr) minmax(340px, 2fr)" } : { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
                                 <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
                                 <FormControl>
                                     <InputLabel id="attendance-section-filter-label">Section</InputLabel>
@@ -254,7 +263,7 @@ export default function AttendanceInsights() {
                                         {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
                                     </Select>
                                 </FormControl>
-                                <DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From" endLabel="To" startTestId="attendance-from-date" endTestId="attendance-to-date" onStartDateChange={updateFromDate} onEndDateChange={updateToDate} />
+                                <Box sx={{ gridColumn: matrixEnabled ? { xs: "1 / -1", lg: "auto" } : "auto", minWidth: 0 }}><DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From" endLabel="To" startTestId="attendance-from-date" endTestId="attendance-to-date" onStartDateChange={updateFromDate} onEndDateChange={updateToDate} /></Box>
                             </Box>
                             {hasActiveFilters && (
                                 <Button sx={{ mt: 2 }} size="small" variant="outlined" onClick={resetFilters} data-testid="attendance-reset-filters">
@@ -264,21 +273,23 @@ export default function AttendanceInsights() {
                         </Paper>
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
-                            <Paper variant="outlined" sx={{ p: 2.5 }} role="status" aria-live="polite" data-testid="attendance-result-count">
+                            <Paper variant="outlined" sx={{ ...surface, p: 2.5 }} role="status" aria-live="polite" data-testid="attendance-result-count">
                                 <Typography variant="h4" color="secondary">{visibleInsights.length}</Typography>
                                 <Typography color="text.secondary">Matching active members</Typography>
                             </Paper>
-                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="meeting-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("meeting"))}</Typography><Typography color="text.secondary">Average meeting attendance</Typography></Paper>
-                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="event-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("event"))}</Typography><Typography color="text.secondary">Average event attendance</Typography></Paper>
-                            <Paper variant="outlined" sx={{ p: 2.5 }} data-testid="combined-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("combined"))}</Typography><Typography color="text.secondary">Average combined attendance</Typography></Paper>
+                            <Paper variant="outlined" sx={{ ...surface, p: 2.5 }} data-testid="meeting-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("meeting"))}</Typography><Typography color="text.secondary">Average meeting attendance</Typography></Paper>
+                            <Paper variant="outlined" sx={{ ...surface, p: 2.5 }} data-testid="event-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("event"))}</Typography><Typography color="text.secondary">Average event attendance</Typography></Paper>
+                            <Paper variant="outlined" sx={{ ...surface, p: 2.5 }} data-testid="combined-average-rate"><Typography variant="h4" color="secondary">{rateLabel(averageRate("combined"))}</Typography><Typography color="text.secondary">Average combined attendance</Typography></Paper>
                         </Box>
+
+                        {matrix && !invalidDateRange && !error && <AttendanceMatrix matrix={matrix} />}
 
                         {invalidDateRange ? null : visibleInsights.length === 0 ? (
                             <Alert severity="info">No active members match the current search, section and date filters.</Alert>
                         ) : (
                             <Box sx={{ display: "grid", gap: 2 }}>
                                 {visibleInsights.map((item) => (
-                                    <Paper key={item.memberId} variant="outlined" sx={{ p: 2.5 }} data-testid="attendance-member-card">
+                                    <Paper key={item.memberId} variant="outlined" sx={{ ...surface, p: 2.5 }} data-testid="attendance-member-card">
                                         <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, justifyContent: "space-between", gap: 2 }}>
                                             <Box>
                                                 <Typography variant="h5" color="secondary">{item.displayName}</Typography>

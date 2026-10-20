@@ -118,7 +118,10 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
   await expectSelectionPreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
 
-  await page.goto("/leader/access");
+  // Let the Status selection's route/state synchronisation settle before
+  // starting a full document navigation to Leader Access.
+  await expect(page.getByRole("combobox", { name: "Status" }).first()).toBeVisible();
+  await page.goto("/leader/access", { waitUntil: "commit" });
   const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
   await expect(leaderTile).toBeVisible();
   await leaderTile.click();

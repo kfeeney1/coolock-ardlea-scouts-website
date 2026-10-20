@@ -103,4 +103,36 @@ test.describe("stable TEST environment smoke", () => {
       }
     }
   });
+
+  test("Superuser reads the deployed Attendance Insights rollout and matching presentation", async ({ page, baseURL }) => {
+    const host = new URL(baseURL!).hostname;
+    expect(stableTestSmoke
+      ? ["coolock-ardlea-scouts-test.web.app", "coolock-ardlea-scouts-test.firebaseapp.com"].includes(host)
+      : host === "127.0.0.1" || host === "localhost").toBe(true);
+    if (stableTestSmoke) {
+      await page.goto("/about");
+      const banner = page.getByTestId("test-environment-banner");
+      await expect(banner).toContainText("TEST · synthetic data");
+      if (process.env.GITHUB_SHA) await expect(banner).toContainText(process.env.GITHUB_SHA.slice(0, 7));
+    }
+    await signIn(page, "/leader/login", process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com");
+    await expect(page.getByRole("heading", { name: "Leader Dashboard", exact: true })).toBeVisible();
+    await page.goto("/leader/settings");
+    const matrixChoice = page.getByRole("button", { name: "Attendance matrix", exact: true });
+    await expect(matrixChoice).toBeEnabled();
+    const matrixEnabled = await matrixChoice.getAttribute("aria-pressed") === "true";
+    for (let visit = 0; visit < 2; visit++) {
+      if (visit === 0) await page.goto("/leader/attendance"); else await page.reload();
+      await expect(page.getByRole("heading", { name: "Attendance History & Insights", exact: true })).toBeVisible();
+      await expect(page.getByTestId("meeting-average-rate")).toBeVisible();
+      await expect(page.getByTestId("event-average-rate")).toBeVisible();
+      await expect(page.getByTestId("combined-average-rate")).toBeVisible();
+      await expect(page.getByTestId("attendance-member-card").first()).toBeVisible();
+      await expect(page.getByRole("alert").filter({ hasText: /Unable to load attendance|permission denied/i })).toHaveCount(0);
+      const matrix = page.getByRole("table", { name: "Member attendance by meeting", exact: true });
+      if (matrixEnabled) await expect(matrix).toBeVisible(); else await expect(matrix).toHaveCount(0);
+    }
+    console.log(`TEST attendance presentation verified read-only: ${matrixEnabled ? "matrix" : "existing"}`);
+  });
+
 });

@@ -54,6 +54,7 @@ export const suiteSpecs = {
   "activities-programme": [
     "activity-log.spec.ts",
     "attendance-insights.spec.ts",
+    "attendance-matrix.spec.ts",
     "event-consent-linking.spec.ts",
     "event-gallery.spec.ts",
     "event-record-page.spec.ts",
