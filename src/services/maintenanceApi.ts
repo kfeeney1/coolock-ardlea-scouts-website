@@ -3,10 +3,7 @@ import app, { appEnvironment } from "../firebase";
 import { requireMaintenanceRuntime } from "./maintenanceRuntime";
 const functions = getFunctions(app, "europe-west1");
 if (appEnvironment === "local") connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-export async function checkMaintenanceMembership() {
-  requireMaintenanceRuntime();
-  return (await httpsCallable<void, {member: boolean}>(functions, "maintenanceAccess")()).data.member;
-}
+export { checkMaintenanceMembership } from "./maintenanceMembership";
 export type MaintenanceDocument = { id: string; fileName: string; contentType: string; size: number; uploadedBy: string; uploadedAt: number; state: "pending" | "ready" };
 export async function listMaintenanceDocuments(after = "") {
   requireMaintenanceRuntime();

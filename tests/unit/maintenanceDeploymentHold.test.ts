@@ -10,6 +10,6 @@ test("Maintenance predeploy blocks explicit deployments for either Firebase conf
     assert.deepEqual(maintenance.predeploy, ["node scripts/block-maintenance-deploy.mjs"]);
     const result = spawnSync(process.execPath, ["scripts/block-maintenance-deploy.mjs"], {encoding: "utf8"});
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /zero-spend hosting architecture/);
+    assert.match(result.stderr, /migration to existing Firebase services/);
   }
 });

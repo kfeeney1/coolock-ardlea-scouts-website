@@ -1,31 +1,36 @@
-# SW-330: zero-spend requirement
+# SW-330: reuse existing website infrastructure
 
-The owner requires no money to be spent on Maintenance. The prior Cloud Functions architecture is suspended, not accepted as zero cost. SW-331's deployment hold must land before any further Maintenance release. SW-333 PR #897 is draft pending this architecture revision; SW-334 must not be delivered using the suspended backend.
+The owner clarified on 20-10-2026 that Maintenance should replicate the rest of the website. The revised architecture uses existing Firebase Auth, Firestore and Storage SDKs and deployed Security Rules. It adds no Cloud Functions, Cloud Run, Cloud Build or Artifact Registry dependency and needs no new hosting provider. Existing Firebase reads, writes, stored bytes and downloads still count toward the website's existing plan and allowances. This is not a guaranteed zero-total-bill claim.
 
-## Implemented hold
+## Delivery order
 
-- TEST and Production release targets exclude Maintenance Functions.
-- Both Firebase configurations reject an explicit Maintenance Functions deployment with a predeploy hook. Emulator development remains available.
-- Live application builds hide Maintenance and block its routes through the existing access hook, even if a previous rollout setting says enabled. The Superuser setting explains the hold and cannot enable it.
-- Maintenance API helpers reject before calling a live backend. No live configuration, tasks, document metadata or files are deleted or overwritten.
-- Existing unrelated features, Firebase rules, appointment/membership protections and deployment checks remain intact.
+1. SW-331, PR #898: remove Maintenance from TEST/Production backend deployment targets, block explicit Functions deployment, and replace callable membership checks with direct Firestore SDK access validated by rules. Keep live rollout blocked while documents/tasks are migrated. Emulator development remains available.
+2. SW-332: migrate documents to the existing validated Storage upload and authenticated getBlob pattern used by meeting/policy documents. Retain reserved pending metadata and stable IDs for recovery. Add Security Rules validating membership, uploader, types, sizes and immutable records. No public download tokens.
+3. SW-333: migrate task creation/list/details to Firestore transactions and queries; validate description, document references and stable request IDs in rules. PR #897 remains draft until revised.
+4. SW-334: migrate assignment/completion to transactions and canonical appointment validation in rules; preserve revision conflict checks and relationships. Restore live rollout only after the complete direct-SDK implementation and deployed TEST acceptance.
 
-This does not delete previously deployed resources, cancel a running deployment or guarantee that the existing Blaze projects have no charges. Cloud administration access was unavailable; any existing Maintenance functions, build artifacts and image storage need a read-only inventory before cleanup. Never disable project billing or remove shared infrastructure to accomplish this feature-level hold.
+## Membership foundation
 
-## Architecture constraint and required decision
+The document maintenance/group/access/{uid} stores only kind and sourceId as a reference to existing canonical data. A user can write only their own reference, only while rollout is enabled, and only if rules verify an active canonical leader, approved parent or active account-linked member. It stores no cached permission, role grant or arbitrary boolean. Subsequent operations must revalidate the referenced canonical record, so disabling a member or parent cannot leave lasting authority in a projection. Account-linked members can query only their own member records; section/leader role unions remain intact.
 
-Firebase Storage requires Blaze, including default buckets. Firestore and Hosting on an already-billed project also have metered usage. Direct browser SDK access would remove Functions/Cloud Build/Artifact Registry from Maintenance, but it would not guarantee a zero bill and must not be described as zero cost. Moving authorization into the browser without corresponding rules is unacceptable.
+The Maintenance root remains the project-specific group boundary. Another group path is denied. Document/task access stays closed until the corresponding child rules are implemented and verified.
 
-The complete shared workflow needs an agreed persistence host that cannot charge for overage, including private file storage and downloads, authenticated backend validation, backups and hosting. A candidate must provide a genuinely enforced free-plan quota with no billing fallback, or use group-owned server/storage capacity already available without incremental charges. Neither an alternate provider account nor an existing group server has been identified or authorized here. Local browser storage alone would break shared access, reload across devices and retained-document acceptance, so it is not a substitute.
+## Protective controls during migration
 
-Before implementation resumes, identify that host and confirm its quota exhaustion behaviour. Then adapt the existing Maintenance API boundary while retaining canonical membership, leader appointments, role unions, authenticated document access and separate TEST/Production data. Repeat access/rules, persistence, assignment and mobile acceptance against that final host. Do not enable rollout until that verification completes.
+- TEST/Production release targets exclude Maintenance Functions.
+- Both Firebase configurations reject explicit Maintenance Functions deployment with a predeploy hook.
+- Live builds hide Maintenance and block its routes, even if an old rollout setting says enabled. Superuser Settings explains that migration is pending.
+- Old callable upload/download helpers reject in live builds pending SW-332 replacement.
+- Records are neither deleted nor overwritten. Unrelated features and Firebase deployments are preserved.
 
-## Sources checked on 20-10-2026
+These source changes do not delete deployed resources or cancel running cloud deployments. Cloud access was unavailable, so existing functions/build artifacts must be inventoried separately before cleanup. Do not disable project billing, remove shared infrastructure or downgrade the existing website as part of this migration.
 
-- https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024 — Cloud Storage requires Blaze; no-cost usage does not remove billing eligibility.
-- https://firebase.google.com/docs/firestore/pricing — free quotas and metered use.
-- https://firebase.google.com/docs/projects/billing/spend-caps — caps can be delayed and overages are billed; not a zero-spend guarantee.
+## Assurance
 
-## Assurance and acceptance
+Run full repository quality checks and emulator rules tests per focused child. Active members must access the group, while signed-out, outsider, inactive and cross-group requests fail; forged references and broad member queries must fail. Then repeat the document/task workflows, mobile navigation and Back on deployed TEST. PMT and Done remain pending until the user's recorded acceptance.
 
-Repository checks and focused cost-policy/deployment tests must pass on the PR head. This hold is not a delivered zero-cost shared Maintenance feature. Live TEST and Production Manual Testing remain pending. SW-330 and its children must not be marked Done based on the hold.
+Sources checked on 20-10-2026:
+
+- https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024 — Firebase Storage uses Blaze; existing usage remains metered.
+- https://firebase.google.com/docs/firestore/pricing — reads/writes and free allowances.
+- https://firebase.google.com/docs/projects/billing/spend-caps — caps can be delayed and do not guarantee zero expenditure.
