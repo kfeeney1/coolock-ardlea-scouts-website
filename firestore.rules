@@ -1931,6 +1931,26 @@ service cloud.firestore {
       return maintenanceEnabled()
         && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
     }
+    function maintenanceReadyDocumentAt(ids, index) {
+      return ids.size() <= index || (ids[index] is string && ids[index].matches('^[a-zA-Z0-9-]{20,64}$')
+        && get(/databases/$(database)/documents/maintenance/group/documents/$(ids[index])).data.state == "ready");
+    }
+    function validMaintenanceTask(data) {
+      return data.keys().hasOnly(["description", "documentIds", "status", "assigneeUid", "assigneeName", "revision", "createdBy", "createdAt", "updatedBy", "updatedAt"])
+        && data.description is string && data.description.size() > 0 && data.description.size() <= 8000
+        && data.description.matches('(?s).*\\S.*')
+        && data.documentIds is list && data.documentIds.size() <= 5 && data.documentIds.toSet().size() == data.documentIds.size()
+        && maintenanceReadyDocumentAt(data.documentIds, 0) && maintenanceReadyDocumentAt(data.documentIds, 1)
+        && maintenanceReadyDocumentAt(data.documentIds, 2) && maintenanceReadyDocumentAt(data.documentIds, 3) && maintenanceReadyDocumentAt(data.documentIds, 4)
+        && data.status == "open" && data.assigneeUid == "" && data.assigneeName == "Assignment pending" && data.revision == 1
+        && data.createdBy == request.auth.uid && data.updatedBy == request.auth.uid
+        && data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    match /maintenance/group/tasks/{id} {
+      allow get, list: if maintenanceMember();
+      allow create: if maintenanceMember() && id.matches('^[a-zA-Z0-9-]{20,64}$') && validMaintenanceTask(request.resource.data);
+      allow update, delete: if false;
+    }
     function validMaintenanceDocument(data) {
       return data.keys().hasOnly(["fileName", "contentType", "size", "sha256", "uploadedBy", "uploadedAt", "state"])
         && data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 240

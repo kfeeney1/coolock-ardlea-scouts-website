@@ -77,9 +77,6 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install Maintenance backend dependencies
-        run: npm ci --prefix maintenance-functions --no-audit
-
       - name: Install app dependencies
         run: npm ci --no-audit
 
@@ -107,9 +104,9 @@ jobs:
       - name: Start Firestore, Auth and Storage emulators with branch rules
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |
-          npx firebase emulators:start --only firestore,auth,storage,functions --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
+          npx firebase emulators:start --only firestore,auth,storage --project "$FIREBASE_PROJECT_ID" > /tmp/firebase-emulator.log 2>&1 &
           for i in {1..45}; do
-            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/5001) 2>/dev/null; then
+            if (echo > /dev/tcp/127.0.0.1/8080) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9099) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/9199) 2>/dev/null; then
               exit 0
             fi
             sleep 1
