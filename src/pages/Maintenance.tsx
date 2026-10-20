@@ -1,3 +1,4 @@
+import MaintenanceDocuments from "../components/maintenance/MaintenanceDocuments";
 import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
@@ -20,8 +21,7 @@ export default function Maintenance() {
         {([['Tasks', '/maintenance/tasks'], ['Documents', '/maintenance/documents']] as const).map(([label, path]) => <Button key={path} component={Link} to={path} aria-current={pathname === path ? "page" : undefined} variant={pathname === path ? "contained" : "outlined"} sx={{ minHeight: 48 }}>{label}</Button>)}
       </Stack>
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
-        <Typography component="h2" variant="h5">{pathname.endsWith("documents") ? "Documents" : "Tasks"}</Typography>
-        <Typography sx={{ mt: 2 }}>This workflow is being prepared. Maintenance remains disabled until acceptance is complete.</Typography>
+        {pathname.endsWith("documents") ? <MaintenanceDocuments /> : <><Typography component="h2" variant="h5">Tasks</Typography><Typography sx={{mt: 2}}>Task reporting is being prepared.</Typography></>}
       </Paper>
     </Stack>
   </Container>;
