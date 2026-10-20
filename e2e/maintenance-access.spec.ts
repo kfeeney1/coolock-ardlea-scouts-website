@@ -2,11 +2,14 @@ import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
 const password = process.env.E2E_TEST_USER_PASSWORD;
-test("Maintenance rollout, visible navigation, refresh and Back", async ({ page }, testInfo) => {
+for (const navigationVersion of ["existing", "redesigned"] as const) test(`Maintenance rollout, visible navigation, refresh and Back (${navigationVersion})`, async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   const setting = scheduleFixtureDb().doc("siteSettings/maintenanceExperience");
   const before = await setting.get();
+  const navigationSetting = scheduleFixtureDb().doc("siteSettings/leaderNavigation");
+  const previousNavigation = await navigationSetting.get();
   try {
+    await navigationSetting.set({version: navigationVersion});
     await setting.delete();
     await page.goto("/maintenance/tasks");
     await expect(page.getByText("Sign in to access Maintenance.", { exact: true })).toBeVisible();
@@ -24,7 +27,7 @@ test("Maintenance rollout, visible navigation, refresh and Back", async ({ page 
     const navigation = page.getByRole("navigation", {name: "Leader navigation", exact: true});
     await expect(navigation).toBeVisible();
     const group = navigation.getByRole("button", {name: /^Group Operations/}).filter({visible: true}).first();
-    if (testInfo.project.name === "mobile-chromium") {
+    if (testInfo.project.name === "mobile-chromium" || navigationVersion === "redesigned") {
       await expect(group).toBeVisible();
       if (await group.getAttribute("aria-expanded") !== "true") await group.click();
     }
@@ -42,5 +45,8 @@ test("Maintenance rollout, visible navigation, refresh and Back", async ({ page 
     await page.getByRole("button", { name: "Maintenance disabled", exact: true }).click();
     await page.goto("/maintenance/documents");
     await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
-  } finally { if (before.exists) await setting.set(before.data()!); else await setting.delete(); }
+  } finally {
+    if (before.exists) await setting.set(before.data()!); else await setting.delete();
+    if (previousNavigation.exists) await navigationSetting.set(previousNavigation.data()!); else await navigationSetting.delete();
+  }
 });
