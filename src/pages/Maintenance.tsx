@@ -9,7 +9,7 @@ export default function Maintenance() {
   const { user, authorised } = useAdminAuth();
   const { pathname } = useLocation();
   if (access.loading) return <Container sx={{ py: 4 }}><Typography role="status">Loading Maintenance…</Typography></Container>;
-  if (!access.allowed) return <Container sx={{ py: 4 }}><Alert severity={access.error ? "error" : "info"}>{access.error || (!user ? "Sign in to access Maintenance." : !access.member ? "Maintenance is restricted to approved group members." : "Maintenance is currently disabled.")}</Alert>{!user && <Button component={Link} to="/parent" sx={{ minHeight: 44 }}>Sign in</Button>}</Container>;
+  if (!access.allowed) return <Container sx={{ py: 4 }}><Alert severity={access.error ? "error" : "info"}>{access.error || (!user ? "Sign in to access Maintenance." : access.enabled === false ? "Maintenance is currently disabled." : "Maintenance is restricted to approved group members.")}</Alert>{!user && <Button component={Link} to="/parent" sx={{ minHeight: 44 }}>Sign in</Button>}</Container>;
   return <Container maxWidth="xl" sx={{ py: 4, overflowWrap: "anywhere" }}>
     {authorised && <LeaderDashboardHeader />}
     <Stack spacing={3}>
