@@ -91,7 +91,7 @@ requireContract(!exactProjectReference(testWorkflow, PROD), "TEST deployment wor
 requireContract(testDeployScript.includes('"firebase.test.json"'), "TEST deploy uses the isolated TEST Firebase configuration.");
 requireContract(testWorkflow.includes("deploy-firebase-test-with-rules-retry.mjs"), "TEST deployment uses the Rules API bounded-retry runner.");
 requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:rules")'), "TEST deploy validates and publishes Firestore Rules in an isolated operation.");
-requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:indexes,storage:test-default,hosting,functions:maintenance")'), "TEST deploys indexes, explicit TEST Storage rules and Hosting after Firestore Rules succeed.");
+requireContract(testDeployScript.includes('firebaseDeployArgs("firestore:indexes,storage:test-default,hosting")'), "TEST deploys indexes, explicit TEST Storage rules and Hosting after Firestore Rules succeed.");
 requireContract(testWorkflow.includes("validate-firebase-environment.mjs"), "TEST validates its project and credential before deployment.");
 requireContract(testWorkflow.includes("test-environment-smoke.spec.ts"), "TEST runs read-only public and authenticated smoke tests without email.");
 requireContract(testWorkflow.includes("seed-parent-consent-smoke.mjs seed"), "TEST seeds and verifies the linked-parent consent smoke fixture before browser checks.");

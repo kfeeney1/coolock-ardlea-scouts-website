@@ -38,7 +38,7 @@ test("transient Rules API 503 retries, then deploys remaining TEST targets after
   assert.deepEqual(delays, [FIREBASE_RULES_BACKOFF_MS[0]]);
   assert.equal(order.indexOf("rules-succeeded") < order.indexOf("remaining"), true);
   assert.match(calls[0].join(" "), /firestore:rules/);
-  assert.match(calls[2].join(" "), /firestore:indexes,storage:test-default,hosting/);
+  assert.equal(calls[2][calls[2].indexOf("--only") + 1], "firestore:indexes,storage:test-default,hosting");
   assert.equal(calls[0].includes("coolock-ardlea-scouts-test"), true);
 });
 

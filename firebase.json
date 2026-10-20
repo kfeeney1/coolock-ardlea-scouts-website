@@ -124,7 +124,10 @@
     {
       "source": "maintenance-functions",
       "codebase": "maintenance",
-      "runtime": "nodejs22"
+      "runtime": "nodejs22",
+      "predeploy": [
+        "node scripts/block-maintenance-deploy.mjs"
+      ]
     }
   ]
 }

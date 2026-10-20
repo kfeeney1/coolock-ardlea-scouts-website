@@ -94,7 +94,7 @@ export async function deployFirebaseTest({ run = runNpx, sleep, log } = {}) {
       log,
     }),
     deployRemainingTargets: async () => {
-      const result = await run(firebaseDeployArgs("firestore:indexes,storage:test-default,hosting,functions:maintenance"));
+      const result = await run(firebaseDeployArgs("firestore:indexes,storage:test-default,hosting"));
       if (result.code !== 0) {
         throw new Error(`Firebase TEST indexes, Storage rules, and Hosting deployment failed with exit code ${result.code}.`);
       }

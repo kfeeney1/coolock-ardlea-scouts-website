@@ -856,6 +856,8 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
+      // Account-linked members may resolve their own canonical membership only.
+      allow read: if signedIn() && resource.data.get("accountUid", "") == request.auth.uid;
       allow create: if isActiveLeader() && isYouthSection(request.resource.data.section) && (hasSection(request.resource.data.section) || (request.resource.data.source == "join-application" && isGroupLeader()))
         && (!request.resource.data.keys().hasAny(["sections"]) || (
           request.resource.data.sections is list
@@ -1915,6 +1917,27 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    function maintenanceEnabled() {
+      return signedIn() && get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data.get("version", "existing") == "redesigned";
+    }
+    function validMaintenanceSource(data) {
+      return (data.kind == "leader" && data.sourceId == request.auth.uid && isActiveLeader())
+        || (data.kind == "parent" && data.sourceId == request.auth.uid && isApprovedParent())
+        || (data.kind == "member" && data.sourceId is string
+          && get(/databases/$(database)/documents/members/$(data.sourceId)).data.get("accountUid", "") == request.auth.uid
+          && get(/databases/$(database)/documents/members/$(data.sourceId)).data.get("status", "") == "active");
+    }
+    function maintenanceMember() {
+      return maintenanceEnabled()
+        && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+    }
+    match /maintenance/group/access/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow create, update: if signedIn() && uid == request.auth.uid && maintenanceEnabled()
+        && request.resource.data.keys().hasOnly(["kind", "sourceId"])
+        && validMaintenanceSource(request.resource.data);
+      allow list, delete: if false;
+    }
     match /maintenance/{document=**} {
       allow read, write: if false;
     }
