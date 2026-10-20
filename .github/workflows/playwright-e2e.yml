@@ -130,6 +130,10 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `GOOGLE_APPLICATION_CREDENTIALS=${path}\n`);
           NODE
 
+      - name: Verify Maintenance backend workflows with isolated emulators
+        if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
+        run: node --test tests/maintenance/*.test.mjs
+
       - name: Seed canonical deterministic E2E dataset
         if: ${{ github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' }}
         run: |

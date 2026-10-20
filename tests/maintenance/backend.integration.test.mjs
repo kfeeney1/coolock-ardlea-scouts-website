@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { after, before, test } from "node:test";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { handleDocuments } from "../../maintenance-functions/src/documents.js";
+import { handleTasks } from "../../maintenance-functions/src/tasks.js";
+if (process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" || process.env.FIREBASE_STORAGE_EMULATOR_HOST !== "127.0.0.1:9199") throw new Error("Maintenance integration tests require isolated local emulators.");
+const app = initializeApp({projectId: "demo-coolock-ardlea-scouts", storageBucket: "demo-coolock-ardlea-scouts.appspot.com"}, "maintenance-integration");
+const db = getFirestore(app), bucket = getStorage(app).bucket();
+const prefix = "maintenance-integration-";
+const ids = {document: `${prefix}document1`, task: `${prefix}task1`, second: `${prefix}task2`, third: `${prefix}task3`};
+const request = (data, uid = `${prefix}parent`) => ({auth: uid ? {uid} : null, data});
+const doc = data => handleDocuments(db, bucket, request(data));
+const task = data => handleTasks(db, request(data));
+let previousSetting;
+before(async () => {
+  previousSetting = await db.doc("siteSettings/maintenanceExperience").get();
+  await db.doc("siteSettings/maintenanceExperience").set({version: "redesigned"});
+  await db.doc(`parentAccounts/${prefix}parent`).set({status: "approved"});
+  await db.doc(`members/${prefix}member`).set({accountUid: `${prefix}member`, status: "active"});
+  await db.doc(`adminUsers/${prefix}leader`).set({active: true, role: "leader", sections: ["Group"]});
+  await db.doc(`organisationLeadership/${prefix}leader`).set({active: true, displayName: "Integration Group Leader", scoutingRole: "Group Leader", organisationSection: "Group"});
+});
+after(async () => {
+  for (const path of [`parentAccounts/${prefix}parent`, `members/${prefix}member`, `adminUsers/${prefix}leader`, `organisationLeadership/${prefix}leader`, `adminUsers/${prefix}other`, `organisationLeadership/${prefix}other`, `maintenance/group/documents/${ids.document}`, ...[ids.task, ids.second, ids.third].map(id => `maintenance/group/tasks/${id}`)]) await db.doc(path).delete();
+  await bucket.file(`maintenance-documents/${ids.document}`).delete({ignoreNotFound: true});
+  if (previousSetting.exists) await previousSetting.ref.set(previousSetting.data()); else await previousSetting.ref.delete();
+  await app.delete();
+});
+test("member workflows persist; backend denies bypasses, invalid links, ambiguous defaults and stale updates", async () => {
+  const pdf = Buffer.from("%PDF-1.4\nMaintenance bill\n%%EOF").toString("base64");
+  for (const uid of [null, `${prefix}outside`]) {
+    await assert.rejects(handleDocuments(db, bucket, request({action: "list"}, uid)));
+    await assert.rejects(handleTasks(db, request({action: "list"}, uid)));
+  }
+  await handleTasks(db, request({action: "list"}, `${prefix}member`));
+  const upload = {action: "upload", id: ids.document, fileName: "Roof bill.pdf", contentType: "application/pdf", base64: pdf};
+  await doc(upload); await doc(upload);
+  assert.equal((await db.doc(`maintenance/group/documents/${ids.document}`).get()).data().state, "ready");
+  assert.equal((await doc({action: "download", id: ids.document})).base64, pdf);
+  await assert.rejects(doc({...upload, base64: Buffer.from("%PDF-changed").toString("base64")}));
+  await task({action: "create", id: ids.task, description: "Repair the roof", documentIds: []});
+  await task({action: "create", id: ids.task, description: "Repair the roof", documentIds: []});
+  let current = (await task({action: "get", id: ids.task})).task;
+  assert.equal(current.assigneeUid, `${prefix}leader`);
+  assert.deepEqual(current.documentIds, []);
+  await task({action: "create", id: ids.second, description: "Review the roof bill", documentIds: [ids.document], assigneeUid: `${prefix}leader`});
+  await assert.rejects(task({action: "create", id: ids.third, description: "Invalid link", documentIds: [`${prefix}nonexistent`]}));
+  await db.doc(`adminUsers/${prefix}other`).set({active: true, role: "leader", sections: ["Group"]});
+  await db.doc(`organisationLeadership/${prefix}other`).set({active: true, displayName: "Other Group Leader", scoutingRole: "Group Leader", organisationSection: "Group"});
+  await assert.rejects(task({action: "create", id: ids.third, description: "Ambiguous assignment", documentIds: []}));
+  await task({action: "create", id: ids.third, description: "Explicit assignment", documentIds: [ids.document], assigneeUid: `${prefix}other`});
+  current = (await task({action: "get", id: ids.third})).task;
+  const updated = (await task({action: "update", id: current.id, revision: current.revision, status: "complete", assigneeUid: `${prefix}leader`})).task;
+  assert.equal(updated.status, "complete"); assert.deepEqual(updated.documentIds, [ids.document]);
+  assert.equal((await task({action: "get", id: current.id})).task.assigneeUid, `${prefix}leader`);
+  await assert.rejects(task({action: "update", id: current.id, revision: current.revision, status: "open", assigneeUid: `${prefix}leader`}));
+  await assert.rejects(task({action: "update", id: current.id, revision: updated.revision, status: "invented", assigneeUid: `${prefix}leader`}));
+  await db.doc(`organisationLeadership/${prefix}leader`).update({active: false});
+  await assert.rejects(task({action: "update", id: current.id, revision: updated.revision, status: "open", assigneeUid: `${prefix}leader`}));
+  await db.doc(`organisationLeadership/${prefix}other`).update({active: false});
+  await assert.rejects(task({action: "create", id: `${prefix}no-group-leader`, description: "No default available", documentIds: []}));
+  await db.doc("siteSettings/maintenanceExperience").set({version: "existing"});
+  await assert.rejects(doc({action: "download", id: ids.document}));
+  await assert.rejects(task({action: "list"}));
+  assert.equal((await db.doc(`maintenance/group/documents/${ids.document}`).get()).data().state, "ready");
+});
