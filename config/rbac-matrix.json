@@ -128,11 +128,13 @@
     "operationalMonitoring": "super-admin-read-trusted-service-write",
     "leaderChildRelationships": "finance-read-admin-group-leader-write",
     "weeklyRosterMembers": "leader-section-read-no-client-write",
-    "polls": "published-audience-and-scoped-manager"
+    "polls": "published-audience-and-scoped-manager",
+    "maintenance": "server-validated-group-member"
   },
   "storage": {
     "attachments/finance-receipts": "finance-section",
     "attachments/event-gallery": "parent-projected-or-leader-section",
-    "attachments/policy-documents": "audience-scoped-public-or-authorised-account"
+    "attachments/policy-documents": "audience-scoped-public-or-authorised-account",
+    "maintenance-documents": "server-validated-group-member"
   }
 }

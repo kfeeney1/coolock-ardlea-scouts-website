@@ -1915,6 +1915,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /maintenance/{document=**} {
+      allow read, write: if false;
+    }
+
     match /siteSettings/{settingsId} {
       // Public navigation reads a single non-sensitive projection. The canonical
       // Parent Login setting remains readable only by an active Super Admin.

@@ -2,6 +2,9 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    match /maintenance-documents/{document=**} {
+      allow read, write: if false;
+    }
     function signedIn() { return request.auth != null; }
     function adminProfilePath() { return /databases/(default)/documents/adminUsers/$(request.auth.uid); }
     function profile() { return firestore.get(adminProfilePath()).data; }
