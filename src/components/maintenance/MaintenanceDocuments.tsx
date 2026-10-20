@@ -5,6 +5,10 @@ import { applicationErrorMessage } from "../../services/applicationErrors";
 import { validateAttachmentUpload } from "../../services/attachmentLogic";
 import { downloadMaintenanceDocument, listMaintenanceDocuments, uploadMaintenanceDocument, type MaintenanceDocument } from "../../services/maintenanceApi";
 import { formatSiteDate } from "../../services/siteDateFormat";
+function DocumentPicker({label, disabled, onFile}: {label: string; disabled: boolean; onFile: (file?: File) => void}) {
+  const input = useRef<HTMLInputElement>(null);
+  return <><Button type="button" variant="contained" disabled={disabled} onClick={() => input.current?.click()} sx={{minHeight: 44}}>{label}</Button><input ref={input} aria-label={label} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" hidden onChange={e => {const file = e.target.files?.[0]; e.target.value = ""; onFile(file);}} /></>;
+}
 export default function MaintenanceDocuments() {
   const { user } = useAdminAuth();
   const [documents, setDocuments] = useState<MaintenanceDocument[]>([]);
@@ -34,7 +38,7 @@ export default function MaintenanceDocuments() {
     try { await downloadMaintenanceDocument(id, open); } catch (e) { setError(applicationErrorMessage(e, "Unable to retrieve this document.", "MaintenanceDocuments")); }
     finally { lock.current = false; setBusy(false); }
   };
-  const picker = (label: string, id?: string) => <Button component="label" variant="contained" disabled={busy} sx={{minHeight: 44}}>{label}<input aria-label={label} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; void upload(file, id); }} /></Button>;
+  const picker = (label: string, id?: string) => <DocumentPicker label={label} disabled={busy} onFile={file => void upload(file, id)} />;
   return <Stack spacing={2}>
     <Typography component="h2" variant="h5" color="secondary">Documents</Typography>
     <Typography>PDF, JPEG, PNG or WebP · up to 10 MB. Files are available only to group members.</Typography>

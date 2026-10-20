@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
 const password = process.env.E2E_TEST_USER_PASSWORD;
-test("Maintenance rollout, visible navigation, refresh and Back", async ({ page }) => {
+test("Maintenance rollout, visible navigation, refresh and Back", async ({ page }, testInfo) => {
   test.skip(!password, "Configure canonical E2E credentials.");
   const setting = scheduleFixtureDb().doc("siteSettings/maintenanceExperience");
   const before = await setting.get();
@@ -20,9 +20,14 @@ test("Maintenance rollout, visible navigation, refresh and Back", async ({ page 
     await expect(enable).toHaveAttribute("aria-pressed", "true");
     await page.reload();
     await expect(enable).toHaveAttribute("aria-pressed", "true");
-    const header = page.locator("header");
-    const menu = header.getByRole("button", { name: "Open navigation menu" });
-    if (await menu.isVisible()) await menu.click();
+    await page.locator('button[aria-controls="leader-navigation"]').click();
+    const navigation = page.getByRole("navigation", {name: "Leader navigation", exact: true});
+    await expect(navigation).toBeVisible();
+    const group = navigation.getByRole("button", {name: /^Group Operations/}).filter({visible: true}).first();
+    if (testInfo.project.name === "mobile-chromium") {
+      await expect(group).toBeVisible();
+      if (await group.getAttribute("aria-expanded") !== "true") await group.click();
+    }
     await page.getByRole("link", { name: "Maintenance", exact: true }).filter({ visible: true }).first().click();
     await expect(page.getByRole("heading", { name: "Maintenance", exact: true })).toBeVisible();
     await page.getByRole("navigation", { name: "Maintenance", exact: true }).getByRole("link", { name: "Documents", exact: true }).click();
