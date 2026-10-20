@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type Reac
 import { formatSiteDate } from "../../services/siteDateFormat";
 import { initialScheduleId, orderedSchedule, scheduleIdForDate, type ScheduleIdentity } from "../../services/scheduleSelection";
 
-export type ScheduleTile = ScheduleIdentity & { title: string; content: ReactNode; actions: ReactNode };
+export type ScheduleTile = ScheduleIdentity & { title: string; content: ReactNode | ((selected: boolean) => ReactNode); actions: ReactNode };
 export default function ScheduleTiles({ items, label, loading = false, error = "", onRetry }: {
   items: ScheduleTile[]; label: string; loading?: boolean; error?: string; onRetry?: () => void;
 }) {
@@ -83,7 +83,7 @@ export default function ScheduleTiles({ items, label, loading = false, error = "
         <Paper component="article" aria-label={item.title} aria-current={selected === item.id ? "true" : undefined} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, height: "100%", boxSizing: "border-box", borderColor: selected === item.id ? "secondary.main" : "divider", bgcolor: "background.paper", overflowWrap: "anywhere", boxShadow: selected === item.id ? 1 : 0 }}>
           <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{item.title}</Typography>
           <Typography sx={{ mt: 1, mb: 2, p: 1, borderRadius: 1, bgcolor: "action.selected" }}>{formatSiteDate(item.date)}{item.endDate && item.endDate !== item.date ? ` – ${formatSiteDate(item.endDate)}` : ""}</Typography>
-          {item.content}
+          {typeof item.content === "function" ? item.content(selected === item.id) : item.content}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 3, "& .MuiButton-root": { minHeight: 44 } }}>{item.actions}</Stack>
         </Paper>
       </Box>)}

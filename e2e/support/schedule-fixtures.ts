@@ -12,8 +12,9 @@ export async function seedScheduleMeetings() {
   const db = scheduleFixtureDb();
   const today = new Date(`${groupLocalDate()}T12:00:00Z`);
   const date = (offset: number) => { const d = new Date(today); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const longNotes = (label: string) => `${label} ${Array.from({ length: 18 }, (_, index) => `Detail ${index + 1}: leaders should be able to expand this complete meeting note without changing the saved text.`).join(" ")} Final note marker.`;
   for (const [index, id] of scheduleMeetingIds.entries()) await db.collection("weeklyMeetings").doc(id).set({
-    section: "Scouts", meetingDate: date(index - 1), status: index === 0 ? "closed" : "open", theme: `Schedule fixture ${index}`, location: "Scout den", entries: [], injuries: [], notes: "", programmeNotes: "",
+    section: "Scouts", meetingDate: date(index - 1), status: index === 0 ? "closed" : "open", theme: `Schedule fixture ${index}`, location: "Scout den", entries: [], injuries: [], notes: "", programmeNotes: index === 0 ? longNotes("Past meeting notes.") : index === 1 ? longNotes("Today's meeting notes.") : "A short note that fits without expansion.",
     activities: index === 1 ? [{ id: "game", activity: "River banks", leader: "", notes: "", equipment: "", durationMinutes: 10 }, { id: "relay", activity: "Team relay with a deliberately long descriptive name that must wrap on a mobile screen", leader: "", notes: "", equipment: "", durationMinutes: 15 }] : [],
     badgeworkPlan: index === 1 ? [{ id: "badge", badge: "Teamwork · Level 2", leader: "", notes: "", equipment: "", durationMinutes: 10 }] : [], testData: true
   });

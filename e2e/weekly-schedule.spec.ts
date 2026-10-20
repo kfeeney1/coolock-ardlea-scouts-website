@@ -19,6 +19,20 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
     await expect(selected.getByText("Games & activities · 2", { exact: true })).toBeVisible();
     await expect(selected.getByText("River banks", { exact: true })).toBeVisible();
     await expect(selected.getByText("Teamwork · Level 2", { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 812 });
+    const notes = selected.getByTestId("weekly-meeting-notes-text");
+    const showMore = selected.getByRole("button", { name: "Show more", exact: true });
+    await expect(showMore).toBeVisible();
+    await expect(notes).toHaveCSS("-webkit-line-clamp", "4");
+    const previewHeight = await notes.evaluate(element => element.getBoundingClientRect().height);
+    await showMore.click();
+    const showLess = selected.getByRole("button", { name: "Show less", exact: true });
+    await expect(showLess).toHaveAttribute("aria-expanded", "true");
+    await expect(notes).toContainText("Final note marker.");
+    expect(await notes.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(previewHeight);
+    await showLess.click();
+    await expect(selected.getByRole("button", { name: "Show more", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(page).toHaveURL(/\/leader\/weekly$/);
     await expect(selected.getByRole("link", { name: "Edit meeting", exact: true })).toHaveAttribute("href", "/leader/weekly?meeting=000-sw177-schedule-today");
     const browse = schedule.getByLabel("Browse Meetings; use Left and Right arrow keys", { exact: true });
     // Other regression fixtures can share a date. Keyboard navigation must move
@@ -42,6 +56,16 @@ test("Weekly schedule selects today, synchronises controls and preserves canonic
     await expect(past.getByRole("link", { name: "Edit meeting", exact: true })).toHaveCount(0);
     await expect(past.getByRole("link", { name: "View meeting", exact: true })).toHaveAttribute("href", "/leader/weekly?meeting=000-sw177-schedule-past");
     await expect(past.getByRole("link", { name: "Copy meeting", exact: true })).toHaveAttribute("href", "/leader/weekly/copy/000-sw177-schedule-past");
+    await expect(past.getByRole("button", { name: "Show more", exact: true })).toBeVisible();
+    await past.getByRole("button", { name: "Show more", exact: true }).click();
+    await expect(past.getByRole("button", { name: "Show less", exact: true })).toBeVisible();
+    await past.getByRole("button", { name: "Show less", exact: true }).click();
+    const futureFixture = await scheduleFixtureDb().collection("weeklyMeetings").doc("000-sw177-schedule-future").get();
+    await schedule.getByLabel("Meetings date", { exact: true }).fill(futureFixture.get("meetingDate"));
+    const future = schedule.getByRole("article", { name: "Scouts · Schedule fixture 2", exact: true });
+    await expect(future).toHaveAttribute("aria-current", "true");
+    await expect(future.getByTestId("weekly-meeting-notes-text")).toHaveText("A short note that fits without expansion.");
+    await expect(future.getByRole("button", { name: /Show more|Show less/ })).toHaveCount(0);
     await schedule.getByLabel("Meetings date", { exact: true }).fill(today);
     await expect(selected).toHaveAttribute("aria-current", "true");
     await selected.getByRole("link", { name: "Edit meeting", exact: true }).click();
