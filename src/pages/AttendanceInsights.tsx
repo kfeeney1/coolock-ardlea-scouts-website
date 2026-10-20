@@ -1,5 +1,6 @@
 import AttendanceMatrix from "../components/admin/AttendanceMatrix";
 import { useAttendanceExperience } from "../hooks/useAttendanceExperience";
+import { Link, useSearchParams } from "react-router-dom";
 import { buildAttendanceMatrix } from "../services/attendanceMatrixLogic";
 import { formatSiteDate } from "../services/siteDateFormat";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
@@ -52,6 +53,8 @@ function rateLabel(rate: number | null): string {
 export default function AttendanceInsights() {
     const { adminProfile } = useAdminAuth();
     const matrixEnabled = useAttendanceExperience();
+    const [searchParams] = useSearchParams();
+    const matrixOnly = searchParams.get("view") === "matrix";
     const surface = matrixEnabled ? { borderRadius: 3, boxShadow: 1 } : {};
     const [members, setMembers] = useState<AttendanceInsightMember[]>([]);
     const [events, setEvents] = useState<EventReportRecord[]>([]);
@@ -74,6 +77,14 @@ export default function AttendanceInsights() {
 
     useEffect(() => {
         let cancelled = false;
+        if (matrixOnly && !matrixEnabled) {
+            setMembers([]);
+            setEvents([]);
+            setMeetings([]);
+            setError("");
+            setLoading(false);
+            return () => { cancelled = true; };
+        }
         void (async () => {
             setLoading(true);
             setError("");
@@ -81,7 +92,7 @@ export default function AttendanceInsights() {
                 const weeklyAccess = await loadWeeklyAccess();
                 const [loadedMembers, loadedEvents, loadedMeetings] = await Promise.all([
                     loadAttendanceInsightMembers(scope),
-                    loadEventReportRecords(scope),
+                    matrixOnly ? Promise.resolve([] as EventReportRecord[]) : loadEventReportRecords(scope),
                     loadWeeklyMeetings(sections, isAdmin, weeklyAccess.canViewAll)
                 ]);
                 if (!cancelled) {
@@ -96,7 +107,7 @@ export default function AttendanceInsights() {
             }
         })();
         return () => { cancelled = true; };
-    }, [scope, sections, isAdmin]);
+    }, [scope, sections, isAdmin, matrixEnabled, matrixOnly]);
 
     const insights = useMemo(
         () => buildMemberAttendanceInsights(members, events, meetings, dateRange),
@@ -166,18 +177,61 @@ export default function AttendanceInsights() {
         setToDate("");
     };
 
+    const filterPanel = <Paper variant="outlined" sx={{ ...surface, p: 2.5, mb: matrixOnly ? 0 : 3 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: matrixEnabled ? { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(170px, 1fr) minmax(340px, 2fr)" } : { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
+            <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
+            <FormControl>
+                <InputLabel id="attendance-section-filter-label">Section</InputLabel>
+                <Select
+                    id="attendance-section-filter"
+                    labelId="attendance-section-filter-label"
+                    label="Section"
+                    value={sectionFilter}
+                    onChange={(event) => setSectionFilter(event.target.value)}
+                    data-testid="attendance-section-filter"
+                >
+                    <MenuItem value="all">All permitted sections</MenuItem>
+                    {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <InputLabel id="attendance-period-filter-label">Scout period</InputLabel>
+                <Select
+                    id="attendance-period-filter"
+                    labelId="attendance-period-filter-label"
+                    label="Scout period"
+                    value={periodFilter}
+                    onChange={(event) => applyPeriod(event.target.value)}
+                    data-testid="attendance-period-filter"
+                >
+                    <MenuItem value="custom">Custom / all dates</MenuItem>
+                    {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
+                </Select>
+            </FormControl>
+            <Box sx={{ gridColumn: matrixEnabled ? { xs: "1 / -1", lg: "auto" } : "auto", minWidth: 0 }}><DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From" endLabel="To" startTestId="attendance-from-date" endTestId="attendance-to-date" onStartDateChange={updateFromDate} onEndDateChange={updateToDate} /></Box>
+        </Box>
+        {hasActiveFilters && (
+            <Button sx={{ mt: 2 }} size="small" variant="outlined" onClick={resetFilters} data-testid="attendance-reset-filters">
+                Reset filters
+            </Button>
+        )}
+    </Paper>;
+
     return (
         <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 4, md: 6 } }}>
             <Container maxWidth="xl" sx={{ minWidth: 0 }}>
                 <LeaderDashboardHeader />
                 <LeaderPageHeader
-                    title="Attendance History & Insights"
-                    description="Search members, compare weekly meeting and event attendance, and review attendance over a selected Scout period or custom date range."
+                    title={matrixOnly ? "Attendance Matrix" : "Attendance History & Insights"}
+                    description={matrixOnly ? "Compare recorded attendance across members and closed Weekly Meetings." : "Search members, compare weekly meeting and event attendance, and review attendance over a selected Scout period or custom date range."}
                 />
 
-                <Alert severity="info" sx={{ mb: 3 }}>
+                {!matrixOnly && <Alert severity="info" sx={{ mb: 3 }}>
                     Scope: <strong>{scopeLabel}</strong>. Analytics use closed Weekly Meetings and completed events only.
-                </Alert>
+                </Alert>}
+                {matrixOnly && matrixEnabled && <Alert severity="info" sx={{ mb: 3 }}>
+                    Scope: <strong>{scopeLabel}</strong>. The matrix shows closed Weekly Meetings only.
+                </Alert>}
                 {!isAdmin && sections.length === 0 && (
                     <Alert severity="warning" sx={{ mb: 3 }}>Your leader account has no sections assigned, so no attendance data can be loaded.</Alert>
                 )}
@@ -186,6 +240,17 @@ export default function AttendanceInsights() {
 
                 {loading ? (
                     <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
+                ) : matrixOnly && !matrixEnabled ? (
+                    <Stack spacing={2} data-testid="attendance-matrix-disabled">
+                        <Alert severity="info">The Attendance Matrix is not enabled. Weekly Meetings and the existing Attendance Insights remain available.</Alert>
+                        <Button component={Link} to="/leader/weekly" variant="outlined" sx={{ alignSelf: "flex-start", minHeight: 44 }}>Back to Weekly Meetings</Button>
+                    </Stack>
+                ) : matrixOnly ? (
+                    <Stack spacing={2} data-testid="attendance-matrix-only-view">
+                        <Button component={Link} to="/leader/weekly" variant="outlined" sx={{ alignSelf: "flex-start", minHeight: 44 }}>Back to Weekly Meetings</Button>
+                        {filterPanel}
+                        {!invalidDateRange && !error && matrix && <AttendanceMatrix matrix={matrix} />}
+                    </Stack>
                 ) : selectedMember && selectedHistory ? (
                     <Stack spacing={2} data-testid="attendance-member-detail">
                         <Paper variant="outlined" sx={{ ...surface, p: { xs: 2, md: 2.5 } }}>
@@ -232,45 +297,7 @@ export default function AttendanceInsights() {
                     </Stack>
                 ) : (
                     <>
-                        <Paper variant="outlined" sx={{ ...surface, p: 2.5, mb: 3 }}>
-                            <Box sx={{ display: "grid", gridTemplateColumns: matrixEnabled ? { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(170px, 1fr) minmax(340px, 2fr)" } : { xs: "1fr", md: "minmax(240px, 1fr) 200px 210px 175px 175px" }, gap: 2 }}>
-                                <TextField label="Search members" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ htmlInput: { "data-testid": "attendance-member-search" } }} />
-                                <FormControl>
-                                    <InputLabel id="attendance-section-filter-label">Section</InputLabel>
-                                    <Select
-                                        id="attendance-section-filter"
-                                        labelId="attendance-section-filter-label"
-                                        label="Section"
-                                        value={sectionFilter}
-                                        onChange={(event) => setSectionFilter(event.target.value)}
-                                        data-testid="attendance-section-filter"
-                                    >
-                                        <MenuItem value="all">All permitted sections</MenuItem>
-                                        {availableSections.map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
-                                    </Select>
-                                </FormControl>
-                                <FormControl>
-                                    <InputLabel id="attendance-period-filter-label">Scout period</InputLabel>
-                                    <Select
-                                        id="attendance-period-filter"
-                                        labelId="attendance-period-filter-label"
-                                        label="Scout period"
-                                        value={periodFilter}
-                                        onChange={(event) => applyPeriod(event.target.value)}
-                                        data-testid="attendance-period-filter"
-                                    >
-                                        <MenuItem value="custom">Custom / all dates</MenuItem>
-                                        {scoutPeriods.map((period) => <MenuItem key={period.id} value={period.id}>{period.label}</MenuItem>)}
-                                    </Select>
-                                </FormControl>
-                                <Box sx={{ gridColumn: matrixEnabled ? { xs: "1 / -1", lg: "auto" } : "auto", minWidth: 0 }}><DateRangeFields startDate={fromDate} endDate={toDate} startLabel="From" endLabel="To" startTestId="attendance-from-date" endTestId="attendance-to-date" onStartDateChange={updateFromDate} onEndDateChange={updateToDate} /></Box>
-                            </Box>
-                            {hasActiveFilters && (
-                                <Button sx={{ mt: 2 }} size="small" variant="outlined" onClick={resetFilters} data-testid="attendance-reset-filters">
-                                    Reset filters
-                                </Button>
-                            )}
-                        </Paper>
+                        {filterPanel}
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, gap: 2, mb: 3 }}>
                             <Paper variant="outlined" sx={{ ...surface, p: 2.5 }} role="status" aria-live="polite" data-testid="attendance-result-count">
