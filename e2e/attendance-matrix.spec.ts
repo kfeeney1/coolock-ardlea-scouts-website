@@ -168,8 +168,8 @@ test("Weekly Meetings opens a matrix-only view before Meeting History and keeps 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.getByTestId("meeting-average-rate")).toHaveCount(0);
     await expect(page.getByTestId("attendance-member-card")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Back to Weekly Meetings", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Back to Weekly Meetings", exact: true }).click();
+    await expect(page.getByRole("link", { name: "Back to Weekly Meetings", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Back to Weekly Meetings", exact: true }).click();
     await expect(historyHeading).toBeVisible();
     await expect(link).toBeVisible();
 
