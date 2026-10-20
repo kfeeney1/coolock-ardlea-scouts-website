@@ -23,3 +23,12 @@ export async function downloadMaintenanceDocument(id: string, open: boolean) {
   if (open) anchor.target = "_blank"; else anchor.download = result.fileName;
   anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+export type MaintenanceTask = { id: string; description: string; documentIds: string[]; status: "open" | "complete"; assigneeUid: string; assigneeName: string; revision: number; createdAt: number };
+export async function maintenanceTasks<T>(input: Record<string, unknown>): Promise<T> {
+  return (await httpsCallable<Record<string, unknown>, T>(functions, "maintenanceTasks")(input)).data;
+}
+export async function maintenanceDocumentChoices() {
+  const documents: MaintenanceDocument[] = []; let after = "";
+  do { const page = await listMaintenanceDocuments(after); documents.push(...page.documents.filter(doc => doc.state === "ready")); after = page.next; } while (after);
+  return documents;
+}
