@@ -30,6 +30,7 @@ export const suiteSpecs = {
     "parent-login-visibility.spec.ts",
     "parent-consent-visibility.spec.ts",
     "schedule-experience-setting.spec.ts",
+    "maintenance-access.spec.ts",
     "site-settings.spec.ts"
   ],
   "members-parents-consent": [

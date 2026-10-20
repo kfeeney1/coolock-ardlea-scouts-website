@@ -1,0 +1,41 @@
+import { expect, test } from "@playwright/test";
+import { loginAsLeader } from "./support/authentication-helpers";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
+const password = process.env.E2E_TEST_USER_PASSWORD;
+test("Maintenance rollout, visible navigation, refresh and Back", async ({ page }) => {
+  test.skip(!password, "Configure canonical E2E credentials.");
+  const setting = scheduleFixtureDb().doc("siteSettings/maintenanceExperience");
+  const before = await setting.get();
+  try {
+    await setting.delete();
+    await page.goto("/maintenance/tasks");
+    await expect(page.getByText("Sign in to access Maintenance.", { exact: true })).toBeVisible();
+    await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
+    await page.goto("/maintenance/tasks");
+    await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
+    await page.goto("/leader/settings");
+    const enable = page.getByRole("button", { name: "Maintenance enabled", exact: true });
+    await expect(page.getByRole("button", { name: "Maintenance disabled", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await enable.click();
+    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    await page.reload();
+    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    const header = page.locator("header");
+    const menu = header.getByRole("button", { name: "Open navigation menu" });
+    if (await menu.isVisible()) await menu.click();
+    await page.getByRole("link", { name: "Maintenance", exact: true }).filter({ visible: true }).first().click();
+    await expect(page.getByRole("heading", { name: "Maintenance", exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "Maintenance", exact: true }).getByRole("link", { name: "Documents", exact: true }).click();
+    await expect(page).toHaveURL(/\/maintenance\/documents$/);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/maintenance\/tasks$/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("link", { name: "Back to Dashboard", exact: true }).click();
+    await page.goto("/leader/settings");
+    await page.getByRole("button", { name: "Maintenance disabled", exact: true }).click();
+    await page.goto("/maintenance/documents");
+    await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
+  } finally { if (before.exists) await setting.set(before.data()!); else await setting.delete(); }
+});
