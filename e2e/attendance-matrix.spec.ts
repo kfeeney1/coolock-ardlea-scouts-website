@@ -161,6 +161,7 @@ test("Weekly Meetings opens a matrix-only view before Meeting History and keeps 
     await link.click();
     await expect(page).toHaveURL(/\/leader\/attendance\?view=matrix$/);
     await expect(page.getByTestId("attendance-matrix-only-view")).toBeVisible();
+    await page.getByLabel("Search members").fill("SW260");
     const matrix = page.getByRole("table", { name: "Member attendance by meeting" });
     await expect(matrix).toBeVisible();
     await expect(matrix.getByRole("row")).toHaveCount(32);
