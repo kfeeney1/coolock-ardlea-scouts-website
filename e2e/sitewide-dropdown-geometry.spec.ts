@@ -89,6 +89,7 @@ async function expectEscapeClosePreservesScroll(page: Page, trigger: Locator) {
   await expect(listbox).toBeHidden();
   await expect(trigger).toBeFocused();
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
+  await waitForTransientOverlayHistory(page);
 }
 
 async function expectSelectionPreservesScroll(page: Page, trigger: Locator) {
@@ -98,6 +99,7 @@ async function expectSelectionPreservesScroll(page: Page, trigger: Locator) {
   await option.click();
   await expect(listbox).toBeHidden();
   await expect.poll(() => viewportState(page)).toEqual(beforeOpen);
+  await waitForTransientOverlayHistory(page);
 }
 
 async function expectBackgroundScrollLocked(page: Page, trigger: Locator) {
@@ -118,9 +120,8 @@ test("ordinary and TextField selects stay anchored without open, select, or clos
   await expectEscapeClosePreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
   await expectSelectionPreservesScroll(page, page.getByRole("combobox", { name: "Status" }).first());
 
-  // Let the Status selection's route/state synchronisation settle before
-  // starting a full document navigation to Leader Access.
-  await expect(page.getByRole("combobox", { name: "Status" }).first()).toBeVisible();
+  // Dropdown helpers wait for the asynchronous Back entry to be consumed
+  // before another dropdown or a full document navigation starts.
   await page.goto("/leader/access", { waitUntil: "commit" });
   const leaderTile = page.getByTestId("leader-access-tile-TEST_uid_multi_section_leader");
   await expect(leaderTile).toBeVisible();
