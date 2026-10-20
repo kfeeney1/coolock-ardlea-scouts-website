@@ -1931,6 +1931,22 @@ service cloud.firestore {
       return maintenanceEnabled()
         && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
     }
+    function validMaintenanceDocument(data) {
+      return data.keys().hasOnly(["fileName", "contentType", "size", "sha256", "uploadedBy", "uploadedAt", "state"])
+        && data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 240
+        && data.contentType in ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+        && data.size is int && data.size > 0 && data.size <= 10 * 1024 * 1024
+        && data.sha256 is string && data.sha256.matches('^[a-f0-9]{64}$')
+        && data.uploadedBy == request.auth.uid && data.uploadedAt == request.time && data.state == "pending";
+    }
+    match /maintenance/group/documents/{id} {
+      allow get, list: if maintenanceMember();
+      allow create: if maintenanceMember() && id.matches('^[a-zA-Z0-9-]{20,64}$') && validMaintenanceDocument(request.resource.data);
+      allow update: if maintenanceMember() && resource.data.uploadedBy == request.auth.uid
+        && resource.data.state == "pending" && request.resource.data.state == "ready"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["state"]);
+      allow delete: if false;
+    }
     match /maintenance/group/access/{uid} {
       allow get: if signedIn() && uid == request.auth.uid;
       allow create, update: if signedIn() && uid == request.auth.uid && maintenanceEnabled()

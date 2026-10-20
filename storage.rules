@@ -6,6 +6,32 @@ service firebase.storage {
       allow read, write: if false;
     }
     function signedIn() { return request.auth != null; }
+    // Two canonical Firestore lookups fit Storage's cross-service access limit.
+    // Rollout gates the routes and Firestore operations; Storage enforces membership separately.
+    function maintenanceStorageMember() {
+      let access = firestore.get(/databases/(default)/documents/maintenance/group/access/$(request.auth.uid)).data;
+      let source = access.kind == "leader"
+        ? firestore.get(/databases/(default)/documents/adminUsers/$(request.auth.uid)).data
+        : access.kind == "parent"
+          ? firestore.get(/databases/(default)/documents/parentAccounts/$(request.auth.uid)).data
+          : firestore.get(/databases/(default)/documents/members/$(access.sourceId)).data;
+      return (access.kind == "leader" && access.sourceId == request.auth.uid
+          && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+          && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+        || (access.kind == "parent" && access.sourceId == request.auth.uid && source.get("status", "") == "approved")
+        || (access.kind == "member" && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+    }
+    match /maintenance-documents/{id} {
+      allow get: if signedIn() && maintenanceStorageMember();
+      allow create: if signedIn() && maintenanceStorageMember() && id.matches('^[a-zA-Z0-9-]{20,64}$')
+        && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+        && request.resource.metadata.keys().hasOnly(["uploadedBy", "sha256", "documentId"])
+        && request.resource.metadata.uploadedBy == request.auth.uid
+        && request.resource.metadata.sha256.matches('^[a-f0-9]{64}$') && request.resource.metadata.documentId == id;
+      allow list, update, delete: if false;
+    }
+
     function adminProfilePath() { return /databases/(default)/documents/adminUsers/$(request.auth.uid); }
     function profile() { return firestore.get(adminProfilePath()).data; }
     function parentProfilePath() { return /databases/(default)/documents/parentAccounts/$(request.auth.uid); }
