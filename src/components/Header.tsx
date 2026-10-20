@@ -35,7 +35,7 @@ export default function Header() {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const content = usePublicSiteContent();
-    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(maintenance.allowed ? [maintenanceNavItem] : []);
+    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(maintenance.allowed && !authorised ? [maintenanceNavItem] : []);
     const isPublicRoute = !pathname.startsWith("/leader");
     const showDashboardReturn = isPublicRoute && authorised && Boolean(adminProfile);
     const showPublicParentLogin = shouldShowPublicParentLogin(parentLoginEnabled, Boolean(user), loading);

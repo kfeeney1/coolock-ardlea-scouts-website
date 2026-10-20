@@ -10,5 +10,7 @@ test("membership uses active canonical leader, approved parent or active account
   assert.equal(await groupMember(database(null, null, true), "a"), true);
   for (const role of [undefined, "parent", "unknown"]) assert.equal(activeLeader({active: true, role, sections: ["Group"]}), false);
   assert.equal(activeLeader({active: true, role: "leader", section: "Scouts", sections: ["Scouts"]}), false);
+  assert.equal(await groupMember(database({active: false}, {status: "approved"}), "a"), true);
+  assert.equal(await groupMember(database({active: true, role: "leader", sections: ["Group"]}, {status: "revoked"}), "a"), true);
   for (const parent of [null, {status: "pending"}, {status: "revoked"}]) assert.equal(await groupMember(database({active: false, role: "leader", sections: ["Scouts"]}, parent), "a"), false);
 });

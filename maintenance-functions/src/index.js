@@ -10,4 +10,4 @@ export const maintenanceAccess = onCall({ region: "europe-west1", maxInstances: 
   return { member: await groupMember(getFirestore(), request.auth.uid) };
 });
 
-export const maintenanceDocuments = onCall({ region: "europe-west1", maxInstances: 3, memory: "256MiB", timeoutSeconds: 120 }, request => handleDocuments(getFirestore(), getStorage().bucket(), request));
+export const maintenanceDocuments = onCall({ region: "europe-west1", maxInstances: 3, memory: "256MiB", concurrency: 1, timeoutSeconds: 120 }, request => handleDocuments(getFirestore(), getStorage().bucket(), request));
