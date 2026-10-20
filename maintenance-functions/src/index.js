@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
+import { handleTasks } from "./tasks.js";
 import { handleDocuments } from "./documents.js";
 import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -11,3 +12,5 @@ export const maintenanceAccess = onCall({ region: "europe-west1", maxInstances: 
 });
 
 export const maintenanceDocuments = onCall({ region: "europe-west1", maxInstances: 3, memory: "256MiB", concurrency: 1, timeoutSeconds: 120 }, request => handleDocuments(getFirestore(), getStorage().bucket(), request));
+
+export const maintenanceTasks = onCall({ region: "europe-west1", maxInstances: 3, memory: "256MiB" }, request => handleTasks(getFirestore(), request));

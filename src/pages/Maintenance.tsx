@@ -1,3 +1,6 @@
+import MaintenanceTaskList from "../components/maintenance/MaintenanceTaskList";
+import MaintenanceTaskCreate from "../components/maintenance/MaintenanceTaskCreate";
+import MaintenanceTaskDetails from "../components/maintenance/MaintenanceTaskDetails";
 import MaintenanceDocuments from "../components/maintenance/MaintenanceDocuments";
 import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
@@ -9,6 +12,7 @@ export default function Maintenance() {
   const access = useMaintenanceAccess();
   const { user, authorised } = useAdminAuth();
   const { pathname } = useLocation();
+  const taskId = pathname.split("/")[3] || "";
   if (access.loading) return <Container sx={{ py: 4 }}><Typography role="status">Loading Maintenance…</Typography></Container>;
   if (!access.allowed) return <Container sx={{ py: 4 }}><Alert severity={access.error ? "error" : "info"}>{access.error || (!user ? "Sign in to access Maintenance." : access.enabled === false ? "Maintenance is currently disabled." : "Maintenance is restricted to approved group members.")}</Alert>{!user && <Button component={Link} to="/parent" sx={{ minHeight: 44 }}>Sign in</Button>}</Container>;
   return <Container maxWidth="xl" sx={{ py: 4, overflowWrap: "anywhere" }}>
@@ -21,7 +25,7 @@ export default function Maintenance() {
         {([['Tasks', '/maintenance/tasks'], ['Documents', '/maintenance/documents']] as const).map(([label, path]) => <Button key={path} component={Link} to={path} aria-current={pathname === path ? "page" : undefined} variant={pathname === path ? "contained" : "outlined"} sx={{ minHeight: 48 }}>{label}</Button>)}
       </Stack>
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, borderTop: "6px solid", borderTopColor: "secondary.main" }}>
-        {pathname.endsWith("documents") ? <MaintenanceDocuments /> : <><Typography component="h2" variant="h5">Tasks</Typography><Typography sx={{mt: 2}}>Task reporting is being prepared.</Typography></>}
+        {pathname.endsWith("documents") ? <MaintenanceDocuments /> : taskId === "new" ? <MaintenanceTaskCreate /> : taskId ? <MaintenanceTaskDetails key={taskId} id={taskId} /> : <MaintenanceTaskList />}
       </Paper>
     </Stack>
   </Container>;
