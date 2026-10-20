@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { WeeklyMeetingRecord } from "../../services/weeklyTracker";
 import { scheduleRecordActions } from "../../services/scheduleRecordActions";
 import ScheduleTiles from "./ScheduleTiles";
+import ExpandableMeetingNotes from "./ExpandableMeetingNotes";
 
 export default function WeeklyMeetingSchedule({ records, readOnly, canEditAll, sections }: {
   records: WeeklyMeetingRecord[]; readOnly: boolean; canEditAll: boolean; sections: string[];
@@ -24,13 +25,13 @@ export default function WeeklyMeetingSchedule({ records, readOnly, canEditAll, s
       const actions = scheduleRecordActions(record.meetingDate, record.status === "open", canChange);
       return {
         id: record.id, date: record.meetingDate, title: `${record.section} · ${record.theme || "Weekly meeting"}`,
-        content: <Stack spacing={2}>
+        content: selected => <Stack spacing={2}>
           <Typography>{record.status === "open" ? "Open meeting" : "Closed meeting"}{record.location ? ` · ${record.location}` : ""}</Typography>
           <div><Typography color="secondary" sx={{ fontWeight: 800 }}>Games & activities · {activities.length}</Typography>
             {activities.length ? activities.map(activity => <Typography key={activity.id}>{activity.activity || "Untitled activity"}</Typography>) : <Typography color="text.secondary">No games or activities planned.</Typography>}</div>
           <div><Typography color="secondary" sx={{ fontWeight: 800 }}>Badgework · {badges.length}</Typography>
             {badges.length ? badges.map(badge => <Typography key={badge.id}>{badge.badge || "Untitled badgework"}</Typography>) : <Typography color="text.secondary">No badgework planned.</Typography>}</div>
-          {record.programmeNotes && <Typography>{record.programmeNotes}</Typography>}
+          {record.programmeNotes && <ExpandableMeetingNotes key={selected ? "active" : "inactive"} notes={record.programmeNotes} />}
         </Stack>,
         actions: <>
           <Button component={Link} to={href} variant="contained" color="secondary">{actions.edit ? "Edit meeting" : "View meeting"}</Button>
