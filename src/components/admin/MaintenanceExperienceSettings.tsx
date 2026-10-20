@@ -1,6 +1,7 @@
 import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { applicationErrorMessage } from "../../services/applicationErrors";
+import { maintenanceAvailable, maintenanceCostHoldMessage } from "../../services/maintenanceRuntime";
 import { saveMaintenanceExperience, watchMaintenanceExperience, type MaintenanceExperienceVersion } from "../../services/maintenanceExperienceSettings";
 
 export default function MaintenanceExperienceSettings() {
@@ -23,12 +24,13 @@ export default function MaintenanceExperienceSettings() {
   };
   return <Paper variant="outlined" sx={{ p: 3, maxWidth: 760, mt: 3 }}>
     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Maintenance</Typography>
+    {!maintenanceAvailable && <Alert severity="info">{maintenanceCostHoldMessage}</Alert>}
     <Typography sx={{ my: 2 }}>Enable group maintenance tasks and documents. Disabled by default. This setting is independent of navigation, schedules and attendance. Disabling retains all records.</Typography>
     {error && <Alert severity="error">{error}</Alert>}
     {saved && <Alert severity="success" role="status">Maintenance setting saved. Existing tasks and documents are retained.</Alert>}
     {!version && !error && <Typography>Loading Maintenance setting…</Typography>}
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} variant={version === option ? "contained" : "outlined"} disabled={!version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Maintenance disabled" : "Maintenance enabled"}</Button>)}
+      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} variant={version === option ? "contained" : "outlined"} disabled={!maintenanceAvailable || !version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Maintenance disabled" : "Maintenance enabled"}</Button>)}
     </Stack>
   </Paper>;
 }
