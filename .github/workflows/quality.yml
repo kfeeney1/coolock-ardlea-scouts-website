@@ -70,11 +70,17 @@ jobs:
             exit 1
           fi
 
+      - name: Install Maintenance backend dependencies
+        run: npm ci --prefix maintenance-functions --no-audit
+
       - name: Install TEST event backend dependencies
         run: npm ci --prefix functions --no-audit
 
       - name: Audit TEST event backend dependencies
         run: npm audit --prefix functions --omit=dev --audit-level=high
+
+      - name: Audit Maintenance backend dependencies
+        run: npm audit --prefix maintenance-functions --omit=dev --audit-level=high
 
       - name: Run quality gate
         run: npm run quality:checks

@@ -79,7 +79,8 @@
     "/leader/system": "super-admin",
     "/leader/medical/:consentId": "leader",
     "/leader/equipment/inventory": "leader",
-    "/leader/weekly/copy/:sourceId": "leader"
+    "/leader/weekly/copy/:sourceId": "leader",
+    "/maintenance/*": "approved-group-member-maintenance-enabled"
   },
   "routeVariants": {
     "/leader/settings?view=quartermaster": "leader-qm-appointment"

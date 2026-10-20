@@ -31,6 +31,8 @@ const quartermasterAppointments = ["Group Quartermaster / Bo'sun", "Group Quarte
 
 export const dashboardNavItem: LeaderNavItem = destination({ id: "dashboard", label: "Dashboard", path: "/leader", pageId: "leader-dashboard", permissions: ["leader.portal.access"], identity: {testId: "admin-overview"}, parentPath: null });
 
+export const maintenanceNavItem: LeaderNavItem = destination({ id: "maintenance", label: "Maintenance", path: "/maintenance/tasks", pageId: "maintenance", permissions: ["leader.portal.access"], identity: {heading: "Maintenance", level: 1} });
+
 export const leaderNavGroups: LeaderNavGroup[] = [
   { id: "programme", label: "Programme", items: [
     destination({ id: "weekly-meetings", label: "Weekly Meetings", path: "/leader/weekly", pageId: "weekly-meetings", permissions: ["meetings.manage.section", "weekly-meetings.manage.group"], identity: {testId: "page-weekly-meetings"} }),
@@ -106,7 +108,7 @@ export function redesignedNavigationGroups(groups: LeaderNavGroup[]): LeaderNavG
 }
 
 export const leaderNavigationDestinations = [dashboardNavItem, ...leaderNavGroups.flatMap((group) => group.items), ...accountNavItems];
-export const navigationPermissions: Record<string, readonly string[]> = Object.fromEntries(leaderNavigationDestinations.map((item) => [item.id, item.permissions]));
+export const navigationPermissions: Record<string, readonly string[]> = Object.fromEntries([...leaderNavigationDestinations, maintenanceNavItem].map((item) => [item.id, item.permissions]));
 
 /** These are actual redirects, unlike query-less workspaces which remain valid
  * independent routes with their own page identities and are not rewritten. */
