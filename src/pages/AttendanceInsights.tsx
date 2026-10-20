@@ -78,11 +78,6 @@ export default function AttendanceInsights() {
     useEffect(() => {
         let cancelled = false;
         if (matrixOnly && !matrixEnabled) {
-            setMembers([]);
-            setEvents([]);
-            setMeetings([]);
-            setError("");
-            setLoading(false);
             return () => { cancelled = true; };
         }
         void (async () => {
@@ -238,13 +233,13 @@ export default function AttendanceInsights() {
                 {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
                 {invalidDateRange && <Alert severity="warning" sx={{ mb: 3 }}>The From date must be on or before the To date.</Alert>}
 
-                {loading ? (
-                    <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
-                ) : matrixOnly && !matrixEnabled ? (
+                {matrixOnly && !matrixEnabled ? (
                     <Stack spacing={2} data-testid="attendance-matrix-disabled">
                         <Alert severity="info">The Attendance Matrix is not enabled. Weekly Meetings and the existing Attendance Insights remain available.</Alert>
                         <Button component={Link} to="/leader/weekly" variant="outlined" sx={{ alignSelf: "flex-start", minHeight: 44 }}>Back to Weekly Meetings</Button>
                     </Stack>
+                ) : loading ? (
+                    <Box sx={{ minHeight: 280, display: "grid", placeItems: "center" }}><CircularProgress color="success" /></Box>
                 ) : matrixOnly ? (
                     <Stack spacing={2} data-testid="attendance-matrix-only-view">
                         <Button component={Link} to="/leader/weekly" variant="outlined" sx={{ alignSelf: "flex-start", minHeight: 44 }}>Back to Weekly Meetings</Button>
