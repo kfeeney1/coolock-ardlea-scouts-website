@@ -1,3 +1,5 @@
+import { maintenanceTaskStore } from "./maintenanceTaskStore";
+import type { MaintenanceDocument } from "./maintenanceDocumentStore";
 import { getBlob, ref } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
 import { requireMaintenanceRuntime } from "./maintenanceRuntime";
@@ -17,4 +19,15 @@ export async function downloadMaintenanceDocument(id: string, open: boolean) {
   const anchor = document.createElement("a"); anchor.href = url; anchor.rel = "noopener noreferrer";
   if (open) anchor.target = "_blank"; else anchor.download = record.fileName;
   anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+export type { MaintenanceTask } from "./maintenanceTaskStore";
+const taskStore = maintenanceTaskStore(db, () => auth.currentUser?.uid);
+export async function maintenanceTasks<T>(input: Record<string, unknown>): Promise<T> {
+  requireMaintenanceRuntime();
+  return await taskStore(input) as T;
+}
+export async function maintenanceDocumentChoices() {
+  const documents: MaintenanceDocument[] = []; let after = "";
+  do { const page = await listMaintenanceDocuments(after); documents.push(...page.documents.filter(doc => doc.state === "ready")); after = page.next; } while (after);
+  return documents;
 }
