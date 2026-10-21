@@ -1,3 +1,5 @@
+import { enableMaintenanceFixture } from "./support/maintenance-fixtures";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { getApps } from "firebase-admin/app";
@@ -6,14 +8,14 @@ import { loginAsLeader } from "./support/authentication-helpers";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const pdf = Buffer.from("%PDF-1.4\nMaintenance synthetic bill\n%%EOF");
-async function enabled() {
-  const setting = scheduleFixtureDb().doc("siteSettings/maintenanceExperience");
-  const previous = await setting.get(); await setting.set({version: "redesigned"});
-  return async () => {if (previous.exists) await setting.set(previous.data()!); else await setting.delete();};
-}
-async function createTask(page: Page, description: string, documentName?: string) {
+async function createTask(page: Page, description: string, documentName?: string, assigneeName?: string) {
   await page.getByRole("link", {name: "Raise a task", exact: true}).click();
   await page.getByLabel("Task description").fill(description);
+  if (assigneeName) {
+    await page.getByLabel("Responsible leader", {exact: true}).click();
+    await page.getByRole("option", {name: assigneeName, exact: true}).click();
+    await waitForTransientOverlayHistory(page);
+  }
   if (documentName) await page.getByRole("checkbox", {name: documentName, exact: true}).check();
   await page.getByRole("button", {name: "Save task", exact: true}).click();
   await expect(page.getByText("Task saved successfully.", {exact: true})).toBeVisible();
@@ -21,13 +23,28 @@ async function createTask(page: Page, description: string, documentName?: string
 }
 test("leader creates an independent task and retains its details through reload and real Back controls", async ({page}, info) => {
   test.skip(!password, "Configure canonical E2E credentials.");
-  const restore = await enabled(); const ids: string[] = [];
+  const restore = await enableMaintenanceFixture(); const ids: string[] = [];
   try {
     await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
+    await page.goto("/leader/settings");
+    await page.getByRole("button", {name: "Refresh responsible leaders", exact: true}).click();
+    await expect(page.getByText(/^Responsible leader directory refreshed:/)).toBeVisible();
     await page.goto("/maintenance/tasks");
     const description = `Independent task ${info.project.name}: ${"Inspect the roof and supporting timbers. ".repeat(10)}`;
     ids.push(await createTask(page, description));
     await expect(page.getByText("No linked documents.", {exact: true})).toBeVisible();
+    await expect(page.getByText(/^Responsible leader: /)).not.toContainText("Assignment pending");
+    await page.getByLabel("Responsible leader", {exact: true}).click();
+    await page.getByRole("option", {name: /Scouts Section Leader/}).first().click();
+    await waitForTransientOverlayHistory(page);
+    await page.getByLabel("Task status", {exact: true}).click();
+    await page.getByRole("option", {name: "Complete", exact: true}).click();
+    await waitForTransientOverlayHistory(page);
+    await page.getByRole("button", {name: "Save progress", exact: true}).click();
+    await expect(page.getByText("Task progress saved successfully.", {exact: true})).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(/^Responsible leader: /)).toContainText("Scouts Section Leader");
+    await expect(page.getByText("Complete", {exact: true}).first()).toBeVisible();
     await page.reload();
     await expect(page.getByText(description.trim(), {exact: true})).toBeVisible();
     await page.getByRole("link", {name: "Back to Tasks", exact: true}).click();
@@ -40,7 +57,7 @@ test("leader creates an independent task and retains its details through reload 
 });
 test("approved parent uploads and downloads a retained bill and links it to multiple persisted tasks", async ({page}, info) => {
   test.skip(!password, "Configure canonical E2E credentials.");
-  const restore = await enabled(); const ids: string[] = [];
+  const restore = await enableMaintenanceFixture(); const ids: string[] = [];
   const name = `Parent maintenance ${info.project.name}.pdf`;
   try {
     await page.goto("/parent");
@@ -68,9 +85,10 @@ test("approved parent uploads and downloads a retained bill and links it to mult
     expect(await readFile((await download.path())!)).toEqual(pdf);
     await maintenance.getByRole("link", {name: "Tasks", exact: true}).click();
     for (const description of [`Repair cooker ${info.project.name}`, `Review cooker bill ${info.project.name}`]) {
-      ids.push(await createTask(page, description, name));
+      ids.push(await createTask(page, description, name, ids.length ? "Scouts Section Leader" : undefined));
       await page.reload();
       await expect(page.getByText(description, {exact: true})).toBeVisible();
+      if (ids.length === 2) await expect(page.getByText(/^Responsible leader: /)).toContainText("Scouts Section Leader");
       await expect(page.getByRole("button", {name, exact: true})).toBeVisible();
       await page.getByRole("link", {name: "Back to Tasks", exact: true}).click();
     }

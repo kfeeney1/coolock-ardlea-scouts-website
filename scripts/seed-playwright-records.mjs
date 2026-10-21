@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectoryForAdmin } from "./invalidate-maintenance-directory.mjs";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
@@ -7,6 +8,7 @@ const rawCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 requireFirebaseMutationTarget({ operation: "seed-playwright-records", credentialJson: rawCredentials });
 initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const db = getFirestore();
+await invalidateMaintenanceDirectoryForAdmin(db);
 const marker = { testData: true, testSeed: "playwright-persistence-v1", createdBySeed: "TEST_SEED" };
 const activityMarker = "weekly-activities-v1";
 const badgeworkMarker = "weekly-badgework-v1";
