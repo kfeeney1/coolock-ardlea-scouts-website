@@ -1,3 +1,5 @@
+> Current rollout policy: [SW-521 rollout](maintenance-rollout.md). Migration-stage holds described below are historical; explicit revision 1 opt-in replaces the blanket runtime hold. Live TEST acceptance and PMT remain separate.
+
 # SW-334 assignment and completion
 
 Direct SDK task creation is on main via #900 at bbb28241c7502398c2389a6616ffbb6d3ccf110d. This change adds assignment and progress using existing Firestore transactions and Security Rules. The live migration hold and Functions deployment block remain intact; SW-521 controls rollout restoration separately.

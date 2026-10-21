@@ -1,3 +1,5 @@
+> Current rollout policy: [SW-521 rollout](maintenance-rollout.md). Migration-stage holds described below are historical; explicit revision 1 opt-in replaces the blanket runtime hold. Live TEST acceptance and PMT remain separate.
+
 # Maintenance: existing Firebase service migration
 
 SW-332 replaces the callable document API with direct Firestore and Storage SDK operations, matching meeting and policy documents. No Cloud Functions, Cloud Run, Cloud Build or Artifact Registry deployment is required. Existing Firebase plan allowances and metering still apply; no zero-total-bill guarantee is made.

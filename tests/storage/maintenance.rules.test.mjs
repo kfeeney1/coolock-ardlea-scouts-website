@@ -13,7 +13,7 @@ after(async () => env?.cleanup());
 test("direct document SDK preserves bytes, metadata, retry identity, authorization and rollback retention", async () => {
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned"});
+    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1});
     await setDoc(doc(db, `parentAccounts/${uid}`), {status: "approved"});
     await setDoc(doc(db, "members/sdk-linked-record"), {accountUid: "sdk-linked", status: "active"});
     await setDoc(doc(db, "adminUsers/sdk-leader"), {active: true, role: "leader", sections: ["Cubs"]});
@@ -73,6 +73,6 @@ test("direct document SDK preserves bytes, metadata, retry identity, authorizati
     await setDoc(doc(disabled.firestore(), "siteSettings/maintenanceExperience"), {version: "existing"});
   });
   await assertFails(getDoc(doc(db, `maintenance/group/documents/${id}`)));
-  await env.withSecurityRulesDisabled(async disabled => { await setDoc(doc(disabled.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned"}); });
+  await env.withSecurityRulesDisabled(async disabled => { await setDoc(doc(disabled.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1}); });
   assert.equal((await store.ready(id)).sha256, first.sha256);
 });

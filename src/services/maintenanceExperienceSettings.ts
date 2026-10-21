@@ -3,11 +3,9 @@ import { auth, db } from "../firebase";
 import { ServiceFailure } from "./applicationErrors";
 import { maintenanceAvailable, requireMaintenanceRuntime } from "./maintenanceRuntime";
 
-export type MaintenanceExperienceVersion = "existing" | "redesigned";
+import { maintenanceVersion, type MaintenanceExperienceVersion } from "./maintenanceRolloutPolicy";
+export { maintenanceVersion, type MaintenanceExperienceVersion } from "./maintenanceRolloutPolicy";
 const ref = doc(db, "siteSettings", "maintenanceExperience");
-export function maintenanceVersion(data?: Record<string, unknown>): MaintenanceExperienceVersion {
-  return data?.version === "redesigned" ? "redesigned" : "existing";
-}
 /** This document contains only the group-wide presentation choice and its audit metadata. */
 export function watchMaintenanceExperience(next: (version: MaintenanceExperienceVersion) => void, failed: () => void) {
   if (!maintenanceAvailable) { next("existing"); return () => {}; }
@@ -26,6 +24,6 @@ export async function saveMaintenanceExperience(version: MaintenanceExperienceVe
     if (maintenanceVersion(snapshot.data()) !== expected) {
       throw new ServiceFailure("Maintenance changed in another session. Reload settings and try again.", "firestore/aborted");
     }
-    transaction.set(ref, { version, updatedBy: user.uid, updatedAt: serverTimestamp() });
+    transaction.set(ref, { version, sdkRevision: 1, updatedBy: user.uid, updatedAt: serverTimestamp() });
   });
 }

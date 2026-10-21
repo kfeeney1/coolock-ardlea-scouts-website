@@ -1,3 +1,5 @@
+> Current rollout policy: [SW-521 rollout](maintenance-rollout.md). Migration-stage holds described below are historical; explicit revision 1 opt-in replaces the blanket runtime hold. Live TEST acceptance and PMT remain separate.
+
 # SW-330: reuse existing website infrastructure
 
 The owner clarified on 20-10-2026 that Maintenance should replicate the rest of the website. The revised architecture uses existing Firebase Auth, Firestore and Storage SDKs and deployed Security Rules. It adds no Cloud Functions, Cloud Run, Cloud Build or Artifact Registry dependency and needs no new hosting provider. Existing Firebase reads, writes, stored bytes and downloads still count toward the website's existing plan and allowances. This is not a guaranteed zero-total-bill claim.

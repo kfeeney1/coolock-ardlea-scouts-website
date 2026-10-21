@@ -16,11 +16,16 @@ for (const navigationVersion of ["existing", "redesigned"] as const) test(`Maint
     await loginAsLeader(page, { email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password! });
     await page.goto("/maintenance/tasks");
     await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
+    // A legacy enabled value must remain disabled until a deliberate SDK rollout.
+    await setting.set({version: "redesigned"});
+    await page.reload();
+    await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
     await page.goto("/leader/settings");
     const enable = page.getByRole("button", { name: "Maintenance enabled", exact: true });
     await expect(page.getByRole("button", { name: "Maintenance disabled", exact: true })).toHaveAttribute("aria-pressed", "true");
     await enable.click();
     await expect(enable).toHaveAttribute("aria-pressed", "true");
+    expect((await setting.get()).data()?.sdkRevision).toBe(1);
     await page.reload();
     await expect(enable).toHaveAttribute("aria-pressed", "true");
     await page.locator('button[aria-controls="leader-navigation"]').click();
