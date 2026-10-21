@@ -1927,7 +1927,8 @@ service cloud.firestore {
     }
 
     function maintenanceEnabled() {
-      return signedIn() && get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data.get("version", "existing") == "redesigned";
+      let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+      return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
     }
     function validMaintenanceSource(data) {
       // One canonical read per source; exists()+get() consumed the lookup
@@ -2085,7 +2086,13 @@ service cloud.firestore {
         || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
       allow list: if false;
-      allow create, update: if settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience"] && isSuperAdmin()
+      allow create, update: if settingsId == "maintenanceExperience" && isSuperAdmin()
+        && request.resource.data.sdkRevision == 1
+        && request.resource.data.version in ["existing", "redesigned"]
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
+        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience"] && isSuperAdmin()
         && request.resource.data.version in ["existing", "redesigned"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time

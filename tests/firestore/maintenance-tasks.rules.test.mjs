@@ -14,7 +14,7 @@ test("direct task transactions preserve independent tasks, links, idempotency an
   await env.withSecurityRulesDisabled(async ctx => {
     await setDoc(doc(ctx.firestore(), "maintenance/group/leaders/gl"), {uid: "gl", displayName: "Group Leader", groupLeader: true, generation: 1});
     await setDoc(doc(ctx.firestore(), "maintenance/group/config/leaders"), {ready: true, generation: 1, validUntil: Timestamp.fromDate(new Date("2099-01-01")), groupLeaderUids: ["gl"]});
-    await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned"});
+    await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1});
     await setDoc(doc(ctx.firestore(), `parentAccounts/${uid}`), {status: "approved"});
     await setDoc(doc(ctx.firestore(), `maintenance/group/documents/${documentId}`), {state: "ready"});
     for (let i = 0; i < 5; i++) await setDoc(doc(ctx.firestore(), `maintenance/group/documents/linked-document-reference-${i}`), {state: "ready"});
@@ -55,6 +55,6 @@ test("direct task transactions preserve independent tasks, links, idempotency an
     await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "existing"});
   });
   await assertFails(getDoc(doc(db, `maintenance/group/tasks/${taskId}`)));
-  await env.withSecurityRulesDisabled(async ctx => { await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned"}); });
+  await env.withSecurityRulesDisabled(async ctx => { await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1}); });
   assert.equal((await tasks({action: "get", id: taskId})).task.description, "Fix the cooker");
 });

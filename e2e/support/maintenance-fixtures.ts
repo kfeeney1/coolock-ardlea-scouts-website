@@ -13,7 +13,7 @@ export async function enableMaintenanceFixture() {
   refs.push(...candidateRefs); previous = [...previous, ...await Promise.all(candidateRefs.map(ref => ref.get()))];
   const generation = (previous[1].data()?.generation || 0) + 1;
   const batch = db.batch();
-  batch.set(refs[0], {version: "redesigned"});
+  batch.set(refs[0], {version: "redesigned", sdkRevision: 1});
   candidates.forEach((item, index) => batch.set(candidateRefs[index], {...item, generation}));
   batch.set(refs[1], {ready: true, generation, groupLeaderUids: candidates.filter(item => item.groupLeader).map(item => item.uid), validUntil: Timestamp.fromMillis(Date.now() + 3600000)});
   await batch.commit();

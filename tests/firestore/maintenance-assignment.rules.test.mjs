@@ -17,7 +17,7 @@ after(async () => {await env?.cleanup(); if (adminApp) await deleteApp(adminApp)
 test("canonical directory, defaulting, explicit assignment, completion, revocation and snapshot integrity", async () => {
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned"});
+    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1});
     await setDoc(doc(db, "adminUsers/super"), {...profile, role: "super-admin"});
     await setDoc(doc(db, "adminUsers/gl"), profile);
     await setDoc(doc(db, "organisationLeadership/gl"), {...org, appointments: [...Array.from({length: 11}, () => ({appointment: "Scouter", scope: "Scouts", active: false})), {appointment: "Group Leader", scope: "Group", active: true}]});

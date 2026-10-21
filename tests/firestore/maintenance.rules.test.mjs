@@ -21,7 +21,7 @@ test("maintenance cannot bypass the validating backend even through direct docum
 test("direct SDK membership references cannot grant or retain authority independently of canonical records", async () => {
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned"});
+    await setDoc(doc(db, "siteSettings/maintenanceExperience"), {version: "redesigned", sdkRevision: 1});
     await setDoc(doc(db, "parentAccounts/maintenance-parent"), {status: "approved"});
     await setDoc(doc(db, "members/maintenance-linked-record"), {accountUid: "maintenance-linked", status: "active"});
     await setDoc(doc(db, "members/maintenance-other-record"), {accountUid: "maintenance-other", status: "active"});
@@ -46,6 +46,8 @@ test("direct SDK membership references cannot grant or retain authority independ
   });
   await assertFails(setDoc(doc(linked, "maintenance/group/access/maintenance-linked"), {kind: "member", sourceId: "maintenance-linked-record"}));
   await env.withSecurityRulesDisabled(async ctx => { await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "existing"}); });
+  await assertFails(setDoc(doc(env.authenticatedContext("maintenance-super").firestore(), "maintenance/group/access/maintenance-super"), {kind: "leader", sourceId: "maintenance-super"}));
+  await env.withSecurityRulesDisabled(async ctx => { await setDoc(doc(ctx.firestore(), "siteSettings/maintenanceExperience"), {version: "redesigned"}); });
   await assertFails(setDoc(doc(env.authenticatedContext("maintenance-super").firestore(), "maintenance/group/access/maintenance-super"), {kind: "leader", sourceId: "maintenance-super"}));
   await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), "maintenance/group/access/anonymous"), {kind: "member", sourceId: "maintenance-linked-record"}));
 });

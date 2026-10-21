@@ -15,12 +15,18 @@ test("only active Superusers can save Maintenance rollout; signed-in members can
   const target = db => doc(db, "siteSettings/maintenanceExperience");
   for (const uid of ["maintenance-parent", "maintenance-leader", "maintenance-outsider"]) {
     const db = env.authenticatedContext(uid).firestore();
-    await assertFails(setDoc(target(db), { version: "redesigned", updatedBy: uid, updatedAt: serverTimestamp() }));
+    await assertFails(setDoc(target(db), { version: "redesigned", sdkRevision: 1, updatedBy: uid, updatedAt: serverTimestamp() }));
   }
   const db = env.authenticatedContext("maintenance-super").firestore();
-  await assertSucceeds(setDoc(target(db), { version: "redesigned", updatedBy: "maintenance-super", updatedAt: serverTimestamp() }));
-  await assertFails(setDoc(target(db), { version: "invalid", updatedBy: "maintenance-super", updatedAt: serverTimestamp() }));
-  await assertFails(setDoc(target(db), { version: "existing", updatedBy: "someone-else", updatedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(target(db), { version: "redesigned", sdkRevision: 1, updatedBy: "maintenance-super", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(target(db), { version: "invalid", sdkRevision: 1, updatedBy: "maintenance-super", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(target(db), { version: "existing", sdkRevision: 1, updatedBy: "someone-else", updatedAt: serverTimestamp() }));
   await assertSucceeds(getDoc(target(env.authenticatedContext("maintenance-parent").firestore())));
   await assertFails(getDoc(target(env.unauthenticatedContext().firestore())));
+  for (const sdkRevision of [undefined, 0, 2, "1"]) {
+    const data = {version: "redesigned", updatedBy: "maintenance-super", updatedAt: serverTimestamp()};
+    if (sdkRevision !== undefined) data.sdkRevision = sdkRevision;
+    await assertFails(setDoc(target(db), data));
+  }
+  await assertSucceeds(setDoc(target(db), {version: "existing", sdkRevision: 1, updatedBy: "maintenance-super", updatedAt: serverTimestamp()}));
 });
