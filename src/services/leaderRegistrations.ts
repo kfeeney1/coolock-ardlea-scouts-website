@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectory } from "./maintenanceDirectoryStore";
 import { UserFacingError, reportSecondaryFailure } from "./applicationErrors.ts";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, orderBy, query, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
@@ -130,6 +131,7 @@ export async function approveLeaderRegistration(request: LeaderRegistrationReque
             if (existingAdmin.exists() && existingAdmin.data().active === true && existingAdmin.data().role === "leader") {
                 if (!existingOrganisation.exists() || existingOrganisation.data().active !== true) throw new UserFacingError("The existing Leader profile is incomplete; reconcile it before approval.");
             } else {
+                invalidateMaintenanceDirectory(transaction, db, reviewerUid);
                 transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
                 transaction.set(organisationRef, {
                     displayName: clean(request.fullName, 120),
@@ -154,6 +156,7 @@ export async function approveLeaderRegistration(request: LeaderRegistrationReque
             transaction.update(requestRef, { status: "approved", reviewedAt: serverTimestamp(), reviewedBy: reviewerUid, reviewNote: clean(reviewNote, 1000) });
             return;
         }
+        invalidateMaintenanceDirectory(transaction, db, reviewerUid);
         transaction.set(adminRef, { active: true, displayName: request.fullName, email: request.email, role: "leader", sections: [section], approvedAt: serverTimestamp(), approvedBy: reviewerUid });
         transaction.set(organisationRef, {
             displayName: clean(request.fullName, 120),

@@ -132,6 +132,9 @@ export default function ParentPortal() {
         || linkedChildren[0]
         || null;
     useEffect(() => {
+        // Linked-child loading may finish after a visible header navigation.
+        // Do not replace the destination with a late Parent Portal URL cleanup.
+        if (window.location.pathname !== "/parent") return;
         if (pendingChildId && requestedChildId === pendingChildId) {
             pendingChildIdRef.current = null;
             setPendingChildId(null);

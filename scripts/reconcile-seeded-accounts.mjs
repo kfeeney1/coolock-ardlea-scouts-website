@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectoryForAdmin } from "./invalidate-maintenance-directory.mjs";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
@@ -9,6 +10,7 @@ initializeApp({ credential });
 const db = getFirestore();
 const auth = getAuth();
 const checkOnly = process.argv.includes("--check");
+if (!checkOnly) await invalidateMaintenanceDirectoryForAdmin(db);
 
 const SECTION_KEYS = ["beaver", "cub", "scout", "venture", "rover"];
 const GROUP_ROLE_KEYS = [

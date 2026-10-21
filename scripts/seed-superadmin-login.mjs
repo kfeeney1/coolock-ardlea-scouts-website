@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectoryForAdmin } from "./invalidate-maintenance-directory.mjs";
 import { applicationDefault, cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -14,6 +15,7 @@ requireFirebaseMutationTarget({
 initializeApp({ credential: rawCredentials ? cert(JSON.parse(rawCredentials)) : applicationDefault() });
 const auth = getAuth();
 const db = getFirestore();
+await invalidateMaintenanceDirectoryForAdmin(db);
 
 const password = "password1";
 const marker = { testData: true, testSeed: "comprehensive-population-v3", createdBySeed: "TEST_SEED" };

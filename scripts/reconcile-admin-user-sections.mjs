@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectoryForAdmin } from "./invalidate-maintenance-directory.mjs";
 import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
@@ -7,6 +8,7 @@ if (!rawCredentials) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is required.
 initializeApp({ credential: cert(JSON.parse(rawCredentials)) });
 const db = getFirestore();
 const checkOnly = process.argv.includes("--check");
+if (!checkOnly) await invalidateMaintenanceDirectoryForAdmin(db);
 
 const VALID_SECTIONS = new Set(["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "Scouter", "All Sections"]);
 

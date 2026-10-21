@@ -1,5 +1,7 @@
+import { invalidateMaintenanceDirectory } from "./maintenanceDirectoryStore";
 import { UserFacingError } from "./applicationErrors.ts";
 import {
+  writeBatch,
   collection,
   deleteDoc,
   doc,
@@ -9,7 +11,7 @@ import {
   setDoc
 } from "firebase/firestore";
 import type { DocumentData, QuerySnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 import { buildPublicLeadershipAppointments, PUBLIC_PROJECTION_VERSION } from "./publicWhosWhoLogic";
 import { normalizeLeaderSections } from "./leaderAccessLogic";
 
@@ -67,7 +69,10 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
   const privateRef = doc(db, "organisationLeadership", leader.uid);
   const publicRef = doc(db, "publicLeadership", leader.uid);
   if (!leader.active) {
-    await deleteDoc(privateRef);
+    const batch = writeBatch(db);
+    invalidateMaintenanceDirectory(batch, db, auth.currentUser!.uid);
+    batch.delete(privateRef);
+    await batch.commit();
     await deleteDoc(publicRef);
     return;
   }
@@ -86,7 +91,10 @@ export async function syncOrganisationLeader(leader: OrganisationLeader): Promis
     throw new UserFacingError("Organisation leader does not match the canonical data contract.");
   }
 
-  await setDoc(privateRef, safe);
+  const batch = writeBatch(db);
+  invalidateMaintenanceDirectory(batch, db, auth.currentUser!.uid);
+  batch.set(privateRef, safe);
+  await batch.commit();
 
   const accessSnapshot = await getDoc(doc(db, "adminUsers", leader.uid));
   const access = accessSnapshot.exists() ? accessSnapshot.data() : null;

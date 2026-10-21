@@ -28,3 +28,13 @@ export function validateMaintenanceProgress(input: Record<string, unknown>, revi
   if (typeof input.assigneeUid !== "string" || !input.assigneeUid) throw new UserFacingError("Choose an eligible leader.");
   return {status: input.status, assigneeUid: input.assigneeUid, revision: revision + 1};
 }
+
+/** Indices let Rules validate the selected canonical evidence in constant work
+ * rather than scanning the entire appointment list twice for each publication. */
+export function maintenanceLeaderProjection(uid: string, access: Record<string, unknown>, organisation: Record<string, unknown>) {
+  const leader = maintenanceLeader(uid, access, organisation);
+  if (!leader) return null;
+  const raw = Array.isArray(organisation.appointments) ? organisation.appointments : [];
+  const current = (value: unknown) => activeScoutingAppointments(normalizeScoutingAppointmentAssignments([value]));
+  return {...leader, eligibleIndex: raw.findIndex(item => current(item).length > 0), groupLeaderIndex: raw.findIndex(item => current(item).some(appointment => appointment.appointment === "Group Leader" && appointment.scope === "Group"))};
+}

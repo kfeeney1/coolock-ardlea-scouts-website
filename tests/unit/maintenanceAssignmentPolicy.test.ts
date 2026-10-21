@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { maintenanceLeader, selectMaintenanceAssignee, validateMaintenanceProgress } from "../../src/services/maintenanceAssignmentPolicy.ts";
+import { maintenanceLeader, maintenanceLeaderProjection, selectMaintenanceAssignee, validateMaintenanceProgress } from "../../src/services/maintenanceAssignmentPolicy.ts";
 const access = {active: true, role: "leader", sections: ["Scouts"]};
 const organisation = {active: true, displayName: "Group leader", appointments: [{appointment: "Group Leader", scope: "Group", active: true}]};
 
@@ -30,4 +30,11 @@ test("progress rejects stale revisions and forged status while supporting comple
   for (const revision of [2, 4, "3", 3.5]) assert.throws(() => validateMaintenanceProgress({revision, status: "open", assigneeUid: "gl"}, 3), /task changed/);
   assert.throws(() => validateMaintenanceProgress({revision: 3, status: "deleted", assigneeUid: "gl"}, 3), /Open or Complete/);
   assert.throws(() => validateMaintenanceProgress({revision: 3, status: "open", assigneeUid: ""}, 3), /eligible leader/);
+});
+
+
+test("projection evidence identifies the twelfth appointment and legacy fallback without exposing private fields", () => {
+  const appointments = [...Array.from({length: 11}, () => ({appointment: "Scouter", scope: "Scouts", active: false})), {appointment: "Group Leader", scope: "Group", active: true}];
+  assert.deepEqual(maintenanceLeaderProjection("gl", {...access, email: "private@example.com"}, {...organisation, appointments, reportsToUid: "private"}), {uid: "gl", displayName: "Group leader", groupLeader: true, eligibleIndex: 11, groupLeaderIndex: 11});
+  assert.equal(maintenanceLeaderProjection("legacy", access, {active: true, displayName: "Legacy", scoutingRole: "group leader", organisationSection: "Group"})?.eligibleIndex, -1);
 });

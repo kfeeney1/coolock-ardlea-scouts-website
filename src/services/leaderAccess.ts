@@ -1,3 +1,4 @@
+import { invalidateMaintenanceDirectory } from "./maintenanceDirectoryStore";
 import { UserFacingError } from "./applicationErrors.ts";
 import { collection, doc, getDocs, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
@@ -152,6 +153,7 @@ export async function updateLeaderAccess(record: LeaderAccessRecord, actorUid: s
     if (restrictedOrganisationChanged && !adminActor) throw new UserFacingError("Only an Administrator can change organisation-chart or public-listing settings.");
     if (!roleChanged && !sectionsChanged && !activeChanged && !appointmentChanged && !sectionIdentityChanged && !restrictedOrganisationChanged) return;
 
+    invalidateMaintenanceDirectory(transaction, db, actorUid);
     transaction.update(targetAccessRef, {
       role: record.role,
       sections,

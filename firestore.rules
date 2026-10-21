@@ -711,10 +711,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // A published assignment snapshot is invalidated by every canonical source
+    // mutation. Existing self-service contact/theme writes do not affect eligibility.
+    function maintenanceDirectoryInvalidated() {
+      let path = /databases/$(database)/documents/maintenance/group/config/leaders;
+      return !exists(path) || (getAfter(path).data.updatedAt == request.time
+        && getAfter(path).data.generation != get(path).data.generation && getAfter(path).data.ready == false);
+    }
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
       allow list: if isAdmin() || isGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
-      allow create: if isAdmin()
+      allow create: if isAdmin() && maintenanceDirectoryInvalidated()
         && request.resource.data.role == "leader"
         && request.resource.data.active == true
         && request.resource.data.displayName is string
@@ -722,7 +729,9 @@ service cloud.firestore {
         && request.resource.data.sections is list
         && request.resource.data.sections.size() > 0
         && !request.resource.data.keys().hasAny(["section"]);
-      allow update: if (request.auth.uid == userId && isActiveLeader()
+      allow update: if (maintenanceDirectoryInvalidated()
+        || !request.resource.data.diff(resource.data).affectedKeys().hasAny(["active", "role", "sections", "section"]))
+        && ((request.auth.uid == userId && isActiveLeader()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["displayName", "mobileNumber"]))
         || (request.auth.uid == userId && isSuperAdmin()
           && request.resource.data.uiTheme in ["default", "modern", "irish-adventure", "uk-campaign", "programme-led"]
@@ -740,7 +749,7 @@ service cloud.firestore {
           && request.resource.data.sections is list
           && request.resource.data.sections.size() > 0
           && !request.resource.data.keys().hasAny(["section"])
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["active", "role", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"]));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["active", "role", "sections", "displayName", "mobileNumber", "updatedAt", "updatedBy"])));
       allow delete: if false;
     }
 
@@ -1844,7 +1853,7 @@ service cloud.firestore {
 
     match /organisationLeadership/{leaderId} {
       allow read: if isActiveLeader();
-      allow create, update: if (isAdmin() || (canDelegateLeaderTarget(leaderId)
+      allow create, update: if maintenanceDirectoryInvalidated() && (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && request.resource.data.scoutingRole is string
           && (!("appointments" in request.resource.data) || (request.resource.data.appointments is list && request.resource.data.appointments.size() <= 12))
           && ((request.resource.data.scoutingRole == "" && isGroupLeadershipDelegableAppointment(resource.data.scoutingRole))
@@ -1865,7 +1874,7 @@ service cloud.firestore {
           && request.resource.data.primarySection in getAfter(/databases/$(database)/documents/adminUsers/$(leaderId)).data.sections
         ))
         && request.resource.data.keys().hasOnly(["displayName", "scoutingRole", "appointments", "organisationSection", "primarySection", "organisationOrder", "reportsToUid", "showPublicly", "active", "updatedAt"]);
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() && maintenanceDirectoryInvalidated();
     }
 
     match /publicLeadership/{leaderId} {
@@ -1935,21 +1944,102 @@ service cloud.firestore {
       return ids.size() <= index || (ids[index] is string && ids[index].matches('^[a-zA-Z0-9-]{20,64}$')
         && get(/databases/$(database)/documents/maintenance/group/documents/$(ids[index])).data.state == "ready");
     }
+    function maintenanceDate(value) {
+      let parts = value.split('-');
+      return timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
+    }
+    function maintenanceAppointmentActive(item) {
+      return item.get("active", true) == true
+        && (item.get("startDate", "") == "" || (validIsoDate(item.startDate) && maintenanceDate(item.startDate) <= request.time))
+        && (item.get("endDate", "") == "" || (validIsoDate(item.endDate) && maintenanceDate(item.endDate) + duration.value(1, 'd') > request.time));
+    }
+    function maintenanceAppointmentAt(data, index, groupOnly) {
+      let appointments = data.get("appointments", []);
+      return appointments is list && appointments.size() > index
+        && appointments[index] is map
+        && (groupOnly ? appointments[index].appointment.lower() == "group leader" && appointments[index].get("scope", "Group") == "Group"
+          : appointments[index].appointment.lower() in ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl", "group secretary", "group treasurer", "group quartermaster / bo'sun", "group quartermaster", "group bo'sun", "group quartermaster/bo'sun", "group chairperson", "group youth champion", "group trainer", "section leader", "assistant section leader", "programme scouter", "scouter"])
+        && maintenanceAppointmentActive(appointments[index]);
+    }
+    function maintenanceProjectionEvidence(organisation, index, groupOnly) {
+      return index is int && index >= -1 && index < 12
+        && (index == -1 ? organisation.get("appointments", []).size() == 0 && maintenanceOrganisationAppointment(organisation, groupOnly)
+          : maintenanceAppointmentAt(organisation, index, groupOnly));
+    }
+    function maintenanceOrganisationAppointment(data, groupOnly) {
+      return data.get("appointments", []).size() == 0
+        ? (groupOnly ? data.scoutingRole.lower() == "group leader" && data.organisationSection == "Group"
+          : data.scoutingRole.lower() in ["group leader", "deputy group leader", "deputy-group-leader", "deputy grouplead", "dgl", "group secretary", "group treasurer", "group quartermaster / bo'sun", "group quartermaster", "group bo'sun", "group quartermaster/bo'sun", "group chairperson", "group youth champion", "group trainer", "section leader", "assistant section leader", "programme scouter", "scouter"])
+        : (maintenanceAppointmentAt(data, 0, groupOnly) || maintenanceAppointmentAt(data, 1, groupOnly)
+          || maintenanceAppointmentAt(data, 2, groupOnly) || maintenanceAppointmentAt(data, 3, groupOnly)
+          || maintenanceAppointmentAt(data, 4, groupOnly) || maintenanceAppointmentAt(data, 5, groupOnly)
+          || maintenanceAppointmentAt(data, 6, groupOnly) || maintenanceAppointmentAt(data, 7, groupOnly)
+          || maintenanceAppointmentAt(data, 8, groupOnly) || maintenanceAppointmentAt(data, 9, groupOnly)
+          || maintenanceAppointmentAt(data, 10, groupOnly) || maintenanceAppointmentAt(data, 11, groupOnly));
+    }
+    function maintenanceLeaderProjection(uid, data) {
+      let access = get(/databases/$(database)/documents/adminUsers/$(uid)).data;
+      let organisation = get(/databases/$(database)/documents/organisationLeadership/$(uid)).data;
+      return access.active == true && access.role in ["leader", "admin", "super-admin"]
+        && access.sections is list && access.sections.size() > 0 && !access.keys().hasAny(["section"])
+        && organisation.active == true && maintenanceProjectionEvidence(organisation, data.eligibleIndex, false)
+        && data.uid == uid && data.displayName == organisation.displayName
+        && data.groupLeader is bool
+        && (data.groupLeader ? maintenanceProjectionEvidence(organisation, data.groupLeaderIndex, true)
+          : data.groupLeaderIndex == -1 && !maintenanceOrganisationAppointment(organisation, true));
+    }
+    match /maintenance/group/config/leaders {
+      allow get: if isAdmin() || maintenanceMember();
+      // Canonical source writers may only invalidate, never publish or roll back.
+      allow create, update: if isActiveLeader()
+        && request.resource.data.keys().hasOnly(["generation", "ready", "groupLeaderUids", "validUntil", "updatedAt", "updatedBy"])
+        && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time
+        && request.resource.data.generation is int
+        && ((request.resource.data.ready == false
+          && request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys().hasOnly(["generation", "ready", "updatedAt", "updatedBy"])
+          && ((!exists(/databases/$(database)/documents/maintenance/group/config/leaders) && request.resource.data.generation == 1)
+            || request.resource.data.generation == resource.data.generation + 1))
+          || (isAdmin() && request.resource.data.ready == true && request.resource.data.generation == resource.data.generation
+            && request.resource.data.groupLeaderUids is list && request.resource.data.groupLeaderUids.toSet().size() == request.resource.data.groupLeaderUids.size()
+            && request.resource.data.validUntil is timestamp && request.resource.data.validUntil > request.time));
+      allow list, delete: if false;
+    }
+    match /maintenance/group/leaders/{uid} {
+      allow get, list: if isAdmin() || maintenanceMember();
+      allow create, update: if isAdmin() && maintenanceLeaderProjection(uid, request.resource.data)
+        && request.resource.data.keys().hasOnly(["uid", "displayName", "groupLeader", "generation", "eligibleIndex", "groupLeaderIndex"])
+        && request.resource.data.generation == get(/databases/$(database)/documents/maintenance/group/config/leaders).data.generation
+        && get(/databases/$(database)/documents/maintenance/group/config/leaders).data.ready == false;
+      allow delete: if isAdmin();
+    }
+    function maintenanceAssignment(data) {
+      let directory = get(/databases/$(database)/documents/maintenance/group/config/leaders).data;
+      let leader = get(/databases/$(database)/documents/maintenance/group/leaders/$(data.assigneeUid)).data;
+      return directory.ready == true && directory.validUntil > request.time
+        && leader.generation == directory.generation && leader.uid == data.assigneeUid && data.assigneeName == leader.displayName
+        && (data.assignmentMode == "explicit" || (data.assignmentMode == "default"
+          && leader.groupLeader == true && directory.groupLeaderUids == [data.assigneeUid]));
+    }
     function validMaintenanceTask(data) {
-      return data.keys().hasOnly(["description", "documentIds", "status", "assigneeUid", "assigneeName", "revision", "createdBy", "createdAt", "updatedBy", "updatedAt"])
+      return data.keys().hasOnly(["description", "documentIds", "status", "assigneeUid", "assigneeName", "assignmentMode", "revision", "createdBy", "createdAt", "updatedBy", "updatedAt"])
         && data.description is string && data.description.size() > 0 && data.description.size() <= 8000
         && data.description.matches('(?s).*\\S.*')
         && data.documentIds is list && data.documentIds.size() <= 5 && data.documentIds.toSet().size() == data.documentIds.size()
         && maintenanceReadyDocumentAt(data.documentIds, 0) && maintenanceReadyDocumentAt(data.documentIds, 1)
         && maintenanceReadyDocumentAt(data.documentIds, 2) && maintenanceReadyDocumentAt(data.documentIds, 3) && maintenanceReadyDocumentAt(data.documentIds, 4)
-        && data.status == "open" && data.assigneeUid == "" && data.assigneeName == "Assignment pending" && data.revision == 1
+        && data.status == "open" && maintenanceAssignment(data) && data.revision is int && data.revision == 1
         && data.createdBy == request.auth.uid && data.updatedBy == request.auth.uid
         && data.createdAt == request.time && data.updatedAt == request.time;
     }
     match /maintenance/group/tasks/{id} {
       allow get, list: if maintenanceMember();
       allow create: if maintenanceMember() && id.matches('^[a-zA-Z0-9-]{20,64}$') && validMaintenanceTask(request.resource.data);
-      allow update, delete: if false;
+      allow update: if maintenanceMember() && maintenanceAssignment(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["assigneeUid", "assigneeName", "assignmentMode", "status", "revision", "updatedBy", "updatedAt"])
+        && request.resource.data.status in ["open", "complete"]
+        && request.resource.data.revision is int && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
     }
     function validMaintenanceDocument(data) {
       return data.keys().hasOnly(["fileName", "contentType", "size", "sha256", "uploadedBy", "uploadedAt", "state"])
