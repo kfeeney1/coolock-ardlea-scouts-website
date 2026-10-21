@@ -1930,11 +1930,19 @@ service cloud.firestore {
       return signedIn() && get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data.get("version", "existing") == "redesigned";
     }
     function validMaintenanceSource(data) {
-      return (data.kind == "leader" && data.sourceId == request.auth.uid && isActiveLeader())
-        || (data.kind == "parent" && data.sourceId == request.auth.uid && isApprovedParent())
-        || (data.kind == "member" && data.sourceId is string
-          && get(/databases/$(database)/documents/members/$(data.sourceId)).data.get("accountUid", "") == request.auth.uid
-          && get(/databases/$(database)/documents/members/$(data.sourceId)).data.get("status", "") == "active");
+      // One canonical read per source; exists()+get() consumed the lookup
+      // budget for a task with five retained documents on uncached evaluation.
+      let source = data.kind == "leader"
+        ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+        : data.kind == "parent"
+          ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+          : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+      return (data.kind == "leader" && data.sourceId == request.auth.uid
+          && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+          && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+        || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+        || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+          && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
     }
     function maintenanceMember() {
       return maintenanceEnabled()
