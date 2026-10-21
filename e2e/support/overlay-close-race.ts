@@ -8,7 +8,9 @@ export async function holdReopenUntilOverlayCleanup(page: Page) {
   let release!: () => void;
   let writeHeld = false;
   const gate = new Promise<void>((resolve) => { release = resolve; });
-  const channel = "**/google.firestore.v1.Firestore/Write/channel?**";
+  // Match finite write POSTs, never the long-lived RID=rpc response stream.
+  const channel = (url: URL) => url.pathname.endsWith("/google.firestore.v1.Firestore/Write/channel")
+    && /^\d+$/.test(url.searchParams.get("RID") || "");
   await page.route(channel, async (route) => {
     const values = new URLSearchParams(route.request().postData() || "");
     if ([...values.values()].some((value) => value.includes("/weeklyMeetings/") && value.includes('"status":{"stringValue":"open"}'))) {
@@ -25,7 +27,10 @@ export async function holdReopenUntilOverlayCleanup(page: Page) {
     release,
     restore: async () => {
       release();
-      await page.unroute(channel);
+      // Keep the released pass-through route until this test's page closes.
+      // Removing the final route reconfigures Chromium Fetch interception while
+      // Firestore channels are live; the next save can then wait indefinitely.
+      // The per-test browser context owns and disposes this handler.
       await page.evaluate(() => (window as Window & { overlayCloseRace?: { restore: () => void } }).overlayCloseRace?.restore());
     }
   };
