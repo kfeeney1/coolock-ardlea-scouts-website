@@ -24,7 +24,7 @@ test("transient Rules API 503 retries, then deploys remaining TEST targets after
     calls.push(args);
     if (args.includes("firestore:rules")) {
       return calls.filter((call) => call.includes("firestore:rules")).length === 1
-        ? http503("/test")
+        ? http503(":test")
         : { code: 0, output: "Rules validated and deployed." };
     }
     order.push("remaining");
@@ -114,4 +114,9 @@ test("retry attempts and increasing delay schedule are finite and bounded", () =
   assert.deepEqual(FIREBASE_RULES_BACKOFF_MS, [5_000, 15_000, 30_000]);
   assert.ok(FIREBASE_RULES_MAX_ATTEMPTS <= 5);
   assert.ok(FIREBASE_RULES_BACKOFF_MS.reduce((total, delay) => total + delay, 0) <= 60_000);
+});
+
+ test("actual Firebase project :test failure retries without matching unrelated endpoints", () => {
+  assert.equal(retryableFirebaseRulesEndpoint("Error: Request to https://firebaserules.googleapis.com/v1/projects/coolock-ardlea-scouts-test:test had HTTP Error: 503, The service is currently unavailable."), "/test");
+  for (const url of ["https://firebaserules.googleapis.com.evil.invalid/v1/projects/p:test", "https://firebaserules.googleapis.com/v1/projects/p:testing", "https://firebaserules.googleapis.com/v1/projects/p/releases/test", "https://firebaserules.googleapis.com/v1/projects/p/rulesets/other", "https://other.invalid/test"]) assert.equal(retryableFirebaseRulesEndpoint(`${url} HTTP 503`), null);
 });
