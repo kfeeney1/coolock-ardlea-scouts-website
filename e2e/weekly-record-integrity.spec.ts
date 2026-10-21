@@ -1,5 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
+
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "test.webadmin@example.com";
 
@@ -48,6 +50,7 @@ test("new meeting Cancel saves valid entered data without creating an empty reco
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await waitForTransientOverlayHistory(page);
   await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-04-04");
   await page.getByLabel("Location").fill("TEST cancelled meeting location");
   await page.getByLabel("Theme / programme title").fill("TEST saved on navigation");
@@ -69,6 +72,7 @@ test("browser Back saves an edited meeting before returning to the previous page
   await page.getByRole("link", { name: "Create Meeting", exact: true }).click();
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await waitForTransientOverlayHistory(page);
   await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-04-09");
   await page.getByLabel("Theme / programme title").fill("TEST browser back autosave");
   await page.getByRole("button", { name: "Create Meeting", exact: true }).click();
@@ -121,6 +125,7 @@ test("multi-role Group Leader meeting round-trips completely when reopened by Su
   await page.goto("/leader/weekly/create");
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Cubs", exact: true }).click();
+  await waitForTransientOverlayHistory(page);
   await page.getByRole("textbox", { name: /^Meeting date/ }).fill("2099-04-03");
   await page.getByLabel("Location").fill("Cub Den");
   await page.getByLabel("Theme / programme title").fill("Cross-role hydration");
