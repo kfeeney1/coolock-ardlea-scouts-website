@@ -31,3 +31,23 @@ Rules failure or deploy Hosting ahead of unverified Rules. A code rollback uses
 the normal reviewed revert PR; it does not delete any active ruleset or source
 record. Reverting the runner restores the previous CLI path and its known
 duplicate-compilation and release-error masking behaviour.
+
+## Compiler scope headroom (SW-532)
+
+The first SDK deployment exposed an HTTP 400 at release publication after
+ruleset creation. Firebase documents both compiler-stack 503 failures and
+compiled executable size 400 failures for large inherited helper scopes:
+https://firebase.google.com/docs/rules/rules-language#expression_complexity_and_compiler_limits
+
+Collection-specific helpers now live in their sole consuming match rather than
+being inherited by every match. This moves 60 helpers out of root scope, leaving
+52 shared helpers. Function bodies and allow statements are unchanged. The
+scope regression check limits root-helper growth and keeps representative
+collection-only helpers local. Real permission behaviour remains covered by the
+Firestore and Storage emulator suites.
+
+HTTP 400 alone does not prove the executable size limit was reached. The runner
+classifies known size/stack-limit messages into fixed safe labels; unrecognised
+messages remain unclassified without exposing SDK payloads. Actual live release
+publication must pass before this compiler-limit hypothesis is considered
+resolved. No compiler failure is ignored or treated as a successful release.

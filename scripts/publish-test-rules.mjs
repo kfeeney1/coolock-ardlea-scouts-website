@@ -6,6 +6,17 @@ import { requireFirebaseMutationTarget } from "./firebase-operation-guard.mjs";
 export const RULES_ATTEMPTS = 4;
 export const RULES_BACKOFF_MS = Object.freeze([5_000, 15_000, 30_000]);
 
+export function rulesCompilerReason(error) {
+  const message = String(error?.message ?? "");
+  if (/compiled executables.*smaller than 256000|compiled ruleset.*(?:size|limit)/i.test(message)) {
+    return "compiled Rules size limit exceeded";
+  }
+  if (/recursion stack|stack (?:memory|exhaust)/i.test(message)) {
+    return "Rules compiler stack limit exceeded";
+  }
+  return "no recognised compiler-limit detail";
+}
+
 export function sameRulesSource(ruleset, source, name) {
   return ruleset?.source?.length === 1
     && ruleset.source[0].name === name && ruleset.source[0].content === source;
@@ -42,7 +53,7 @@ export async function publishReviewedRules({ source, name, getLive, create, rele
       const status = error.httpResponse?.status;
       if (status !== 503 || attempt === RULES_ATTEMPTS) {
         // Never echo SDK payloads, which may contain request/response metadata.
-        throw new Error(`${name}: ${stage} failed on attempt ${attempt}/${RULES_ATTEMPTS} (HTTP ${Number.isInteger(status) ? status : "unavailable"}); active release is not verified.`);
+        throw new Error(`${name}: ${stage} failed on attempt ${attempt}/${RULES_ATTEMPTS} (HTTP ${Number.isInteger(status) ? status : "unavailable"}; ${rulesCompilerReason(error)}); active release is not verified.`);
       }
       log(`${name}: ${stage} returned Rules API HTTP 503; retry ${attempt + 1}/${RULES_ATTEMPTS}.`);
       await sleep(RULES_BACKOFF_MS[attempt - 1]);
