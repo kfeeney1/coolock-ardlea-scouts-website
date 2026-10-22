@@ -2097,7 +2097,10 @@ service cloud.firestore {
     match /maintenance/group/appointments/{id} {
       function appointmentMember() { return calendarEnabled() && maintenanceMember(); }
       function validAppointment(data) {
-        return data.title is string && data.title.size() > 0 && data.title.size() <= 200 && data.title.matches('.*[^[:space:]].*')
+        let taskId = data.get("taskId", "");
+        return data.title is string && ((taskId == "" && data.title.size() > 0 && data.title.size() <= 200 && data.title.matches('.*[^[:space:]].*'))
+          || (taskId is string && taskId.matches('^[a-zA-Z0-9-]{20,64}$') && id == "task-" + taskId && data.title == ""
+            && exists(/databases/$(database)/documents/maintenance/group/tasks/$(taskId))))
           && validIsoDate(data.date) && data.date >= "1900-01-01" && data.date <= "2199-12-31"
           && data.allDay is bool && data.startTime is string && data.endTime is string
           && ((data.allDay && data.startTime == "" && data.endTime == "")
@@ -2105,12 +2108,13 @@ service cloud.firestore {
               && data.endTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') && data.startTime < data.endTime))
           && data.location is string && data.location.size() <= 300 && data.notes is string && data.notes.size() <= 8000
           && data.revision is int && data.updatedBy == request.auth.uid && data.updatedAt == request.time
-          && data.keys().hasOnly(["title", "date", "allDay", "startTime", "endTime", "location", "notes", "revision", "createdBy", "createdAt", "updatedBy", "updatedAt"]);
+          && data.keys().hasOnly(["title", "date", "allDay", "startTime", "endTime", "location", "notes", "revision", "createdBy", "createdAt", "updatedBy", "updatedAt", "taskId"]);
       }
       allow get, list: if appointmentMember();
-      allow create: if appointmentMember() && id.matches('^[a-zA-Z0-9-]{20,64}$') && validAppointment(request.resource.data)
+      allow create: if appointmentMember() && (request.resource.data.get("taskId", "") != "" || (id.matches('^[a-zA-Z0-9-]{20,64}$') && !id.matches('^task-.*'))) && validAppointment(request.resource.data)
         && request.resource.data.revision == 1 && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
       allow update: if appointmentMember() && validAppointment(request.resource.data)
+        && request.resource.data.get("taskId", "") == resource.data.get("taskId", "")
         && request.resource.data.createdBy == resource.data.createdBy && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if false;

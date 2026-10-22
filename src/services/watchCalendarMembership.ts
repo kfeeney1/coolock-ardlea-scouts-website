@@ -1,9 +1,9 @@
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 /** A reference is not a live grant. Watch canonical proof and current scope sources too. */
-export function watchCalendarMembership(uid: string, ready: () => void, changing: () => void, invalid: () => void, failed: () => void) {
+export function watchCalendarMembership(uid: string, ready: () => void, changing: () => void, invalid: () => void, failed: () => void, capability: "calendar" | "maintenance" = "calendar") {
   let active = true; let pointer = ""; let stopSources = () => {};
-  const stopReference = onSnapshot(doc(db, "calendar/group/access", uid), {includeMetadataChanges: true}, reference => {
+  const stopReference = onSnapshot(doc(db, `${capability}/group/access`, uid), {includeMetadataChanges: true}, reference => {
     if (!active || reference.metadata.fromCache || reference.metadata.hasPendingWrites) return;
     const proof = reference.data();
     const roots: Record<string, string> = {leader: "adminUsers", parent: "parentAccounts", member: "members"};

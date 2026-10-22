@@ -81,6 +81,8 @@
     "/leader/equipment/inventory": "leader",
     "/leader/weekly/copy/:sourceId": "leader",
     "/calendar/source/:collection/:id": "approved-group-member-calendar-enabled-source-rules",
+    "/calendar/maintenance/tasks": "approved-group-member-calendar-maintenance-enabled",
+    "/calendar/maintenance/tasks/:taskId": "approved-group-member-calendar-maintenance-enabled",
     "/calendar/maintenance/:id": "approved-group-member-calendar-maintenance-enabled",
     "/calendar/maintenance/:id/edit": "approved-group-member-calendar-maintenance-enabled",
     "/calendar": "approved-group-member-calendar-enabled",

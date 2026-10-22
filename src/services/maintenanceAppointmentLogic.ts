@@ -1,7 +1,7 @@
 import { isCanonicalDateOnly } from "./weeklyMeetingProgrammeLogic.ts";
 import type { CalendarEntry } from "./groupCalendar.ts";
 export type AppointmentInput = {title: string; date: string; allDay: boolean; startTime: string; endTime: string; location: string; notes: string};
-export type MaintenanceAppointment = AppointmentInput & {id: string; revision: number};
+export type MaintenanceAppointment = AppointmentInput & {id: string; revision: number; taskId?: string};
 export type AppointmentErrors = Partial<Record<keyof AppointmentInput, string>>;
 export const emptyAppointment = (date: string): AppointmentInput => ({title: "", date, allDay: true, startTime: "", endTime: "", location: "", notes: ""});
 export function appointmentErrors(input: AppointmentInput): AppointmentErrors {
