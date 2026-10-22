@@ -1,3 +1,4 @@
+import { monitorCalendarActionReadiness, expectCalendarActionsReady } from "./support/calendar-action-readiness";
 import {expect, test} from "@playwright/test";
 import {getApps} from "firebase-admin/app";
 import {getAuth} from "firebase-admin/auth";
@@ -19,8 +20,10 @@ test("maintenance appointments validate, save, update, guard Back and obey indep
  try {
   await db.doc(paths[0]).set({version:"redesigned"}); await db.doc(paths[1]).set({version:"redesigned",sdkRevision:1});
   await db.doc(paths[3]).set(base); await db.doc(paths[4]).set({...base,title:"SW337 Outside month",date:"2199-12-22"});
+  await monitorCalendarActionReadiness(page);
   await loginAsLeader(page,{email:user.email!,password:process.env.E2E_TEST_USER_PASSWORD!});
   await page.goto(`/calendar?month=${previous}&type=all`);
+  await expectCalendarActionsReady(page);
   await page.getByRole("link",{name:"Schedule maintenance",exact:true}).click();
   await expect(page.getByRole("heading",{name:"New service appointment"})).toBeVisible();
   await page.getByRole("button",{name:"Save appointment",exact:true}).click();
