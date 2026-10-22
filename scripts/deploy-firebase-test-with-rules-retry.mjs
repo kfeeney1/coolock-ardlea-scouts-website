@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
+import { rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { reportFirebaseRulesFailure } from "./firebase-rules-failure-diagnostics.mjs";
 
 export const FIREBASE_RULES_MAX_ATTEMPTS = 4;
 export const FIREBASE_RULES_BACKOFF_MS = Object.freeze([5_000, 15_000, 30_000]);
@@ -54,7 +56,9 @@ export async function deployFirebaseRulesWithRetry({
   }
 }
 
-function runNpx(args) {
+async function runNpx(args) {
+  // Prevent an earlier attempt's diagnostics being attributed to this one.
+  await rm("firebase-debug.log", { force: true });
   return new Promise((resolve, reject) => {
     const child = spawn("npx", args, { stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
@@ -67,7 +71,10 @@ function runNpx(args) {
     child.stdout.on("data", (chunk) => process.stdout.write(append(chunk)));
     child.stderr.on("data", (chunk) => process.stderr.write(append(chunk)));
     child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? 1, output }));
+    child.on("close", async (code) => {
+      if (code !== 0) await reportFirebaseRulesFailure();
+      resolve({ code: code ?? 1, output });
+    });
   });
 }
 
