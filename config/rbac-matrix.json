@@ -80,6 +80,7 @@
     "/leader/medical/:consentId": "leader",
     "/leader/equipment/inventory": "leader",
     "/leader/weekly/copy/:sourceId": "leader",
+    "/calendar": "approved-group-member-calendar-enabled",
     "/maintenance/*": "approved-group-member-maintenance-enabled"
   },
   "routeVariants": {
@@ -129,6 +130,7 @@
     "leaderChildRelationships": "finance-read-admin-group-leader-write",
     "weeklyRosterMembers": "leader-section-read-no-client-write",
     "polls": "published-audience-and-scoped-manager",
+    "calendar": "server-validated-group-member-calendar-enabled",
     "maintenance": "server-validated-group-member"
   },
   "storage": {

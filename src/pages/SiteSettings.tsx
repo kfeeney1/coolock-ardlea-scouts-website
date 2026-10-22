@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { effectivePermissionsFor } from "../security/permissionRegistry";
+import CalendarExperienceSettings from "../components/admin/CalendarExperienceSettings";
 import MaintenanceExperienceSettings from "../components/admin/MaintenanceExperienceSettings";
 import AttendanceExperienceSettings from "../components/admin/AttendanceExperienceSettings";
 import ScheduleExperienceSettings from "../components/admin/ScheduleExperienceSettings";
@@ -249,7 +250,7 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /></>}
+                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /></>}
 
                 {showParentLoginSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>

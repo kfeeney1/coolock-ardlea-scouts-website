@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { leaderNavigationFilter, NAVIGATION_PERMISSIONS } from "../../src/navigation/leaderNavigationPermissions.ts";
-import { leaderNavGroups, dashboardNavItem, accountNavItems, maintenanceNavItem } from "../../src/navigation/leaderNavigation.ts";
+import { leaderNavGroups, dashboardNavItem, accountNavItems, maintenanceNavItem, calendarNavItem } from "../../src/navigation/leaderNavigation.ts";
 
 const items = leaderNavGroups.flatMap((group) => group.items);
 const visible = (role: string, scoutingRole: string, appointments?: unknown) => items.filter(leaderNavigationFilter({ role, scoutingRole, appointments })).map((item) => item.id);
@@ -32,7 +32,7 @@ test("system navigation follows canonical effective permission grants", () => {
 test("every destination has an explicit requirement using registered permission IDs", async () => {
   const { PERMISSION_REGISTRY } = await import("../../src/security/permissionRegistry.ts");
   const ids = new Set(PERMISSION_REGISTRY.map((permission) => permission.id));
-  const allItems = [maintenanceNavItem, dashboardNavItem, ...items, ...accountNavItems];
+  const allItems = [calendarNavItem, maintenanceNavItem, dashboardNavItem, ...items, ...accountNavItems];
   assert.deepEqual(Object.keys(NAVIGATION_PERMISSIONS).sort(), allItems.map((item) => item.id).sort());
   for (const item of allItems) {
     assert.ok(NAVIGATION_PERMISSIONS[item.id].length > 0, item.id);
@@ -75,4 +75,10 @@ test("active multiple appointments produce the union of contextual views without
 test("Maintenance retains canonical leader permissions independently of rollout", () => {
   assert.equal(leaderNavigationFilter(null)(maintenanceNavItem), false);
   assert.equal(leaderNavigationFilter({role: "leader", scoutingRole: "Scouter"})(maintenanceNavItem), true);
+});
+
+test("Calendar retains canonical leader permission independently of rollout", () => {
+  assert.equal(leaderNavigationFilter(null)(calendarNavItem), false);
+  assert.equal(leaderNavigationFilter({role: "parent", scoutingRole: ""})(calendarNavItem), false);
+  assert.equal(leaderNavigationFilter({role: "leader", scoutingRole: "Scouter"})(calendarNavItem), true);
 });

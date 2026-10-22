@@ -1,3 +1,4 @@
+import { useCalendarAccess } from "../../hooks/useCalendarAccess";
 import { useMaintenanceAccess } from "../../hooks/useMaintenanceAccess";
 import RedesignedLeaderNavigation from "./RedesignedLeaderNavigation";
 import { watchLeaderNavigation, type LeaderNavigationVersion } from "../../services/leaderNavigationSettings";
@@ -10,12 +11,13 @@ import { useBackDismiss } from "../../hooks/useBackDismiss";
 import { leaderNavigationFilter } from "../../navigation/leaderNavigationPermissions";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { THEME_OPTIONS, type ThemeName } from "../../theme/themePreferences";
-import { accountNavItems, dashboardNavItem, maintenanceNavItem, leaderNavGroups, redesignedNavigationGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
+import { accountNavItems, dashboardNavItem, maintenanceNavItem, calendarNavItem, leaderNavGroups, redesignedNavigationGroups, type LeaderNavItem } from "../../navigation/leaderNavigation";
 import { resolveLeaderNavigation } from "../../navigation/leaderNavigationState";
 import { loadWeeklySectionTracker } from "../../navigation/leaderRoutePreloads";
 
 export default function LeaderDashboardHeader() {
  const maintenance = useMaintenanceAccess();
+ const calendar = useCalendarAccess();
  const location = useLocation();
  const navigate = useNavigate();
  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -43,7 +45,7 @@ export default function LeaderDashboardHeader() {
  const [themeSaving, setThemeSaving] = useState<ThemeName | null>(null);
  const [themeError, setThemeError] = useState("");
  const canView = leaderNavigationFilter(adminProfile);
- const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(canView) })).filter((group) => group.items.length > 0);
+ const visibleGroups = leaderNavGroups.map((group) => ({ ...group, items: [...group.items, ...(group.id === "group-operations" && calendar.allowed ? [calendarNavItem] : []), ...(group.id === "group-operations" && maintenance.allowed ? [maintenanceNavItem] : [])].filter(canView) })).filter((group) => group.items.length > 0);
  const visibleAccountItems = accountNavItems.filter(canView);
  const presentationGroups = redesigned ? redesignedNavigationGroups(visibleGroups) : visibleGroups;
  const activeNavigation = resolveLeaderNavigation(location.pathname.startsWith("/maintenance/") ? "/maintenance/tasks" : `${location.pathname}${location.search}${location.hash}`, presentationGroups, [dashboardNavItem, ...visibleAccountItems]);
