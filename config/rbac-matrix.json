@@ -80,6 +80,7 @@
     "/leader/medical/:consentId": "leader",
     "/leader/equipment/inventory": "leader",
     "/leader/weekly/copy/:sourceId": "leader",
+    "/calendar/source/:collection/:id": "approved-group-member-calendar-enabled-source-rules",
     "/calendar": "approved-group-member-calendar-enabled",
     "/maintenance/*": "approved-group-member-maintenance-enabled"
   },
