@@ -1,60 +1,11 @@
 import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
+import { readFile, writeFile, rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { reportFirebaseRulesFailure } from "./firebase-rules-failure-diagnostics.mjs";
 
-export const FIREBASE_RULES_MAX_ATTEMPTS = 4;
-export const FIREBASE_RULES_BACKOFF_MS = Object.freeze([5_000, 15_000, 30_000]);
+import { publishTestRules, deliveryConfig } from "./publish-test-rules.mjs";
 
 const FIREBASE_TOOLS_PACKAGE = "firebase-tools@15.28.1";
-const RULES_ENDPOINT = /https:\/\/firebaserules\.googleapis\.com\/v1\/projects\/[^/\s:]+(:test|\/test|\/rulesets)(?=[\s?"']|$)/i;
-
-export function retryableFirebaseRulesEndpoint(output) {
-  for (const line of String(output).split(/\r?\n/)) {
-    if (!/firebaserules\.googleapis\.com/i.test(line) || !/\b503\b/.test(line)) continue;
-    const endpoint = line.match(RULES_ENDPOINT)?.[1];
-    if (endpoint) return endpoint === ":test" ? "/test" : endpoint;
-  }
-  return null;
-}
-
-export async function deployFirebaseTargetsInOrder({ deployRules, deployRemainingTargets }) {
-  await deployRules();
-  await deployRemainingTargets();
-}
-
-export async function deployFirebaseRulesWithRetry({
-  run,
-  sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
-  log = (message) => console.log(message),
-  maxAttempts = FIREBASE_RULES_MAX_ATTEMPTS,
-  backoffMs = FIREBASE_RULES_BACKOFF_MS,
-}) {
-  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
-    throw new RangeError("maxAttempts must be a positive integer");
-  }
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const result = await run();
-    if (result.code === 0) {
-      log(`Firebase Rules validation and deployment succeeded on attempt ${attempt}/${maxAttempts}.`);
-      return;
-    }
-
-    const endpoint = retryableFirebaseRulesEndpoint(result.output);
-    if (!endpoint) {
-      throw new Error(`Firebase Rules deployment failed on attempt ${attempt}/${maxAttempts} with exit code ${result.code}; failure is not a retryable Firebase Rules API HTTP 503.`);
-    }
-
-    if (attempt === maxAttempts) {
-      throw new Error(`Firebase Rules deployment failed after ${attempt}/${maxAttempts} attempts: HTTP 503 from Firebase Rules API ${endpoint}.`);
-    }
-
-    const delay = backoffMs[Math.min(attempt - 1, backoffMs.length - 1)];
-    log(`Firebase Rules API ${endpoint} returned HTTP 503 on attempt ${attempt}/${maxAttempts}; retrying in ${delay / 1_000}s (attempt ${attempt + 1}/${maxAttempts}).`);
-    await sleep(delay);
-  }
-}
 
 async function runNpx(args) {
   // Prevent an earlier attempt's diagnostics being attributed to this one.
@@ -78,13 +29,13 @@ async function runNpx(args) {
   });
 }
 
-function firebaseDeployArgs(targets) {
+function firebaseDeployArgs(targets, configPath) {
   return [
     "--yes",
     FIREBASE_TOOLS_PACKAGE,
     "deploy",
     "--config",
-    "firebase.test.json",
+    configPath,
     "--only",
     targets,
     "--project",
@@ -93,21 +44,19 @@ function firebaseDeployArgs(targets) {
   ];
 }
 
-export async function deployFirebaseTest({ run = runNpx, sleep, log } = {}) {
-  await deployFirebaseTargetsInOrder({
-    deployRules: () => deployFirebaseRulesWithRetry({
-      run: () => run(firebaseDeployArgs("firestore:rules")),
-      sleep,
-      log,
-    }),
-    deployRemainingTargets: async () => {
-      const result = await run(firebaseDeployArgs("firestore:indexes,storage:test-default,hosting"));
-      if (result.code !== 0) {
-        throw new Error(`Firebase TEST indexes, Storage rules, and Hosting deployment failed with exit code ${result.code}.`);
-      }
-      (log ?? console.log)("Firebase TEST indexes, Storage rules, and Hosting deployment succeeded.");
-    },
-  });
+export async function deployFirebaseTest({ run = runNpx, publishRules = publishTestRules, log = console.log } = {}) {
+  // Both Rules releases must be verified before indexes or Hosting can change.
+  await publishRules();
+  const configPath = `firebase.test.delivery-${process.pid}.json`;
+  const config = deliveryConfig(JSON.parse(await readFile("firebase.test.json", "utf8")));
+  await writeFile(configPath, JSON.stringify(config), { flag: "wx", mode: 0o600 });
+  try {
+    const result = await run(firebaseDeployArgs("firestore:indexes,hosting", configPath));
+    if (result.code !== 0) throw new Error(`Firebase TEST indexes and Hosting deployment failed with exit code ${result.code}.`);
+    log("Firebase TEST Rules verified; indexes and Hosting deployment succeeded.");
+  } finally {
+    await rm(configPath, { force: true });
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
