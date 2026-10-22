@@ -2,8 +2,7 @@ import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/materia
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCalendarMaintenance } from "../hooks/useCalendarMaintenance";
-import { useAdminAuth } from "../components/admin/AdminAuthProvider";
-import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
+import CalendarPageLayout from "../components/calendar/CalendarPageLayout";
 import ExpandableMeetingNotes from "../components/admin/ExpandableMeetingNotes";
 import AppointmentEditor from "../components/calendar/AppointmentEditor";
 import { emptyAppointment, type MaintenanceAppointment as Appointment } from "../services/maintenanceAppointmentLogic";
@@ -12,7 +11,7 @@ import { calendarReturnPath } from "../services/calendarSourceLogic";
 import { formatSiteDate } from "../services/siteDateFormat";
 import { scheduleToday } from "../services/scheduleSelection";
 export default function MaintenanceAppointment() {
-  const access = useCalendarMaintenance(), {authorised} = useAdminAuth();
+  const access = useCalendarMaintenance();
   const {id = ""} = useParams(); const location = useLocation();
   const back = calendarReturnPath(location.state) || "/calendar";
   const creating = id === "new", editing = creating || location.pathname.endsWith("/edit");
@@ -31,19 +30,16 @@ export default function MaintenanceAppointment() {
   const record = state.key === key && !state.record?.taskId ? state.record : null;
   const params = new URLSearchParams(back.split("?")[1] || ""), today = scheduleToday();
   const month = params.get("month"), defaultDate = month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month === today.slice(0, 7) ? today : `${month}-01` : today;
-  return <Container maxWidth="md" sx={{py: 4, overflowWrap: "anywhere"}}>
-    {authorised && <LeaderDashboardHeader />}
+  return <CalendarPageLayout title="Maintenance appointment" subtitle="Group-wide service and maintenance" back={back} backLabel="Back to calendar">
     <Stack spacing={2}>
-      <Button component={Link} to={back} sx={{alignSelf: "flex-start", minHeight: 44}}>Back to calendar</Button>
-      <Typography component="h1" variant="h3" color="secondary" sx={{fontWeight: 800, fontSize: {xs: "1.75rem", md: "3rem"}}}>Maintenance appointment</Typography>
-      {!creating && validAppointmentId(id) && (state.key !== key || !state.loaded) ? <Typography role="status">Loading appointment…</Typography> : !creating && !record ? <><Alert severity={state.error ? "error" : "info"}>This appointment is unavailable. It may have been removed or no longer be accessible.</Alert><Button onClick={() => setAttempt(value => value + 1)}>Retry appointment</Button></> : <Paper variant="outlined" sx={{p: {xs: 2, sm: 3}, borderRadius: 3, borderTop: "6px solid", borderTopColor: "secondary.main"}}>
+      {!creating && validAppointmentId(id) && (state.key !== key || !state.loaded) ? <Typography role="status">Loading appointment…</Typography> : !creating && !record ? <><Alert severity={state.error ? "error" : "info"}>This appointment is unavailable. It may have been removed or no longer be accessible.</Alert><Button onClick={() => setAttempt(value => value + 1)}>Retry appointment</Button></> : <Paper variant="outlined" sx={{p: {xs: 2, sm: 3}, borderRadius: 3}}>
         {editing ? <AppointmentEditor key={creating ? newId : `${id}:${attempt}`} id={creating ? newId : id} initial={record || emptyAppointment(defaultDate)} revision={record?.revision || 0} back={back} /> : record && <Stack spacing={2}>
-          <Typography component="h2" variant="h4">{record.title}</Typography>
-          <Typography>Maintenance · Group-wide</Typography><Typography>{formatSiteDate(record.date)} · {record.allDay ? "All day" : `${record.startTime} – ${record.endTime} (Europe/Dublin)`}</Typography>
+          <Typography component="h2" variant="h5" sx={{fontWeight: 800}}>{record.title}</Typography>
+          <Typography>Maintenance · Group-wide</Typography><Typography sx={{p: 1.5, borderRadius: 1, bgcolor: "action.selected"}}>{formatSiteDate(record.date)} · {record.allDay ? "All day" : `${record.startTime} – ${record.endTime} (Europe/Dublin)`}</Typography>
           {record.location && <Typography>{record.location}</Typography>}{record.notes && <ExpandableMeetingNotes notes={record.notes} />}
-          <Button component={Link} to={`/calendar/maintenance/${id}/edit`} state={{calendarReturnTo: back}} sx={{alignSelf: "flex-start", minHeight: 44}}>Edit appointment</Button>
+          <Button component={Link} to={`/calendar/maintenance/${id}/edit`} state={{calendarReturnTo: back}} color="secondary" sx={{alignSelf: "flex-start", minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Edit appointment</Button>
         </Stack>}
       </Paper>}
     </Stack>
-  </Container>;
+  </CalendarPageLayout>;
 }

@@ -15,7 +15,7 @@ export default function MaintenanceTaskList({schedule = false, calendarReturnTo 
   };
   useEffect(() => { void load().catch(e => setError(applicationErrorMessage(e, "Unable to load maintenance tasks.", "MaintenanceTasks"))).finally(() => setLoading(false)); }, []);
   return <Stack spacing={2}>
-    <Typography component="h2" variant="h5" color="secondary">{schedule ? "Choose maintenance task" : "Tasks"}</Typography>
+    <Typography component="h2" variant="h5" color="secondary" sx={{fontWeight: 800}}>{schedule ? "Choose maintenance task" : "Tasks"}</Typography>
     {!schedule && <Button component={Link} to="/maintenance/tasks/new" variant="contained" sx={{minHeight: 44, alignSelf: "flex-start"}}>Raise a task</Button>}
     {loading && <Typography role="status">Loading tasks…</Typography>}{error && <Alert severity="error">{error}</Alert>}
     {!loading && !tasks.length && !error && <Alert severity="info">No maintenance tasks yet.</Alert>}
@@ -24,7 +24,7 @@ export default function MaintenanceTaskList({schedule = false, calendarReturnTo 
       <Chip label={task.status === "complete" ? "Complete" : "Open"} color={task.status === "complete" ? "success" : "info"} sx={{alignSelf: "flex-start"}} />
       <Typography sx={{display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere", whiteSpace: "pre-wrap"}}>{task.description}</Typography>
       <Typography variant="body2">Responsible leader: {task.assigneeName} · {task.documentIds.length} linked document(s)</Typography>
-      <Button component={Link} to={schedule ? `/calendar/maintenance/tasks/${task.id}` : `/maintenance/tasks/${task.id}`} aria-label={schedule ? `Schedule task: ${maintenanceTaskTitle(task.description)}` : undefined} state={schedule ? {calendarReturnTo} : undefined} sx={{minHeight: 44, alignSelf: "flex-start"}}>{schedule ? "Schedule this task" : "View task"}</Button>
+      <Button color={schedule ? "secondary" : "primary"} component={Link} to={schedule ? `/calendar/maintenance/tasks/${task.id}` : `/maintenance/tasks/${task.id}`} aria-label={schedule ? `Schedule task: ${maintenanceTaskTitle(task.description)}` : undefined} state={schedule ? {calendarReturnTo} : undefined} sx={{minHeight: 44, alignSelf: "flex-start", ...(schedule ? {borderRadius: 2, boxShadow: "none"} : {})}}>{schedule ? "Schedule this task" : "View task"}</Button>
     </Stack></Paper>)}
   </Stack>;
 }
