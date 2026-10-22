@@ -498,8 +498,14 @@ export async function handleEventAudienceSave(request, env, body) {
     writes.push({ update: { name: path, fields: documentFields(cleanInput) }, updateMask: { fieldPaths: Object.keys(cleanInput) }, currentDocument: { updateTime: currentEvent.updateTime } });
     if (!currentEvent.updateTime) return json(request, env, 409, { ok: false, error: "Refresh this event before saving changes." });
   }
+  const programme = Object.fromEntries(["title", "description", "eventType", "section", "location", "startDate", "endDate", "status"].map(key => [key, cleanInput[key]]));
+  writes.push({update: {name: `${path}/programmes/parent`, fields: documentFields({eventId, ...programme})}});
   for (const id of effectiveIds) {
-    if (retainedHiddenIds.includes(id)) continue;
+    if (retainedHiddenIds.includes(id)) {
+      const row = currentRows.get(id);
+      writes.push({update: {name: `${path}/audienceMembers/${encodeURIComponent(id)}`, fields: documentFields({startDate: cleanInput.startDate, endDate: cleanInput.endDate, programmeVisible: cleanInput.status !== "draft"})}, updateMask: {fieldPaths: ["startDate", "endDate", "programmeVisible"]}, currentDocument: row?.updateTime ? {updateTime: row.updateTime} : {exists: true}});
+      continue;
+    }
     const member = membersById.get(id);
     const matchingSection = sectionIds.find((section) => memberHasAudienceSection(member, section));
     const scopeSection = matchingSection || authorisedSections.find((section) => memberHasAudienceSection(member, section));
@@ -511,6 +517,7 @@ export async function handleEventAudienceSave(request, env, body) {
       scopeSection,
       selectedBySection: Boolean(matchingSection),
       selectedIndividually: memberIds.includes(id),
+      startDate: cleanInput.startDate, endDate: cleanInput.endDate, programmeVisible: cleanInput.status !== "draft",
       updatedAt: timestamp,
       updatedBy: uid
     };

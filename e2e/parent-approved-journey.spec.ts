@@ -97,6 +97,9 @@ test.describe("approved parent journey", () => {
       .getByTestId("parent-consent-tile-TEST_member_beaver_02")
       .getByRole("button", { name: `Complete consent for ${secondMember}` })
       .click();
+    // A visible descendant can still be clipped while the MUI Collapse is entering.
+    // Wait for expansion before scrolling/clicking the form's bottom action.
+    await expect(page.getByTestId("parent-consent-tile-TEST_member_beaver_02").locator(".MuiCollapse-root")).toHaveClass(/MuiCollapse-entered/);
     const save = page.getByRole("button", { name: "Save Consent & Medical Details" });
     await expect(save).toBeVisible();
     const expectedToday = await page.evaluate(() => {
@@ -107,9 +110,8 @@ test.describe("approved parent journey", () => {
     await expect(page.getByRole("textbox", { name: "Consent to", exact: true })).toHaveValue(`31-08-${Number(expectedToday.slice(-4)) + 1}`);
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("type", "tel");
     await expect(page.getByLabel("Parent / guardian 2 mobile")).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await save.click();
-    await expect(page.getByText(/required|Select Yes or No/i).first()).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "Please correct the highlighted fields before saving." })).toBeVisible();
     await expect(page.getByLabel("GP name")).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Parent / guardian 1", { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Parent / guardian 1 mobile")).toHaveAttribute("aria-invalid", "true");

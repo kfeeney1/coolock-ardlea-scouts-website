@@ -1,3 +1,4 @@
+import { eventParentProgramme, eventAudienceDates } from "./eventParentProgramme";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, where, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { ServiceFailure, UserFacingError } from "./applicationErrors.ts";
@@ -70,9 +71,10 @@ export async function createEventDirect(input: EventInput, eventId?: string, onE
     // The 450-member cap leaves room for the event write under Firestore's 500-write limit.
     const createBatch = writeBatch(db);
     createBatch.set(eventRef, eventPayload);
+    createBatch.set(doc(db, "events", eventRef.id, "programmes", "parent"), eventParentProgramme(eventRef.id, input));
     memberships.forEach((membership) => createBatch.set(
         doc(db, eventAudienceMembershipPath(eventRef.id, membership.memberId)),
-        { ...membership, updatedAt: serverTimestamp(), updatedBy: user.uid }
+        { ...membership, ...eventAudienceDates(input), updatedAt: serverTimestamp(), updatedBy: user.uid }
     ));
     await createBatch.commit();
 
@@ -153,7 +155,8 @@ export async function updateEventDirect(eventId: string, input: EventInput, remo
             || previous.eventSection !== membership.eventSection
             || previous.scopeSection !== membership.scopeSection
             || previous.selectedBySection !== membership.selectedBySection
-            || previous.selectedIndividually !== membership.selectedIndividually;
+            || previous.selectedIndividually !== membership.selectedIndividually
+            || Object.entries(eventAudienceDates(input)).some(([key, value]) => previous[key] !== value);
     });
     const nextMembershipIds = new Set([
         ...memberships.map((membership) => membership.memberId),
@@ -195,7 +198,8 @@ export async function updateEventDirect(eventId: string, input: EventInput, remo
     const membershipsToWrite = preserveLegacyAudience ? [] : changedMemberships;
     const removedMemberships = preserveLegacyAudience ? [] : previousMembershipSnapshot.docs.filter((item) => !nextMembershipIds.has(item.id));
     if (removedMemberships.length > 0 && !removalsConfirmed) throw new UserFacingError("Confirm audience removals before saving.");
-    const audienceWriteCount = 1 + membershipsToWrite.length + removedMemberships.length;
+    const dateOnlyMemberships = preserveLegacyAudience ? previousMembershipSnapshot.docs : retainedHiddenMemberships;
+    const audienceWriteCount = 2 + membershipsToWrite.length + removedMemberships.length + dateOnlyMemberships.length;
     if (audienceWriteCount > 500) {
         throw new UserFacingError("This audience change is too large to save safely in one operation. Make the change in smaller steps and try again.");
     }
@@ -204,9 +208,11 @@ export async function updateEventDirect(eventId: string, input: EventInput, remo
     // leaves the previous audience and response history intact.
     const updateBatch = writeBatch(db);
     updateBatch.update(eventRef, updatePayload);
+    updateBatch.set(doc(db, "events", eventId, "programmes", "parent"), eventParentProgramme(eventId, input));
+    dateOnlyMemberships.forEach(item => updateBatch.update(item.ref, {...eventAudienceDates(input), updatedAt: serverTimestamp(), updatedBy: user.uid}));
     membershipsToWrite.forEach((membership) => updateBatch.set(
         doc(db, eventAudienceMembershipPath(eventId, membership.memberId)),
-        { ...membership, updatedAt: serverTimestamp(), updatedBy: user.uid }
+        { ...membership, ...eventAudienceDates(input), updatedAt: serverTimestamp(), updatedBy: user.uid }
     ));
     removedMemberships.forEach((item) => updateBatch.delete(item.ref));
     await updateBatch.commit();

@@ -212,8 +212,15 @@ test("event audience save validates scope and commits Group-sized audiences atom
     assert.equal(response.status, 200);
     assert.equal((await response.json()).invitedCount, 28);
     assert.equal(commits.length, 1);
-    assert.equal(commits[0].writes.length, 30);
+    assert.equal(commits[0].writes.length, 31);
     assert.equal(commits[0].writes[0].update.name.endsWith("/events/event-new"), true);
+    const programme = commits[0].writes.find(write => write.update?.name.endsWith("/programmes/parent"));
+    assert.ok(programme, "Audience-safe programme must commit with the event");
+    assert.equal(programme.update.fields.leaderNotes, undefined);
+    assert.equal(programme.update.fields.attendance, undefined);
+    const membershipWrite = commits[0].writes.find(write => write.update?.name.includes("/audienceMembers/"));
+    assert.equal(membershipWrite.update.fields.startDate.stringValue, eventInput().startDate);
+    assert.equal(membershipWrite.update.fields.programmeVisible.booleanValue, true);
     const storedAudience = commits[0].writes[0].update.fields.audience.mapValue.fields;
     assert.equal(storedAudience.version.integerValue, "3");
     assert.deepEqual(storedAudience.sectionIds.arrayValue.values.map((value) => value.stringValue), ["Beavers", "Cubs"]);
@@ -293,7 +300,7 @@ test("event audience edit preserves RSVP and consent history in the atomic commi
     }, body, "/event-audience-save");
     assert.equal(response.status, 200);
     assert.equal(commits.length, 1);
-    assert.equal(commits[0].writes.length, 4);
+    assert.equal(commits[0].writes.length, 5);
     assert.equal(commits[0].writes[0].currentDocument.updateTime, existingEvent.updateTime);
     const fields = commits[0].writes[0].update.fields;
     assert.equal(fields.attendance.mapValue.fields["member-1"].stringValue, "attending");

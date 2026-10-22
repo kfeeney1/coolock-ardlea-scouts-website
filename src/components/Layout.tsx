@@ -1,3 +1,4 @@
+import CalendarReturnNavigation from "./calendar/CalendarReturnNavigation";
 import { Box, CircularProgress, Container, Typography } from "@mui/material";
 import { Suspense, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
@@ -27,7 +28,7 @@ export default function Layout() {
     return <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <Header />
         <Box component="main" data-leader-route={isLeaderRoute ? "true" : undefined} sx={{ flexGrow: 1, ...(isLeaderRoute ? { "& > *": { pt: { xs: "24px !important", md: "40px !important" }, pb: { xs: "24px !important", md: "40px !important" } }, "& > .MuiContainer-root, & > * > .MuiContainer-root": { maxWidth: "1536px !important" } } : {}) }}>
-            <Suspense fallback={<RouteFallback />}><Outlet /></Suspense>
+            <CalendarReturnNavigation /><Suspense fallback={<RouteFallback />}><Outlet /></Suspense>
         </Box>
         {showsSensitiveFormPrivacyLink && <Container maxWidth="md" sx={{ pb: 2, textAlign: "center" }}><Typography variant="body2" color="text.secondary">Before submitting personal, consent or medical information, please read our{" "}<ActionLinkButton to="/privacy">privacy &amp; data protection information</ActionLinkButton>.</Typography></Container>}
         <Footer />

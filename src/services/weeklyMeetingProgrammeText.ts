@@ -1,0 +1,2 @@
+const PROGRAMME_MARKER = "weekly-programme-v1";
+export function decodeProgramme(value: unknown) { if(typeof value!=="string"||!value.trim())return {theme:"",programmeNotes:""};try{const p=JSON.parse(value) as Record<string,unknown>;if(p.marker===PROGRAMME_MARKER)return {theme:typeof p.theme==="string"?p.theme:"",programmeNotes:typeof p.notes==="string"?p.notes:""};}catch{} return {theme:"",programmeNotes:value.trim()}; }
