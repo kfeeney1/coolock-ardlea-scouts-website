@@ -28,7 +28,7 @@ export default function MaintenanceAppointment() {
   }, [key]);
   if (access.loading) return <Container sx={{py: 4}}><Typography role="status">Loading Maintenance appointment…</Typography></Container>;
   if (!access.allowed) return <Container sx={{py: 4}}><Alert severity={access.error ? "error" : "info"}>{access.error || "Appointments require Calendar and Maintenance to be enabled and current group membership."}</Alert>{access.error && <Button onClick={access.retry}>Retry access</Button>}</Container>;
-  const record = state.key === key ? state.record : null;
+  const record = state.key === key && !state.record?.taskId ? state.record : null;
   const params = new URLSearchParams(back.split("?")[1] || ""), today = scheduleToday();
   const month = params.get("month"), defaultDate = month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month === today.slice(0, 7) ? today : `${month}-01` : today;
   return <Container maxWidth="md" sx={{py: 4, overflowWrap: "anywhere"}}>

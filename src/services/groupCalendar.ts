@@ -1,7 +1,7 @@
 export type CalendarType = "meeting" | "event" | "maintenance";
 export type CalendarEntry = {
   id: string; type: CalendarType; title: string; date: string; endDate?: string;
-  time: string; section: string; state?: string; path: string;
+  time: string; section: string; state?: string; detail?: string; path: string;
 };
 export const calendarTypes = ["all", "meeting", "event", "maintenance"] as const;
 export type CalendarFilter = typeof calendarTypes[number];

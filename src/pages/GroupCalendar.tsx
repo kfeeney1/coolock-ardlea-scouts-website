@@ -35,6 +35,7 @@ export default function GroupCalendar() {
       <Typography>Meetings, events and maintenance together.</Typography>
       {location.state?.calendarSaved && <Alert severity="success" role="status">Maintenance appointment saved.</Alert>}
       {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/new" state={{calendarReturnTo: returnTo}} sx={{alignSelf: "flex-start", minHeight: 44}}>Schedule maintenance</Button>}
+      {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/tasks" state={{calendarReturnTo: returnTo}} sx={{alignSelf: "flex-start", minHeight: 44}}>Schedule maintenance task</Button>}
       {maintenance.error && <Alert severity="error" action={<Button onClick={maintenance.retry}>Retry Maintenance</Button>}>{maintenance.error}</Alert>}
       {appointments.error && <Alert severity="error" action={<Button onClick={appointments.retry}>Retry appointments</Button>}>{appointments.error}</Alert>}
       <Paper variant="outlined" sx={{p: {xs: 1, sm: 2}, borderRadius: 3, borderTop: "6px solid", borderTopColor: "secondary.main"}}>

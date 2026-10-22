@@ -19,6 +19,7 @@ Do not enable live until the source integrations and live TEST acceptance pass.
 3. SW-337: service appointment persistence, validated form, detail/update flow.
    See `maintenance-appointments.md` for its dual-option access and rollout checks.
 4. SW-338: appointments referencing existing canonical Maintenance tasks.
+   See `scheduled-maintenance-tasks.md` for stable references and live source access.
 
 Each focused PR targets main. Integrations depend on foundations being on main;
 do not merge into temporary feature branches. Source acceptance and PMT are not
