@@ -5,13 +5,13 @@ export const FIREBASE_RULES_MAX_ATTEMPTS = 4;
 export const FIREBASE_RULES_BACKOFF_MS = Object.freeze([5_000, 15_000, 30_000]);
 
 const FIREBASE_TOOLS_PACKAGE = "firebase-tools@15.28.1";
-const RETRYABLE_ENDPOINTS = ["/test", "/rulesets"];
+const RULES_ENDPOINT = /https:\/\/firebaserules\.googleapis\.com\/v1\/projects\/[^/\s:]+(:test|\/test|\/rulesets)(?=[\s?"']|$)/i;
 
 export function retryableFirebaseRulesEndpoint(output) {
   for (const line of String(output).split(/\r?\n/)) {
     if (!/firebaserules\.googleapis\.com/i.test(line) || !/\b503\b/.test(line)) continue;
-    const endpoint = RETRYABLE_ENDPOINTS.find((path) => line.includes(path));
-    if (endpoint) return endpoint;
+    const endpoint = line.match(RULES_ENDPOINT)?.[1];
+    if (endpoint) return endpoint === ":test" ? "/test" : endpoint;
   }
   return null;
 }
