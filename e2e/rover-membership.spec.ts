@@ -30,7 +30,7 @@ test("adult leader Rover self-service persists, appears in Member Management and
   await loginAdmin(page);
   await page.goto("/leader/profile");
   // The input exists while the canonical profile/medical reads are still loading.
-  const displayName = page.getByLabel("Display name", {exact: true});
+  const displayName = page.getByLabel("Display name");
   await expect(displayName).toBeEnabled();
   await expect(displayName).not.toHaveValue(/^\s*$/);
   const leaderDisplayName = await displayName.inputValue();
