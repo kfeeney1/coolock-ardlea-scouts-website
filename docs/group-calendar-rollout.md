@@ -10,12 +10,14 @@ Do not enable live until the source integrations and live TEST acceptance pass.
 1. SW-339: default-off setting, canonical membership references, navigation,
    Monday-first monthly grid and URL month/type context. Merged in #904.
 2. SW-336: canonical month-scoped meetings/events, authorised sections/destinations.
+   Merged in #905; live acceptance and retained-record preparation are separate.
    Current work includes raw Leader records, existing shared Parent programmes,
    member-readable public events, live source updates and safe source details.
    Selected/mixed Parent audiences use date-bounded canonical audience links and
    a protected source programme. Prepare pre-existing records as described below
    before acceptance; never substitute broad raw reads or lifetime audience scans.
 3. SW-337: service appointment persistence, validated form, detail/update flow.
+   See `maintenance-appointments.md` for its dual-option access and rollout checks.
 4. SW-338: appointments referencing existing canonical Maintenance tasks.
 
 Each focused PR targets main. Integrations depend on foundations being on main;

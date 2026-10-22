@@ -9,12 +9,13 @@ type LeaveRequest =
 type SaveDraft = () => Promise<boolean>;
 const HISTORY_GUARD_KEY = "__eventEditBackGuard";
 
-/** Protects only the existing-event editor; create and meeting flows keep their own save rules. */
-export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
+/** Shared Save / Discard / Stay guard; existing event behaviour remains the default. */
+export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, afterSavedLeave?: (request: LeaveRequest) => boolean) {
   const navigate = useNavigate();
   // A remounted editor must not mistake a previous visit's history marker for its own.
   const [guardId] = useState(() => `event-edit:${crypto.randomUUID()}`);
   const saveRef = useRef(saveDraft);
+  const afterSavedLeaveRef = useRef(afterSavedLeave);
   const dirtyRef = useRef(dirty);
   const backGuardArmedRef = useRef(false);
   const dialogOpenRef = useRef(false);
@@ -30,6 +31,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
 
   useLayoutEffect(() => {
     saveRef.current = saveDraft;
+    afterSavedLeaveRef.current = afterSavedLeave;
     dirtyRef.current = dirty && !leavingRef.current;
     if (dirtyRef.current && !backGuardArmedRef.current) {
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
@@ -44,7 +46,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
         window.history.replaceState(cleanState, "", window.location.href);
       }
     }
-  }, [dirty, guardId, saveDraft]);
+  }, [dirty, guardId, saveDraft, afterSavedLeave]);
 
   // Keep the navigation guards installed for the editor lifetime. Re-attaching
   // them when `dirty` changes leaves a passive-effect gap after an edit, during
@@ -177,6 +179,8 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft) {
       releaseGuard();
       setDialogOpen(false);
       setRequest(null);
+      // A source editor may return to the newly saved date while keeping the shared guard.
+      if (afterSavedLeaveRef.current?.(pending)) return;
       if (pending.kind === "navigate") navigate(pending.destination);
       else if (pending.kind === "back") {
         bypassNextPopRef.current = true;

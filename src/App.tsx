@@ -25,6 +25,7 @@ const About = lazy(() => import("./pages/About"));
 const Activities = lazy(() => import("./pages/Activities"));
 const EventConsent = lazy(() => import("./pages/EventConsent"));
 const CalendarSourceDetails = lazy(() => import("./pages/CalendarSourceDetails"));
+const MaintenanceAppointment = lazy(() => import("./pages/MaintenanceAppointment"));
 const GroupCalendar = lazy(() => import("./pages/GroupCalendar"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const ParentPortal = lazy(() => import("./pages/ParentPortal"));
@@ -92,6 +93,8 @@ export default function App() {
         <Route path="/activities" element={<Activities />} />
         <Route path="/activities/consent" element={<Navigate to="/parent#parent-medical-consent" replace />} />
         <Route path="/event-consent/:token" element={<EventConsent />} />
+        <Route path="/calendar/maintenance/:id" element={<MaintenanceAppointment />} />
+        <Route path="/calendar/maintenance/:id/edit" element={<MaintenanceAppointment />} />
         <Route path="/calendar" element={<GroupCalendar />} />
         <Route path="/calendar/source/:collection/:id" element={<CalendarSourceDetails />} />
         <Route path="/maintenance/*" element={<Maintenance />} />

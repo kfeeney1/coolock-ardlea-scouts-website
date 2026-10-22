@@ -4,7 +4,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { formatDateRangeInput, isIsoCalendarDate, parseDateRangeInput } from "../services/dateRangeLogic";
 
 type CalendarMonth = { year: number; month: number };
-type Props = Omit<TextFieldProps, "value" | "onChange" | "type"> & { value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; minDate?: string; maxDate?: string; minDateErrorMessage?: string; initialDate?: string; calendarDescription?: string; calendarDescriptionVisuallyHidden?: boolean };
+type Props = Omit<TextFieldProps, "value" | "onChange" | "type"> & { value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; minDate?: string; maxDate?: string; minDateErrorMessage?: string; initialDate?: string; calendarDescription?: string; calendarDescriptionVisuallyHidden?: boolean; onInputValidityChange?: (valid: boolean) => void };
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -23,7 +23,7 @@ const compareMonth = (a: CalendarMonth, b: CalendarMonth) => a.year - b.year || 
 function changeEvent(value: string, name: string): ChangeEvent<HTMLInputElement> { return { target: { value, name }, currentTarget: { value, name } } as ChangeEvent<HTMLInputElement>; }
 
 /** Date-only input and calendar used throughout the site. Parent values remain ISO date-only strings. */
-export default function DatePickerField({ value, onChange, minDate, maxDate, minDateErrorMessage, initialDate, calendarDescription, calendarDescriptionVisuallyHidden = false, label, disabled, required, error, helperText, slotProps, ...props }: Props) {
+export default function DatePickerField({ onInputValidityChange, value, onChange, minDate, maxDate, minDateErrorMessage, initialDate, calendarDescription, calendarDescriptionVisuallyHidden = false, label, disabled, required, error, helperText, slotProps, ...props }: Props) {
   const id = useId();
   const inputElement = useRef<HTMLInputElement>(null);
   const dayButtons = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -75,7 +75,7 @@ export default function DatePickerField({ value, onChange, minDate, maxDate, min
   };
 
   return <>
-    <TextField {...props} type="text" label={label} value={text} disabled={disabled} required={required} error={Boolean(error || inputError)} helperText={inputError || helperText} inputRef={inputElement} onChange={(event) => { const raw = event.target.value; updateText(raw); const parsed = parseDateRangeInput(raw); event.currentTarget.setCustomValidity(raw.trim() && (!parsed || !allowed(parsed)) ? (minDate && parsed && parsed < minDate ? minDateErrorMessage || "Choose a date on or after " + formatDateRangeInput(minDate) + "." : "Enter a valid date as DD-MM-YYYY.") : ""); }} onBlur={() => { const parsed = parseDateRangeInput(text); if (parsed && allowed(parsed)) setText(formatDateRangeInput(parsed)); }} slotProps={{ ...slotProps, inputLabel: { shrink: true, ...slotProps?.inputLabel }, htmlInput: { inputMode: "numeric", autoComplete: "off", placeholder: "DD-MM-YYYY", ...htmlInputProps, "aria-invalid": Boolean(error || inputError) }, formHelperText: { ...helperSlotProps, role: error || inputError ? "alert" : "status" }, input: { ...inputSlotProps, endAdornment: <InputAdornment position="end"><IconButton aria-label={"Choose " + title.toLowerCase()} disabled={disabled} onClick={openCalendar} edge="end"><CalendarTodayIcon /></IconButton>{inputSlotProps.endAdornment as React.ReactNode}</InputAdornment> } }} />
+    <TextField {...props} type="text" label={label} value={text} disabled={disabled} required={required} error={Boolean(error || inputError)} helperText={inputError || helperText} inputRef={inputElement} onChange={(event) => { const raw = event.target.value; updateText(raw); const parsed = parseDateRangeInput(raw); event.currentTarget.setCustomValidity(raw.trim() && (!parsed || !allowed(parsed)) ? (minDate && parsed && parsed < minDate ? minDateErrorMessage || "Choose a date on or after " + formatDateRangeInput(minDate) + "." : "Enter a valid date as DD-MM-YYYY.") : ""); onInputValidityChange?.(Boolean(parsed && allowed(parsed))); }} onBlur={() => { const parsed = parseDateRangeInput(text); if (parsed && allowed(parsed)) setText(formatDateRangeInput(parsed)); }} slotProps={{ ...slotProps, inputLabel: { shrink: true, ...slotProps?.inputLabel }, htmlInput: { inputMode: "numeric", autoComplete: "off", placeholder: "DD-MM-YYYY", ...htmlInputProps, "aria-invalid": Boolean(error || inputError) }, formHelperText: { ...helperSlotProps, role: error || inputError ? "alert" : "status" }, input: { ...inputSlotProps, endAdornment: <InputAdornment position="end"><IconButton aria-label={"Choose " + title.toLowerCase()} disabled={disabled} onClick={openCalendar} edge="end"><CalendarTodayIcon /></IconButton>{inputSlotProps.endAdornment as React.ReactNode}</InputAdornment> } }} />
     <Dialog open={open} onClose={() => setOpen(false)} aria-labelledby={id + "-title"} aria-describedby={id + "-description"} fullWidth maxWidth="xs" scroll="paper">
       <DialogTitle id={id + "-title"}>Choose {title.toLowerCase()}</DialogTitle>
       <DialogContent>
