@@ -33,6 +33,7 @@ for (const version of ["existing", "redesigned"]) test(`Calendar default-off rol
     await expect(grid.locator('time[aria-current="date"]')).toHaveAttribute("datetime", scheduleToday());
     await page.getByRole("button", {name: "Next month", exact: true}).click();
     await page.getByRole("button", {name: "Events", exact: true}).click();
+    await expect(page.getByRole("button", {name: "Events", exact: true})).toHaveAttribute("aria-pressed", "true");
     await page.screenshot({path: testInfo.outputPath("calendar-month.png"), fullPage: true});
     const context = page.url(); await page.reload();
     await expect(page.getByRole("button", {name: "Events", exact: true})).toHaveAttribute("aria-pressed", "true");
