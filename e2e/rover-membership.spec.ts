@@ -29,7 +29,11 @@ test("adult leader Rover self-service persists, appears in Member Management and
   test.skip(!password, "Configure E2E_TEST_USER_PASSWORD.");
   await loginAdmin(page);
   await page.goto("/leader/profile");
-  const leaderDisplayName = await page.getByLabel("Display name").inputValue();
+  // The input exists while the canonical profile/medical reads are still loading.
+  const displayName = page.getByLabel("Display name", {exact: true});
+  await expect(displayName).toBeEnabled();
+  await expect(displayName).not.toHaveValue(/^\s*$/);
+  const leaderDisplayName = await displayName.inputValue();
 
   const panel = page.getByTestId("rover-self-membership");
   await expect(panel).toBeVisible();
