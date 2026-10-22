@@ -28,7 +28,7 @@ export default function CalendarExperienceSettings() {
     {saved && <Alert severity="success" role="status">Calendar setting saved. Canonical records are preserved.</Alert>}
     {!version && !error && <Typography>Loading Calendar setting…</Typography>}
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} variant={version === option ? "contained" : "outlined"} disabled={!version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Calendar disabled" : "Calendar enabled"}</Button>)}
+      {(["existing", "redesigned"] as const).map((option) => <Button key={option} aria-pressed={version === option} color={version === option ? "secondary" : "primary"} variant={version === option ? "contained" : "outlined"} disabled={!version || saving} onClick={() => void save(option)} sx={{ minHeight: 44 }}>{option === "existing" ? "Calendar disabled" : "Calendar enabled"}</Button>)}
     </Stack>
   </Paper>;
 }

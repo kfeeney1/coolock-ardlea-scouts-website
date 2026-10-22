@@ -32,7 +32,7 @@ export default function GroupCalendar() {
             <Button onClick={() => update("month", today.slice(0, 7))} sx={{minHeight: 44}}>Today</Button>
           </Stack>
           <Stack component="nav" aria-label="Calendar type filters" direction="row" useFlexGap spacing={1} sx={{flexWrap: "wrap"}}>
-            {calendarTypes.map(option => <Button key={option} aria-pressed={type === option} variant={type === option ? "contained" : "outlined"} onClick={() => update("type", option)} sx={{minHeight: 44}}>{labels[option]}</Button>)}
+            {calendarTypes.map(option => <Button key={option} aria-pressed={type === option} color={type === option ? "secondary" : "primary"} variant={type === option ? "contained" : "outlined"} onClick={() => update("type", option)} sx={{minHeight: 44}}>{labels[option]}</Button>)}
           </Stack>
           <Alert severity="info" role="status">Calendar sources are being integrated. Keep Calendar disabled until meeting, event and Maintenance acceptance is complete.</Alert>
           <CalendarMonthGrid month={month} today={today} entries={[]} type={type} section="" returnTo={`/calendar?month=${month}&type=${type}`} />
