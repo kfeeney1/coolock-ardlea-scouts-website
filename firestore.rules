@@ -654,7 +654,8 @@ service cloud.firestore {
         && (!request.resource.data.selectedBySection || request.resource.data.scopeSection in eventData.audience.sectionIds)
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["eventId", "eventSection", "memberId", "scopeSection", "selectedBySection", "selectedIndividually", "updatedAt", "updatedBy"]);
+        && request.resource.data.keys().hasOnly(["eventId", "eventSection", "memberId", "scopeSection", "selectedBySection", "selectedIndividually", "startDate", "endDate", "programmeVisible", "updatedAt", "updatedBy"])
+        && (!request.resource.data.keys().hasAny(["startDate", "endDate", "programmeVisible"]) || (request.resource.data.startDate == eventData.startDate && request.resource.data.endDate == eventData.endDate && request.resource.data.programmeVisible == (eventData.status != "draft")));
     }
 
     function isCanonicalAdventureSkillStage(skillId, stage) {
@@ -1057,10 +1058,63 @@ service cloud.firestore {
         && canAccessEventSection(get(/databases/$(database)/documents/events/$(eventId)).data.section)
         && resource.data.eventId == eventId)
         || (isApprovedParentForMember(memberId) && resource.data.memberId == memberId && resource.data.eventId == eventId);
-      allow create, update: if validEventAudienceMembership(eventId, memberId);
+      allow create: if validEventAudienceMembership(eventId, memberId);
+      function dateOnlyUpdate() {
+        let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
+        let data = request.resource.data;
+        return data.diff(resource.data).affectedKeys().hasOnly(["startDate", "endDate", "programmeVisible", "updatedAt", "updatedBy"])
+          && isActiveLeader() && hasSection(source.section)
+          && data.startDate == source.startDate && data.endDate == source.endDate
+          && data.programmeVisible == (source.status != "draft")
+          && data.updatedAt == request.time && data.updatedBy == request.auth.uid;
+      }
+      allow update: if dateOnlyUpdate() || validEventAudienceMembership(eventId, memberId);
       allow delete: if isActiveLeader()
         && exists(/databases/$(database)/documents/events/$(eventId))
         && hasSection(get(/databases/$(database)/documents/events/$(eventId)).data.section);
+    }
+
+    match /events/{eventId}/programmeAccess/{parentUid} {
+      allow get: if signedIn() && parentUid == request.auth.uid;
+      allow list: if false;
+      allow create, update: if signedIn() && parentUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(["memberId"])
+        && isApprovedParentForMember(request.resource.data.memberId) && isActiveMember(request.resource.data.memberId)
+        && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(request.resource.data.memberId));
+      allow delete: if signedIn() && parentUid == request.auth.uid;
+    }
+
+    match /events/{eventId}/programmes/{programmeId} {
+      function sourceProgramme() { return get(/databases/$(database)/documents/events/$(eventId)).data; }
+      function safeProgramme(data) {
+        let source = sourceProgramme();
+        return programmeId == "parent" && data.eventId == eventId
+          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status"])
+          && data.title == source.title && data.description == source.description
+          && data.eventType == source.eventType && data.section == source.section && data.location == source.location
+          && data.startDate == source.startDate && data.endDate == source.endDate && data.status == source.status;
+      }
+      function parentProgrammeAudience() {
+        let memberId = get(/databases/$(database)/documents/events/$(eventId)/programmeAccess/$(request.auth.uid)).data.memberId;
+        return isApprovedParentForMember(memberId) && isActiveMember(memberId)
+          && exists(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId))
+          && get(/databases/$(database)/documents/events/$(eventId)/audienceMembers/$(memberId)).data.memberId == memberId;
+      }
+      allow get: if signedIn() && safeProgramme(resource.data) && resource.data.status in ["open", "closed", "completed"]
+        && parentProgrammeAudience();
+      allow list: if false;
+      function validProgrammeWrite() {
+        let source = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
+        let data = request.resource.data;
+        return isActiveLeader() && hasSection(source.section) && programmeId == "parent"
+          && data.eventId == eventId
+          && data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "status"])
+          && data.title == source.title && data.description == source.description
+          && data.eventType == source.eventType && data.section == source.section && data.location == source.location
+          && data.startDate == source.startDate && data.endDate == source.endDate && data.status == source.status;
+      }
+      allow create, update: if validProgrammeWrite();
+      allow delete: if false;
     }
 
     match /events/{eventId}/leaderAttendance/{leaderUid} {

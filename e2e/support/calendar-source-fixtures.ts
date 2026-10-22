@@ -15,6 +15,9 @@ export async function seedCalendarSources() {
   const event = {title: "SW336 Camp", eventType: "Activity", section: "Scouts", location: "Scout den", description: "Shared programme. " + "Detailed programme notes and arrangements. ".repeat(50) + "Final shared marker.", meetingPoint: "Den", returnDetails: "Den", leaderNotes: "SW336 private leader note", startDate: `${month}-22`, endDate: `${month}-24`, status: "open", consentRequired: false, consentLinkToken: "", attendance: {}, consent: {}};
   const safeEvent = Object.fromEntries(["title", "description", "eventType", "section", "location", "startDate", "endDate", "status"].map(key => [key, event[key as keyof typeof event]]));
   const records: Record<string, Record<string, unknown>> = {
+    [`events/${prefix}selected`]: {...event, title: "SW336 Selected camp", section: "Cubs"},
+    [`events/${prefix}selected/programmes/parent`]: {...safeEvent, eventId: `${prefix}selected`, title: "SW336 Selected camp", section: "Cubs"},
+    [`events/${prefix}selected/audienceMembers/${prefix}child`]: {eventId: `${prefix}selected`, memberId: `${prefix}child`, startDate: event.startDate, endDate: event.endDate, programmeVisible: true},
     "siteSettings/calendarExperience": {version: "redesigned"},
     [`members/${prefix}child`]: {firstName: "Calendar", lastName: "Child", displayName: "Calendar Child", dateOfBirth: "2014-01-01", section: "Scouts", sections: ["Scouts"], status: "active"},
     [`parentAccounts/${uid}`]: {uid, email, displayName: "Calendar Parent", mobileNumber: "000000000", status: "approved", memberIds: [`${prefix}child`], linkedSections: ["Beavers"], requestedChildren: []},

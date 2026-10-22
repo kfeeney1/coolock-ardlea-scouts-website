@@ -67,6 +67,23 @@ test("parent sources use current child scope, safe details, expandable notes and
     await expect(cell.getByRole("link", {name: /^Meeting: SW336 Pioneering/})).toBeVisible();
     await expect(cell.getByRole("link", {name: /^Event: SW336 Camp/})).toBeVisible();
     await expect(grid.getByRole("link", {name: /SW336 Private audience/})).toHaveCount(0);
+    // A selected snapshot audience grants this programme despite a different classification section.
+    await expect(cell.getByRole("link", {name: /^Event: SW336 Selected camp/})).toBeVisible();
+    await cell.getByRole("link", {name: /^Event: SW336 Selected camp/}).click();
+    await expect(page.getByRole("heading", {name: "SW336 Selected camp", exact: true})).toBeVisible();
+    const audience = fixture.db.doc("events/sw336-calendar-selected/audienceMembers/sw336-calendar-child");
+    const original = (await audience.get()).data()!;
+    await audience.delete();
+    await expect(page.getByRole("heading", {name: "SW336 Selected camp", exact: true})).toHaveCount(0);
+    await page.getByRole("link", {name: "Back to calendar", exact: true}).click();
+    await expect(grid.getByRole("link", {name: /SW336 Selected camp/})).toHaveCount(0);
+    const update = fixture.db.batch();
+    update.update(fixture.db.doc("events/sw336-calendar-selected"), {startDate: `${fixture.month}-25`, endDate: `${fixture.month}-26`});
+    update.update(fixture.db.doc("events/sw336-calendar-selected/programmes/parent"), {startDate: `${fixture.month}-25`, endDate: `${fixture.month}-26`});
+    update.set(audience, {...original, startDate: `${fixture.month}-25`, endDate: `${fixture.month}-26`});
+    await update.commit();
+    await expect(cell.getByRole("link", {name: /SW336 Selected camp/})).toHaveCount(0);
+    await expect(grid.locator(`[data-calendar-date="${fixture.month}-25"]`).getByRole("link", {name: /SW336 Selected camp/})).toHaveCount(1);
     await page.getByRole("combobox", {name: "Calendar section"}).click();
     await expect(page.getByRole("option", {name: "Beavers", exact: true})).toHaveCount(0); await page.getByRole("option", {name: "Scouts", exact: true}).click();
     await cell.getByRole("link", {name: /^Meeting: SW336 Pioneering/}).click();

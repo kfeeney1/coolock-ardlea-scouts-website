@@ -1,3 +1,4 @@
+import { watchParentEventProgrammes } from "./watchParentEventProgrammes";
 import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, where, type QueryConstraint } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { activeScoutingAppointments, normalizeScoutingAppointmentAssignments, isGroupLeadershipAppointment } from "../security/scoutingAppointments";
@@ -28,6 +29,8 @@ export async function calendarSources(profile: AdminProfile | null): Promise<Cal
   const parent = await loadParentAccount(uid);
   if (parent?.status === "approved") {
     const sections = [...new Set([...parent.linkedSections, "Group", "All Sections"])];
+    const children = await Promise.all(parent.memberIds.map(id => getDoc(doc(db, "members", id))));
+    sources.push({collection: "eventProgrammes", sections, memberIds: children.filter(child => child.data()?.status === "active").map(child => child.id)});
     sources.push({collection: "parentWeeklyMeetings", sections: sections.filter(s => !meetingSections.includes(s))}, {collection: "parentGalleryEvents", sections: sections.filter(s => !eventSections.includes(s))});
   } else if (!profile) {
     // An active linked member is a supported group member, but not a Leader or Parent.
@@ -42,23 +45,28 @@ export async function calendarSources(profile: AdminProfile | null): Promise<Cal
 /** Bounded by the displayed grid, including records spanning into it. No cell reads or calendar copies. */
 export function watchCalendarSources(sources: CalendarSource[], month: string, next: (entries: CalendarEntry[]) => void, failed: () => void) {
   const days = calendarDays(month); const from = days[0]; const through = days.at(-1)!;
-  const channels = sources.flatMap(source => source.sections.flatMap(section => {
+  const channels = sources.filter(source => source.collection !== "eventProgrammes").flatMap(source => source.sections.flatMap(section => {
     const meeting = source.collection === "weeklyMeetings" || source.collection === "parentWeeklyMeetings";
     const constraints: QueryConstraint[][] = meeting
       ? [[where("meetingDate", ">=", from), where("meetingDate", "<=", through)]]
       : [[where("startDate", ">=", from), where("startDate", "<=", through)], [where("startDate", "<", from), where("endDate", ">=", from), orderBy("startDate"), orderBy("endDate")]];
     return constraints.map(range => ({collection: source.collection, target: query(collection(db, source.collection), where("section", "==", section), ...range)}));
   }));
-  if (!channels.length) { next([]); return () => {}; }
+  const parentSource = sources.find(source => source.collection === "eventProgrammes");
+  const total = channels.length + (parentSource ? 1 : 0);
+  if (!total) { next([]); return () => {}; }
   const results = new Map<number, CalendarEntry[]>(); let active = true;
+  const publish = () => {
+    if (results.size !== total) return;
+    const unique = new Map<string, CalendarEntry>();
+    [...results.keys()].sort((a, b) => a - b).forEach(index => results.get(index)!.forEach(entry => {if (!unique.has(entry.id)) unique.set(entry.id, entry);}));
+    next([...unique.values()]);
+  };
   const stops = channels.map((channel, index) => onSnapshot(channel.target, {includeMetadataChanges: true}, snapshot => {
     if (!active || snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
     results.set(index, snapshot.docs.flatMap(item => {const entry = calendarSourceEntry(channel.collection, item.id, item.data()); return entry ? [entry] : [];}));
-    if (results.size === channels.length) {
-      const unique = new Map<string, CalendarEntry>();
-      channels.forEach((_, channelIndex) => results.get(channelIndex)!.forEach(entry => {if (!unique.has(entry.id)) unique.set(entry.id, entry);}));
-      next([...unique.values()]);
-    }
+    publish();
   }, () => {if (active) {active = false; results.clear(); failed();}}));
+  if (parentSource) stops.push(watchParentEventProgrammes(parentSource.memberIds || [], month, entries => {if (active) {results.set(channels.length, entries); publish();}}, failed));
   return () => {active = false; stops.forEach(stop => stop());};
 }

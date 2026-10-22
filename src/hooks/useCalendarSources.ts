@@ -17,7 +17,7 @@ export function useCalendarSources(enabled: boolean, month: string, revision: nu
     void calendarSources(adminProfile).then(sources => {
       if (!active) return;
       const sections = [...new Set(sources.flatMap(source => source.sections).map(section => section === "All Sections" ? "Group" : section))].sort();
-      stop = watchCalendarSources(sources, month, entries => {if (active) {clearTimeout(deadline); setState({key, loading: false, entries, sections, error: ""});}}, failed);
+      stop = watchCalendarSources(sources, month, entries => {if (active) {clearTimeout(deadline); setState({key, loading: false, entries, sections: [...new Set([...sections, ...entries.map(entry => entry.section)])].sort(), error: ""});}}, failed);
     }).catch(failed);
     return () => {active = false; clearTimeout(deadline); stop();};
     // The signature covers all identity/scope fields; theme changes need no source reload.

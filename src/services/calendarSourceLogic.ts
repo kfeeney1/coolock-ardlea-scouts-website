@@ -2,8 +2,8 @@ import { isCanonicalDateOnly } from "./weeklyMeetingProgrammeLogic.ts";
 import { decodeProgramme } from "./weeklyMeetingProgrammeText.ts";
 import { canonicalMemberSection } from "./memberSectionCore.mjs";
 import type { CalendarEntry } from "./groupCalendar.ts";
-export type CalendarSourceCollection = "weeklyMeetings" | "events" | "parentWeeklyMeetings" | "parentGalleryEvents" | "publicEvents";
-export type CalendarSource = {collection: CalendarSourceCollection; sections: string[]};
+export type CalendarSourceCollection = "weeklyMeetings" | "events" | "parentWeeklyMeetings" | "parentGalleryEvents" | "publicEvents" | "eventProgrammes";
+export type CalendarSource = {collection: CalendarSourceCollection; sections: string[]; memberIds?: string[]};
 const text = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? (data[key] as string).trim() : "";
 export function calendarSourceEntry(collection: CalendarSourceCollection, id: string, data: Record<string, unknown>): CalendarEntry | null {
   const meeting = collection === "weeklyMeetings" || collection === "parentWeeklyMeetings";

@@ -1,3 +1,4 @@
+import { watchParentProgrammeDetail } from "../services/watchParentProgrammeDetail";
 import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -7,7 +8,7 @@ import { useCalendarAccess } from "../hooks/useCalendarAccess";
 import { calendarReturnPath, calendarSourceEntry, type CalendarSourceCollection } from "../services/calendarSourceLogic";
 import { formatSiteDate } from "../services/siteDateFormat";
 import ExpandableMeetingNotes from "../components/admin/ExpandableMeetingNotes";
-const safeCollections = ["parentWeeklyMeetings", "parentGalleryEvents", "publicEvents"];
+const safeCollections = ["parentWeeklyMeetings", "parentGalleryEvents", "publicEvents", "eventProgrammes"];
 export default function CalendarSourceDetails() {
   const {collection = "", id = ""} = useParams();
   const access = useCalendarAccess();
@@ -19,6 +20,7 @@ export default function CalendarSourceDetails() {
   useEffect(() => {
     setState({key, data: null, loaded: false, error: false});
     if (!access.allowed || !valid) return;
+    if (collection === "eventProgrammes") return watchParentProgrammeDetail(id, data => setState({key, data, loaded: true, error: false}), () => setState({key, data: null, loaded: true, error: true}));
     return onSnapshot(doc(db, collection, id), {includeMetadataChanges: true}, snapshot => {
       if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) setState({key, data: snapshot.data() || null, loaded: true, error: false});
     }, () => setState({key, data: null, loaded: true, error: true}));

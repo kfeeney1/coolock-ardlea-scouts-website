@@ -12,9 +12,9 @@ Do not enable live until the source integrations and live TEST acceptance pass.
 2. SW-336: canonical month-scoped meetings/events, authorised sections/destinations.
    Current work includes raw Leader records, existing shared Parent programmes,
    member-readable public events, live source updates and safe source details.
-   **Not complete:** private selected/mixed-audience Parent event programmes lack
-   an existing safe month-queryable source. Resolve this gap before enablement;
-   do not substitute broad raw event reads or scan lifetime audience records.
+   Selected/mixed Parent audiences use date-bounded canonical audience links and
+   a protected source programme. Prepare pre-existing records as described below
+   before acceptance; never substitute broad raw reads or lifetime audience scans.
 3. SW-337: service appointment persistence, validated form, detail/update flow.
 4. SW-338: appointments referencing existing canonical Maintenance tasks.
 
@@ -78,3 +78,29 @@ within the source record family; disabling Calendar removes those return links.
 Main deployment after #904 passed deployment but failed its Attendance Insights
 stable smoke (SW-527). This is separate from Calendar's local/PR assurance.
 Do not claim a live TEST pass or enable Calendar based on the published build.
+
+## Private audience source preparation (SW-336)
+
+Selected and mixed audiences use their existing `audienceMembers` relationships
+for date-bounded discovery, and `events/{id}/programmes/parent` for a read-only
+safe programme. The programme contains no participant IDs, attendance, responses,
+Leader notes or consent token. It is not independently editable. Both existing
+Event save paths commit source, programme and relationship dates atomically.
+An audience removal clears an already-open detail as well as its monthly entry.
+Each parent registers a source reference to their own invited child under
+`events/{id}/programmeAccess/{uid}`. This reference carries no titles or grants;
+Rules recheck the current approved parent, active child and canonical audience
+on each programme read. It supports the eight-child model within Rules limits.
+
+Before TEST enablement, prepare each retained source event that predates this
+change using `scripts/prepare-event-programme.mjs`. Supply the normal explicit
+Firebase environment/project credentials and `EVENT_ID`; run first without
+`APPLY`, inspect its source-only output, then set `APPLY=true`. Each invocation
+reads one source event and its capped audience, and writes in one transaction.
+No scanning of lifetime audience records or participant logging is required.
+Deploy the added audience collection-group indexes and wait for readiness.
+Legacy private events without canonical audience relationships must first have
+their intended audience confirmed and saved through the existing Events workflow;
+do not infer invites from historical response maps. Verify selected and mixed
+records, events without consent, historical/multi-day dates, rescheduling,
+audience removal and disabled/revoked access during live TEST acceptance.
