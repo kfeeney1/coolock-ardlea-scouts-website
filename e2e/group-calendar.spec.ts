@@ -52,3 +52,35 @@ for (const version of ["existing", "redesigned"]) test(`Calendar default-off rol
     for (const [index, ref] of refs.entries()) if (previous[index].exists) await ref.set(previous[index].data()!); else await ref.delete();
   }
 });
+
+for (const uiTheme of ["default", "modern"]) test(`Calendar compact monthly layout and keyboard filters (${uiTheme})`, async ({page}, testInfo) => {
+  test.skip(!process.env.E2E_TEST_USER_PASSWORD, "Configure canonical E2E credentials.");
+  const db = scheduleFixtureDb();
+  const paths = ["siteSettings/calendarExperience", "siteSettings/leaderNavigation", "siteSettings/maintenanceExperience", "adminUsers/TEST_uid_super_admin_01"];
+  const previous = await Promise.all(paths.map(path => db.doc(path).get()));
+  try {
+    await db.doc(paths[0]).set({version: "redesigned"}); await db.doc(paths[1]).set({version: "redesigned"});
+    await db.doc(paths[2]).set({version: "existing"}); await db.doc(paths[3]).update({uiTheme});
+    await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: process.env.E2E_TEST_USER_PASSWORD!});
+    await page.goto("/calendar");
+    await expect(page.getByRole("heading", {name: "Group calendar", exact: true})).toBeVisible();
+    await expect(page.getByText("Leader Dashboard", {exact: true})).toHaveCount(0);
+    const grid = page.getByRole("table", {name: "Monthly group calendar"});
+    const filters = page.getByRole("navigation", {name: "Calendar type filters"});
+    const controls = await filters.getByRole("button").evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect(); return {top: rect.top, height: rect.height, width: rect.width};
+    }));
+    expect(controls).toHaveLength(4);
+    expect(new Set(controls.map(control => Math.round(control.top))).size).toBe(1);
+    expect(controls.every(control => control.height >= 44 && control.width >= 44)).toBe(true);
+    for (const name of ["Previous month", "Next month"]) await expect(page.getByRole("button", {name, exact: true})).toHaveCSS("min-width", "44px");
+    expect(await grid.evaluate(node => node.getBoundingClientRect().top < innerHeight * 0.75)).toBe(true);
+    await page.getByRole("button", {name: "Events", exact: true}).focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", {name: "Events", exact: true})).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(page.getByText("Loading Calendar records…", {exact: true})).toHaveCount(0);
+    await page.screenshot({path: testInfo.outputPath("calendar-compact.png"), fullPage: true});
+  } finally {
+    const batch = db.batch(); previous.forEach(snapshot => snapshot.exists ? batch.set(snapshot.ref, snapshot.data()!) : batch.delete(snapshot.ref)); await batch.commit();
+  }
+});

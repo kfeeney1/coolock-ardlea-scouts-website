@@ -15,7 +15,7 @@ import { accountNavItems, dashboardNavItem, maintenanceNavItem, calendarNavItem,
 import { resolveLeaderNavigation } from "../../navigation/leaderNavigationState";
 import { loadWeeklySectionTracker } from "../../navigation/leaderRoutePreloads";
 
-export default function LeaderDashboardHeader() {
+export default function LeaderDashboardHeader({ compact = false }: { compact?: boolean }) {
  const maintenance = useMaintenanceAccess();
  const calendar = useCalendarAccess();
  const location = useLocation();
@@ -86,9 +86,9 @@ export default function LeaderDashboardHeader() {
   const active = currentItem?.id === item.id;
   return <Button key={item.id} data-control-role="menu" data-testid={`leader-nav-${item.id}`} component={Link} to={item.path} replace state={{ leaderNavigationFocus: true }} aria-current={active ? "page" : undefined} variant={active && !redesigned ? "contained" : "text"} color="secondary" sx={{ width: "100%", minHeight: 44, px: 1.5, justifyContent: "flex-start", textAlign: "left", fontWeight: active ? 800 : 700, ...(redesigned ? { color: active ? "text.primary" : undefined, borderRadius: 1, borderLeft: "4px solid", borderLeftColor: active ? "secondary.main" : "transparent", bgcolor: active ? "action.selected" : undefined, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: -3 } } : {}) }}>{item.label}</Button>;
  };
- return <Paper data-testid="leader-dashboard-header" onKeyDown={(event) => { if (menuOpen && event.key === "Escape") { event.preventDefault(); closeMenuAndRestoreFocus(); } }} elevation={3} sx={{ p: { xs: 1.75, md: 3 }, mb: { xs: 2, md: 3 }, borderRadius: 2, borderTop: "6px solid", borderTopColor: "secondary.main", width: "100%", maxWidth: 1536, boxSizing: "border-box" }}>
-  <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>
-  <Button ref={menuButtonRef} fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
+ return <Paper data-testid="leader-dashboard-header" onKeyDown={(event) => { if (menuOpen && event.key === "Escape") { event.preventDefault(); closeMenuAndRestoreFocus(); } }} elevation={compact ? 0 : 3} sx={{ ...(compact ? { border: "1px solid", borderColor: "divider" } : {}), p: compact ? 0 : { xs: 1.75, md: 3 }, mb: compact ? 0 : { xs: 2, md: 3 }, borderRadius: 2, borderTop: compact ? undefined : "6px solid", borderTopColor: "secondary.main", width: "100%", maxWidth: 1536, boxSizing: "border-box" }}>
+  {!compact && <Box><Typography variant="h3" color="secondary" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.75rem", md: "3rem" } }}>Leader Dashboard</Typography></Box>}
+  <Button ref={menuButtonRef} fullWidth variant="outlined" color="secondary" aria-expanded={menuOpen} aria-controls="leader-navigation" onClick={handleMenuToggle} endIcon={<ExpandMoreIcon sx={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }} />} sx={{ minHeight: 48, borderRadius: compact ? 2 : undefined, justifyContent: "space-between", fontWeight: 800 }}>{menuOpen ? "Hide Leader Menu" : currentItem ? `Menu · ${currentItem.label.replace(" ↗", "")}` : "Open Leader Menu"}</Button>
   <Collapse in={menuOpen && menuHistoryReady} timeout={0}><Box id="leader-navigation" component="nav" aria-label="Leader navigation" inert={!menuOpen || !menuHistoryReady} sx={{ display: menuOpen && menuHistoryReady ? "block" : "none", mt: 1.5 }}>
    <Box sx={{ mb: 1.5 }}>{navButton(dashboardNavItem)}</Box>
    {redesigned ? <RedesignedLeaderNavigation groups={visibleGroups} expanded={mobileGroupOpen} setExpanded={setMobileGroupOpen} renderItem={navButton} /> : <>
