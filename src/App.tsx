@@ -1,3 +1,4 @@
+import { CalendarAccessProvider } from "./hooks/useCalendarAccess";
 import { leaderLegacyRedirects } from "./navigation/leaderNavigation";
 import { lazy, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
@@ -23,6 +24,7 @@ const Home = lazy(() => import("./pages/Home"));
 const About = lazy(() => import("./pages/About"));
 const Activities = lazy(() => import("./pages/Activities"));
 const EventConsent = lazy(() => import("./pages/EventConsent"));
+const GroupCalendar = lazy(() => import("./pages/GroupCalendar"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const ParentPortal = lazy(() => import("./pages/ParentPortal"));
 const ParentMemberInactivation = lazy(() => import("./pages/ParentMemberInactivation"));
@@ -80,7 +82,7 @@ function protectedSuperAdminRoute(element: ReactNode) { return protectedRoute(<P
 
 export default function App() {
   return (
-    <PublicSiteContentProvider><AdminAuthProvider><ThemeExperienceProvider>
+    <PublicSiteContentProvider><AdminAuthProvider><CalendarAccessProvider><ThemeExperienceProvider>
       <RouteScrollManager /><DropdownBackgroundScrollLockBridge /><TransientOverlayBackDismissBridge /><RecordBackNavigationBridge /><LeaderRecordRoutePreloader /><MemberCardNavigation /><ReportDownloadExperience />
       <Routes><Route element={<Layout />}>
         <Route path="/" element={<Home />} />
@@ -89,6 +91,7 @@ export default function App() {
         <Route path="/activities" element={<Activities />} />
         <Route path="/activities/consent" element={<Navigate to="/parent#parent-medical-consent" replace />} />
         <Route path="/event-consent/:token" element={<EventConsent />} />
+        <Route path="/calendar" element={<GroupCalendar />} />
         <Route path="/maintenance/*" element={<Maintenance />} />
         <Route path="/parent" element={<ParentPortal />} />
         <Route path="/parent/member-action/:actionToken" element={<ParentMemberInactivation />} />
@@ -144,6 +147,6 @@ export default function App() {
         <Route path="/leader/settings" element={protectedSettingsRoute(<SiteSettings />)} />
         <Route path="/leader/system" element={protectedSuperAdminRoute(<SystemInformation />)} />
       </Route></Routes>
-    </ThemeExperienceProvider></AdminAuthProvider></PublicSiteContentProvider>
+    </ThemeExperienceProvider></CalendarAccessProvider></AdminAuthProvider></PublicSiteContentProvider>
   );
 }

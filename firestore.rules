@@ -2073,6 +2073,18 @@ service cloud.firestore {
         && validMaintenanceSource(request.resource.data);
       allow list, delete: if false;
     }
+    function calendarEnabled() {
+      return signedIn() && get(/databases/$(database)/documents/siteSettings/calendarExperience).data.get("version", "existing") == "redesigned";
+    }
+    match /calendar/group/access/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid && calendarEnabled() && validMaintenanceSource(resource.data);
+      allow create, update: if signedIn() && uid == request.auth.uid && calendarEnabled()
+        && request.resource.data.keys().hasOnly(["kind", "sourceId"]) && validMaintenanceSource(request.resource.data);
+      allow list, delete: if false;
+    }
+    match /calendar/{document=**} {
+      allow read, write: if false;
+    }
     match /maintenance/{document=**} {
       allow read, write: if false;
     }
@@ -2081,7 +2093,7 @@ service cloud.firestore {
       // Public navigation reads a single non-sensitive projection. The canonical
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
-        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience"])
+        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience"])
         || (settingsId == "parentLogin" && isSuperAdmin())
         || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
@@ -2092,7 +2104,7 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time
         && request.resource.data.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
-        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience"] && isSuperAdmin()
+        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "calendarExperience"] && isSuperAdmin()
         && request.resource.data.version in ["existing", "redesigned"]
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time

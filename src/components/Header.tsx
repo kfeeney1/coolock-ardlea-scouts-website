@@ -1,9 +1,10 @@
+import { useCalendarAccess } from "../hooks/useCalendarAccess";
 import { applicationErrorMessage, reportApplicationError } from "../services/applicationErrors.ts";
 import {
     Alert, AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography
 } from "@mui/material";
 import { useMaintenanceAccess } from "../hooks/useMaintenanceAccess";
-import { maintenanceNavItem } from "../navigation/leaderNavigation";
+import { maintenanceNavItem, calendarNavItem } from "../navigation/leaderNavigation";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -26,6 +27,7 @@ function roleSummary(profile: ReturnType<typeof useAdminAuth>["adminProfile"]): 
 
 export default function Header() {
     const maintenance = useMaintenanceAccess();
+    const calendar = useCalendarAccess();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [signOutError, setSignOutError] = useState("");
     const [signingOut, setSigningOut] = useState(false);
@@ -35,7 +37,7 @@ export default function Header() {
     const { pathname } = useLocation();
     const navigate = useNavigate();
     const content = usePublicSiteContent();
-    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(maintenance.allowed && !authorised ? [maintenanceNavItem] : []);
+    const menuItems = content.navigation.filter((item) => item.path !== "/activities/consent" && !/consent/i.test(item.label)).concat(calendar.allowed && !authorised ? [calendarNavItem] : []).concat(maintenance.allowed && !authorised ? [maintenanceNavItem] : []);
     const isPublicRoute = !pathname.startsWith("/leader");
     const showDashboardReturn = isPublicRoute && authorised && Boolean(adminProfile);
     const showPublicParentLogin = shouldShowPublicParentLogin(parentLoginEnabled, Boolean(user), loading);
