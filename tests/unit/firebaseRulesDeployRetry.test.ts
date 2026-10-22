@@ -1,122 +1,119 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import test from "node:test";
+import { publishReviewedRules, deliveryConfig, RULES_ATTEMPTS, RULES_BACKOFF_MS, publishTestRules } from "../../scripts/publish-test-rules.mjs";
+import { deployFirebaseTest } from "../../scripts/deploy-firebase-test-with-rules-retry.mjs";
 
-import {
-  deployFirebaseRulesWithRetry,
-  deployFirebaseTargetsInOrder,
-  deployFirebaseTest,
-  FIREBASE_RULES_BACKOFF_MS,
-  FIREBASE_RULES_MAX_ATTEMPTS,
-  retryableFirebaseRulesEndpoint,
-} from "../../scripts/deploy-firebase-test-with-rules-retry.mjs";
+const name = "firestore.rules";
+const source = "rules_version = '2'; service cloud.firestore { match /databases/{d}/documents { match /{p=**} { allow read, write: if false; } } }";
+const ruleset = { name: "compiled", source: [{ name, content: source }] };
+const unavailable = () => Object.assign(new Error("private SDK payload"), { httpResponse: { status: 503 } });
+const quiet = () => {};
 
-const http503 = (endpoint) => ({
-  code: 2,
-  output: `Error: Request to https://firebaserules.googleapis.com/v1/projects/coolock-ardlea-scouts-test${endpoint} had HTTP Error: 503, The service is currently unavailable.`,
+test("unchanged active reviewed Rules need no compilation or publication", async () => {
+  await publishReviewedRules({ name, source, getLive: async () => ruleset,
+    create: async () => assert.fail("already published"), release: async () => assert.fail("already published"), log: quiet });
 });
 
-test("transient Rules API 503 retries, then deploys remaining TEST targets after rules succeed", async () => {
-  const calls = [];
-  const delays = [];
+test("changed Rules compile once, publish, then verify release name and complete source", async () => {
   const order = [];
-  const run = async (args) => {
-    calls.push(args);
-    if (args.includes("firestore:rules")) {
-      return calls.filter((call) => call.includes("firestore:rules")).length === 1
-        ? http503(":test")
-        : { code: 0, output: "Rules validated and deployed." };
-    }
-    order.push("remaining");
-    return { code: 0, output: "Indexes, Storage rules, and Hosting deployed." };
-  };
-  const log = (message) => order.push(message.startsWith("Firebase Rules validation") ? "rules-succeeded" : "retry");
-
-  await deployFirebaseTest({ run, sleep: async (delay) => delays.push(delay), log });
-
-  assert.equal(calls.length, 3);
-  assert.deepEqual(delays, [FIREBASE_RULES_BACKOFF_MS[0]]);
-  assert.equal(order.indexOf("rules-succeeded") < order.indexOf("remaining"), true);
-  assert.match(calls[0].join(" "), /firestore:rules/);
-  assert.equal(calls[2][calls[2].indexOf("--only") + 1], "firestore:indexes,storage:test-default,hosting");
-  assert.equal(calls[0].includes("coolock-ardlea-scouts-test"), true);
+  let live = { ...ruleset, source: [{ name, content: "old" }] };
+  await publishReviewedRules({ name, source, getLive: async () => { order.push("read"); return live; },
+    create: async (file) => { order.push("compile"); assert.deepEqual(file, { name, content: source }); return ruleset; },
+    release: async (created) => { order.push("release"); live = created; }, log: quiet });
+  assert.deepEqual(order, ["read", "compile", "release", "read"]);
 });
 
-test("persistent Rules API 503 exhausts the bounded retry limit and never deploys remaining targets", async () => {
+test("503 during release reuses compiled Rules and keeps the finite backoff", async () => {
+  let creates = 0, releases = 0;
   const delays = [];
-  const messages = [];
-  let remainingDeploys = 0;
-  await assert.rejects(
-    deployFirebaseTargetsInOrder({
-      deployRules: () => deployFirebaseRulesWithRetry({
-        run: async () => http503("/rulesets"),
-        sleep: async (delay) => delays.push(delay),
-        log: (message) => messages.push(message),
-      }),
-      deployRemainingTargets: async () => { remainingDeploys += 1; },
-    }),
-    new RegExp(`failed after ${FIREBASE_RULES_MAX_ATTEMPTS}/${FIREBASE_RULES_MAX_ATTEMPTS} attempts.*HTTP 503.*\\/rulesets`),
-  );
-
-  assert.equal(delays.length, FIREBASE_RULES_MAX_ATTEMPTS - 1);
-  assert.deepEqual(delays, FIREBASE_RULES_BACKOFF_MS);
-  assert.equal(remainingDeploys, 0);
-  assert.deepEqual(messages, [
-    "Firebase Rules API /rulesets returned HTTP 503 on attempt 1/4; retrying in 5s (attempt 2/4).",
-    "Firebase Rules API /rulesets returned HTTP 503 on attempt 2/4; retrying in 15s (attempt 3/4).",
-    "Firebase Rules API /rulesets returned HTTP 503 on attempt 3/4; retrying in 30s (attempt 4/4).",
-  ]);
+  let live;
+  await publishReviewedRules({ name, source, getLive: async () => live,
+    create: async () => { creates++; return ruleset; },
+    release: async () => { if (++releases === 1) throw unavailable(); live = ruleset; },
+    sleep: async (ms) => { delays.push(ms); }, log: quiet });
+  assert.equal(creates, 1); assert.equal(releases, 2); assert.deepEqual(delays, [5000]);
 });
 
-test("authorization, invalid-rules, and non-Rules API failures are not retried", async () => {
-  for (const output of [
-    "Error: HTTP Error: 403, Permission denied.",
-    "Error: Request to https://firebaserules.googleapis.com/v1/projects/test:test had HTTP Error: 400, invalid rules.",
-    "Error: Request to https://firestore.googleapis.com/v1/projects/test:commit had HTTP Error: 503.",
-  ]) {
-    let attempts = 0;
-    await assert.rejects(
-      deployFirebaseRulesWithRetry({
-        run: async () => { attempts += 1; return { code: 2, output }; },
-        sleep: async () => assert.fail("non-retryable failure must not back off"),
-        log: () => {},
-      }),
-      /not a retryable Firebase Rules API HTTP 503/,
-    );
-    assert.equal(attempts, 1);
+test("ambiguous release success is recovered by reading matching active Rules", async () => {
+  let live;
+  await publishReviewedRules({ name, source, getLive: async () => live,
+    create: async () => ruleset, release: async () => { live = ruleset; throw unavailable(); },
+    sleep: async () => {}, log: quiet });
+});
+
+test("persistent 503 stops at four attempts and prevents indexes/Hosting", async () => {
+  let creates = 0;
+  const delays = [];
+  await assert.rejects(deployFirebaseTest({ publishRules: () => publishReviewedRules({ name, source,
+    getLive: async () => undefined, create: async () => { creates++; throw unavailable(); },
+    release: async () => assert.fail("no compiled Rules"), sleep: async (ms) => { delays.push(ms); }, log: quiet }),
+    run: async () => assert.fail("Rules must be verified first") }), /attempt 4\/4.*HTTP 503/);
+  assert.equal(creates, RULES_ATTEMPTS); assert.deepEqual(delays, RULES_BACKOFF_MS);
+});
+
+test("400, 403 and 409 are fatal without retry, release or payload disclosure", async () => {
+  for (const status of [400, 403, 409]) {
+    await assert.rejects(publishReviewedRules({ name, source, getLive: async () => { throw Object.assign(new Error("SECRET"), { httpResponse: { status } }); },
+      create: async () => assert.fail("must fail closed"), release: async () => assert.fail("must fail closed"),
+      sleep: async () => assert.fail("no retry"), log: quiet }), (error) => {
+      assert.match(error.message, new RegExp(`HTTP ${status}`)); assert.doesNotMatch(error.message, /SECRET/); return true;
+    });
   }
 });
 
-test("retry matching is limited to Firebase Rules API /test and /rulesets 503 responses", () => {
-  assert.equal(retryableFirebaseRulesEndpoint(http503("/test").output), "/test");
-  assert.equal(retryableFirebaseRulesEndpoint(http503("/rulesets").output), "/rulesets");
-  assert.equal(retryableFirebaseRulesEndpoint("https://firestore.googleapis.com/v1/projects/p/test HTTP 503"), null);
-  assert.equal(retryableFirebaseRulesEndpoint("https://firebaserules.googleapis.com/v1/projects/p:test HTTP 403"), null);
+test("only missing release permits initial publication; failed read-back never passes", async () => {
+  let live, released = false;
+  await publishReviewedRules({ name, source, getLive: async () => { if (!released) throw Object.assign(new Error(), { code: "security-rules/not-found" }); return live; },
+    create: async () => ruleset, release: async () => { released = true; live = ruleset; }, log: quiet });
+  for (const invalid of [{ ...ruleset, name: "wrong-release" }, { ...ruleset, source: [] }, { ...ruleset, source: [...ruleset.source, { name: "extra", content: source }] }]) {
+    let reads = 0;
+    await assert.rejects(publishReviewedRules({ name, source, getLive: async () => ++reads === 1 ? undefined : invalid,
+      create: async () => ruleset, release: async () => {}, log: quiet }), /active release is not verified/);
+  }
 });
 
-test("workflow runs all required Rules validation/deployment before other targets and keeps existing TEST gates", () => {
+test("remaining CLI config excludes already verified Rules and retains exact indexes/Hosting", async () => {
+  const original = JSON.parse(readFileSync("firebase.test.json", "utf8"));
+  const config = deliveryConfig(original);
+  assert.equal(config.firestore.rules, undefined); assert.equal(config.storage, undefined);
+  assert.equal(original.firestore.rules, "firestore.rules");
+  assert.deepEqual(config.hosting, original.hosting);
+  assert.equal(config.firestore.indexes, "firestore.indexes.json");
+  assert.throws(() => deliveryConfig({ ...original, firestore: { ...original.firestore, rules: "unreviewed.rules" } }));
+  assert.throws(() => deliveryConfig({ ...original, storage: [...original.storage, original.storage[0]] }));
+  let configPath;
+  await assert.rejects(deployFirebaseTest({ publishRules: async () => {}, run: async (args) => {
+    configPath = args[args.indexOf("--config") + 1];
+    assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), config);
+    assert.equal(args[args.indexOf("--only") + 1], "firestore:indexes,hosting");
+    assert.equal(args[args.indexOf("--project") + 1], "coolock-ardlea-scouts-test");
+    return { code: 1 };
+  } }), /indexes and Hosting deployment failed/);
+  assert.equal(existsSync(configPath), false);
+});
+
+test("Rules publisher rejects production, mismatched credentials and emulators before network use", async () => {
+  const keys = ["DEPLOY_ENVIRONMENT", "FIREBASE_PROJECT_ID", "FIREBASE_SERVICE_ACCOUNT_JSON", "FIRESTORE_EMULATOR_HOST"];
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    for (const [environment, project, credential, emulator] of [
+      ["production", "coolock-ardlea-scouts", "coolock-ardlea-scouts", ""],
+      ["test", "coolock-ardlea-scouts-test", "coolock-ardlea-scouts", ""],
+      ["test", "coolock-ardlea-scouts-test", "coolock-ardlea-scouts-test", "localhost:8080"],
+    ]) {
+      process.env.DEPLOY_ENVIRONMENT = environment; process.env.FIREBASE_PROJECT_ID = project;
+      process.env.FIREBASE_SERVICE_ACCOUNT_JSON = JSON.stringify({ project_id: credential }); process.env.FIRESTORE_EMULATOR_HOST = emulator;
+      await assert.rejects(publishTestRules());
+    }
+  } finally {
+    for (const key of keys) { if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key]; }
+  }
+});
+
+test("TEST retains seed, release metadata and browser gates without continue-on-error", () => {
   const workflow = readFileSync(".github/workflows/firebase-hosting-test.yml", "utf8");
-  const script = readFileSync("scripts/deploy-firebase-test-with-rules-retry.mjs", "utf8");
-
-  assert.match(workflow, /node scripts\/deploy-firebase-test-with-rules-retry\.mjs/);
-  assert.match(script, /firebase-tools@15\.28\.1/);
-  assert.match(script, /"coolock-ardlea-scouts-test"/);
-  assert.match(script, /firestore:rules/);
-  assert.match(script, /firestore:indexes,storage:test-default,hosting/);
-  assert.match(workflow, /seed-test-family-scenarios\.mjs seed/);
-  assert.match(workflow, /check-live-build-info\.mjs/);
-  assert.match(workflow, /test-environment-smoke\.spec\.ts/);
+  for (const gate of ["deploy-firebase-test-with-rules-retry.mjs", "seed-test-family-scenarios.mjs seed", "check-live-build-info.mjs", "test-environment-smoke.spec.ts"]) assert.ok(workflow.includes(gate));
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
-});
-
-test("retry attempts and increasing delay schedule are finite and bounded", () => {
-  assert.equal(FIREBASE_RULES_MAX_ATTEMPTS, 4);
-  assert.deepEqual(FIREBASE_RULES_BACKOFF_MS, [5_000, 15_000, 30_000]);
-  assert.ok(FIREBASE_RULES_MAX_ATTEMPTS <= 5);
-  assert.ok(FIREBASE_RULES_BACKOFF_MS.reduce((total, delay) => total + delay, 0) <= 60_000);
-});
-
- test("actual Firebase project :test failure retries without matching unrelated endpoints", () => {
-  assert.equal(retryableFirebaseRulesEndpoint("Error: Request to https://firebaserules.googleapis.com/v1/projects/coolock-ardlea-scouts-test:test had HTTP Error: 503, The service is currently unavailable."), "/test");
-  for (const url of ["https://firebaserules.googleapis.com.evil.invalid/v1/projects/p:test", "https://firebaserules.googleapis.com/v1/projects/p:testing", "https://firebaserules.googleapis.com/v1/projects/p/releases/test", "https://firebaserules.googleapis.com/v1/projects/p/rulesets/other", "https://other.invalid/test"]) assert.equal(retryableFirebaseRulesEndpoint(`${url} HTTP 503`), null);
+  assert.equal(RULES_ATTEMPTS, 4); assert.deepEqual(RULES_BACKOFF_MS, [5000, 15000, 30000]);
 });
