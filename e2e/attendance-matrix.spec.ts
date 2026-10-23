@@ -30,13 +30,11 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await expect(table.getByRole("row")).toHaveCount(32);
     await expect(table.getByRole("columnheader")).toHaveCount(26);
     await expectAttendancePresentation(page, true);
-    // A valid filter with no closed meetings keeps the enabled matrix visible.
-    await page.getByTestId("attendance-from-date").fill("01-01-2099");
-    await page.getByTestId("attendance-to-date").fill("31-01-2099");
+    // Match no fixture member; shared seeds may contain meetings in any date range.
+    await page.getByLabel("Search members").fill("SW260 NO_MATCHING_MEMBER");
     await expect(page.getByRole("alert").filter({ hasText: "No members or closed meetings match the current filters." })).toBeVisible();
     await expectAttendancePresentation(page, true);
-    await page.getByTestId("attendance-from-date").fill("01-01-2098");
-    await page.getByTestId("attendance-to-date").fill("31-01-2098");
+    await page.getByLabel("Search members").fill("SW260");
     await expect(table.getByRole("row")).toHaveCount(32);
     await expect(table.getByRole("columnheader")).toHaveCount(26);
     await expect(table.getByRole("button")).toHaveCount(0);
