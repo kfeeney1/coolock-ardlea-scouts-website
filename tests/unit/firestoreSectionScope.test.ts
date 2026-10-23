@@ -7,7 +7,8 @@ test("Firestore section access remains bound to persisted canonical account sect
   const profileHelper = rules.match(/function profileHasSection\(section\) \{[\s\S]*?^ {4,6}\}/m)?.[0] ?? "";
   const helper = rules.match(/function hasSection\(section\) \{[\s\S]*?^ {4,6}\}/m)?.[0] ?? "";
 
-  assert.match(profileHelper, /section in profile\(\)\.sections/);
+  assert.match(profileHelper, /let sections = profile\(\)\.sections/);
+  assert.match(profileHelper, /section in sections/);
   assert.match(helper, /profileHasSection\(section\)/);
   assert.doesNotMatch(profileHelper + helper, /organisationLeadership|appointments/);
 });

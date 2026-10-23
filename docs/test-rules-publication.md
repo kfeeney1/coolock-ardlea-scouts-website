@@ -62,3 +62,13 @@ fewer inherited compiler symbols. Retained bodies and all 231 allow statements
 remain unchanged. The regression ceiling is reduced to 14 root helpers. Actual
 compiled size and live release acceptance must still be verified by deployment;
 local emulator/CI success does not establish that the compiled-size limit passes.
+
+Main `0361f9ca` still failed live publication with the classified compiled-size
+error. The next reduction targets repeated shared predicate expansion: bind the
+canonical leader profile and section list once per helper, pass the guarded
+organisation profile once to its role predicate, and factor the common active
+leader condition out of `hasSection`. Authentication/existence guards, accepted
+roles, section aliases and allow statements are preserved. Regression checks
+limit these shared helpers to a single canonical-profile expansion. Permission
+tests and live publication remain distinct gates; a smaller source diff alone
+does not establish compiled-size recovery.
