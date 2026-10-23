@@ -21,3 +21,18 @@ test("compiler-limit diagnostics classify known failures without leaking message
     assert.equal(rulesCompilerReason(new Error(message)), "no recognised compiler-limit detail");
   }
 });
+
+
+test("shared leader checks expand canonical profile reads only once", () => {
+  const rules = readFileSync("firestore.rules", "utf8");
+  for (const name of ["isCanonicalLeaderProfile", "profileHasSection"]) {
+    const body = rules.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?^    \\}`, "m"))?.[0] ?? "";
+    assert.equal([...body.matchAll(/profile\(\)/g)].length, 1, name);
+  }
+  const section = rules.match(/function hasSection\(section\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  assert.equal([...section.matchAll(/isActiveLeader\(\)/g)].length, 1);
+  assert.doesNotMatch(section, /isAdmin\(/);
+  const group = rules.match(/function isGroupLeader\(\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  assert.match(group, /isActiveLeader\(\)[\s\S]*exists\([\s\S]*activeGroupLeadership\(get\(/);
+  assert.equal([...group.matchAll(/get\(/g)].length, 1);
+});

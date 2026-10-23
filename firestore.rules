@@ -6,11 +6,12 @@ service cloud.firestore {
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
     function parentProfile() { return get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data; }
     function isCanonicalLeaderProfile() {
-      return profile().active == true
-        && profile().role in ["leader", "admin", "super-admin"]
-        && profile().sections is list
-        && profile().sections.size() > 0
-        && !profile().keys().hasAny(["section"]);
+      let data = profile();
+      return data.active == true
+        && data.role in ["leader", "admin", "super-admin"]
+        && data.sections is list
+        && data.sections.size() > 0
+        && !data.keys().hasAny(["section"]);
     }
     function isActiveLeader() {
       return signedIn()
@@ -19,25 +20,30 @@ service cloud.firestore {
     }
     function isSuperAdmin() { return isActiveLeader() && profile().role == "super-admin"; }
     function isAdmin() { return isActiveLeader() && profile().role in ["super-admin", "admin"]; }
+    function activeGroupLeadership(data) {
+      return data.active == true
+        && data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
+    }
     function isGroupLeader() {
       return isActiveLeader()
         && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
+        && activeGroupLeadership(get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data);
     }
 
     // The same existing group-wide member readers, evaluated once rather than
     // repeating leader-profile validation across several independent role paths.
     function profileHasSection(section) {
-      return section in profile().sections
-        || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
-        || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in profile().sections)
-        || (section == "Scout" && "Scouts" in profile().sections)
-        || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in profile().sections)
-        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in profile().sections);
+      let sections = profile().sections;
+      return section in sections
+        || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in sections)
+        || (section in ["Cub", "Cub Scout", "Cub Scouts"] && "Cubs" in sections)
+        || (section == "Scout" && "Scouts" in sections)
+        || (section in ["Venture", "Venture Scout", "Venture Scouts"] && "Ventures" in sections)
+        || (section in ["Rover", "Rover Scout", "Rover Scouts"] && "Rovers" in sections);
     }
     function hasSection(section) {
-      return isAdmin() || (isActiveLeader() && profileHasSection(section));
+      return isActiveLeader()
+        && (profile().role in ["super-admin", "admin"] || profileHasSection(section));
     }
     // Call only after isActiveLeader() has been established by the enclosing rule.
     // Keeping this helper to section-overlap checks avoids repeatedly expanding the
