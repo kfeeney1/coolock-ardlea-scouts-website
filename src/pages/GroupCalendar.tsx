@@ -49,8 +49,8 @@ export default function GroupCalendar() {
         </Stack>
       </Paper>
       <Stack direction={{xs: "column", sm: "row"}} spacing={1}>
-      {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/new" state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance</Button>}
-      {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/tasks" state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance task</Button>}
+      {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/new" data-calendar-schedule-action disabled={records.loading} state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance</Button>}
+      {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/tasks" data-calendar-schedule-action disabled={records.loading} state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance task</Button>}
       </Stack>
     </Stack>
   </CalendarPageLayout>;
