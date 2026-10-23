@@ -1,15 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { scheduleFixtureDb } from "./support/schedule-fixtures";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const parentEmail = process.env.E2E_PARENT_EMAIL;
-
-function groupLocalDate(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit"
-  }).formatToParts(now);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
 
 function shiftDate(date: string, days: number): string {
   const [year, month, day] = date.split("-").map(Number);
@@ -27,9 +20,16 @@ async function loginParent(page: Page) {
 
 test("parent can browse recent meetings and historical meetings with linked-section access on desktop and mobile", async ({ page }) => {
   test.skip(!password || !parentEmail, "Configure canonical E2E parent credentials.");
+  // The suite may cross Dublin midnight after seeding. Keep the browser's
+  // relative programme partition on the same day as the canonical fixtures.
+  const fixture = await scheduleFixtureDb().doc("parentWeeklyMeetings/TEST_sw415_parent_meeting_today").get();
+  expect(fixture.exists).toBe(true);
+  const today = fixture.data()?.meetingDate;
+  expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  const noon = new Date(`${today}T12:00:00Z`);
+  expect(noon.toISOString().slice(0, 10)).toBe(today);
+  await page.clock.setFixedTime(noon);
   await loginParent(page);
-
-  const today = groupLocalDate();
   const upcoming = page.getByTestId("parent-weekly-default");
   const todayMeeting = upcoming.getByTestId("parent-weekly-meeting-TEST_sw415_parent_meeting_today");
   const futureMeeting = upcoming.getByTestId("parent-weekly-meeting-TEST_sw415_parent_meeting_future");
