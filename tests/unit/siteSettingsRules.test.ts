@@ -33,16 +33,16 @@ test("site session settings enforce bounded timeout values and audit fields", ()
         "leaderDesktopInactivityMinutes",
         "leaderPhoneInactivityMinutes"
     ]) {
-        assert.match(block, new RegExp(`request\\.resource\\.data\\.${field} >= 5`));
-        assert.match(block, new RegExp(`request\\.resource\\.data\\.${field} <= 240`));
+        assert.match(block, new RegExp(`_writeData\\.${field} >= 5`));
+        assert.match(block, new RegExp(`_writeData\\.${field} <= 240`));
     }
-    assert.match(block, /request\.resource\.data\.updatedBy == request\.auth\.uid/);
-    assert.match(block, /request\.resource\.data\.updatedAt == request\.time/);
+    assert.match(block, /_writeData\.updatedBy == request\.auth\.uid/);
+    assert.match(block, /_writeData\.updatedAt == request\.time/);
     assert.match(block, /getAfter\([^\n]+siteSettings\/publicNavigation\)/);
     assert.match(block, /getAfter\([^\n]+siteSettings\/parentLogin\)/);
-    assert.match(block, /request\.resource\.data\.parentLoginEnabled is bool/);
-    assert.match(block, /request\.resource\.data\.keys\(\)\.hasOnly\(\["parentLoginEnabled", "parentConsentEnabled"\]\)/);
-    assert.match(block, /request\.resource\.data\.parentConsentEnabled is bool/);
-    assert.match(block, /request\.resource\.data\.keys\(\)\.hasOnly\(\["parentConsentEnabled", "updatedAt", "updatedBy"\]\)/);
+    assert.match(block, /_writeData\.parentLoginEnabled is bool/);
+    assert.match(block, /_writeData\.keys\(\)\.hasOnly\(\["parentLoginEnabled", "parentConsentEnabled"\]\)/);
+    assert.match(block, /_writeData\.parentConsentEnabled is bool/);
+    assert.match(block, /_writeData\.keys\(\)\.hasOnly\(\["parentConsentEnabled", "updatedAt", "updatedBy"\]\)/);
     assert.match(block, /getAfter\([^\n]+siteSettings\/parentConsent\)/);
 });

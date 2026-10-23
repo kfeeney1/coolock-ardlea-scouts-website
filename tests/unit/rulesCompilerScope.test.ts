@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { rulesCompilerReason } from "../../scripts/publish-test-rules.mjs";
 
-test("collection-only helpers do not multiply into every Firestore match scope", () => {
+test("shared helpers are declared once and collection-only helpers stay local", () => {
   const rules = readFileSync("firestore.rules", "utf8");
   const rootHelpers = [...rules.matchAll(/^    function (\w+)\(/gm)].map((match) => match[1]);
-  // Only broadly shared identity/section helpers belong in the database root.
-  assert.ok(rootHelpers.length <= 14, `${rootHelpers.length} root helpers; localize collection-specific functions`);
-  for (const name of ["weeklyMeetingHasPresentMember", "validMaintenanceTask", "validMaintenanceDocument", "validPollDocument", "canReadPolicyAudience", "canManageJoinSection", "validMaintenanceSource", "validIsoDate", "hasFinanceAppointment"]) {
+  const helpers = [...rules.matchAll(/function (\w+)\(/g)].map((match) => match[1]);
+  assert.equal(new Set(helpers).size, helpers.length, "share multi-consumer helper declarations instead of copying bodies");
+  for (const name of ["weeklyMeetingHasPresentMember", "validMaintenanceTask", "validMaintenanceDocument", "validPollDocument", "canReadPolicyAudience", "canManageJoinSection"]) {
     assert.ok(!rootHelpers.includes(name), `${name} belongs in its consuming match`);
     assert.match(rules, new RegExp(`^      function ${name}\\(`, "m"));
   }
@@ -35,4 +35,18 @@ test("shared leader checks expand canonical profile reads only once", () => {
   const group = rules.match(/function isGroupLeader\(\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
   assert.match(group, /isActiveLeader\(\)[\s\S]*exists\([\s\S]*activeGroupLeadership\(get\(/);
   assert.equal([...group.matchAll(/get\(/g)].length, 1);
+});
+
+test("local write validators receive incoming data and only guard create/update", () => {
+  const rules = readFileSync("firestore.rules", "utf8");
+  const validators = [...rules.matchAll(/^([ ]*)function (_validateWrite\d+)\(_writeData\) \{\n[ ]*return ([\s\S]*?);\n\1\}/gm)];
+  assert.equal(validators.length, 53);
+  for (const [, , name, expression] of validators) {
+    assert.ok(expression.includes("_writeData"), name);
+    assert.doesNotMatch(expression, /request\.resource\.data/);
+    const calls = [...rules.matchAll(new RegExp(`allow ([^:]+): if ${name}\\(([^;]+)\\);`, "g"))];
+    assert.equal(calls.length, 1, name);
+    assert.ok(["create", "update", "create, update"].includes(calls[0][1]), name);
+    assert.equal(calls[0][2], "request.resource.data", name);
+  }
 });

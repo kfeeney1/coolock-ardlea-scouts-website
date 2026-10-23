@@ -12,16 +12,16 @@ test("Adventure Skills progress is member-owned and parents are read-only", () =
 });
 
 test("requirement writes are attributed, source-aware and bounded to catalogue stage numbers", () => {
-  assert.match(rules, /request\.resource\.data\.requirementId == requirementId/);
-  assert.match(rules, /request\.resource\.data\.completedBy == request\.auth\.uid/);
-  assert.match(rules, /request\.resource\.data\.sourceType in \["manual", "weeklyMeeting", "event", "activity", "migration"\]/);
-  assert.match(rules, /request\.resource\.data\.stage >= 1/);
-  assert.match(rules, /request\.resource\.data\.stage <= 9/);
+  assert.match(rules, /_writeData\.requirementId == requirementId/);
+  assert.match(rules, /_writeData\.completedBy == request\.auth\.uid/);
+  assert.match(rules, /_writeData\.sourceType in \["manual", "weeklyMeeting", "event", "activity", "migration"\]/);
+  assert.match(rules, /_writeData\.stage >= 1/);
+  assert.match(rules, /_writeData\.stage <= 9/);
 });
 
 test("awards remain separate from requirement completion and use stable document IDs", () => {
   assert.match(rules, /match \/awards\/\{awardId\}/);
-  assert.match(rules, /request\.resource\.data\.awardId == awardId/);
-  assert.match(rules, /request\.resource\.data\.keys\(\)\.hasOnly\(\["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"\]\)/);
-  assert.match(rules, /request\.resource\.data\.awardedBy == request\.auth\.uid/);
+  assert.match(rules, /_writeData\.awardId == awardId/);
+  assert.match(rules, /_writeData\.keys\(\)\.hasOnly\(\["awardId", "memberId", "skillId", "stage", "awardedAt", "awardedBy"\]\)/);
+  assert.match(rules, /_writeData\.awardedBy == request\.auth\.uid/);
 });
