@@ -130,7 +130,20 @@ test.describe("stable TEST environment smoke", () => {
       await expect(page.getByTestId("attendance-member-card").first()).toBeVisible();
       await expect(page.getByRole("alert").filter({ hasText: /Unable to load attendance|permission denied/i })).toHaveCount(0);
       const matrix = page.getByRole("table", { name: "Member attendance by meeting", exact: true });
-      if (matrixEnabled) await expect(matrix).toBeVisible(); else await expect(matrix).toHaveCount(0);
+      try {
+        if (matrixEnabled) await expect(matrix).toBeVisible(); else await expect(matrix).toHaveCount(0);
+      } catch (error) {
+        // Log only presentation state, never member names or attendance contents.
+        console.log("TEST attendance presentation failure", {
+          matrixEnabled,
+          visit,
+          matrixHeadingVisible: await page.getByRole("heading", { name: "Attendance matrix", exact: true }).isVisible(),
+          matrixTableVisible: await matrix.isVisible(),
+          matrixEmptyVisible: await page.getByRole("alert").filter({ hasText: "No members or closed meetings match the current filters." }).isVisible(),
+          loadErrorVisible: await page.getByRole("alert").filter({ hasText: /Unable to load attendance|permission denied/i }).isVisible()
+        });
+        throw error;
+      }
     }
     console.log(`TEST attendance presentation verified read-only: ${matrixEnabled ? "matrix" : "existing"}`);
   });

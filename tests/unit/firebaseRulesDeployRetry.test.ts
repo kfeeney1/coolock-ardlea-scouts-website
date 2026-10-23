@@ -117,3 +117,17 @@ test("TEST retains seed, release metadata and browser gates without continue-on-
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
   assert.equal(RULES_ATTEMPTS, 4); assert.deepEqual(RULES_BACKOFF_MS, [5000, 15000, 30000]);
 });
+
+test("failed TEST smoke retains browser evidence without changing its failure gate", () => {
+  const workflow = readFileSync(".github/workflows/firebase-hosting-test.yml", "utf8");
+  const start = workflow.indexOf("      - name: Retain failed TEST smoke evidence");
+  const end = workflow.indexOf("      - name: Record TEST deployment evidence", start);
+  assert.ok(start > workflow.indexOf("      - name: Run read-only public, leader and parent TEST smoke"));
+  assert.ok(end > start);
+  const upload = workflow.slice(start, end);
+  assert.match(upload, /if: \$\{\{ failure\(\) \|\| cancelled\(\) \}\}/);
+  assert.match(upload, /actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9/);
+  for (const path of ["playwright-report/", "test-results/"]) assert.ok(upload.includes(path));
+  assert.match(upload, /retention-days: 14/);
+  assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
+});
