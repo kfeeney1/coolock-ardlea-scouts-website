@@ -4,11 +4,8 @@ import test from "node:test";
 
 test("Firestore section access remains bound to persisted canonical account sections", () => {
   const rules = readFileSync("firestore.rules", "utf8");
-  const profileStart = rules.indexOf("function profileHasSection(section)");
-  const start = rules.indexOf("function hasSection(section)");
-  const end = rules.indexOf("function badgeworkSectionAppointmentAt", start);
-  const profileHelper = rules.slice(profileStart, start);
-  const helper = rules.slice(start, end);
+  const profileHelper = rules.match(/function profileHasSection\(section\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
+  const helper = rules.match(/function hasSection\(section\) \{[\s\S]*?^    \}/m)?.[0] ?? "";
 
   assert.match(profileHelper, /section in profile\(\)\.sections/);
   assert.match(helper, /profileHasSection\(section\)/);
