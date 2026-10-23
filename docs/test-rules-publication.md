@@ -39,36 +39,44 @@ ruleset creation. Firebase documents both compiler-stack 503 failures and
 compiled executable size 400 failures for large inherited helper scopes:
 https://firebase.google.com/docs/rules/rules-language#expression_complexity_and_compiler_limits
 
-Collection-specific helpers now live in their sole consuming match rather than
-being inherited by every match. This moves 60 helpers out of root scope, leaving
-52 shared helpers. Function bodies and allow statements are unchanged. The
-scope regression check limits root-helper growth and keeps representative
-collection-only helpers local. Real permission behaviour remains covered by the
-Firestore and Storage emulator suites.
+Live publication on main `6885a979` still failed with the classified compiled-size
+error after both the scope changes and shared identity-expression reductions.
+The candidate restores multi-consumer helpers to one shared declaration, keeps
+60 single-consumer helpers local and retains the identity-expression reductions.
+Root helper count alone is not a useful size budget: copying shared helpers into
+several scopes made the local compiler representation substantially larger.
 
-HTTP 400 alone does not prove the executable size limit was reached. The runner
-classifies known size/stack-limit messages into fixed safe labels; unrecognised
-messages remain unclassified without exposing SDK payloads. Actual live release
-publication must pass before this compiler-limit hypothesis is considered
-resolved. No compiler failure is ignored or treated as a successful release.
+For comparison, the standalone compiler in the pinned Firestore emulator
+`cloud-firestore-emulator-v1.22.0.jar` was invoked with let bindings, ternary
+operators and cross-service Rules enabled. Each source used the same filename,
+`firestore.rules`. Its `getRulesetAst().getSerializedSize()` reported:
 
-The first live release after this reduction (main `2cee238d`) failed with the
-classified compiled-size error, confirming the size diagnosis and showing that
-52 root helpers were still too many. The follow-up leaves only 10 broadly shared
-identity/section helpers at root. Helpers used by several collections are copied
-unchanged into only their consuming scopes, and two unreferenced helpers are
-removed. This trades a larger, still-under-limit source file (226,088 bytes) for
-fewer inherited compiler symbols. Retained bodies and all 231 allow statements
-remain unchanged. The regression ceiling is reduced to 14 root helpers. Actual
-compiled size and live release acceptance must still be verified by deployment;
-local emulator/CI success does not establish that the compiled-size limit passes.
+| Revision | Local serialized AST bytes |
+| --- | ---: |
+| Previously published SW-339 baseline | 696,891 |
+| Single-consumer localization (`2cee238d`) | 725,771 |
+| Duplicated multi-consumer helpers (`0361f9ca`) | 923,421 |
+| Identity-expression reduction (`6885a979`) | 923,397 |
+| Shared declarations restored, identity reductions retained | 723,117 |
+| Shared declarations plus incoming write-data aliases | 654,424 |
 
-Main `0361f9ca` still failed live publication with the classified compiled-size
-error. The next reduction targets repeated shared predicate expansion: bind the
-canonical leader profile and section list once per helper, pass the guarded
-organisation profile once to its role predicate, and factor the common active
-leader condition out of `hasSection`. Authentication/existence guards, accepted
-roles, section aliases and allow statements are preserved. Regression checks
-limit these shared helpers to a single canonical-profile expansion. Permission
-tests and live publication remain distinct gates; a smaller source diff alone
-does not establish compiled-size recovery.
+These are comparative local AST measurements, **not** the cloud compiled
+executable size or proof of live acceptance. The final candidate is about 29%
+smaller than current main on this measurement, and below the successful baseline.
+Actual live release publication must pass before the deployment issue is resolved.
+
+The incoming-data reduction moves 53 create/update conditions into local
+single-consumer validators. Each receives `request.resource.data` once; its
+original condition uses that parameter instead of repeating the member chain.
+No read or delete condition is wrapped, existing-document data is not hoisted,
+and guard order is preserved. Reverse-expanding the aliases reproduces all 231
+original allow conditions exactly. All retained pre-existing helper bodies are
+unchanged apart from indentation and their restored declaration scopes.
+
+Source-contract tests retain their field, role and bounds assertions using the
+incoming-data parameter, with a separate check that every validator is called
+exactly once from create/update with canonical incoming data. Firestore and
+Storage emulator suites exercise the deployed source directly. No coverage,
+publication guard or permission condition is removed to obtain a smaller Rules
+representation. Development checks, live TEST acceptance and Production Manual
+Testing remain separate gates.
