@@ -51,3 +51,14 @@ classifies known size/stack-limit messages into fixed safe labels; unrecognised
 messages remain unclassified without exposing SDK payloads. Actual live release
 publication must pass before this compiler-limit hypothesis is considered
 resolved. No compiler failure is ignored or treated as a successful release.
+
+The first live release after this reduction (main `2cee238d`) failed with the
+classified compiled-size error, confirming the size diagnosis and showing that
+52 root helpers were still too many. The follow-up leaves only 10 broadly shared
+identity/section helpers at root. Helpers used by several collections are copied
+unchanged into only their consuming scopes, and two unreferenced helpers are
+removed. This trades a larger, still-under-limit source file (226,088 bytes) for
+fewer inherited compiler symbols. Retained bodies and all 231 allow statements
+remain unchanged. The regression ceiling is reduced to 14 root helpers. Actual
+compiled size and live release acceptance must still be verified by deployment;
+local emulator/CI success does not establish that the compiled-size limit passes.

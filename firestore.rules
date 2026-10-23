@@ -3,23 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function matchesCalendarDate(value) {
-      let parts = value.split('-');
-      let year = int(parts[0]);
-      let month = int(parts[1]);
-      let day = int(parts[2]);
-      let date = timestamp.date(year, month, day);
-      return date.year() == year && date.month() == month && date.day() == day;
-    }
-    function validIsoDate(value) {
-      return value is string
-        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
-        && matchesCalendarDate(value);
-    }
-    function validDateRange(startDate, endDate) {
-      return validIsoDate(startDate) && validIsoDate(endDate)
-        && startDate <= endDate;
-    }
     function profile() { return get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data; }
     function parentProfile() { return get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data; }
     function isCanonicalLeaderProfile() {
@@ -42,105 +25,9 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
         && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL"];
     }
-    function joinSectionLeaderAppointmentAt(data, index, section) {
-      return data.keys().hasAny(["appointments"])
-        && data.appointments is list && data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment == "Section Leader"
-        && data.appointments[index].scope == section;
-    }
-    function hasJoinSectionLeaderAppointment(data, section) {
-      return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
-        || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
-    }
-    function isRoverSectionLeader() {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      let leadership = get(organisationPath).data;
-      return isActiveLeader() && profileHasSection("Rovers")
-        && exists(organisationPath)
-        && leadership.active == true
-        && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == "Rovers")
-          || hasJoinSectionLeaderAppointment(leadership, "Rovers"));
-    }
-    function isActiveRegisteredLeader(uid) {
-      return uid is string
-        && exists(/databases/$(database)/documents/adminUsers/$(uid))
-        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
-        && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader"
-        && exists(/databases/$(database)/documents/organisationLeadership/$(uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.active == true;
-    }
-    function validLeaderAttendanceRecord(uid) {
-      return isActiveRegisteredLeader(uid)
-        && request.resource.data.displayName == get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.displayName
-        && request.resource.data.appointments is list
-        && request.resource.data.appointments.size() <= 12
-        && request.resource.data.sections is list
-        && request.resource.data.sections.size() <= 6
-        && request.resource.data.attendance in ["unrecorded", "present", "absent"]
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.keys().hasOnly(["displayName", "appointments", "sections", "attendance", "updatedBy", "updatedAt"]);
-    }
-    function isApprovedParent() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && parentProfile().status == "approved";
-    }
 
-    function isGroupSecretary() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
-    }
-    function isGroupTreasurer() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Treasurer";
-    }
-    function isQuartermaster() {
-      return isActiveLeader()
-        && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
-        && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
-    }
-    function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
-    function canViewAllFinance() {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      return isActiveLeader()
-        && (profile().role in ["super-admin", "admin"]
-          || (exists(organisationPath)
-            && get(organisationPath).data.active == true
-            && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
-              || hasFinanceAppointment(get(organisationPath).data))));
-    }
     // The same existing group-wide member readers, evaluated once rather than
     // repeating leader-profile validation across several independent role paths.
-    function financeAppointmentAt(data, index) {
-      return data.keys().hasAny(["appointments"])
-        && data.appointments is list && data.appointments.size() > index
-        && data.appointments[index] is map
-        && data.appointments[index].get("active", true) == true
-        && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
-    }
-    function hasFinanceAppointment(data) {
-      return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
-        || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
-    }
-    function canManageSubsPolicy() { return canViewAllFinance(); }
-    function isOrdinaryLeaderTarget(userId) {
-      return exists(/databases/$(database)/documents/adminUsers/$(userId))
-        && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
-    }
-    function isGroupLeadershipDelegableAppointment(value) {
-      return value in ["Group Chairperson", "Group Youth Champion", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
-    }
-    function canDelegateLeaderTarget(userId) {
-      return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
-    }
     function profileHasSection(section) {
       return section in profile().sections
         || (section in ["Beaver", "Beaver Scout", "Beaver Scouts"] && "Beavers" in profile().sections)
@@ -152,130 +39,22 @@ service cloud.firestore {
     function hasSection(section) {
       return isAdmin() || (isActiveLeader() && profileHasSection(section));
     }
-    function memberHasSection(data, section) {
-      return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
-        || (data.keys().hasAny(["section"]) && data.section == section);
-    }
-    function badgeworkSectionAliases(section) {
-      return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
-        ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
-        : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
-          ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
-          : section in ["Scouts", "Scout"]
-            ? ["Scouts", "Scout"]
-            : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
-              ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
-              : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
-                ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
-                : [section];
-    }
     // Call only after isActiveLeader() has been established by the enclosing rule.
     // Keeping this helper to section-overlap checks avoids repeatedly expanding the
     // authentication/profile predicates and hitting Firestore's expression limit.
-    function canAccessMemberSections(data) {
-      return profile().role in ["super-admin", "admin"]
-        || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
-        || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
-    }
     // Keep the fixed appointment lookup bounded; Firestore Rules caps each evaluation at 1,000 expressions.
-    function eventSectionAppointmentMatches(appointment, sectionAliases) {
-      return appointment is map
-        && appointment.get("active", true) == true
-        && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-        && appointment.get("scope", "") in sectionAliases;
-    }
-    function eventSectionAppointmentAt(data, index, sectionAliases) {
-      return data.appointments.size() > index
-        && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
-    }
-    function hasEventSectionAppointment(section) {
-      let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
-      let leadership = get(organisationPath).data;
-      let aliases = badgeworkSectionAliases(section);
-      return exists(organisationPath) && leadership.active == true
-        && ((!leadership.keys().hasAny(["appointments"])
-              || !(leadership.appointments is list) || leadership.appointments.size() == 0)
-          ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
-            && leadership.organisationSection in aliases
-          : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
-            || eventSectionAppointmentAt(leadership, 1, aliases)
-            || eventSectionAppointmentAt(leadership, 2, aliases)
-            || eventSectionAppointmentAt(leadership, 3, aliases)
-            || eventSectionAppointmentAt(leadership, 4, aliases)
-            || eventSectionAppointmentAt(leadership, 5, aliases)
-            || eventSectionAppointmentAt(leadership, 6, aliases)
-            || eventSectionAppointmentAt(leadership, 7, aliases)
-            || eventSectionAppointmentAt(leadership, 8, aliases)
-            || eventSectionAppointmentAt(leadership, 9, aliases)
-            || eventSectionAppointmentAt(leadership, 10, aliases)
-            || eventSectionAppointmentAt(leadership, 11, aliases)));
-    }
-    function canAccessEventSection(section) {
-      // Every caller enforces active-leader access before this scoped check.
-      return profile().role in ["super-admin", "admin"]
-        ? true
-        : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
-    }
     // Weekly meeting rosters are capped at 100 persisted entries. Check the persisted
     // attendance record itself; a client-supplied badgework member list is not authority.
-    function isYouthSection(section) {
-      return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
-    }
     // Call only after isActiveLeader() has been established by the enclosing rule.
     // Source authority is sufficient for a youth-section transfer; destination
     // authority is deliberately not required and no profile permissions are changed.
-    function canTransferMember(fromSection, toSection) {
-      return (profile().role in ["super-admin", "admin"] || profileHasSection(fromSection))
-        && isYouthSection(fromSection) && isYouthSection(toSection);
-    }
-    function canAccessFinanceSection(section) {
-      return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
-    }
-    function isApprovedParentForMember(memberId) {
-      let parent = parentProfile();
-      return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
-        && parent.status == "approved"
-        && parent.memberIds is list
-        && memberId in parent.memberIds;
-    }
-    function parentMemberCurrentlyInSection(memberId, section) {
-      return memberId is string
-        && exists(/databases/$(database)/documents/members/$(memberId))
-        && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
-        && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
-    }
-    function isApprovedParentForSection(section) {
-      return isApprovedParent()
-        && parentProfile().memberIds is list
-        && parentProfile().memberIds.size() <= 8
-        && (
-          section in ["Group", "All Sections"]
-          || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
-          || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
-          || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
-          || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
-          || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
-          || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
-          || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
-          || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
-        );
-    }
-
-    function isApprovedParentForAudienceMembers(memberIds) {
-      return isApprovedParent()
-        && memberIds is list
-        && parentProfile().memberIds is list
-        && parentProfile().memberIds.size() <= 8
-        && memberIds.hasAny(parentProfile().memberIds);
-    }
-
-    function isActiveMember(memberId) {
-      return memberId is string
-        && exists(/databases/$(database)/documents/members/$(memberId))
-        && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
-    }
 
     match /policyDocuments/{documentId} {
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
       function canManagePolicies() { return isAdmin() || isGroupLeader(); }
       function canReadPolicyAudience(audience) {
         return audience == "public"
@@ -321,12 +100,40 @@ service cloud.firestore {
 
     // A published assignment snapshot is invalidated by every canonical source
     // mutation. Existing self-service contact/theme writes do not affect eligibility.
-    function maintenanceDirectoryInvalidated() {
-      let path = /databases/$(database)/documents/maintenance/group/config/leaders;
-      return !exists(path) || (getAfter(path).data.updatedAt == request.time
-        && getAfter(path).data.generation != get(path).data.generation && getAfter(path).data.ready == false);
-    }
     match /adminUsers/{userId} {
+      function joinSectionLeaderAppointmentAt(data, index, section) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment == "Section Leader"
+          && data.appointments[index].scope == section;
+      }
+      function hasJoinSectionLeaderAppointment(data, section) {
+        return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
+          || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
+      }
+      function isOrdinaryLeaderTarget(userId) {
+        return exists(/databases/$(database)/documents/adminUsers/$(userId))
+          && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
+      }
+      function isRoverSectionLeader() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        return isActiveLeader() && profileHasSection("Rovers")
+          && exists(organisationPath)
+          && leadership.active == true
+          && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == "Rovers")
+            || hasJoinSectionLeaderAppointment(leadership, "Rovers"));
+      }
+      function canDelegateLeaderTarget(userId) {
+        return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
+      }
+      function maintenanceDirectoryInvalidated() {
+        let path = /databases/$(database)/documents/maintenance/group/config/leaders;
+        return !exists(path) || (getAfter(path).data.updatedAt == request.time
+          && getAfter(path).data.generation != get(path).data.generation && getAfter(path).data.ready == false);
+      }
       allow get: if isActiveLeader();
       allow list: if isAdmin() || isGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
       allow create: if isAdmin() && maintenanceDirectoryInvalidated()
@@ -362,6 +169,26 @@ service cloud.firestore {
     }
 
     match /leaderChildRelationships/{relationshipId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
       allow get, list: if isAdmin() || isGroupLeader() || canViewAllFinance();
       allow create: if (isAdmin() || isGroupLeader())
         && request.resource.data.leaderUid is string
@@ -421,6 +248,11 @@ service cloud.firestore {
     // A random, short-lived link lets the member complete the ordinary public
     // Leader Registration form without putting their personal details in the URL.
     match /leaderTransitionInvitations/{invitationId} {
+      function canAccessMemberSections(data) {
+        return profile().role in ["super-admin", "admin"]
+          || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
+          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
+      }
       allow create: if isActiveLeader()
         && request.resource.data.status == "pending"
         && request.resource.data.createdBy == request.auth.uid
@@ -450,6 +282,18 @@ service cloud.firestore {
     }
 
     match /joinApplications/{applicationId} {
+      function joinSectionLeaderAppointmentAt(data, index, section) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment == "Section Leader"
+          && data.appointments[index].scope == section;
+      }
+      function hasJoinSectionLeaderAppointment(data, section) {
+        return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
+          || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
+      }
       function isJoinSectionLeader(section) {
         let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
         let leadership = get(organisationPath).data;
@@ -485,6 +329,61 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function joinSectionLeaderAppointmentAt(data, index, section) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment == "Section Leader"
+          && data.appointments[index].scope == section;
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function hasJoinSectionLeaderAppointment(data, section) {
+        return joinSectionLeaderAppointmentAt(data, 0, section) || joinSectionLeaderAppointmentAt(data, 1, section)
+          || joinSectionLeaderAppointmentAt(data, 2, section) || joinSectionLeaderAppointmentAt(data, 3, section);
+      }
+      function isYouthSection(section) {
+        return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+      }
+      function isRoverSectionLeader() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        return isActiveLeader() && profileHasSection("Rovers")
+          && exists(organisationPath)
+          && leadership.active == true
+          && ((leadership.scoutingRole == "Section Leader" && leadership.organisationSection == "Rovers")
+            || hasJoinSectionLeaderAppointment(leadership, "Rovers"));
+      }
+      function canAccessMemberSections(data) {
+        return profile().role in ["super-admin", "admin"]
+          || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
+          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
+      }
+      function canTransferMember(fromSection, toSection) {
+        return (profile().role in ["super-admin", "admin"] || profileHasSection(fromSection))
+          && isYouthSection(fromSection) && isYouthSection(toSection);
+      }
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
       function canManageRoverMembership() { return isAdmin() || isGroupLeader() || isRoverSectionLeader(); }
       function isEligibleAdultUid(uid) {
         return uid is string
@@ -634,6 +533,37 @@ service cloud.firestore {
     }
 
     match /memberAdventureSkillProgress/{memberId} {
+      function badgeworkSectionAliases(section) {
+        return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            : section in ["Scouts", "Scout"]
+              ? ["Scouts", "Scout"]
+              : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  : [section];
+      }
+      function isGroupSecretary() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      }
+      function canAccessMemberSections(data) {
+        return profile().role in ["super-admin", "admin"]
+          || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
+          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
+      }
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
       function weeklyMeetingPresentEntryMatches(entry, memberId) {
         return entry is map
           && entry.get("memberId", "") == memberId
@@ -950,6 +880,18 @@ service cloud.firestore {
     }
 
     match /memberHistory/{entryId} {
+      function isYouthSection(section) {
+        return section in ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers"];
+      }
+      function canAccessMemberSections(data) {
+        return profile().role in ["super-admin", "admin"]
+          || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
+          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
+      }
+      function canTransferMember(fromSection, toSection) {
+        return (profile().role in ["super-admin", "admin"] || profileHasSection(fromSection))
+          && isYouthSection(fromSection) && isYouthSection(toSection);
+      }
       allow read: if isActiveLeader()
         && resource.data.memberId is string
         && exists(/databases/$(database)/documents/members/$(resource.data.memberId))
@@ -971,6 +913,74 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
+      function eventSectionAppointmentMatches(appointment, sectionAliases) {
+        return appointment is map
+          && appointment.get("active", true) == true
+          && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+          && appointment.get("scope", "") in sectionAliases;
+      }
+      function matchesCalendarDate(value) {
+        let parts = value.split('-');
+        let year = int(parts[0]);
+        let month = int(parts[1]);
+        let day = int(parts[2]);
+        let date = timestamp.date(year, month, day);
+        return date.year() == year && date.month() == month && date.day() == day;
+      }
+      function badgeworkSectionAliases(section) {
+        return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            : section in ["Scouts", "Scout"]
+              ? ["Scouts", "Scout"]
+              : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  : [section];
+      }
+      function eventSectionAppointmentAt(data, index, sectionAliases) {
+        return data.appointments.size() > index
+          && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+      }
+      function validIsoDate(value) {
+        return value is string
+          && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+          && matchesCalendarDate(value);
+      }
+      function hasEventSectionAppointment(section) {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        let aliases = badgeworkSectionAliases(section);
+        return exists(organisationPath) && leadership.active == true
+          && ((!leadership.keys().hasAny(["appointments"])
+                || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+              && leadership.organisationSection in aliases
+            : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
+              || eventSectionAppointmentAt(leadership, 1, aliases)
+              || eventSectionAppointmentAt(leadership, 2, aliases)
+              || eventSectionAppointmentAt(leadership, 3, aliases)
+              || eventSectionAppointmentAt(leadership, 4, aliases)
+              || eventSectionAppointmentAt(leadership, 5, aliases)
+              || eventSectionAppointmentAt(leadership, 6, aliases)
+              || eventSectionAppointmentAt(leadership, 7, aliases)
+              || eventSectionAppointmentAt(leadership, 8, aliases)
+              || eventSectionAppointmentAt(leadership, 9, aliases)
+              || eventSectionAppointmentAt(leadership, 10, aliases)
+              || eventSectionAppointmentAt(leadership, 11, aliases)));
+      }
+      function validDateRange(startDate, endDate) {
+        return validIsoDate(startDate) && validIsoDate(endDate)
+          && startDate <= endDate;
+      }
+      function canAccessEventSection(section) {
+        // Every caller enforces active-leader access before this scoped check.
+        return profile().role in ["super-admin", "admin"]
+          ? true
+          : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
+      }
       function validVersion3EventAudience(data) {
         return !data.keys().hasAny(["audience"])
           || (data.audience is map
@@ -1000,6 +1010,73 @@ service cloud.firestore {
     }
 
     match /events/{eventId}/audienceMembers/{memberId} {
+      function eventSectionAppointmentMatches(appointment, sectionAliases) {
+        return appointment is map
+          && appointment.get("active", true) == true
+          && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+          && appointment.get("scope", "") in sectionAliases;
+      }
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function badgeworkSectionAliases(section) {
+        return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            : section in ["Scouts", "Scout"]
+              ? ["Scouts", "Scout"]
+              : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  : [section];
+      }
+      function eventSectionAppointmentAt(data, index, sectionAliases) {
+        return data.appointments.size() > index
+          && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+      }
+      function hasEventSectionAppointment(section) {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        let aliases = badgeworkSectionAliases(section);
+        return exists(organisationPath) && leadership.active == true
+          && ((!leadership.keys().hasAny(["appointments"])
+                || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+              && leadership.organisationSection in aliases
+            : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
+              || eventSectionAppointmentAt(leadership, 1, aliases)
+              || eventSectionAppointmentAt(leadership, 2, aliases)
+              || eventSectionAppointmentAt(leadership, 3, aliases)
+              || eventSectionAppointmentAt(leadership, 4, aliases)
+              || eventSectionAppointmentAt(leadership, 5, aliases)
+              || eventSectionAppointmentAt(leadership, 6, aliases)
+              || eventSectionAppointmentAt(leadership, 7, aliases)
+              || eventSectionAppointmentAt(leadership, 8, aliases)
+              || eventSectionAppointmentAt(leadership, 9, aliases)
+              || eventSectionAppointmentAt(leadership, 10, aliases)
+              || eventSectionAppointmentAt(leadership, 11, aliases)));
+      }
+      function canAccessEventSection(section) {
+        // Every caller enforces active-leader access before this scoped check.
+        return profile().role in ["super-admin", "admin"]
+          ? true
+          : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
+      }
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
+      function isActiveMember(memberId) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
+      }
       function validEventAudienceMembership(eventId, memberId) {
         let eventPath = /databases/$(database)/documents/events/$(eventId);
         let memberPath = /databases/$(database)/documents/members/$(memberId);
@@ -1052,6 +1129,18 @@ service cloud.firestore {
     }
 
     match /events/{eventId}/programmeAccess/{parentUid} {
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
+      function isActiveMember(memberId) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
+      }
       allow get: if signedIn() && parentUid == request.auth.uid;
       allow list: if false;
       allow create, update: if signedIn() && parentUid == request.auth.uid
@@ -1062,6 +1151,18 @@ service cloud.firestore {
     }
 
     match /events/{eventId}/programmes/{programmeId} {
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
+      function isActiveMember(memberId) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
+      }
       function sourceProgramme() { return get(/databases/$(database)/documents/events/$(eventId)).data; }
       function safeProgramme(data) {
         let source = sourceProgramme();
@@ -1095,6 +1196,26 @@ service cloud.firestore {
     }
 
     match /events/{eventId}/leaderAttendance/{leaderUid} {
+      function isActiveRegisteredLeader(uid) {
+        return uid is string
+          && exists(/databases/$(database)/documents/adminUsers/$(uid))
+          && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
+          && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader"
+          && exists(/databases/$(database)/documents/organisationLeadership/$(uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.active == true;
+      }
+      function validLeaderAttendanceRecord(uid) {
+        return isActiveRegisteredLeader(uid)
+          && request.resource.data.displayName == get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.displayName
+          && request.resource.data.appointments is list
+          && request.resource.data.appointments.size() <= 12
+          && request.resource.data.sections is list
+          && request.resource.data.sections.size() <= 6
+          && request.resource.data.attendance in ["unrecorded", "present", "absent"]
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.keys().hasOnly(["displayName", "appointments", "sections", "attendance", "updatedBy", "updatedAt"]);
+      }
       function canReadEventAttendance() {
         let eventPath = /databases/$(database)/documents/events/$(eventId);
         return exists(eventPath) && isActiveLeader()
@@ -1109,12 +1230,70 @@ service cloud.firestore {
     // Collection-group parent queries need a recursive match. The query itself
     // constrains memberId to the approved parent's linked children.
     match /{path=**}/audienceMembers/{memberId} {
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
       allow list: if resource.data.get("eventId", "") is string
         && resource.data.get("memberId", "") is string
         && isApprovedParentForMember(resource.data.get("memberId", ""));
     }
 
     match /publicEvents/{eventId} {
+      function eventSectionAppointmentMatches(appointment, sectionAliases) {
+        return appointment is map
+          && appointment.get("active", true) == true
+          && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+          && appointment.get("scope", "") in sectionAliases;
+      }
+      function badgeworkSectionAliases(section) {
+        return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            : section in ["Scouts", "Scout"]
+              ? ["Scouts", "Scout"]
+              : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  : [section];
+      }
+      function eventSectionAppointmentAt(data, index, sectionAliases) {
+        return data.appointments.size() > index
+          && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+      }
+      function hasEventSectionAppointment(section) {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        let aliases = badgeworkSectionAliases(section);
+        return exists(organisationPath) && leadership.active == true
+          && ((!leadership.keys().hasAny(["appointments"])
+                || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+              && leadership.organisationSection in aliases
+            : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
+              || eventSectionAppointmentAt(leadership, 1, aliases)
+              || eventSectionAppointmentAt(leadership, 2, aliases)
+              || eventSectionAppointmentAt(leadership, 3, aliases)
+              || eventSectionAppointmentAt(leadership, 4, aliases)
+              || eventSectionAppointmentAt(leadership, 5, aliases)
+              || eventSectionAppointmentAt(leadership, 6, aliases)
+              || eventSectionAppointmentAt(leadership, 7, aliases)
+              || eventSectionAppointmentAt(leadership, 8, aliases)
+              || eventSectionAppointmentAt(leadership, 9, aliases)
+              || eventSectionAppointmentAt(leadership, 10, aliases)
+              || eventSectionAppointmentAt(leadership, 11, aliases)));
+      }
+      function canAccessEventSection(section) {
+        // Every caller enforces active-leader access before this scoped check.
+        return profile().role in ["super-admin", "admin"]
+          ? true
+          : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
+      }
       function isSafePublicEvent() {
         return resource.data.keys().hasOnly(["eventId", "title", "description", "eventType", "section", "location", "startDate", "endDate", "updatedAt", "testData", "testSeed", "createdBySeed"])
         && resource.data.title is string && resource.data.eventType is string
@@ -1141,6 +1320,88 @@ service cloud.firestore {
     }
 
     match /parentGalleryEvents/{eventId} {
+      function eventSectionAppointmentMatches(appointment, sectionAliases) {
+        return appointment is map
+          && appointment.get("active", true) == true
+          && appointment.get("appointment", "") in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+          && appointment.get("scope", "") in sectionAliases;
+      }
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function badgeworkSectionAliases(section) {
+        return section in ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          ? ["Beavers", "Beaver", "Beaver Scout", "Beaver Scouts"]
+          : section in ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            ? ["Cubs", "Cub", "Cub Scout", "Cub Scouts"]
+            : section in ["Scouts", "Scout"]
+              ? ["Scouts", "Scout"]
+              : section in ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                ? ["Ventures", "Venture", "Venture Scout", "Venture Scouts"]
+                : section in ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  ? ["Rovers", "Rover", "Rover Scout", "Rover Scouts"]
+                  : [section];
+      }
+      function eventSectionAppointmentAt(data, index, sectionAliases) {
+        return data.appointments.size() > index
+          && eventSectionAppointmentMatches(data.appointments[index], sectionAliases);
+      }
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
+      function hasEventSectionAppointment(section) {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        let leadership = get(organisationPath).data;
+        let aliases = badgeworkSectionAliases(section);
+        return exists(organisationPath) && leadership.active == true
+          && ((!leadership.keys().hasAny(["appointments"])
+                || !(leadership.appointments is list) || leadership.appointments.size() == 0)
+            ? leadership.scoutingRole in ["Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"]
+              && leadership.organisationSection in aliases
+            : leadership.appointments is list && (eventSectionAppointmentAt(leadership, 0, aliases)
+              || eventSectionAppointmentAt(leadership, 1, aliases)
+              || eventSectionAppointmentAt(leadership, 2, aliases)
+              || eventSectionAppointmentAt(leadership, 3, aliases)
+              || eventSectionAppointmentAt(leadership, 4, aliases)
+              || eventSectionAppointmentAt(leadership, 5, aliases)
+              || eventSectionAppointmentAt(leadership, 6, aliases)
+              || eventSectionAppointmentAt(leadership, 7, aliases)
+              || eventSectionAppointmentAt(leadership, 8, aliases)
+              || eventSectionAppointmentAt(leadership, 9, aliases)
+              || eventSectionAppointmentAt(leadership, 10, aliases)
+              || eventSectionAppointmentAt(leadership, 11, aliases)));
+      }
+      function parentMemberCurrentlyInSection(memberId, section) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+          && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+      }
+      function canAccessEventSection(section) {
+        // Every caller enforces active-leader access before this scoped check.
+        return profile().role in ["super-admin", "admin"]
+          ? true
+          : (profileHasSection(section) ? true : hasEventSectionAppointment(section));
+      }
+      function isApprovedParentForSection(section) {
+        return isApprovedParent()
+          && parentProfile().memberIds is list
+          && parentProfile().memberIds.size() <= 8
+          && (
+            section in ["Group", "All Sections"]
+            || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+            || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+            || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+            || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+            || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+            || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+            || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+            || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+          );
+      }
       allow get: if resource.data.eventId == eventId
         && resource.data.section is string
         && resource.data.status in ["open", "closed", "completed"]
@@ -1172,6 +1433,42 @@ service cloud.firestore {
     }
 
     match /eventConsentLinks/{token} {
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
+      function parentMemberCurrentlyInSection(memberId, section) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+          && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+      }
+      function isApprovedParentForSection(section) {
+        return isApprovedParent()
+          && parentProfile().memberIds is list
+          && parentProfile().memberIds.size() <= 8
+          && (
+            section in ["Group", "All Sections"]
+            || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+            || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+            || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+            || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+            || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+            || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+            || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+            || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+          );
+      }
+      function isActiveMember(memberId) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active";
+      }
       function parentHasEventAudienceMemberAt(eventId, index) {
         return isApprovedParent()
           && parentProfile().memberIds is list
@@ -1224,6 +1521,35 @@ service cloud.firestore {
     }
 
     match /consentApplications/{consentId} {
+      function matchesCalendarDate(value) {
+        let parts = value.split('-');
+        let year = int(parts[0]);
+        let month = int(parts[1]);
+        let day = int(parts[2]);
+        let date = timestamp.date(year, month, day);
+        return date.year() == year && date.month() == month && date.day() == day;
+      }
+      function validIsoDate(value) {
+        return value is string
+          && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+          && matchesCalendarDate(value);
+      }
+      function validDateRange(startDate, endDate) {
+        return validIsoDate(startDate) && validIsoDate(endDate)
+          && startDate <= endDate;
+      }
+      function canAccessMemberSections(data) {
+        return profile().role in ["super-admin", "admin"]
+          || (data.keys().hasAny(["section"]) && profileHasSection(data.section))
+          || (data.keys().hasAny(["sections"]) && data.sections is list && data.sections.hasAny(profile().sections));
+      }
+      function isApprovedParentForMember(memberId) {
+        let parent = parentProfile();
+        return signedIn() && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parent.status == "approved"
+          && parent.memberIds is list
+          && memberId in parent.memberIds;
+      }
       function hasResourceSection(data) {
         return data.keys().hasAny(["section"]) && data.section is string && hasSection(data.section);
       }
@@ -1272,6 +1598,12 @@ service cloud.firestore {
     }
 
     match /meetingRecords/{meetingId} {
+      function isGroupSecretary() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      }
       allow read: if isAdmin()
         || isGroupLeader()
         || isGroupSecretary()
@@ -1313,6 +1645,12 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId} {
+      function isGroupSecretary() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      }
       allow read: if isSuperAdmin()
         || (isActiveLeader()
         && resource.data.section is string
@@ -1353,6 +1691,32 @@ service cloud.firestore {
     }
 
     match /weeklyMeetings/{weeklyMeetingId}/leaderAttendance/{leaderUid} {
+      function isActiveRegisteredLeader(uid) {
+        return uid is string
+          && exists(/databases/$(database)/documents/adminUsers/$(uid))
+          && get(/databases/$(database)/documents/adminUsers/$(uid)).data.active == true
+          && get(/databases/$(database)/documents/adminUsers/$(uid)).data.role == "leader"
+          && exists(/databases/$(database)/documents/organisationLeadership/$(uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.active == true;
+      }
+      function validLeaderAttendanceRecord(uid) {
+        return isActiveRegisteredLeader(uid)
+          && request.resource.data.displayName == get(/databases/$(database)/documents/organisationLeadership/$(uid)).data.displayName
+          && request.resource.data.appointments is list
+          && request.resource.data.appointments.size() <= 12
+          && request.resource.data.sections is list
+          && request.resource.data.sections.size() <= 6
+          && request.resource.data.attendance in ["unrecorded", "present", "absent"]
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.keys().hasOnly(["displayName", "appointments", "sections", "attendance", "updatedBy", "updatedAt"]);
+      }
+      function isGroupSecretary() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      }
       function canReadWeeklyAttendance() {
         let meetingPath = /databases/$(database)/documents/weeklyMeetings/$(weeklyMeetingId);
         return exists(meetingPath) && isActiveLeader()
@@ -1412,6 +1776,37 @@ service cloud.firestore {
     }
 
     match /parentWeeklyMeetings/{weeklyMeetingId} {
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
+      function parentMemberCurrentlyInSection(memberId, section) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+          && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+      }
+      function isApprovedParentForSection(section) {
+        return isApprovedParent()
+          && parentProfile().memberIds is list
+          && parentProfile().memberIds.size() <= 8
+          && (
+            section in ["Group", "All Sections"]
+            || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+            || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+            || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+            || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+            || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+            || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+            || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+            || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+          );
+      }
       allow get: if isAdmin() || (resource.data.section is string && isApprovedParentForSection(resource.data.section));
       allow list: if resource.data.section is string && isApprovedParentForSection(resource.data.section);
       allow create: if isActiveLeader()
@@ -1440,6 +1835,29 @@ service cloud.firestore {
     }
 
     match /financeTransactions/{transactionId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function canAccessFinanceSection(section) {
+        return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
+      }
       allow get, list: if isSuperAdmin() || canAccessFinanceSection(resource.data.section);
       allow create: if canAccessFinanceSection(request.resource.data.section)
         && request.resource.data.type in ["opening-float", "income", "expense", "transfer-in", "transfer-out", "adjustment"]
@@ -1470,6 +1888,44 @@ service cloud.firestore {
     }
 
     match /subsRatePolicies/{policyId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function matchesCalendarDate(value) {
+        let parts = value.split('-');
+        let year = int(parts[0]);
+        let month = int(parts[1]);
+        let day = int(parts[2]);
+        let date = timestamp.date(year, month, day);
+        return date.year() == year && date.month() == month && date.day() == day;
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function validIsoDate(value) {
+        return value is string
+          && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+          && matchesCalendarDate(value);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function validDateRange(startDate, endDate) {
+        return validIsoDate(startDate) && validIsoDate(endDate)
+          && startDate <= endDate;
+      }
+      function canManageSubsPolicy() { return canViewAllFinance(); }
       allow get, list: if isActiveLeader();
       allow create: if canManageSubsPolicy()
         && request.resource.data.period is string
@@ -1496,6 +1952,27 @@ service cloud.firestore {
     }
 
     match /subsAccounts/{accountId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function canManageSubsPolicy() { return canViewAllFinance(); }
       function hasConfiguredFamilyTotal(policy) {
         return request.resource.data.childCount == request.resource.data.memberIds.size()
           && request.resource.data.childCount >= 1
@@ -1541,6 +2018,27 @@ service cloud.firestore {
     }
 
     match /subsAssignments/{assignmentId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function canManageSubsPolicy() { return canViewAllFinance(); }
       function isValidFamilyIncrement(rates, position, amount) {
         return rates is list
           && position is number
@@ -1612,6 +2110,29 @@ service cloud.firestore {
     }
 
     match /subsPayments/{paymentId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function canAccessFinanceSection(section) {
+        return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
+      }
       function accountIdFor(data) { return data.get("accountId", ""); }
       function hasValidSubsAccountLink() {
         let accountId = accountIdFor(request.resource.data);
@@ -1661,6 +2182,29 @@ service cloud.firestore {
     }
 
     match /financeReconciliations/{reconciliationId} {
+      function financeAppointmentAt(data, index) {
+        return data.keys().hasAny(["appointments"])
+          && data.appointments is list && data.appointments.size() > index
+          && data.appointments[index] is map
+          && data.appointments[index].get("active", true) == true
+          && data.appointments[index].appointment in ["Group Leader", "Deputy Group Leader", "Group Treasurer"];
+      }
+      function hasFinanceAppointment(data) {
+        return financeAppointmentAt(data, 0) || financeAppointmentAt(data, 1)
+          || financeAppointmentAt(data, 2) || financeAppointmentAt(data, 3);
+      }
+      function canViewAllFinance() {
+        let organisationPath = /databases/$(database)/documents/organisationLeadership/$(request.auth.uid);
+        return isActiveLeader()
+          && (profile().role in ["super-admin", "admin"]
+            || (exists(organisationPath)
+              && get(organisationPath).data.active == true
+              && (get(organisationPath).data.scoutingRole in ["Group Leader", "Deputy Group Leader", "Deputy-Group-Leader", "Deputy GroupLead", "DGL", "Group Treasurer"]
+                || hasFinanceAppointment(get(organisationPath).data))));
+      }
+      function canAccessFinanceSection(section) {
+        return isActiveLeader() && section is string && ((section in profile().sections) || canViewAllFinance());
+      }
       allow get, list: if isSuperAdmin() || canAccessFinanceSection(resource.data.section);
       allow create: if canAccessFinanceSection(request.resource.data.section)
         && request.resource.data.expectedBalanceCents is number
@@ -1677,6 +2221,13 @@ service cloud.firestore {
     }
 
     match /equipmentItems/{itemId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
         && request.resource.data.name is string
@@ -1750,6 +2301,13 @@ service cloud.firestore {
     }
 
     match /equipmentCategories/{optionId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
         && request.resource.data.name is string
@@ -1768,6 +2326,13 @@ service cloud.firestore {
     }
 
     match /equipmentLocations/{optionId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if canManageEquipment()
         && request.resource.data.name is string
@@ -1786,6 +2351,13 @@ service cloud.firestore {
     }
 
     match /equipmentLoans/{loanId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if isActiveLeader()
         && (canManageEquipment() || hasSection(request.resource.data.section))
@@ -1818,6 +2390,13 @@ service cloud.firestore {
     }
 
     match /equipmentIncidents/{incidentId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if isActiveLeader()
         && request.resource.data.itemId is string
@@ -1880,6 +2459,13 @@ service cloud.firestore {
     }
 
     match /equipmentHistory/{entryId} {
+      function isQuartermaster() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole in ["Group Quartermaster", "Group Quartermaster/Bo'sun", "Group Quartermaster / Bo'sun", "Group Bo'sun"];
+      }
+      function canManageEquipment() { return isAdmin() || isGroupLeader() || isQuartermaster(); }
       allow get, list: if isActiveLeader();
       allow create: if isActiveLeader()
         && request.resource.data.itemId is string
@@ -1901,6 +2487,21 @@ service cloud.firestore {
     }
 
     match /organisationLeadership/{leaderId} {
+      function isOrdinaryLeaderTarget(userId) {
+        return exists(/databases/$(database)/documents/adminUsers/$(userId))
+          && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
+      }
+      function isGroupLeadershipDelegableAppointment(value) {
+        return value in ["Group Chairperson", "Group Youth Champion", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+      }
+      function canDelegateLeaderTarget(userId) {
+        return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
+      }
+      function maintenanceDirectoryInvalidated() {
+        let path = /databases/$(database)/documents/maintenance/group/config/leaders;
+        return !exists(path) || (getAfter(path).data.updatedAt == request.time
+          && getAfter(path).data.generation != get(path).data.generation && getAfter(path).data.ready == false);
+      }
       allow read: if isActiveLeader();
       allow create, update: if maintenanceDirectoryInvalidated() && (isAdmin() || (canDelegateLeaderTarget(leaderId)
           && request.resource.data.scoutingRole is string
@@ -1927,6 +2528,16 @@ service cloud.firestore {
     }
 
     match /publicLeadership/{leaderId} {
+      function isOrdinaryLeaderTarget(userId) {
+        return exists(/databases/$(database)/documents/adminUsers/$(userId))
+          && get(/databases/$(database)/documents/adminUsers/$(userId)).data.role == "leader";
+      }
+      function isGroupLeadershipDelegableAppointment(value) {
+        return value in ["Group Chairperson", "Group Youth Champion", "Section Leader", "Assistant Section Leader", "Programme Scouter", "Scouter"];
+      }
+      function canDelegateLeaderTarget(userId) {
+        return isGroupLeader() && request.auth.uid != userId && isOrdinaryLeaderTarget(userId);
+      }
       allow get, list: if resource.data.publicProjectionVersion == 2
         && resource.data.sourceAccessRole == "leader"
         && resource.data.active == true
@@ -1975,30 +2586,30 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    function maintenanceEnabled() {
-      let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
-      return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
-    }
-    function validMaintenanceSource(data) {
-      // One canonical read per source; exists()+get() consumed the lookup
-      // budget for a task with five retained documents on uncached evaluation.
-      let source = data.kind == "leader"
-        ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
-        : data.kind == "parent"
-          ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
-          : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
-      return (data.kind == "leader" && data.sourceId == request.auth.uid
-          && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
-          && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
-        || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
-        || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
-          && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
-    }
-    function maintenanceMember() {
-      return maintenanceEnabled()
-        && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
-    }
     match /maintenance/group/config/leaders {
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function maintenanceMember() {
+        return maintenanceEnabled()
+          && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+      }
       allow get: if isAdmin() || maintenanceMember();
       // Canonical source writers may only invalidate, never publish or roll back.
       allow create, update: if isActiveLeader()
@@ -2015,6 +2626,42 @@ service cloud.firestore {
       allow list, delete: if false;
     }
     match /maintenance/group/leaders/{uid} {
+      function matchesCalendarDate(value) {
+        let parts = value.split('-');
+        let year = int(parts[0]);
+        let month = int(parts[1]);
+        let day = int(parts[2]);
+        let date = timestamp.date(year, month, day);
+        return date.year() == year && date.month() == month && date.day() == day;
+      }
+      function validIsoDate(value) {
+        return value is string
+          && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+          && matchesCalendarDate(value);
+      }
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function maintenanceMember() {
+        return maintenanceEnabled()
+          && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+      }
       function maintenanceDate(value) {
         let parts = value.split('-');
         return timestamp.date(int(parts[0]), int(parts[1]), int(parts[2]));
@@ -2067,6 +2714,45 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /maintenance/group/appointments/{id} {
+      function matchesCalendarDate(value) {
+        let parts = value.split('-');
+        let year = int(parts[0]);
+        let month = int(parts[1]);
+        let day = int(parts[2]);
+        let date = timestamp.date(year, month, day);
+        return date.year() == year && date.month() == month && date.day() == day;
+      }
+      function validIsoDate(value) {
+        return value is string
+          && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+          && matchesCalendarDate(value);
+      }
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function maintenanceMember() {
+        return maintenanceEnabled()
+          && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+      }
+      function calendarEnabled() {
+        return signedIn() && get(/databases/$(database)/documents/siteSettings/calendarExperience).data.get("version", "existing") == "redesigned";
+      }
       function appointmentMember() { return calendarEnabled() && maintenanceMember(); }
       function validAppointment(data) {
         let taskId = data.get("taskId", "");
@@ -2093,6 +2779,29 @@ service cloud.firestore {
     }
 
     match /maintenance/group/tasks/{id} {
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function maintenanceMember() {
+        return maintenanceEnabled()
+          && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+      }
       function maintenanceReadyDocumentAt(ids, index) {
         return ids.size() <= index || (ids[index] is string && ids[index].matches('^[a-zA-Z0-9-]{20,64}$')
           && get(/databases/$(database)/documents/maintenance/group/documents/$(ids[index])).data.state == "ready");
@@ -2126,6 +2835,29 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /maintenance/group/documents/{id} {
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function maintenanceMember() {
+        return maintenanceEnabled()
+          && validMaintenanceSource(get(/databases/$(database)/documents/maintenance/group/access/$(request.auth.uid)).data);
+      }
       function validMaintenanceDocument(data) {
         return data.keys().hasOnly(["fileName", "contentType", "size", "sha256", "uploadedBy", "uploadedAt", "state"])
           && data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 240
@@ -2142,16 +2874,50 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /maintenance/group/access/{uid} {
+      function maintenanceEnabled() {
+        let setting = get(/databases/$(database)/documents/siteSettings/maintenanceExperience).data;
+        return signedIn() && setting.get("sdkRevision", 0) == 1 && setting.get("version", "existing") == "redesigned";
+      }
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
       allow get: if signedIn() && uid == request.auth.uid;
       allow create, update: if signedIn() && uid == request.auth.uid && maintenanceEnabled()
         && request.resource.data.keys().hasOnly(["kind", "sourceId"])
         && validMaintenanceSource(request.resource.data);
       allow list, delete: if false;
     }
-    function calendarEnabled() {
-      return signedIn() && get(/databases/$(database)/documents/siteSettings/calendarExperience).data.get("version", "existing") == "redesigned";
-    }
     match /calendar/group/access/{uid} {
+      function validMaintenanceSource(data) {
+        // One canonical read per source; exists()+get() consumed the lookup
+        // budget for a task with five retained documents on uncached evaluation.
+        let source = data.kind == "leader"
+          ? get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data
+          : data.kind == "parent"
+            ? get(/databases/$(database)/documents/parentAccounts/$(request.auth.uid)).data
+            : get(/databases/$(database)/documents/members/$(data.sourceId)).data;
+        return (data.kind == "leader" && data.sourceId == request.auth.uid
+            && source.get("active", false) == true && source.get("role", "") in ["leader", "admin", "super-admin"]
+            && source.get("sections", []) is list && source.get("sections", []).size() > 0 && !source.keys().hasAny(["section"]))
+          || (data.kind == "parent" && data.sourceId == request.auth.uid && source.get("status", "") == "approved")
+          || (data.kind == "member" && data.sourceId is string && data.sourceId.matches('^[^/]+$')
+            && source.get("accountUid", "") == request.auth.uid && source.get("status", "") == "active");
+      }
+      function calendarEnabled() {
+        return signedIn() && get(/databases/$(database)/documents/siteSettings/calendarExperience).data.get("version", "existing") == "redesigned";
+      }
       allow get: if signedIn() && uid == request.auth.uid && calendarEnabled() && validMaintenanceSource(resource.data);
       allow create, update: if signedIn() && uid == request.auth.uid && calendarEnabled()
         && request.resource.data.keys().hasOnly(["kind", "sourceId"]) && validMaintenanceSource(request.resource.data);
@@ -2242,6 +3008,12 @@ service cloud.firestore {
     }
 
     match /auditLog/{entryId} {
+      function isGroupSecretary() {
+        return isActiveLeader()
+          && exists(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid))
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.active == true
+          && get(/databases/$(database)/documents/organisationLeadership/$(request.auth.uid)).data.scoutingRole == "Group Secretary";
+      }
       allow get, list: if isAdmin() || isGroupLeader() || isGroupSecretary();
       allow create: if isActiveLeader()
         && request.resource.data.actorUid == request.auth.uid
@@ -2290,19 +3062,49 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    function pollIsGroupManager() { return isAdmin() || isGroupLeader(); }
-    function pollCanManageAudienceIndex(index) {
-      return isActiveLeader() && (
-        pollIsGroupManager()
-        || (index.get("scopeType", "") == "sections" && index.get("scopeSections", []) is list
-          && index.get("scopeSections", []).size() > 0
-          && profile().sections is list && profile().sections.hasAll(index.get("scopeSections", [])))
-      );
-    }
-
     // Collection-group reads need an explicit recursive match; nested rules alone
     // do not authorise queries over audienceSections across all polls.
     match /{path=**}/audienceSections/{section} {
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
+      function parentMemberCurrentlyInSection(memberId, section) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+          && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+      }
+      function pollIsGroupManager() { return isAdmin() || isGroupLeader(); }
+      function isApprovedParentForSection(section) {
+        return isApprovedParent()
+          && parentProfile().memberIds is list
+          && parentProfile().memberIds.size() <= 8
+          && (
+            section in ["Group", "All Sections"]
+            || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+            || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+            || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+            || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+            || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+            || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+            || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+            || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+          );
+      }
+      function pollCanManageAudienceIndex(index) {
+        return isActiveLeader() && (
+          pollIsGroupManager()
+          || (index.get("scopeType", "") == "sections" && index.get("scopeSections", []) is list
+            && index.get("scopeSections", []).size() > 0
+            && profile().sections is list && profile().sections.hasAll(index.get("scopeSections", [])))
+        );
+      }
       // Only limited discovery-index documents are exposed here, never poll roots,
       // responses or results. Managers use the index's canonical section scope so
       // Firestore can prove each collection-group query is authorised.
@@ -2320,6 +3122,46 @@ service cloud.firestore {
     }
 
     match /polls/{pollId} {
+      function memberHasSection(data, section) {
+        return (data.keys().hasAny(["sections"]) && data.sections is list && section in data.sections)
+          || (data.keys().hasAny(["section"]) && data.section == section);
+      }
+      function isApprovedParent() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/parentAccounts/$(request.auth.uid))
+          && parentProfile().status == "approved";
+      }
+      function parentMemberCurrentlyInSection(memberId, section) {
+        return memberId is string
+          && exists(/databases/$(database)/documents/members/$(memberId))
+          && get(/databases/$(database)/documents/members/$(memberId)).data.status == "active"
+          && memberHasSection(get(/databases/$(database)/documents/members/$(memberId)).data, section);
+      }
+      function pollIsGroupManager() { return isAdmin() || isGroupLeader(); }
+      function isApprovedParentForSection(section) {
+        return isApprovedParent()
+          && parentProfile().memberIds is list
+          && parentProfile().memberIds.size() <= 8
+          && (
+            section in ["Group", "All Sections"]
+            || (parentProfile().memberIds.size() > 0 && parentMemberCurrentlyInSection(parentProfile().memberIds[0], section))
+            || (parentProfile().memberIds.size() > 1 && parentMemberCurrentlyInSection(parentProfile().memberIds[1], section))
+            || (parentProfile().memberIds.size() > 2 && parentMemberCurrentlyInSection(parentProfile().memberIds[2], section))
+            || (parentProfile().memberIds.size() > 3 && parentMemberCurrentlyInSection(parentProfile().memberIds[3], section))
+            || (parentProfile().memberIds.size() > 4 && parentMemberCurrentlyInSection(parentProfile().memberIds[4], section))
+            || (parentProfile().memberIds.size() > 5 && parentMemberCurrentlyInSection(parentProfile().memberIds[5], section))
+            || (parentProfile().memberIds.size() > 6 && parentMemberCurrentlyInSection(parentProfile().memberIds[6], section))
+            || (parentProfile().memberIds.size() > 7 && parentMemberCurrentlyInSection(parentProfile().memberIds[7], section))
+          );
+      }
+      function pollCanManageAudienceIndex(index) {
+        return isActiveLeader() && (
+          pollIsGroupManager()
+          || (index.get("scopeType", "") == "sections" && index.get("scopeSections", []) is list
+            && index.get("scopeSections", []).size() > 0
+            && profile().sections is list && profile().sections.hasAll(index.get("scopeSections", [])))
+        );
+      }
       function pollHasEligibleParent(poll) {
         return poll.scopeSections is list && (
           (poll.scopeSections.hasAny(["Beavers"]) && isApprovedParentForSection("Beavers"))
