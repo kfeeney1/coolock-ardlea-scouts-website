@@ -1,3 +1,4 @@
+import { monitorCalendarActionReadiness, expectCalendarActionsReady } from "./support/calendar-action-readiness";
 import {expect,test} from "@playwright/test";
 import {getApps} from "firebase-admin/app";
 import {getAuth} from "firebase-admin/auth";
@@ -17,8 +18,10 @@ test("an existing task has one live schedule, opens its canonical workflow and r
   await db.doc(paths[0]).set({version:"redesigned"}); await db.doc(paths[1]).set({version:"redesigned",sdkRevision:1});
   await db.doc(paths[3]).set({description:"SW338 Repair the entrance door\nKeep the canonical instructions and documents here.",documentIds:[],status:"open",assigneeUid:user.uid,assigneeName:"Original responsible leader",assignmentMode:"explicit",revision:1,createdAt:Date.now(),createdBy:user.uid,updatedBy:user.uid});
   await db.doc(paths[4]).delete();
+  await monitorCalendarActionReadiness(page);
   await loginAsLeader(page,{email:user.email!,password:process.env.E2E_TEST_USER_PASSWORD!});
   await page.goto(`/calendar?month=${month}&type=maintenance`);
+  await expectCalendarActionsReady(page);
   await page.getByRole("link",{name:"Schedule maintenance task",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Choose maintenance task",exact:true})).toBeVisible();
   await page.getByRole("link",{name:/Schedule task: SW338 Repair the entrance door/}).click();
