@@ -11,7 +11,7 @@ const states: Record<AttendanceMatrixState, { label: string; symbol: string; col
 const memberCell = { position: "sticky", left: 0, width: { xs: 160, sm: 200 }, minWidth: { xs: 160, sm: 200 }, maxWidth: { xs: 160, sm: 200 }, boxSizing: "border-box", bgcolor: "background.paper", zIndex: 2, overflowWrap: "anywhere", borderRight: 1, borderRightColor: "divider" } as const;
 
 export default function AttendanceMatrix({ matrix }: { matrix: Matrix }) {
-  return <Paper variant="outlined" sx={{ mb: 3, borderRadius: 3, minWidth: 0, overflow: "hidden", boxShadow: 1 }}>
+  return <Paper variant="outlined" role="region" aria-label="Attendance matrix" sx={{ mb: 3, borderRadius: 3, minWidth: 0, overflow: "hidden", boxShadow: 1 }}>
     <Box sx={{ p: { xs: 2, sm: 3 }, bgcolor: "action.selected" }}>
       <Typography variant="h5" component="h2" color="secondary" sx={{ fontWeight: 800 }}>Attendance matrix</Typography>
       <Typography variant="body2" sx={{ mt: 1 }} id="attendance-matrix-help">Compare closed meetings. Scroll across for more meetings and down for more members. Focus the table area to use arrow keys, Home and End.</Typography>

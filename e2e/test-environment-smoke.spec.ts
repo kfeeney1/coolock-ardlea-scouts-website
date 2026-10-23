@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectAttendancePresentation } from "./support/attendance-presentation";
 import { acquireParentConsentSettingLock, setParentConsentEnabled } from "./helpers/parent-consent-setting";
 
 const testPassword = process.env.E2E_TEST_USER_PASSWORD;
@@ -131,7 +132,7 @@ test.describe("stable TEST environment smoke", () => {
       await expect(page.getByRole("alert").filter({ hasText: /Unable to load attendance|permission denied/i })).toHaveCount(0);
       const matrix = page.getByRole("table", { name: "Member attendance by meeting", exact: true });
       try {
-        if (matrixEnabled) await expect(matrix).toBeVisible(); else await expect(matrix).toHaveCount(0);
+        await expectAttendancePresentation(page, matrixEnabled);
       } catch (error) {
         // Log only presentation state, never member names or attendance contents.
         console.log("TEST attendance presentation failure", {
