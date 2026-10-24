@@ -14,12 +14,20 @@ for (const version of ["existing", "redesigned"]) test(`Calendar default-off rol
     await page.goto("/calendar");
     await expect(page.getByText("Sign in to access Calendar.", {exact: true})).toBeVisible();
     await loginAsLeader(page, {email: process.env.E2E_SUPER_ADMIN_EMAIL || "superadmin@example.com", password: password!});
+    await expect(page.getByTestId("dashboard-calendar")).toHaveCount(0);
     await page.goto("/calendar");
     await expect(page.getByText("Calendar is currently disabled.", {exact: true})).toBeVisible();
     await page.goto("/leader/settings");
     await expect(page.getByRole("button", {name: "Calendar disabled", exact: true})).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", {name: "Calendar enabled", exact: true}).click();
     await expect(page.getByRole("button", {name: "Calendar enabled", exact: true})).toHaveAttribute("aria-pressed", "true");
+    await page.goto("/leader");
+    const dashboardCalendar = page.getByTestId("dashboard-calendar");
+    await expect(dashboardCalendar).toBeVisible();
+    await expect(dashboardCalendar).toHaveAttribute("href", "/calendar");
+    await dashboardCalendar.focus(); await page.keyboard.press("Enter");
+    await expect(page.getByTestId("page-group-calendar")).toBeVisible();
+    await page.getByRole("link", {name: "Back to Dashboard", exact: true}).click();
     await page.locator('button[aria-controls="leader-navigation"]').click();
     const group = page.getByRole("navigation", {name: "Leader navigation", exact: true}).getByRole("button", {name: /^Group Operations/}).filter({visible: true}).first();
     if (version === "redesigned" || testInfo.project.name === "mobile-chromium") {
