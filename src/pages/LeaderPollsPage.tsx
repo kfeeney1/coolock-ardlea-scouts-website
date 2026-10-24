@@ -7,7 +7,7 @@ export default function LeaderPollsPage() {
     <Container maxWidth="xl">
       <LeaderDashboardHeader />
       <Typography component="h1" variant="h4" color="secondary" sx={{ fontWeight: 800, mb: 2 }}>Group Polls</Typography>
-      <LeaderPollsPanel showTitle={false} />
+      <LeaderPollsPanel showTitle={false} management />
     </Container>
   </Box>;
 }

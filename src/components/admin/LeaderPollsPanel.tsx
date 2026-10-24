@@ -11,7 +11,7 @@ function actorFor(uid: string, role: string, sections: string[], scoutingRole: s
   return { uid, role, sections, scoutingRole };
 }
 
-export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boolean }) {
+export default function LeaderPollsPanel({ showTitle = true, management = false }: { showTitle?: boolean; management?: boolean }) {
   const { adminProfile } = useAdminAuth();
   const actor = useMemo(() => adminProfile ? actorFor(adminProfile.uid, adminProfile.role, adminProfile.sections, adminProfile.scoutingRole) : null, [adminProfile]);
   const groupManager = Boolean(actor && (actor.role === "admin" || actor.role === "super-admin" || canManagePollForLeader({ scopeType: "group", scopeSections: [...GROUP_POLL_SECTIONS] }, actor)));
@@ -208,7 +208,7 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
         })}
       </> : <Alert severity="info" role="status" data-testid="leader-polls-empty">There are no active polls for your sections right now.</Alert>}
     </Stack>}
-    {manageable.length > 0 && <Stack spacing={1.5} sx={{ mb: 3 }}>
+    {management && manageable.length > 0 && <Stack spacing={1.5} sx={{ mb: 3 }}>
       <Typography component="h3" variant="h6">Poll management</Typography>
       {manageable.map((poll) => <Paper key={poll.id} variant="outlined" sx={{ p: 2 }} data-testid={`leader-poll-manager-${poll.id}`}>
         <Typography sx={{ fontWeight: 800 }}>{poll.question}</Typography>
@@ -224,8 +224,8 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
         </Stack>}
       </Paper>)}
     </Stack>}
-    {!groupManager && <Alert severity="info" sx={{ mb: 2 }}>You can create and manage polls for your assigned sections. Group-wide polls require group leadership or admin access.</Alert>}
-    <Stack spacing={1.5} sx={{ mb: 3 }} data-testid="poll-create-form">
+    {management && !groupManager && <Alert severity="info" sx={{ mb: 2 }}>You can create and manage polls for your assigned sections. Group-wide polls require group leadership or admin access.</Alert>}
+    {management && <Stack spacing={1.5} sx={{ mb: 3 }} data-testid="poll-create-form">
       <Typography component="h3" variant="h6">Create a poll</Typography>
       <TextField label="Poll question" value={question} onChange={(event) => changeDraft(setQuestion, event.target.value)} helperText="Enter a question of 1 to 240 characters." slotProps={{ htmlInput: { maxLength: 240 } }} required />
       <TextField label="Answer options" value={optionsText} onChange={(event) => changeDraft(setOptionsText, event.target.value)} multiline minRows={3} helperText="Enter one answer per line. Use 2 to 8 distinct answers." />
@@ -235,6 +235,6 @@ export default function LeaderPollsPanel({ showTitle = true }: { showTitle?: boo
       <TextField type="datetime-local" label="Optional closing date and time" value={closesAt} onChange={(event) => changeDraft(setClosesAt, event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
       <Button variant="contained" color="success" disabled={busy.create || !question.trim() || optionsText.split("\n").map((option) => option.trim()).filter(Boolean).length < 2 || (scopeType === "sections" && selectedSections.length === 0)} onClick={() => void createDraft()}>{busy.create ? "Saving…" : "Save draft"}</Button>
       <Typography variant="body2" color="text.secondary">Saving a draft does not publish it. Only publish makes the poll visible to its audience.</Typography>
-    </Stack>
+    </Stack>}
   </Paper>;
 }

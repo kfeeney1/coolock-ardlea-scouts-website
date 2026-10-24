@@ -21,6 +21,9 @@ async function login(page: Page, path: string, email: string) {
   if (path === "/leader/login") {
     await expect(page).toHaveURL(/\/leader(?:[?#]|$)/);
     await expect(page.getByTestId("leader-polls")).toBeVisible();
+    await expect(page.getByTestId("poll-create-form")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Poll management", exact: true })).toHaveCount(0);
+    await expect(page.getByTestId(/^leader-poll-manager-/)).toHaveCount(0);
   } else {
     await expect(page.getByRole("button", { name: "Sign Out" }).first()).toBeVisible();
   }
@@ -42,6 +45,7 @@ async function publishScopedParentPoll(page: Page, browser: Browser, testInfo: T
   const question = `SW-357 poll assurance ${Date.now()}-${testInfo.testId}`;
 
   await login(page, "/leader/login", adminEmail!);
+  await page.goto("/leader/polls");
   await expect(page.getByTestId("leader-polls")).toBeVisible();
   await page.getByLabel("Poll question").fill(question);
   await page.getByLabel("Answer options").fill("Outdoor activity\nIndoor activity");
@@ -193,6 +197,7 @@ test.describe("dashboard polls", () => {
     try {
       const parentPage = await parentContext.newPage();
       await login(page, "/leader/login", adminEmail!);
+      await page.goto("/leader/polls");
       await login(parentPage, "/parent", parentEmail!);
       const cleanupPoll = page.getByTestId(/^leader-poll-manager-/).filter({ hasText: question });
       await expect(cleanupPoll).toContainText("published");
