@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectAttendancePresentation } from "./support/attendance-presentation";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { seedAttendanceMatrix, matrixMeetingIds } from "./support/attendance-matrix-fixtures";
 import { scheduleFixtureDb } from "./support/schedule-fixtures";
@@ -26,6 +27,14 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await page.getByTestId("attendance-to-date").fill("31-01-2098");
     const table = page.getByRole("table", { name: "Member attendance by meeting" });
     const scroll = page.getByRole("region", { name: "Scrollable attendance matrix" });
+    await expect(table.getByRole("row")).toHaveCount(32);
+    await expect(table.getByRole("columnheader")).toHaveCount(26);
+    await expectAttendancePresentation(page, true);
+    // Match no fixture member; shared seeds may contain meetings in any date range.
+    await page.getByLabel("Search members").fill("SW260 NO_MATCHING_MEMBER");
+    await expect(page.getByRole("alert").filter({ hasText: "No members or closed meetings match the current filters." })).toBeVisible();
+    await expectAttendancePresentation(page, true);
+    await page.getByLabel("Search members").fill("SW260");
     await expect(table.getByRole("row")).toHaveCount(32);
     await expect(table.getByRole("columnheader")).toHaveCount(26);
     await expect(table.getByRole("button")).toHaveCount(0);
@@ -85,6 +94,7 @@ test("Superuser rollout persists independently; matrix scroll, filters and rollb
     await expect(disable).toHaveAttribute("aria-pressed", "true");
     await page.goto("/leader/attendance");
     await expect(scroll).toHaveCount(0);
+    await expectAttendancePresentation(page, false);
     await expect(page.getByTestId("meeting-average-rate")).toBeVisible();
     await expect(page.getByTestId("attendance-member-card").first()).toBeVisible();
     expect(await Promise.all(matrixMeetingIds.map(async id => (await db.doc(`weeklyMeetings/${id}`).get()).data()))).toEqual(before);
