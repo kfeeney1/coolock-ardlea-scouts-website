@@ -322,6 +322,36 @@ service cloud.firestore {
       return !exists(path) || (getAfter(path).data.updatedAt == request.time
         && getAfter(path).data.generation != get(path).data.generation && getAfter(path).data.ready == false);
     }
+    function trainingEnabled() {
+      return exists(/databases/$(database)/documents/siteSettings/leaderTrainingExperience)
+        && get(/databases/$(database)/documents/siteSettings/leaderTrainingExperience).data.get("version", "existing") == "redesigned";
+    }
+    // Separate from the broadly readable adminUsers profile: no public projection.
+    match /adminUsers/{leaderUid}/training/{category} {
+      function trainingReader() {
+        return isActiveLeader() && (request.auth.uid == leaderUid || isAdmin() || isGroupLeader());
+      }
+      function trainingWriter() { return isAdmin() || canDelegateLeaderTarget(leaderUid); }
+      function validTraining(data) {
+        return category in ["garda-vetting", "first-aid", "child-protection"]
+          && exists(/databases/$(database)/documents/adminUsers/$(leaderUid))
+          && get(/databases/$(database)/documents/adminUsers/$(leaderUid)).data.role in ["leader", "admin", "super-admin"]
+          && data.keys().hasAll(["completedDate", "expiryDate", "revision", "updatedBy", "updatedAt"])
+          && data.keys().hasOnly(["completedDate", "expiryDate", "revision", "updatedBy", "updatedAt"])
+          && (data.completedDate == "" || validIsoDate(data.completedDate))
+          && (data.expiryDate == "" || validIsoDate(data.expiryDate))
+          && (data.completedDate == "" || data.expiryDate == "" || data.expiryDate >= data.completedDate)
+          && data.revision is int && data.revision > 0
+          && data.updatedBy == request.auth.uid && data.updatedAt == request.time;
+      }
+      allow get, list: if trainingEnabled() && trainingReader();
+      allow create: if trainingEnabled() && trainingWriter() && validTraining(request.resource.data)
+        && request.resource.data.revision == 1;
+      allow update: if trainingEnabled() && trainingWriter() && validTraining(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+
     match /adminUsers/{userId} {
       allow get: if isActiveLeader();
       allow list: if isAdmin() || isGroupLeader() || (isRoverSectionLeader() && resource.data.active == true && resource.data.role == "leader");
@@ -2299,7 +2329,7 @@ service cloud.firestore {
       // Public navigation reads a single non-sensitive projection. The canonical
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
-        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience"])
+        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience", "leaderTrainingExperience"])
         || (settingsId == "parentLogin" && isSuperAdmin())
         || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
@@ -2311,7 +2341,7 @@ service cloud.firestore {
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
         && _writeData.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
-        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "calendarExperience"] && isSuperAdmin()
+        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "calendarExperience", "leaderTrainingExperience"] && isSuperAdmin()
         && _writeData.version in ["existing", "redesigned"]
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
