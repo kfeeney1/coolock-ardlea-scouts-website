@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { calendarDateFixtures, dateActionContext } from "./support/calendar-date-fixtures";
+import { decodeProgramme } from "../src/services/weeklyMeetingProgrammeText";
 import { formatSiteDate } from "../src/services/siteDateFormat";
 const credentials = () => ({email: "superadmin@example.com", password: process.env.E2E_TEST_USER_PASSWORD!});
 test("SW-539 empty cell, four-entry day, entry navigation and keyboard focus", async ({page}) => {
@@ -70,7 +71,12 @@ for (const action of ["meeting", "event", "maintenance"]) test(`SW-539 ${action}
   const fixture = await calendarDateFixtures();
   const collection = action === "meeting" ? "weeklyMeetings" : action === "event" ? "events" : "maintenance/group/appointments";
   const title = `SW539 saved ${action} ${testInfo.testId}`;
-  const fieldName = action === "meeting" ? "theme" : "title";
+  // Weekly meeting titles are encoded in the canonical programmeNotes payload.
+  // Read by date, then decode the saved title; use the same identity for cleanup.
+  const savedRecords = async () => {
+    const snapshot = await fixture.db.collection(collection).where(action === "meeting" ? "meetingDate" : "title", "==", action === "meeting" ? "2040-06-16" : title).get();
+    return snapshot.docs.filter(record => action !== "meeting" || decodeProgramme(record.data().programmeNotes).theme === title);
+  };
   try {
     if (action === "maintenance") await fixture.settings[1].set({version: "redesigned", sdkRevision: 1});
     await loginAsLeader(page, credentials()); await page.goto(dateActionContext);
@@ -81,12 +87,12 @@ for (const action of ["meeting", "event", "maintenance"]) test(`SW-539 ${action}
     else await page.getByRole("textbox", {name: action === "event" ? /^Event title/ : /^Appointment title/}).fill(title);
     await page.getByRole("button", {name: action === "meeting" ? "Create Meeting" : action === "event" ? "Create Event" : "Save appointment", exact: true}).click();
     await expect(page).toHaveURL(dateActionContext);
-    const records = await fixture.db.collection(collection).where(fieldName, "==", title).get();
-    expect(records.size).toBe(1);
-    expect(records.docs[0].data()[action === "meeting" ? "meetingDate" : action === "event" ? "startDate" : "date"]).toBe("2040-06-16");
+    const records = await savedRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0].data()[action === "meeting" ? "meetingDate" : action === "event" ? "startDate" : "date"]).toBe("2040-06-16");
   } finally {
-    const records = await fixture.db.collection(collection).where(fieldName, "==", title).get();
-    for (const record of records.docs) {
+    const records = await savedRecords();
+    for (const record of records) {
       await fixture.db.recursiveDelete(record.ref);
       if (action === "meeting") await fixture.db.doc(`parentWeeklyMeetings/${record.id}`).delete();
       if (action === "event") for (const projection of ["publicEvents", "parentGalleryEvents", "eventProgrammes"]) await fixture.db.doc(`${projection}/${record.id}`).delete();
