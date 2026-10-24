@@ -96,10 +96,16 @@ test("training editor guards unsaved navigation, retains dates after save failur
     await card.getByRole("button", { name: "Add dates", exact: true }).click();
     await dates(page, "01-01-2026", "01-01-2027");
     await page.context().setOffline(true);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
     await page.getByRole("button", { name: "Save record", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: /Unable|connection|offline|network/i }).first()).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Expiry / lapse date", exact: true })).toHaveValue("01-01-2027");
-    await page.context().setOffline(false); await save(page);
+    await expect(page.getByRole("button", { name: "Save record", exact: true })).toBeEnabled();
+    expect((await scheduleFixtureDb().collection(`adminUsers/${uid}/training`).get()).size).toBe(0);
+    await page.context().setOffline(false);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+    await save(page);
+    expect((await scheduleFixtureDb().collection(`adminUsers/${uid}/training`).get()).size).toBe(1);
     await scheduleFixtureDb().doc("siteSettings/leaderTrainingExperience").set({ version: "existing" });
     await expect(page.getByRole("heading", { name: "Training & vetting", exact: true })).toHaveCount(0);
     await scheduleFixtureDb().doc("siteSettings/leaderTrainingExperience").set({ version: "redesigned" });

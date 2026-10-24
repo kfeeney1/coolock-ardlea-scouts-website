@@ -19,6 +19,9 @@ export async function saveLeaderTraining(leaderUid: string, category: TrainingCa
   if (!trainingCategories.includes(category)) throw new UserFacingError("Choose a training category.");
   const error = trainingDatesError(dates);
   if (error) throw new UserFacingError(error);
+  // Firestore can keep retrying an offline transaction before surfacing an error.
+  // Reject a known-offline save before starting it, so the editor stays recoverable.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) throw new UserFacingError("Unable to save training dates while offline. Reconnect and try again; your changes have been retained.");
   const ref = doc(db, "adminUsers", leaderUid, "training", category);
   await runTransaction(db, async tx => {
     const snapshot = await tx.get(ref);
