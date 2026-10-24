@@ -1,3 +1,4 @@
+import { calendarCreationDate } from "../services/calendarCreation";
 import { Alert, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -33,7 +34,7 @@ export default function MaintenanceAppointment() {
   return <CalendarPageLayout title="Maintenance appointment" subtitle="Group-wide service and maintenance" back={back} backLabel="Back to calendar">
     <Stack spacing={2}>
       {!creating && validAppointmentId(id) && (state.key !== key || !state.loaded) ? <Typography role="status">Loading appointment…</Typography> : !creating && !record ? <><Alert severity={state.error ? "error" : "info"}>This appointment is unavailable. It may have been removed or no longer be accessible.</Alert><Button onClick={() => setAttempt(value => value + 1)}>Retry appointment</Button></> : <Paper variant="outlined" sx={{p: {xs: 2, sm: 3}, borderRadius: 3}}>
-        {editing ? <AppointmentEditor key={creating ? newId : `${id}:${attempt}`} id={creating ? newId : id} initial={record || emptyAppointment(defaultDate)} revision={record?.revision || 0} back={back} /> : record && <Stack spacing={2}>
+        {editing ? <AppointmentEditor key={creating ? newId : `${id}:${attempt}`} id={creating ? newId : id} initial={record || emptyAppointment(calendarCreationDate(location.state) || defaultDate)} revision={record?.revision || 0} back={back} preserveReturn={Boolean(calendarCreationDate(location.state))} /> : record && <Stack spacing={2}>
           <Typography component="h2" variant="h5" sx={{fontWeight: 800}}>{record.title}</Typography>
           <Typography>Maintenance · Group-wide</Typography><Typography sx={{p: 1.5, borderRadius: 1, bgcolor: "action.selected"}}>{formatSiteDate(record.date)} · {record.allDay ? "All day" : `${record.startTime} – ${record.endTime} (Europe/Dublin)`}</Typography>
           {record.location && <Typography>{record.location}</Typography>}{record.notes && <ExpandableMeetingNotes notes={record.notes} />}

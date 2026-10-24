@@ -1,3 +1,5 @@
+import { useState } from "react";
+import CalendarDateActions from "../components/calendar/CalendarDateActions";
 import { useCalendarMaintenance } from "../hooks/useCalendarMaintenance";
 import { useMaintenanceCalendarEntries } from "../hooks/useMaintenanceCalendarEntries";
 import { useCalendarSources } from "../hooks/useCalendarSources";
@@ -11,6 +13,7 @@ import { useCalendarAccess } from "../hooks/useCalendarAccess";
 import { calendarMonth, calendarTypes, type CalendarFilter } from "../services/groupCalendar";
 import { scheduleToday } from "../services/scheduleSelection";
 export default function GroupCalendar() {
+  const [actionDate, setActionDate] = useState("");
   const access = useCalendarAccess();
   const { user, authorised } = useAdminAuth();
   const [params, setParams] = useSearchParams();
@@ -41,7 +44,7 @@ export default function GroupCalendar() {
           </TextField>
           {records.loading && <Typography role="status">Loading Calendar records…</Typography>}
           {records.error && <Alert severity="error" action={<Button onClick={records.retry}>Retry records</Button>}>{records.error}</Alert>}
-          <CalendarMonthGrid month={month} today={today} entries={records.entries} type={type} section={section} returnTo={`/calendar?month=${month}&type=${type}${section ? `&section=${encodeURIComponent(section)}` : ""}`} />
+          <CalendarMonthGrid onDateAction={setActionDate} month={month} today={today} entries={records.entries} type={type} section={section} returnTo={`/calendar?month=${month}&type=${type}${section ? `&section=${encodeURIComponent(section)}` : ""}`} />
           {!records.loading && !records.error && !records.entries.length && <Alert severity="info" role="status">No shared meetings, events or maintenance in this month.</Alert>}
           {!records.loading && !records.error && records.entries.length > 0 && !records.entries.some(entry => (type === "all" || entry.type === type) && (!section || entry.section === section)) && <Alert severity="info" role="status">No records match these filters. <Button onClick={() => {const next = new URLSearchParams(); next.set("month", month); setParams(next, {replace: true});}}>Clear filters</Button></Alert>}
           <Typography variant="body2" color="text.secondary">Only records shared with your account are shown.</Typography>
@@ -52,6 +55,7 @@ export default function GroupCalendar() {
       {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/new" data-calendar-schedule-action disabled={records.loading} state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance</Button>}
       {maintenance.allowed && <Button component={Link} to="/calendar/maintenance/tasks" data-calendar-schedule-action disabled={records.loading} state={{calendarReturnTo: returnTo}} color="secondary" sx={{minHeight: 44, borderRadius: 2, boxShadow: "none"}}>Schedule maintenance task</Button>}
       </Stack>
+      <CalendarDateActions date={actionDate} onClose={() => setActionDate("")} returnTo={returnTo} maintenance={maintenance.allowed} />
     </Stack>
   </CalendarPageLayout>;
 }

@@ -1,3 +1,6 @@
+import { useLocation } from "react-router-dom";
+import { calendarCreationDate } from "../services/calendarCreation";
+import { calendarReturnPath } from "../services/calendarSourceLogic";
 import DatePickerField from "../components/DatePickerField";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import { Alert, Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
@@ -14,11 +17,14 @@ import { effectiveOperationalSections } from "../services/leaderAccessLogic";
 import { nextSectionMeetingDate } from "../services/weeklyMeetingDate.mjs";
 
 export default function CreateWeeklyMeetingPage() {
+  const navigation = useLocation();
+  const initialDate = calendarCreationDate(navigation.state);
+  const back = calendarReturnPath(navigation.state);
   const { adminProfile } = useAdminAuth();
   const isAdmin = adminProfile?.role === "admin" || adminProfile?.role === "super-admin";
   const [section, setSection] = useState("");
-  const [date, setDate] = useState("");
-  const dateManuallyChanged = useRef(false);
+  const [date, setDate] = useState(initialDate);
+  const dateManuallyChanged = useRef(Boolean(initialDate));
   const [location, setLocation] = useState("");
   const [theme, setTheme] = useState("");
   const [programmeNotes, setProgrammeNotes] = useState("");
@@ -31,7 +37,7 @@ export default function CreateWeeklyMeetingPage() {
   const draftRef = useRef({ section, date, location, theme, programmeNotes });
   const sections = useMemo(() => adminProfile ? effectiveOperationalSections(adminProfile.role, adminProfile.sections, adminProfile.appointments) : [], [adminProfile]);
   const defaultSection = sections[0] ?? "";
-  const defaultDate = section ? nextSectionMeetingDate(section) : "";
+  const defaultDate = initialDate || (section ? nextSectionMeetingDate(section) : "");
   const hasMeaningfulDraft = Boolean((section && section !== defaultSection) || (date && date !== defaultDate) || location.trim() || theme.trim() || programmeNotes.trim());
   draftRef.current = { section, date, location, theme, programmeNotes };
 
@@ -63,7 +69,7 @@ export default function CreateWeeklyMeetingPage() {
     if (createInFlight.current) return createInFlight.current;
     if (createdMeetingId.current) return true;
     const draft = draftRef.current;
-    const expectedDate = draft.section ? nextSectionMeetingDate(draft.section) : "";
+    const expectedDate = initialDate || (draft.section ? nextSectionMeetingDate(draft.section) : "");
     const meaningful = Boolean((draft.section && draft.section !== defaultSection) || (draft.date && draft.date !== expectedDate) || draft.location.trim() || draft.theme.trim() || draft.programmeNotes.trim());
     if (!meaningful && !force) return true;
     if (saving) return false;
@@ -97,14 +103,14 @@ export default function CreateWeeklyMeetingPage() {
   const cancel = async () => {
     if (saving) return;
     if (!hasMeaningfulDraft) {
-      navigateWithoutSave("/leader/weekly");
+      navigateWithoutSave(back || "/leader/weekly");
       return;
     }
-    if (await createDraft(false)) navigateWithoutSave("/leader/weekly");
+    if (await createDraft(false)) navigateWithoutSave(back || "/leader/weekly");
   };
   const save = async () => {
     if (!(await createDraft(true)) || !createdMeetingId.current) return;
-    navigateWithoutSave(`/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
+    navigateWithoutSave(back || `/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}>
