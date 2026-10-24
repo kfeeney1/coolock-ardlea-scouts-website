@@ -1,3 +1,6 @@
+import { useLocation } from "react-router-dom";
+import { calendarCreationDate } from "../services/calendarCreation";
+import { calendarReturnPath } from "../services/calendarSourceLogic";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import DateRangeFields from "../components/DateRangeFields";
 import { Alert, Box, Button, Container, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Stack, Switch, TextField } from "@mui/material";
@@ -14,13 +17,16 @@ import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
 export default function CreateEventPage() {
+  const navigation = useLocation();
+  const initialDate = calendarCreationDate(navigation.state);
+  const back = calendarReturnPath(navigation.state);
   const { user, adminProfile } = useAdminAuth();
   const scopeKey = JSON.stringify([user?.uid, adminProfile?.role, adminProfile?.sections]);
   const [loadedScope, setLoadedScope] = useState("");
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [initialAudience, setInitialAudience] = useState<EventInput["audience"]>(null);
-  const [draft, setDraft] = useState<EventInput>(EMPTY_EVENT);
+  const [draft, setDraft] = useState<EventInput>(() => ({...EMPTY_EVENT, startDate: initialDate, endDate: initialDate}));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +59,7 @@ export default function CreateEventPage() {
 
   const hasMeaningfulDraft = Boolean(
     draft.title.trim() || draft.description.trim() || draft.location.trim() || draft.meetingPoint.trim()
-    || draft.returnDetails.trim() || draft.leaderNotes.trim() || draft.startDate || draft.endDate
+    || draft.returnDetails.trim() || draft.leaderNotes.trim() || draft.startDate !== initialDate || draft.endDate !== initialDate
     || draft.eventType !== "Activity" || draft.section !== "All Sections" || draft.status !== "draft"
     || draft.consentRequired || (draft.audience?.memberIds.length ?? 0) > 0 || (draft.audience?.sectionIds.length ?? 0) > 0
   );
@@ -113,16 +119,16 @@ export default function CreateEventPage() {
   };
 
   const { navigateAfterSave, navigateWithoutSave } = useSaveOnNavigation(hasMeaningfulDraft, createDraft);
-  const requestExit = () => { if (!saving) void navigateAfterSave("/leader/events", true); };
+  const requestExit = () => { if (!saving) void navigateAfterSave(back || "/leader/events", true); };
   const save = async () => {
     if (!(await createDraft(true)) || !createdEventId.current) return;
-    navigateWithoutSave(`/leader/events/${encodeURIComponent(createdEventId.current)}`, true);
+    navigateWithoutSave(back || `/leader/events/${encodeURIComponent(createdEventId.current)}`, true);
   };
 
   return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }} data-testid="event-create-page">
     <Container maxWidth="md">
       <LeaderDashboardHeader />
-      <LeaderPageHeader title="Create Event" description="" actions={<Button variant="outlined" disabled={saving || !dataReady} onClick={requestExit}>Back to Events</Button>} />
+      <LeaderPageHeader title="Create Event" description="" actions={<Button variant="outlined" disabled={saving || !dataReady} onClick={requestExit}>{back ? "Back to calendar" : "Back to Events"}</Button>} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loadError && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</Button>}>{loadError}</Alert>}
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>

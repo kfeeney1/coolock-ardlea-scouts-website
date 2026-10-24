@@ -7,7 +7,7 @@ import { appointmentErrors, appointmentSavedPath, type AppointmentErrors, type A
 import { saveMaintenanceAppointment } from "../../services/maintenanceAppointmentStore";
 import { focusFirstInvalidFieldAfterRender } from "../../services/formValidationFocus";
 import { applicationErrorMessage } from "../../services/applicationErrors";
-export default function AppointmentEditor({id, initial, revision, back, taskId = ""}: {id: string; initial: AppointmentInput; revision: number; back: string; taskId?: string}) {
+export default function AppointmentEditor({id, initial, revision, back, taskId = "", preserveReturn = false}: {id: string; initial: AppointmentInput; revision: number; back: string; taskId?: string; preserveReturn?: boolean}) {
   const navigate = useNavigate();
   const [baseline] = useState(() => ({input: cleanAppointment(initial), revision}));
   const [form, setForm] = useState(baseline.input), [invalidDate, setInvalidDate] = useState(false);
@@ -29,9 +29,9 @@ export default function AppointmentEditor({id, initial, revision, back, taskId =
   // Reuse the site's current Save / Discard / Stay and browser/Android Back guard.
   const leave = useConfirmEventLeave(dirty, save, request => {
     if (request.kind === "sign-out" || (request.kind === "navigate" && !request.destination.startsWith("/calendar"))) return false;
-    navigate(appointmentSavedPath(back, form.date), {replace: true, state: {calendarSaved: true}}); return true;
+    navigate((preserveReturn ? back : appointmentSavedPath(back, form.date)), {replace: true, state: {calendarSaved: true}}); return true;
   });
-  const saveAndReturn = async () => {if (await save()) {leave.releaseAfterSuccessfulSave(); navigate(appointmentSavedPath(back, form.date), {replace: true, state: {calendarSaved: true}});}};
+  const saveAndReturn = async () => {if (await save()) {leave.releaseAfterSuccessfulSave(); navigate((preserveReturn ? back : appointmentSavedPath(back, form.date)), {replace: true, state: {calendarSaved: true}});}};
   const field = (key: "title" | "location" | "notes", label: string, maxLength: number, multiline = false) => <TextField fullWidth label={label} required={key === "title"} value={form[key]} onChange={event => set(key, event.target.value)} error={Boolean(errors[key])} helperText={errors[key]} slotProps={{htmlInput: {maxLength}}} multiline={multiline} minRows={multiline ? 4 : undefined} disabled={saving} />;
   return <Stack ref={root} component="form" noValidate spacing={2} onSubmit={event => {event.preventDefault(); void saveAndReturn();}}>
     <Typography component="h2" variant="h5" color="secondary" sx={{fontWeight: 800}}>{taskId ? revision ? "Reschedule task" : "Schedule task" : revision ? "Edit appointment" : "New service appointment"}</Typography>
