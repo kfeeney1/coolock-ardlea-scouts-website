@@ -21,7 +21,10 @@ test("Superuser toggles leader training with keyboard and persists independently
     await expect(calendar).toHaveAttribute("aria-pressed", calendarState!);
   } finally {
     await expect(toggle).toBeEnabled();
-    await toggle.setChecked(original);
+    if (await toggle.isChecked() !== original) {
+      await toggle.click();
+      await expect(page.getByRole("status").filter({ hasText: "Leader training setting saved." })).toBeVisible();
+    }
     await expect(toggle).toBeChecked({ checked: original });
   }
   await page.reload();
