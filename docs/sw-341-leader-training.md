@@ -11,7 +11,8 @@ Renewal replaces the dates at the same path. An expected revision prevents a
 stale editor from overwriting a newer renewal. Deletion is denied.
 
 Existing active Administrator and Group Leader/Deputy Group Leader predicates
-control maintenance. Active leaders may read their own training records without
+control maintenance: Group Leadership can maintain only another ordinary leader,
+matching existing delegation restrictions; Administrators can maintain all targets. Active leaders may read their own training records without
 write permission. Other leaders, parents, public users and inactive accounts
 cannot read the subcollection. These rules do not change existing leader access
 or public leadership permissions. SW-342 should use the own profile for self

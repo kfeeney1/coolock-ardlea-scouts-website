@@ -331,7 +331,7 @@ service cloud.firestore {
       function trainingReader() {
         return isActiveLeader() && (request.auth.uid == leaderUid || isAdmin() || isGroupLeader());
       }
-      function trainingWriter() { return isAdmin() || isGroupLeader(); }
+      function trainingWriter() { return isAdmin() || canDelegateLeaderTarget(leaderUid); }
       function validTraining(data) {
         return category in ["garda-vetting", "first-aid", "child-protection"]
           && exists(/databases/$(database)/documents/adminUsers/$(leaderUid))

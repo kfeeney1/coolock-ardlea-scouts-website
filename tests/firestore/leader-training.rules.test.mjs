@@ -57,7 +57,12 @@ test("sensitive dates are readable only by self or existing group managers; read
   await assertFails(getDoc(ref(env.unauthenticatedContext().firestore())));
   await assertFails(setDoc(ref(dbFor("leader")), data("leader", 3)));
   await assertFails(getDoc(ref(dbFor("leader"), "first-aid", "other")));
-  for (const uid of ["group", "deputy", "super"]) await assertSucceeds(setDoc(ref(dbFor(uid), "first-aid", uid), data(uid)));
+  for (const [uid, revision] of [["group", 1], ["deputy", 2], ["super", 3]]) await assertSucceeds(setDoc(ref(dbFor(uid), "first-aid", "other"), data(uid, revision)));
+  for (const uid of ["group", "deputy"]) {
+    await assertFails(setDoc(ref(dbFor(uid), "first-aid", "admin"), data(uid)));
+    await assertFails(setDoc(ref(dbFor(uid), "first-aid", "super"), data(uid)));
+    await assertFails(setDoc(ref(dbFor(uid), "first-aid", uid), data(uid)));
+  }
 });
 
 test("Rules reject malformed dates, ordering, identity and extra sensitive fields; partial records are allowed", async () => {
