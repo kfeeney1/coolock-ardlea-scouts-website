@@ -24,6 +24,7 @@ for (const navigationVersion of ["existing", "redesigned"] as const) test(`Maint
     const enable = page.getByRole("button", { name: "Maintenance enabled", exact: true });
     await expect(page.getByRole("button", { name: "Maintenance disabled", exact: true })).toHaveAttribute("aria-pressed", "true");
     await enable.click();
+    await expect(page.getByRole("status").filter({ hasText: "Maintenance setting saved." })).toBeVisible();
     await expect(enable).toHaveAttribute("aria-pressed", "true");
     expect((await setting.get()).data()?.sdkRevision).toBe(1);
     await page.reload();
@@ -47,7 +48,14 @@ for (const navigationVersion of ["existing", "redesigned"] as const) test(`Maint
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole("link", { name: "Back to Dashboard", exact: true }).click();
     await page.goto("/leader/settings");
-    await page.getByRole("button", { name: "Maintenance disabled", exact: true }).click();
+    const disable = page.getByRole("button", { name: "Maintenance disabled", exact: true });
+    await expect(enable).toHaveAttribute("aria-pressed", "true");
+    await disable.click();
+    await expect(page.getByRole("status").filter({ hasText: "Maintenance setting saved." })).toBeVisible();
+    await expect(disable).toHaveAttribute("aria-pressed", "true");
+    expect((await setting.get()).data()).toMatchObject({ version: "existing", sdkRevision: 1 });
+    await page.reload();
+    await expect(disable).toHaveAttribute("aria-pressed", "true");
     await page.goto("/maintenance/documents");
     await expect(page.getByText("Maintenance is currently disabled.", { exact: true })).toBeVisible();
   } finally {
