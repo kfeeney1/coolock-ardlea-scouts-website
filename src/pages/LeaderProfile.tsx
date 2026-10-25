@@ -1,3 +1,4 @@
+import LeaderTrainingSection from "../components/admin/LeaderTrainingSection";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
@@ -174,6 +175,8 @@ export default function LeaderProfile() {
                     title="My Profile"
                     description="Update your leader details and account settings."
                 />
+
+                {adminProfile && <LeaderTrainingSection leaderUid={adminProfile.uid} targetRole={adminProfile.role} readOnly />}
 
                 <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2 }}>
                     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>

@@ -1,3 +1,4 @@
+import LeaderTrainingSection from "../components/admin/LeaderTrainingSection";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
   Alert,
@@ -250,6 +251,7 @@ export default function LeaderAccessManagement() {
           label={<Box><Typography sx={{ fontWeight: 700 }}>Show on public Who's Who</Typography><Typography variant="body2" color="text.secondary">Publishes name, scouting role, section and hierarchy only. Email, phone and account role remain private.</Typography></Box>}
         />
         {record.role === "leader" && <LeaderChildLinksSection leaderUid={record.uid} onError={setError} onMessage={setMessage} />}
+        <LeaderTrainingSection leaderUid={record.uid} targetRole={record.role} />
         <Button variant="contained" color="secondary" sx={{ mt: 2 }} disabled={workingUid === record.uid || !isDirty(record)} onClick={() => requestSave(record)}>{workingUid === record.uid ? "Saving…" : "Save Leader"}</Button>
       </Paper>)}
       </Stack>
