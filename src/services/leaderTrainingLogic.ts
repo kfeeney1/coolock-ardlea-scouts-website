@@ -5,7 +5,7 @@ export type TrainingCategory = typeof trainingCategories[number];
 export const trainingLabels: Record<TrainingCategory, string> = {
   "garda-vetting": "Garda vetting", "first-aid": "First Aid", "child-protection": "Child Protection"
 };
-export type TrainingDates = { completedDate: string; expiryDate: string };
+export type TrainingDates = { completedDate: string; expiryDate: string; showOnCalendar?: boolean };
 export type LeaderTrainingRecord = TrainingDates & { revision: number };
 export type TrainingStatus = "Current" | "Expired" | "Not recorded" | "Incomplete";
 
@@ -13,6 +13,7 @@ export function trainingDatesError(dates: TrainingDates): string {
   if (dates.completedDate && !isIsoCalendarDate(dates.completedDate)) return "Enter a valid completion / issue date.";
   if (dates.expiryDate && !isIsoCalendarDate(dates.expiryDate)) return "Enter a valid expiry / lapse date.";
   if (dates.completedDate && dates.expiryDate && dates.expiryDate < dates.completedDate) return "Expiry / lapse date must be on or after completion / issue date.";
+  if (dates.showOnCalendar && !dates.expiryDate) return "Record an expiry / lapse date to show the renewal on the calendar.";
   return "";
 }
 

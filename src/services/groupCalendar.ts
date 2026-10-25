@@ -1,9 +1,9 @@
-export type CalendarType = "meeting" | "event" | "maintenance";
+export type CalendarType = "meeting" | "event" | "maintenance" | "training";
 export type CalendarEntry = {
   id: string; type: CalendarType; title: string; date: string; endDate?: string;
   time: string; section: string; state?: string; detail?: string; path: string;
 };
-export const calendarTypes = ["all", "meeting", "event", "maintenance"] as const;
+export const calendarTypes = ["all", "meeting", "event", "maintenance", "training"] as const;
 export type CalendarFilter = typeof calendarTypes[number];
 export function calendarMonth(value: string | null, today: string) {
   return value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value >= "1900-01" && value <= "2199-12" ? value : today.slice(0, 7);

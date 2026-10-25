@@ -32,6 +32,7 @@ export const suiteSpecs = {
     "schedule-experience-setting.spec.ts",
     "leader-training-setting.spec.ts",
     "leader-training-records.spec.ts",
+    "leader-training-calendar.spec.ts",
     "maintenance-access.spec.ts",
     "group-calendar.spec.ts",
     "calendar-record-layout.spec.ts",

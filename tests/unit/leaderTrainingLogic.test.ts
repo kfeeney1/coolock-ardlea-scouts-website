@@ -27,3 +27,8 @@ test("validation rejects invalid calendar dates, timestamps and reversed orderin
   assert.ok(trainingDatesError({ completedDate: "2026-10-25", expiryDate: "2026-10-24" }));
   for (const dates of [{ completedDate: "", expiryDate: "" }, { completedDate: "2026-10-24", expiryDate: "" }, { completedDate: "", expiryDate: "2026-10-24" }, { completedDate: "2026-10-24", expiryDate: "2026-10-24" }]) assert.equal(trainingDatesError(dates), "");
 });
+
+test("calendar opt-in requires an explicit lapse date, but completion may remain incomplete", () => {
+  assert.ok(trainingDatesError({completedDate: "2026-01-01", expiryDate: "", showOnCalendar: true}));
+  assert.equal(trainingDatesError({completedDate: "", expiryDate: "2026-10-24", showOnCalendar: true}), "");
+});

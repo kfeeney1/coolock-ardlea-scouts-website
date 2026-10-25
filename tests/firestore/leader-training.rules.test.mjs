@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp } from "firebase/firestore";
 let env;
 const dbFor = uid => env.authenticatedContext(`training-${uid}`).firestore();
 const ref = (db, category = "garda-vetting", leader = "leader") => doc(db, `adminUsers/training-${leader}/training/${category}`);
@@ -84,4 +84,25 @@ test("disabling denies direct reads and writes but retains dates for re-enable",
   await assertFails(setDoc(ref(dbFor("admin")), data("admin", 3)));
   await assertSucceeds(setting(dbFor("super"), "redesigned"));
   assert.equal((await assertSucceeds(getDoc(ref(dbFor("leader"))))).data().expiryDate, "2029-03-12");
+});
+
+ test("renewal calendar queries enforce the same private readers and opt-in validation", async () => {
+  const admin = dbFor("admin"), target = ref(admin, "child-protection", "other");
+  const reminder = {...data("admin", 1, "", "2040-06-15"), showOnCalendar: true};
+  await assertSucceeds(setDoc(target, reminder));
+  const reminders = db => query(collection(db, "adminUsers/training-other/training"), where("expiryDate", ">=", "2040-06-01"), where("expiryDate", "<=", "2040-06-30"));
+  for (const uid of ["other", "admin", "super", "group", "deputy"]) assert.equal((await assertSucceeds(getDocs(reminders(dbFor(uid))))).size, 1);
+  for (const uid of ["leader", "secretary", "parent", "inactive", "outsider"]) await assertFails(getDocs(reminders(dbFor(uid))));
+  await assertFails(getDocs(reminders(env.unauthenticatedContext().firestore())));
+  await assertFails(setDoc(target, {...data("admin", 2), expiryDate: "", showOnCalendar: true}));
+  await assertFails(setDoc(target, {...data("admin", 2), showOnCalendar: "true"}));
+  await assertFails(setDoc(ref(dbFor("other"), "child-protection", "other"), {...reminder, ...data("other", 2)}));
+  await assertSucceeds(setDoc(target, {...data("admin", 2, "", "2040-07-01"), showOnCalendar: true}));
+  assert.equal((await getDocs(reminders(admin))).size, 0);
+  await assertSucceeds(setDoc(target, {...data("admin", 3, "", "2040-06-15"), showOnCalendar: false}));
+  assert.equal((await getDoc(target)).data().expiryDate, "2040-06-15");
+  await assertSucceeds(setting(dbFor("super"), "existing"));
+  await assertFails(getDocs(reminders(admin)));
+  await assertSucceeds(setting(dbFor("super"), "redesigned"));
+  assert.equal((await getDoc(target)).data().showOnCalendar, false);
 });

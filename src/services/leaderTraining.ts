@@ -26,6 +26,6 @@ export async function saveLeaderTraining(leaderUid: string, category: TrainingCa
   await runTransaction(db, async tx => {
     const snapshot = await tx.get(ref);
     if ((snapshot.data()?.revision ?? 0) !== expectedRevision) throw new UserFacingError("This training record changed. Reload before saving.");
-    tx.set(ref, { completedDate: dates.completedDate, expiryDate: dates.expiryDate, revision: expectedRevision + 1, updatedBy: user.uid, updatedAt: serverTimestamp() });
+    tx.set(ref, { completedDate: dates.completedDate, expiryDate: dates.expiryDate, showOnCalendar: dates.showOnCalendar === true, revision: expectedRevision + 1, updatedBy: user.uid, updatedAt: serverTimestamp() });
   });
 }

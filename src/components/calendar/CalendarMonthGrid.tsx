@@ -2,8 +2,8 @@ import { Box, ButtonBase, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import { calendarDays, calendarEntriesForDay, type CalendarEntry, type CalendarFilter } from "../../services/groupCalendar";
 import { formatSiteDate } from "../../services/siteDateFormat";
-const labels = {meeting: "Meeting", event: "Event", maintenance: "Maintenance"};
-const accents = {meeting: "success.main", event: "warning.main", maintenance: "info.main"};
+const labels = {meeting: "Meeting", event: "Event", maintenance: "Maintenance", training: "Training renewal"};
+const accents = {meeting: "success.main", event: "warning.main", maintenance: "info.main", training: "secondary.main"};
 export default function CalendarMonthGrid({month, today, entries, type, section, returnTo, onDateAction}: {
   month: string; today: string; entries: CalendarEntry[]; type: CalendarFilter; section: string; returnTo: string; onDateAction: (date: string) => void;
 }) {
