@@ -1,3 +1,4 @@
+import { useLeaderTrainingCalendar } from "../hooks/useLeaderTrainingCalendar";
 import { useState } from "react";
 import CalendarDateActions from "../components/calendar/CalendarDateActions";
 import { useCalendarMaintenance } from "../hooks/useCalendarMaintenance";
@@ -21,12 +22,13 @@ export default function GroupCalendar() {
   const month = calendarMonth(params.get("month"), today);
   const maintenance = useCalendarMaintenance(), location = useLocation();
   const appointments = useMaintenanceCalendarEntries(maintenance.allowed, maintenance.key, month);
+  const training = useLeaderTrainingCalendar(access.allowed, month, access.revision);
   const sources = useCalendarSources(access.allowed, month, access.revision);
-  const records = {...sources, entries: [...sources.entries, ...appointments.entries], sections: [...new Set([...sources.sections, ...(maintenance.allowed ? ["Group"] : [])])].sort(), loading: sources.loading || appointments.loading || maintenance.loading};
+  const records = {...sources, entries: [...sources.entries, ...appointments.entries, ...training.entries], sections: [...new Set([...sources.sections, ...(maintenance.allowed || training.enabled ? ["Group"] : [])])].sort(), loading: sources.loading || appointments.loading || maintenance.loading || training.loading};
   const returnTo = `/calendar?month=${month}&type=${params.get("type") || "all"}${params.get("section") ? `&section=${encodeURIComponent(params.get("section")!)}` : ""}`;
   const requestedSection = params.get("section") || "";
   const section = records.sections.includes(requestedSection) ? requestedSection : "";
-  const type = calendarTypes.includes(params.get("type") as CalendarFilter) ? params.get("type") as CalendarFilter : "all";
+  const type = calendarTypes.includes(params.get("type") as CalendarFilter) && (params.get("type") !== "training" || training.enabled) ? params.get("type") as CalendarFilter : "all";
   const update = (key: string, value: string) => { const next = new URLSearchParams(params); next.set("month", month); next.set(key, value); setParams(next, {replace: true}); };
   if (access.loading) return <Container sx={{py: 4}}><Typography role="status">Loading Calendar…</Typography></Container>;
   if (!access.allowed) return <Container sx={{py: 4}}><Alert severity={access.error ? "error" : "info"}>{access.error || (!user ? "Sign in to access Calendar." : !access.enabled ? "Calendar is currently disabled." : "Calendar is restricted to approved group members.")}</Alert>{access.error && <Button onClick={access.retry} sx={{minHeight: 44}}>Retry Calendar</Button>}{!user && <Button component={Link} to="/parent" sx={{minHeight: 44}}>Sign in</Button>}</Container>;
@@ -34,10 +36,11 @@ export default function GroupCalendar() {
     <Stack spacing={2} data-testid="page-group-calendar">
       {location.state?.calendarSaved && <Alert severity="success" role="status">Maintenance appointment saved.</Alert>}
       {maintenance.error && <Alert severity="error" action={<Button onClick={maintenance.retry}>Retry Maintenance</Button>}>{maintenance.error}</Alert>}
+      {training.error && <Alert severity="error" action={<Button onClick={training.retry}>Retry training</Button>}>{training.error}</Alert>}
       {appointments.error && <Alert severity="error" action={<Button onClick={appointments.retry}>Retry appointments</Button>}>{appointments.error}</Alert>}
       <Paper variant="outlined" sx={{p: {xs: 1, sm: 2}, borderRadius: 3, bgcolor: "background.paper"}}>
         <Stack spacing={2}>
-          <CalendarMonthToolbar month={month} today={today} type={type} update={update} />
+          <CalendarMonthToolbar month={month} today={today} type={type} update={update} training={training.enabled} />
           <TextField size="small" select label="Calendar section" value={section} disabled={records.loading || Boolean(records.error)} onChange={event => update("section", event.target.value)}>
             <MenuItem value="">All permitted sections</MenuItem>
             {records.sections.map(value => <MenuItem key={value} value={value}>{value === "Group" ? "Group-wide" : value}</MenuItem>)}

@@ -337,7 +337,9 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/adminUsers/$(leaderUid))
           && get(/databases/$(database)/documents/adminUsers/$(leaderUid)).data.role in ["leader", "admin", "super-admin"]
           && data.keys().hasAll(["completedDate", "expiryDate", "revision", "updatedBy", "updatedAt"])
-          && data.keys().hasOnly(["completedDate", "expiryDate", "revision", "updatedBy", "updatedAt"])
+          && data.keys().hasOnly(["completedDate", "expiryDate", "showOnCalendar", "revision", "updatedBy", "updatedAt"])
+          && data.get("showOnCalendar", false) is bool
+          && (!data.get("showOnCalendar", false) || data.expiryDate != "")
           && (data.completedDate == "" || validIsoDate(data.completedDate))
           && (data.expiryDate == "" || validIsoDate(data.expiryDate))
           && (data.completedDate == "" || data.expiryDate == "" || data.expiryDate >= data.completedDate)

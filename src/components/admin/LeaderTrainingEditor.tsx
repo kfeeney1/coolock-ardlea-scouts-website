@@ -1,4 +1,4 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
+import { Alert, FormControlLabel, Switch, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
 import { useRef, useState } from "react";
 import DatePickerField from "../DatePickerField";
 import { useConfirmEventLeave } from "../../hooks/useConfirmEventLeave";
@@ -10,7 +10,7 @@ import { trainingDatesError, trainingLabels, type LeaderTrainingRecord, type Tra
 export default function LeaderTrainingEditor({ leaderUid, category, initial, renewal, onSaved, onCancel }: {
   leaderUid: string; category: TrainingCategory; initial?: LeaderTrainingRecord; renewal: boolean; onSaved: () => void; onCancel: () => void;
 }) {
-  const [baseline] = useState<TrainingDates>(() => ({ completedDate: initial?.completedDate || "", expiryDate: initial?.expiryDate || "" }));
+  const [baseline] = useState<TrainingDates>(() => ({ completedDate: initial?.completedDate || "", expiryDate: initial?.expiryDate || "", showOnCalendar: initial?.showOnCalendar === true }));
   const [form, setForm] = useState(baseline);
   const [invalid, setInvalid] = useState({ completedDate: false, expiryDate: false });
   const [error, setError] = useState("");
@@ -40,6 +40,7 @@ export default function LeaderTrainingEditor({ leaderUid, category, initial, ren
     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
       {([['completedDate', 'Completion / issue date'], ['expiryDate', 'Expiry / lapse date']] as const).map(([field, label]) => <DatePickerField key={field} fullWidth autoFocus={field === "completedDate"} name={field} label={label} value={form[field]} disabled={saving} onChange={event => { setForm(previous => ({ ...previous, [field]: event.target.value })); setInvalid(previous => ({ ...previous, [field]: false })); }} onInputValidityChange={valid => { const input = root.current?.elements.namedItem(field) as HTMLInputElement | null; setInvalid(previous => ({ ...previous, [field]: !valid && Boolean(input?.value.trim()) })); }} error={invalid[field] || Boolean(validation)} helperText={invalid[field] ? "Enter a real date as DD-MM-YYYY." : validation || " "} />)}
     </Stack>
+    <FormControlLabel sx={{ minHeight: 44 }} control={<Switch checked={form.showOnCalendar === true} disabled={saving} onChange={event => setForm(previous => ({ ...previous, showOnCalendar: event.target.checked }))} />} label="Show renewal on group calendar" />
     <Stack direction="row" spacing={1}><Button type="submit" variant="contained" color="secondary" disabled={saving} sx={{ minHeight: 44 }}>{saving ? "Saving…" : "Save record"}</Button><Button disabled={saving} onClick={() => dirty ? setCancelOpen(true) : cancel()} sx={{ minHeight: 44 }}>Cancel</Button></Stack>
     <Dialog open={cancelOpen || leave.dialogOpen} onClose={() => { setCancelOpen(false); leave.stay(); }} aria-labelledby="training-unsaved-title" fullWidth maxWidth="xs">
       <DialogTitle id="training-unsaved-title">Unsaved training changes</DialogTitle>

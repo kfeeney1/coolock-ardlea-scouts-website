@@ -1,3 +1,4 @@
+import { calendarReturnPath } from "../services/calendarSourceLogic";
 import LeaderTrainingSection from "../components/admin/LeaderTrainingSection";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
@@ -71,6 +72,7 @@ export default function LeaderAccessManagement() {
   const { user, adminProfile } = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const calendarBack = calendarReturnPath(location.state);
   const { leaderUid } = useParams();
   const [filterParams, setFilterParams] = useState(() => new URLSearchParams(window.location.search));
   const [records, setRecords] = useState<LeaderAccessRecord[]>([]);
@@ -215,6 +217,7 @@ export default function LeaderAccessManagement() {
     </>}
     {leaderUid && !selectedRecord && records.length > 0 && <Alert severity="warning" action={<Button component={Link} to="/leader/access" variant="outlined" color="secondary" sx={{ minHeight: 44 }}>Back to leaders</Button>}>Leader record not found or is not available to you.</Alert>}
     {selectedRecord && <>
+      {calendarBack && <Button component={Link} to={calendarBack} color="secondary" sx={{ mb: 2, minHeight: 44 }}>Back to calendar</Button>}
       <Button component={Link} to={{ pathname: "/leader/access", search: filterParams.toString() ? `?${filterParams.toString()}` : "" }} variant="outlined" color="secondary" data-testid="leader-access-back" sx={{ mb: 2, minHeight: 44, width: { xs: "100%", sm: "auto" }, whiteSpace: "nowrap" }}>Back to leaders</Button>
       <Stack spacing={2}>
       {[selectedRecord].map((record) => <Paper key={record.uid} data-testid={`leader-access-${record.uid}`} data-section={record.organisationSection} variant="outlined" sx={[{ p: { xs: 2, md: 3 }, borderRadius: 2 }, sectionCardSx(record.organisationSection)]}>
