@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 
 const password = process.env.E2E_TEST_USER_PASSWORD;
 const scouterEmail = process.env.E2E_LEADER_EMAIL || "test.scout.programme.scouter@example.com";
@@ -37,6 +38,7 @@ test("SW-403 Programme Scouter saves and reopens an assigned-section event on de
   await page.getByLabel("Event title").fill(title);
   await page.getByRole("combobox", { name: "Section" }).click();
   await page.getByRole("option", { name: "Scouts", exact: true }).click();
+  await waitForTransientOverlayHistory(page);
   const startDate = page.getByRole("textbox", { name: /^Start date/ });
   await startDate.fill("2099-07-10");
   failNextSave = true;
