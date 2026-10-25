@@ -1,13 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { loginAsLeader } from "./support/authentication-helpers";
 import { calendarDateFixtures, dateActionContext } from "./support/calendar-date-fixtures";
 import { decodeProgramme } from "../src/services/weeklyMeetingProgrammeText";
 import { formatSiteDate } from "../src/services/siteDateFormat";
 const credentials = () => ({email: "superadmin@example.com", password: process.env.E2E_TEST_USER_PASSWORD!});
+async function calendarReady(page: Page, leader = true) {
+  await expect(page.getByRole("heading", {name: "Group calendar", exact: true})).toBeVisible();
+  await expect(page.getByRole("combobox", {name: "Calendar section", exact: true})).toBeEnabled();
+  if (leader) await expect(page.locator('[data-calendar-date="2040-06-15"]').getByRole("link")).toHaveCount(4);
+}
 test("SW-539 empty cell, four-entry day, entry navigation and keyboard focus", async ({page}) => {
   const fixture = await calendarDateFixtures();
   try {
-    await loginAsLeader(page, credentials()); await page.goto(dateActionContext);
+    await loginAsLeader(page, credentials()); await page.goto(dateActionContext); await calendarReady(page);
     const populated = page.locator('[data-calendar-date="2040-06-15"]'), empty = page.locator('[data-calendar-date="2040-06-16"]');
     await expect(populated.getByRole("link")).toHaveCount(4);
     await populated.getByRole("link").first().click();
@@ -34,8 +39,7 @@ for (const action of ["meeting", "event", "maintenance"]) test(`SW-539 ${action}
   const fixture = await calendarDateFixtures();
   try {
     if (action === "maintenance") await fixture.settings[1].set({version: "redesigned", sdkRevision: 1});
-    await loginAsLeader(page, credentials()); await page.goto(dateActionContext);
-    await expect(page.getByText("Loading Calendar records…", {exact: true})).toHaveCount(0);
+    await loginAsLeader(page, credentials()); await page.goto(dateActionContext); await calendarReady(page);
     await page.getByRole("button", {name: `Actions for ${formatSiteDate("2040-06-15")}`, exact: true}).click();
     await page.getByRole("dialog").getByRole("link", {name: `Add ${action}`, exact: true}).click();
     const field = page.getByRole("textbox", {name: action === "meeting" ? /^Meeting date/ : action === "event" ? /^Start date/ : /^Appointment date/});
@@ -59,7 +63,7 @@ test("SW-539 parent date actions do not expose leader creation or disabled maint
     await page.getByLabel("Password", {exact: true}).fill(process.env.E2E_TEST_USER_PASSWORD!);
     await page.getByRole("button", {name: "Sign In", exact: true}).click();
     await expect(page.getByRole("button", {name: "Sign Out", exact: true}).first()).toBeVisible();
-    await page.goto(dateActionContext);
+    await page.goto(dateActionContext); await calendarReady(page, false);
     await page.getByRole("button", {name: `Actions for ${formatSiteDate("2040-06-16")}`, exact: true}).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("link")).toHaveCount(0);
@@ -79,8 +83,7 @@ for (const action of ["meeting", "event", "maintenance"]) test(`SW-539 ${action}
   };
   try {
     if (action === "maintenance") await fixture.settings[1].set({version: "redesigned", sdkRevision: 1});
-    await loginAsLeader(page, credentials()); await page.goto(dateActionContext);
-    await expect(page.getByText("Loading Calendar records…", {exact: true})).toHaveCount(0);
+    await loginAsLeader(page, credentials()); await page.goto(dateActionContext); await calendarReady(page);
     await page.getByRole("button", {name: `Actions for ${formatSiteDate("2040-06-16")}`, exact: true}).click();
     await page.getByRole("dialog").getByRole("link", {name: `Add ${action}`, exact: true}).click();
     if (action === "meeting") await page.getByRole("textbox", {name: "Theme / programme title", exact: true}).fill(title);
