@@ -2329,7 +2329,7 @@ service cloud.firestore {
       // Public navigation reads a single non-sensitive projection. The canonical
       // Parent Login setting remains readable only by an active Super Admin.
       allow get: if (signedIn() && settingsId == "session")
-        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience", "leaderTrainingExperience"])
+        || (signedIn() && settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "attendanceExperience", "maintenanceExperience", "calendarExperience", "leaderTrainingExperience"])
         || (settingsId == "parentLogin" && isSuperAdmin())
         || (settingsId == "parentConsent" && isSuperAdmin())
         || settingsId == "publicNavigation";
@@ -2341,7 +2341,7 @@ service cloud.firestore {
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
         && _writeData.keys().hasOnly(["version", "sdkRevision", "updatedAt", "updatedBy"])
-        || settingsId in ["leaderNavigation", "scheduleExperience", "attendanceExperience", "calendarExperience", "leaderTrainingExperience"] && isSuperAdmin()
+        || settingsId in ["leaderNavigation", "scheduleExperience", "meetingExperience", "attendanceExperience", "calendarExperience", "leaderTrainingExperience"] && isSuperAdmin()
         && _writeData.version in ["existing", "redesigned"]
         && _writeData.updatedBy == request.auth.uid
         && _writeData.updatedAt == request.time
