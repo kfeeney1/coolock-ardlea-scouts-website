@@ -32,6 +32,9 @@ function TrainingRecords({ leaderUid, targetRole, readOnly }: { leaderUid: strin
     void loadLeaderTraining(leaderUid).then(data => { if (active) setRecords(data); }).catch(() => { if (active) setError(true); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [leaderUid, revision]);
+  useEffect(() => {
+    if (!loading && !error && /^#training-(garda-vetting|first-aid|child-protection)$/.test(window.location.hash)) document.getElementById(window.location.hash.slice(1))?.focus();
+  }, [loading, error]);
   const actor = adminProfile ? { uid: adminProfile.uid, systemRole: adminProfile.role, scoutingAppointment: adminProfile.scoutingRole, scoutingAppointments: adminProfile.appointments } : null;
   const editable = !readOnly && Boolean(actor && (actor.systemRole === "admin" || actor.systemRole === "super-admin" || canManageOperationalAssignments(actor, { uid: leaderUid, systemRole: targetRole })));
   const today = groupLocalDate();
@@ -42,9 +45,10 @@ function TrainingRecords({ leaderUid, targetRole, readOnly }: { leaderUid: strin
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
         {trainingCategories.map(category => {
           const record = records[category], status = trainingStatus(record, today);
-          return <Paper component="article" key={category} variant="outlined" aria-label={trainingLabels[category]} sx={{ p: 2, borderRadius: 2, borderTop: 4, borderTopColor: "secondary.main" }}>
+          return <Paper component="article" id={`training-${category}`} tabIndex={-1} key={category} variant="outlined" aria-label={trainingLabels[category]} sx={{ p: 2, borderRadius: 2, scrollMarginTop: 100, "&:focus-visible": { outline: "3px solid", outlineColor: "secondary.main", outlineOffset: 2 }, borderTop: 4, borderTopColor: "secondary.main" }}>
             <Typography component="h3" variant="h6">{trainingLabels[category]}</Typography><Chip label={status} color={status === "Expired" ? "error" : "default"} size="small" sx={{ my: 1 }} />
             <Box component="dl" sx={{ my: 1 }}><Typography component="dt" color="text.secondary">Completion / issue date</Typography><Typography component="dd" sx={{ ml: 0, mb: 1 }}>{record?.completedDate ? formatDateRangeInput(record.completedDate) : "Not recorded"}</Typography><Typography component="dt" color="text.secondary">Expiry / lapse date</Typography><Typography component="dd" sx={{ ml: 0 }}>{record?.expiryDate ? formatDateRangeInput(record.expiryDate) : "Not recorded"}</Typography></Box>
+            <Typography variant="body2">{record?.showOnCalendar ? "Renewal shown on group calendar" : "Renewal not shown on group calendar"}</Typography>
             {editable && <Stack direction="row" useFlexGap sx={{ flexWrap: "wrap", mt: 2 }}><Button disabled={Boolean(editing)} color="secondary" sx={{ minHeight: 44 }} onClick={() => { setMessage(""); setEditing({ category, renewal: false }); }}>{record ? "Edit record" : "Add dates"}</Button>{record && <Button disabled={Boolean(editing)} color="secondary" sx={{ minHeight: 44 }} onClick={() => { setMessage(""); setEditing({ category, renewal: true }); }}>Record renewal</Button>}</Stack>}
           </Paper>;
         })}

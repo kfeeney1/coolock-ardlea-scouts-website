@@ -1,3 +1,4 @@
+import { calendarReturnPath } from "../services/calendarSourceLogic";
 import LeaderTrainingSection from "../components/admin/LeaderTrainingSection";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import LeaderDashboardHeader from "../components/admin/LeaderDashboardHeader";
@@ -19,7 +20,7 @@ import {
     Typography
 } from "@mui/material";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import PasswordField from "../components/PasswordField";
 import {
@@ -35,6 +36,7 @@ const sections = ["Beavers", "Cubs", "Scouts", "Ventures", "Rovers", "Group", "O
 const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
 
 export default function LeaderProfile() {
+    const calendarBack = calendarReturnPath(useLocation().state);
     const { adminProfile } = useAdminAuth();
     const [profile, setProfile] = useState<LeaderProfileData>({
         displayName: "",
@@ -176,7 +178,8 @@ export default function LeaderProfile() {
                     description="Update your leader details and account settings."
                 />
 
-                {adminProfile && <LeaderTrainingSection leaderUid={adminProfile.uid} targetRole={adminProfile.role} readOnly />}
+                {adminProfile && <>{calendarBack && <Button component={Link} to={calendarBack} sx={{ minHeight: 44 }}>Back to calendar</Button>}
+                <LeaderTrainingSection leaderUid={adminProfile.uid} targetRole={adminProfile.role} readOnly /></>}
 
                 <Paper elevation={2} sx={{ p: { xs: 2.5, md: 3 }, mb: 3, borderRadius: 2 }}>
                     <Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>
