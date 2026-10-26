@@ -5,7 +5,9 @@ import test from "node:test";
 test("weekly meetings renders the programme library with fresh insert callbacks", async () => {
   const page = await readFile("src/pages/WeeklySectionTracker.tsx", "utf8");
   const planner = await readFile("src/components/admin/WeeklyProgrammePlanner.tsx", "utf8");
-  assert.match(page, /<WeeklyProgrammePlanner/);
+  const panels = await readFile("src/components/admin/MeetingWorkflowPanels.tsx", "utf8");
+  assert.match(page, /<MeetingWorkflowPanels/);
+  assert.match(panels, /<WeeklyProgrammePlanner \{\.\.\.programme\}/);
   assert.match(planner, /<ProgrammeLibraryPanel section=\{selected\.section\}/);
   assert.match(planner, /onInsertActivity=\{\(item\)=>patch\(\{activities:\[\.\.\.selected\.activities,item\]\}\)\}/);
   assert.match(planner, /onInsertBadgework=\{\(item\)=>patch\(\{badgeworkPlan:\[\.\.\.selected\.badgeworkPlan,item\]\}\)\}/);
