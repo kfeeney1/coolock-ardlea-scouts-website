@@ -25,3 +25,7 @@ Deployed TEST and owner Production Manual Testing remain separate pending gates.
 ## Exact-head CI repair
 
 PR head 23bb9708 failed the mobile SW-390 journey before its editor test: Create Event awaited loadEvents(), which hydrated unrelated audience memberships solely for an identity-duplicate check that already always returns false. Creation now loads only its permitted member/audience data. Duplicate policy, permissions and existing save/navigation assertions are unchanged. A new desktop/mobile readiness regression rejects unrelated event/audience reads. Full quality:checks passed again; real demo emulators plus the local event backend passed 40 browser cases with zero retries and two unchanged project skips, including the original failed journey. No budgets, waits, assertions or retry settings were weakened. Fresh pinned CI remains required.
+
+The loading-shell regression now delays the authoritative member/audience read rather than the removed unrelated event query. Its shell/navigation identity, disabled-during-load, enabled-after-release and entered-draft assertions remain unchanged.
+
+Validation after the loading-shell fixture correction: full quality:checks passed again; 46 desktop/mobile browser cases passed with zero retries and two unchanged project skips, including Create Event and Subs slow-read shells, event readiness, the original mobile SW-390 failure, event failure/recovery and meeting lifecycle/matrix regressions.
