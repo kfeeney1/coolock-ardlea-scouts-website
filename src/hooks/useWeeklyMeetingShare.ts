@@ -1,24 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { loadWeeklyMeetingAdventureBadgework } from "../services/adventureSkillProgress";
-import { buildParentWeeklyMeetingProgramme, buildWeeklyMeetingWhatsAppUrl, mergeWeeklyMeetingShareBadgework } from "../services/weeklyMeetingProgramme";
+import { weeklyMeetingSnapshotShareUrl } from "../services/weeklyMeetingShareSnapshot";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
-
-function completedMeetingBadgework(meeting: WeeklyMeetingRecord): string[] {
-  const seen = new Set<string>();
-  const badges: string[] = [];
-  for (const entry of meeting.entries) {
-    if (entry.attendance !== "present") continue;
-    for (const raw of entry.badges) {
-      const name = raw.trim();
-      const key = name.toLocaleLowerCase();
-      if (!name || seen.has(key)) continue;
-      seen.add(key);
-      badges.push(name);
-    }
-  }
-  return badges;
-}
 
 export function useWeeklyMeetingShare(meeting: WeeklyMeetingRecord | null) {
   const [adventureBadgework, setAdventureBadgework] = useState<string[]>([]);
@@ -49,9 +33,7 @@ export function useWeeklyMeetingShare(meeting: WeeklyMeetingRecord | null) {
 
   const url = useMemo(() => {
     if (!meeting) return "";
-    const completedBadgework = [...completedMeetingBadgework(meeting), ...adventureBadgework];
-    const programme = mergeWeeklyMeetingShareBadgework(buildParentWeeklyMeetingProgramme(meeting), completedBadgework);
-    return buildWeeklyMeetingWhatsAppUrl(programme);
+    return weeklyMeetingSnapshotShareUrl(meeting, adventureBadgework);
   }, [meeting, adventureBadgework]);
 
   return { url, loading, error };
