@@ -87,6 +87,7 @@ export const suiteSpecs = {
     "meeting-run-incidents.spec.ts",
     "meeting-review-badgework.spec.ts",
     "meeting-lifecycle.spec.ts",
+    "meeting-integration-accessibility.spec.ts",
     "schedule-accessibility.spec.ts",
     "schedule-experience-matrix.spec.ts",
     "weekly-meeting-share.spec.ts",
