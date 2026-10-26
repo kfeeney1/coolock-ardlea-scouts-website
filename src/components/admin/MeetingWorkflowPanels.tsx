@@ -20,7 +20,7 @@ export default function MeetingWorkflowPanels({ redesigned, step, attendance, pr
   const stage = meetingStage(step);
   // Keep the mounted panels and their local UI state when moving between stages.
   return <>
-    <Box hidden={stage !== "plan"}><WeeklyProgrammePlanner {...programme} /></Box>
+    <Box hidden={stage !== "plan"}><WeeklyProgrammePlanner {...programme} compact /></Box>
     <Stack hidden={stage !== "run"} spacing={2} sx={stage !== "run" ? { display: "none" } : undefined}>
       <WeeklyMeetingAttendancePanel {...attendance} />
       <WeeklyMeetingDetailsPanels {...details} step="injuries" />

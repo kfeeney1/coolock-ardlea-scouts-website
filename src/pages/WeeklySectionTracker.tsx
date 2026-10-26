@@ -113,7 +113,7 @@ export default function WeeklySectionTracker() {
       setAccess(a);
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
       const requested=r.find(x=>x.id===meetingId);
-      if(requested){setSelected(requested);setSavedSelected(requested);if(!(workflow.redesigned&&selected?.id===requested.id))setStep(workflow.redesigned?initialMeetingStage(requested.status,requested.meetingDate):requested.status==="closed"?"attendance":initialWeeklyStep(requested.meetingDate));}
+      if(requested){setSelected(requested);setSavedSelected(requested);if(!(workflow.redesigned&&selected?.id===requested.id))setStep(workflow.redesigned?(searchParams.get("stage")==="plan"?"programme":initialMeetingStage(requested.status,requested.meetingDate)):requested.status==="closed"?"attendance":initialWeeklyStep(requested.meetingDate));}
       else if(meetingId&&selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
     } catch(e){if(sequence===refreshSequence.current)setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
     finally{if(sequence===refreshSequence.current)setLoading(false);}
