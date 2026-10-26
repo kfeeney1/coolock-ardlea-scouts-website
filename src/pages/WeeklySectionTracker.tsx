@@ -1,3 +1,5 @@
+import MeetingIncidentLeaveGuard from "../components/admin/MeetingIncidentLeaveGuard";
+import { useMeetingIncidentDraft } from "../hooks/useMeetingIncidentDraft";
 import MeetingProgrammeShareDialog from "../components/admin/MeetingProgrammeShareDialog";
 import { useSavedWeeklyProgrammeShare } from "../hooks/useSavedWeeklyProgrammeShare";
 import { meetingStage } from "../services/meetingWorkflow";
@@ -24,7 +26,7 @@ import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import { loadAttendanceInsightMembers } from "../services/reporting";
 import type { AttendanceInsightMember } from "../services/attendanceInsightsLogic";
 import { loadWeeklyAccess, loadWeeklyMeetings, reopenWeeklyMeeting, updatePastWeeklyMeeting, updateWeeklyMeeting } from "../services/weeklyTracker";
-import type { InjurySeverity, WeeklyAccess, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
+import type { WeeklyAccess, WeeklyLeaderOption, WeeklyMeetingRecord } from "../services/weeklyTracker";
 import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/weeklyMeetingPermissions";
 import { displayWeeklyDate, initialWeeklyStep, reconcileOpenWeeklyRoster, sortOpenWeeklyMeetings, sortWeeklyEntries, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
 import { useWeeklyMeetingShare } from "../hooks/useWeeklyMeetingShare";
@@ -61,16 +63,11 @@ export default function WeeklySectionTracker() {
   const [equipmentLoans,setEquipmentLoans]=useState<EquipmentLoan[]>([]);
   const [equipmentOpen,setEquipmentOpen]=useState(false);
   const [selectedRecord,setSelected]=useState<WeeklyMeetingRecord|null>(null);
-  // A fast POP may cancel the route transition after the click selected a record.
-  // Only the meeting named by the committed route may expose an editor.
+  // Expose only the meeting named by the committed route.
   const selected=selectedRecord?.id===meetingId?selectedRecord:null;
   const [savedSelected,setSavedSelected]=useState<WeeklyMeetingRecord|null>(null);
   const [step,setStep]=useState<Step>("attendance");
-  const [injuryMemberId,setInjuryMemberId]=useState("");
-  const [injuryConcern,setInjuryConcern]=useState("");
-  const [injurySeverity,setInjurySeverity]=useState<InjurySeverity>("minor");
-  const [injuryAction,setInjuryAction]=useState("");
-  const [injuryParentInformed,setInjuryParentInformed]=useState(false);
+  const incident=useMeetingIncidentDraft(meetingId,workflow.redesigned);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const saveInFlight=useRef<Promise<boolean>|null>(null);
@@ -91,7 +88,7 @@ export default function WeeklySectionTracker() {
   const programmeDuration=selected?totalProgrammeDuration(selected.activities,selected.badgeworkPlan):0;
   const {url:whatsappUrl,loading:shareLoading,error:shareError}=useWeeklyMeetingShare(workflow.redesigned?null:selected);
   const presentMemberIds=selected?.entries.filter(entry=>entry.attendance==="present").map(entry=>entry.memberId)??[];
-  const hasUnsavedChanges=weeklyMeetingHasChanges(selected,savedSelected)||leaderAttendanceChanged;
+  const hasUnsavedChanges=weeklyMeetingHasChanges(selected,savedSelected)||leaderAttendanceChanged||incident.dirty;
   const adventureBadgeworkHref=selected?badgeworkSourceHref({sourceType:"weeklyMeeting",sourceId:selected.id,memberIds:presentMemberIds,returnTo:`/leader/weekly?meeting=${encodeURIComponent(selected.id)}`}):"/leader/badgework";
 
   const EditorControls=workflow.redesigned?MeetingWorkflowControls:WeeklyMeetingEditorControls;
@@ -161,8 +158,7 @@ export default function WeeklySectionTracker() {
         else await updateWeeklyMeeting(id,input);
         await saveActivityLeaderAttendance(id);
         setSelected(next);setSavedSelected(next);
-        // Report the saved record as soon as its data writes finish. Audit and
-        // refresh are follow-up work and must not delay the save confirmation.
+        // Data writes acknowledge before audit and refresh.
         setSuccess(message);
         let auditWarning="";
         try {
@@ -181,15 +177,16 @@ export default function WeeklySectionTracker() {
     saveInFlight.current=pending;
     return pending;
   };
-  const programmeShare=useSavedWeeklyProgrammeShare(operationalReadOnly?savedSelected:selected, snapshot=>operationalReadOnly?Promise.resolve(true):persist(snapshot,"Meeting saved."));
-  const save=async()=>{if(selected&&await persist(selected,"Meeting saved."))requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));};
-  const closeMeeting=async()=>{if(!selected)return;const closed={...selected,status:"closed" as const};if(!(await persist(closed,"Meeting closed and added to history.","weekly-meeting-close")))return;setSelected(null);setSavedSelected(null);navigate("/leader/weekly",{replace:true});};
+  const persistWithIncident=async(record:WeeklyMeetingRecord,message="Meeting saved.",action?:string)=>{try{const next=incident.include(record);const saved=await persist(next,message,action);if(saved&&incident.dirty)incident.clear();return saved;}catch(cause){setStep("attendance");setError(applicationErrorMessage(cause,"Unable to save incident. Your form is retained in Run.","WeeklySectionTracker"));return false;}};
+  const programmeShare=useSavedWeeklyProgrammeShare(operationalReadOnly?savedSelected:selected, snapshot=>operationalReadOnly?Promise.resolve(true):persistWithIncident(snapshot));
+  const save=async()=>{if(selected&&await persistWithIncident(selected))requestAnimationFrame(()=>editorTopRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));};
+  const closeMeeting=async()=>{if(!selected)return;const closed={...selected,status:"closed" as const};if(!(await persistWithIncident(closed,"Meeting closed and added to history.","weekly-meeting-close")))return;setSelected(null);setSavedSelected(null);navigate("/leader/weekly",{replace:true});};
 
-  const saveForNavigation=async()=>!!selected&&(!hasUnsavedChanges||await persist(selected,"Meeting saved."));
-  useSaveOnNavigation(hasUnsavedChanges,saveForNavigation,async()=>{if(!selected||readOnly||selected.status==="closed")return false;try{const{id,...input}=selected;await updateWeeklyMeeting(id,input);await saveActivityLeaderAttendance(id);setSavedSelected(selected);return true;}catch{return false;}});
+  const saveForNavigation=async()=>!!selected&&(!hasUnsavedChanges||await persistWithIncident(selected));
+  useSaveOnNavigation(hasUnsavedChanges&&!incident.dirty,saveForNavigation,async()=>{if(!selected||readOnly||selected.status==="closed")return false;try{const{id,...input}=selected;await updateWeeklyMeeting(id,input);await saveActivityLeaderAttendance(id);setSavedSelected(selected);return true;}catch{return false;}});
 
   const applyNavigationAction=(action:NavigationAction)=>{const current=selected;if(action==="copy"&&current){navigate(`/leader/weekly/copy/${encodeURIComponent(current.id)}`);return;}setSelected(null);setSavedSelected(null);if(action==="meetings")navigate("/leader/weekly",{replace:true});else if(action==="create")navigate("/leader/weekly/create");};
-  const requestNavigationAction=async(action:NavigationAction)=>{if(programmeShare.busy)return;if(hasUnsavedChanges&&selected&&!(await persist(selected,"Meeting saved.")))return;applyNavigationAction(action);};
+  const requestNavigationAction=async(action:NavigationAction)=>{if(programmeShare.busy)return;if(hasUnsavedChanges&&selected&&!(await persistWithIncident(selected)))return;applyNavigationAction(action);};
 
   const openRecords=sortOpenWeeklyMeetings(records.filter(r=>r.status==="open")),history=records.filter(r=>r.status==="closed");
   const present=selected?.entries.filter(e=>e.attendance==="present").length??0,total=selected?.entries.length??0;
@@ -207,12 +204,13 @@ export default function WeeklySectionTracker() {
   </Stack>:<Stack spacing={2} sx={{minWidth:0,pb:{xs:"calc(104px + env(safe-area-inset-bottom))",sm:"calc(64px + env(safe-area-inset-bottom))"}}}>
     {workflow.changed&&<Alert severity="info">The meeting workflow setting changed. This editor keeps its current layout and edits. The new layout applies after leaving this meeting.</Alert>}
     <EditorControls onShare={()=>void programmeShare.start()} saving={saving||programmeShare.busy} dirty={hasUnsavedChanges} error={error} selected={selected} step={step} setStep={setStep} programmeDuration={programmeDuration} present={present} total={total} operationalReadOnly={operationalReadOnly} planningReadOnly={planningReadOnly} readOnly={readOnly} shareLoading={shareLoading} shareError={shareError??""} whatsappUrl={whatsappUrl} editorTopRef={editorTopRef} requestNavigationAction={requestNavigationAction} setEquipmentOpen={setEquipmentOpen}/>
-    <Box component="fieldset" disabled={programmeShare.busy} sx={{border:0,p:0,m:0,minWidth:0}}>
-    <MeetingWorkflowPanels redesigned={workflow.redesigned} step={step} attendance={{ entries: selected.entries, present, total, readOnly: operationalReadOnly, onEntriesChange: (entries)=>patch({entries}), leaders, leaderAttendance, onLeaderAttendanceChange: setLeaderAttendance, leaderAttendanceLoading }} programme={{ selected, selectedSectionLeaders, planningReadOnly, programmeDuration, setEquipmentOpen, patch }} details={{ step, selected, present, planningReadOnly, operationalReadOnly, adventureBadgeworkHref, injuryMemberId, setInjuryMemberId, injuryConcern, setInjuryConcern, injurySeverity, setInjurySeverity, injuryAction, setInjuryAction, injuryParentInformed, setInjuryParentInformed, patch }} />
+    <Box component="fieldset" disabled={programmeShare.busy||saving} sx={{border:0,p:0,m:0,minWidth:0}}>
+    <MeetingWorkflowPanels redesigned={workflow.redesigned} step={step} attendance={{ entries: selected.entries, present, total, readOnly: operationalReadOnly, onEntriesChange: (entries)=>patch({entries}), leaders, leaderAttendance, onLeaderAttendanceChange: setLeaderAttendance, leaderAttendanceLoading }} programme={{ selected, selectedSectionLeaders, planningReadOnly, programmeDuration, setEquipmentOpen, patch }} details={{ step, selected, present, planningReadOnly, operationalReadOnly, adventureBadgeworkHref, ...incident.fields, patch }} />
     </Box>
     <ProgrammeEquipmentDialog open={equipmentOpen} sourceType="weeklyMeeting" sourceId={selected.id} sourceLabel={`${selected.section} Weekly Meeting · ${selected.meetingDate}`} section={selected.section} date={selected.meetingDate} items={equipmentItems} loans={equipmentLoans} readOnly={planningReadOnly} onClose={()=>setEquipmentOpen(false)} onChanged={async()=>{setEquipmentLoans(await loadEquipmentLoans());}} />
     {!operationalReadOnly&&<WeeklyMeetingSaveActions share={workflow.redesigned&&meetingStage(step)==="plan"?()=>void programmeShare.start():undefined} stateLabel={workflow.redesigned?(saving?"Saving…":error?"Save failed — your edits are retained":hasUnsavedChanges?"Unsaved changes":"Saved"):undefined} selected={selected} saving={saving||programmeShare.busy} save={()=>void save()} closeMeeting={()=>void closeMeeting()}/>}
   </Stack>}
+  {workflow.redesigned&&selected&&<MeetingIncidentLeaveGuard key={meetingId} dirty={incident.dirty} save={saveForNavigation} saving={saving||programmeShare.busy}/>}
   <MeetingProgrammeShareDialog {...programmeShare}/>
   </Container></Box>;
 }

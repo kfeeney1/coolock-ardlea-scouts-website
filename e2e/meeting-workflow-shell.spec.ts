@@ -1,3 +1,4 @@
+import { waitForTransientOverlayHistory } from "./helpers/transientOverlayHistory";
 import { FieldValue } from "firebase-admin/firestore";
 import { expect, test } from "@playwright/test";
 import { reconcileOpenWeeklyRoster } from "../src/services/weeklyTrackerLogic";
@@ -80,7 +81,10 @@ test("Live rollout preserves an active draft, focus and all stages until the edi
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Injury / medical concern", exact: true })).toHaveValue("Incident draft");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  // Save and remain in the pinned presentation; the saved canonical record survives reload.
+  // Complete the retained incident before saving the pinned editor.
+  await page.getByRole("combobox", { name: "Incident member" }).click();
+  await page.getByRole("option").first().click();
+  await waitForTransientOverlayHistory(page);
   await page.getByRole("button", { name: "Save Meeting", exact: true }).click();
   await expect(page.getByTestId("meeting-save-state")).toHaveText("Saved");
   await expect(page.getByTestId("meeting-workflow-shell")).toBeVisible();
