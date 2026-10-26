@@ -79,6 +79,7 @@ export const suiteSpecs = {
     "weekly-activity-audit.spec.ts",
     "weekly-mobile-layout.spec.ts",
     "weekly-schedule.spec.ts",
+    "meeting-workflow-shell.spec.ts",
     "schedule-accessibility.spec.ts",
     "schedule-experience-matrix.spec.ts",
     "weekly-meeting-share.spec.ts",
