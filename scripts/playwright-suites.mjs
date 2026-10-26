@@ -74,6 +74,7 @@ export const suiteSpecs = {
     "event-audience-selection.spec.ts",
     "sw403-programme-scouter-event-save.spec.ts",
     "sw362-event-edit-navigation.spec.ts",
+    "event-create-readiness.spec.ts",
     "meeting-records.spec.ts",
     "programme-library.spec.ts",
     "weekly-activity-audit.spec.ts",

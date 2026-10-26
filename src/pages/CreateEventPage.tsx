@@ -10,9 +10,9 @@ import EventAudienceBuilder from "../components/admin/EventAudienceBuilder";
 import { useSaveOnNavigation } from "../hooks/useSaveOnNavigation";
 import { useAdminAuth } from "../components/admin/AdminAuthProvider";
 import LeaderPageHeader from "../components/admin/LeaderPageHeader";
-import { createEvent, loadEvents } from "../services/eventAdmin";
-import type { EventInput, EventRecord } from "../services/eventAdmin";
-import { EMPTY_EVENT, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, defaultEventAudienceForClassification, eventStatusLabel, isDuplicateEventIdentity } from "../services/eventManagementLogic";
+import { createEvent } from "../services/eventAdmin";
+import type { EventInput } from "../services/eventAdmin";
+import { EMPTY_EVENT, EVENT_SECTIONS, EVENT_STATUSES, EVENT_TYPES, buildEventAudience, defaultEventAudienceForClassification, eventStatusLabel } from "../services/eventManagementLogic";
 import { loadMembers } from "../services/memberAdmin";
 import type { MemberRecord } from "../services/memberAdmin";
 
@@ -23,7 +23,6 @@ export default function CreateEventPage() {
   const { user, adminProfile } = useAdminAuth();
   const scopeKey = JSON.stringify([user?.uid, adminProfile?.role, adminProfile?.sections]);
   const [loadedScope, setLoadedScope] = useState("");
-  const [events, setEvents] = useState<EventRecord[]>([]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [initialAudience, setInitialAudience] = useState<EventInput["audience"]>(null);
   const [draft, setDraft] = useState<EventInput>(() => ({...EMPTY_EVENT, startDate: initialDate, endDate: initialDate}));
@@ -42,11 +41,10 @@ export default function CreateEventPage() {
     setLoading(true);
     setLoadedScope("");
     setLoadError("");
-    Promise.all([loadEvents(), loadMembers()])
-      .then(([loadedEvents, loadedMembers]) => {
+    loadMembers()
+      .then((loadedMembers) => {
         if (!active) return;
         setLoadedScope(scopeKey);
-        setEvents(loadedEvents);
         setMembers(loadedMembers);
         setInitialAudience(defaultEventAudienceForClassification("All Sections", loadedMembers));
       })
@@ -83,7 +81,6 @@ export default function CreateEventPage() {
     if (!draft.title.trim()) { setError("Event title is required. Complete it before leaving this event."); return false; }
     if (!draft.startDate) { setError("Start date is required. Complete it before leaving this event."); return false; }
     if (draft.endDate && draft.endDate < draft.startDate) { setError("End date cannot be before the start date. Correct it before leaving this event."); return false; }
-    if (isDuplicateEventIdentity(draft, events)) { setError("An event with this title, start date and section already exists. Open the existing event instead."); return false; }
 
     setSaving(true);
     setError("");
@@ -139,7 +136,7 @@ export default function CreateEventPage() {
             <FormControl fullWidth disabled={!dataReady}><InputLabel id="event-section-label">Section</InputLabel><Select labelId="event-section-label" id="event-section" label="Section" value={draft.section} onChange={(event) => updateSection(String(event.target.value))}>{EVENT_SECTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</Select></FormControl>
           </Box>
 
-          {!dataReady && !loadError && <Box role="status">Loading event audience and duplicate checks…</Box>}
+          {!dataReady && !loadError && <Box role="status">Loading event audience…</Box>}
           <EventAudienceBuilder classificationSection={draft.section} audience={draft.audience ?? initialAudience} members={activeMembers} disabled={!dataReady || saving} onChange={(next) => setDraft({ ...draft, audience: next })} />
 
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>

@@ -21,3 +21,7 @@ Full quality:checks passed (924 unit tests, backend/worker tests, contracts and 
 The lifecycle PR targets current main independently of SW-422 #937 and SW-423 #938. At integration, retain SW-422's `persistWithIncident` in the now boolean-returning close callback, keep its pending-incident condition on background saving, and retain SW-423's saved tracker handoff/Review return. SW-425 must validate the combined tree, including pending-incident closure and tracker navigation; standalone PR assurance does not substitute for this integration gate.
 
 Deployed TEST and owner Production Manual Testing remain separate pending gates. No merge, Done transition, Production deployment or redesign enablement is implied by these checks.
+
+## Exact-head CI repair
+
+PR head 23bb9708 failed the mobile SW-390 journey before its editor test: Create Event awaited loadEvents(), which hydrated unrelated audience memberships solely for an identity-duplicate check that already always returns false. Creation now loads only its permitted member/audience data. Duplicate policy, permissions and existing save/navigation assertions are unchanged. A new desktop/mobile readiness regression rejects unrelated event/audience reads. Full quality:checks passed again; real demo emulators plus the local event backend passed 40 browser cases with zero retries and two unchanged project skips, including the original failed journey. No budgets, waits, assertions or retry settings were weakened. Fresh pinned CI remains required.
