@@ -316,6 +316,32 @@ test("Schedule experience version is private to signed-in readers and writable o
   await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
   await assertFails(getDocs(collection(db, "siteSettings")));
 });
+test("Meeting experience version is private to signed-in readers and writable only by active Super Admin", async () => {
+  await seed([
+    ["adminUsers/super-nav", { active: true, role: "super-admin", sections: ["Group"] }],
+    ["adminUsers/admin-nav", { active: true, role: "admin", sections: ["Group"] }],
+    ["adminUsers/leader-nav", { active: true, role: "leader", sections: ["Cubs"] }],
+    ["adminUsers/inactive-nav", { active: false, role: "super-admin", sections: ["Group"] }],
+  ]);
+  const publicDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(publicDb, "siteSettings/meetingExperience")));
+  for (const uid of ["admin-nav", "leader-nav", "inactive-nav", "parent-nav"]) {
+    const db = testEnv.authenticatedContext(uid).firestore();
+    await assertSucceeds(getDoc(doc(db, "siteSettings/meetingExperience")));
+    await assertFails(setDoc(doc(db, "siteSettings/meetingExperience"), { version: "redesigned", updatedBy: uid, updatedAt: serverTimestamp() }));
+  }
+  const db = testEnv.authenticatedContext("super-nav").firestore();
+  const ref = doc(db, "siteSettings/meetingExperience");
+  for (const version of ["existing", "redesigned"]) {
+    await assertSucceeds(setDoc(ref, { version, updatedBy: "super-nav", updatedAt: serverTimestamp() }));
+    assert.equal((await getDoc(ref)).data().version, version);
+  }
+  await assertFails(setDoc(ref, { version: "unknown", updatedBy: "super-nav", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "other", updatedAt: serverTimestamp() }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: new Date(0) }));
+  await assertFails(setDoc(ref, { version: "existing", updatedBy: "super-nav", updatedAt: serverTimestamp(), extra: "private" }));
+  await assertFails(getDocs(collection(db, "siteSettings")));
+});
 test("Attendance experience version is private to signed-in readers and writable only by active Super Admin", async () => {
   await seed([
     ["adminUsers/super-nav", { active: true, role: "super-admin", sections: ["Group"] }],

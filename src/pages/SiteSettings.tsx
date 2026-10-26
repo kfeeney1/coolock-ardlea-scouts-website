@@ -1,3 +1,4 @@
+import MeetingExperienceSettings from "../components/admin/MeetingExperienceSettings";
 import LeaderTrainingExperienceSettings from "../components/admin/LeaderTrainingExperienceSettings";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
 import {
@@ -251,7 +252,7 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /><LeaderTrainingExperienceSettings /></>}
+                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><MeetingExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /><LeaderTrainingExperienceSettings /></>}
 
                 {showParentLoginSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
