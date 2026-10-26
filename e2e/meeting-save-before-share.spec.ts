@@ -29,6 +29,7 @@ test.afterEach(async ({ page }) => {
 test("Plan sharing saves programme and leader attendance first, shares only public content and never opens a popup automatically", async ({ page }) => {
   await enter(page);
   await page.getByRole("textbox", { name: "Theme", exact: true }).fill("Updated saved share theme");
+  await page.getByRole("button", { name: /^Activity 1: Original game/ }).click();
   await page.getByRole("textbox", { name: "Activity 1", exact: true }).fill("Updated saved share game");
   await page.getByRole("button", { name: "Run", exact: true }).click();
   const attendance = page.getByTestId("leader-attendance-row").first();
