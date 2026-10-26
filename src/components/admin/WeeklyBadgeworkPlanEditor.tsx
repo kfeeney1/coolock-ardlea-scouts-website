@@ -1,3 +1,4 @@
+import MeetingPlanningDisclosure from "./MeetingPlanningDisclosure";
 import { Box, Button, Checkbox, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
 import { newBadgeworkPlan } from "../../services/weeklyTracker";
 import type { WeeklyBadgeworkPlan, WeeklyLeaderOption, WeeklyMeetingRecord } from "../../services/weeklyTracker";
@@ -7,13 +8,14 @@ const ALL_LEADERS = "All leaders";
 const LEADER_SEPARATOR = " | ";
 
 interface WeeklyBadgeworkPlanEditorProps {
+  compact?: boolean;
   meeting: WeeklyMeetingRecord;
   sectionLeaders: WeeklyLeaderOption[];
   readOnly: boolean;
   onPatch: (patch: Partial<WeeklyMeetingRecord>) => void;
 }
 
-export default function WeeklyBadgeworkPlanEditor({ meeting, sectionLeaders, readOnly, onPatch }: WeeklyBadgeworkPlanEditorProps) {
+export default function WeeklyBadgeworkPlanEditor({ compact = false, meeting, sectionLeaders, readOnly, onPatch }: WeeklyBadgeworkPlanEditorProps) {
   const updateBadgework = (id: string, patch: Partial<WeeklyBadgeworkPlan>) =>
     onPatch({ badgeworkPlan: meeting.badgeworkPlan.map((item) => item.id === id ? { ...item, ...patch } : item) });
 
@@ -31,11 +33,11 @@ export default function WeeklyBadgeworkPlanEditor({ meeting, sectionLeaders, rea
       const parts = splitWeeklyLeaders(item.leader);
       const knownNames = new Set(sectionLeaders.map((leader) => leader.displayName));
       const customLeaders = parts.filter((value) => value !== ALL_LEADERS && !knownNames.has(value));
-      return <Paper key={item.id} variant="outlined" sx={{ p: { xs: 1.25, sm: 1.5 }, minWidth: 0 }} data-testid="badgework-plan-row">
+      return <MeetingPlanningDisclosure key={item.id} enabled={compact} title={`Badgework ${index + 1}: ${item.badge || "New badgework"}`} summary={`${item.durationMinutes || 0} min · ${item.leader || "No leaders selected"}`} initiallyOpen={!item.badge.trim()}><Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.5 }, minWidth: 0 }} data-testid="badgework-plan-row">
         <Stack spacing={1.25}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
             <Typography sx={{ fontWeight: 800 }}>Badgework {index + 1}</Typography>
-            {!readOnly && <Button size="small" sx={{ alignSelf: { xs: "stretch", sm: "auto" } }} onClick={() => onPatch({ badgeworkPlan: meeting.badgeworkPlan.filter((badgework) => badgework.id !== item.id) })}>Remove</Button>}
+            {!readOnly && <Button size="small" sx={{ minHeight: 44, alignSelf: { xs: "stretch", sm: "auto" } }} onClick={() => onPatch({ badgeworkPlan: meeting.badgeworkPlan.filter((badgework) => badgework.id !== item.id) })}>Remove</Button>}
           </Stack>
           <TextField label={`Badgework ${index + 1}`} value={item.badge} disabled={readOnly} onChange={(event) => updateBadgework(item.id, { badge: event.target.value })} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0,1fr)", md: "minmax(0,1fr) minmax(0,1fr)" }, gap: 1.25, minWidth: 0 }}>
@@ -56,7 +58,7 @@ export default function WeeklyBadgeworkPlanEditor({ meeting, sectionLeaders, rea
           </Box>
           <TextField multiline minRows={2} label={`Badgework instructions / notes ${index + 1}`} value={item.notes} disabled={readOnly} onChange={(event) => updateBadgework(item.id, { notes: event.target.value })} />
         </Stack>
-      </Paper>;
+      </Paper></MeetingPlanningDisclosure>;
     })}
     {!readOnly && <Button variant="outlined" fullWidth onClick={() => onPatch({ badgeworkPlan: [...meeting.badgeworkPlan, newBadgeworkPlan()] })}>Add badgework</Button>}
   </Stack>;
