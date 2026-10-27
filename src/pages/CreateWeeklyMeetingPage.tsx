@@ -126,7 +126,7 @@ export default function CreateWeeklyMeetingPage() {
     } else navigateWithoutSave(back || `/leader/weekly?meeting=${encodeURIComponent(createdMeetingId.current)}`);
   };
 
-  return <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 } }}>
+  return <Box data-testid="meeting-create-page" sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 2, md: 5 }, ...(workflow.redesigned ? { "& .MuiIconButton-root": { minWidth: 44, minHeight: 44 } } : {}) }}>
     <Container maxWidth="md">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Create Meeting" description="" />
