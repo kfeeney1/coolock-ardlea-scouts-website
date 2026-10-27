@@ -43,7 +43,7 @@ test.describe("Stable loading shell", () => {
 });
 
 for (const destination of [
-  { path: "/leader/events/create", title: "Create Event", collection: "events" },
+  { path: "/leader/events/create", title: "Create Event", collection: "members" },
   { path: "/leader/subs?view=treasurer", title: "Subs", collection: "subsAssignments" },
 ]) {
   test(`${destination.title} preserves its destination shell during slow authoritative reads`, async ({ page }, testInfo) => {
