@@ -3,11 +3,10 @@ import MeetingIncidentLeaveGuard from "../components/admin/MeetingIncidentLeaveG
 import { useMeetingIncidentDraft } from "../hooks/useMeetingIncidentDraft";
 import MeetingProgrammeShareDialog from "../components/admin/MeetingProgrammeShareDialog";
 import { useSavedWeeklyProgrammeShare } from "../hooks/useSavedWeeklyProgrammeShare";
-import { meetingStage } from "../services/meetingWorkflow";
+import { meetingStage, initialMeetingStage, meetingBadgeworkHref } from "../services/meetingWorkflow";
 import MeetingWorkflowControls from "../components/admin/MeetingWorkflowControls";
 import MeetingWorkflowPanels from "../components/admin/MeetingWorkflowPanels";
 import { useMeetingExperience } from "../hooks/useMeetingExperience";
-import { initialMeetingStage } from "../services/meetingWorkflow";
 import WeeklyMeetingSchedule from "../components/admin/WeeklyMeetingSchedule";
 import { useScheduleExperience } from "../hooks/useScheduleExperience";
 import { useAttendanceExperience } from "../hooks/useAttendanceExperience";
@@ -32,7 +31,6 @@ import { canEditPastWeeklyMeeting, weeklyMeetingEditMode } from "../services/wee
 import { displayWeeklyDate, initialWeeklyStep, reconcileOpenWeeklyRoster, sortOpenWeeklyMeetings, totalProgrammeDuration, weeklyMeetingHasChanges } from "../services/weeklyTrackerLogic";
 import { useWeeklyMeetingShare } from "../hooks/useWeeklyMeetingShare";
 import { recordAuditEvent } from "../services/auditLog";
-import { badgeworkSourceHref } from "../services/adventureSkillSourceContext";
 import { loadEquipmentItems } from "../services/equipment";
 import type { EquipmentItem } from "../services/equipment";
 import { loadEquipmentLoans } from "../services/equipmentLoans";
@@ -88,9 +86,8 @@ export default function WeeklySectionTracker() {
   const selectedSectionLeaders=useMemo(()=>selected?leaders.filter(leader=>leader.organisationSection===selected.section):[],[leaders,selected]);
   const programmeDuration=selected?totalProgrammeDuration(selected.activities,selected.badgeworkPlan):0;
   const {url:whatsappUrl,loading:shareLoading,error:shareError}=useWeeklyMeetingShare(workflow.redesigned?null:selected);
-  const presentMemberIds=selected?.entries.filter(entry=>entry.attendance==="present").map(entry=>entry.memberId)??[];
   const hasUnsavedChanges=weeklyMeetingHasChanges(selected,savedSelected)||leaderAttendanceChanged||incident.dirty;
-  const adventureBadgeworkHref=selected?badgeworkSourceHref({sourceType:"weeklyMeeting",sourceId:selected.id,memberIds:presentMemberIds,returnTo:`/leader/weekly?meeting=${encodeURIComponent(selected.id)}${workflow.redesigned?"&stage=review":""}`}):"/leader/badgework";
+  const adventureBadgeworkHref=meetingBadgeworkHref(selected,workflow.redesigned);
 
   const EditorControls=workflow.redesigned?MeetingWorkflowControls:WeeklyMeetingEditorControls;
 
@@ -112,7 +109,7 @@ export default function WeeklySectionTracker() {
       setMembers(m.filter(x=>x.status==="active")); setRecords(r); setLeaders(l); setEquipmentItems(items); setEquipmentLoans(loans);
       const requested=r.find(x=>x.id===meetingId);
       if(requested){setSelected(requested);setSavedSelected(requested);if(!(workflow.redesigned&&selected?.id===requested.id))setStep(workflow.redesigned?(initialMeetingStage(requested.status,requested.meetingDate,undefined,searchParams.get("stage"))):requested.status==="closed"?"attendance":initialWeeklyStep(requested.meetingDate));}
-      else if(meetingId&&selected){const fresh=r.find(x=>x.id===selected.id)??selected;setSelected(fresh);setSavedSelected(fresh);}
+      else if(meetingId){setSelected(null);setSavedSelected(null);setError("This meeting could not be found or is outside your permitted sections.");}
     } catch(e){if(sequence===refreshSequence.current)setError(applicationErrorMessage(e, "Unable to load weekly meetings for your permitted scope.", "WeeklySectionTracker"));if(reportFailure)throw e;}
     finally{if(sequence===refreshSequence.current)setLoading(false);}
   };

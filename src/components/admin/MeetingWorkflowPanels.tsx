@@ -21,7 +21,7 @@ export default function MeetingWorkflowPanels({ redesigned, step, attendance, pr
   </>;
   const stage = meetingStage(step);
   // Keep the mounted panels and their local UI state when moving between stages.
-  return <>
+  return <Box sx={{ "& .MuiButton-root, & .MuiIconButton-root": { minHeight: 44 }, "& .MuiIconButton-root, & .MuiCheckbox-root": { minWidth: 44, minHeight: 44 }, "& .MuiSelect-select": { minHeight: "24px !important", py: 1.25 } }}>
     <Box hidden={stage !== "plan"}><WeeklyProgrammePlanner {...programme} compact /></Box>
     <Stack hidden={stage !== "run"} spacing={2} sx={stage !== "run" ? { display: "none" } : undefined}>
       <MeetingRunProgrammeReference selected={details.selected} />
@@ -32,5 +32,5 @@ export default function MeetingWorkflowPanels({ redesigned, step, attendance, pr
       <MeetingReviewBadgework selected={details.selected} readOnly={details.planningReadOnly} busy={busy} onOpen={onOpenBadgework} patch={details.patch} />
       <WeeklyMeetingDetailsPanels {...details} step="notes" />
     </Stack>
-  </>;
+  </Box>;
 }
