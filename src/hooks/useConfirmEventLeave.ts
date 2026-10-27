@@ -1,3 +1,4 @@
+import { backDismissStack } from "../services/backDismissHistory";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +11,7 @@ type SaveDraft = () => Promise<boolean>;
 const HISTORY_GUARD_KEY = "__eventEditBackGuard";
 
 /** Shared Save / Discard / Stay guard; existing event behaviour remains the default. */
-export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, afterSavedLeave?: (request: LeaveRequest) => boolean) {
+export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, afterSavedLeave?: (request: LeaveRequest) => boolean, waitForOverlays = false) {
   const navigate = useNavigate();
   // A remounted editor must not mistake a previous visit's history marker for its own.
   const [guardId] = useState(() => `event-edit:${crypto.randomUUID()}`);
@@ -33,20 +34,24 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     saveRef.current = saveDraft;
     afterSavedLeaveRef.current = afterSavedLeave;
     dirtyRef.current = dirty && !leavingRef.current;
-    if (dirtyRef.current && !backGuardArmedRef.current) {
+    const overlayPending = waitForOverlays && backDismissStack(window.history.state?.usr).length > 0;
+    if (dirtyRef.current && !backGuardArmedRef.current && !overlayPending) {
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
       window.history.pushState({ ...currentState, [HISTORY_GUARD_KEY]: guardId }, "", window.location.href);
       backGuardArmedRef.current = true;
     } else if (!dirtyRef.current) {
       backGuardArmedRef.current = false;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state as Record<string, unknown> : null;
-      if (currentState && HISTORY_GUARD_KEY in currentState) {
+      if (waitForOverlays && currentState?.[HISTORY_GUARD_KEY] === guardId && !dialogOpenRef.current) {
+        // A save that stays in this editor consumes the reserved Back entry.
+        if (!bypassNextPopRef.current) { bypassNextPopRef.current = true; navigate(-1); }
+      } else if (currentState && HISTORY_GUARD_KEY in currentState) {
         const cleanState = { ...currentState };
         delete cleanState[HISTORY_GUARD_KEY];
         window.history.replaceState(cleanState, "", window.location.href);
       }
     }
-  }, [dirty, guardId, saveDraft, afterSavedLeave]);
+  }, [dirty, guardId, saveDraft, afterSavedLeave, waitForOverlays, navigate]);
 
   // Keep the navigation guards installed for the editor lifetime. Re-attaching
   // them when `dirty` changes leaves a passive-effect gap after an edit, during
@@ -60,11 +65,14 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
+      // React Router may arm us in its synchronous render for this same overlay POP.
+      // That event predates the new guard entry and cannot be an editor departure.
+      if (waitForOverlays && window.history.state?.[HISTORY_GUARD_KEY] === guardId && event.state?.[HISTORY_GUARD_KEY] !== guardId) return;
       if (bypassNextPopRef.current) {
         bypassNextPopRef.current = false;
         return;
       }
-      if (!dirtyRef.current || leavingRef.current) return;
+      if (!dirtyRef.current || leavingRef.current || (waitForOverlays && !backGuardArmedRef.current)) return;
       // Overlay dismissal returns to this guard entry; it is not an editor leave.
       if (event.state && typeof event.state === "object" && (event.state as Record<string, unknown>)[HISTORY_GUARD_KEY] === guardId) return;
       const currentState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
@@ -81,7 +89,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [guardId, openFor]);
+  }, [guardId, openFor, waitForOverlays]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -159,13 +167,13 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     if (pending.kind === "navigate") navigate(pending.destination);
     else if (pending.kind === "back") {
       bypassNextPopRef.current = true;
-      navigate(-2);
+      navigate(waitForOverlays ? -2 - backDismissStack(window.history.state?.usr).length : -2);
     }
     else {
       allowClickRef.current = pending.button;
       pending.button.click();
     }
-  }, [navigate, releaseGuard, request]);
+  }, [navigate, releaseGuard, request, waitForOverlays]);
 
   const saveAndContinue = useCallback(async () => {
     if (savingRef.current || !request) return;
@@ -184,7 +192,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
       if (pending.kind === "navigate") navigate(pending.destination);
       else if (pending.kind === "back") {
         bypassNextPopRef.current = true;
-        navigate(-2);
+        navigate(waitForOverlays ? -2 - backDismissStack(window.history.state?.usr).length : -2);
       }
       else {
         allowClickRef.current = pending.button;
@@ -193,7 +201,7 @@ export function useConfirmEventLeave(dirty: boolean, saveDraft: SaveDraft, after
     } finally {
       savingRef.current = false;
     }
-  }, [closeAndRestoreFocus, navigate, releaseGuard, request]);
+  }, [closeAndRestoreFocus, navigate, releaseGuard, request, waitForOverlays]);
 
   // Explicit Save Event also needs to release the guard before route navigation.
   // Otherwise the committed baseline may not render before this editor unmounts.
