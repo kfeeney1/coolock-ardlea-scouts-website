@@ -1,117 +1,144 @@
-# SW-544: badge artwork audit and progress foundation
+# SW-544: original badge artwork and shared progress renderer
 
-Audit: 27 October 2026. Baseline main: 8a81201b (merged SW-425 / #941).
+Baseline: main 8a81201b. PR #942 remains an unfinished SW-544 delivery; it does
+not enable the redesign or claim deployed TEST/Production visual acceptance.
 
-## Delivery state
+## Verified original artwork
 
-SW-544 is **partial and blocked on verified stage artwork**. This PR adds a
-presentation contract and executable semantic checks; it does not enable or
-claim delivery of the redesigned UI. SW-545 through SW-550 remain outstanding.
-The existing experience and records are unchanged.
+A deeper audit recovered the complete original numbered images for the nine
+handbook skills. All 81 embedded images were extracted directly, without drawing
+symbols, numerals or stage outlines. Original image canvases/proportions remain
+unchanged, including the wider Backwoods/Sailing stage 2/3 sources.
 
-No AGENTS.md was found in the checkout or its parent task directory. GitHub
-reported no open PRs at reconciliation. SW-428 had no implementation children;
-SW-544 through SW-550 were created under it. SW-410 and SW-397 remain completed
-foundations. SW-417's merged SW-420 Plan and SW-423 Review integrations must
-remain the owners of meeting workflow and tracker handoff; this redesign must
-preserve their source parameters, attending-member scope, locks and return stage.
+Source: https://scouting360.ie/wp-content/uploads/2025/09/adventureskills_handbook.pdf
 
-## Canonical catalogue and artwork inventory
+The source PDF checksum, original page and image-object reference, output image
+size and checksum for each stage are recorded in
+`public/badges/adventure-skills/catalogue.json`. The reproducible extraction
+script is `scripts/extract-adventure-badge-artwork.py`; it rejects a different
+PDF hash or missing page/object before extraction. Extraction used PyMuPDF 1.26.6. The PDF renderer converts the
+original colour space to RGB for PNG display, without cropping, rotating,
+resizing, replacing numerals or painting outlines. Original artwork © Scouting
+Ireland / Scout Foundation; the source is linked above.
 
-Source: `src/data/adventureSkills/index.ts` and each definition, not the mockups.
-
-| Skill ID | Supported stages | Verified original stage images in repository |
+| Canonical skill | Supported stages | Verified images |
 | --- | --- | --- |
-| camping | 1-9 | None |
-| backwoods | 1-9 | None |
-| pioneering | 1-9 | None |
-| emergencies | 1-9 | None |
-| hillwalking | 1-9 | None |
-| air-activities | 1-9 | None |
-| paddling | 1-9 | None |
-| rowing | 1-9 | None |
-| sailing | 1-9 | None |
-| swimming | 1-6 | None |
+| camping | 1-9 | All 9 |
+| backwoods | 1-9 | All 9 |
+| pioneering | 1-9 | All 9 |
+| emergencies | 1-9 | All 9 |
+| hillwalking | 1-9 | All 9 |
+| air-activities | 1-9 | All 9 |
+| paddling | 1-9 | All 9 |
+| rowing | 1-9 | All 9 |
+| sailing | 1-9 | All 9 |
+| swimming | 1-6 | Missing all 6 |
 
-All 87 skill/stage mappings need verified artwork. Current
-`AdventureSkillBadgeIcon.tsx` uses Material UI icons on coloured squares. These
-are legacy illustrations, not original badge assets. Public/source asset
-inventory contains no canonical badge images. Do not reuse these icons as the
-redesign artwork or infer original colours from `ADVENTURE_SKILL_COLOURS`.
+Every original skill/stage numeral and symbol was visually checked in a contact
+sheet, against the corresponding handbook stage pages. All 81 paths and hashes
+are unique and their dimensions/checksums are verified by executable unit tests.
+The shared mapping follows canonical catalogue validation; invalid stages throw
+and missing Swimming originals return null. No skill/stage is inferred from
+another badge.
 
-## Reference reconciliation
+## Reconciliation with 107398.png
 
-107398.png was materialized from the supplied reference and visually inspected.
-It is a perspective/cropped nine-skill poster, showing Camping, Sailing,
-Pioneering, Emergencies and Paddling rows plus an incomplete next row. It does
-not supply all ten skills or the Swimming stage artwork. It shows original
-symbols and numerals, not the Material icons currently used by the app.
-The visible outlines agree in order with the epic: skill colour, red, grey,
-lime, cyan, brown, purple, silver/light grey, gold. Pixel sampling of this
-screenshot is not an authoritative brand palette. It cannot supply a complete
-production asset set through cropping or recolouring.
+The supplied reference is a cropped/perspective poster of the original nine
+skills. Its Camping, Sailing, Pioneering, Emergencies and Paddling imagery agrees
+with the recovered source images. It does not contain the complete catalogue
+or Swimming. It confirms the outline sequence, but its sampled pixel colours
+are not used as brand values. The renderer retains the original image's frame:
 
-Official source discovery:
+- Stage 1: original skill-coloured edge/background.
+- Stages 2-9: original red, grey, lime, cyan, brown, purple, silver/light grey and
+  gold outlines, including the source's actual hues and internal details.
 
-- https://scouting360.ie/adventure-skills/
-- https://scouting360.ie/wp-content/uploads/2025/09/adventureskills_handbook.pdf
-- https://scouting360.ie/wp-content/uploads/2026/06/Swimming-Adventure-Skills-1-to-6-20mar2026.pdf
+No screenshot-based colour approximation or CSS-painted replacement outline is
+used. Current `AdventureSkillBadgeIcon.tsx` remains a legacy Material-icon
+component; it is not the new artwork source.
 
-The programme page confirms nine original skills with nine stages, plus
-Swimming stages 1-6. Both PDFs were downloaded; the original handbook sample
-and Swimming cover/stage page were rendered and inspected. The Swimming
-booklet supplies a skill emblem and page stage numbers, not a verified set of
-six numbered, coloured-outline stage badges matching the reference. Combining
-that emblem with invented numerals/outlines would be a new approximation.
-The old handbook may provide recoverable original graphics, but no complete
-87-image set with verified extraction bounds, stage identity and outline masks
-has been established. These sources are candidates, not accepted asset mappings.
+## Shared renderer and completion semantics
 
-Unblock with an authoritative original export or approved source covering every
-supported skill/stage, especially Swimming 1-6. Record source URL/file, revision,
-checksums, skill/stage identity and visual verification per mapping. Preserve
-proportions and original border pixels; derive an interior mask from verified
-geometry rather than drawing approximate borders. Do not add Swimming 7-9.
+`AdventureSkillBadge.tsx` is a read-only presentation component for both leader
+and parent use. It uses the single `adventureSkillBadgeArtwork` mapping and
+`adventureSkillBadgeProgress` semantics. It has no Save, Record, award, management
+or export controls and introduces no progress store.
 
-## Shared semantics
+The original image is the base. A slightly muted interior is clipped safely
+inside the original frame, and an original-colour layer is revealed bottom to
+top through that same interior. The conservative clipping regions leave the
+source frame pixels intact; no border colour is selected or painted. At full
+completion, the image is the original in full colour. Short update transitions
+are disabled for reduced motion. Missing/failed originals have an explicit text
+state; no generic icon, generated badge or borrowed skill is substituted.
 
-`adventureSkillBadgeProgress` consumes canonical `AdventureStageOverview`
-summaries already produced by `adventureSkillOverview`. Parent summaries reuse
-that calculation and expand equivalent requirements through
-`isStageRequirementComplete`. The helper checks stage and denominator, returns
-visible counts/status and a fill fraction, and has no persistence or award path.
-A historical awarded stage stays full colour while its competency count remains
-truthful; completion alone is labelled Ready to award. Callers must pass either
-persisted summaries or explicitly labelled unsaved drafts, never merge drafts
-into the persisted overview/parent state. No new progress store is introduced.
+Counts come from the existing canonical `AdventureStageOverview` calculation,
+including shared/equivalent requirements. Completion divided by canonical total
+controls fill. Completion alone is Ready to award, never an award write. A
+historical award retains a full-colour badge while its competency count remains
+truthful. Skill, stage, completed/total and status are visible; draft callers
+must explicitly pass `unsaved`, producing Unsaved preview. Consumers must keep
+persisted and draft inputs separate. Overview/parent integration is still owed
+by SW-546/SW-549, and draft editor integration by SW-547.
 
-## Delivery dependencies
+## Remaining artwork blocker and delivery boundaries
 
-1. SW-544: finish authoritative artwork mapping, border-preserving shared renderer
-   and browser rendering checks. This foundation is not complete yet.
-2. SW-545: independent default-off Superuser switch and complete old/new routing.
-3. SW-546: leader Progress, filters, matrix/export.
-4. SW-547: draft-aware Record workflow and source preservation.
-5. SW-548: Awards queue/history.
-6. SW-549: read-only parent overview/detail parity.
-7. SW-550: regression, deployed TEST evidence and separate PMT plan.
+The 2026 Swimming booklet is authoritative for six supported stages:
+https://scouting360.ie/wp-content/uploads/2026/06/Swimming-Adventure-Skills-1-to-6-20mar2026.pdf
 
-## Android acceptance checklist for the completed rollout
+It supplies a skill emblem and page stage numbers, but a verified set of six
+numbered stage badges matching the required outline treatment has not been
+established. Do not compose those from a new numeral/border or add stages 7-9.
+Obtain the six authoritative original stage assets/source before full-catalogue
+visual acceptance. The new component remains unconnected to the live views;
+SW-545's separate configuration foundation remains default off.
 
-- At 320px, open Progress with toggle off and on; test each supported theme.
-  Verify header/emblem, filters, scrolling, readable badges and touch targets.
-- Compare leader and linked-parent saved zero/partial/ready/awarded/next-stage
-  data. Inspect counts, original border and bottom-up fill. Swimming stops at 6.
-- Record for mixed members; Change members/stage, make individual/equivalent
-  edits, verify Unsaved, Discard, Save/reload and failed save/retry. Parent and
-  overview remain unchanged until successful persistence.
-- Confirm selective/bulk awards explicitly, view provenance/history and confirm
-  removal. Complete requirements alone must not award.
-- Return from meeting/event recording to the same source; reject absent members,
-  closed-meeting edits and unauthorised sections/children. Parents have no writes
-  or leader export controls; verify direct links and multiple linked children.
-- Use keyboard/focus and reduced motion; verify accessible names/status independent
-  of colour. Test badge experience with navigation/schedule/meeting switches in
-  both states. Roll back via the independent badge switch, retaining the records.
+SW-410 and SW-397 remain completed foundations. SW-417's merged SW-420 Plan and
+SW-423 Review integrations retain ownership of source handoff/return. Preserve
+attending-member restrictions, closed-meeting locks and existing backend
+permissions. SW-24 server-authoritative award enforcement remains out of scope.
+No AGENTS.md was present in the checkout or parent task directory at reconciliation.
 
-This is a future acceptance checklist, not executed TEST or Production evidence.
+## Android acceptance checklist for the integrated rollout
+
+- At 320px, test off/on and supported themes; retain Group header/emblem, filters,
+  readable original badges, scrolling and touch targets.
+- Compare leader/linked-parent saved zero/partial/ready/awarded/next-stage data.
+  Check original outlines and count parity. Swimming must stop at 6.
+- Record for mixed members; change members/stage and individual/equivalent edits.
+  Verify Unsaved, Save/reload, Discard and failed save/retry. Persisted overview
+  and parent data must not reflect an unsaved preview.
+- Explicitly confirm selective/bulk awards; inspect provenance/history and confirm
+  removal. Completing competencies alone must not award.
+- Return to the same meeting/event; reject absent members, closed-meeting edits,
+  unauthorised children/sections and parent writes. Check multiple linked children.
+- Check keyboard/focus, reduced motion and status without colour. Exercise badge
+  rollout with navigation/schedule/meeting settings in both states; switch off to
+  roll back presentation while retaining canonical records.
+
+This integrated checklist is not executed TEST or Production evidence. The
+standalone renderer has separate unit and real-browser rendering regressions;
+those do not establish leader/parent workflow acceptance.
+
+## Development evidence for this renderer increment
+
+- Full `npm run quality` passed: zero production dependency vulnerabilities,
+  934 unit tests, 51 worker tests, 2 maintenance and 8 event backend tests,
+  repository contracts, unchanged complexity guard and TypeScript/Vite build.
+- Six focused Chromium/mobile Chromium cases passed with zero retries using the
+  real bundled React component and the original PNGs. Pixel comparisons verify
+  identical frame pixels at zero/half/full completion, unchanged muted upper
+  interior and fully coloured lower interior at half completion. Historical
+  awards retain the same full original image with truthful counts.
+- Browser cases cover explicit Unsaved preview, Ready to award versus Awarded,
+  missing Swimming artwork, real 404 image failure and successful Retry,
+  read-only controls, 320px light/dark themes, status-label contrast of at least
+  4.5:1 and reduced-motion transitions.
+  Screenshots were inspected.
+- All 81 asset paths, dimensions, checksums and catalogue mappings pass unit
+  validation. No original image, stage boundary, retry policy or source ceiling
+  was approximated or relaxed to obtain these passes.
+
+This evidence is standalone development assurance. Full leader/parent routing,
+recording/awards workflows, deployed Firebase TEST acceptance and PMT remain
+outstanding. The six original Swimming stage images are still required.
