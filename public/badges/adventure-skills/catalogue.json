@@ -1,0 +1,735 @@
+{
+  "sourceUrl": "https://scouting360.ie/wp-content/uploads/2025/09/adventureskills_handbook.pdf",
+  "sourceSha256": "c900a3bf2a837d1e19b3bc47f6cb371fe06e23097d05958503157de2ee2c317d",
+  "entries": [
+    {
+      "skillId": "camping",
+      "stage": 1,
+      "page": 9,
+      "xref": 21,
+      "width": 378,
+      "height": 378,
+      "sha256": "7051f671427b5930e1ce467eeba120c33623abbaf581935e9aa1e2b40d5798ea"
+    },
+    {
+      "skillId": "camping",
+      "stage": 2,
+      "page": 10,
+      "xref": 25,
+      "width": 378,
+      "height": 378,
+      "sha256": "3e350000195cac1eec68c64b3b611e0d78876eb8e586768d0bd288dc410fdf0f"
+    },
+    {
+      "skillId": "camping",
+      "stage": 3,
+      "page": 11,
+      "xref": 29,
+      "width": 378,
+      "height": 378,
+      "sha256": "7feb8bbfe3f81d00b99b84d1a34070e25e59604f5fed898831148449a706496b"
+    },
+    {
+      "skillId": "camping",
+      "stage": 4,
+      "page": 12,
+      "xref": 33,
+      "width": 378,
+      "height": 378,
+      "sha256": "1a7e6dd56abbb569a56a44700ed4624ad5cddcd1f087ce06f31862e338dbc181"
+    },
+    {
+      "skillId": "camping",
+      "stage": 5,
+      "page": 14,
+      "xref": 39,
+      "width": 378,
+      "height": 378,
+      "sha256": "c32f941036f1be714cbd71383fa2a1f7ab5d03682b3884754755191087778e6f"
+    },
+    {
+      "skillId": "camping",
+      "stage": 6,
+      "page": 15,
+      "xref": 43,
+      "width": 378,
+      "height": 378,
+      "sha256": "a09a6c345de8138da3c2362647351327d4c5ac60a46bd47d055fea5349ed6b32"
+    },
+    {
+      "skillId": "camping",
+      "stage": 7,
+      "page": 17,
+      "xref": 49,
+      "width": 378,
+      "height": 378,
+      "sha256": "fa76f04c30e147f83132b7461f5af7d567c36c91a08b71da62caf5497a1c71dd"
+    },
+    {
+      "skillId": "camping",
+      "stage": 8,
+      "page": 18,
+      "xref": 53,
+      "width": 378,
+      "height": 378,
+      "sha256": "6347c0c14eaa206546346c161bd46d4052cb6bb0d1fd274928faa1c11df65ba5"
+    },
+    {
+      "skillId": "camping",
+      "stage": 9,
+      "page": 19,
+      "xref": 57,
+      "width": 378,
+      "height": 378,
+      "sha256": "4cdc2b323a17573134070c587943979f51b61d2fc1bf0c349da4e3b12e871b8e"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 1,
+      "page": 23,
+      "xref": 69,
+      "width": 380,
+      "height": 380,
+      "sha256": "2fcc2437bd76ccb03a8e0e09dee64875e5f1d2f0cf51891f2195fecf27d67a78"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 2,
+      "page": 23,
+      "xref": 70,
+      "width": 401,
+      "height": 386,
+      "sha256": "7230cdae1ed14ce0b30e537ae25dbedd934b0d32e72e4a235b3b6361485d28e7"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 3,
+      "page": 24,
+      "xref": 74,
+      "width": 401,
+      "height": 387,
+      "sha256": "fe0e18349c0d40fc71f3643f1474082cda4beea45c8f5f679578133537d544b4"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 4,
+      "page": 26,
+      "xref": 80,
+      "width": 380,
+      "height": 380,
+      "sha256": "5ec7813385782d3fdebde95bee1c6ba3637f65f6783d41add42bf8ca18854e20"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 5,
+      "page": 27,
+      "xref": 84,
+      "width": 379,
+      "height": 379,
+      "sha256": "9922a4a4fe730776b4a544b4315ede8cb51f26e77d6b23b96e85316b94223083"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 6,
+      "page": 28,
+      "xref": 90,
+      "width": 379,
+      "height": 379,
+      "sha256": "fed1798baddde8df350d9e8655641d593174c3fe3e409885ef47a0e2a95b9610"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 7,
+      "page": 28,
+      "xref": 91,
+      "width": 380,
+      "height": 380,
+      "sha256": "4a5e0795fee8ed4e5ba10f574ddfd0991a9ea2237b5e5749e9c25c6c507d2053"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 8,
+      "page": 29,
+      "xref": 96,
+      "width": 380,
+      "height": 380,
+      "sha256": "4d3d57418b8b4f8c3a9a137bff752b66a6e4e0601c0062ac404fa6e89dbd9771"
+    },
+    {
+      "skillId": "backwoods",
+      "stage": 9,
+      "page": 30,
+      "xref": 100,
+      "width": 380,
+      "height": 380,
+      "sha256": "3b878f77bce7132d37a261be7ba2b7926572de12a4cd740d96018d4bdfab19e8"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 1,
+      "page": 35,
+      "xref": 114,
+      "width": 378,
+      "height": 378,
+      "sha256": "1285c2e533a20c85fa34630d4cb05ca225b791e471e52e3e3006c18b8230fc54"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 2,
+      "page": 35,
+      "xref": 115,
+      "width": 378,
+      "height": 378,
+      "sha256": "d711744d861f33f31b8c4bdd3736faf4a915ef2dcbaeffbb39e4ff0c1006af0e"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 3,
+      "page": 36,
+      "xref": 120,
+      "width": 378,
+      "height": 378,
+      "sha256": "569c66c3c10bb73071d1ef130fab4b24ea7cf26ed53d09d609588d35349a8333"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 4,
+      "page": 36,
+      "xref": 121,
+      "width": 378,
+      "height": 378,
+      "sha256": "90934303927050c2aaa44094504d64eaeb53c564a4f4818cea0e23220a78a070"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 5,
+      "page": 38,
+      "xref": 127,
+      "width": 378,
+      "height": 378,
+      "sha256": "3f5811012fd368003e1b9dd397ce6b2f5a2dd3d27dcdaea5d8ea577a89790c61"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 6,
+      "page": 39,
+      "xref": 131,
+      "width": 378,
+      "height": 378,
+      "sha256": "1d4b094c195bc8708a43b68ba28607d8b9004c1e5be3d76817614575cf02db21"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 7,
+      "page": 40,
+      "xref": 135,
+      "width": 378,
+      "height": 378,
+      "sha256": "15ba6f92f1547a97dff523c3d349269f4b24333336348604e0cf06da9da332f7"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 8,
+      "page": 41,
+      "xref": 139,
+      "width": 378,
+      "height": 378,
+      "sha256": "592319e849696dfa62ab42e4e580792059be2c614a341b6af206eeb9f4db93b3"
+    },
+    {
+      "skillId": "pioneering",
+      "stage": 9,
+      "page": 42,
+      "xref": 143,
+      "width": 378,
+      "height": 378,
+      "sha256": "f69d22cba1113c595f882017712f1b5ce2ae873d2a615d0f9083f2aefb0c8399"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 1,
+      "page": 47,
+      "xref": 156,
+      "width": 379,
+      "height": 379,
+      "sha256": "6be3be4871f192fc971d9950d6ea41116e22d9d0f7bb58ac96cfc471e12da576"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 2,
+      "page": 48,
+      "xref": 160,
+      "width": 379,
+      "height": 379,
+      "sha256": "b18de5a9150111cfd14c793ebafe1a92bcc3b469f44d13ebdcb2284211bc68d9"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 3,
+      "page": 49,
+      "xref": 164,
+      "width": 379,
+      "height": 379,
+      "sha256": "10a4a9ca4351caff2feeeef5172f7d4fc8c12bf4cc901e85b00b81f09996cc4f"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 4,
+      "page": 50,
+      "xref": 168,
+      "width": 379,
+      "height": 379,
+      "sha256": "fd4c0cfd546d1a9314d504c121e6631bde0f4416574cee79d9ddb571607a5270"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 5,
+      "page": 51,
+      "xref": 172,
+      "width": 378,
+      "height": 378,
+      "sha256": "1775270dff69ec4cc5dceaeded21cd2b90caa5c2966dfc2383068e1edd8f36f8"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 6,
+      "page": 52,
+      "xref": 176,
+      "width": 378,
+      "height": 378,
+      "sha256": "065849c8df44426dcdf5c42e7dd72b9fb3265cfa9e8fe44edb25408d5569fc73"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 7,
+      "page": 54,
+      "xref": 182,
+      "width": 379,
+      "height": 379,
+      "sha256": "4e74e9392002f872ec7df22b2ed4bceb36a212ea688dbfeb06d15769c8d6f5c1"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 8,
+      "page": 55,
+      "xref": 186,
+      "width": 379,
+      "height": 379,
+      "sha256": "b5ebad0f54c14bb2576a017fcceb1f068f0ef095bba9eed259bac9302811444b"
+    },
+    {
+      "skillId": "hillwalking",
+      "stage": 9,
+      "page": 56,
+      "xref": 190,
+      "width": 379,
+      "height": 379,
+      "sha256": "7050a782c49b88963765221aac3e217721690c92459469f4d8fd1143a7c3b40c"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 1,
+      "page": 61,
+      "xref": 204,
+      "width": 378,
+      "height": 378,
+      "sha256": "32a0ffe30f7e38304b4b3a1b5919cf5c8fa77b19a9bd26758b1735bcb6ce5014"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 2,
+      "page": 61,
+      "xref": 205,
+      "width": 378,
+      "height": 378,
+      "sha256": "f4b68c2b67fb5ab0e2efb10610975b3cac5a821cd834cf15d14b73deba0f8cb5"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 3,
+      "page": 62,
+      "xref": 209,
+      "width": 378,
+      "height": 378,
+      "sha256": "28d401409ee3037d430017e2bb38873bd4cf7666a492a003e3a3b0a2e2cdcc4d"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 4,
+      "page": 63,
+      "xref": 213,
+      "width": 378,
+      "height": 378,
+      "sha256": "13810aced51c9536c0d66dc1564dd34487fff6561b5509eea3cde11dd2bfcbea"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 5,
+      "page": 64,
+      "xref": 217,
+      "width": 378,
+      "height": 378,
+      "sha256": "c230e0f9f456c7b47d9bb2f13347c9fd40ada026c8a555f10b975b12a15e8450"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 6,
+      "page": 65,
+      "xref": 221,
+      "width": 378,
+      "height": 378,
+      "sha256": "167ebfd4bcdd837a634f935e990c07a2bb80eaa6757aa2065699afd32be2a091"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 7,
+      "page": 66,
+      "xref": 225,
+      "width": 378,
+      "height": 378,
+      "sha256": "c280da6a633e6770298af2771e0e1c2f39e2147d610f2a89fcefdbd11bafb009"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 8,
+      "page": 67,
+      "xref": 229,
+      "width": 378,
+      "height": 378,
+      "sha256": "2b065162fda6a7fd7abcb35185d799b39ba0d3abfb6d81591e10ae2c557b884c"
+    },
+    {
+      "skillId": "emergencies",
+      "stage": 9,
+      "page": 68,
+      "xref": 233,
+      "width": 378,
+      "height": 378,
+      "sha256": "11f8c7ab22ef00fa2da92f32f8f60b10beaa0ca3aaec6c06257a2f287317e01f"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 1,
+      "page": 73,
+      "xref": 247,
+      "width": 379,
+      "height": 379,
+      "sha256": "651e07f9f03bc2b7aff5d97b2594589698dfcb3245c98ce71281ad1036562ba9"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 2,
+      "page": 73,
+      "xref": 248,
+      "width": 379,
+      "height": 379,
+      "sha256": "a0831d574e902bc4b1d86b496ee4c096e5a87d4a09ba73f9a55534cc9d705c30"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 3,
+      "page": 74,
+      "xref": 252,
+      "width": 379,
+      "height": 379,
+      "sha256": "00d7835b59deb714cc26199e15305fdb035c78bb5ed237660c96ec43a69180ac"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 4,
+      "page": 75,
+      "xref": 256,
+      "width": 379,
+      "height": 379,
+      "sha256": "ea81926df21b41f3f018967d03878ce17efaef4febaaf496473472cedec01e1a"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 5,
+      "page": 76,
+      "xref": 260,
+      "width": 378,
+      "height": 378,
+      "sha256": "2ec5e2a730168b46a2af798a39a813bd36b4b8985179642c9f0b3050922d6464"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 6,
+      "page": 77,
+      "xref": 264,
+      "width": 378,
+      "height": 378,
+      "sha256": "6a2c296d0ba4e9bbf2f4485bedbcd6d6a9f40bfa9ef5adc387bd4b76e96dc99e"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 7,
+      "page": 78,
+      "xref": 268,
+      "width": 379,
+      "height": 379,
+      "sha256": "1be642c414707d0e6c3e500aa766b70597d780d538e1bce5f85441dd1f4d7d8a"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 8,
+      "page": 79,
+      "xref": 272,
+      "width": 379,
+      "height": 379,
+      "sha256": "f62b2620282f9adc46bdbdc9aa4c9b94f8292b5fe3554e038e563ca72a1c5eac"
+    },
+    {
+      "skillId": "air-activities",
+      "stage": 9,
+      "page": 80,
+      "xref": 276,
+      "width": 379,
+      "height": 379,
+      "sha256": "d4f081c313338bda9b7a70295667a1bc01391cfecec035976b73d8c29b8a3a6b"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 1,
+      "page": 87,
+      "xref": 294,
+      "width": 378,
+      "height": 378,
+      "sha256": "910a6355f3a73b643ceae2f2b31ddafd1536c16e9d1a8028f817de23721b9db4"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 2,
+      "page": 87,
+      "xref": 295,
+      "width": 378,
+      "height": 378,
+      "sha256": "3efb4627574ea7a72125a0bdd64c447e40709ad0f8a9a2d49b37ced80f917300"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 3,
+      "page": 88,
+      "xref": 299,
+      "width": 378,
+      "height": 378,
+      "sha256": "c5e946bba535f5abcfb7f0f6701eb4f03279853db23bc0abff451edb290f3b29"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 4,
+      "page": 89,
+      "xref": 303,
+      "width": 378,
+      "height": 378,
+      "sha256": "14bf4274566d98bdad8a07d1bbd327e769b4ab530db41b6aac6b01f00621107a"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 5,
+      "page": 90,
+      "xref": 307,
+      "width": 378,
+      "height": 378,
+      "sha256": "8947c3b288a195587533435a6fba69c4fd043bac7e9022c779e9d58165ffa1fe"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 6,
+      "page": 91,
+      "xref": 312,
+      "width": 378,
+      "height": 378,
+      "sha256": "bb1c34844fae5e9d233439939cffdb39dbdba861393e94c25fa7c7d7484443ba"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 7,
+      "page": 91,
+      "xref": 313,
+      "width": 378,
+      "height": 378,
+      "sha256": "367f7cb22ed703326afc19fb31422033c3190cf9d1930a8a6a5e04184989157f"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 8,
+      "page": 92,
+      "xref": 317,
+      "width": 378,
+      "height": 378,
+      "sha256": "7ff34cea0f71c51ff2543eced2df070e9931bbe21039d00c07f84d2e051955bc"
+    },
+    {
+      "skillId": "paddling",
+      "stage": 9,
+      "page": 93,
+      "xref": 321,
+      "width": 378,
+      "height": 378,
+      "sha256": "d21b2b03ad3ca2b0696cc3f49e6ed63611af19235c75b81fecec981a12b2a3d1"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 1,
+      "page": 100,
+      "xref": 340,
+      "width": 379,
+      "height": 379,
+      "sha256": "6448676742ce7a4871998a02ef11ae2815630693b3f7794256b42a2d410d54ab"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 2,
+      "page": 100,
+      "xref": 341,
+      "width": 378,
+      "height": 378,
+      "sha256": "ad930c23cc73b33da3863a0ea24c2f454b45b6bb5d76d82dd2ccbaadfcbaf553"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 3,
+      "page": 101,
+      "xref": 345,
+      "width": 378,
+      "height": 378,
+      "sha256": "9caf8e22dd2e2f60eae2d02aed0a566a85d2ae789ad99706fd06a1c175a33144"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 4,
+      "page": 102,
+      "xref": 349,
+      "width": 378,
+      "height": 378,
+      "sha256": "1b92a3c1c5f70bec98a8029ca33b958b747bd9e9bf88cb03fbd02fcf63fd00df"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 5,
+      "page": 103,
+      "xref": 353,
+      "width": 378,
+      "height": 378,
+      "sha256": "32ec8f3ab42ed2862ebce7e9680dc31a925d76c569906041fe252ff42625f21f"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 6,
+      "page": 104,
+      "xref": 357,
+      "width": 378,
+      "height": 378,
+      "sha256": "0db79c6073a5fd3bcf6d5af5f81f48d4a0c10c78cdb7730f703cb3015c450b40"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 7,
+      "page": 105,
+      "xref": 361,
+      "width": 378,
+      "height": 378,
+      "sha256": "f3d8d7b4396a9f3b42f268685b3c6576ba9ef28feeb034bd33bb982c246313f9"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 8,
+      "page": 107,
+      "xref": 367,
+      "width": 378,
+      "height": 378,
+      "sha256": "bb2e55a34a44ca18000e43000a0007c8a1b8426aa4d920bff258a4845b351bf0"
+    },
+    {
+      "skillId": "rowing",
+      "stage": 9,
+      "page": 108,
+      "xref": 371,
+      "width": 378,
+      "height": 378,
+      "sha256": "65b8c3367174ff6963215062b67423b27766a7327071be0a3837b7bfaf8d1313"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 1,
+      "page": 115,
+      "xref": 388,
+      "width": 379,
+      "height": 379,
+      "sha256": "8ce8ab5f7d48628c583fcb04fa0368c1b96f6be50f3d02d11acf980ee619a2f4"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 2,
+      "page": 116,
+      "xref": 392,
+      "width": 401,
+      "height": 386,
+      "sha256": "e4ad2067671332ddb360ffa5a14602711d6dd15c7bd0810fe77970fce4cad450"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 3,
+      "page": 117,
+      "xref": 396,
+      "width": 400,
+      "height": 386,
+      "sha256": "79fa6ca45d834d268398a4a9b393e184358342780ed82cb04525ee623fece757"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 4,
+      "page": 118,
+      "xref": 400,
+      "width": 379,
+      "height": 379,
+      "sha256": "91e50c330d621a83d3d22d54ff36acf61e5e8d8757ebc3aa2bf0be62a8482dec"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 5,
+      "page": 119,
+      "xref": 404,
+      "width": 379,
+      "height": 379,
+      "sha256": "d4891dd313871f895567b5ec1346eb1b9f8a7ed747e72f30edf056f780021877"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 6,
+      "page": 120,
+      "xref": 408,
+      "width": 379,
+      "height": 379,
+      "sha256": "83d19b1c0849eb706dd89052cef880a8a73ab107206937ae25276b3679d64442"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 7,
+      "page": 121,
+      "xref": 412,
+      "width": 379,
+      "height": 379,
+      "sha256": "d3e42618bac1906bdbd3a1f576502b29e93c568180a5b22d3dbcc2ad929d11db"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 8,
+      "page": 123,
+      "xref": 418,
+      "width": 379,
+      "height": 379,
+      "sha256": "4608515b20dcf2988212b03a7dd179f4eb5e49b7cf70e6a801ed746baf83cfb7"
+    },
+    {
+      "skillId": "sailing",
+      "stage": 9,
+      "page": 125,
+      "xref": 424,
+      "width": 379,
+      "height": 379,
+      "sha256": "b31b4413f126d8ad93eb9838269dfbfaaa127c71909f0e9c01acd72b2a4fd2f3"
+    }
+  ]
+}
