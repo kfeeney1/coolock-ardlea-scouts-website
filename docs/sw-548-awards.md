@@ -19,8 +19,9 @@ any independently persisted awards before retrying remaining candidates.
 
 The complete existing presentation remains available with the independent toggle
 off. The Group header, section scope, source context and existing backend checks
-remain. This focused branch targets main da6a7bce after SW-546 (#945) and the
-artwork/settings/CI foundations were merged. No default enablement is performed.
+remain. This focused branch targets main after merged SW-546 (#945), original
+Swimming recovery (#946), and the settings/CI foundations. No default enablement
+is performed.
 
 ## Android manual checks
 
@@ -36,8 +37,8 @@ artwork/settings/CI foundations were merged. No default enablement is performed.
   permission failure and verify remaining queue/history reflect saved records.
 
 Local/CI assurance is separate from deployed Firebase TEST and Production Manual
-Testing. Authoritative Swimming originals remain unresolved; no visual acceptance
-of substitute artwork or Production pass is claimed.
+Testing. Authoritative Swimming originals are supplied by merged SW-544/#946;
+local checks do not constitute deployed visual acceptance or a Production pass.
 
 ## Development verification
 
@@ -55,3 +56,13 @@ Fresh current-main validation on da6a7bce passed full Quality (936 units plus
 worker/backend/audit/contracts/source guard/build) and all 22 desktop/mobile
 Awards/Progress cases, zero retries (1.5 minutes). Swimming source recovery is
 separate SW-544/#946; this PR does not duplicate it.
+
+## Reconciliation after merged Swimming recovery
+
+Rebased onto main 5269634e after #946. Only suite/timing registration conflicts
+needed resolution; all seven SW-548 application files remain byte-identical to
+the previously green PR head 5f4a01c3. Retains the merged positive Swimming load
+checks and original asset mapping. Fresh full Quality passed 937 units plus
+51 worker, two maintenance and eight event backend tests, audit/contracts/guards
+and build. All 22 Awards/Progress desktop/mobile cases passed with zero retries
+(1.6m). No assertion, timeout, retry or complexity limit was weakened.

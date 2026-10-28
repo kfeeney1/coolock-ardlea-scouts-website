@@ -62,3 +62,13 @@ Fresh validation on main da6a7bce passed full Quality (936 units plus
 worker/backend/audit/contracts/source guard/build) and all six desktop/mobile
 parent cases with zero retries (29.3 seconds), including the strengthened
 second-child zero-progress check and explicit artwork-failure fixture.
+
+## Reconciliation after merged Swimming recovery
+
+Rebased cleanly onto main 5269634e after #946. Both SW-549 application files
+remain byte-identical to previously green head b2b41fe5; the merged original
+Swimming source is retained. Fresh full Quality passed 937 units plus 51 worker,
+two maintenance and eight event backend tests, audit/contracts/unchanged guards
+and build. All six pinned desktop/mobile cases passed with zero retries (30.2s),
+including saved leader/parent parity while a draft stays unsaved, child switching,
+real source loading, explicit artwork 404 fallback and permission denials.

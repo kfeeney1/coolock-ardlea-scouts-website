@@ -4,12 +4,12 @@
 
 | Child | Pushed checkpoint | Local assurance |
 | --- | --- | --- |
-| SW-544 | #942 merged; #946 original Swimming recovery | 937 units; 34 artwork/Progress desktop/mobile cases; all #946 CI green |
+| SW-544 | #942 and #946 merged | 937 units; 34 artwork/Progress desktop/mobile cases; all #946 CI green |
 | SW-545 | #943 merged | Default-off independent configuration and backend permissions |
 | SW-546 | #945 merged | Full Quality; 16 Progress cases; exact-head CI green |
-| SW-547 | #949 | 943 units; 12 recording regressions plus four 416/520-change atomic-save cases |
-| SW-548 | #947 | 936 units; 22 Progress/Awards cases |
-| SW-549 | #948 | 936 units; six parent/parity/denial cases |
+| SW-547 | #949 rebased on #946 | 944 units; 16 fresh recording/large-save cases |
+| SW-548 | #947 rebased on #946 | 937 units; 22 fresh Progress/Awards cases |
+| SW-549 | #948 rebased on #946 | 937 units; six fresh parent/parity/denial cases |
 | SW-550 | #944 merged; final integration in development | Six-shard CI foundations; refreshed combined verification below |
 
 Each implementation PR targets main and contains its own Jira scope. The user
@@ -113,9 +113,28 @@ superseded-run details are in `sw-550-local-browser-evidence.json`.
 No retries, timeouts, assertion requirements or source-complexity ceilings were
 weakened. This is local development assurance, not deployed TEST or Production
 Manual Testing. The final assurance PR remains dependent on implementation PRs
-#946–#949 landing in main; it must not duplicate their application changes.
+#947–#949 landing in main; it must not duplicate their application changes.
 
 Full current integrated `npm run quality` passed: 944 unit tests, 51 email-worker,
 two maintenance and eight event backend tests, production dependency audit, all
 contracts, unchanged source-complexity/budget guards and build. All six full-suite
 shard estimates remain below the existing 900-second browser budget (858.3–860s).
+
+## Reconciliation after merged #946
+
+Main is now 5269634e. Focused #947/#948/#949 were rebased with only test
+registration conflict resolution and documentation updates; their application
+files are unchanged from their previously green heads. Their fresh local full
+Quality passes contain 937/937/944 units respectively, plus the worker/backend
+tests, audit/contracts/unchanged guards/build. Fresh browser runs passed 22 Awards
+and Progress, six Parent parity/denial, and 16 Recording/large atomic-save cases,
+all zero retries. Parent and Recording were independently seeded after the
+initial shared harness stopped during the next branch's setup.
+
+Every combined application-source and browser-test hash recorded for the 129-case
+verification still matches this checkpoint. No full 129-case rerun is claimed
+for these rebased commit IDs: the unchanged source hashes and the 44 fresh
+changed-area cases are recorded separately. Recording registration entries moved
+away from Awards/Parent anchors; suite contract and five shard/budget tests pass.
+The final focused SW-550 PR still awaits #947–#949 on main. Rollout remains off;
+deployed Firebase TEST acceptance and Production Manual Testing remain separate.

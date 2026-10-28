@@ -96,3 +96,17 @@ tests, 51 email-worker, two maintenance and eight event backend tests, productio
 dependency audit, suite/control/RBAC/deployment contracts, unchanged complexity
 guard and production build. Backend dependency links were restored in the new
 worktree before the successful full run; no test or guard was weakened.
+
+## Reconciliation after merged Swimming recovery
+
+Rebased onto main 5269634e after #946. All ten SW-547 application files remain
+byte-identical to previously green 5bd1713b. Resolves only suite/timing registration
+conflicts and moves Recording entries away from Awards/Parent insertion points;
+no test coverage is removed. The suite contract and five shard-balance/budget
+tests pass with unchanged ceilings. All 16 fresh pinned desktop/mobile cases
+passed with zero retries (1.9m): mixed previews, Discard, section rejection/retry,
+safe navigation/Android Back/offline pending Save and 416/520-change atomic saves
+with source locks/provenance/reload/no awards. Original Swimming artwork is now
+part of main, while the six-stage boundary remains unchanged. Full Quality passed
+944 units plus worker/backend/audit/contracts/guards/build both before and after
+the registration relocation. No assertions, retries, timeouts or ceilings changed.

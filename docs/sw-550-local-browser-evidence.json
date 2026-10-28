@@ -888,5 +888,27 @@
       858.4,
       858.8
     ]
+  },
+  "after946Reconciliation": {
+    "main": "5269634e2d6d7efe01531a8cafb79aa8d3e74c4d",
+    "implementationPrHeads": {
+      "947": "0e136119f5d59631b25730f451e1187a0625386d",
+      "948": "b558bdb6989481e20510ff7b3001eb8a2b077fbe",
+      "949": "e7317e214e9dbd66379142aa25df6aad5e62b115"
+    },
+    "applicationAndBrowserTestHashesUnchanged": true,
+    "freshBrowserCases": {
+      "awardsProgress": 22,
+      "parentParityDenial": 6,
+      "recordingLargeAtomicSaves": 16,
+      "retries": 0
+    },
+    "freshFullQualityUnitCounts": {
+      "947": 937,
+      "948": 937,
+      "949": 944
+    },
+    "registrationChecks": "Suite contract and all five shard-balance/budget tests passed; no limits changed. Recording registrations moved to separate insertion points.",
+    "setupInterruption": "Initial shared harness stopped reseeding the second branch after Awards passed. Parent and Recording were subsequently seeded and verified independently; no browser pass was inferred from the interrupted setup."
   }
 }
