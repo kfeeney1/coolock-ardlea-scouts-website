@@ -2,6 +2,8 @@
 // expected skip overhead, from green exact-head CI runs 40603859829 (#942) and
 // 40589645926 (#943 setting only), 27-28 October 2026. No failed/partial run data.
 export const measuredPlaywrightSpecSeconds = {
+  // SW-546: complete local pinned Chromium 151 desktop/mobile run, 16 cases; conservative whole-run wall time.
+  "badgework-progress-experience.spec.ts": 66.0,
   "leader-navigation-contract.spec.ts": 378.3,
   "leader-navigation-personas.spec.ts": 338.1,
   "meeting-integration-accessibility.spec.ts": 128.7,

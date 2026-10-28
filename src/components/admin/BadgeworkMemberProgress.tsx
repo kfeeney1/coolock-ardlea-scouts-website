@@ -1,3 +1,5 @@
+import { useState } from "react";
+import BadgeworkProgressGrid from "../badgework/BadgeworkProgressGrid.tsx";
 import { Alert, Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from "@mui/material";
 
 import type { MemberRecord } from "../../services/memberAdmin.ts";
@@ -7,6 +9,7 @@ import { formatSiteDate } from "../../services/siteDateFormat";
 
 type Props = {
   member: MemberRecord;
+  redesigned?: boolean;
   onBack: () => void;
   onOpenStage: (memberId: string, skillId: string, stage: number) => void;
   progress: MemberAdventureProgress;
@@ -17,7 +20,8 @@ const stageColor = (status: AdventureStageOverviewStatus): "warning" | "info" | 
 const awardKey = (award: AdventureStageAwardRecord) => `${award.skillId}-${award.stage}`;
 const formatAwardDate = (value: Date | null) => value ? formatSiteDate(value) : "Date pending";
 
-export default function BadgeworkMemberProgress({ member, onBack, onOpenStage, progress }: Props) {
+export default function BadgeworkMemberProgress({ redesigned = false, member, onBack, onOpenStage, progress }: Props) {
+  const [expandedSkills, setExpandedSkills] = useState(new Set<string>());
   const summaries = adventureSkillOverview(progress);
   const awardedStages = summaries.reduce((total, skill) => total + skill.stages.filter((stage) => stage.status === "awarded").length, 0);
   const totalStages = summaries.reduce((total, skill) => total + skill.stages.length, 0);
@@ -56,11 +60,16 @@ export default function BadgeworkMemberProgress({ member, onBack, onOpenStage, p
             <Chip size="small" label={`${completedPoints}/${totalPoints} points`} />
           </Stack>
           <LinearProgress variant="determinate" value={percentage} color={skill.status === "requirements-complete" ? "warning" : skill.highestAwardedStage > 0 ? "success" : "info"} sx={{ height: 8, borderRadius: 4, my: 1.5 }} aria-label={`${skill.skillName} ${percentage}% complete`} />
+          {redesigned ? <Stack spacing={1}>
+            <Button variant="outlined" aria-expanded={expandedSkills.has(skill.skillId)} onClick={() => setExpandedSkills(current => { const next = new Set(current); if (next.has(skill.skillId)) next.delete(skill.skillId); else next.add(skill.skillId); return next; })} aria-label={`${skill.skillName} · ${expandedSkills.has(skill.skillId) ? "Show current stage" : "Show all stages"}`} sx={{ minHeight: 44, alignSelf: "flex-start" }}>{expandedSkills.has(skill.skillId) ? "Show current stage" : `Show all ${skill.stages.length} stages`}</Button>
+            <BadgeworkProgressGrid memberName={member.displayName} summaries={[skill]} allStages={expandedSkills.has(skill.skillId)} onOpenStage={(skillId, stage) => onOpenStage(member.id, skillId, stage)} />
+          </Stack> : <>
           <Stack direction="row" spacing={.75} useFlexGap sx={{ flexWrap: "wrap" }}>
             {skill.stages.map((stage) => <Button key={stage.stage} size="small" variant={stage.status === "not-started" ? "outlined" : "contained"} color={stageColor(stage.status)} onClick={() => onOpenStage(member.id, skill.skillId, stage.stage)} aria-label={`${member.displayName} · ${skill.skillName} · Stage ${stage.stage} · ${stageLabel(stage.status)}`} sx={{ minWidth: 42, px: 1 }}>
               {stage.stage}
             </Button>)}
           </Stack>
+          </>}
           {skillAwards.length > 0 && <Box sx={{ mt: 1.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: .5 }}>Award history</Typography>
             <Stack spacing={.5}>

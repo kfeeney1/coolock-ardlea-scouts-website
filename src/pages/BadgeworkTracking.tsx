@@ -1,3 +1,6 @@
+import { useBadgeworkMeetingAttendance } from "../hooks/useBadgeworkMeetingAttendance";
+import { useBadgeworkExperience } from "../hooks/useBadgeworkExperience";
+import BadgeworkRecordPanel from "../components/admin/BadgeworkRecordPanel";
 import BadgeworkMemberSelection from "../components/admin/BadgeworkMemberSelection.tsx";
 import BadgeworkAwardPanel from "../components/admin/BadgeworkAwardPanel.tsx";
 import { useBadgeworkProgress } from "../components/admin/useBadgeworkProgress.ts";
@@ -12,9 +15,7 @@ import BadgeworkGroupCompetencyControls from "../components/admin/BadgeworkGroup
 import BadgeworkSavePanel from "../components/admin/BadgeworkSavePanel.tsx";
 import BadgeworkTrackingDialogs from "../components/admin/BadgeworkTrackingDialogs.tsx";
 import {
-  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress, Container,
-  FormControl, InputLabel, MenuItem, Paper,
-  Select, Stack, Typography
+  Alert, Box, Button, CircularProgress, Container
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -35,7 +36,6 @@ import {
   setMemberRequirementDraft
 } from "../services/adventureSkillMemberDraftLogic.ts";
 import { sectionFilterOptions } from "../services/sectionOrder.ts";
-import { loadWeeklyMeetingBadgeworkAttendance } from "../services/weeklyTracker.ts";
 
 type BadgeworkStep = "members" | "badgework";
 type BadgeworkMode = "overview" | "record";
@@ -43,12 +43,12 @@ type DiscardAction = { kind: "skill"; skillId: string } | { kind: "stage"; stage
 
 export default function BadgeworkTracking() {
   const navigate = useNavigate();
+  const experience = useBadgeworkExperience();
   const [searchParams] = useSearchParams();
   const sourceContext = useMemo(() => badgeworkSourceContextFromParams(searchParams), [searchParams]);
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sourceSelectionAppliedFor, setSourceSelectionAppliedFor] = useState<string | null>(null);
-  const [meetingAttendance, setMeetingAttendance] = useState<{ sourceId: string; status: "open" | "closed"; presentMemberIds: Set<string> } | null>(null);
   const [mode, setMode] = useState<BadgeworkMode>(sourceContext ? "record" : "overview");
   const [workflowStep, setWorkflowStep] = useState<BadgeworkStep>("members");
   const [skillId, setSkillId] = useState(adventureSkills[0]?.id ?? "");
@@ -72,9 +72,7 @@ export default function BadgeworkTracking() {
   const hasUnsavedChanges = unsavedChangeCount > 0;
   const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
   const meetingSourceId = sourceContext?.sourceType === "weeklyMeeting" ? sourceContext.sourceId : null;
-  const currentMeetingAttendance = meetingSourceId && meetingAttendance?.sourceId === meetingSourceId ? meetingAttendance : null;
-  const meetingPresentMemberIds = currentMeetingAttendance?.presentMemberIds ?? null;
-  const meetingAttendanceLoading = Boolean(meetingSourceId && !currentMeetingAttendance);
+  const { meetingPresentMemberIds, meetingAttendanceLoading } = useBadgeworkMeetingAttendance(meetingSourceId, setSelectedIds, setError);
   const meetingMembers = useMemo(() => sourceContext?.sourceType === "weeklyMeeting" && meetingPresentMemberIds
     ? activeMembers.filter((member) => meetingPresentMemberIds.has(member.id))
     : activeMembers, [activeMembers, meetingPresentMemberIds, sourceContext]);
@@ -107,27 +105,6 @@ export default function BadgeworkTracking() {
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    if (!meetingSourceId) return;
-    let active = true;
-    void loadWeeklyMeetingBadgeworkAttendance(meetingSourceId).then((meeting) => {
-      if (!active) return;
-      if (meeting.status !== "open") {
-        setMeetingAttendance({ sourceId: meetingSourceId, status: "closed", presentMemberIds: new Set() });
-        setSelectedIds([]);
-        setError("This Weekly Meeting is closed. Reopen it before recording badgework.");
-        return;
-      }
-      setMeetingAttendance({ sourceId: meetingSourceId, status: "open", presentMemberIds: new Set(meeting.presentMemberIds) });
-    }).catch((loadError) => {
-      if (active) {
-        setMeetingAttendance({ sourceId: meetingSourceId, status: "closed", presentMemberIds: new Set() });
-        setSelectedIds([]);
-        setError(applicationErrorMessage(loadError, "Unable to confirm which children are present at this Weekly Meeting.", "BadgeworkTracking", "Load persisted Weekly Meeting attendance"));
-      }
-    });
-    return () => { active = false; };
-  }, [meetingSourceId]);
 
   useEffect(() => {
     if (!sourceContext || sourceSelectionApplied || activeMembers.length === 0 || (sourceContext.sourceType === "weeklyMeeting" && (meetingAttendanceLoading || !meetingPresentMemberIds))) return;
@@ -263,41 +240,29 @@ export default function BadgeworkTracking() {
   const savePanel = <BadgeworkSavePanel disabled={saving} onDiscard={discardDraft} onSave={() => void saveChanges()} onSaveAndReturn={sourceContext ? () => void saveChanges(true) : undefined} returnLabel={sourceContext ? sourceLabel(sourceContext.sourceType) : undefined} saving={saving} unsavedChangeCount={unsavedChangeCount} />;
 
   return <>
-    <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
+    <Box data-testid="badgework-experience" data-experience={experience.redesigned ? "redesigned" : "existing"} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Adventure Skills Badgework" description="Choose the children first, then record and save their Adventure Skills competency changes." />
-      <BadgeworkModeNavigation mode={mode} step={workflowStep} onOverview={openOverviewMode} onRecord={openRecordMode} />
+      <BadgeworkModeNavigation redesigned={experience.redesigned} mode={mode} step={workflowStep} onOverview={openOverviewMode} onRecord={openRecordMode} />
+      {experience.changed && <Alert severity="info" sx={{ mb: 2 }}>The badgework layout setting changed. This visit keeps its current layout and edits. Save or discard changes before reloading.</Alert>}
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>Recording badgework from {sourceLabel(sourceContext.sourceType)}. The attending children have been preselected; confirm the members before continuing.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
 
-      {loading || meetingAttendanceLoading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
-        {mode === "overview" && <BadgeworkOverview activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded || (!loading && !error && activeMembers.length === 0)} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
+      {loading || meetingAttendanceLoading || !experience.ready ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : <>
+        {mode === "overview" && <BadgeworkOverview redesigned={experience.redesigned} activeMemberCount={activeMembers.length} error={overviewError} loaded={overviewLoaded || (!loading && !error && activeMembers.length === 0)} loading={overviewLoading} members={visibleMembers} onOpenMemberSkill={openMemberSkill} onRetry={() => { setOverviewLoaded(false); setOverviewError(""); }} onSearchChange={setSearch} onSectionChange={setSection} progressByMemberId={progressByMemberId} search={search} section={section} sections={sections} />}
 
 
 
         {mode === "record" && workflowStep === "members" && <BadgeworkMemberSelection search={search} section={section} sections={sections} visibleMembers={visibleMembers} selectedIds={selectedIds} allVisibleSelected={allVisibleSelected} someVisibleSelected={someVisibleSelected} onSearchChange={setSearch} onSectionChange={setSection} onToggleAllVisible={toggleAllVisible} onClearSelection={clearSelection} onToggleMember={toggleMember} onContinue={continueToBadgework} />}
 
-        {mode === "record" && workflowStep === "badgework" && <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { md: "center" }, mb: 2.5 }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Record badgework</Typography><Typography color="text.secondary">Changes below are drafts until you select Save changes.</Typography></Box><Button variant="outlined" onClick={changeMembers}>Change members</Button></Stack>
-          <Paper variant="outlined" sx={{ p: 1.5, mb: 3 }}><Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}><Typography sx={{ fontWeight: 800 }}>{selectedIds.length} selected:</Typography>{selectedMembers.map((member) => <Chip key={member.id} size="small" label={`${member.displayName} · ${member.section}`} />)}</Stack></Paper>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 1fr) auto" }, gap: 2, alignItems: "center", mb: 2 }}>
-            <FormControl fullWidth><InputLabel>Adventure Skill</InputLabel><Select label="Adventure Skill" value={skill?.id ?? ""} onChange={(event) => changeSkill(event.target.value)}>{adventureSkills.map((item) => <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}</Select></FormControl>
-            <Button variant="outlined" color="success" disabled={saving} onClick={completeStageInDraft} sx={{ minHeight: 48, whiteSpace: "nowrap" }}>Mark full stage complete</Button>
-          </Box>
-          {skill && <Box sx={{ mb: 3 }}><BadgeworkStageNavigation currentStage={stage?.stage ?? 1} disabled={saving} onChange={changeStage} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} skill={skill} /></Box>}
-          {!sourceContext && selectedStageSummary}
-          {sourceContext && groupCompetencyControls}
-          {sourceContext && selectedMembers.length > 1 && <Accordion disableGutters sx={{ mt: 2, mb: 2 }} data-testid="badgework-meeting-exceptions"><AccordionSummary expandIcon={<Typography component="span" aria-hidden="true">⌄</Typography>}><Box><Typography sx={{ fontWeight: 800 }}>Review individual progress and exceptions</Typography><Typography variant="body2" color="text.secondary">Open this only when selected children completed different competency points.</Typography></Box></AccordionSummary><AccordionDetails>{selectedStageSummary}</AccordionDetails></Accordion>}
-          {sourceContext && selectedMembers.length === 1 && <Box sx={{ mt: 2 }}>{selectedStageSummary}</Box>}
-
-
-
-          <BadgeworkAwardPanel stageNumber={stage?.stage} incompleteCount={incompleteMemberIds.length} awardState={awardState} saving={saving} canAward={canAward} hasUnsavedChanges={hasUnsavedChanges} onAward={() => void setAward(true)} onRemove={() => setAwardRemovalOpen(true)} />
-
-          {!sourceContext && groupCompetencyControls}
-          {savePanel}
-        </Paper>}
+        {mode === "record" && workflowStep === "badgework" && <BadgeworkRecordPanel
+          autoFocusSkill={experience.redesigned} members={selectedMembers} selectedCount={selectedIds.length} fromSource={Boolean(sourceContext)} skill={skill} saving={saving}
+          onChangeMembers={changeMembers} onChangeSkill={changeSkill} onCompleteStage={completeStageInDraft}
+          stageNavigation={skill && <Box sx={{ mb: 3 }}><BadgeworkStageNavigation currentStage={stage?.stage ?? 1} disabled={saving} onChange={changeStage} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} skill={skill} /></Box>}
+          selectedStageSummary={selectedStageSummary} groupCompetencyControls={groupCompetencyControls} savePanel={savePanel}
+          awardPanel={<BadgeworkAwardPanel stageNumber={stage?.stage} incompleteCount={incompleteMemberIds.length} awardState={awardState} saving={saving} canAward={canAward} hasUnsavedChanges={hasUnsavedChanges} onAward={() => void setAward(true)} onRemove={() => setAwardRemovalOpen(true)} />}
+        />}
       </>}
     </Container></Box>
 

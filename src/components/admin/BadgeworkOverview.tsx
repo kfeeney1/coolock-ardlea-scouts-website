@@ -21,6 +21,7 @@ import { assertOperationalExportAllowed } from "../../services/exportGovernance.
 
 type Props = {
   activeMemberCount: number;
+  redesigned?: boolean;
   error: string;
   loaded: boolean;
   loading: boolean;
@@ -55,8 +56,9 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function BadgeworkOverview({ activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
+export default function BadgeworkOverview({ redesigned = false, activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
   const { adminProfile } = useAdminAuth();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [skillFilter, setSkillFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState<BadgeworkLevelFilter>("all");
@@ -80,18 +82,20 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
   };
   const selectedMember = members.find((member) => member.id === selectedMemberId);
   if (selectedMember) {
-    return <BadgeworkMemberProgress member={selectedMember} onBack={() => setSelectedMemberId("")} onOpenStage={onOpenMemberSkill} progress={progressByMemberId.get(selectedMember.id) ?? { memberId: selectedMember.id, requirements: [], awards: [] }} />;
+    return <BadgeworkMemberProgress redesigned={redesigned} member={selectedMember} onBack={() => setSelectedMemberId("")} onOpenStage={onOpenMemberSkill} progress={progressByMemberId.get(selectedMember.id) ?? { memberId: selectedMember.id, requirements: [], awards: [] }} />;
   }
 
   return <Stack spacing={2} data-testid="badgework-overview">
     <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2.5, justifyContent: "space-between", alignItems: { sm: "flex-start" } }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>Badgework Overview</Typography><Typography color="text.secondary">Scan each child’s Adventure Skills progress, then open the exact skill and stage that needs attention.</Typography></Box>{hasActiveFilters && <Button size="small" variant="outlined" onClick={clearFilters}>Clear all filters</Button>}</Stack>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2.5, justifyContent: "space-between", alignItems: { sm: "flex-start" } }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{redesigned ? "Progress" : "Badgework Overview"}</Typography><Typography color="text.secondary">Scan each child’s Adventure Skills progress, then open the exact skill and stage that needs attention.</Typography></Box><Stack direction="row" spacing={1}>{redesigned && <Button variant="outlined" aria-expanded={filtersOpen} aria-controls="badgework-progress-filter-controls" onClick={() => setFiltersOpen(value => !value)} sx={{ minHeight: 44 }}>Filters</Button>}{hasActiveFilters && <Button size="small" variant="outlined" onClick={clearFilters}>Clear all filters</Button>}</Stack></Stack>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "2fr repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
         <TextField label="Search children" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Name or section" />
         <SectionSelect id="badgework-section-filter" label="Section" value={section} options={sections.filter((item) => item !== "all")} allValue="all" allLabel="All sections" onChange={(event) => onSectionChange(event.target.value)} />
+        <Box id="badgework-progress-filter-controls" sx={{ display: redesigned && !filtersOpen ? "none" : "contents" }}>
         <FormControl><InputLabel id="badgework-skill-filter-label">Adventure Skill</InputLabel><Select id="badgework-skill-filter" labelId="badgework-skill-filter-label" label="Adventure Skill" value={skillFilter} onChange={(event) => changeSkillFilter(event.target.value)} renderValue={(value) => value === "all" ? "All skills" : (() => { const selectedSkillOption = adventureSkills.find((skill) => skill.id === value); return selectedSkillOption ? skillOption(selectedSkillOption.id, selectedSkillOption.name) : "All skills"; })()}><MenuItem value="all">All skills</MenuItem>{adventureSkills.map((skill) => <MenuItem key={skill.id} value={skill.id}>{skillOption(skill.id, skill.name)}</MenuItem>)}</Select></FormControl>
         <FormControl><InputLabel id="badgework-level-filter-label">Level Achieved</InputLabel><Select id="badgework-level-filter" labelId="badgework-level-filter-label" label="Level Achieved" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as BadgeworkLevelFilter)}><MenuItem value="all">All levels</MenuItem><MenuItem value="1">Level 1</MenuItem><MenuItem value="2">Level 2</MenuItem><MenuItem value="3">Level 3</MenuItem><MenuItem value="4">Level 4</MenuItem><MenuItem value="5">Level 5</MenuItem><MenuItem value="6-plus">Level 6+</MenuItem></Select></FormControl>
         <FormControl><InputLabel id="badgework-exact-level-filter-label">Level to inspect</InputLabel><Select id="badgework-exact-level-filter" labelId="badgework-exact-level-filter-label" label="Level to inspect" value={exactLevelFilter} onChange={(event) => setExactLevelFilter(event.target.value as BadgeworkExactLevelFilter)}><MenuItem value="all">Any level</MenuItem>{exactLevelOptions.map((level) => <MenuItem key={level} value={String(level)}>Level {level}</MenuItem>)}</Select></FormControl>
+        </Box>
       </Box>
     </Paper>
 
@@ -158,7 +162,7 @@ export default function BadgeworkOverview({ activeMemberCount, error, loaded, lo
             <Button size="small" variant="outlined" onClick={() => setSelectedMemberId(member.id)}>View child progress</Button>
           </Stack>
         </Stack>
-        <BadgeworkSkillGrid memberName={member.displayName} summaries={visibleSummaries} onOpenStage={(nextSkillId, nextStage) => onOpenMemberSkill(member.id, nextSkillId, nextStage)} />
+        <BadgeworkSkillGrid redesigned={redesigned} stageNumber={redesigned && exactLevelFilter !== "all" ? Number(exactLevelFilter) : undefined} memberName={member.displayName} summaries={visibleSummaries} onOpenStage={(nextSkillId, nextStage) => onOpenMemberSkill(member.id, nextSkillId, nextStage)} />
       </Paper>;
       })}
       {filteredMembers.length === 0 && <Alert severity="info">No children match the current badgework filters.</Alert>}
