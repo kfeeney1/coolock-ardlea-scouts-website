@@ -1,3 +1,4 @@
+import BadgeworkProgressGrid from "../badgework/BadgeworkProgressGrid.tsx";
 import { Box, Button, Typography } from "@mui/material";
 
 import AdventureSkillBadgeIcon from "./AdventureSkillBadgeIcon.tsx";
@@ -6,11 +7,14 @@ import { badgeworkSkillLevelLabel } from "../../services/adventureSkillPresentat
 
 type Props = {
   memberName: string;
+  redesigned?: boolean;
+  stageNumber?: number;
   onOpenStage: (skillId: string, stage: number) => void;
   summaries: readonly AdventureSkillOverview[];
 };
 
-export default function BadgeworkSkillGrid({ memberName, onOpenStage, summaries }: Props) {
+export default function BadgeworkSkillGrid({ memberName, onOpenStage, summaries, redesigned = false, stageNumber }: Props) {
+  if (redesigned) return <BadgeworkProgressGrid memberName={memberName} summaries={summaries} stageNumber={stageNumber} onOpenStage={onOpenStage} />;
   return <Box
     data-testid="badgework-skill-grid"
     sx={{
