@@ -117,6 +117,8 @@ export const suiteSpecs = {
     "badgework-awards-experience.spec.ts",
     "badgework-skill-filter.spec.ts",
     "badgework-parent-experience.spec.ts",
+    "badgework-source-experience.spec.ts",
+    "badgework-rollout-matrix.spec.ts",
     "sw265-badgework-navigation.spec.ts"
   ],
   equipment: [

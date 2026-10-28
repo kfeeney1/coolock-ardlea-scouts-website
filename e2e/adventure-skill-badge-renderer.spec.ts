@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { THEME_NAMES } from "../src/theme/themePreferences";
 import { adventureSkills } from "../src/data/adventureSkills/index";
 import { mountBadge, updateBadge, compareBadgePixels } from "./support/badge-renderer-harness";
 
@@ -74,5 +75,32 @@ test("Shared read-only presentation fits 320px in light/dark themes and respects
     expect(contrast).toBeGreaterThanOrEqual(4.5);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await expect(page.getByRole("button")).toHaveCount(0);
+  }
+});
+
+
+test("Every supported application theme keeps original badge states readable at 320px",async({page},testInfo)=>{
+  await page.setViewportSize({width:320,height:760});await page.emulateMedia({reducedMotion:"reduce"});
+  await mountBadge(page,{skillId:"camping",progress:progress(0),size:144});
+  for(const themeName of THEME_NAMES) {
+    for(const [completed,awarded,label] of [[0,false,"Not started"],[1,false,"In progress"],[total,false,"Ready to award"],[0,true,"Awarded"]] as const) {
+      await updateBadge(page,{themeName,skillId:"camping",progress:progress(completed,awarded),size:144});
+      const figure=page.getByRole("figure",{name:"Camping stage 2",exact:true});
+      await expect(figure.getByRole("status")).toHaveCount(0);await expect(figure).toContainText(label);
+      await expect(figure).toContainText(`${completed}/${total} competencies`);
+      await expect(figure.locator("img").last()).toHaveCSS("transition-duration","0s");
+      const contrast=await figure.getByText(label,{exact:true}).evaluate(element=>{
+        const rgba=(colour:string)=>colour.match(/[\d.]+/g)!.map(Number);
+        let node:Element|null=element;let background=[255,255,255];
+        while(node){const value=rgba(getComputedStyle(node).backgroundColor);if(value.length===3||value[3]>0){background=value;break;}node=node.parentElement;}
+        const foreground=rgba(getComputedStyle(element).color);const alpha=foreground[3]??1;
+        const effective=foreground.slice(0,3).map((value,index)=>value*alpha+background[index]*(1-alpha));
+        const luminance=(colour:number[])=>colour.slice(0,3).map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;}).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
+        const values=[luminance(effective),luminance(background)].sort((a,b)=>b-a);return(values[0]+.05)/(values[1]+.05);
+      });
+      expect(contrast,`${themeName} · ${label}`).toBeGreaterThanOrEqual(4.5);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    await page.screenshot({path:testInfo.outputPath(`badge-${themeName}.png`)});
   }
 });
