@@ -3,10 +3,17 @@
 // 40589645926 (#943 setting only), 27-28 October 2026. No failed/partial run data.
 export const measuredPlaywrightSpecSeconds = {
   // SW-546: complete local pinned Chromium 151 desktop/mobile run, 16 cases; conservative whole-run wall time.
-  "badgework-progress-experience.spec.ts": 66.0,
+  "badgework-progress-experience.spec.ts": 76.0,
+  // SW-544: original Swimming artwork, complete pinned desktop/mobile run.
+  "adventure-skill-swimming-artwork.spec.ts": 24.0,
+  // SW-548: complete local desktop/mobile run, six cases (conservative estimate).
+  "badgework-awards-experience.spec.ts": 38.0,
   // SW-547: complete local desktop/mobile run, twelve cases (conservative estimate).
-  "badgework-record-experience.spec.ts": 82.0,
+  "badgework-record-experience.spec.ts": 110.0,
   "badgework-large-save.spec.ts": 85.0,
+  // SW-550: complete integrated desktop/mobile source and all-toggle runs.
+  "badgework-source-experience.spec.ts": 40.0,
+  "badgework-rollout-matrix.spec.ts": 170.0,
   "leader-navigation-contract.spec.ts": 378.3,
   "leader-navigation-personas.spec.ts": 338.1,
   "meeting-integration-accessibility.spec.ts": 128.7,
@@ -22,6 +29,8 @@ export const measuredPlaywrightSpecSeconds = {
   "sw362-event-edit-navigation.spec.ts": 82.9,
   "attendance-matrix.spec.ts": 79.8,
   "parent-leader-context.spec.ts": 72.3,
+  // SW-549: complete local desktop/mobile run, six cases (conservative estimate).
+  "badgework-parent-experience.spec.ts": 40.0,
   "leader-access-management.spec.ts": 71.3,
   "event-record-page.spec.ts": 70.4,
   "polls.spec.ts": 69.0,

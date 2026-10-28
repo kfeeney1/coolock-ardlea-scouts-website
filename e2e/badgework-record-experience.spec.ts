@@ -100,6 +100,7 @@ test("An offline pending Save protects context until the backend acknowledges it
     await page.getByTestId("badgework-save-panel").getByRole("button",{name:"Save changes",exact:true}).click();
     await expect(page.getByRole("button",{name:"Saving…",exact:true})).toBeDisabled();
     await expect(page.getByRole("button",{name:"Progress",exact:true})).toBeDisabled();
+    await expect(page.getByRole("button",{name:"Awards",exact:true})).toBeDisabled();
     await expect(page.getByRole("button",{name:"Record badgework",exact:true})).toBeDisabled();
     await expect(page.getByRole("button",{name:"Change members",exact:true})).toBeDisabled();
     await expect(page.getByRole("combobox",{name:"Adventure Skill",exact:true})).toBeDisabled();

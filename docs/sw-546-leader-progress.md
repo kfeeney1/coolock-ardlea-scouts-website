@@ -77,3 +77,7 @@ Rebased validation on current main 61a982e2: full `npm run quality` passed
 Fresh pinned desktop/mobile Progress run passed all 16 cases with zero retries.
 The application files match the previous validated checkpoint; only the
 main-targeting acceptance documentation changed.
+
+The original Swimming-artwork gap above describes the SW-546 checkpoint. The
+SW-544 source follow-up now supplies verified original Swimming photo viewports;
+see docs/sw-544-badge-artwork-audit.md for provenance and the six-stage boundary.

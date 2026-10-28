@@ -111,9 +111,14 @@ export const suiteSpecs = {
     "adventure-skills-badgework.spec.ts",
     "adventure-skill-badge-renderer.spec.ts",
     "badgework-progress-experience.spec.ts",
+    "adventure-skill-swimming-artwork.spec.ts",
+    "badgework-awards-experience.spec.ts",
     "badgework-record-experience.spec.ts",
     "badgework-large-save.spec.ts",
     "badgework-skill-filter.spec.ts",
+    "badgework-parent-experience.spec.ts",
+    "badgework-source-experience.spec.ts",
+    "badgework-rollout-matrix.spec.ts",
     "sw265-badgework-navigation.spec.ts"
   ],
   equipment: [

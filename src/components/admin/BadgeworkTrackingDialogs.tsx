@@ -1,6 +1,9 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
 
 type Props = {
+  awardConfirmationOpen?: boolean;
+  onCancelAward?: () => void;
+  onConfirmAward?: () => void;
   pendingDiscard: boolean;
   unsavedChangeCount: number;
   onKeepEditing: () => void;
@@ -15,6 +18,7 @@ type Props = {
 };
 
 export default function BadgeworkTrackingDialogs({
+  awardConfirmationOpen = false, onCancelAward, onConfirmAward,
   pendingDiscard,
   unsavedChangeCount,
   onKeepEditing,
@@ -28,6 +32,12 @@ export default function BadgeworkTrackingDialogs({
   onConfirmAwardRemoval
 }: Props) {
   return <>
+    <Dialog open={awardConfirmationOpen} onClose={saving ? undefined : onCancelAward} aria-labelledby="confirm-stage-award-title" fullWidth maxWidth="sm">
+      <DialogTitle id="confirm-stage-award-title">Award stage badge?</DialogTitle>
+      <DialogContent><Typography>Award {skillName} Stage {stageNumber} to {selectedMemberCount} selected {selectedMemberCount === 1 ? "child" : "children"}? This creates award records for saved completion. Competency progress stays unchanged.</Typography></DialogContent>
+      <DialogActions sx={{ flexWrap: "wrap", "& .MuiButton-root": { minHeight: 44 } }}><Button disabled={saving} onClick={onCancelAward}>Cancel</Button><Button variant="contained" color="success" disabled={saving} onClick={onConfirmAward}>Confirm award</Button></DialogActions>
+    </Dialog>
+
     <Dialog open={pendingDiscard} onClose={saving ? undefined : onKeepEditing} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
       <DialogTitle id="discard-badgework-title">Discard unsaved badgework changes?</DialogTitle>
       <DialogContent>

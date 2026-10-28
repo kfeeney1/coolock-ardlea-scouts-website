@@ -3,17 +3,19 @@ import { Button, Chip, Stack } from "@mui/material";
 type Props = {
   redesigned?: boolean;
   disabled?: boolean;
-  mode: "overview" | "record";
+  mode: "overview" | "record" | "awards";
   step: "members" | "badgework";
   onOverview: () => void;
   onRecord: () => void;
+  onAwards?: () => void;
 };
 
-export default function BadgeworkModeNavigation({ redesigned = false, disabled = false, mode, step, onOverview, onRecord }: Props) {
+export default function BadgeworkModeNavigation({ redesigned = false, disabled = false, mode, step, onOverview, onRecord, onAwards }: Props) {
   return <>
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
       <Button disabled={disabled} variant={mode === "overview" ? "contained" : "outlined"} color="secondary" onClick={onOverview}>{redesigned ? "Progress" : "Badgework Overview"}</Button>
       <Button disabled={disabled} variant={mode === "record" ? "contained" : "outlined"} color="success" onClick={onRecord}>Record badgework</Button>
+      {redesigned && <Button disabled={disabled} variant={mode === "awards" ? "contained" : "outlined"} onClick={onAwards}>Awards</Button>}
     </Stack>
     {mode === "record" && <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }} useFlexGap>
       <Chip color={step === "members" ? "secondary" : "success"} label="1. Select members" />

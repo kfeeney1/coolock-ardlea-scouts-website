@@ -1,7 +1,8 @@
 # SW-544: original badge artwork and shared progress renderer
 
-Baseline: main 8a81201b. PR #942 remains an unfinished SW-544 delivery; it does
-not enable the redesign or claim deployed TEST/Production visual acceptance.
+The handbook artwork foundation shipped in PR #942. This follow-up uses main
+da6a7bce after merged #945 and resolves the authoritative Swimming source. It does not enable
+rollout or claim deployed TEST/Production visual acceptance.
 
 ## Verified original artwork
 
@@ -32,14 +33,14 @@ Ireland / Scout Foundation; the source is linked above.
 | paddling | 1-9 | All 9 |
 | rowing | 1-9 | All 9 |
 | sailing | 1-9 | All 9 |
-| swimming | 1-6 | Missing all 6 |
+| swimming | 1-6 | All 6, original supplier photograph viewports |
 
 Every original skill/stage numeral and symbol was visually checked in a contact
 sheet, against the corresponding handbook stage pages. All 81 paths and hashes
 are unique and their dimensions/checksums are verified by executable unit tests.
 The shared mapping follows canonical catalogue validation; invalid stages throw
-and missing Swimming originals return null. No skill/stage is inferred from
-another badge.
+and all six Swimming stages resolve to distinct regions of the original
+supplier photograph. No skill/stage is inferred from another badge.
 
 ## Reconciliation with 107398.png
 
@@ -81,17 +82,34 @@ must explicitly pass `unsaved`, producing Unsaved preview. Consumers must keep
 persisted and draft inputs separate. Overview/parent integration is still owed
 by SW-546/SW-549, and draft editor integration by SW-547.
 
-## Remaining artwork blocker and delivery boundaries
+## Verified Swimming originals and delivery boundaries
 
-The 2026 Swimming booklet is authoritative for six supported stages:
+On 28 October 2026, the official supplier page lists separate Swimming level
+1–6 variants and supplies a photograph of the original numbered badges:
+https://thescoutshop.ie/products/swimming-skills
+
+The exact original JPEG is retained byte-for-byte at
+`public/badges/adventure-skills/swimming/original-stages.jpg`; source URL,
+SHA-256, dimensions, byte length and observation date are recorded in the adjacent
+`source.json`. No numerals, symbols, colours, frames or proportions were redrawn.
+The source is a photograph of embroidered badges, unlike the other nine skills'
+handbook illustrations; this difference is explicit rather than substituting art.
+
+The single shared mapping selects source-pixel viewports. A viewport silhouette
+excludes adjacent badges in the supplier's sheet, selecting only original pixels.
+It does not paint an outline or change image bytes. Interior clipping is mapped
+back into the full source photograph, preserving the original frame colours at
+zero/partial/full completion. The source contains later badges too, but only the
+six stages in the canonical programme are mapped. Stages 7–9 still throw and
+cannot appear as supported badgework.
+
+The 2026 programme booklet confirms those six supported stages:
 https://scouting360.ie/wp-content/uploads/2026/06/Swimming-Adventure-Skills-1-to-6-20mar2026.pdf
 
-It supplies a skill emblem and page stage numbers, but a verified set of six
-numbered stage badges matching the required outline treatment has not been
-established. Do not compose those from a new numeral/border or add stages 7-9.
-Obtain the six authoritative original stage assets/source before full-catalogue
-visual acceptance. The new component remains unconnected to the live views;
-SW-545's separate configuration foundation remains default off.
+The runtime component still handles missing/failed image requests explicitly.
+Full leader/parent visual acceptance remains a deployed TEST/manual gate; source
+recovery and unit/browser passes alone are not that gate. Normal rollout stays
+off until workflow/parent integration and acceptance are complete.
 
 SW-410 and SW-397 remain completed foundations. SW-417's merged SW-420 Plan and
 SW-423 Review integrations retain ownership of source handoff/return. Preserve
@@ -141,4 +159,32 @@ those do not establish leader/parent workflow acceptance.
 
 This evidence is standalone development assurance. Full leader/parent routing,
 recording/awards workflows, deployed Firebase TEST acceptance and PMT remain
-outstanding. The six original Swimming stage images are still required.
+outstanding. The Swimming source follow-up below supersedes the earlier missing-artwork
+observation; deployed role/workflow acceptance is still required.
+
+## Swimming source follow-up verification (28 October 2026)
+
+- Full local `npm run quality` passed: 937 units, 51 worker tests, two maintenance
+  and eight event-backend tests, audit, all repository contracts, unchanged
+  complexity and browser-budget guards, and production build.
+- All 18 pinned desktop/mobile Chromium cases passed with zero retries: the six
+  existing renderer cases plus twelve Swimming cases (each supported stage in
+  both projects). Checks include unchanged visible frame pixels, bottom-up colour
+  reveal, canonical counts, unsaved labels, historical award appearance, no write
+  controls, 320px, reduced motion, 404/retry and the six-stage boundary.
+- All 87 supported mappings now have a verified original source. All 81 handbook
+  PNG checksums stay unchanged; the supplier JPEG checksum is recorded separately.
+  Stage images/screenshots were inspected against the supplier original.
+- PR #945 is merged; this branch targets that main and replaces its original
+  missing-Swimming expectation with positive original-photo loading and canonical
+  count checks. The pending parent branch needs the same asset reconciliation
+  when rebased. No tests, retries, timeouts or ceilings are weakened.
+- Source recovery is development assurance, not deployed Firebase TEST acceptance
+  or Production Manual Testing. Normal rollout is not enabled by this change.
+
+After rebasing onto merged #945/main da6a7bce, fresh full Quality passed
+937 units plus worker/backend/contracts/build. The combined original-artwork
+and actual Progress run passed all 34 desktop/mobile cases with zero retries.
+Progress now asserts real Swimming source loading and canonical counts, replacing
+its original unavailable-artwork expectation. Existing failure/retry coverage is
+retained with a real 404 interception, not deleted or weakened.
