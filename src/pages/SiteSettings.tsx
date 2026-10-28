@@ -1,3 +1,4 @@
+import BadgeworkExperienceSettings from "../components/admin/BadgeworkExperienceSettings";
 import MeetingExperienceSettings from "../components/admin/MeetingExperienceSettings";
 import LeaderTrainingExperienceSettings from "../components/admin/LeaderTrainingExperienceSettings";
 import { applicationErrorMessage } from "../services/applicationErrors.ts";
@@ -252,7 +253,7 @@ export default function SiteSettings() {
                     </Paper>
                 )}
 
-                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><MeetingExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /><LeaderTrainingExperienceSettings /></>}
+                {canManageNavigation && pageIdentity === "settings" && <><LeaderNavigationSettings /><ScheduleExperienceSettings /><MeetingExperienceSettings /><AttendanceExperienceSettings /><MaintenanceExperienceSettings /><CalendarExperienceSettings /><LeaderTrainingExperienceSettings />{adminProfile?.role === "super-admin" && <BadgeworkExperienceSettings />}</>}
 
                 {showParentLoginSettings && (
                     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, maxWidth: 760, mt: 3 }}>
