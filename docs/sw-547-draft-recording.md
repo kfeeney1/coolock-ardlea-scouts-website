@@ -110,3 +110,32 @@ with source locks/provenance/reload/no awards. Original Swimming artwork is now
 part of main, while the six-stage boundary remains unchanged. Full Quality passed
 944 units plus worker/backend/audit/contracts/guards/build both before and after
 the registration relocation. No assertions, retries, timeouts or ceilings changed.
+
+## CI reload correction
+
+CI run 40726081663/shard 3 failed the pre-existing SW-219 leader-child Subs
+journey at its first `page.reload({ waitUntil: "domcontentloaded" })` (line 317
+before this correction). The trace records a successful relationship/reconciliation
+message, then no new document request during reload. This is consistent with a
+pending select-close history traversal. The standalone unchanged test passed
+locally; the CI timing failure was not consistently reproduced.
+
+Both SW-219 link/reload journeys now call the already-imported
+`waitForTransientOverlayHistory` after selecting a child and before linking.
+That helper asserts the dropdown is closed and its history markers are consumed.
+Save success still immediately precedes reload: persisted links and the original
+€70 leader-family / €100 standard-family Subs assertions are unchanged. No
+application code, timeout, retry, skip, reload condition or source ceiling changed.
+
+A fresh combined desktop/mobile run passed all 27 changed-area cases (11 Leader
+Access and 16 Recording/large-save), zero retries. The broader CI-prefix run had
+52 passes, 11 existing project-specific skips and one separate Event Gallery
+Storage-list loading timeout; that test passed before SW-219 in the original CI
+job and remains unchanged. It is not reported as a completely green 64-case run.
+The unchanged standalone baseline passed seven desktop cases with one missing-
+credential skip; the correction run supplied the multi-section credentials and
+ran the ordinary-leader denial checks successfully on both projects.
+
+Full local `npm run quality` passed after the CI correction: 944 units, 51 worker,
+two maintenance/eight event backend tests, production dependency audit, all
+contracts, unchanged source-complexity/shard-budget guards and build.

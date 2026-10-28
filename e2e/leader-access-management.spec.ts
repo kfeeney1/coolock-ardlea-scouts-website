@@ -310,6 +310,8 @@ test("SW-219 leader-child link persists and automatically reconciles current-yea
   await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, testInfo.retry > 0);
   const optionText = (await childOption.textContent())?.split(" · ")[0]?.trim() || memberName;
   await childOption.click();
+  // A hidden select can still have its deferred browser-history POP pending.
+  await waitForTransientOverlayHistory(page);
   await card.getByRole("button", { name: "Link child" }).click();
   await expect(card).toContainText(optionText);
   await expect(page.getByRole("alert")).toContainText(/relationship linked|reconciled|saved/i);
@@ -354,6 +356,8 @@ test("SW-219 retry recovery restores the seeded child option after a persisted l
 
   await prepareUnlinkedChildOption(page, childSelect, childOption, linkedChild, testInfo.retry > 0);
   await childOption.click();
+  // A hidden select can still have its deferred browser-history POP pending.
+  await waitForTransientOverlayHistory(page);
   await card.getByRole("button", { name: "Link child" }).click();
   await expect(page.getByRole("alert")).toContainText("Leader-child relationship linked. Current Scout-year family Subs classification has been reconciled.");
   // Commit navigation first; the persisted relationship assertion below waits
