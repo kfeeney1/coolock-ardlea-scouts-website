@@ -1,11 +1,13 @@
 # SW-550: badgework verification and acceptance
 
-The integration candidate combines the independent default-off rollout, original
+Main `3aa0fb59` combines the independent default-off rollout, original
 badge artwork, Progress, atomic draft Recording, Awards and read-only Parent
 Portal parity. It preserves the shared Group header/emblem and theme tokens,
 canonical records, existing roles/sections, provenance and source-return paths.
 The final assurance PR contains tests, registrations and evidence only; it must
-not duplicate implementation changes from #942–#949.
+not duplicate implementation changes from #942–#949. Application source hashes
+match the fresh local integration runs and merged #949; exact-head implementation
+CI passed before each merge.
 
 ## Evidence gates
 
@@ -13,7 +15,7 @@ not duplicate implementation changes from #942–#949.
 | --- | --- | --- |
 | Local development | 944 unit, 51 worker, two maintenance and eight event backend tests; audit/contracts/unchanged guards/build | Passed on integration candidate |
 | Browser regression | 110 cross-role cases plus 19 legacy cases; five existing project-specific skips; zero retries | Passed on integration candidate |
-| GitHub CI | Exact-head implementation and final assurance checks are recorded in Jira | Merge gates apply to each current head |
+| GitHub CI | Implementation checks passed; final assurance checks are recorded in Jira | Merge gates apply to each current head |
 | Deployed Firebase TEST acceptance | Actual deployed build, authenticated roles and persisted records | Pending |
 | Production Manual Testing | Separate deployment and real-device testing | Pending |
 

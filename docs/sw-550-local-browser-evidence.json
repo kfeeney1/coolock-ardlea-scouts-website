@@ -898,7 +898,33 @@
     "mainAfter947": "9498161afe30aea86825d33c9203031d106677ae",
     "947MergedHead": "7d0ff6661ffcde5bf2bbccc6218b17ae64141f2a",
     "949ReconciledHead": "86d298204db38f1357d337d70c330e1eb562f08f",
-    "949CandidateTree": "bd131347b4b6b5ed7cc7c4ff6c30eb1d1671fc3b"
+    "949CandidateTree": "bd131347b4b6b5ed7cc7c4ff6c30eb1d1671fc3b",
+    "mainAfter949": "3aa0fb59f60c8f274f4ee22101e98a32c3b5491c"
   },
-  "applicationHashesMatchReconciled949": true
+  "applicationHashesMatchReconciled949": true,
+  "integratedMain": "3aa0fb59f60c8f274f4ee22101e98a32c3b5491c",
+  "implementationCiAtMerge": {
+    "949": {
+      "head": "86d298204db38f1357d337d70c330e1eb562f08f",
+      "quality": 40782892861,
+      "rules": 40782892863,
+      "e2e": 40782892937,
+      "preview": 40782892883,
+      "conclusion": "success"
+    },
+    "947": {
+      "head": "7d0ff6661ffcde5bf2bbccc6218b17ae64141f2a",
+      "quality": 40780381108,
+      "e2e": 40780381129,
+      "preview": 40780381106,
+      "conclusion": "success"
+    },
+    "948": {
+      "head": "b558bdb6989481e20510ff7b3001eb8a2b077fbe",
+      "quality": 40725647029,
+      "e2e": 40725646835,
+      "preview": 40725646895,
+      "conclusion": "success"
+    }
+  }
 }
