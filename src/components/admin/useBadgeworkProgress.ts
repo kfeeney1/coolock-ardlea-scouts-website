@@ -65,5 +65,6 @@ export function useBadgeworkProgress(activeMembers: MemberRecord[], loading: boo
     return () => { active = false; controller.abort(); };
   }, [activeMembers, loading, mode, overviewError, overviewLoaded, progressForMember]);
 
- return {progressByMemberId,overviewLoaded,setOverviewLoaded,overviewError,setOverviewError,refreshProgress};
+ const reloadOverview = () => { progressRequests.current.clear(); setOverviewLoaded(false); setOverviewError(""); };
+ return {reloadOverview,progressByMemberId,overviewLoaded,setOverviewLoaded,overviewError,setOverviewError,refreshProgress};
 }
