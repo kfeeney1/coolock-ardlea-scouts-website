@@ -1,0 +1,954 @@
+{
+  "sourceRuns": [
+    {
+      "id": 40603859829,
+      "head": "a967120658a63f1d1b0badcf67fa4c89e36f8e44",
+      "source": "completed successful Playwright END records across all four jobs"
+    },
+    {
+      "id": 40589645926,
+      "head": "3b8302f2ff7991076d882f07a578cad4c3bdf6c8",
+      "source": "completed successful badgework-experience-setting records only"
+    }
+  ],
+  "specs": {
+    "accessibility-baseline.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 11.799999999999997,
+      "passed": 12,
+      "skipped": 12,
+      "bad": 0
+    },
+    "activity-log.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 15.834,
+      "passed": 6,
+      "skipped": 6,
+      "bad": 0
+    },
+    "admin-overview.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 21.863,
+      "passed": 9,
+      "skipped": 7,
+      "bad": 0
+    },
+    "adventure-skill-badge-renderer.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.7490000000000006,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "adventure-skills-badgework.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 42.614999999999995,
+      "passed": 4,
+      "skipped": 4,
+      "bad": 0
+    },
+    "attendance-insights.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.0840000000000005,
+      "passed": 3,
+      "skipped": 1,
+      "bad": 0
+    },
+    "attendance-matrix.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 79.787,
+      "passed": 8,
+      "skipped": 0,
+      "bad": 0
+    },
+    "badgework-experience-setting.spec.ts": {
+      "runId": 40589645926,
+      "seconds": 34.065999999999995,
+      "passed": 10,
+      "skipped": 0,
+      "bad": 0
+    },
+    "badgework-skill-filter.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 8.472,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "calendar-date-actions.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 43.477999999999994,
+      "passed": 16,
+      "skipped": 0,
+      "bad": 0
+    },
+    "calendar-record-layout.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 23.679000000000002,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "calendar-sources.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 25.046,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "consent-action-stability.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 7.17,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "consent-section-symbols.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 1.765,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "damaged-equipment-issues.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 43.66,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "dashboard-polls.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 37.144000000000005,
+      "passed": 8,
+      "skipped": 0,
+      "bad": 0
+    },
+    "detailed-inventory.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 12.941,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "email-action-links.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 37.538,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "equipment-checkout.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 57.889,
+      "passed": 5,
+      "skipped": 1,
+      "bad": 0
+    },
+    "equipment-inventory-filters.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 25.296,
+      "passed": 5,
+      "skipped": 1,
+      "bad": 0
+    },
+    "equipment-leader-dashboard.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 8.114,
+      "passed": 3,
+      "skipped": 1,
+      "bad": 0
+    },
+    "equipment-loading.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 5.226,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "equipment-reports.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 19.831,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "event-audience-selection.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 38.134,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "event-consent-linking.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 2.419,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "event-create-readiness.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.343,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "event-gallery.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 13.971,
+      "passed": 5,
+      "skipped": 5,
+      "bad": 0
+    },
+    "event-record-page.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 70.41599999999998,
+      "passed": 17,
+      "skipped": 7,
+      "bad": 0
+    },
+    "event-schedule.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 22.570999999999998,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "finance-cashbook.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 28.932,
+      "passed": 5,
+      "skipped": 1,
+      "bad": 0
+    },
+    "finance-reporting.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 18.052,
+      "passed": 5,
+      "skipped": 1,
+      "bad": 0
+    },
+    "finance-transfers.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 2.098,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "form-validation-focus.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 5.148,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "future-closed-meeting-cleanup.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.436,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "group-calendar.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 43.057,
+      "passed": 8,
+      "skipped": 0,
+      "bad": 0
+    },
+    "join-consent-record-pages.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 27.121999999999996,
+      "passed": 10,
+      "skipped": 6,
+      "bad": 0
+    },
+    "leader-access-management.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 71.292,
+      "passed": 11,
+      "skipped": 5,
+      "bad": 0
+    },
+    "leader-communications.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 7.419,
+      "passed": 5,
+      "skipped": 3,
+      "bad": 0
+    },
+    "leader-info.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.431,
+      "passed": 3,
+      "skipped": 1,
+      "bad": 0
+    },
+    "leader-journey.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 10.133999999999999,
+      "passed": 5,
+      "skipped": 3,
+      "bad": 0
+    },
+    "leader-navigation-accessibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 110.686,
+      "passed": 18,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-back.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 85.10000000000001,
+      "passed": 12,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-contract.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 378.26700000000005,
+      "passed": 44,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-direct-routes.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 116.134,
+      "passed": 12,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-info.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 3.842,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-mobile-transition.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 30.226,
+      "passed": 4,
+      "skipped": 4,
+      "bad": 0
+    },
+    "leader-navigation-personas.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 338.13199999999995,
+      "passed": 28,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-state.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 53.713,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation-version.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 26.886,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 15.316,
+      "passed": 6,
+      "skipped": 6,
+      "bad": 0
+    },
+    "leader-training-calendar.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 37.666000000000004,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-training-records.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 26.749000000000002,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "leader-training-setting.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.17,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "loading-shell.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 11.274000000000001,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "login-dashboard-routing.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 25.887000000000004,
+      "passed": 16,
+      "skipped": 0,
+      "bad": 0
+    },
+    "logout.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 22.703,
+      "passed": 10,
+      "skipped": 0,
+      "bad": 0
+    },
+    "maintenance-access.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 34.589,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "maintenance-appointments.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 13.565999999999999,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "maintenance-persistence.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 32.565,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-create-plan.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 64.585,
+      "passed": 12,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-integration-accessibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 128.685,
+      "passed": 16,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-lifecycle.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 59.74399999999999,
+      "passed": 14,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-plan-compact.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 38.589,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-records.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 27.095000000000002,
+      "passed": 10,
+      "skipped": 8,
+      "bad": 0
+    },
+    "meeting-review-badgework.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 39.111999999999995,
+      "passed": 10,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-run-incidents.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 103.49300000000001,
+      "passed": 14,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-save-before-share.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 35.286,
+      "passed": 8,
+      "skipped": 0,
+      "bad": 0
+    },
+    "meeting-workflow-shell.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 110.454,
+      "passed": 14,
+      "skipped": 0,
+      "bad": 0
+    },
+    "member-history-search.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 1.824,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "member-leader-transition.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 103.34700000000001,
+      "passed": 10,
+      "skipped": 0,
+      "bad": 0
+    },
+    "member-management-targeting.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 20.156000000000006,
+      "passed": 6,
+      "skipped": 4,
+      "bad": 0
+    },
+    "member-record-page.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 100.43100000000001,
+      "passed": 17,
+      "skipped": 5,
+      "bad": 0
+    },
+    "mobile-accessibility-closeout.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 12.073999999999998,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "mobile-back-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 6.134,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "mobile-consent-medication.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 2.481,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "mobile-dialog-actions.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 6.76,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "mobile-operational-pass.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 22.166,
+      "passed": 7,
+      "skipped": 7,
+      "bad": 0
+    },
+    "navigation-recovery.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 91.48599999999999,
+      "passed": 28,
+      "skipped": 0,
+      "bad": 0
+    },
+    "navigation-route-identities.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 33.437,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "organisation-chart.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.117999999999999,
+      "passed": 9,
+      "skipped": 3,
+      "bad": 0
+    },
+    "overlay-menu-history.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 22.289,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "overlay-reopen-history.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 6.959,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "parent-access-management.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 12.938999999999998,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "parent-approved-journey.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 67.10199999999999,
+      "passed": 9,
+      "skipped": 3,
+      "bad": 0
+    },
+    "parent-consent-visibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 33.476,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "parent-leader-context.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 72.28800000000001,
+      "passed": 14,
+      "skipped": 0,
+      "bad": 0
+    },
+    "parent-login-visibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 16.573999999999998,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "parent-portal.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 10.69,
+      "passed": 12,
+      "skipped": 2,
+      "bad": 0
+    },
+    "password-visibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 3.7190000000000003,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "poll-management-acknowledgement.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 12.297,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "polls.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 69.00699999999999,
+      "passed": 15,
+      "skipped": 5,
+      "bad": 0
+    },
+    "programme-equipment.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 10.041,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "programme-library.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 5.944000000000001,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "public-smoke.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 33.908,
+      "passed": 38,
+      "skipped": 0,
+      "bad": 0
+    },
+    "release-authorization-boundaries.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.529,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "reports.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 7.587,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "role-permissions.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 28.835999999999995,
+      "passed": 35,
+      "skipped": 7,
+      "bad": 0
+    },
+    "roles-permissions.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 20.468999999999998,
+      "passed": 9,
+      "skipped": 5,
+      "bad": 0
+    },
+    "rover-membership.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 33.727,
+      "passed": 5,
+      "skipped": 5,
+      "bad": 0
+    },
+    "schedule-accessibility.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 14.588999999999999,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "schedule-experience-matrix.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 102.13499999999999,
+      "passed": 12,
+      "skipped": 0,
+      "bad": 0
+    },
+    "schedule-experience-setting.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.171,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "scheduled-maintenance-tasks.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 16.81,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "scouter-consent-inheritance.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 11.178999999999998,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "section-aware-cards.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 14.821,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "section-consent-ux.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 1.487,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "site-settings.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 31.887999999999995,
+      "passed": 11,
+      "skipped": 5,
+      "bad": 0
+    },
+    "sitewide-dropdown-geometry.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 40.421,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "sitewide-tile-filters.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.646,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "subs-management.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 15.418000000000001,
+      "passed": 6,
+      "skipped": 2,
+      "bad": 0
+    },
+    "sw265-badgework-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 9.173,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "sw362-event-edit-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 82.91899999999998,
+      "passed": 10,
+      "skipped": 2,
+      "bad": 0
+    },
+    "sw403-programme-scouter-event-save.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 19.732,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "test-environment-smoke.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 24.470000000000002,
+      "passed": 6,
+      "skipped": 0,
+      "bad": 0
+    },
+    "theme-parity.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.245,
+      "passed": 2,
+      "skipped": 2,
+      "bad": 0
+    },
+    "wcag-regression.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 6.0760000000000005,
+      "passed": 9,
+      "skipped": 9,
+      "bad": 0
+    },
+    "webkit-critical-path.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 13.078,
+      "passed": 1,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-activity-audit.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 5.089,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "weekly-attendance-uniform.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 13.741,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-meeting-copy-dialog.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 4.394,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-meeting-copy-page.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 15.878,
+      "passed": 4,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-meeting-date-defaults.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 47.606,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-meeting-history-access.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 15.194999999999999,
+      "passed": 4,
+      "skipped": 2,
+      "bad": 0
+    },
+    "weekly-meeting-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 45.205000000000005,
+      "passed": 9,
+      "skipped": 1,
+      "bad": 0
+    },
+    "weekly-meeting-reopen-navigation.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 19.033,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-meeting-share.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 2.232,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "weekly-mobile-layout.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 2.987,
+      "passed": 1,
+      "skipped": 1,
+      "bad": 0
+    },
+    "weekly-parent-programme-history.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 13.116,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-parent-sharing.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 7.6290000000000004,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "weekly-planner-followup.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 8.939,
+      "passed": 3,
+      "skipped": 3,
+      "bad": 0
+    },
+    "weekly-record-integrity.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 55.247,
+      "passed": 10,
+      "skipped": 2,
+      "bad": 0
+    },
+    "weekly-schedule.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 19.447,
+      "passed": 2,
+      "skipped": 0,
+      "bad": 0
+    },
+    "weekly-section-tracker-history-permissions.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 16.17,
+      "passed": 5,
+      "skipped": 5,
+      "bad": 0
+    },
+    "weekly-section-tracker.spec.ts": {
+      "runId": 40603859829,
+      "seconds": 41.086,
+      "passed": 4,
+      "skipped": 2,
+      "bad": 0
+    }
+  }
+}

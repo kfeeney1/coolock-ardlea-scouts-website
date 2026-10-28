@@ -14,19 +14,23 @@ permissions:
 
 jobs:
   e2e_shard:
-    name: e2e shard ${{ matrix.id }} of 4
+    name: e2e shard ${{ matrix.id }} of 6
     strategy:
       fail-fast: false
       matrix:
         include:
           - id: 1
-            shard: 1/4
+            shard: 1/6
           - id: 2
-            shard: 2/4
+            shard: 2/6
           - id: 3
-            shard: 3/4
+            shard: 3/6
           - id: 4
-            shard: 4/4
+            shard: 4/6
+          - id: 5
+            shard: 5/6
+          - id: 6
+            shard: 6/6
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     container:
