@@ -47,6 +47,9 @@ export const measuredPlaywrightSpecSeconds = {
   "meeting-save-before-share.spec.ts": 35.3,
   "maintenance-access.spec.ts": 34.6,
   "badgework-experience-setting.spec.ts": 34.1,
+  // SW-547: complete local desktop/mobile run, twelve cases (conservative estimate).
+  "badgework-record-experience.spec.ts": 82.0,
+  "badgework-large-save.spec.ts": 85.0,
   "public-smoke.spec.ts": 33.9,
   "rover-membership.spec.ts": 33.7,
   "parent-consent-visibility.spec.ts": 33.5,

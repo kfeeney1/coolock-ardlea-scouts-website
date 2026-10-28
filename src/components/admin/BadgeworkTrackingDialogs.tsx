@@ -28,14 +28,14 @@ export default function BadgeworkTrackingDialogs({
   onConfirmAwardRemoval
 }: Props) {
   return <>
-    <Dialog open={pendingDiscard} onClose={onKeepEditing} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
+    <Dialog open={pendingDiscard} onClose={saving ? undefined : onKeepEditing} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
       <DialogTitle id="discard-badgework-title">Discard unsaved badgework changes?</DialogTitle>
       <DialogContent>
         <Typography>You have {unsavedChangeCount} unsaved badgework {unsavedChangeCount === 1 ? "change" : "changes"}. Continuing will discard those draft selections without writing them to any member record.</Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onKeepEditing}>Keep editing</Button>
-        <Button color="warning" variant="contained" onClick={onConfirmDiscard}>Discard and continue</Button>
+        <Button disabled={saving} onClick={onKeepEditing}>Keep editing</Button>
+        <Button disabled={saving} color="warning" variant="contained" onClick={onConfirmDiscard}>Discard and continue</Button>
       </DialogActions>
     </Dialog>
 

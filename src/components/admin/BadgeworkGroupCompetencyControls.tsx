@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Stack, Typography } from "@mui/material";
 import { useState } from "react";
+import { adventureSkillDraftPreview } from "../../services/adventureSkillDraftPreview.ts";
 import ActionLinkButton from "../ActionLinkButton";
 
 import type { AdventureSkillStage } from "../../data/adventureSkills/index.ts";
@@ -11,6 +12,8 @@ import { formatSiteDate } from "../../services/siteDateFormat";
 import { sourceBacklink, sourceLabel } from "../../services/adventureSkillSourceContext.ts";
 
 type Props = {
+  redesigned?: boolean;
+  memberDraft?: ReadonlyMap<string, boolean>;
   disabled: boolean;
   draft: ReadonlyMap<string, boolean>;
   onRequirementChange: (requirementId: string, completed: boolean) => void;
@@ -22,12 +25,13 @@ type Props = {
 
 const displayDate = (value: Date | null) => value ? formatSiteDate(value) : "Date pending";
 
-export default function BadgeworkGroupCompetencyControls({ disabled, draft, onRequirementChange, progressByMemberId, selectedMemberIds, stage, unsavedChangeCount }: Props) {
+export default function BadgeworkGroupCompetencyControls({ redesigned = false, memberDraft = new Map(), disabled, draft, onRequirementChange, progressByMemberId, selectedMemberIds, stage, unsavedChangeCount }: Props) {
   const [outstandingOnly, setOutstandingOnly] = useState(false);
   const singleProgress = selectedMemberIds.length === 1 ? progressByMemberId.get(selectedMemberIds[0]) : undefined;
+  const effectiveProgress = redesigned ? new Map(selectedMemberIds.map(id => [id, adventureSkillDraftPreview(id, progressByMemberId.get(id), draft, memberDraft)])) : progressByMemberId;
   const requirements = (stage?.requirements ?? []).map((requirement) => {
-    const persistedState = requirementSelectionState(selectedMemberIds, progressByMemberId, requirement.id);
-    const state = draftSelectionState(draft, requirement.id, persistedState);
+    const persistedState = requirementSelectionState(selectedMemberIds, effectiveProgress, requirement.id);
+    const state = redesigned ? persistedState : draftSelectionState(draft, requirement.id, persistedState);
     return { requirement, state, changed: draft.has(requirement.id) };
   });
   const outstandingCount = requirements.filter(({ state }) => state !== "all").length;

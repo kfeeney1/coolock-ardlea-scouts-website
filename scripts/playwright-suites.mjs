@@ -108,6 +108,8 @@ export const suiteSpecs = {
     "weekly-meeting-history-access.spec.ts"
   ],
   badgework: [
+    "badgework-record-experience.spec.ts",
+    "badgework-large-save.spec.ts",
     "adventure-skills-badgework.spec.ts",
     "adventure-skill-badge-renderer.spec.ts",
     "badgework-progress-experience.spec.ts",
