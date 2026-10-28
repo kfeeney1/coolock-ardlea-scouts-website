@@ -1,5 +1,8 @@
+import { useBadgeworkExperience } from "../../hooks/useBadgeworkExperience";
+import ParentBadgeworkDetail from "./ParentBadgeworkDetail";
 import { reportApplicationError } from "../../services/applicationErrors.ts";
 import {
+  Alert,
   Accordion,
   AccordionDetails,
   AccordionSummary,
@@ -31,6 +34,8 @@ import { classifyFirestoreFailure, firestoreFailureMessage } from "../../service
 const stageStatus = (status: string) => status === "requirements-complete" ? "Requirements complete" : status === "awarded" ? "Awarded" : status === "in-progress" ? "In progress" : "Not started";
 
 export default function ParentAdventureSkillsSection({ memberIds }: { memberIds: string[] }) {
+  const experience = useBadgeworkExperience();
+  const [selectedStage, setSelectedStage] = useState(1);
   const [members, setMembers] = useState<ParentLinkedMember[]>([]);
   const [progressByMember, setProgressByMember] = useState(new Map<string, MemberAdventureProgress>());
   const [selectedMemberId, setSelectedMemberId] = useState("");
@@ -65,7 +70,7 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
   const summaries = useMemo(() => progress ? parentAdventureSkillSummaries(progress) : [], [progress]);
   const selectedSkill = summaries.find((skill) => skill.skillId === selectedSkillId) ?? null;
 
-  if (loading) return <OperationalLoading minHeight={180} label="Loading Adventure Skills progress" />;
+  if (loading || !experience.ready) return <OperationalLoading minHeight={180} label="Loading Adventure Skills progress" />;
 
   if (loadError) {
     const message = firestoreFailureMessage(loadError, "Unable to load Adventure Skills progress right now. Please try again.");
@@ -79,7 +84,8 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
     return <OperationalUnavailableState title="Adventure Skills not available yet" testId="parent-adventure-skills-unavailable">No linked child record is available for Adventure Skills progress yet. Please ask a leader to review Parent Access.</OperationalUnavailableState>;
   }
 
-  return <Stack spacing={2.5} data-testid="parent-adventure-skills">
+  return <Stack spacing={2.5} data-testid="parent-adventure-skills" data-experience={experience.redesigned ? "redesigned" : "existing"}>
+    {experience.changed && <Alert severity="info">The badgework layout changed. Reload to view the latest layout.</Alert>}
     <Typography color="text.secondary">Adventure Skills progress is read-only here. Select a skill tile to view its stages and competency points.</Typography>
 
     {members.length > 1 && <FormControl fullWidth>
@@ -98,12 +104,14 @@ export default function ParentAdventureSkillsSection({ memberIds }: { memberIds:
     </Paper>}
 
     {selectedMember && !selectedSkill && <BadgeworkSkillGrid
+      redesigned={experience.redesigned}
       memberName={selectedMember.displayName}
       summaries={summaries}
-      onOpenStage={(skillId) => setSelectedSkillId(skillId)}
+      onOpenStage={(skillId, stage) => { setSelectedSkillId(skillId); setSelectedStage(stage); }}
     />}
 
-    {selectedMember && selectedSkill && <Stack spacing={1.5} data-testid={`parent-adventure-skill-${selectedSkill.skillId}`}>
+    {selectedMember && selectedSkill && experience.redesigned && <ParentBadgeworkDetail key={`${selectedMember.id}-${selectedSkill.skillId}`} memberName={selectedMember.displayName} skill={selectedSkill} initialStage={selectedStage} onBack={() => setSelectedSkillId("")} />}
+    {selectedMember && selectedSkill && !experience.redesigned && <Stack spacing={1.5} data-testid={`parent-adventure-skill-${selectedSkill.skillId}`}>
       <Button variant="outlined" onClick={() => setSelectedSkillId("")} sx={{ alignSelf: "flex-start" }}>Back to Adventure Skills</Button>
       <Box>
         <Typography variant="h6" color="secondary" sx={{ fontWeight: 800 }}>{selectedSkill.skillName}</Typography>

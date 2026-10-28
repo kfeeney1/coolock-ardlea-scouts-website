@@ -19,6 +19,8 @@ export const measuredPlaywrightSpecSeconds = {
   "sw362-event-edit-navigation.spec.ts": 82.9,
   "attendance-matrix.spec.ts": 79.8,
   "parent-leader-context.spec.ts": 72.3,
+  // SW-549: complete local desktop/mobile run, six cases (conservative estimate).
+  "badgework-parent-experience.spec.ts": 40.0,
   "leader-access-management.spec.ts": 71.3,
   "event-record-page.spec.ts": 70.4,
   "polls.spec.ts": 69.0,
