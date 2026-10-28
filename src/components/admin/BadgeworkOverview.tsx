@@ -2,6 +2,7 @@ import { applicationErrorMessage } from "../../services/applicationErrors.ts";
 import { Alert, Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Chip } from "@mui/material";
 import { useState } from "react";
 
+import BadgeworkAwardHistory from "./BadgeworkAwardHistory.tsx";
 import BadgeworkAwaitingAwardQueue from "./BadgeworkAwaitingAwardQueue.tsx";
 import BadgeworkLevelMatrix from "./BadgeworkLevelMatrix.tsx";
 import BadgeworkMemberProgress from "./BadgeworkMemberProgress.tsx";
@@ -22,6 +23,7 @@ import { assertOperationalExportAllowed } from "../../services/exportGovernance.
 type Props = {
   activeMemberCount: number;
   redesigned?: boolean;
+  awardsMode?: boolean;
   error: string;
   loaded: boolean;
   loading: boolean;
@@ -56,21 +58,21 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function BadgeworkOverview({ redesigned = false, activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
+export default function BadgeworkOverview({ redesigned = false, awardsMode = false, activeMemberCount, error, loaded, loading, members, onOpenMemberSkill, onRetry, onSearchChange, onSectionChange, progressByMemberId, search, section, sections }: Props) {
   const { adminProfile } = useAdminAuth();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [skillFilter, setSkillFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState<BadgeworkLevelFilter>("all");
   const [exactLevelFilter, setExactLevelFilter] = useState<BadgeworkExactLevelFilter>("all");
-  const [attentionFilter, setAttentionFilter] = useState<BadgeworkProgressFilter>("all");
+  const [attentionFilter, setAttentionFilter] = useState<BadgeworkProgressFilter>(awardsMode ? "awaiting-award" : "all");
   const [view, setView] = useState<BadgeworkOverviewView>("cards");
   const [awarding, setAwarding] = useState(false);
   const [awardMessage, setAwardMessage] = useState("");
   const [awardError, setAwardError] = useState("");
   const selectedSkill = adventureSkills.find((skill) => skill.id === skillFilter);
   const exactLevelOptions = selectedSkill ? selectedSkill.stages.map((stage) => stage.stage) : [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const hasActiveFilters = search.trim() !== "" || section !== "all" || skillFilter !== "all" || levelFilter !== "all" || exactLevelFilter !== "all" || attentionFilter !== "all";
+  const hasActiveFilters = search.trim() !== "" || section !== "all" || skillFilter !== "all" || levelFilter !== "all" || exactLevelFilter !== "all" || attentionFilter !== (awardsMode ? "awaiting-award" : "all");
   const changeSkillFilter = (nextSkillId: string) => {
     setSkillFilter(nextSkillId);
     const nextSkill = adventureSkills.find((skill) => skill.id === nextSkillId);
@@ -78,7 +80,7 @@ export default function BadgeworkOverview({ redesigned = false, activeMemberCoun
     if (nextSkillId === "all") setView("cards");
   };
   const clearFilters = () => {
-    onSearchChange(""); onSectionChange("all"); setSkillFilter("all"); setLevelFilter("all"); setExactLevelFilter("all"); setAttentionFilter("all"); setView("cards");
+    onSearchChange(""); onSectionChange("all"); setSkillFilter("all"); setLevelFilter("all"); setExactLevelFilter("all"); setAttentionFilter(awardsMode ? "awaiting-award" : "all"); setView("cards");
   };
   const selectedMember = members.find((member) => member.id === selectedMemberId);
   if (selectedMember) {
@@ -87,7 +89,7 @@ export default function BadgeworkOverview({ redesigned = false, activeMemberCoun
 
   return <Stack spacing={2} data-testid="badgework-overview">
     <Paper elevation={2} sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2.5, justifyContent: "space-between", alignItems: { sm: "flex-start" } }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{redesigned ? "Progress" : "Badgework Overview"}</Typography><Typography color="text.secondary">Scan each child’s Adventure Skills progress, then open the exact skill and stage that needs attention.</Typography></Box><Stack direction="row" spacing={1}>{redesigned && <Button variant="outlined" aria-expanded={filtersOpen} aria-controls="badgework-progress-filter-controls" onClick={() => setFiltersOpen(value => !value)} sx={{ minHeight: 44 }}>Filters</Button>}{hasActiveFilters && <Button size="small" variant="outlined" onClick={clearFilters}>Clear all filters</Button>}</Stack></Stack>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2.5, justifyContent: "space-between", alignItems: { sm: "flex-start" } }}><Box><Typography variant="h5" color="secondary" sx={{ fontWeight: 800 }}>{awardsMode ? "Awards" : redesigned ? "Progress" : "Badgework Overview"}</Typography><Typography color="text.secondary">{awardsMode ? "Review saved completion, confirm selected awards, or inspect award history." : "Scan each child’s Adventure Skills progress, then open the exact skill and stage that needs attention."}</Typography></Box><Stack direction="row" spacing={1}>{redesigned && <Button variant="outlined" aria-expanded={filtersOpen} aria-controls="badgework-progress-filter-controls" onClick={() => setFiltersOpen(value => !value)} sx={{ minHeight: 44 }}>Filters</Button>}{hasActiveFilters && <Button size="small" variant="outlined" onClick={clearFilters}>Clear all filters</Button>}</Stack></Stack>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "2fr repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
         <TextField label="Search children" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Name or section" />
         <SectionSelect id="badgework-section-filter" label="Section" value={section} options={sections.filter((item) => item !== "all")} allValue="all" allLabel="All sections" onChange={(event) => onSectionChange(event.target.value)} />
@@ -123,20 +125,21 @@ export default function BadgeworkOverview({ redesigned = false, activeMemberCoun
           onRetry();
         } catch (queueError) {
           setAwardError(applicationErrorMessage(queueError, "Unable to award the selected ready badgework. No competency progress was changed; review the remaining queue and try again.", "BadgeworkOverview"));
+          onRetry();
           throw queueError;
         } finally { setAwarding(false); }
       };
       return <>
       <Paper variant="outlined" sx={{ p: 1.5 }}><Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
         <Box sx={{ mr: .5 }}><Typography variant="body2" sx={{ fontWeight: 800 }}>Quick filters</Typography><Typography variant="caption" color="text.secondary">Showing {filteredMembers.length} of {activeMemberCount} active children</Typography></Box>
-        <Button size="small" variant={attentionFilter === "all" ? "contained" : "outlined"} onClick={() => setAttentionFilter("all")}>All shown · {counts.all}</Button>
+        {!awardsMode && <><Button size="small" variant={attentionFilter === "all" ? "contained" : "outlined"} onClick={() => setAttentionFilter("all")}>All shown · {counts.all}</Button>
         <Button size="small" variant={attentionFilter === "not-started" ? "contained" : "outlined"} onClick={() => setAttentionFilter("not-started")}>Not started · {counts["not-started"]}</Button>
-        <Button size="small" color="info" variant={attentionFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setAttentionFilter("in-progress")}>Started · {counts["in-progress"]}</Button>
-        <Button size="small" color="warning" variant={attentionFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awaiting-award")}>Awaiting award · {counts["awaiting-award"]}</Button>
-        <Button size="small" color="success" variant={attentionFilter === "awarded" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awarded")}>Awarded · {counts.awarded}</Button>
+        <Button size="small" color="info" variant={attentionFilter === "in-progress" ? "contained" : "outlined"} onClick={() => setAttentionFilter("in-progress")}>Started · {counts["in-progress"]}</Button></>}
+        <Button size="small" color="warning" variant={attentionFilter === "awaiting-award" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awaiting-award")}>{awardsMode ? "Ready to award" : "Awaiting award"} · {counts["awaiting-award"]}</Button>
+        <Button size="small" color="success" variant={attentionFilter === "awarded" ? "contained" : "outlined"} onClick={() => setAttentionFilter("awarded")}>{awardsMode ? "Award history" : "Awarded"} · {counts.awarded}</Button>
         <Button size="small" color="success" variant="contained" disabled={filteredMembers.length === 0} onClick={exportProgress} sx={{ ml: { sm: "auto" } }}>Export filtered CSV</Button>
       </Stack></Paper>
-      <Paper variant="outlined" sx={{ p: 1.5 }}>
+      {!awardsMode && <Paper variant="outlined" sx={{ p: 1.5 }}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}>
           <Box><Typography variant="body2" sx={{ fontWeight: 800 }}>Overview layout</Typography><Typography variant="caption" color="text.secondary">Choose one Adventure Skill to compare its levels across all shown children.</Typography></Box>
           <Stack direction="row" spacing={1}>
@@ -144,10 +147,11 @@ export default function BadgeworkOverview({ redesigned = false, activeMemberCoun
             <Button size="small" variant={view === "matrix" ? "contained" : "outlined"} disabled={!selectedSkill} onClick={() => setView("matrix")}>Level matrix</Button>
           </Stack>
         </Stack>
-      </Paper>
-      {attentionFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
-      {view === "matrix" && selectedSkill && filteredMembers.length > 0 && <BadgeworkLevelMatrix members={filteredMembers} onOpenStage={onOpenMemberSkill} progressByMemberId={progressByMemberId} skill={selectedSkill} />}
-      {view === "cards" && filteredMembers.map((member) => {
+      </Paper>}
+      {attentionFilter === "awaiting-award" && <BadgeworkAwaitingAwardQueue redesigned={redesigned} progressByMemberId={progressByMemberId} candidates={queueCandidates} awarding={awarding} onAwardSelected={awardSelectedReady} onOpenStage={onOpenMemberSkill} />}
+      {awardsMode && attentionFilter === "awarded" && <BadgeworkAwardHistory members={filteredMembers} progressByMemberId={progressByMemberId} skillFilter={skillFilter} levelFilter={levelFilter} exactLevelFilter={exactLevelFilter} onOpenMember={setSelectedMemberId} />}
+      {!awardsMode && view === "matrix" && selectedSkill && filteredMembers.length > 0 && <BadgeworkLevelMatrix members={filteredMembers} onOpenStage={onOpenMemberSkill} progressByMemberId={progressByMemberId} skill={selectedSkill} />}
+      {!awardsMode && view === "cards" && filteredMembers.map((member) => {
       const progress = progressByMemberId.get(member.id) ?? { memberId: member.id, requirements: [], awards: [] };
       const summaries = adventureSkillOverview(progress);
       const visibleSummaries = skillFilter === "all" ? summaries : summaries.filter((summary) => summary.skillId === skillFilter);
