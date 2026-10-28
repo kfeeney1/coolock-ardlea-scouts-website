@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { smokeSpecs, suiteSpecs } from "../../scripts/playwright-suites.mjs";
 import { assignSpecsToShard, estimateSpecsSeconds, unmeasuredSpecSeconds } from "../../scripts/playwright-shards.mjs";
 
@@ -13,13 +14,17 @@ function assertAssignedExactlyOnce(selected: string[], count = 2) {
   return bins;
 }
 
-test("four CI shards preserve complete full and affected-suite coverage with balanced work", () => {
+test("six configured CI shards preserve complete full and affected-suite coverage within the unchanged browser budget", () => {
+  const workflow=readFileSync(new URL("../../.github/workflows/playwright-e2e.yml",import.meta.url),"utf8");
+  const matrix=[...workflow.matchAll(/shard: (\d+)\/(\d+)/g)];
+  assert.deepEqual(matrix.map(match=>match[1]),["1","2","3","4","5","6"]);
+  assert.ok(matrix.every(match=>match[2]==="6"));
   for (const selected of [Object.values(suiteSpecs).flat(), [...smokeSpecs, ...suiteSpecs.equipment, ...suiteSpecs["platform-ui"]]]) {
-    const bins = assertAssignedExactlyOnce(selected, 4);
-    bins.forEach((bin, index) => assert.deepEqual(bin, assignSpecsToShard(selected, index + 1, 4)));
+    const bins = assertAssignedExactlyOnce(selected, 6);
+    bins.forEach((bin, index) => assert.deepEqual(bin, assignSpecsToShard(selected, index + 1, 6)));
     assert.ok(bins.every((bin) => bin.length > 0));
   }
-  const estimates = assertAssignedExactlyOnce(Object.values(suiteSpecs).flat(), 4).map(estimateSpecsSeconds);
+  const estimates = assertAssignedExactlyOnce(Object.values(suiteSpecs).flat(), 6).map(estimateSpecsSeconds);
   assert.ok(Math.max(...estimates) - Math.min(...estimates) < 15);
   assert.ok(Math.max(...estimates) < 900, "each full shard fits a 15-minute estimated browser budget before job setup");
 });
