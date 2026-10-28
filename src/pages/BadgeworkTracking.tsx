@@ -1,5 +1,7 @@
+import { saveAdventureSkillDraft } from "../services/adventureSkillDraftSave.ts";
 import { useBadgeworkMeetingAttendance } from "../hooks/useBadgeworkMeetingAttendance";
 import { useBadgeworkExperience } from "../hooks/useBadgeworkExperience";
+import BadgeworkLeaveGuard from "../components/admin/BadgeworkLeaveGuard";
 import BadgeworkRecordPanel from "../components/admin/BadgeworkRecordPanel";
 import BadgeworkMemberSelection from "../components/admin/BadgeworkMemberSelection.tsx";
 import BadgeworkAwardPanel from "../components/admin/BadgeworkAwardPanel.tsx";
@@ -159,7 +161,7 @@ export default function BadgeworkTracking() {
   const clearSelection = () => { setSelectedIds([]); setMessage(""); };
   const continueToBadgework = () => { if (selectedIds.length) { setError(""); setMessage(""); setWorkflowStep("badgework"); } };
   const changeMembers = () => requestDiscardAction({ kind: "members" });
-  const openRecordMode = () => { setMode("record"); setWorkflowStep("members"); setMessage(""); setError(""); };
+  const openRecordMode = () => { if (experience.redesigned && hasUnsavedChanges) { setPendingDiscard({ kind: "members" }); return; } setMode("record"); setWorkflowStep("members"); setMessage(""); setError(""); };
   const openOverviewMode = () => {
     if (hasUnsavedChanges) { setPendingDiscard({ kind: "overview" }); return; }
     setMode("overview"); setWorkflowStep("members"); setSelectedIds([]); setMessage(""); setError("");
@@ -194,12 +196,15 @@ export default function BadgeworkTracking() {
   };
 
   const saveChanges = async (returnToSource = false) => {
-    if (!selectedIds.length || !hasUnsavedChanges) return;
+    if (!selectedIds.length || !hasUnsavedChanges) return false;
     setSaving(true); setError(""); setMessage("");
     try {
+      if (experience.redesigned) await saveAdventureSkillDraft(selectedIds, draft, memberDraft, progressSource);
+      else {
       await Promise.all([...draft.entries()].map(([requirementId, completed]) => setRequirementCompletionForMembers(selectedIds, requirementId, completed, progressSource)));
       const individualChanges = memberRequirementDraftChanges(memberDraft);
       await Promise.all(individualChanges.map((change) => setRequirementCompletionForMembers([change.memberId], change.requirementId, change.completed, progressSource)));
+      }
       const changeCount = unsavedChangeCount;
       setDraft(new Map());
       setMemberDraft(new Map());
@@ -210,8 +215,10 @@ export default function BadgeworkTracking() {
         setError(applicationErrorMessage(loadError, "Badgework changes were saved, but the latest progress could not be reloaded. Refresh the page to see the saved state.", "BadgeworkTracking"));
       }
       if (returnToSource && sourceContext) navigate(sourceContext.returnTo);
+      return true;
     } catch (saveError) {
       setError(applicationErrorMessage(saveError, "Unable to save badgework changes. Your unsaved selections are still shown; please try again.", "BadgeworkTracking"));
+      return false;
     } finally { setSaving(false); }
   };
 
@@ -235,16 +242,16 @@ export default function BadgeworkTracking() {
   const allVisibleSelected = visibleMembers.length > 0 && visibleMembers.every((member) => selectedIds.includes(member.id));
   const someVisibleSelected = visibleMembers.some((member) => selectedIds.includes(member.id)) && !allVisibleSelected;
   const selectedStageSummary = skill && stage && selectedMembers.length > 0
-    ? <BadgeworkSelectedMemberStageSummary disabled={saving} groupDraft={draft} memberDraft={memberDraft} members={selectedMembers} onMemberRequirementChange={updateMemberRequirementDraft} progressByMemberId={progressByMemberId} skill={skill} stage={stage} />
+    ? <BadgeworkSelectedMemberStageSummary redesigned={experience.redesigned} disabled={saving} groupDraft={draft} memberDraft={memberDraft} members={selectedMembers} onMemberRequirementChange={updateMemberRequirementDraft} progressByMemberId={progressByMemberId} skill={skill} stage={stage} />
     : null;
-  const groupCompetencyControls = <BadgeworkGroupCompetencyControls disabled={saving} draft={draft} onRequirementChange={updateRequirementDraft} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} stage={stage} unsavedChangeCount={unsavedChangeCount} />;
+  const groupCompetencyControls = <BadgeworkGroupCompetencyControls redesigned={experience.redesigned} memberDraft={memberDraft} disabled={saving} draft={draft} onRequirementChange={updateRequirementDraft} progressByMemberId={progressByMemberId} selectedMemberIds={selectedIds} stage={stage} unsavedChangeCount={unsavedChangeCount} />;
   const savePanel = <BadgeworkSavePanel disabled={saving} onDiscard={discardDraft} onSave={() => void saveChanges()} onSaveAndReturn={sourceContext ? () => void saveChanges(true) : undefined} returnLabel={sourceContext ? sourceLabel(sourceContext.sourceType) : undefined} saving={saving} unsavedChangeCount={unsavedChangeCount} />;
 
   return <>
     <Box data-testid="badgework-experience" data-experience={experience.redesigned ? "redesigned" : "existing"} sx={{ minHeight: "100vh", backgroundColor: "background.default", py: { xs: 3, md: 5 } }}><Container maxWidth="xl">
       <LeaderDashboardHeader />
       <LeaderPageHeader title="Adventure Skills Badgework" description="Choose the children first, then record and save their Adventure Skills competency changes." />
-      <BadgeworkModeNavigation redesigned={experience.redesigned} mode={mode} step={workflowStep} onAwards={() => requestDiscardAction({ kind: "awards" })} onOverview={openOverviewMode} onRecord={openRecordMode} />
+      <BadgeworkModeNavigation disabled={experience.redesigned && saving} redesigned={experience.redesigned} mode={mode} step={workflowStep} onAwards={() => requestDiscardAction({ kind: "awards" })} onOverview={openOverviewMode} onRecord={openRecordMode} />
       {experience.changed && <Alert severity="info" sx={{ mb: 2 }}>The badgework layout setting changed. This visit keeps its current layout and edits. Save or discard changes before reloading.</Alert>}
       {sourceContext && <Alert severity="info" sx={{ mb: 2 }} action={<Button component="a" href={sourceContext.returnTo} color="inherit" size="small">Back to {sourceLabel(sourceContext.sourceType)}</Button>}>Recording badgework from {sourceLabel(sourceContext.sourceType)}. The attending children have been preselected; confirm the members before continuing.</Alert>}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -267,6 +274,7 @@ export default function BadgeworkTracking() {
       </>}
     </Container></Box>
 
+    {experience.redesigned && <BadgeworkLeaveGuard dirty={hasUnsavedChanges} saving={saving} save={saveChanges} />}
     <BadgeworkTrackingDialogs
       awardConfirmationOpen={awardConfirmationOpen} onCancelAward={() => setAwardConfirmationOpen(false)} onConfirmAward={() => { setAwardConfirmationOpen(false); void setAward(true); }}
       pendingDiscard={Boolean(pendingDiscard)}

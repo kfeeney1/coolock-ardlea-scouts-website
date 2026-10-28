@@ -38,14 +38,14 @@ export default function BadgeworkTrackingDialogs({
       <DialogActions sx={{ flexWrap: "wrap", "& .MuiButton-root": { minHeight: 44 } }}><Button disabled={saving} onClick={onCancelAward}>Cancel</Button><Button variant="contained" color="success" disabled={saving} onClick={onConfirmAward}>Confirm award</Button></DialogActions>
     </Dialog>
 
-    <Dialog open={pendingDiscard} onClose={onKeepEditing} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
+    <Dialog open={pendingDiscard} onClose={saving ? undefined : onKeepEditing} aria-labelledby="discard-badgework-title" fullWidth maxWidth="sm">
       <DialogTitle id="discard-badgework-title">Discard unsaved badgework changes?</DialogTitle>
       <DialogContent>
         <Typography>You have {unsavedChangeCount} unsaved badgework {unsavedChangeCount === 1 ? "change" : "changes"}. Continuing will discard those draft selections without writing them to any member record.</Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onKeepEditing}>Keep editing</Button>
-        <Button color="warning" variant="contained" onClick={onConfirmDiscard}>Discard and continue</Button>
+        <Button disabled={saving} onClick={onKeepEditing}>Keep editing</Button>
+        <Button disabled={saving} color="warning" variant="contained" onClick={onConfirmDiscard}>Discard and continue</Button>
       </DialogActions>
     </Dialog>
 
